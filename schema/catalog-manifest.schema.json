@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mhgd3250905/ugk-3d-pose-sdk/schema/catalog-manifest.schema.json",
+  "title": "远端动作目录清单（pose-hub-catalog-manifest format 1）",
+  "description": "App 每次检查更新只拉这个小文件；version 比本地新才下载 url 指向的目录，并校验 bytes、sha256 与目录内 version。生成：dart run tool/make_manifest.dart <catalog.json> <catalog 的发布文件名>。",
+  "type": "object",
+  "required": ["format", "formatVersion", "version", "url", "sha256"],
+  "additionalProperties": true,
+  "properties": {
+    "format": {"const": "pose-hub-catalog-manifest"},
+    "formatVersion": {"const": 1},
+    "catalogFormatVersion": {"type": "integer", "description": "目录本身的 formatVersion（缺省 = formatVersion）。SDK 不支持时拒绝更新。"},
+    "version": {"type": "string", "description": "目录 version，必须与目录文件里的 version 相同"},
+    "url": {"type": "string", "description": "目录文件地址，可相对清单 URL"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "目录文件原始字节的 sha256（小写十六进制）"},
+    "bytes": {"type": "integer", "minimum": 1},
+    "generatedAt": {"type": "string"}
+  }
+}

@@ -1,6 +1,7 @@
 /// id → 整套素材。一个动作 id 带出：封面、示范视频、建模源（spec）、语音（每句台词的音频路径与时长）。
 library;
 
+import '../util/version.dart';
 import 'catalog.dart';
 
 enum AssetKind { cover, video, voice, spec }
@@ -73,17 +74,24 @@ class AssetResolver {
     return base.endsWith('/') ? '$base$path' : '$base/$path';
   }
 
+  /// 按 [appOrder] 找第一个有素材的来源；同一来源里先挑明暗版本
+  /// （指定了就用它，没指定用不带版本的，再不行用列出的第一种），再取最新发布版。
   ResolvedAsset? _pick(List<AssetSource> sources) {
     for (final app in appOrder) {
       final mine = sources.where((s) => s.app == app).toList();
       if (mine.isEmpty) continue;
-      // pose-hub 有多个发布版本：取最新的（列表按版本升序生成，取最后一个匹配项）。
-      AssetSource? best;
-      for (final s in mine) {
-        final fits = variant == null || s.variant == null || s.variant == variant;
-        if (fits) best = s;
+      List<AssetSource> cand;
+      if (variant != null) {
+        cand = mine.where((s) => s.variant == variant || s.variant == null).toList();
+        if (cand.isEmpty) cand = mine;
+      } else {
+        cand = mine.where((s) => s.variant == null || s.variant == 'default').toList();
+        if (cand.isEmpty) cand = mine.where((s) => s.variant == mine.first.variant).toList();
       }
-      best ??= mine.last;
+      var best = cand.first;
+      for (final s in cand.skip(1)) {
+        if (s.release != null && best.release != null && compareVersions(s.release!, best.release!) > 0) best = s;
+      }
       return ResolvedAsset(best, _uri(app, best.path));
     }
     return null;

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mhgd3250905/ugk-3d-pose-sdk/schema/coach-profile.schema.json",
+  "title": "App profile（CoachProfile）",
+  "description": "每个 App 一份：用哪些动作、侧重、场所规则、剂量上限、提示词版本与变量。见 profiles/*.json。",
+  "type": "object",
+  "required": ["id", "appName"],
+  "additionalProperties": true,
+  "$defs": {
+    "range": {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 2},
+    "strings": {"type": "array", "items": {"type": "string"}},
+    "sceneRule": {
+      "type": "object",
+      "properties": {
+        "label": {"type": "string"},
+        "assumedEquipment": {"$ref": "#/$defs/strings", "description": "用户没说也默认有的器械 id"},
+        "allEquipment": {"type": "boolean", "description": "默认有全部器械（健身房）"},
+        "acceptDrillScenes": {"$ref": "#/$defs/strings", "description": "动作 scenes 含其中之一即可用；缺省 = 场所自己"},
+        "forbidFloor": {"type": "boolean", "description": "不接受 taxonomy.positions.floor=true 的体位"},
+        "forbidPositions": {"$ref": "#/$defs/strings"}
+      }
+    }
+  },
+  "properties": {
+    "id": {"type": "string", "description": "flarelab / hiplab / smartfit …，进调用记录"},
+    "appName": {"type": "string"},
+    "promptVersion": {"type": "string", "description": "profile 文案的版本，改 focus / rules 就升"},
+    "focus": {"type": "string", "description": "本 App 侧重，每行一条"},
+    "rules": {"$ref": "#/$defs/strings", "description": "额外规则（语气、越界处理…）"},
+    "select": {
+      "type": "object",
+      "description": "动作范围：ids / idPrefixes / apps / tags / categories 取并集（全空 = 全库），再减 exclude / excludeTags",
+      "properties": {
+        "ids": {"$ref": "#/$defs/strings"}, "idPrefixes": {"$ref": "#/$defs/strings"}, "apps": {"$ref": "#/$defs/strings"},
+        "tags": {"$ref": "#/$defs/strings"}, "categories": {"$ref": "#/$defs/strings"},
+        "exclude": {"$ref": "#/$defs/strings"}, "excludeTags": {"$ref": "#/$defs/strings"}
+      }
+    },
+    "scenes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/sceneRule"}, "description": "支持的场所；没列的场所 = 本 App 不支持"},
+    "defaultScene": {"type": "string"},
+    "goals": {"$ref": "#/$defs/strings", "description": "本 App 侧重的 goal（不在其中给警告）"},
+    "limits": {
+      "type": "object",
+      "properties": {
+        "sets": {"$ref": "#/$defs/range"}, "reps": {"$ref": "#/$defs/range"}, "workSeconds": {"$ref": "#/$defs/range"},
+        "restSeconds": {"$ref": "#/$defs/range"}, "rounds": {"$ref": "#/$defs/range"},
+        "restBetweenRoundsSeconds": {"$ref": "#/$defs/range"}, "minutes": {"$ref": "#/$defs/range"},
+        "maxItems": {"type": "integer"}, "durationTolerance": {"type": "number"}
+      }
+    },
+    "assetApps": {"$ref": "#/$defs/strings", "description": "素材来源优先级，缺省 [id, pose-hub]"},
+    "vars": {"type": "object", "additionalProperties": {"type": "string"}, "description": "提示词变量（defaultMinutes、defaultLevel …）"}
+  }
+}

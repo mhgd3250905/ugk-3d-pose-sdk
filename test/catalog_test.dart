@@ -83,6 +83,11 @@ void main() {
       expect(light.video!.uri, contains('/light/'));
       expect(dark.voiceKeys.map((k) => k.uri), contains('assets/voice/zh/drill.glute-max-A.m4a'));
     });
+    test('没指定明暗：用列出的第一种（dark），不混用', () {
+      final r = const AssetResolver(appOrder: ['hiplab']).resolveId(catalog, 'glute-max-A')!;
+      expect(r.cover!.source.variant, 'dark');
+      expect(r.video!.source.variant, 'dark');
+    });
     test('Pose-Hub 发布素材：拼远端前缀、取最新发布版', () {
       final r = const AssetResolver(appOrder: ['pose-hub'], baseByApp: {'pose-hub': 'https://cdn.example.com/pose-hub'})
           .resolveId(catalog, 'glute-max-A')!;

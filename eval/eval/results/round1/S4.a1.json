@@ -1,0 +1,29 @@
+{
+ "case": "S4",
+ "profile": "smartfit",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 54.2,
+ "usage": {
+  "prompt": 10242,
+  "completion": 4854,
+  "reasoning": 3995,
+  "total": 15096,
+  "cached": 9216
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:51:14+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"考虑到你说膝盖疼，我把深蹲、开合跳、靠墙静蹲这类会让膝盖承重、屈伸幅度大的动作都去掉了，改成居家低冲击的全身循环，让动作之间少停顿，靠这个来消耗热量。你没说训练难度，我默认按入门难度（1）来排，一共 20 分钟。\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"居家护膝减脂 20 分\",\"summary\":\"避免给膝盖增加负荷的全身循环，训练和拉伸都安排了\",\"goal\":\"fullbody\",\"scene\":\"home\",\"equipment\":[\"mat\",\"chair\",\"wall\"],\"level\":1,\"targetMinutes\":20,\"avoid\":[\"膝\"],\"blocks\":[{\"id\":\"b1\",\"name\":\"热身\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"h-catcow-quad\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"n-pelvis-circle\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-wall-angel\",\"mode\":\"reps\",\"sets\":1,\"reps\":10,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-hip-gate\",\"mode\":\"reps\",\"sets\":1,\"reps\":6,\"perSide\":true,\"restSeconds\":10}]},{\"id\":\"b2\",\"name\":\"主训练\",\"type\":\"main\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"h-incline-pushup\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":false,\"restSeconds\":30},{\"exerciseId\":\"w-chair-hip-thrust\",\"mode\":\"reps\",\"sets\":2,\"reps\":12,\"perSide\":false,\"restSeconds\":30},{\"exerciseId\":\"w-dead-bug\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":false,\"restSeconds\":30},{\"exerciseId\":\"h-side-leg-raise\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":true,\"restSeconds\":30},{\"exerciseId\":\"scapular-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":8,\"perSide\":false,\"restSeconds\":30},{\"exerciseId\":\"h-calf-raise\",\"mode\":\"reps\",\"sets\":2,\"reps\":15,\"perSide\":false,\"restSeconds\":30}]},{\"id\":\"b3\",\"name\":\"放松拉伸\",\"type\":\"cooldown\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"s-figure4\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"o-seated-ham\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"h-supine-twist\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":true,\"restSeconds\":10}]}],\"notes\":[\"库里没有居家徒手、又不让膝盖承重的划船、下拉动作（这些需要弹力带或单杠），所以上背和肩胛用「俯卧 Y-T-W 举」代替来练。\",\"想让消耗更高的话，可以把主训练改成循环：6 个动作依次做完算 1 轮，共做 2–3 轮，每组之间休息 20 秒。\",\"如果膝盖感觉好一些了，之后可以慢慢加入靠墙静蹲这类静态的腿部动作，从 15 秒开始。\"],\"safetyNotes\":[\"训练中膝盖疼痛加重、出现刺痛或肿胀，就立刻停止；如果疼痛持续或反复，先去看医生或康复师。\",\"所有动作都在不痛的范围内完成，宁可减小动作幅度，也不要勉强自己。\"]}}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "plan",
+  "estMinutes": 21.8
+ },
+ "expectProblems": [],
+ "feedback": null
+}

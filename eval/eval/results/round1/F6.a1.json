@@ -1,0 +1,29 @@
+{
+ "case": "F6",
+ "profile": "flarelab",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 2.7,
+ "usage": {
+  "prompt": 5249,
+  "completion": 66,
+  "reasoning": 25,
+  "total": 5315,
+  "cached": 0
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:30:23+0000",
+ "content": "{\"kind\":\"ask\",\"text\":\"想练哪个方向？\",\"options\":[\"支撑臂力量\",\"核心压缩与转体\",\"髋外展与腿控制\",\"全身全旋链\"]}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "ask",
+  "estMinutes": null
+ },
+ "expectProblems": [],
+ "feedback": null
+}

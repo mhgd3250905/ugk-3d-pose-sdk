@@ -1,0 +1,29 @@
+{
+ "case": "S2",
+ "profile": "smartfit",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 45.9,
+ "usage": {
+  "prompt": 10244,
+  "completion": 4389,
+  "reasoning": 3528,
+  "total": 14633,
+  "cached": 9216
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:48:36+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"按「热身 → 腿部主训练 → 拉伸」排的：主训练覆盖股四、腘绳、臀、内收和小腿，避免同一肌群连续练太多；你没说具体时长细节，我按 40 分钟、难度 2、器械齐全来算。\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"健身房腿部力量\",\"summary\":\"40 分钟健身房下肢力量：器械和徒手交替，前后侧与内收外展都练到。\",\"goal\":\"strength\",\"scene\":\"gym\",\"equipment\":[\"mat\",\"chair\",\"slider\",\"wall\",\"cable\",\"leg-extension-machine\",\"reverse-hyper\",\"hip-abductor-machine\"],\"level\":2,\"targetMinutes\":40,\"avoid\":[],\"blocks\":[{\"id\":\"b1\",\"name\":\"热身\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"n-pelvis-circle\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-catcow-quad\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"s-9090\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"w-clamshell\",\"mode\":\"reps\",\"sets\":1,\"reps\":10,\"perSide\":true,\"restSeconds\":15}]},{\"id\":\"b2\",\"name\":\"腿部主训练\",\"type\":\"main\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"h-chair-step-up\",\"mode\":\"reps\",\"sets\":3,\"reps\":10,\"perSide\":false,\"restSeconds\":45},{\"exerciseId\":\"hamstrings-B\",\"mode\":\"reps\",\"sets\":3,\"reps\":6,\"perSide\":false,\"restSeconds\":45},{\"exerciseId\":\"quadriceps-C\",\"mode\":\"reps\",\"sets\":3,\"reps\":10,\"perSide\":false,\"restSeconds\":45},{\"exerciseId\":\"glute-max-C\",\"mode\":\"reps\",\"sets\":3,\"reps\":10,\"perSide\":false,\"restSeconds\":45},{\"exerciseId\":\"adductors-C\",\"mode\":\"reps\",\"sets\":2,\"reps\":12,\"perSide\":true,\"restSeconds\":30},{\"exerciseId\":\"hip-abductors-C\",\"mode\":\"reps\",\"sets\":3,\"reps\":12,\"perSide\":false,\"restSeconds\":45},{\"exerciseId\":\"h-calf-raise\",\"mode\":\"reps\",\"sets\":2,\"reps\":15,\"perSide\":false,\"restSeconds\":30}]},{\"id\":\"b3\",\"name\":\"放松拉伸\",\"type\":\"cooldown\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"o-stand-quad\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"s-kneel-hipflex\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"s-seated-fold\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-wall-calf\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10}]}],\"notes\":[\"按健身房器械齐全处理；腿屈伸、反向背伸、髋外展、绳索内收若被占用，可换成同肌群的徒手或哑铃动作。\",\"主训练组间休息按 45 秒估算，想更吃力量可加到 60 秒，想更省时可缩到 30 秒。\"],\"safetyNotes\":[\"膝、腰或髋部出现不适就立刻停下，别硬顶；大重量前先用热身组找发力。\"]}}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "plan",
+  "estMinutes": 31.9
+ },
+ "expectProblems": [],
+ "feedback": null
+}

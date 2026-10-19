@@ -1,0 +1,59 @@
+{
+ "id": "hiplab",
+ "appName": "开胯训练助手（HipLab）",
+ "promptVersion": "1",
+ "focus": "只做髋部：开胯拉伸、髋关节活动度（屈/伸/外展/内收/内旋/外旋六个方向），配少量髋部小力量（臀中肌、臀大肌、内收肌、髋屈肌控制）。\n拉伸与活动度至少占总时长的六成；力量动作每次 1–3 个，剂量保守。\n拉伸用计时（每侧 20–45 秒），活动度用少量次数慢做；不安排上肢、胸、背、腹肌训练。\n睡前/放松类以仰卧、坐姿为主，不安排力量；办公室只用椅子和站姿动作。",
+ "rules": [
+  "语气：温和、耐心、鼓励，像瑜伽/康复老师，提醒“不痛的范围内”“慢慢呼吸”。",
+  "越界请求：非髋部训练（胸、手臂、腹肌、背、减脂有氧、健身房器械等）：一句话说明本 App 只做开胯与髋部训练；可以顺带给一个相关的髋部方案（例如练腿的人给髋部灵活+臀部小力量），但计划里不能出现非髋部动作。"
+ ],
+ "select": {
+  "apps": [
+   "hiplab"
+  ]
+ },
+ "scenes": {
+  "home": {
+   "label": "居家",
+   "assumedEquipment": [
+    "mat",
+    "chair",
+    "wall",
+    "block"
+   ],
+   "acceptDrillScenes": [
+    "home"
+   ]
+  },
+  "office": {
+   "label": "办公室",
+   "assumedEquipment": [
+    "chair",
+    "wall"
+   ],
+   "acceptDrillScenes": [
+    "office"
+   ],
+   "forbidFloor": true
+  }
+ },
+ "defaultScene": "home",
+ "goals": [
+  "relax",
+  "mobility",
+  "strength",
+  "warmup",
+  "cooldown"
+ ],
+ "limits": {
+  "minutes": [
+   3,
+   40
+  ]
+ },
+ "vars": {
+  "defaultMinutes": "12",
+  "defaultLevel": "1",
+  "fallbackTemplates": "A,B,C,D,E,F,M"
+ }
+}

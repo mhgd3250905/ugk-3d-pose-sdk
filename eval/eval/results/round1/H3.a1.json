@@ -1,0 +1,33 @@
+{
+ "case": "H3",
+ "profile": "hiplab",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 39.8,
+ "usage": {
+  "prompt": 4500,
+  "completion": 4000,
+  "reasoning": 3751,
+  "total": 8500,
+  "cached": 4096
+ },
+ "error": null,
+ "finish": "length",
+ "ts": "2026-10-19T16:43:01+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"膝盖不舒服就不做深蹲、跪姿和膝部受力的动作，改用仰卧和坐姿的开胯拉伸，加一组侧卧蚌式练臀外侧，帮你稳住髋。你没特别说明，我就按居家、难度 1 来排，总时长约 18–20 分钟；全程只在不通的范围内活动，慢慢呼吸。\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"护膝开胯 20 分钟\",\"summary\":\"用仰卧和坐姿的开胯拉伸，加一组臀部小力量，全程不让膝盖吃力。\",\"goal\":\"mobility\",\"scene\":\"home\",\"equipment\":[\"mat\",\"chair\",\"wall\"],\"level\":1,\"targetMinutes\":20,\"avoid\":[\"膝\"],\"blocks\":[{\"id\":\"b1\",\"name\":\"热身\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"n-pelvis-circle\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-hip-gate\",\"mode\":\"reps\",\"sets\":1,\"",
+ "validation": {
+  "ok": false,
+  "errors": [
+   "E_JSON JSON 不完整"
+  ],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": null,
+  "estMinutes": null
+ },
+ "expectProblems": [
+  "无法解析回复"
+ ],
+ "feedback": "你上一次的输出没有通过 App 校验，问题如下：\n- E_JSON JSON 不完整\n请只改正这些问题后重新输出完整的 JSON（同样的信封格式，不要解释）。未知动作必须换成目录里的 id；不在范围的动作必须删掉或换成本 App 目录里的动作。"
+}

@@ -1,0 +1,29 @@
+{
+ "case": "S1",
+ "profile": "smartfit",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 37.8,
+ "usage": {
+  "prompt": 10247,
+  "completion": 3499,
+  "reasoning": 2891,
+  "total": 13746,
+  "cached": 9216
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:47:20+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"按办公室场景只排了坐姿和站姿动作：先用坐姿猫牛式和骨盆画圈给脊柱、髋部「上油」，再做深蹲、坐姿抬膝和站姿侧抬腿练下肢与核心，最后用站姿侧屈放松腰侧。你没说目标，我按「缓解僵硬、轻活动」来排，强度按入门算，全程不用躺、不用跪、不用趴。\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"办公室10分钟松僵\",\"summary\":\"坐站姿活动脊柱髋部＋下肢轻力量＋腰侧拉伸，肩腰不加重负担\",\"goal\":\"mobility\",\"scene\":\"office\",\"equipment\":[\"chair\"],\"level\":1,\"targetMinutes\":10,\"avoid\":[\"颈\",\"肩\",\"腰\"],\"blocks\":[{\"id\":\"b1\",\"name\":\"热身\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"o-seated-catcow\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"n-pelvis-circle\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10}]},{\"id\":\"b2\",\"name\":\"主训练\",\"type\":\"main\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"h-squat\",\"mode\":\"reps\",\"sets\":2,\"reps\":12,\"perSide\":false,\"restSeconds\":30},{\"exerciseId\":\"n-seated-knee-lift\",\"mode\":\"time\",\"sets\":2,\"workSeconds\":20,\"perSide\":true,\"restSeconds\":20},{\"exerciseId\":\"h-side-leg-raise\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":true,\"restSeconds\":20}]},{\"id\":\"b3\",\"name\":\"放松\",\"type\":\"cooldown\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"o-stand-sidebend\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10}]}],\"notes\":[\"你没说具体目标，按「缓解僵硬、轻活动」排；强度默认入门，时长用你给的 10 分钟。\",\"办公室默认只有椅子和墙，全程未用躺、跪、趴体位。\",\"主训练以下肢和核心为主，肩颈腰只做低负荷活动，没有安排负重推举和躯干旋转类动作。\"],\"safetyNotes\":[\"动作全程保持呼吸，腰背不塌不憋气。\",\"肩颈或腰的不适加重就立即停止；如果僵硬持续不缓解或出现麻木、放射痛，建议先咨询医生或康复师。\"]}}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "plan",
+  "estMinutes": 10.8
+ },
+ "expectProblems": [],
+ "feedback": null
+}

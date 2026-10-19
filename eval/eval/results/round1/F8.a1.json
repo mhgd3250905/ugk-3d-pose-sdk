@@ -1,0 +1,29 @@
+{
+ "case": "F8",
+ "profile": "flarelab",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 4.4,
+ "usage": {
+  "prompt": 5266,
+  "completion": 158,
+  "reasoning": 33,
+  "total": 5424,
+  "cached": 5120
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:37:55+0000",
+ "content": "{\"kind\":\"reply\",\"text\":\"肩袖修复术后要先过医生和康复师这一关，我不能给你排训练计划。术后过早承重撑地，最容易把修复的肩袖再次撕开，练托马斯这种高承重支撑更是风险大。请先找主刀医生或康复师确认：能不能开始负重、能不能撑地、能到什么角度和强度。拿到许可后，把他们的限制条件告诉我，我再按那些限制给你排承重肩、支撑臂和核心压缩的专项计划。这段时间别急着上撑地动作，先遵医嘱做康复。\"}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "reply",
+  "estMinutes": null
+ },
+ "expectProblems": [],
+ "feedback": null
+}

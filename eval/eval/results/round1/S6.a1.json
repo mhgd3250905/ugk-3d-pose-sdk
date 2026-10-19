@@ -1,0 +1,29 @@
+{
+ "case": "S6",
+ "profile": "smartfit",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 5.6,
+ "usage": {
+  "prompt": 10244,
+  "completion": 159,
+  "reasoning": 62,
+  "total": 10403,
+  "cached": 9216
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:46:22+0000",
+ "content": "{\"kind\":\"reply\",\"text\":\"你提到腰椎间盘突出，最近腿还发麻，这类麻木或放射到腿上的感觉需要先让医生或康复师看看。训练前请先做评估，别急着练腰。现在不适合给你出训练计划；等专业人员确认可以运动后，再告诉我，我可以帮你排以核心稳定和低冲击为主的入门方案。要是麻木加重，或出现无力、大小便异常，请尽快就医。\"}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "reply",
+  "estMinutes": null
+ },
+ "expectProblems": [],
+ "feedback": null
+}

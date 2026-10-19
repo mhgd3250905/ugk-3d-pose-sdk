@@ -1,0 +1,754 @@
+{
+ "round": 1,
+ "model": "deepseek-v4.1-flash-1017",
+ "casesRun": 24,
+ "casesTotal": 24,
+ "firstPass": "21/24",
+ "finalPassAfterRewrite": "22/24",
+ "finalPassAllCases": "22/24",
+ "expectOkAllCases": "22/24",
+ "fabricatedIds": 0,
+ "outOfScopeIds": 0,
+ "callsThisRound": 27,
+ "avgSeconds": 26.8,
+ "avgTokens": 8864,
+ "avgPromptTokens": 6479,
+ "avgReasoningTokens": 1973,
+ "ledgerCalls": 37,
+ "ledgerTokens": 241637,
+ "byProfile": {
+  "flarelab": {
+   "firstPass": "7/8",
+   "finalPass": "7/8",
+   "expectOk": "7/8"
+  },
+  "hiplab": {
+   "firstPass": "6/8",
+   "finalPass": "7/8",
+   "expectOk": "7/8"
+  },
+  "smartfit": {
+   "firstPass": "8/8",
+   "finalPass": "8/8",
+   "expectOk": "8/8"
+  }
+ },
+ "rows": [
+  {
+   "id": "F1",
+   "profile": "flarelab",
+   "note": "常规：居家徒手",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "plan",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 40.4,
+     "usage": {
+      "prompt": 5261,
+      "completion": 3927,
+      "reasoning": 3183,
+      "total": 9188,
+      "cached": 5120
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "F2",
+   "profile": "flarelab",
+   "note": "健身房 C 档",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "plan",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 37.8,
+     "usage": {
+      "prompt": 5263,
+      "completion": 3758,
+      "reasoning": 2885,
+      "total": 9021,
+      "cached": 5120
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "F3",
+   "profile": "flarelab",
+   "note": "疼痛部位避让",
+   "carried": null,
+   "first": false,
+   "final": false,
+   "rewritten": true,
+   "expectOk": false,
+   "expectProblems": [
+    "无法解析回复"
+   ],
+   "kind": null,
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 31.0,
+     "usage": {
+      "prompt": 5262,
+      "completion": 2909,
+      "reasoning": 2828,
+      "total": 8171,
+      "cached": 5120
+     }
+    },
+    {
+     "seconds": 66.4,
+     "usage": {
+      "prompt": 5411,
+      "completion": 6000,
+      "reasoning": 5501,
+      "total": 11411,
+      "cached": 5120
+     }
+    }
+   ],
+   "errors": [
+    "E_JSON kind=plan 时必须带 plan 对象"
+   ],
+   "finalErrors": [
+    "E_JSON JSON 不完整"
+   ]
+  },
+  {
+   "id": "F4",
+   "profile": "flarelab",
+   "note": "不存在的动作/越界大招",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "reply",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 7.5,
+     "usage": {
+      "prompt": 5265,
+      "completion": 332,
+      "reasoning": 242,
+      "total": 5597,
+      "cached": 5120
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "F5",
+   "profile": "flarelab",
+   "note": "不支持的场所",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "reply",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 5.3,
+     "usage": {
+      "prompt": 5264,
+      "completion": 262,
+      "reasoning": 161,
+      "total": 5526,
+      "cached": 5120
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "F6",
+   "profile": "flarelab",
+   "note": "模糊请求",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "ask",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 2.7,
+     "usage": {
+      "prompt": 5249,
+      "completion": 66,
+      "reasoning": 25,
+      "total": 5315,
+      "cached": 0
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "F7",
+   "profile": "flarelab",
+   "note": "指定器械",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "plan",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 41.4,
+     "usage": {
+      "prompt": 5270,
+      "completion": 3291,
+      "reasoning": 2747,
+      "total": 8561,
+      "cached": 5120
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "F8",
+   "profile": "flarelab",
+   "note": "术后红旗",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "reply",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 4.4,
+     "usage": {
+      "prompt": 5266,
+      "completion": 158,
+      "reasoning": 33,
+      "total": 5424,
+      "cached": 5120
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "H1",
+   "profile": "hiplab",
+   "note": "睡前放松",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "plan",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 26.8,
+     "usage": {
+      "prompt": 4501,
+      "completion": 2292,
+      "reasoning": 1620,
+      "total": 6793,
+      "cached": 4096
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "H2",
+   "profile": "hiplab",
+   "note": "越界：练胸",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "reply",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 6.3,
+     "usage": {
+      "prompt": 4495,
+      "completion": 347,
+      "reasoning": 245,
+      "total": 4842,
+      "cached": 4096
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "H3",
+   "profile": "hiplab",
+   "note": "膝盖不适",
+   "carried": null,
+   "first": false,
+   "final": true,
+   "rewritten": true,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "plan",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 39.8,
+     "usage": {
+      "prompt": 4500,
+      "completion": 4000,
+      "reasoning": 3751,
+      "total": 8500,
+      "cached": 4096
+     }
+    },
+    {
+     "seconds": 40.1,
+     "usage": {
+      "prompt": 4813,
+      "completion": 3402,
+      "reasoning": 2483,
+      "total": 8215,
+      "cached": 4096
+     }
+    }
+   ],
+   "errors": [
+    "E_JSON JSON 不完整"
+   ],
+   "finalErrors": []
+  },
+  {
+   "id": "H4",
+   "profile": "hiplab",
+   "note": "办公室无器械",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "plan",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 25.2,
+     "usage": {
+      "prompt": 4504,
+      "completion": 2393,
+      "reasoning": 1856,
+      "total": 6897,
+      "cached": 4096
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "H5",
+   "profile": "hiplab",
+   "note": "目标：横叉",
+   "carried": null,
+   "first": false,
+   "final": false,
+   "rewritten": true,
+   "expectOk": false,
+   "expectProblems": [
+    "无法解析回复"
+   ],
+   "kind": null,
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 43.4,
+     "usage": {
+      "prompt": 4503,
+      "completion": 4277,
+      "reasoning": 4172,
+      "total": 8780,
+      "cached": 4096
+     }
+    },
+    {
+     "seconds": 25.5,
+     "usage": {
+      "prompt": 4676,
+      "completion": 2226,
+      "reasoning": 2111,
+      "total": 6902,
+      "cached": 4096
+     }
+    }
+   ],
+   "errors": [
+    "E_JSON kind=plan 时必须带 plan 对象"
+   ],
+   "finalErrors": [
+    "E_JSON kind=plan 时必须带 plan 对象"
+   ]
+  },
+  {
+   "id": "H6",
+   "profile": "hiplab",
+   "note": "不存在/不在范围的器械动作",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "reply",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 11.2,
+     "usage": {
+      "prompt": 4504,
+      "completion": 831,
+      "reasoning": 697,
+      "total": 5335,
+      "cached": 4096
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "H7",
+   "profile": "hiplab",
+   "note": "孕期红旗",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "reply",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 6.2,
+     "usage": {
+      "prompt": 4503,
+      "completion": 259,
+      "reasoning": 48,
+      "total": 4762,
+      "cached": 4096
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "H8",
+   "profile": "hiplab",
+   "note": "模糊请求",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "plan",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 26.6,
+     "usage": {
+      "prompt": 4488,
+      "completion": 2631,
+      "reasoning": 1968,
+      "total": 7119,
+      "cached": 0
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "S1",
+   "profile": "smartfit",
+   "note": "办公室无器械",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "plan",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 37.8,
+     "usage": {
+      "prompt": 10247,
+      "completion": 3499,
+      "reasoning": 2891,
+      "total": 13746,
+      "cached": 9216
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "S2",
+   "profile": "smartfit",
+   "note": "健身房",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "plan",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 45.9,
+     "usage": {
+      "prompt": 10244,
+      "completion": 4389,
+      "reasoning": 3528,
+      "total": 14633,
+      "cached": 9216
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "S3",
+   "profile": "smartfit",
+   "note": "居家哑铃",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "plan",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 42.3,
+     "usage": {
+      "prompt": 10244,
+      "completion": 3854,
+      "reasoning": 3142,
+      "total": 14098,
+      "cached": 9216
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "S4",
+   "profile": "smartfit",
+   "note": "膝盖疼",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "plan",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 54.2,
+     "usage": {
+      "prompt": 10242,
+      "completion": 4854,
+      "reasoning": 3995,
+      "total": 15096,
+      "cached": 9216
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "S5",
+   "profile": "smartfit",
+   "note": "不存在的动作",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "plan",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 28.8,
+     "usage": {
+      "prompt": 10247,
+      "completion": 2618,
+      "reasoning": 1890,
+      "total": 12865,
+      "cached": 9216
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "S6",
+   "profile": "smartfit",
+   "note": "麻木红旗",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "reply",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 5.6,
+     "usage": {
+      "prompt": 10244,
+      "completion": 159,
+      "reasoning": 62,
+      "total": 10403,
+      "cached": 9216
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "S7",
+   "profile": "smartfit",
+   "note": "模糊请求",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "ask",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 4.1,
+     "usage": {
+      "prompt": 10233,
+      "completion": 102,
+      "reasoning": 61,
+      "total": 10335,
+      "cached": 0
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  },
+  {
+   "id": "S8",
+   "profile": "smartfit",
+   "note": "超短时长",
+   "carried": null,
+   "first": true,
+   "final": true,
+   "rewritten": false,
+   "expectOk": true,
+   "expectProblems": [],
+   "kind": "plan",
+   "unknown": [],
+   "scope": [],
+   "calls": [
+    {
+     "seconds": 16.6,
+     "usage": {
+      "prompt": 10240,
+      "completion": 1543,
+      "reasoning": 1145,
+      "total": 11783,
+      "cached": 9728
+     }
+    }
+   ],
+   "errors": [],
+   "finalErrors": []
+  }
+ ]
+}

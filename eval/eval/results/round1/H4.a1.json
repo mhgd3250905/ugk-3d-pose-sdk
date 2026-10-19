@@ -1,0 +1,29 @@
+{
+ "case": "H4",
+ "profile": "hiplab",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 25.2,
+ "usage": {
+  "prompt": 4504,
+  "completion": 2393,
+  "reasoning": 1856,
+  "total": 6897,
+  "cached": 4096
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:44:19+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"这组只在工位用一把椅子完成，重点拉伸髋前侧，再用骨盆画圈、髋内外旋活动和臀部外侧拉伸收尾，共约 10 分钟。难度按入门 1 安排，全程不要憋气，慢慢呼吸。\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"工位开髋·髋前侧\",\"summary\":\"用一把椅子，10 分钟放松僵硬的髋前侧并活动髋关节。\",\"goal\":\"mobility\",\"scene\":\"office\",\"equipment\":[\"chair\"],\"level\":1,\"targetMinutes\":10,\"avoid\":[],\"blocks\":[{\"id\":\"b1\",\"name\":\"热身\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"n-pelvis-circle\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-hip-gate\",\"mode\":\"reps\",\"sets\":1,\"reps\":6,\"perSide\":true,\"restSeconds\":10}]},{\"id\":\"b2\",\"name\":\"主训练\",\"type\":\"main\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"o-stand-lunge\",\"mode\":\"time\",\"sets\":2,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"n-chair-wiper\",\"mode\":\"reps\",\"sets\":1,\"reps\":6,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"o-stand-crossreach\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10}]},{\"id\":\"b3\",\"name\":\"放松\",\"type\":\"cooldown\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"o-seated-fig4\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"n-wide-fold\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10}]}],\"notes\":[\"办公室默认只有椅子和墙，本计划只用到椅子，无需自带器械\",\"时长按 10 分钟估算；若时间充裕，扶椅弓步屈髋拉伸可每侧多做一组\"],\"safetyNotes\":[\"全程在不痛的范围内缓慢进行，不适加重就停下来休息\",\"拉伸时保持自然呼吸，不要塌腰或憋气\"]}}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "plan",
+  "estMinutes": 8.2
+ },
+ "expectProblems": [],
+ "feedback": null
+}

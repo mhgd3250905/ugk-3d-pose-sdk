@@ -1,0 +1,29 @@
+{
+ "case": "H1",
+ "profile": "hiplab",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 26.8,
+ "usage": {
+  "prompt": 4501,
+  "completion": 2292,
+  "reasoning": 1620,
+  "total": 6793,
+  "cached": 4096
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:40:43+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"按你说的睡前放松来排：先做仰卧的轻柔活动热身，再依次拉开久坐最容易变紧的髋前侧、臀部、大腿内侧和大腿后侧，最后用抱膝和扭转收尾。你没说场所，我按居家、难度1、15分钟排，全程没有力量动作，可以慢慢做完直接睡。\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"睡前开胯放松\",\"summary\":\"15分钟居家睡前流程：轻柔活动热身、五个髋部拉伸、抱膝扭转收尾，全都躺着或坐着做。\",\"goal\":\"relax\",\"scene\":\"home\",\"equipment\":[\"mat\",\"block\"],\"level\":1,\"targetMinutes\":15,\"avoid\":[],\"blocks\":[{\"id\":\"b1\",\"name\":\"热身·唤醒髋部\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"n-windshield\",\"mode\":\"reps\",\"sets\":1,\"reps\":8,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-butterfly-active\",\"mode\":\"reps\",\"sets\":1,\"reps\":10,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"n-leg-circles\",\"mode\":\"reps\",\"sets\":1,\"reps\":6,\"perSide\":true,\"restSeconds\":10}]},{\"id\":\"b2\",\"name\":\"主训练·松开紧髋\",\"type\":\"main\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"s-kneel-hipflex\",\"mode\":\"time\",\"sets\":2,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":15},{\"exerciseId\":\"s-figure4\",\"mode\":\"time\",\"sets\":2,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":15},{\"exerciseId\":\"s-butterfly\",\"mode\":\"time\",\"sets\":2,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":15}]},{\"id\":\"b3\",\"name\":\"放松·收尾\",\"type\":\"cooldown\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"n-straddle-fold\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-knee-hug\",\"mode\":\"time\",\"sets\":2,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-supine-twist\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":true,\"restSeconds\":10}]}],\"notes\":[\"主训练和放松全是拉伸，睡前不安排力量动作；如果你觉得还有余力，可以把第二组拉伸多停留一会儿，而不是加动作。\",\"半跪髋屈肌拉伸和坐姿分腿体前屈下面垫瑜伽垫或厚书，会更舒服。\"],\"safetyNotes\":[\"全程在不痛的范围内停留，慢慢呼吸，不要弹振；不适加重就停止。\",\"如果髋部出现刺痛、麻木或放射痛，先别练，建议咨询医生或康复师。\"]}}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "plan",
+  "estMinutes": 13.6
+ },
+ "expectProblems": [],
+ "feedback": null
+}

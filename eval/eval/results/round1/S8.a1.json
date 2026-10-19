@@ -1,0 +1,29 @@
+{
+ "case": "S8",
+ "profile": "smartfit",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 16.6,
+ "usage": {
+  "prompt": 10240,
+  "completion": 1543,
+  "reasoning": 1145,
+  "total": 11783,
+  "cached": 9728
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:52:59+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"起床后先做几组轻柔的髋部、脊柱和肩部活动，再以仰卧扭转放松收尾，整套约 5 分钟、全程站坐卧结合，不用跳。默认按居家、难度 1、5 分钟排。\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"晨起5分钟唤醒\",\"summary\":\"猫牛式、靠墙天使、90/90 换髋加上仰卧扭转，温和唤醒全身。\",\"goal\":\"mobility\",\"scene\":\"home\",\"equipment\":[\"mat\",\"wall\"],\"level\":1,\"targetMinutes\":5,\"avoid\":[],\"blocks\":[{\"id\":\"b1\",\"name\":\"活动唤醒\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"h-catcow-quad\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-wall-angel\",\"mode\":\"reps\",\"sets\":1,\"reps\":10,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"s-9090\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":true,\"restSeconds\":10}]},{\"id\":\"b2\",\"name\":\"放松收尾\",\"type\":\"cooldown\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"h-supine-twist\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":true,\"restSeconds\":10}]}],\"notes\":[\"按 5 分钟排，采用居家、难度 1 的默认值\",\"动作幅度以舒服为准，起床后先喝口水再开始\"],\"safetyNotes\":[\"出现疼痛、麻木或头晕就停下，不要勉强压幅度\"]}}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "plan",
+  "estMinutes": 5.1
+ },
+ "expectProblems": [],
+ "feedback": null
+}

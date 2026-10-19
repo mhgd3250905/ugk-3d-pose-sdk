@@ -1,0 +1,31 @@
+{
+ "case": "H8",
+ "profile": "hiplab",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 26.6,
+ "usage": {
+  "prompt": 4488,
+  "completion": 2631,
+  "reasoning": 1968,
+  "total": 7119,
+  "cached": 0
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:29:05+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"给你排了一套 12 分钟的开胯入门：先用站姿、坐姿的小活动把髋关节叫醒，再做内收、髋前侧、臀部的静态拉伸，中间配两个臀部小力量。按默认值来：居家、瑜伽垫加椅子、难度 1（入门），全程慢慢呼吸，别憋气。\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"开胯入门 12 分钟\",\"summary\":\"活动度热身、六个方向拉伸，加两个臀部小力量，居家入门。\",\"goal\":\"mobility\",\"scene\":\"home\",\"equipment\":[\"mat\",\"chair\"],\"level\":1,\"targetMinutes\":12,\"avoid\":[],\"blocks\":[{\"id\":\"b1\",\"name\":\"热身\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"n-pelvis-circle\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-hip-gate\",\"mode\":\"reps\",\"sets\":1,\"reps\":6,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"s-9090\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10}]},{\"id\":\"b2\",\"name\":\"主训练\",\"type\":\"main\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"s-butterfly\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"s-kneel-hipflex\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"s-figure4\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"w-clamshell\",\"mode\":\"reps\",\"sets\":2,\"reps\":15,\"perSide\":true,\"restSeconds\":30},{\"exerciseId\":\"n-seated-squeeze\",\"mode\":\"time\",\"sets\":2,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":30}]},{\"id\":\"b3\",\"name\":\"放松\",\"type\":\"cooldown\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"h-knee-hug\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"s-seated-fold\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":10}]}],\"notes\":[\"时长、场所、难度都用了默认值（12 分钟、居家、难度 1），想加长或换办公室版随时告诉我。\",\"拉伸停在轻微牵扯感就好，不用追求幅度，呼吸保持均匀。\"],\"safetyNotes\":[\"出现疼痛、刺痛、麻木或放射感就立刻停下，缩小幅度或跳过该动作。\",\"不适加重请停止训练，必要时咨询医生或康复师。\"]}}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [
+   "plan.equipment 漏写 ['block']"
+  ],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "plan",
+  "estMinutes": 14.8
+ },
+ "expectProblems": [],
+ "feedback": null
+}

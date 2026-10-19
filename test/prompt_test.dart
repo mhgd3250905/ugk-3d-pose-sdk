@@ -33,7 +33,8 @@ void main() {
 
   test('版本号含内核哈希与 profile 版本', () {
     final v = PromptBuilder().version(loadProfile('hiplab'));
-    expect(v, startsWith('kernel-$kernelMarkdownHash'));
+    expect(kernelRevision, 2);
+    expect(v, startsWith('kernel-v2-$kernelMarkdownHash'));
     expect(v, endsWith('@hiplab-1'));
   });
 
@@ -88,6 +89,25 @@ void main() {
     expect(msgs[2].role, LlmRole.assistant);
     expect(msgs[3].content, contains('- E_DOSE 深蹲：次数 40 超出 1–30'));
     expect(msgs[3].content, isNot(contains('只是警告')));
+  });
+
+  test('重写消息：输出疑似截断时追加「少想一点」提示（与评测 format_feedback 一致）', () {
+    List<LlmMessage> rw(String msg) =>
+        PromptBuilder().rewrite(const [LlmMessage.user('u')], '{"kind":"plan","plan":{', [PlanIssue(IssueCodes.notJson, msg)]);
+    expect(rw('JSON 对象没有闭合（可能被截断）').last.content, contains(PromptBuilder.truncationHint));
+    expect(rw('正文里没有 JSON 对象').last.content, contains(PromptBuilder.truncationHint));
+    expect(rw('JSON 语法错误').last.content, isNot(contains(PromptBuilder.truncationHint)));
+    // 提示在错误清单之后、「请只改正」之前。
+    final c = rw('JSON 对象没有闭合（可能被截断）').last.content;
+    expect(c.indexOf(PromptBuilder.truncationHint), greaterThan(c.indexOf('- E_JSON')));
+    expect(c.indexOf(PromptBuilder.truncationHint), lessThan(c.indexOf('请只改正')));
+  });
+
+  test('内核 v2：plan 先于 text、要求 plan 必填、思考简短', () {
+    expect(kernelMarkdown, contains('按 kind → plan → text 的顺序写'));
+    expect(kernelMarkdown, contains('思考保持简短'));
+    expect(kernelMarkdown, contains('{"kind":"plan","plan":{"schemaVersion":1'));
+    expect(kernelMarkdown, contains('"safetyNotes":[]},"text":"一两句说明"}'));
   });
 
   test('build：系统 + 历史 + 本轮；系统消息不随条件变化（利于前缀缓存）', () {

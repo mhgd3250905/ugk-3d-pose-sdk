@@ -220,13 +220,23 @@ class PromptBuilder {
     );
   }
 
-  /// 重写轮：在原消息后追加模型上次的输出和错误清单（`- E_DOSE 消息`，与评测 format_feedback 一致）。
+  /// 上次输出疑似被截断时追加的一行（与评测 format_feedback 一致）。
+  static const truncationHint = '（上次输出被截断了：少想一点，直接输出紧凑的 JSON，不要换行缩进。）';
+
+  static bool _looksTruncated(PlanIssue i) =>
+      i.isError && i.code == IssueCodes.notJson && (i.message.contains('没有闭合') || i.message.contains('没有 JSON'));
+
+  /// 重写轮：在原消息后追加模型上次的输出和错误清单（`- E_DOSE 消息`，与评测 format_feedback 一致；
+  /// 疑似截断时再加一行「少想一点、输出紧凑 JSON」）。
   List<LlmMessage> rewrite(List<LlmMessage> previous, String lastOutput, List<PlanIssue> issues) => [
     ...previous,
     LlmMessage.assistant(lastOutput),
     LlmMessage.user(PromptTemplate(set.rewriteTemplate).render({
       ...overrides.vars,
-      'issues': [for (final i in issues.where((i) => i.isError)) '- ${i.category} ${i.message}'].join('\n'),
+      'issues': [
+        for (final i in issues.where((i) => i.isError)) '- ${i.category} ${i.message}',
+        if (issues.any(_looksTruncated)) truncationHint,
+      ].join('\n'),
     }, where: 'rewriteTemplate')),
   ];
 }

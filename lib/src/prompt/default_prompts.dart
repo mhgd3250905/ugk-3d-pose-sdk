@@ -5,6 +5,10 @@ library;
 import 'prompt_template.dart';
 import 'prompts.g.dart';
 
+/// 内核修订号（与 ai-coach-eval 的 kernel v1 / v2 对应）。改 `prompts/kernel.md` 的语义时手动加一。
+/// v2（ai-coach-eval c60023f）：plan 先于 text、思考简短、text ≤80 字、equipment 含默认器械。
+const kernelRevision = 2;
+
 /// 段名：intro / rules / composition / focus / output / catalog。
 const kernelSectionNames = {
   '硬规则': 'rules',
@@ -16,7 +20,7 @@ const kernelSectionNames = {
 
 final PromptSet defaultPromptSet = PromptSet.fromMarkdown(
   kernelMarkdown,
-  version: 'kernel-$kernelMarkdownHash.c${contextMarkdownHash.substring(0, 4)}.r${rewriteMarkdownHash.substring(0, 4)}',
+  version: 'kernel-v$kernelRevision-$kernelMarkdownHash.c${contextMarkdownHash.substring(0, 4)}.r${rewriteMarkdownHash.substring(0, 4)}',
   contextTemplate: contextMarkdown,
   rewriteTemplate: rewriteMarkdown,
   names: kernelSectionNames,

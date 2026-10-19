@@ -1,4 +1,4 @@
-# 设计决策与取舍（ugk_coach 0.1.0）
+# 设计决策与取舍（ugk_coach 0.1.1）
 
 > 2026-10-20 · Hark 在开哥全权授权下拍板。标「待定」的列在文末，等开哥确认。
 
@@ -14,11 +14,12 @@
 | drill-pack format 1 | SmartFit `docs/drill-pack-spec.md` | 目录里每个 drill 的定义字段同名同义；`DrillPackAdapter` 可直接读小包 |
 | pose-hub-catalog format 1 | 3D-Pose-Hub `feat/ai-coach-catalog` 809f36a | SDK 的目录模型就是它；`schema/catalog.schema.json` 原样带入 |
 | TrainingPlan v1 | SmartFit `docs/plan-schema.md` | 输出 JSON 完全一致，SmartFit 的 `TrainingPlan.fromJson` 能直接读；校验规则是它的超集 |
-| profile / 内核提示词 / 校验器 | ai-coach-eval d0c5cab | profile JSON 即 `CoachProfile`；内核即 `prompts/kernel.md`；`PlanValidator` 与 `validate.py` 逐条对齐 |
+| profile / 内核提示词 / 校验器 | ai-coach-eval c60023f（已并入 `eval/`） | profile JSON 即 `CoachProfile`；内核 v2 即 `prompts/kernel.md`；`PlanValidator` 与 `eval/tools/validate.py` 逐条对齐 |
 
 **为什么强求和评测逐字节一致**：评测花的是真钱，结论（首轮通过率、编造率、token）只有在线上发的提示词、用的校验器与评测完全一样时才成立。所以：
 - `test/prompt_test.dart`：三个 App 的系统提示词 == `build_prompt.py` 产物（金样）。
-- `test/parity_test.dart`：`validate.py --selftest` 的 24 个用例，错误分类（E_*）一致。
+- `test/parity_test.dart`：`validate.py --selftest` 的 24 个用例 + 8 条 mode / 场所补充样例（`export_parity.py` 导出 Python 实际判定），错误分类（E_*）与每类条数都一致。
+- 评测并入同仓 `eval/`（git subtree，历史保留），profile / 内核 / 目录快照只有一份，不会再出现两边各改一处。
 - `PlanDuration` 与 `estimate_seconds` 同口径（合法样例都是 10.7 分钟）。
 
 原先 SDK 自己写了一版内核和更严的校验（动作 doseRange 判错、主训练排在放松后判错），看到评测已在用另一套后改为对齐：doseRange 超出、其他块顺序问题降为**警告**；只有「热身在放松后」判错。需要更严时 `PlanValidator(enforceDrillDoseRange: true)` 或 `extraRules`。
@@ -48,11 +49,11 @@
 
 ## 5. 已知限制
 
-- 目录快照、profile、内核都来自**本地已提交但未推送**的 Pose-Hub 809f36a / ai-coach-eval d0c5cab；它们改了要同步（README「开发」一节）。
+- 目录快照来自 Pose-Hub PR #11（`feat/ai-coach-catalog` 809f36a，未合并）；它定稿或改动后要同步（README「开发」一节）。profile / 内核 / 评测已在本仓库。
 - `scene` 被规范化为本轮场所，模型若按别的场所排了动作，表现为动作级的场所/器械错误而不是计划级错误（重写信息仍然准确）。
 - 时长偏离只是警告；模型可能系统性偏短（冒烟：目标 10 分钟，估算 8.7）。
 - 冒烟里模型的 text 说「你没说……场地，默认居家」，而 App 其实已告知场所——内核第 3 条要求说明默认值，提示词可微调（属于评测侧）。
 
 ## 6. 待开哥拍板
 
-见 CHANGELOG 0.1.0 末尾「待定」。
+见 CHANGELOG 0.1.1「待定」。

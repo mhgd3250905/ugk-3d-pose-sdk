@@ -6,7 +6,7 @@
 
 - 纯 Dart，不依赖 Flutter（Web 也能用）；`dart:io` 的部分（文件缓存、JSONL 记账）单独在 `package:ugk_coach/ugk_coach_io.dart`。
 - 一个动作 id = 定义 + 封面 + 示范视频 + 建模源（Pose-Hub spec）+ 语音：`assistant.resolve(id)` 带出整套素材。
-- 测试 151 个（`dart test`），`dart analyze` 0 问题；开发全程用假模型，真实冒烟见 [docs/smoke-2026-10-20.md](docs/smoke-2026-10-20.md)。
+- 测试 164 个（`dart test`），`dart analyze` 0 问题；评测（Python 校验器、用例、结果）在同仓 `eval/`；开发全程用假模型，真实冒烟见 [docs/smoke-2026-10-20.md](docs/smoke-2026-10-20.md)。
 
 ## 架构
 
@@ -42,12 +42,14 @@ lib/
   ugk_coach.dart            核心入口（纯 Dart）
   ugk_coach_io.dart         dart:io 适配：FileCatalogCache、JsonlUsageSink
   src/config  catalog  profile  plan  envelope  prompt  llm  usage  assistant  io
-prompts/       kernel.md（系统提示词内核，与 ai-coach-eval 评测同一份）context.md rewrite.md
-profiles/      flarelab.json hiplab.json smartfit.json
+prompts/       kernel.md（系统提示词内核 v2，SDK 与评测共用这一份）context.md rewrite.md
+profiles/      flarelab.json hiplab.json smartfit.json（SDK 与评测共用）
 schema/        catalog / catalog-manifest / coach-profile / coach-reply 的 JSON Schema
 tool/          embed_prompts.dart  make_manifest.dart  packs_to_catalog.dart
 example/       quickstart.dart（离线）  smoke.dart（真实调用）
 docs/          design.md（决策与取舍）  smoke-2026-10-20.md
+eval/          评测（原 ai-coach-eval，subtree 并入）：tools/validate.py eval.py build_prompt.py export_parity.py、cases/、results/、README（设计说明与评测结果）
+test/fixtures/ pose-hub-catalog.json（目录快照）golden/（提示词金样）parity.json（校验对照）packs/
 ```
 
 ## 快速上手
@@ -158,7 +160,7 @@ repo.updates.listen((c) => revalidateSavedPlans(c));
 
 **解析容错**（`extractJsonObject`）：去 BOM、`<think>` 段、markdown 围栏、前后说明文字、末尾多余逗号；直接给计划本体按 `kind=plan` 包装；`seconds` 规范成 `workSeconds`。只修无歧义的，其余结构问题逐条带路径报出（`plan.blocks[1].items[0].mode`）。
 
-**校验规则**（`PlanValidator`，与评测脚本 `tools/validate.py` 逐条对齐，`test/parity_test.dart` 24 例对照）：
+**校验规则**（`PlanValidator`，与评测脚本 `eval/tools/validate.py` 逐条对齐；`test/parity_test.dart` 读 `eval/tools/export_parity.py` 导出的 32 例——自测 24 例 + 8 条 mode / 场所补充样例——逐例比对错误分类与每类条数）：
 
 | 分类 | 错误（触发重写 → 回落） |
 |---|---|
@@ -179,11 +181,11 @@ repo.updates.listen((c) => revalidateSavedPlans(c));
 
 ## 提示词
 
-`prompts/kernel.md` 是系统提示词内核（与 ai-coach-eval 评测用的是同一份，`test/prompt_test.dart` 断言 SDK 渲染结果与评测脚本 `build_prompt.py` 的产物逐字节一致）。系统消息 = 内核 + profile（侧重、规则、场所规则）+ 按 profile 筛过的紧凑目录表；**不含本轮条件**，所以同一 App 连续调用共享前缀，命中前缀缓存（冒烟：4520 个 prompt token 里 4096 命中缓存）。本轮条件（App 已知的场所/器械/保护部位/时长…）作为一行前缀放进用户消息，什么都不知道时只发原话。
+`prompts/kernel.md` 是系统提示词内核 v2（评测脚本 `eval/tools/build_prompt.py` 直接读这一份；`test/prompt_test.dart` 断言 SDK 渲染结果与它的产物 `test/fixtures/golden/*.md` 逐字节一致）。v2 相对 v1：`kind → plan → text` 顺序、kind=plan 时 plan 必填、思考简短、text ≤80 字、plan.equipment 含场所默认器械（评测第 2 轮把 v1 失败的 2 条修好，24/24）。系统消息 = 内核 + profile（侧重、规则、场所规则）+ 按 profile 筛过的紧凑目录表；**不含本轮条件**，所以同一 App 连续调用共享前缀，命中前缀缓存（冒烟：4520 个 prompt token 里 4096 命中缓存）。本轮条件（App 已知的场所/器械/保护部位/时长…）作为一行前缀放进用户消息，什么都不知道时只发原话。
 
 - 段：`intro / rules / composition / focus / output / catalog`（按 `# ` 标题切分）。
 - 覆盖：`PromptBuilder(overrides: PromptOverrides(version: 'hl2', replace: {'composition': '…'}, append: [PromptSection('tone', '…')], vars: {...}))`；追加段默认插在目录段之前；缺变量直接抛 `PromptRenderException`。
-- 版本：`promptVersion = kernel-<内核哈希>.c<本轮模板哈希>.r<重写模板哈希>[+覆盖版本]@<profile>-<profile.promptVersion>`，加 `promptHash`（系统消息实际内容哈希），都进调用记录。
+- 版本：`promptVersion = kernel-v<内核修订号>-<内核哈希>.c<本轮模板哈希>.r<重写模板哈希>[+覆盖版本]@<profile>-<profile.promptVersion>`（当前 `kernel-v2-694a82ed…`；修订号是 `kernelRevision`，改内核语义时手动加一），加 `promptHash`（系统消息实际内容哈希），都进调用记录。
 - 改 md 后 `dart run tool/embed_prompts.dart`（测试会检查是否同步）。
 
 ## 调用记录
@@ -194,7 +196,7 @@ Sink 可插拔：`MemoryUsageSink`（含 `summary`：调用数、轮数、token�
 
 ## 各 App 接入
 
-三个 App 的差异只在 profile + UI（`profiles/*.json`，来自 ai-coach-eval d0c5cab）。
+三个 App 的差异只在 profile + UI（`profiles/*.json`，SDK 与 `eval/` 共用，唯一来源）。
 
 **SmartFit（智能健身助手，全库 142 个）**
 ```dart
@@ -247,12 +249,22 @@ abstract interface class SessionRunner { Stream<TimelineEvent> get events; void 
 ```bash
 dart pub get
 dart analyze           # 0 问题
-dart test              # 151 个，全部离线
+dart test              # 164 个，全部离线
 dart run tool/embed_prompts.dart        # 改了 prompts/*.md 之后
 dart run example/quickstart.dart        # 离线演示
 dart run example/smoke.dart             # 真实调用（花钱，按需跑一次）
 ```
 
-与评测同步：ai-coach-eval 改了 `prompt/kernel.md`、`profiles/*.json` 或目录后，拷到本仓库 `prompts/`、`profiles/`、`test/fixtures/pose-hub-catalog.json`，并用评测脚本重新生成 `test/fixtures/golden/*.md`；`dart test` 会指出任何不一致。
+与评测同步（评测已并入 `eval/`，profile / 内核 / 目录快照只有仓库里这一份）：
+
+```bash
+python3 eval/tools/validate.py --selftest                     # Python 校验器自测 24/24
+python3 eval/tools/export_parity.py                           # 改了 validate.py 或目录后重导 test/fixtures/parity.json
+for p in flarelab hiplab smartfit; do python3 eval/tools/build_prompt.py --profile profiles/$p.json --out test/fixtures/golden/$p.md; done
+dart run tool/embed_prompts.dart                              # 改了 prompts/*.md 后
+python3 eval/tools/eval.py dry                                # 评测流程空跑（不调模型）；真实评测见 eval/README.md
+```
+
+目录更新：用 Pose-Hub `catalog/catalog.json` 覆盖 `test/fixtures/pose-hub-catalog.json`、`catalog/catalog.schema.json` 覆盖 `schema/catalog.schema.json`，再跑上面几步；`dart test` 会指出任何不一致。
 
 设计取舍见 [docs/design.md](docs/design.md)，版本变化见 [CHANGELOG.md](CHANGELOG.md)。

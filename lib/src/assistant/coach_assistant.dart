@@ -248,7 +248,7 @@ class CoachAssistant {
         UsageRecord(
           id: _ids.next('call'),
           turnId: turnId,
-          at: _clock(),
+          at: _clock().toUtc(),
           appId: appId,
           profileId: profile.id,
           model: c.model ?? client.model,

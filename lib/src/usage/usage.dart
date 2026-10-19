@@ -68,6 +68,8 @@ class UsageRecord {
 
   final String id;
   final String turnId;
+
+  /// UTC（JSON 里带 Z）。
   final DateTime at;
   final String appId;
   final String profileId;

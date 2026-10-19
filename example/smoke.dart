@@ -2,12 +2,14 @@
 //
 //   dart run example/smoke.dart                       # 不带 Authorization（上游代理注入 key）
 //   UGK_API_KEY=sk-... dart run example/smoke.dart    # 自带 key
+//   SSL_CERT_FILE=/path/ca.crt（企业/沙盒代理自签 CA 时）
 //   UGK_BASE_URL / UGK_MODEL 覆盖地址与模型；UGK_PRICE_IN / UGK_PRICE_CACHED / UGK_PRICE_OUT（每百万 token）估算花费
 //
 // 调用记录追加到 example/smoke-usage.jsonl。
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:http/io_client.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 import 'package:ugk_coach/ugk_coach_io.dart';
 
@@ -25,7 +27,14 @@ Future<void> main(List<String> args) async {
         : null,
   );
   final key = env['UGK_API_KEY'];
-  final client = OpenAiCompatibleClient(config: config, auth: key == null || key.isEmpty ? const NoAuth() : ApiKeyAuth(key));
+  // 代理用自签 CA 时，按 SSL_CERT_FILE 追加信任（Flutter App 用系统证书，不需要）。
+  final ca = env['SSL_CERT_FILE'];
+  final io = HttpClient(context: SecurityContext(withTrustedRoots: true)..let(ca, (c, f) => c.setTrustedCertificates(f)));
+  final client = OpenAiCompatibleClient(
+    config: config,
+    auth: key == null || key.isEmpty ? const NoAuth() : ApiKeyAuth(key),
+    httpClient: IOClient(io),
+  );
 
   final repo = CatalogRepository(bundled: BundledCatalogSource(() => File('test/fixtures/pose-hub-catalog.json').readAsString()));
   await repo.load();
@@ -72,4 +81,11 @@ Future<void> main(List<String> args) async {
   }
   stdout.writeln('promptVersion=${r.records.firstOrNull?.promptVersion} catalog=${repo.current.version}');
   client.close();
+}
+
+extension<T> on T {
+  T let(String? v, void Function(T self, String v) f) {
+    if (v != null && v.isNotEmpty) f(this, v);
+    return this;
+  }
 }

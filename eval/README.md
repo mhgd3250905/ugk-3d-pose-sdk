@@ -1,23 +1,37 @@
-# AI 训练助理 · 第 1 阶段：profile + 提示词 + 校验 + 评测
+# AI 训练助理 · 评测（第 1 阶段：profile + 提示词 + 校验 + 评测）
 
-三个 App（托马斯 FlareLab、开胯 HipLab、智能健身 SmartFit）共用一个 AI 训练助理：模型只能用 Pose-Hub 统一动作目录里的动作，按固定 JSON 输出动作 id + 剂量；App 校验通过后渲染成套路卡，可保存、可直接跟练。本目录只放数据、提示词和评测，不含任何 App 代码，之后并入 SDK 仓库 `mhgd3250905/ugk-3d-pose-sdk`（Dart 包 `ugk_coach`）。
+> 来源：原独立仓库 ai-coach-eval（d0c5cab → 73acd1b → c60023f），以 git subtree 并入本仓库 `eval/`，历史保留。
+> 并入后去重：profile、提示词内核、动作目录快照都以**仓库根**为唯一来源，评测脚本直接读它们，SDK 与评测用的是同一份。
 
-动作目录本体在 Pose-Hub `catalog/`（分支 `feat/ai-coach-catalog`）。`catalog.json` 是一份拷贝，只给本地评测用。
+三个 App（托马斯 FlareLab、开胯 HipLab、智能健身 SmartFit）共用一个 AI 训练助理：模型只能用 Pose-Hub 统一动作目录里的动作，按固定 JSON 输出动作 id + 剂量；App 校验通过后渲染成套路卡，可保存、可直接跟练。本目录是 Python 侧的校验器与评测，Dart 侧实现在 `lib/`（`PlanValidator`、`PromptBuilder`）。
+
+动作目录本体在 Pose-Hub `catalog/`（分支 `feat/ai-coach-catalog`，809f36a）。
 
 ## 目录
 
 | 路径 | 内容 |
 |---|---|
-| `catalog.schema.json` | 动作目录 JSON Schema（与 Pose-Hub `catalog/catalog.schema.json` 相同，SDK 按它解析） |
-| `catalog.json` | Pose-Hub catalog v0.1.0 的拷贝（142 个动作） |
-| `profiles/{flarelab,hiplab,smartfit}.json` | 每个 App 的配置（格式与 SDK `CoachProfile.fromJson` 一致） |
-| `prompt/kernel.md` | 通用提示词内核（`{{变量}}` 由 profile 和目录填） |
-| `prompt/built/*.md` | 三个 App 拼好的完整系统提示词（检查用，生成物） |
+| `../profiles/{flarelab,hiplab,smartfit}.json` | 每个 App 的配置（唯一来源；格式即 SDK `CoachProfile.fromJson`） |
+| `../prompts/kernel.md` | 通用提示词内核 v2（唯一来源；SDK 嵌入 `lib/src/prompt/prompts.g.dart`） |
+| `../test/fixtures/pose-hub-catalog.json` | Pose-Hub catalog v0.1.0 快照（142 个动作），评测默认目录；`--catalog` 可换 |
+| `../schema/catalog.schema.json` | 动作目录 JSON Schema（与 Pose-Hub `catalog/catalog.schema.json` 相同） |
+| `../test/fixtures/golden/*.md` | 三个 App 拼好的完整系统提示词（`build_prompt.py` 产物，SDK 金样） |
+| `../test/fixtures/parity.json` | `export_parity.py` 产物：自测 24 例 + 补充规则样例与 Python 判定，Dart `test/parity_test.dart` 逐例对照 |
 | `tools/validate.py` | 回复校验器（规则对齐 SmartFit `plan_validator.dart` + profile 范围检查），`--selftest` 跑 24 个手写样例 |
 | `tools/build_prompt.py` | 拼提示词：内核 + profile + 按 profile 筛过的紧凑目录表 |
+| `tools/export_parity.py` | 导出 Python 校验结果给 Dart 对照测试 |
 | `tools/eval.py` | 评测：调用模型 → 校验 → 失败回传错误重写一次 → 统计 |
-| `eval/cases/cases.json` | 24 条用例（每个 App 8 条） |
-| `eval/results/` | 每轮原始回复（`round<N>/<用例>.a<尝试>.json`）、汇总（`round<N>.md/.json`）、调用账本 `calls.jsonl`、两版内核 `kernel-v1.md` / `kernel-v2.md` |
+| `cases/cases.json` | 24 条用例（每个 App 8 条） |
+| `results/` | 每轮原始回复（`round<N>/<用例>.a<尝试>.json`）、汇总（`round<N>.md/.json`）、调用账本 `calls.jsonl`（不含密钥）、两版内核 `kernel-v1.md` / `kernel-v2.md` |
+
+命令都在仓库根运行：
+
+```bash
+python3 eval/tools/validate.py --selftest                       # 24/24
+python3 eval/tools/export_parity.py                             # 改了 validate.py 后重导 test/fixtures/parity.json
+for p in flarelab hiplab smartfit; do python3 eval/tools/build_prompt.py --profile profiles/$p.json --out test/fixtures/golden/$p.md; done
+python3 eval/tools/eval.py dry                                  # 不调模型走一遍流程
+```
 
 ## 1. 回复格式
 
@@ -43,7 +57,7 @@ profile 字段：`id`、`appName`、`focus`（侧重，逐行进提示词）、`
 
 ## 3. 提示词 = 内核 + profile + 紧凑目录表
 
-内核要点（`prompt/kernel.md`）：
+内核要点（`prompts/kernel.md`）：
 - 只能用目录 id、逐字拷贝，禁止编造；库里没有的用最接近的替代并写进 `plan.notes`，没有替代就 `reply`。
 - 严格输出信封 JSON；`ask` 只问 1 个问题、给 2–4 个选项；只要知道目标/部位/场所/时长之一就用默认值直接排。
 - 安全：剧痛、麻木/放射痛、肿胀、刚受伤、术后、孕期/产后 6 个月内、头晕胸闷 → `reply` 建议就医，不出计划；一般不适 → 部位写进 `plan.avoid`，不选 `cautions` 含该部位的动作。
@@ -55,7 +69,7 @@ profile 字段：`id`、`appName`、`focus`（侧重，逐行进提示词）、`
 
 ## 4. 校验器
 
-`tools/validate.py`，规则对齐 SmartFit `lib/domain/plan_validator.dart`，并加了 AI 专用检查：
+`eval/tools/validate.py`，规则对齐 SmartFit `lib/domain/plan_validator.dart`，并加了 AI 专用检查：
 
 | 规则 | plan_validator.dart | validate.py |
 |---|---|---|
@@ -73,7 +87,7 @@ profile 字段：`id`、`appName`、`focus`（侧重，逐行进提示词）、`
 
 失败时 `format_feedback()` 把错误逐条回传给模型重写一次（输出被截断时额外提示“少想一点、输出紧凑 JSON”）；重写仍失败，App 回落到模板（见第 7 节）。
 
-离线自测：`python3 tools/validate.py --selftest`（24/24 通过），`python3 tools/eval.py dry`（不调模型走一遍流程）。
+离线自测：`python3 eval/tools/validate.py --selftest`（24/24 通过），`python3 eval/tools/eval.py dry`（不调模型走一遍流程）。
 
 ## 5. 评测结果（DeepSeek `deepseek-v4.1-flash-1017`，OpenAI 兼容，`response_format=json_object`，temperature 0.3）
 
@@ -96,9 +110,9 @@ profile 字段：`id`、`appName`、`focus`（侧重，逐行进提示词）、`
 
 复现：
 ```bash
-python3 tools/eval.py call --round 3 --attempt 1 --cases F1,H3 --gap 20   # 首次生成（串行）
-python3 tools/eval.py call --round 3 --attempt 2 --cases F1,H3            # 只对失败的回传错误重写
-python3 tools/eval.py summary --round 3                                   # 汇总（未重跑的用例沿用上一轮）
+python3 eval/tools/eval.py call --round 3 --attempt 1 --cases F1,H3 --gap 20   # 首次生成（串行）
+python3 eval/tools/eval.py call --round 3 --attempt 2 --cases F1,H3            # 只对失败的回传错误重写
+python3 eval/tools/eval.py summary --round 3                                   # 汇总（未重跑的用例沿用上一轮）
 ```
 
 ## 6. SDK 分层建议（ugk_coach）

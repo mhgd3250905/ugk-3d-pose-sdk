@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""拼装系统提示词 = 通用内核（prompt/kernel.md）+ profile + 按 profile 筛过的紧凑目录表。
+"""拼装系统提示词 = 通用内核（仓库 prompts/kernel.md，与 SDK 同一份）+ profile + 按 profile 筛过的紧凑目录表。
 
-用法：python3 tools/build_prompt.py --profile profiles/hiplab.json [--catalog catalog.json] [--out prompt/built/hiplab.md]
+用法：python3 eval/tools/build_prompt.py --profile profiles/hiplab.json [--catalog <catalog.json>] [--out test/fixtures/golden/hiplab.md]
+产物即 SDK 的金样（test/fixtures/golden/*.md），test/prompt_test.dart 断言 SDK 渲染与之逐字节一致。
 也可 import：build_system_prompt(catalog, profile) -> str
 """
 from __future__ import annotations
@@ -14,7 +15,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
-from validate import load, scope, default_catalog_path  # noqa: E402
+from validate import load, scope, default_catalog_path, REPO  # noqa: E402
 
 CAT_SHORT = {"strength": "力量", "core": "核心", "cardio": "有氧", "mobility": "活动", "stretch": "拉伸"}
 MUSCLE_SHORT = {"deltoids": "三角肌", "rotator-cuff": "肩袖", "triceps": "肱三头", "biceps": "肱二头", "forearms": "前臂", "serratus": "前锯肌",
@@ -61,7 +62,7 @@ def scene_rules_text(catalog, profile, drills):
 
 
 def build_system_prompt(catalog, profile, kernel_path=None):
-    kernel = open(kernel_path or os.path.join(ROOT, "prompt", "kernel.md"), encoding="utf-8").read()
+    kernel = open(kernel_path or os.path.join(REPO, "prompts", "kernel.md"), encoding="utf-8").read()
     drills = scope(catalog, profile)
     v = profile.get("vars", {})
     labels = {"home": "居家", "office": "办公室", "gym": "健身房"}

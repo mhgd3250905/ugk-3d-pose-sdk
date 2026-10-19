@@ -2,11 +2,11 @@
 """AI 训练助理评测：调用 DeepSeek（OpenAI 兼容），校验 → 失败把错误回传重写一次 → 统计。
 
 为省额度和适配 120 秒的命令时限，按“尝试”分步跑，每次调用的结果立即落盘：
-  python3 tools/eval.py call --round 1 --attempt 1 --cases F1,F2,F3   # 首次生成（并行）
-  python3 tools/eval.py call --round 1 --attempt 2 --cases F1,F2      # 只对第 1 次校验失败的用例回传错误重写
-  python3 tools/eval.py summary --round 1                             # 汇总成 eval/results/round1.md / .json
-  python3 tools/eval.py failed --round 1                              # 列出需要下一轮重跑的用例
-  python3 tools/eval.py dry                                           # 不调模型，用手写回复走一遍流程
+  python3 eval/tools/eval.py call --round 1 --attempt 1 --cases F1,F2,F3   # 首次生成（并行）
+  python3 eval/tools/eval.py call --round 1 --attempt 2 --cases F1,F2      # 只对第 1 次校验失败的用例回传错误重写
+  python3 eval/tools/eval.py summary --round 1                             # 汇总成 eval/results/round1.md / .json
+  python3 eval/tools/eval.py failed --round 1                              # 列出需要下一轮重跑的用例
+  python3 eval/tools/eval.py dry                                           # 不调模型，用手写回复走一遍流程
 所有调用记在 eval/results/calls.jsonl（用例、轮次、尝试、耗时、token），summary 会给累计调用次数和 token。
 
 环境：EVAL_BASE_URL（默认 https://opencsg.com/aigateway/v1），EVAL_MODEL（默认 deepseek-v4.1-flash-1017）。
@@ -26,14 +26,14 @@ import urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
-from validate import load, validate_reply, format_feedback, default_catalog_path, extract_json  # noqa: E402
+from validate import load, validate_reply, format_feedback, default_catalog_path, extract_json, PROFILES_DIR  # noqa: E402
 from build_prompt import build_system_prompt  # noqa: E402
 
 BASE = os.environ.get("EVAL_BASE_URL", "https://opencsg.com/aigateway/v1")
 MODEL = os.environ.get("EVAL_MODEL", "deepseek-v4.1-flash-1017")
 MAX_TOKENS = int(os.environ.get("EVAL_MAX_TOKENS", "6000"))
-RES = os.path.join(ROOT, "eval", "results")
-CASES = os.path.join(ROOT, "eval", "cases", "cases.json")
+RES = os.path.join(ROOT, "results")
+CASES = os.path.join(ROOT, "cases", "cases.json")
 CALLS = os.path.join(RES, "calls.jsonl")
 
 
@@ -236,7 +236,7 @@ def main():
     CATALOG = load(a.catalog)
     os.makedirs(RES, exist_ok=True)
     cases = load(CASES)
-    profiles = {k: load(os.path.join(ROOT, "profiles", f"{k}.json")) for k in ("flarelab", "hiplab", "smartfit")}
+    profiles = {k: load(os.path.join(PROFILES_DIR, f"{k}.json")) for k in ("flarelab", "hiplab", "smartfit")}
     if a.cmd == "summary":
         return summarize(a.round)
     if a.cmd == "failed":

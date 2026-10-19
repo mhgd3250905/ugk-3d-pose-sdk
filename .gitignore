@@ -6,3 +6,5 @@ coverage/
 *.jsonl
 !test/fixtures/*.jsonl
 .env
+!eval/results/*.jsonl
+__pycache__/

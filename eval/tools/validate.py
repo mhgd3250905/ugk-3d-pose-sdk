@@ -20,8 +20,9 @@
 警告（warning，不判失败）：剂量超出动作 doseRange、估算时长偏离 targetMinutes 超 40%、块内重复动作、ask 带多个问号等。
 
 用法：
-  python3 tools/validate.py --catalog <catalog.json> --profile profiles/hiplab.json reply.json [--request '{"scene":"office"}']
-  python3 tools/validate.py --selftest
+  python3 eval/tools/validate.py --profile profiles/hiplab.json reply.json [--request '{"scene":"office"}'] [--catalog <catalog.json>]
+  python3 eval/tools/validate.py --selftest
+（--catalog 默认用仓库内快照 test/fixtures/pose-hub-catalog.json）
 """
 from __future__ import annotations
 
@@ -32,7 +33,9 @@ import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
+ROOT = os.path.dirname(HERE)          # eval/
+REPO = os.path.dirname(ROOT)          # 仓库根：profiles/、prompts/kernel.md、目录快照都以仓库为唯一来源
+PROFILES_DIR = os.path.join(REPO, "profiles")
 
 LIMITS = {"sets": (1, 6), "reps": (1, 30), "workSeconds": (10, 120), "restSeconds": (0, 180), "rounds": (1, 6), "restBetweenRoundsSeconds": (0, 300)}
 BLOCK_TYPES = {"warmup", "main", "circuit", "cooldown"}
@@ -52,7 +55,8 @@ def load(p):
 
 
 def default_catalog_path():
-    for p in (os.path.join(ROOT, "catalog.json"), os.path.join(ROOT, "..", "gh-3D-Pose-Hub", "catalog", "catalog.json")):
+    for p in (os.path.join(REPO, "test", "fixtures", "pose-hub-catalog.json"),
+              os.path.join(REPO, "..", "gh-3D-Pose-Hub", "catalog", "catalog.json")):
         if os.path.exists(p):
             return p
     return None
@@ -361,7 +365,7 @@ def format_feedback(R):
 
 # ---------------- 自测：手写样例 ----------------
 def selftest(catalog):
-    profiles = {k: load(os.path.join(ROOT, "profiles", f"{k}.json")) for k in ("flarelab", "hiplab", "smartfit")}
+    profiles = {k: load(os.path.join(PROFILES_DIR, f"{k}.json")) for k in ("flarelab", "hiplab", "smartfit")}
     ok_plan = {"kind": "plan", "text": "给你排了 10 分钟开胯。", "plan": {
         "schemaVersion": 1, "source": "ai", "title": "睡前开胯", "summary": "放松髋部", "goal": "relax", "scene": "home",
         "equipment": ["mat"], "level": 1, "targetMinutes": 10, "avoid": [], "notes": [], "safetyNotes": [],

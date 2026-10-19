@@ -1,7 +1,8 @@
-/// 拼装一次调用的消息：系统（内核 + profile + 目录表 + 输出格式）+ 裁剪后的历史 + 本轮条件与原话。
+/// 拼装一次调用的消息：系统（内核 + profile + 目录表）+ 裁剪后的历史 + 本轮（App 已知条件 + 用户原话）。
 ///
-/// 系统消息只依赖 profile、目录版本与提示词版本，不含本轮条件，
-/// 因此同一 App 的连续调用共享前缀，可命中服务端前缀缓存（DeepSeek 缓存价约为原价一折）。
+/// 系统消息与 ai-coach-eval `tools/build_prompt.py` 逐字节一致（test/prompt_test.dart 金样对照），
+/// 评测结论可直接用于 SDK。系统消息只依赖 profile、目录与提示词版本、不含本轮条件，
+/// 同一 App 的连续调用共享前缀，可命中服务端前缀缓存（DeepSeek 命中价约为原价一折）。
 library;
 
 import 'dart:convert';
@@ -24,116 +25,178 @@ class BuiltPrompt {
   /// `<PromptSet.version>@<profile.id>-<profile.promptVersion>`
   final String version;
 
-  /// 系统消息 sha256 前 12 位：同一版本号下内容是否真的一样。
+  /// 系统消息 sha256 前 12 位：同一版本号下内容是否真的一样（目录版本不同哈希也不同）。
   final String hash;
   final String system;
 }
 
 class PromptBuilder {
-  PromptBuilder({PromptSet set = defaultPromptSet, this.overrides = const PromptOverrides(), this.history = const HistoryPolicy()})
-    : set = set.apply(overrides);
+  PromptBuilder({PromptSet? set, this.overrides = const PromptOverrides(), this.history = const HistoryPolicy()})
+    : set = (set ?? defaultPromptSet).apply(overrides);
 
   final PromptSet set;
   final PromptOverrides overrides;
   final HistoryPolicy history;
 
-  String _systemCacheKey = '';
-  String _systemCache = '';
+  Object? _cacheKey;
+  String _cache = '';
 
   String version(CoachProfile p) => '${set.version}@${p.id}-${p.promptVersion}';
 
-  /// 系统消息（按 profile+目录版本缓存）。
-  String system(CoachProfile profile, Catalog catalog) {
-    final key = '${profile.id}|${profile.promptVersion}|${catalog.version}|${identityHashCode(catalog)}';
-    if (key == _systemCacheKey) return _systemCache;
-    final scope = profile.scope(catalog);
-    final l = profile.limits;
-    final vars = <String, String>{
-      'app_name': profile.appName,
-      'profile_focus': profile.focus,
-      'profile_rules': [for (final (i, r) in profile.rules.indexed) '${i + 11}. $r'].join('\n'),
-      'limit_sets': '${l.sets}',
-      'limit_reps': '${l.reps}',
-      'limit_work': '${l.workSeconds}',
-      'limit_rest': '${l.restSeconds}',
-      'limit_rounds': '${l.rounds}',
-      'goals': profile.goals.join('|'),
-      'catalog_version': catalog.version,
-      'catalog_count': '${scope.length}',
-      'catalog_table': catalogTable(scope, catalog.taxonomy),
-      ...profile.vars,
+  /// 模板可用的变量（与 build_prompt.py 同名）。
+  Map<String, String> variables(CoachProfile profile, Catalog catalog) {
+    final drills = profile.scope(catalog);
+    final tax = catalog.taxonomy;
+    final v = profile.vars;
+    return {
+      'appName': profile.appName,
+      'defaultMinutes': v['defaultMinutes'] ?? '15',
+      'defaultLevel': v['defaultLevel'] ?? '1',
+      'defaultSceneLabel': _sceneLabels[profile.defaultScene] ?? '居家',
+      'cautions': tax.cautions.join('、'),
+      'sceneRules': sceneRulesText(profile, tax, drills),
+      'sceneIds': profile.scenes.keys.join(' / '),
+      'sceneEnum': profile.scenes.keys.join('|'),
+      'goalEnum': profile.goals.join('|'),
+      'focus': [for (final x in profile.focus.split('\n')) if (x.trim().isNotEmpty) '- $x'].join('\n'),
+      'rules': [for (final r in profile.rules) '- $r'].join('\n'),
+      'drillCount': '${drills.length}',
+      'table': [for (final d in drills) catalogRow(d)].join('\n'),
+      'catalogVersion': catalog.version,
+      ...v,
       ...overrides.vars,
     };
-    final text = [
-      for (final s in set.sections) PromptTemplate(s.template).render(vars, where: '段 ${s.name}').trim(),
-    ].join('\n\n');
-    _systemCacheKey = key;
-    _systemCache = text;
+  }
+
+  /// 系统消息（按 profile + 目录实例缓存）。
+  String system(CoachProfile profile, Catalog catalog) {
+    final key = (profile, catalog);
+    if (key == _cacheKey) return _cache;
+    final vars = variables(profile, catalog);
+    final text = [for (final s in set.sections) PromptTemplate(s.template).render(vars, where: '段 ${s.name}')].join();
+    _cacheKey = key;
+    _cache = text;
     return text;
   }
 
-  /// 目录表：一行一个动作，`|` 分隔，尽量省 token。
-  static String catalogTable(List<Drill> drills, Taxonomy t) {
-    String range(Drill d) {
-      final r = d.doseRange;
-      final parts = [
-        if (r.sets != null) '组${r.sets}',
-        if (r.reps != null) '次${r.reps}',
-        if (r.seconds != null) '秒${r.seconds}',
-        if (r.restSeconds != null) '休${r.restSeconds}',
-      ];
-      return parts.isEmpty ? '-' : parts.join(' ');
-    }
+  static const _sceneLabels = {'home': '居家', 'office': '办公室', 'gym': '健身房'};
+  static const _catShort = {'strength': '力量', 'core': '核心', 'cardio': '有氧', 'mobility': '活动', 'stretch': '拉伸'};
+  static const _muscleShort = {
+    'deltoids': '三角肌', 'rotator-cuff': '肩袖', 'triceps': '肱三头', 'biceps': '肱二头', 'forearms': '前臂',
+    'serratus': '前锯肌', 'scapular': '中下斜方', 'chest': '胸', 'lats': '背阔', 'abs': '腹直', 'obliques': '腹斜',
+    'erectors': '竖脊', 'hip-flexors': '髋屈', 'glute-max': '臀大', 'hip-abductors': '臀中', 'adductors': '内收',
+    'quadriceps': '股四', 'hamstrings': '腘绳', 'calves': '小腿', 'tibialis': '胫前',
+  };
+  static const _posShort = {
+    'standing': '站', 'seated': '坐', 'supine': '仰卧*', 'prone': '俯*', 'quadruped': '四足*', 'kneeling': '跪*',
+    'side_lying': '侧卧*', 'support': '器械撑', 'hanging': '悬垂',
+  };
+  static const _sceneShort = {'home': '家', 'office': '办', 'gym': '馆'};
 
+  /// 目录表一行：`id|名称|类型|肌群|器械|体位|单侧|难度|场所|默认|范围|注意|用途`。
+  static String catalogRow(Drill d) {
+    final dd = d.defaultDose;
+    final r = autoRange(d);
+    final reps = dd.mode == DoseMode.reps;
+    final dose = reps ? '${dd.sets}×${dd.reps}次 休${dd.restSeconds}' : '${dd.sets}×${dd.seconds}秒 休${dd.restSeconds}';
+    final rng = reps
+        ? '组${r.sets!.min}-${r.sets!.max} 次${r.reps!.min}-${r.reps!.max}'
+        : '组${r.sets!.min}-${r.sets!.max} 秒${r.seconds!.min}-${r.seconds!.max}';
     return [
-      for (final d in drills)
-        [
-          d.id,
-          d.name.of(),
-          d.purpose.isEmpty ? '-' : _purpose(d),
-          d.category,
-          d.equipment.isEmpty ? '-' : d.equipment.join(','),
-          d.position,
-          d.unilateral ? '是' : '否',
-          'L${d.level}',
-          d.cautions.isEmpty ? '-' : d.cautions.join(','),
-          d.scenes.join(','),
-          '${d.defaultDose.mode.name} ${d.defaultDose.short} 休${d.defaultDose.restSeconds}',
-          range(d),
-        ].join('|'),
-    ].join('\n');
+      d.id,
+      d.name.of(),
+      _catShort[d.category] ?? d.category,
+      d.muscleGroups.map((g) => _muscleShort[g] ?? g).join(','),
+      d.equipment.isEmpty ? '-' : d.equipment.join(','),
+      _posShort[d.position] ?? d.position,
+      d.unilateral ? '单' : '',
+      '${d.level}',
+      d.scenes.map((s) => _sceneShort[s] ?? s).join(','),
+      dose,
+      rng,
+      d.cautions.isEmpty ? '-' : d.cautions.join(','),
+      d.purpose,
+    ].join('|');
   }
 
-  /// 作用列去掉重复的动作名前缀（「徒手深蹲，练大腿前侧」→「练大腿前侧」）。
-  static String _purpose(Drill d) {
-    final n = d.name.of();
-    var p = d.purpose;
-    if (p.startsWith(n)) p = p.substring(n.length).replaceFirst(RegExp(r'^[，,、\s]+'), '');
-    return p.isEmpty ? '-' : p;
+  /// 动作的 doseRange；目录没给就按 Pose-Hub build_catalog.py 的默认规则推出来。
+  static DoseRange autoRange(Drill d) {
+    final dd = d.defaultDose;
+    final r = d.doseRange;
+    int clamp(int v, int lo, int hi) => v < lo ? lo : (v > hi ? hi : v);
+    // Python round()：四舍六入五取偶，与 build_catalog.py 保持一致。
+    int pyRound(double x) {
+      final f = x.floorToDouble();
+      final diff = x - f;
+      if (diff > 0.5) return f.toInt() + 1;
+      if (diff < 0.5) return f.toInt();
+      return f.toInt().isEven ? f.toInt() : f.toInt() + 1;
+    }
+    final sets = r.sets ?? IntRange(1, clamp(dd.sets + 1, 1, 6));
+    if (dd.mode == DoseMode.reps) {
+      final n = dd.reps ?? 10;
+      return DoseRange(
+        sets: sets,
+        reps: r.reps ?? IntRange(clamp(pyRound(n * 0.5), 1, 30), clamp(n + 2 > pyRound(n * 1.5) ? n + 2 : pyRound(n * 1.5), 1, 30)),
+        restSeconds: r.restSeconds,
+      );
+    }
+    final s = dd.seconds ?? 30;
+    return DoseRange(
+      sets: sets,
+      seconds: r.seconds ?? IntRange(clamp(pyRound(s * 0.5), 10, 120), clamp(s * 2, 10, 120)),
+      restSeconds: r.restSeconds,
+    );
+  }
+
+  static String sceneRulesText(CoachProfile profile, Taxonomy tax, List<Drill> drills) {
+    final lines = <String>[];
+    for (final e in profile.scenes.entries) {
+      final sid = e.key, r = e.value;
+      final label = r.label ?? sid;
+      final String eq;
+      if (r.allEquipment) {
+        eq = '默认全部器械都有';
+      } else if (r.assumedEquipment.isNotEmpty) {
+        eq = '默认有 ${r.assumedEquipment.map((q) => '$q（${tax.equipmentLabel(q)}）').join('、')}';
+      } else {
+        eq = '默认没有器械';
+      }
+      final acc = (r.acceptDrillScenes.isEmpty ? [sid] : r.acceptDrillScenes).map((s) => _sceneShort[s] ?? s).join('、');
+      final extra = r.forbidFloor ? '；不能用着地体位（体位带 * 的：仰卧/俯/四足/跪/侧卧）' : '';
+      lines.add('   - $sid（$label）：只用「场所」列含「$acc」的动作；$eq$extra。');
+    }
+    final missing = [for (final s in const ['home', 'office', 'gym']) if (!profile.scenes.containsKey(s)) s];
+    if (missing.isNotEmpty) {
+      lines.add('   - 本 App 不支持场所：${missing.map((s) => _sceneLabels[s]).join('、')}。用户在这些场所时，说明本 App 不覆盖，不要硬排。');
+    }
+    final used = {for (final d in drills) ...d.equipment};
+    final legend = [for (final e in tax.equipment.entries) if (used.contains(e.key)) '${e.key}=${e.value}'].join('、');
+    lines.add('   - 器械 id：$legend。');
+    return lines.join('\n');
+  }
+
+  /// App 已知的本轮条件，一行；什么都不知道时返回空串（只发用户原话，与评测一致）。
+  String knownConditions(CoachProfile profile, Catalog catalog, CoachContext c) {
+    final tax = catalog.taxonomy;
+    final parts = <String>[
+      if (c.scene != null) '场所 ${profile.sceneRule(c.scene!).label ?? _sceneLabels[c.scene] ?? c.scene}（${c.scene}）',
+      if (c.equipment != null)
+        c.equipment!.isEmpty ? '除场所默认外没有器械' : '另有器械 ${c.equipment!.map((q) => '$q（${tax.equipmentLabel(q)}）').join('、')}',
+      if (c.avoid.isNotEmpty) '要保护 ${c.avoid.join('、')}',
+      if (c.level != null) '水平 ${c.level}',
+      if (c.minutes != null) '时长 ${c.minutes} 分钟',
+      if (c.goal != null) '目标 ${c.goal}',
+      ...c.notes,
+    ];
+    return parts.join('；');
   }
 
   String contextMessage(CoachProfile profile, Catalog catalog, CoachContext c, String userText) {
-    final scene = c.scene;
-    final rule = scene == null ? null : profile.sceneRule(scene);
-    final have = c.availableEquipment(profile);
-    String eqLabel(Iterable<String> ids) => ids.isEmpty ? '徒手' : ids.map(catalog.taxonomy.equipmentLabel).join('、');
-    final vars = <String, String>{
-      'scene': scene == null ? '未知（默认${profile.sceneRule(profile.defaultScene).label ?? profile.defaultScene}，可追问）' : '${rule!.label ?? scene}($scene)',
-      'equipment': scene == null && c.equipment.isEmpty
-          ? '按场所默认'
-          : have == null
-          ? '全部'
-          : eqLabel(have.toList()..sort()),
-      'avoid': c.avoid.isEmpty ? '无' : c.avoid.join('、'),
-      'level': c.level == null ? '未知（默认 L1）' : 'L${c.level}',
-      'minutes': c.minutes == null ? '未指定' : '${c.minutes} 分钟',
-      'goal': c.goal ?? '未指定',
-      'notes': c.notes.isEmpty ? '' : c.notes.map((n) => '· $n').join('\n'),
-      'user_text': userText.trim(),
-      ...profile.vars,
-      ...overrides.vars,
-    };
-    return PromptTemplate(set.contextTemplate).render(vars, where: 'contextTemplate').replaceAll(RegExp(r'\n{2,}'), '\n');
+    final known = knownConditions(profile, catalog, c);
+    if (known.isEmpty) return userText.trim();
+    return PromptTemplate(set.contextTemplate)
+        .render({...overrides.vars, 'known': known, 'user_text': userText.trim()}, where: 'contextTemplate');
   }
 
   BuiltPrompt build({
@@ -157,12 +220,13 @@ class PromptBuilder {
     );
   }
 
-  /// 重写轮：在原消息后追加模型上次的输出和问题清单。
+  /// 重写轮：在原消息后追加模型上次的输出和错误清单（`- E_DOSE 消息`，与评测 format_feedback 一致）。
   List<LlmMessage> rewrite(List<LlmMessage> previous, String lastOutput, List<PlanIssue> issues) => [
     ...previous,
     LlmMessage.assistant(lastOutput),
     LlmMessage.user(PromptTemplate(set.rewriteTemplate).render({
-      'issues': [for (final i in issues.where((i) => i.isError)) '- ${i.feedbackLine}'].join('\n'),
+      ...overrides.vars,
+      'issues': [for (final i in issues.where((i) => i.isError)) '- ${i.category} ${i.message}'].join('\n'),
     }, where: 'rewriteTemplate')),
   ];
 }

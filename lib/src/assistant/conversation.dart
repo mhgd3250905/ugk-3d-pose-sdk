@@ -69,7 +69,7 @@ class HistoryPolicy {
     for (final t in c.turns.reversed.take(maxTurns)) {
       final String content;
       if (t.isUser) {
-        content = '【用户】${t.text}';
+        content = t.text;
       } else {
         final r = t.reply!;
         if (r.plan != null && !planKept) {

@@ -195,41 +195,47 @@ class TrainingPlan {
   };
 }
 
-/// 估算计划时长（秒）。和 SmartFit 播放器的口径接近：单侧换边 5 秒、动作之间过渡 15 秒；
-/// reps 模式按视频 repSeconds（缺省 3 秒/次）计。
+/// 估算计划时长（秒），与 SmartFit SessionBuilder / ai-coach-eval `estimate_seconds` 同口径：
+/// 准备 10 秒；每组 = 工作 ×（单侧 2 面）+ 换侧 5 秒；组间休息（sets-1 次）；每换一个动作过渡 15 秒；
+/// 轮间休息至少 15 秒。reps 按视频 repSeconds（缺省 3 秒/次）计。
 class PlanDuration {
-  const PlanDuration({this.switchSideSeconds = 5, this.transitionSeconds = 15, this.defaultRepSeconds = 3.0});
+  const PlanDuration({
+    this.prepSeconds = 10,
+    this.switchSideSeconds = 5,
+    this.transitionSeconds = 15,
+    this.defaultRepSeconds = 3.0,
+  });
+  final int prepSeconds;
   final int switchSideSeconds;
   final int transitionSeconds;
   final double defaultRepSeconds;
 
-  double _repSeconds(Drill? d) {
-    for (final v in d?.assets.videos ?? const <AssetSource>[]) {
-      if (v.repSeconds != null) return v.repSeconds!;
+  double repSeconds(Drill d) {
+    for (final v in d.assets.videos) {
+      if (v.repSeconds != null && v.repSeconds! > 0) return v.repSeconds!;
     }
     return defaultRepSeconds;
   }
 
-  double setSeconds(PlanItem i, Drill? d) {
-    final work = i.mode == DoseMode.reps ? (i.reps ?? 10) * _repSeconds(d) : (i.workSeconds ?? 30).toDouble();
-    return i.perSide ? work * 2 + switchSideSeconds : work;
-  }
-
   double estimateSeconds(TrainingPlan p, Catalog c) {
-    var total = 0.0;
-    var n = 0;
+    var total = prepSeconds.toDouble();
+    var first = true;
     for (final b in p.blocks) {
-      if (b.type == BlockType.circuit) {
-        final round = b.items.fold<double>(0, (s, i) => s + setSeconds(i, c[i.exerciseId]) + i.restSeconds);
-        total += round * b.rounds + b.restBetweenRoundsSeconds * (b.rounds - 1);
-        n += b.items.length * b.rounds;
-      } else {
+      for (var r = 0; r < b.rounds; r++) {
         for (final i in b.items) {
-          total += (setSeconds(i, c[i.exerciseId]) + i.restSeconds) * i.sets * b.rounds;
-          n++;
+          final d = c[i.exerciseId];
+          if (d == null) continue;
+          if (!first) total += transitionSeconds;
+          first = false;
+          final sides = i.perSide ? 2 : 1;
+          final work = i.mode == DoseMode.reps ? (i.reps ?? 10) * repSeconds(d) : (i.workSeconds ?? 30).toDouble();
+          total += i.sets * (work * sides + (sides == 2 ? switchSideSeconds : 0)) + (i.sets - 1) * i.restSeconds;
+        }
+        if (r < b.rounds - 1) {
+          total += b.restBetweenRoundsSeconds > transitionSeconds ? b.restBetweenRoundsSeconds : transitionSeconds;
         }
       }
     }
-    return total + (n > 1 ? (n - 1) * transitionSeconds : 0);
+    return total;
   }
 }

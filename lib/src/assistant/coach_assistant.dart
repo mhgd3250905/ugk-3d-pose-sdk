@@ -66,7 +66,7 @@ class CoachAssistant {
     this.maxRewrites = 1,
     String? appId,
     this.extraRules = const [],
-    this.enforceDrillDoseRange = true,
+    this.enforceDrillDoseRange = false,
     Clock clock = systemClock,
     IdGenerator? ids,
   }) : _catalog = catalog,

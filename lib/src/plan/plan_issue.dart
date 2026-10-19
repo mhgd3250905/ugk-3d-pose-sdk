@@ -17,6 +17,9 @@ class PlanIssue {
 
   bool get isError => severity == IssueSeverity.error;
 
+  /// E_JSON / E_SCHEMA / E_DOSE …（见 [IssueCodes.category]）。
+  String get category => IssueCodes.category(code);
+
   /// 回传给模型的一行：`[reps_range] plan.blocks[1].items[0].reps：徒手深蹲 次数 40 超出 1–30`。
   String get feedbackLine => '[$code]${path == null ? '' : ' $path'}：$message';
 
@@ -59,8 +62,30 @@ abstract final class IssueCodes {
   static const position = 'position';
   static const avoid = 'avoid';
   static const goal = 'goal';
+  static const sceneUnsupported = 'scene_unsupported';
+  static const minutesRange = 'minutes_range';
   // 警告
   static const levelHigh = 'level_high';
   static const duration = 'duration';
   static const duplicateExercise = 'duplicate_exercise';
+  static const doseRange = 'dose_range';
+  static const equipmentUndeclared = 'equipment_undeclared';
+  static const avoidVocabulary = 'avoid_vocabulary';
+  static const goalOutOfProfile = 'goal_out_of_profile';
+
+  /// 粗分类，与 ai-coach-eval `tools/validate.py` 的 E_* 代码一一对应（评测与线上统计口径一致）。
+  static String category(String code) => switch (code) {
+    notJson || envelope => 'E_JSON',
+    schema || schemaVersion || emptyPlan || emptyBlock || goal => 'E_SCHEMA',
+    unknownExercise => 'E_UNKNOWN',
+    outOfProfile => 'E_SCOPE',
+    modeMismatch || setsRange || repsRange || workSecondsRange || restRange || roundsRange ||
+        restBetweenRoundsRange || tooManyItems || minutesRange => 'E_DOSE',
+    perSide => 'E_SIDE',
+    avoid => 'E_AVOID',
+    equipment => 'E_EQUIP',
+    scene || position || sceneUnsupported => 'E_SCENE',
+    blockOrder => 'E_ORDER',
+    _ => 'W',
+  };
 }

@@ -1,16 +1,19 @@
 /// TrainingPlan v1 校验器：模板计划、AI 计划、已存计划（目录更新后复核）共用。
+/// 规则与 ai-coach-eval `tools/validate.py` 对齐（`test/parity_test.dart` 逐条核对），
+/// 评测通过率即线上通过率。
 ///
-/// 规则（错误 = 不能用；警告 = 可用但值得注意）：
-/// - schemaVersion=1；至少一个块；块非空；动作总数 ≤ limits.maxItems
-/// - 块顺序：热身 → 主训练/循环 → 放松
-/// - exerciseId 在目录中，且在 profile 范围内
-/// - mode 与动作默认剂量的 mode 一致；reps / workSeconds 按 mode 必填
-/// - 组数 / 次数 / 时长 / 休息 / 轮数 / 轮间休息：先过全局硬限，再过动作自己的 doseRange
-/// - perSide == 动作 unilateral
-/// - 器械 ⊆ 可用器械；动作 scenes 接受当前场所；场所禁止的体位（办公室不趴不躺）
-/// - 动作 cautions 不含用户要保护的部位（计划 avoid ∪ 本轮 avoid）
-/// - goal 在 profile.goals 中
-/// - 警告：动作难度高于用户等级 1 级以上；估算时长偏离 targetMinutes；同一块内重复动作
+/// 错误（不能用，触发重写 / 回落）：
+/// - 结构：schemaVersion=1；title、summary 非空；goal 在全局枚举；scene ∈ home/office/gym；level 1–3；
+///   equipment 为目录器械 id；至少一个块；块非空
+/// - 动作：id 在目录（E_UNKNOWN）；在 profile 范围（E_SCOPE）
+/// - 剂量（E_DOSE）：mode 与目录默认剂量一致；sets 1–6、reps 1–30、workSeconds 10–120、restSeconds 0–180、
+///   rounds 1–6、轮间休息 0–300；targetMinutes 在 profile.limits.minutes；动作总数 ≤ maxItems
+/// - perSide == unilateral（E_SIDE）；保护部位（E_AVOID）；器械（E_EQUIP）
+/// - 场所（E_SCENE）：profile 支持该场所；计划场所 = 本轮场所；动作 scenes 被接受；办公室不着地
+/// - 块顺序（E_ORDER）：热身不能排在放松之后
+///
+/// 警告：goal 不在本 App 侧重；超出动作 doseRange；其他块顺序不理想；难度高于用户 1 级以上；
+/// 估算时长偏离 ±40%；块内重复；plan.equipment 漏写；avoid 用了词表外的部位。
 library;
 
 import '../catalog/catalog.dart';
@@ -19,12 +22,19 @@ import 'coach_context.dart';
 import 'plan_issue.dart';
 import 'training_plan.dart';
 
+/// 全局 goal 枚举（TrainingPlan v1）。
+const planGoals = {'relax', 'mobility', 'strength', 'core', 'fullbody', 'warmup', 'cooldown'};
+const planScenes = {'home', 'office', 'gym'};
+
 class ValidationReport {
   const ValidationReport(this.issues);
   final List<PlanIssue> issues;
   List<PlanIssue> get errors => [for (final i in issues) if (i.isError) i];
   List<PlanIssue> get warnings => [for (final i in issues) if (!i.isError) i];
   bool get ok => errors.isEmpty;
+
+  /// E_* 分类集合（评测对照用）。
+  Set<String> get errorCategories => {for (final e in errors) e.category};
 }
 
 /// App 可追加自己的规则。
@@ -34,7 +44,7 @@ class PlanValidator {
   const PlanValidator({
     required this.catalog,
     required this.profile,
-    this.enforceDrillDoseRange = true,
+    this.enforceDrillDoseRange = false,
     this.duration = const PlanDuration(),
     this.extraRules = const [],
   });
@@ -42,7 +52,7 @@ class PlanValidator {
   final Catalog catalog;
   final CoachProfile profile;
 
-  /// 是否把动作自己的 doseRange 当硬性规则（默认是）。
+  /// 超出动作 doseRange 是否判错（默认只警告，与评测口径一致）。
   final bool enforceDrillDoseRange;
   final PlanDuration duration;
   final List<PlanRule> extraRules;
@@ -53,112 +63,138 @@ class PlanValidator {
         out.add(PlanIssue(code, msg, path: path, exerciseId: id));
     void warn(String code, String msg, String path, [String? id]) =>
         out.add(PlanIssue.warning(code, msg, path: path, exerciseId: id));
-
+    final tax = catalog.taxonomy;
     final lim = profile.limits;
-    final scene = context.scene ?? plan.scene;
-    final rule = profile.sceneRule(scene);
-    final have = context.availableEquipment(profile);
-    final avoid = {...plan.avoid, ...context.avoid};
-    final level = context.level ?? plan.level;
-    final scope = {for (final d in profile.scope(catalog)) d.id};
+    final lang = context.language;
 
+    // ---- 计划整体 ----
     if (plan.schemaVersion != planSchemaVersion) {
       err(IssueCodes.schemaVersion, 'schemaVersion 必须为 $planSchemaVersion', 'plan.schemaVersion');
     }
-    if (!profile.goals.contains(plan.goal)) {
-      err(IssueCodes.goal, 'goal「${plan.goal}」不在可选值 ${profile.goals.join('/')} 中', 'plan.goal');
+    if (plan.title.trim().isEmpty) err(IssueCodes.schema, '缺少 title', 'plan.title');
+    if (plan.summary.trim().isEmpty) err(IssueCodes.schema, '缺少 summary', 'plan.summary');
+    if (!planGoals.contains(plan.goal)) {
+      err(IssueCodes.goal, 'goal「${plan.goal}」不在 ${planGoals.join('/')}', 'plan.goal');
+    } else if (!profile.goals.contains(plan.goal)) {
+      warn(IssueCodes.goalOutOfProfile, 'goal ${plan.goal} 不在本 App 侧重 ${profile.goals.join('/')}', 'plan.goal');
     }
+    final scene = context.scene ?? plan.scene;
+    if (!planScenes.contains(plan.scene)) {
+      err(IssueCodes.schema, 'scene「${plan.scene}」不在 home/office/gym', 'plan.scene');
+    } else if (!profile.scenes.containsKey(plan.scene)) {
+      err(IssueCodes.sceneUnsupported, '${profile.appName}不支持场所 ${plan.scene}', 'plan.scene');
+    }
+    if (context.scene != null && plan.scene != context.scene) {
+      err(IssueCodes.scene, '计划场所 ${plan.scene} 与用户场所 ${context.scene} 不符', 'plan.scene');
+    }
+    if (plan.level < 1 || plan.level > 3) err(IssueCodes.schema, 'level 必须是 1/2/3', 'plan.level');
+    if (!lim.minutes.contains(plan.targetMinutes)) {
+      err(IssueCodes.minutesRange, 'targetMinutes ${plan.targetMinutes} 超出 ${lim.minutes}', 'plan.targetMinutes');
+    }
+    if (tax.equipment.isNotEmpty) {
+      for (final q in plan.equipment) {
+        if (!tax.equipment.containsKey(q)) err(IssueCodes.schema, 'equipment「$q」不是器械 id', 'plan.equipment');
+      }
+    }
+    final avoid = {...plan.avoid, ...context.avoid};
+    if (tax.cautions.isNotEmpty) {
+      for (final a in avoid) {
+        if (!tax.cautions.contains(a)) warn(IssueCodes.avoidVocabulary, 'avoid 部位「$a」不在词表 ${tax.cautions.join('/')}', 'plan.avoid');
+      }
+    }
+    final rule = profile.scenes[scene] ?? SceneRule.defaults[scene] ?? const SceneRule();
+    final have = context.availableEquipment(profile, scene: scene, declared: plan.equipment);
+    final accept = rule.acceptDrillScenes.isEmpty ? {scene} : rule.acceptDrillScenes;
+    final level = context.level ?? plan.level;
+    final scope = {for (final d in profile.scope(catalog)) d.id};
     if (plan.blocks.isEmpty) err(IssueCodes.emptyPlan, '计划没有任何训练块', 'plan.blocks');
-    final count = plan.items.length;
-    if (count > lim.maxItems) {
-      err(IssueCodes.tooManyItems, '动作项 $count 个，超过上限 ${lim.maxItems}', 'plan.blocks');
-    }
 
+    // ---- 块与动作 ----
+    final used = <String>{};
+    var sawCooldown = false;
     var maxOrder = 0;
+    var count = 0;
     for (var bi = 0; bi < plan.blocks.length; bi++) {
       final b = plan.blocks[bi];
       final bp = 'plan.blocks[$bi]';
-      if (b.type.order < maxOrder) {
-        err(IssueCodes.blockOrder, '「${b.name}」(${b.type.name}) 排错了位置：应为 热身 → 主训练/循环 → 放松', '$bp.type');
-      }
-      if (b.type.order > maxOrder) maxOrder = b.type.order;
-      if (b.items.isEmpty) err(IssueCodes.emptyBlock, '训练块「${b.name}」为空', '$bp.items');
-      if (!lim.rounds.contains(b.rounds)) {
-        err(IssueCodes.roundsRange, '「${b.name}」轮数 ${b.rounds} 超出 ${lim.rounds}', '$bp.rounds');
-      }
+      if (!lim.rounds.contains(b.rounds)) err(IssueCodes.roundsRange, '「${b.name}」轮数 ${b.rounds} 超出 ${lim.rounds}', '$bp.rounds');
       if (!lim.restBetweenRoundsSeconds.contains(b.restBetweenRoundsSeconds)) {
         err(IssueCodes.restBetweenRoundsRange,
             '「${b.name}」轮间休息 ${b.restBetweenRoundsSeconds} 秒超出 ${lim.restBetweenRoundsSeconds}', '$bp.restBetweenRoundsSeconds');
       }
+      if (b.type == BlockType.cooldown) sawCooldown = true;
+      if (b.type == BlockType.warmup && sawCooldown) {
+        err(IssueCodes.blockOrder, '热身块「${b.name}」不能排在放松块之后', '$bp.type');
+      } else if (b.type.order < maxOrder) {
+        warn(IssueCodes.blockOrder, '「${b.name}」(${b.type.name}) 位置不理想：建议 热身 → 主训练/循环 → 放松', '$bp.type');
+      }
+      if (b.type.order > maxOrder) maxOrder = b.type.order;
+      if (b.items.isEmpty) err(IssueCodes.emptyBlock, '训练块「${b.name}」为空', '$bp.items');
+
       final seen = <String>{};
       for (var ii = 0; ii < b.items.length; ii++) {
+        count++;
         final i = b.items[ii];
         final ip = '$bp.items[$ii]';
         final d = catalog[i.exerciseId];
         if (d == null) {
-          err(IssueCodes.unknownExercise, '未知动作 ID：${i.exerciseId}（只能用目录表里的 id）', '$ip.exerciseId', i.exerciseId);
+          err(IssueCodes.unknownExercise, '未知动作 ID：${i.exerciseId}（只能用目录里的 id）', '$ip.exerciseId', i.exerciseId);
           continue;
         }
-        final n = '${d.name.of(context.language)}(${d.id})';
-        if (!scope.contains(d.id)) {
-          err(IssueCodes.outOfProfile, '$n 不在${profile.appName}的动作范围内', '$ip.exerciseId', d.id);
-        }
-        if (!seen.add(d.id)) warn(IssueCodes.duplicateExercise, '$n 在「${b.name}」里重复出现', ip, d.id);
+        final n = '${d.name.of(lang)}（${d.id}）';
+        if (!scope.contains(d.id)) err(IssueCodes.outOfProfile, '$n 不在本 App 的动作范围', '$ip.exerciseId', d.id);
+        if (!seen.add(d.id)) warn(IssueCodes.duplicateExercise, '「${b.name}」里重复了 $n', ip, d.id);
 
         if (i.mode != d.defaultDose.mode) {
-          final want = d.defaultDose.mode == DoseMode.reps ? 'reps（计次）' : 'time（计时）';
-          err(IssueCodes.modeMismatch, '$n 的 mode 应为 $want', '$ip.mode', d.id);
+          err(IssueCodes.modeMismatch, '$n：mode 应为 ${d.defaultDose.mode.name}（目录剂量单位）', '$ip.mode', d.id);
         }
-        _range(out, IssueCodes.setsRange, '$n 组数', i.sets, lim.sets, enforceDrillDoseRange ? d.doseRange.sets : null, '$ip.sets', d.id, '');
+        final r = d.doseRange;
+        _dose(out, IssueCodes.setsRange, '$n：组数', i.sets, lim.sets, b.type == BlockType.circuit ? null : r.sets, '$ip.sets', d.id, '');
         if (i.mode == DoseMode.reps) {
           if (i.reps == null) {
-            err(IssueCodes.repsRange, '$n 计次动作必须写 reps', '$ip.reps', d.id);
+            err(IssueCodes.repsRange, '$n：计次动作必须写 reps', '$ip.reps', d.id);
           } else {
-            _range(out, IssueCodes.repsRange, '$n 次数', i.reps!, lim.reps, enforceDrillDoseRange ? d.doseRange.reps : null, '$ip.reps', d.id, '');
+            _dose(out, IssueCodes.repsRange, '$n：次数', i.reps!, lim.reps, r.reps, '$ip.reps', d.id, '');
           }
+        } else if (i.workSeconds == null) {
+          err(IssueCodes.workSecondsRange, '$n：计时动作必须写 workSeconds', '$ip.workSeconds', d.id);
         } else {
-          if (i.workSeconds == null) {
-            err(IssueCodes.workSecondsRange, '$n 计时动作必须写 workSeconds', '$ip.workSeconds', d.id);
-          } else {
-            _range(out, IssueCodes.workSecondsRange, '$n 时长', i.workSeconds!, lim.workSeconds,
-                enforceDrillDoseRange ? d.doseRange.seconds : null, '$ip.workSeconds', d.id, ' 秒');
-          }
+          _dose(out, IssueCodes.workSecondsRange, '$n：时长', i.workSeconds!, lim.workSeconds, r.seconds, '$ip.workSeconds', d.id, ' 秒');
         }
-        _range(out, IssueCodes.restRange, '$n 休息', i.restSeconds, lim.restSeconds,
-            enforceDrillDoseRange ? d.doseRange.restSeconds : null, '$ip.restSeconds', d.id, ' 秒');
+        _dose(out, IssueCodes.restRange, '$n：休息', i.restSeconds, lim.restSeconds, r.restSeconds, '$ip.restSeconds', d.id, ' 秒');
 
         if (i.perSide != d.unilateral) {
-          err(IssueCodes.perSide, '$n 的 perSide 应为 ${d.unilateral}（${d.unilateral ? '单侧动作，左右各做' : '双侧动作'}）', '$ip.perSide', d.id);
+          err(IssueCodes.perSide, '$n：perSide 应为 ${d.unilateral}${d.unilateral ? '（单侧动作，reps/workSeconds 指每侧）' : ''}', '$ip.perSide', d.id);
         }
+        for (final c in d.cautions) {
+          if (avoid.contains(c)) err(IssueCodes.avoid, '$n 会加重$c部负担（用户要保护）', '$ip.exerciseId', d.id);
+        }
+        used.addAll(d.equipment);
         if (have != null) {
-          final lack = d.equipment.where((q) => !have.contains(q)).toList();
-          if (lack.isNotEmpty) {
-            err(IssueCodes.equipment, '$n 需要${lack.map(catalog.taxonomy.equipmentLabel).join('、')}，用户没有', '$ip.exerciseId', d.id);
+          for (final q in d.equipment) {
+            if (!have.contains(q)) err(IssueCodes.equipment, '$n 需要${tax.equipmentLabel(q)}', '$ip.exerciseId', d.id);
           }
         }
-        final accept = rule.acceptDrillScenes.isEmpty ? {scene} : rule.acceptDrillScenes;
-        if (d.scenes.isNotEmpty && !d.scenes.any(accept.contains)) {
-          err(IssueCodes.scene, '$n 不适合在${rule.label ?? scene}做（适用：${d.scenes.join('/')}）', '$ip.exerciseId', d.id);
+        if (planScenes.contains(scene)) {
+          if ((rule.forbidFloor && tax.floorPositions.contains(d.position)) || rule.forbidPositions.contains(d.position)) {
+            err(IssueCodes.position, '$n 需要趴/躺/跪在地上，不适合${rule.label ?? scene}', '$ip.exerciseId', d.id);
+          }
+          if (!d.scenes.any(accept.contains)) {
+            err(IssueCodes.scene, '$n 不适合场所 $scene（动作场所 ${d.scenes.join('/')}）', '$ip.exerciseId', d.id);
+          }
         }
-        if ((rule.forbidFloor && catalog.taxonomy.floorPositions.contains(d.position)) ||
-            rule.forbidPositions.contains(d.position)) {
-          err(IssueCodes.position, '$n 是${catalog.taxonomy.positionLabel(d.position)}动作，${rule.label ?? scene}不方便', '$ip.exerciseId', d.id);
-        }
-        final hit = d.cautions.where(avoid.contains).toList();
-        if (hit.isNotEmpty) {
-          err(IssueCodes.avoid, '$n 会加重${hit.join('、')}的负担，用户要保护这些部位', '$ip.exerciseId', d.id);
-        }
-        if (d.level > level + 1) {
-          warn(IssueCodes.levelHigh, '$n 难度 L${d.level}，用户是 L$level', '$ip.exerciseId', d.id);
-        }
+        if (d.level > level + 1) warn(IssueCodes.levelHigh, '$n 难度 ${d.level}，用户水平 $level', '$ip.exerciseId', d.id);
       }
     }
-
-    if (out.every((i) => i.code != IssueCodes.unknownExercise) && plan.targetMinutes > 0) {
+    if (count > lim.maxItems) err(IssueCodes.tooManyItems, '动作条目 $count 过多（上限 ${lim.maxItems}）', 'plan.blocks');
+    final undeclared = used.difference(plan.equipment.toSet());
+    if (undeclared.isNotEmpty) {
+      warn(IssueCodes.equipmentUndeclared, 'plan.equipment 漏写 ${(undeclared.toList()..sort()).join(', ')}', 'plan.equipment');
+    }
+    if (plan.targetMinutes > 0) {
       final est = duration.estimateSeconds(plan, catalog) / 60;
-      final t = plan.targetMinutes;
-      if ((est - t).abs() > t * lim.durationTolerance) {
-        warn(IssueCodes.duration, '估算约 ${est.round()} 分钟，目标 $t 分钟', 'plan.targetMinutes');
+      if ((est - plan.targetMinutes).abs() / plan.targetMinutes > lim.durationTolerance) {
+        warn(IssueCodes.duration, '估算时长约 ${est.toStringAsFixed(1)} 分钟，偏离目标 ${plan.targetMinutes} 分钟', 'plan.targetMinutes');
       }
     }
     for (final r in extraRules) {
@@ -167,12 +203,14 @@ class PlanValidator {
     return ValidationReport(out);
   }
 
-  void _range(List<PlanIssue> out, String code, String what, int v, IntRange hard, IntRange? drill, String path,
+  /// 硬限 → 错误；动作 doseRange → 警告（或 [enforceDrillDoseRange] 时错误）。
+  void _dose(List<PlanIssue> out, String code, String what, int v, IntRange hard, IntRange? drill, String path,
       String id, String unit) {
     if (!hard.contains(v)) {
       out.add(PlanIssue(code, '$what $v$unit 超出 $hard$unit', path: path, exerciseId: id));
     } else if (drill != null && !drill.contains(v)) {
-      out.add(PlanIssue(code, '$what $v$unit 超出该动作的推荐范围 $drill$unit', path: path, exerciseId: id));
+      out.add(PlanIssue(enforceDrillDoseRange ? code : IssueCodes.doseRange, '$what $v$unit 超出推荐 $drill$unit',
+          path: path, exerciseId: id, severity: enforceDrillDoseRange ? IssueSeverity.error : IssueSeverity.warning));
     }
   }
 }

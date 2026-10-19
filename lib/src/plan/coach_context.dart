@@ -6,7 +6,7 @@ import '../profile/coach_profile.dart';
 class CoachContext {
   const CoachContext({
     this.scene,
-    this.equipment = const {},
+    this.equipment,
     this.avoid = const {},
     this.level,
     this.minutes,
@@ -19,7 +19,9 @@ class CoachContext {
   final String? scene;
 
   /// 用户额外有的器械（场所默认器械由 profile 补上）。
-  final Set<String> equipment;
+  /// null = App 不知道（用户可能在话里说了「我有哑铃」）：校验时信任计划声明的 equipment；
+  /// `{}` = 明确没有额外器械。
+  final Set<String>? equipment;
 
   /// 要保护的部位（膝 / 腰 / 肩 / 手腕 …）。
   final Set<String> avoid;
@@ -33,11 +35,12 @@ class CoachContext {
 
   String sceneOr(CoachProfile p) => scene ?? p.defaultScene;
 
-  /// 实际可用器械 = 场所默认 + 用户额外。返回 null 表示「全部器械」（健身房）。
-  Set<String>? availableEquipment(CoachProfile p) {
-    final rule = p.sceneRule(sceneOr(p));
+  /// 实际可用器械 = 场所默认 + 用户额外（未知时用 [declared]，即计划自己声明的器械）。
+  /// 返回 null 表示「全部器械」（健身房）。
+  Set<String>? availableEquipment(CoachProfile p, {String? scene, Iterable<String> declared = const []}) {
+    final rule = p.sceneRule(scene ?? sceneOr(p));
     if (rule.allEquipment) return null;
-    return {...rule.assumedEquipment, ...equipment};
+    return {...rule.assumedEquipment, ...(equipment ?? declared)};
   }
 
   CoachContext copyWith({
@@ -62,7 +65,7 @@ class CoachContext {
 
   Map<String, Object?> toJson() => {
     if (scene != null) 'scene': scene,
-    if (equipment.isNotEmpty) 'equipment': equipment.toList(),
+    if (equipment != null) 'equipment': equipment!.toList(),
     if (avoid.isNotEmpty) 'avoid': avoid.toList(),
     if (level != null) 'level': level,
     if (minutes != null) 'minutes': minutes,

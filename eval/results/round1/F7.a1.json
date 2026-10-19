@@ -1,0 +1,29 @@
+{
+ "case": "F7",
+ "profile": "flarelab",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 41.4,
+ "usage": {
+  "prompt": 5270,
+  "completion": 3291,
+  "reasoning": 2747,
+  "total": 8561,
+  "cached": 5120
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:39:21+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"按 20 分钟排：先用俯卧 Y-T-W 和俯撑肩胛前伸唤醒肩胛、前锯肌，再练肩袖外旋、俯撑触肩、平行杆锁肘支撑和直臂侧平板，最后用腕部摇摆收尾。场所默认居家，没提难度就按入门排；两个器械都用上了。\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"支撑肩稳定 20 分\",\"summary\":\"肩袖+前锯肌+锁肘支撑，练托马斯承重肩的稳定\",\"goal\":\"strength\",\"scene\":\"home\",\"equipment\":[\"mat\",\"band\",\"parallettes\"],\"level\":1,\"targetMinutes\":20,\"avoid\":[],\"blocks\":[{\"id\":\"b1\",\"name\":\"热身\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"scapular-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":8,\"perSide\":false,\"restSeconds\":30},{\"exerciseId\":\"serratus-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":false,\"restSeconds\":30}]},{\"id\":\"b2\",\"name\":\"主训练\",\"type\":\"main\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"rotator-cuff-B\",\"mode\":\"reps\",\"sets\":3,\"reps\":12,\"perSide\":true,\"restSeconds\":30},{\"exerciseId\":\"rotator-cuff-A\",\"mode\":\"reps\",\"sets\":3,\"reps\":8,\"perSide\":true,\"restSeconds\":30},{\"exerciseId\":\"triceps-B\",\"mode\":\"time\",\"sets\":3,\"workSeconds\":15,\"perSide\":false,\"restSeconds\":45},{\"exerciseId\":\"deltoids-A\",\"mode\":\"time\",\"sets\":3,\"workSeconds\":25,\"perSide\":true,\"restSeconds\":30}]},{\"id\":\"b3\",\"name\":\"放松 · 腕与肩\",\"type\":\"cooldown\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"forearms-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":false,\"restSeconds\":15}]}],\"notes\":[\"平行杆所有支撑都保持锁肘、肩往下压，不要塌肩\",\"外旋用轻阻力慢速做，4 秒回程\"],\"safetyNotes\":[\"手腕或肩出现疼痛、刺痛就立刻停下\"]}}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "plan",
+  "estMinutes": 20.2
+ },
+ "expectProblems": [],
+ "feedback": null
+}

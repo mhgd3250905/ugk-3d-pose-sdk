@@ -1,0 +1,29 @@
+{
+ "case": "F5",
+ "profile": "flarelab",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 5.3,
+ "usage": {
+  "prompt": 5264,
+  "completion": 262,
+  "reasoning": 161,
+  "total": 5526,
+  "cached": 5120
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:37:31+0000",
+ "content": "{\"kind\":\"reply\",\"text\":\"办公室场景本 App 不覆盖。托马斯全旋的专项体能大多要撑地（手腕、肩胛、支撑臂、压缩），站着或坐着在地毯上排不出有效计划，勉强排反而容易伤手腕。建议换个地方：回家或健身房，10 分钟我给你排一套撑地热身 + 支撑 + 压缩的短链。想现在练的话，告诉我场所和能用的器械，我立刻出。\"}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "reply",
+  "estMinutes": null
+ },
+ "expectProblems": [],
+ "feedback": null
+}

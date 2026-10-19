@@ -1,0 +1,29 @@
+{
+ "case": "S5",
+ "profile": "smartfit",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 28.8,
+ "usage": {
+  "prompt": 10247,
+  "completion": 2618,
+  "reasoning": 1890,
+  "total": 12865,
+  "cached": 9216
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:52:12+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"按你说的 15 分钟排成 HIIT 循环：低冲击开合跳做心肺主项，波比跳库里没有，用「扶凳上斜俯卧撑 + 徒手深蹲」组合替代它的撑-蹲结构；主训练循环 3 轮，动作间休 15 秒、轮间休 45 秒。场所采用默认的居家，难度采用默认的 1，室内只需垫子、椅子和墙。\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"15分钟居家HIIT循环\",\"summary\":\"低冲击开合跳配上深蹲、上斜俯卧撑与平板支撑，共三轮间歇循环，最后拉伸放松。\",\"goal\":\"fullbody\",\"scene\":\"home\",\"equipment\":[\"mat\",\"chair\",\"wall\"],\"level\":1,\"targetMinutes\":15,\"avoid\":[],\"blocks\":[{\"id\":\"b1\",\"name\":\"热身\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"h-wall-angel\",\"mode\":\"reps\",\"sets\":1,\"reps\":10,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"n-pelvis-circle\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-squat\",\"mode\":\"reps\",\"sets\":1,\"reps\":12,\"perSide\":false,\"restSeconds\":10}]},{\"id\":\"b2\",\"name\":\"HIIT 循环\",\"type\":\"circuit\",\"rounds\":3,\"restBetweenRoundsSeconds\":45,\"items\":[{\"exerciseId\":\"h-step-jack\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":15},{\"exerciseId\":\"h-squat\",\"mode\":\"reps\",\"sets\":1,\"reps\":15,\"perSide\":false,\"restSeconds\":15},{\"exerciseId\":\"h-incline-pushup\",\"mode\":\"reps\",\"sets\":1,\"reps\":10,\"perSide\":false,\"restSeconds\":15},{\"exerciseId\":\"h-forearm-plank\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":15}]},{\"id\":\"b3\",\"name\":\"放松\",\"type\":\"cooldown\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"o-stand-quad\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"h-wall-calf\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10}]}],\"notes\":[\"波比跳库里没有，用扶凳上斜俯卧撑加徒手深蹲组合代替；开合跳用低冲击开合跳（不跳起）。\",\"循环 3 轮，动作间休 15 秒，轮间休 45 秒；跟不上就把开合跳降到 25–30 秒。\",\"没提场所和水平，按默认排成居家、难度 1。\"],\"safetyNotes\":[\"强度以还能说短句为准；出现头晕、胸闷、刺痛立刻停止。\",\"手腕或膝有不适就把上斜俯卧撑改成站姿推墙、深蹲减小幅度；不适加重就停止。\"]}}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "plan",
+  "estMinutes": 18.3
+ },
+ "expectProblems": [],
+ "feedback": null
+}

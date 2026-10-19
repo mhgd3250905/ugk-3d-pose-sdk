@@ -1,0 +1,29 @@
+{
+ "case": "F1",
+ "profile": "flarelab",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 40.4,
+ "usage": {
+  "prompt": 5261,
+  "completion": 3927,
+  "reasoning": 3183,
+  "total": 9188,
+  "cached": 5120
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:32:27+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"居家徒手 30 分钟，按热身、主训练、放松排：先唤醒手腕、肩胛、肩袖，再练支撑臂、压缩、转体和髋外展这套托马斯基础链。没说明水平，按入门档排，每组 2 组；撑不住就把组数减到 1 组。\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"居家托马斯基础链\",\"summary\":\"徒手练承重肩、锁肘支撑、核心压缩转体与髋外展，给托马斯打底。\",\"goal\":\"fullbody\",\"scene\":\"home\",\"equipment\":[\"mat\"],\"level\":1,\"targetMinutes\":30,\"avoid\":[],\"blocks\":[{\"id\":\"b1\",\"name\":\"热身：手腕+肩胛\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"forearms-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":false,\"restSeconds\":15},{\"exerciseId\":\"serratus-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":false,\"restSeconds\":30},{\"exerciseId\":\"rotator-cuff-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":8,\"perSide\":true,\"restSeconds\":30}]},{\"id\":\"b2\",\"name\":\"主训练：支撑与压缩\",\"type\":\"main\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"triceps-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":8,\"perSide\":false,\"restSeconds\":45},{\"exerciseId\":\"deltoids-A\",\"mode\":\"time\",\"sets\":2,\"workSeconds\":25,\"perSide\":true,\"restSeconds\":30},{\"exerciseId\":\"abs-A\",\"mode\":\"time\",\"sets\":2,\"workSeconds\":20,\"perSide\":false,\"restSeconds\":30},{\"exerciseId\":\"lats-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":8,\"perSide\":false,\"restSeconds\":45},{\"exerciseId\":\"obliques-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":6,\"perSide\":true,\"restSeconds\":45},{\"exerciseId\":\"hip-abductors-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":8,\"perSide\":true,\"restSeconds\":30},{\"exerciseId\":\"glute-max-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":true,\"restSeconds\":30}]},{\"id\":\"b3\",\"name\":\"放松：肩胛与后撑\",\"type\":\"cooldown\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"scapular-A\",\"mode\":\"reps\",\"sets\":1,\"reps\":8,\"perSide\":false,\"restSeconds\":30},{\"exerciseId\":\"erectors-A\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":20,\"perSide\":false,\"restSeconds\":30}]}],\"notes\":[\"库里没有专门拉伸动作，放松块用低量肩胛活动和后撑抬髋代替。\",\"压缩专项 hip-flexors-A 偏难（难度3），这次先不排；撑地稳了再加进主训练。\",\"全程徒手+瑜伽垫，不需要其他器械。\"],\"safetyNotes\":[\"撑地动作多，手腕或肩有酸胀就停下来活动手腕。\",\"不适加重就停止训练。\"]}}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "plan",
+  "estMinutes": 23.0
+ },
+ "expectProblems": [],
+ "feedback": null
+}

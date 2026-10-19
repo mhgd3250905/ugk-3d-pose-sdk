@@ -1,0 +1,33 @@
+{
+ "case": "H5",
+ "profile": "hiplab",
+ "round": 1,
+ "attempt": 2,
+ "seconds": 25.5,
+ "usage": {
+  "prompt": 4676,
+  "completion": 2226,
+  "reasoning": 2111,
+  "total": 6902,
+  "cached": 4096
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:55:33+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"针对横叉，我按 20 分钟排了一份居家慢慢开胯的计划：先用站姿画圈、仰卧开合和 90/90 换髋热身，接着重点拉伸大腿内侧、活动髋内外旋，中间加一组蚌式激活臀中肌，让你在开胯时髋更稳，最后用仰卧和坐姿拉伸收尾。难度按入门来排，只用到瑜伽垫和瑜伽砖；不要追求一次到位，在不痛的范围内慢慢呼吸就好。\"}",
+ "validation": {
+  "ok": false,
+  "errors": [
+   "E_JSON kind=plan 时必须带 plan 对象"
+  ],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": null,
+  "estMinutes": null
+ },
+ "expectProblems": [
+  "无法解析回复"
+ ],
+ "feedback": "你上一次的输出没有通过 App 校验，问题如下：\n- E_JSON kind=plan 时必须带 plan 对象\n请只改正这些问题后重新输出完整的 JSON（同样的信封格式，不要解释）。未知动作必须换成目录里的 id；不在范围的动作必须删掉或换成本 App 目录里的动作。"
+}

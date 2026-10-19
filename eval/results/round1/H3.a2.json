@@ -1,0 +1,31 @@
+{
+ "case": "H3",
+ "profile": "hiplab",
+ "round": 1,
+ "attempt": 2,
+ "seconds": 40.1,
+ "usage": {
+  "prompt": 4813,
+  "completion": 3402,
+  "reasoning": 2483,
+  "total": 8215,
+  "cached": 4096
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:57:04+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"你说膝盖不舒服，我就把深蹲、跪姿和膝盖受力的动作都去掉，换成仰卧和坐姿的开胯拉伸，只留下一组侧卧蚌式来练臀外侧，帮你稳住髋。你没提场所和难度，所以按默认值来：居家、难度 1、20 分钟；全程在不通的范围内慢慢做，配合呼吸。\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"护膝开胯 20 分钟\",\"summary\":\"用仰卧和坐姿的开胯拉伸，再加一组侧卧蚌式练臀，全程不让膝盖吃力。\",\"goal\":\"mobility\",\"scene\":\"home\",\"equipment\":[\"mat\",\"chair\",\"wall\"],\"level\":1,\"targetMinutes\":20,\"avoid\":[\"膝\"],\"blocks\":[{\"id\":\"b1\",\"name\":\"热身\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"n-pelvis-circle\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-hip-gate\",\"mode\":\"reps\",\"sets\":1,\"reps\":6,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"n-windshield\",\"mode\":\"reps\",\"sets\":1,\"reps\":8,\"perSide\":false,\"restSeconds\":10}]},{\"id\":\"b2\",\"name\":\"主训练\",\"type\":\"main\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"w-clamshell\",\"mode\":\"reps\",\"sets\":2,\"reps\":15,\"perSide\":true,\"restSeconds\":20},{\"exerciseId\":\"h-butterfly-active\",\"mode\":\"reps\",\"sets\":1,\"reps\":10,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"s-butterfly\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"o-stand-lunge\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"s-figure4\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"n-straddle-fold\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-wall-straddle\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":45,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"n-thomas-test\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"o-stand-crossreach\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10}]},{\"id\":\"b3\",\"name\":\"放松\",\"type\":\"cooldown\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"h-knee-hug\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"s-seated-fold\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-supine-twist\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":20}]}],\"notes\":[\"默认按居家、难度 1、20 分钟来排，共 15 个动作，大约 18 分钟，垫子、椅子、墙就够了。\",\"所有需要膝盖发力的深蹲、跪姿和跪姿拉伸都没有排进来，只保留仰卧、坐姿和站姿的动作。\",\"扶椅站姿弓步和交叉侧伸时，膝盖别往前顶，重心放在髋部。\",\"拉伸时以“有牵拉感但不痛”为准，每组配合呼吸慢做；如果某个动作让膝盖不舒服，就直接跳过。\"],\"safetyNotes\":[\"膝盖不适加重或出现刺痛，就立刻停止，必要时找医生或康复师看看。\",\"动作全程不憋气，不要用力弹震；起身时慢一点，避免头晕。\"]}}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [
+   "plan.equipment 漏写 ['block']"
+  ],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "plan",
+  "estMinutes": 19.1
+ },
+ "expectProblems": [],
+ "feedback": null
+}

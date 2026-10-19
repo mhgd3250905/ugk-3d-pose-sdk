@@ -1,0 +1,29 @@
+{
+ "case": "S7",
+ "profile": "smartfit",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 4.1,
+ "usage": {
+  "prompt": 10233,
+  "completion": 102,
+  "reasoning": 61,
+  "total": 10335,
+  "cached": 0
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:31:02+0000",
+ "content": "{\"kind\":\"ask\",\"text\":\"想练点什么？告诉我目标，我就能排个合适的计划。\",\"options\":[\"全身活动一下\",\"力量训练\",\"拉伸放松\",\"核心训练\"]}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "ask",
+  "estMinutes": null
+ },
+ "expectProblems": [],
+ "feedback": null
+}

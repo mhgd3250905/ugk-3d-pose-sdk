@@ -1,0 +1,29 @@
+{
+ "case": "S3",
+ "profile": "smartfit",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 42.3,
+ "usage": {
+  "prompt": 10244,
+  "completion": 3854,
+  "reasoning": 3142,
+  "total": 14098,
+  "cached": 9216
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:49:45+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"按你说的 30 分钟排了一套居家哑铃上肢：地板卧推、单臂划船、侧平举、弯举加一组上斜俯卧撑，把推、拉、肩、手臂都覆盖到，最后用肩外旋和拉伸收尾。地点用居家，没提难度就按默认入门（1 级）；哑铃重量选能标准做完 10 次、最后 2 次略吃力的。\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"居家哑铃上肢 30 分\",\"summary\":\"推拉兼顾的居家哑铃上肢力量课，约 25–30 分钟\",\"goal\":\"strength\",\"scene\":\"home\",\"equipment\":[\"dumbbell\",\"chair\",\"wall\",\"mat\"],\"level\":1,\"targetMinutes\":30,\"avoid\":[],\"blocks\":[{\"id\":\"b1\",\"name\":\"热身\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"h-wall-angel\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"forearms-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":false,\"restSeconds\":10}]},{\"id\":\"b2\",\"name\":\"主训练\",\"type\":\"main\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"h-db-floor-press\",\"mode\":\"reps\",\"sets\":3,\"reps\":10,\"perSide\":false,\"restSeconds\":40},{\"exerciseId\":\"h-db-row\",\"mode\":\"reps\",\"sets\":3,\"reps\":10,\"perSide\":true,\"restSeconds\":40},{\"exerciseId\":\"h-db-lateral\",\"mode\":\"reps\",\"sets\":3,\"reps\":12,\"perSide\":false,\"restSeconds\":30},{\"exerciseId\":\"h-db-curl\",\"mode\":\"reps\",\"sets\":2,\"reps\":12,\"perSide\":false,\"restSeconds\":30},{\"exerciseId\":\"h-incline-pushup\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":false,\"restSeconds\":30},{\"exerciseId\":\"h-side-er\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":true,\"restSeconds\":30}]},{\"id\":\"b3\",\"name\":\"放松\",\"type\":\"cooldown\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"h-chair-lat\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-seated-reachback\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10}]}],\"notes\":[\"没提训练难度，按默认入门（1 级）安排；哑铃动作若 12 次很轻松，可换更重的哑铃或把组数加到 3 组。\",\"组间休息 30–40 秒，动作之间换器械约 15 秒，整体大约 25–30 分钟。\"],\"safetyNotes\":[\"肩、手腕或腰部不适加重就立即停止该动作，必要时咨询医生或康复师。\"]}}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "plan",
+  "estMinutes": 25.7
+ },
+ "expectProblems": [],
+ "feedback": null
+}

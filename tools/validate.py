@@ -353,6 +353,8 @@ def validate_plan(plan, catalog, profile, request, R):
 def format_feedback(R):
     lines = ["你上一次的输出没有通过 App 校验，问题如下："]
     lines += [f"- {e}" for e in R.errors]
+    if any("不完整" in e or "没有 JSON" in e for e in R.errors):
+        lines.append("（上次输出被截断了：少想一点，直接输出紧凑的 JSON，不要换行缩进。）")
     lines.append("请只改正这些问题后重新输出完整的 JSON（同样的信封格式，不要解释）。未知动作必须换成目录里的 id；不在范围的动作必须删掉或换成本 App 目录里的动作。")
     return "\n".join(lines)
 

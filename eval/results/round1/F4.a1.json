@@ -1,0 +1,29 @@
+{
+ "case": "F4",
+ "profile": "flarelab",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 7.5,
+ "usage": {
+  "prompt": 5265,
+  "completion": 332,
+  "reasoning": 242,
+  "total": 5597,
+  "cached": 5120
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:37:06+0000",
+ "content": "{\"kind\":\"reply\",\"text\":\"风车是另一个大招，本 App 只做托马斯全旋专项体能，库里没有风车的分解动作，我不能编。风车和托马斯共用的底子其实相通：承重肩稳定、侧撑转体、髋外展和腿部控制。我可以按这些给你排一套托马斯侧的支撑+转体体能，练完对风车也有帮助，要吗？\"}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "reply",
+  "estMinutes": null
+ },
+ "expectProblems": [],
+ "feedback": null
+}

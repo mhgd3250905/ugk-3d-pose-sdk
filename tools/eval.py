@@ -37,7 +37,21 @@ CASES = os.path.join(ROOT, "eval", "cases", "cases.json")
 CALLS = os.path.join(RES, "calls.jsonl")
 
 
-def chat(messages, timeout=105):
+def chat(messages, timeout=100):
+    """429（限流，不计费）时退避重试，总耗时不超过约 110 秒。"""
+    t0 = time.time()
+    for k in range(4):
+        r = _chat(messages, timeout=max(20, timeout - (time.time() - t0)))
+        if "error" in r and "429" in r["error"] and time.time() - t0 < 70:
+            time.sleep(15 + 10 * k)
+            continue
+        r["seconds"] = r.get("seconds")
+        r["retries429"] = k
+        return r
+    return r
+
+
+def _chat(messages, timeout=100):
     body = {"model": MODEL, "messages": messages, "max_tokens": MAX_TOKENS, "temperature": 0.3,
             "response_format": {"type": "json_object"}}
     headers = {"Content-Type": "application/json"}
@@ -47,9 +61,17 @@ def chat(messages, timeout=105):
     t0 = time.time()
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
-            data = json.loads(r.read())
+            raw = r.read()
+            if raw[:2] == b"\x1f\x8b":
+                import gzip
+                raw = gzip.decompress(raw)
+            data = json.loads(raw)
     except urllib.error.HTTPError as e:
-        return {"error": f"HTTP {e.code}: {e.read()[:500].decode(errors='replace')}", "seconds": round(time.time() - t0, 1)}
+        raw = e.read()
+        if raw[:2] == b"\x1f\x8b":
+            import gzip
+            raw = gzip.decompress(raw)
+        return {"error": f"HTTP {e.code}: {raw[:500].decode(errors='replace')}", "seconds": round(time.time() - t0, 1)}
     except Exception as e:
         return {"error": repr(e), "seconds": round(time.time() - t0, 1)}
     msg = data["choices"][0]["message"]
@@ -208,7 +230,8 @@ def main():
     ap.add_argument("--attempt", type=int, default=1)
     ap.add_argument("--cases", default="")
     ap.add_argument("--catalog", default=default_catalog_path())
-    ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--workers", type=int, default=1)
+    ap.add_argument("--gap", type=float, default=0, help="串行调用之间等待秒数（网关 TPM 很低时用）")
     a = ap.parse_args()
     CATALOG = load(a.catalog)
     os.makedirs(RES, exist_ok=True)
@@ -249,6 +272,12 @@ def main():
         sel = [c for c in sel if os.path.exists(path(a.round, c["id"], 1)) and not load(path(a.round, c["id"], 1))["validation"]["ok"]
                and load(path(a.round, c["id"], 1)).get("feedback")]
     sp = {k: build_system_prompt(CATALOG, p) for k, p in profiles.items()}
+    if a.workers <= 1:
+        for n, c in enumerate(sel):
+            if n and a.gap:
+                time.sleep(a.gap)
+            print(run_one(c, a.round, a.attempt, profiles, sp), flush=True)
+        return
     with cf.ThreadPoolExecutor(max_workers=a.workers) as ex:
         for line in ex.map(lambda c: run_one(c, a.round, a.attempt, profiles, sp), sel):
             print(line, flush=True)

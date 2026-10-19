@@ -1,0 +1,29 @@
+{
+ "case": "H6",
+ "profile": "hiplab",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 11.2,
+ "usage": {
+  "prompt": 4504,
+  "completion": 831,
+  "reasoning": 697,
+  "total": 5335,
+  "cached": 4096
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:46:07+0000",
+ "content": "{\"kind\":\"reply\",\"text\":\"髋外展机、史密斯深蹲都是健身房器械动作，本 App 只覆盖居家和办公室的徒手、垫上、椅子练习，健身房场景排不了，动作库里也没有这两个动作。想练同样部位，可以用侧卧蚌式、坐椅弹力带髋内旋来替代髋外展机练臀中肌；用徒手深蹲、脚踩椅面臀桥来替代史密斯深蹲练臀腿。如果你是在家或办公室练，跟我说一句目标和大概时长，我就给你排一套开胯和臀部小力量的套路，在不痛的范围内慢慢来。\"}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "reply",
+  "estMinutes": null
+ },
+ "expectProblems": [],
+ "feedback": null
+}

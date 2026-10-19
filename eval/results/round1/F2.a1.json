@@ -1,0 +1,29 @@
+{
+ "case": "F2",
+ "profile": "flarelab",
+ "round": 1,
+ "attempt": 1,
+ "seconds": 37.8,
+ "usage": {
+  "prompt": 5263,
+  "completion": 3758,
+  "reasoning": 2885,
+  "total": 9021,
+  "cached": 5120
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T16:34:44+0000",
+ "content": "{\"kind\":\"plan\",\"text\":\"45 分钟健身房计划，把撑地和承重放在最前面：先用腕部、肩胛、肩袖热身，再练支撑臂（直臂支撑、侧平板、耸肩下压、深幅俯卧撑），接着练核心压缩与转体（团身 L 撑、抬腿压缩、伐木、背伸），最后用哥萨克蹲和反向平板放松，收住前臂和肩。你没说难度和器械，所以默认按基础难度 2，并且健身房器械全可用。\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"支撑+核心 45 分钟\",\"summary\":\"健身房 45 分钟托马斯专项计划：热身、支撑臂、核心压缩与转体、放松。\",\"goal\":\"strength\",\"scene\":\"gym\",\"equipment\":[\"mat\",\"band\",\"parallettes\",\"dip-bars\",\"cable\",\"roman-chair\"],\"level\":2,\"targetMinutes\":45,\"avoid\":[],\"blocks\":[{\"id\":\"b1\",\"name\":\"热身：手腕与肩胛\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"forearms-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":false,\"restSeconds\":15},{\"exerciseId\":\"scapular-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":8,\"perSide\":false,\"restSeconds\":20},{\"exerciseId\":\"serratus-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":false,\"restSeconds\":20},{\"exerciseId\":\"rotator-cuff-B\",\"mode\":\"reps\",\"sets\":2,\"reps\":10,\"perSide\":true,\"restSeconds\":20}]},{\"id\":\"b2\",\"name\":\"支撑主训\",\"type\":\"main\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"triceps-B\",\"mode\":\"time\",\"sets\":4,\"workSeconds\":15,\"perSide\":false,\"restSeconds\":45},{\"exerciseId\":\"deltoids-A\",\"mode\":\"time\",\"sets\":3,\"workSeconds\":25,\"perSide\":true,\"restSeconds\":30},{\"exerciseId\":\"lats-C\",\"mode\":\"reps\",\"sets\":3,\"reps\":8,\"perSide\":false,\"restSeconds\":45},{\"exerciseId\":\"chest-B\",\"mode\":\"reps\",\"sets\":3,\"reps\":8,\"perSide\":false,\"restSeconds\":45}]},{\"id\":\"b3\",\"name\":\"核心压缩与转体\",\"type\":\"main\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"abs-B\",\"mode\":\"time\",\"sets\":4,\"workSeconds\":10,\"perSide\":false,\"restSeconds\":45},{\"exerciseId\":\"hip-flexors-A\",\"mode\":\"reps\",\"sets\":3,\"reps\":8,\"perSide\":false,\"restSeconds\":30},{\"exerciseId\":\"obliques-C\",\"mode\":\"reps\",\"sets\":3,\"reps\":6,\"perSide\":true,\"restSeconds\":45},{\"exerciseId\":\"erectors-C\",\"mode\":\"reps\",\"sets\":3,\"reps\":10,\"perSide\":false,\"restSeconds\":45}]},{\"id\":\"b4\",\"name\":\"放松\",\"type\":\"cooldown\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"adductors-A\",\"mode\":\"reps\",\"sets\":2,\"reps\":4,\"perSide\":true,\"restSeconds\":20},{\"exerciseId\":\"erectors-A\",\"mode\":\"time\",\"sets\":2,\"workSeconds\":20,\"perSide\":false,\"restSeconds\":20}]}],\"notes\":[\"没指定器械，按健身房全器械编排；没指定难度，按基础 2 编排。\",\"主训先练支撑臂再练核心，撑地时肘别锁死，用肩胛下压稳住。\"],\"safetyNotes\":[\"手腕、肩出现刺痛或麻木立刻停，别硬撑。\",\"不适加重就停止，下次先降组数。\"]}}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "plan",
+  "estMinutes": 36.0
+ },
+ "expectProblems": [],
+ "feedback": null
+}

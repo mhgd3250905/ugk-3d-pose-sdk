@@ -1,0 +1,29 @@
+{
+ "case": "H5",
+ "profile": "hiplab",
+ "round": 2,
+ "attempt": 1,
+ "seconds": 39.6,
+ "usage": {
+  "prompt": 4603,
+  "completion": 3729,
+  "reasoning": 2905,
+  "total": 8332,
+  "cached": 0
+ },
+ "error": null,
+ "finish": "stop",
+ "ts": "2026-10-19T17:00:04+0000",
+ "content": "{\"kind\":\"plan\",\"plan\":{\"schemaVersion\":1,\"source\":\"ai\",\"title\":\"横叉开胯 20 分钟\",\"summary\":\"以内收肌为主线，配合髋内外旋活动和臀部小力量，循序渐进往横叉走。\",\"goal\":\"mobility\",\"scene\":\"home\",\"equipment\":[\"mat\",\"block\"],\"level\":2,\"targetMinutes\":20,\"avoid\":[],\"blocks\":[{\"id\":\"b1\",\"name\":\"热身\",\"type\":\"warmup\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"n-pelvis-circle\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"n-windshield\",\"mode\":\"reps\",\"sets\":1,\"reps\":8,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"n-leg-circles\",\"mode\":\"reps\",\"sets\":1,\"reps\":6,\"perSide\":true,\"restSeconds\":10}]},{\"id\":\"b2\",\"name\":\"主训练\",\"type\":\"main\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"h-butterfly-active\",\"mode\":\"reps\",\"sets\":1,\"reps\":10,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"n-seated-ir-drop\",\"mode\":\"reps\",\"sets\":1,\"reps\":8,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"w-clamshell\",\"mode\":\"reps\",\"sets\":1,\"reps\":15,\"perSide\":true,\"restSeconds\":20},{\"exerciseId\":\"s-butterfly\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"h-adductor-rock\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"s-figure4\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"n-straddle-fold\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"s-kneel-hipflex\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10}]},{\"id\":\"b3\",\"name\":\"放松\",\"type\":\"cooldown\",\"rounds\":1,\"restBetweenRoundsSeconds\":0,\"items\":[{\"exerciseId\":\"h-knee-hug\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"s-seated-fold\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":40,\"perSide\":false,\"restSeconds\":10},{\"exerciseId\":\"n-thomas-test\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10},{\"exerciseId\":\"h-supine-twist\",\"mode\":\"time\",\"sets\":1,\"workSeconds\":30,\"perSide\":true,\"restSeconds\":10}]}],\"notes\":[\"按你现有的器械排：只用瑜伽垫和瑜伽砖，没有安排需要椅子或墙的动作。\",\"默认难度 2（基础），拉伸占比约七成，前段偏动态活动、后段为静态保持。\"],\"safetyNotes\":[\"全程在不痛的范围内停留，保持慢慢呼吸，拉伸有轻微牵扯感即可。\",\"膝盖或髋部不适加重就停止该动作，减小幅度或先跳过。\",\"横叉需要时间，建议每周 3–4 次坚持练，不要急着压低。\"]},\"text\":\"20 分钟横叉方案：先活动髋关节，再内外旋加一点臀中肌力量，最后以内收肌拉伸和放松收尾，只用垫子和瑜伽砖，默认难度 2。\"}",
+ "validation": {
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "unknownIds": [],
+  "scopeIds": [],
+  "kind": "plan",
+  "estMinutes": 16.8
+ },
+ "expectProblems": [],
+ "feedback": null
+}

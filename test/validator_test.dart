@@ -1,4 +1,4 @@
-// 评测对照之外的规则细节：警告、可选严格模式、器械信任、扩展规则、计划保存序列化。
+// 评测对照之外的规则细节：mode / 场所两条错误规则的路径与代码、警告、可选严格模式、器械信任、扩展规则、计划保存序列化。
 import 'dart:convert';
 
 import 'package:test/test.dart';
@@ -78,6 +78,41 @@ void main() {
 
   test('计划场所与本轮场所不符', () {
     expect(v(okEnvelope(), const CoachContext(scene: 'office')).errors.map((e) => e.code), contains(IssueCodes.scene));
+  });
+
+  test('mode 必须与目录剂量单位一致：两个方向都判 mode_mismatch（E_DOSE），带路径与动作 id', () {
+    final e = okEnvelope();
+    itemOf(e, 1, 3)..['mode'] = 'time'..['workSeconds'] = 30; // h-reverse-clam 目录为计次
+    itemOf(e, 2, 0)..['mode'] = 'reps'..['reps'] = 10; // h-knee-hug 目录为计时
+    final errs = v(e).errors;
+    expect(errs.map((i) => i.code), everyElement(IssueCodes.modeMismatch));
+    expect(errs.map((i) => (i.path, i.exerciseId)), [
+      ('plan.blocks[1].items[3].mode', 'h-reverse-clam'),
+      ('plan.blocks[2].items[0].mode', 'h-knee-hug'),
+    ]);
+    expect(errs.map((i) => i.category).toSet(), {'E_DOSE'});
+  });
+
+  test('动作 scenes 必须匹配计划场所：居家不收健身房专属，健身房也收居家动作', () {
+    final sf = loadProfile('smartfit');
+    Map<String, Object?> one(String scene, Map<String, Object?> item) =>
+        okEnvelope()..['plan'] = {...planOf(okEnvelope()), 'scene': scene, 'blocks': [
+          {'id': 'b', 'name': '主', 'type': 'main', 'rounds': 1, 'restBetweenRoundsSeconds': 0, 'items': [item]},
+        ]};
+    final chestC = {'exerciseId': 'chest-C', 'mode': 'reps', 'sets': 3, 'reps': 8, 'perSide': true, 'restSeconds': 45};
+    final sumo = {'exerciseId': 'h-sumo-pry', 'mode': 'time', 'sets': 1, 'workSeconds': 30, 'perSide': false, 'restSeconds': 10};
+    final val = PlanValidator(catalog: catalog, profile: sf);
+    final home = val.validate(planFrom(one('home', chestC)), const CoachContext(equipment: {'cable'}));
+    expect(home.errors.single.code, IssueCodes.scene);
+    expect(home.errors.single.exerciseId, 'chest-C');
+    expect(val.validate(planFrom(one('gym', chestC))).ok, isTrue);
+    expect(val.validate(planFrom(one('gym', sumo))).ok, isTrue);
+    expect(val.validate(planFrom(one('office', sumo)), const CoachContext(scene: 'office')).errors.single.code, IssueCodes.scene);
+  });
+
+  test('缺 title + 错 goal：结构解析与规则校验各报一次，不重复（与 validate.py 一致）', () {
+    final r = check(okEnvelope()..['plan'] = ({...planOf(okEnvelope())}..remove('title')..['goal'] = 'fun'), hip, catalog);
+    expect([for (final i in r.issues) if (i.isError) i.code], unorderedEquals([IssueCodes.schema, IssueCodes.goal]));
   });
 
   test('每个问题带路径与动作 id，可回传模型', () {

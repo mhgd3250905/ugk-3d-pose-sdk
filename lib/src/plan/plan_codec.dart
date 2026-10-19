@@ -140,8 +140,9 @@ class PlanCodec {
       }
     }
 
-    final title = str('title', or: lenient ? '训练计划' : null);
-    final goal = str('goal', or: lenient ? 'mixed' : null);
+    // title / goal 的「缺失、为空、不在枚举」由 PlanValidator 判（与评测 validate.py 一样只报一次），这里只查类型。
+    final title = str('title', or: lenient ? '训练计划' : null, required: false);
+    final goal = str('goal', or: lenient ? 'mixed' : null, required: false);
     final plan = TrainingPlan(
       schemaVersion: sv,
       id: asString(j['id']) ?? id ?? 'plan-${DateTime.now().millisecondsSinceEpoch}',

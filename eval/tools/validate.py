@@ -364,8 +364,12 @@ def format_feedback(R):
 
 
 # ---------------- 自测：手写样例 ----------------
-def selftest(catalog):
-    profiles = {k: load(os.path.join(PROFILES_DIR, f"{k}.json")) for k in ("flarelab", "hiplab", "smartfit")}
+def load_profiles():
+    return {k: load(os.path.join(PROFILES_DIR, f"{k}.json")) for k in ("flarelab", "hiplab", "smartfit")}
+
+
+def selftest_cases():
+    """24 个手写样例：(名称, profile, 回复, 请求, 期望错误分类)。export_parity.py 也用它导出给 Dart 对照。"""
     ok_plan = {"kind": "plan", "text": "给你排了 10 分钟开胯。", "plan": {
         "schemaVersion": 1, "source": "ai", "title": "睡前开胯", "summary": "放松髋部", "goal": "relax", "scene": "home",
         "equipment": ["mat"], "level": 1, "targetMinutes": 10, "avoid": [], "notes": [], "safetyNotes": [],
@@ -412,6 +416,13 @@ def selftest(catalog):
         ("缺 title / 错 goal", "hiplab", mut(lambda p: (p.pop("title"), p.update(goal="fun"))), {}, {"E_SCHEMA"}),
         ("targetMinutes 超出 profile", "hiplab", mut(lambda p: p.update(targetMinutes=90)), {}, {"E_DOSE"}),
     ]
+    return cases
+
+
+def selftest(catalog):
+    import copy
+    profiles = load_profiles()
+    cases = selftest_cases()
     fails = 0
     for name, prof, reply, req, expect in cases:
         R = validate_reply(reply if isinstance(reply, str) else copy.deepcopy(reply), catalog, profiles[prof], req)

@@ -1,0 +1,2967 @@
+{
+ "generatedBy": "eval/tools/export_parity.py",
+ "catalogVersion": "0.1.0",
+ "selftestCount": 24,
+ "cases": [
+  {
+   "group": "selftest",
+   "name": "合法计划",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [],
+   "python": {
+    "errors": [],
+    "counts": {},
+    "messages": []
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "代码块包裹也能解析",
+   "profile": "hiplab",
+   "reply": "```json\n{\"kind\": \"plan\", \"text\": \"给你排了 10 分钟开胯。\", \"plan\": {\"schemaVersion\": 1, \"source\": \"ai\", \"title\": \"睡前开胯\", \"summary\": \"放松髋部\", \"goal\": \"relax\", \"scene\": \"home\", \"equipment\": [\"mat\"], \"level\": 1, \"targetMinutes\": 10, \"avoid\": [], \"notes\": [], \"safetyNotes\": [], \"blocks\": [{\"id\": \"b1\", \"name\": \"热身\", \"type\": \"warmup\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"n-windshield\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 8, \"perSide\": false, \"restSeconds\": 10}]}, {\"id\": \"b2\", \"name\": \"拉伸\", \"type\": \"main\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 15}, {\"exerciseId\": \"s-kneel-hipflex\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-reverse-clam\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 12, \"perSide\": true, \"restSeconds\": 20}]}, {\"id\": \"b3\", \"name\": \"放松\", \"type\": \"cooldown\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 45, \"perSide\": false, \"restSeconds\": 0}]}]}}\n```",
+   "request": {},
+   "expect": [],
+   "python": {
+    "errors": [],
+    "counts": {},
+    "messages": []
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "ask",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "ask",
+    "text": "在家还是办公室？",
+    "options": [
+     "在家",
+     "办公室"
+    ]
+   },
+   "request": {},
+   "expect": [],
+   "python": {
+    "errors": [],
+    "counts": {},
+    "messages": []
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "reply",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "reply",
+    "text": "建议先就医。"
+   },
+   "request": {},
+   "expect": [],
+   "python": {
+    "errors": [],
+    "counts": {},
+    "messages": []
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "不是 JSON",
+   "profile": "hiplab",
+   "reply": "好的，给你排一个计划",
+   "request": {},
+   "expect": [
+    "E_JSON"
+   ],
+   "python": {
+    "errors": [
+     "E_JSON"
+    ],
+    "counts": {
+     "E_JSON": 1
+    },
+    "messages": [
+     "E_JSON 没有 JSON 对象"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "kind 错",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "chat",
+    "text": "x"
+   },
+   "request": {},
+   "expect": [
+    "E_JSON"
+   ],
+   "python": {
+    "errors": [
+     "E_JSON"
+    ],
+    "counts": {
+     "E_JSON": 1
+    },
+    "messages": [
+     "E_JSON kind 必须是 plan/ask/reply，实际 'chat'"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "编造 id",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        },
+        {
+         "exerciseId": "burpee",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 10,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_UNKNOWN"
+   ],
+   "python": {
+    "errors": [
+     "E_UNKNOWN"
+    ],
+    "counts": {
+     "E_UNKNOWN": 1
+    },
+    "messages": [
+     "E_UNKNOWN 未知动作 ID：burpee"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "越界：开胯 App 用胸部动作",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        },
+        {
+         "exerciseId": "h-incline-pushup",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 10,
+         "perSide": false,
+         "restSeconds": 30
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_SCOPE"
+   ],
+   "python": {
+    "errors": [
+     "E_SCOPE"
+    ],
+    "counts": {
+     "E_SCOPE": 1
+    },
+    "messages": [
+     "E_SCOPE 扶凳上斜俯卧撑（h-incline-pushup） 不在本 App 的动作范围"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "perSide 错",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_SIDE"
+   ],
+   "python": {
+    "errors": [
+     "E_SIDE"
+    ],
+    "counts": {
+     "E_SIDE": 1
+    },
+    "messages": [
+     "E_SIDE 仰卧 4 字拉伸（s-figure4）：perSide 应为 true"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "单腿臀桥 perSide=true 合法",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        },
+        {
+         "exerciseId": "glute-max-A",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 8,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [],
+   "python": {
+    "errors": [],
+    "counts": {},
+    "messages": []
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "次数超限",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 40,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_DOSE"
+   ],
+   "python": {
+    "errors": [
+     "E_DOSE"
+    ],
+    "counts": {
+     "E_DOSE": 1
+    },
+    "messages": [
+     "E_DOSE 侧卧反向蚌式（h-reverse-clam）：次数 40 超出 1–30"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "时长超限",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 150,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_DOSE"
+   ],
+   "python": {
+    "errors": [
+     "E_DOSE"
+    ],
+    "counts": {
+     "E_DOSE": 1
+    },
+    "messages": [
+     "E_DOSE 仰卧 4 字拉伸（s-figure4）：时长 150 秒超出 10–120"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "mode 不一致",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "reps",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10,
+         "reps": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_DOSE"
+   ],
+   "python": {
+    "errors": [
+     "E_DOSE"
+    ],
+    "counts": {
+     "E_DOSE": 1
+    },
+    "messages": [
+     "E_DOSE 仰卧 4 字拉伸（s-figure4）：mode 应为 time（目录剂量单位）"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "组数 0",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 0,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_DOSE"
+   ],
+   "python": {
+    "errors": [
+     "E_DOSE"
+    ],
+    "counts": {
+     "E_DOSE": 1
+    },
+    "messages": [
+     "E_DOSE 蝴蝶式（s-butterfly）：组数 0 超出 1–6"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "热身在放松后",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      },
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_ORDER"
+   ],
+   "python": {
+    "errors": [
+     "E_ORDER"
+    ],
+    "counts": {
+     "E_ORDER": 1
+    },
+    "messages": [
+     "E_ORDER 热身块不能排在放松块之后"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "膝要保护却选了含膝动作",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [
+      "膝"
+     ],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_AVOID"
+   ],
+   "python": {
+    "errors": [
+     "E_AVOID"
+    ],
+    "counts": {
+     "E_AVOID": 2
+    },
+    "messages": [
+     "E_AVOID 半跪髋屈肌拉伸（s-kneel-hipflex） 会加重膝部负担",
+     "E_AVOID 侧卧反向蚌式（h-reverse-clam） 会加重膝部负担"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "请求侧 avoid 也生效",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {
+    "avoid": [
+     "膝"
+    ]
+   },
+   "expect": [
+    "E_AVOID"
+   ],
+   "python": {
+    "errors": [
+     "E_AVOID"
+    ],
+    "counts": {
+     "E_AVOID": 2
+    },
+    "messages": [
+     "E_AVOID 半跪髋屈肌拉伸（s-kneel-hipflex） 会加重膝部负担",
+     "E_AVOID 侧卧反向蚌式（h-reverse-clam） 会加重膝部负担"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "办公室着地动作",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "office",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {
+    "scene": "office"
+   },
+   "expect": [
+    "E_SCENE"
+   ],
+   "python": {
+    "errors": [
+     "E_SCENE"
+    ],
+    "counts": {
+     "E_SCENE": 11
+    },
+    "messages": [
+     "E_SCENE 仰卧雨刷式（n-windshield） 需要趴/躺/跪在地上，不适合办公室",
+     "E_SCENE 仰卧雨刷式（n-windshield） 不适合场所 office（动作场所 ['home']）",
+     "E_SCENE 仰卧 4 字拉伸（s-figure4） 需要趴/躺/跪在地上，不适合办公室",
+     "E_SCENE 仰卧 4 字拉伸（s-figure4） 不适合场所 office（动作场所 ['home']）",
+     "E_SCENE 蝴蝶式（s-butterfly） 不适合场所 office（动作场所 ['home']）",
+     "E_SCENE 半跪髋屈肌拉伸（s-kneel-hipflex） 需要趴/躺/跪在地上，不适合办公室",
+     "E_SCENE 半跪髋屈肌拉伸（s-kneel-hipflex） 不适合场所 office（动作场所 ['home']）",
+     "E_SCENE 侧卧反向蚌式（h-reverse-clam） 需要趴/躺/跪在地上，不适合办公室",
+     "E_SCENE 侧卧反向蚌式（h-reverse-clam） 不适合场所 office（动作场所 ['home']）",
+     "E_SCENE 仰卧抱膝（h-knee-hug） 需要趴/躺/跪在地上，不适合办公室",
+     "E_SCENE 仰卧抱膝（h-knee-hug） 不适合场所 office（动作场所 ['home']）"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "缺器械：居家没有哑铃",
+   "profile": "smartfit",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        },
+        {
+         "exerciseId": "h-db-curl",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 10,
+         "perSide": false,
+         "restSeconds": 30
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {
+    "equipment": []
+   },
+   "expect": [
+    "E_EQUIP"
+   ],
+   "python": {
+    "errors": [
+     "E_EQUIP"
+    ],
+    "counts": {
+     "E_EQUIP": 1
+    },
+    "messages": [
+     "E_EQUIP 哑铃交替弯举（h-db-curl） 需要哑铃"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "健身房可用器械与居家动作",
+   "profile": "smartfit",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "gym",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        },
+        {
+         "exerciseId": "quadriceps-C",
+         "mode": "reps",
+         "sets": 3,
+         "reps": 10,
+         "perSide": false,
+         "restSeconds": 45
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [],
+   "python": {
+    "errors": [],
+    "counts": {},
+    "messages": []
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "居家用健身房器械",
+   "profile": "smartfit",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        },
+        {
+         "exerciseId": "quadriceps-C",
+         "mode": "reps",
+         "sets": 3,
+         "reps": 10,
+         "perSide": false,
+         "restSeconds": 45
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_EQUIP",
+    "E_SCENE"
+   ],
+   "python": {
+    "errors": [
+     "E_EQUIP",
+     "E_SCENE"
+    ],
+    "counts": {
+     "E_EQUIP": 1,
+     "E_SCENE": 1
+    },
+    "messages": [
+     "E_EQUIP 器械腿屈伸（顶端锁直）（quadriceps-C） 需要腿屈伸机",
+     "E_SCENE 器械腿屈伸（顶端锁直）（quadriceps-C） 不适合场所 home（动作场所 ['gym']）"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "托马斯 App 不支持办公室",
+   "profile": "flarelab",
+   "reply": {
+    "kind": "plan",
+    "text": "x",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "office",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b",
+       "name": "主",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "hamstrings-A",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 8,
+         "perSide": true,
+         "restSeconds": 30
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_SCENE"
+   ],
+   "python": {
+    "errors": [
+     "E_SCENE"
+    ],
+    "counts": {
+     "E_SCENE": 2
+    },
+    "messages": [
+     "E_SCENE 本 App 不支持场所 office",
+     "E_SCENE 徒手单腿罗马尼亚硬拉（hamstrings-A） 不适合场所 office（动作场所 ['home', 'gym']）"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "缺 title / 错 goal",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "summary": "放松髋部",
+     "goal": "fun",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_SCHEMA"
+   ],
+   "python": {
+    "errors": [
+     "E_SCHEMA"
+    ],
+    "counts": {
+     "E_SCHEMA": 2
+    },
+    "messages": [
+     "E_SCHEMA 缺少 title",
+     "E_SCHEMA goal 'fun' 不在 ['cooldown', 'core', 'fullbody', 'mobility', 'relax', 'strength', 'warmup']"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "targetMinutes 超出 profile",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 90,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_DOSE"
+   ],
+   "python": {
+    "errors": [
+     "E_DOSE"
+    ],
+    "counts": {
+     "E_DOSE": 1
+    },
+    "messages": [
+     "E_DOSE targetMinutes 90 超出 3–40"
+    ]
+   }
+  },
+  {
+   "group": "rules",
+   "name": "mode：计次动作写成计时",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "time",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20,
+         "workSeconds": 30
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_DOSE"
+   ],
+   "python": {
+    "errors": [
+     "E_DOSE"
+    ],
+    "counts": {
+     "E_DOSE": 1
+    },
+    "messages": [
+     "E_DOSE 侧卧反向蚌式（h-reverse-clam）：mode 应为 reps（目录剂量单位）"
+    ]
+   }
+  },
+  {
+   "group": "rules",
+   "name": "mode：计时动作写成计次（含合法 reps）",
+   "profile": "smartfit",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "reps",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0,
+         "reps": 10
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_DOSE"
+   ],
+   "python": {
+    "errors": [
+     "E_DOSE"
+    ],
+    "counts": {
+     "E_DOSE": 1
+    },
+    "messages": [
+     "E_DOSE 仰卧抱膝（h-knee-hug）：mode 应为 time（目录剂量单位）"
+    ]
+   }
+  },
+  {
+   "group": "rules",
+   "name": "mode：与目录一致的计次 / 计时混排合法",
+   "profile": "smartfit",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [],
+   "python": {
+    "errors": [],
+    "counts": {},
+    "messages": []
+   }
+  },
+  {
+   "group": "rules",
+   "name": "scenes：居家计划用健身房专属动作（器械已声明）",
+   "profile": "smartfit",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b",
+       "name": "主",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "chest-C",
+         "mode": "reps",
+         "sets": 3,
+         "reps": 8,
+         "perSide": true,
+         "restSeconds": 45
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {
+    "equipment": [
+     "cable"
+    ]
+   },
+   "expect": [
+    "E_SCENE"
+   ],
+   "python": {
+    "errors": [
+     "E_SCENE"
+    ],
+    "counts": {
+     "E_SCENE": 1
+    },
+    "messages": [
+     "E_SCENE 绳索单臂站姿推胸（chest-C） 不适合场所 home（动作场所 ['gym']）"
+    ]
+   }
+  },
+  {
+   "group": "rules",
+   "name": "scenes：办公室计划用居家专属站姿动作",
+   "profile": "smartfit",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "office",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b",
+       "name": "主",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-sumo-pry",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 30,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {
+    "scene": "office"
+   },
+   "expect": [
+    "E_SCENE"
+   ],
+   "python": {
+    "errors": [
+     "E_SCENE"
+    ],
+    "counts": {
+     "E_SCENE": 1
+    },
+    "messages": [
+     "E_SCENE 相扑深蹲肘推膝停留（h-sumo-pry） 不适合场所 office（动作场所 ['home']）"
+    ]
+   }
+  },
+  {
+   "group": "rules",
+   "name": "scenes：健身房计划用健身房专属动作合法",
+   "profile": "smartfit",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "gym",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b",
+       "name": "主",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "chest-C",
+         "mode": "reps",
+         "sets": 3,
+         "reps": 8,
+         "perSide": true,
+         "restSeconds": 45
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [],
+   "python": {
+    "errors": [],
+    "counts": {},
+    "messages": []
+   }
+  },
+  {
+   "group": "rules",
+   "name": "scenes：健身房接受居家动作",
+   "profile": "smartfit",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "gym",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b",
+       "name": "主",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-sumo-pry",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 30,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [],
+   "python": {
+    "errors": [],
+    "counts": {},
+    "messages": []
+   }
+  },
+  {
+   "group": "rules",
+   "name": "scenes：本轮场所为健身房、计划写居家",
+   "profile": "smartfit",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b",
+       "name": "主",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-sumo-pry",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 30,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {
+    "scene": "gym"
+   },
+   "expect": [
+    "E_SCENE"
+   ],
+   "python": {
+    "errors": [
+     "E_SCENE"
+    ],
+    "counts": {
+     "E_SCENE": 1
+    },
+    "messages": [
+     "E_SCENE 计划场所 home 与用户场所 gym 不符"
+    ]
+   }
+  }
+ ]
+}

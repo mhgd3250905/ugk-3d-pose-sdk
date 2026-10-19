@@ -165,7 +165,8 @@ class CoachAssistant {
       );
       var issues = parsed.issues;
       var reply = parsed.reply;
-      if (reply?.plan != null && parsed.ok) {
+      // 信封 / 结构有错时也跑规则校验（计划能解出来就校验），重写时一次回传全部错误，与评测 validate.py 一致。
+      if (reply?.plan != null) {
         final plan = _normalize(reply!.plan!, context);
         reply = CoachReply(kind: reply.kind, text: reply.text, options: reply.options, plan: plan);
         issues = [...issues, ...validator.validate(plan, context).issues];

@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mhgd3250905/3D-Pose-Hub/catalog/catalog.schema.json",
+  "title": "Pose-Hub 统一动作目录（pose-hub-catalog format 1）",
+  "description": "一个动作 = 最小单位：动作定义 + 封面静帧 + 示范视频 + 建模源（Pose-Hub spec）+ 语音台词/音频。每条 drill 的定义字段与 SmartFit drill-pack format 1 的 pack.json 同名同义（category/muscles/muscleGroups/equipment/position/unilateral/level/scenes/defaultDose/cues/primaryCue/cautions/contraindications/alternative），另加 doseRange、purpose、apps、tags、assets、completeness。SDK 只认 formatVersion=1；同一 formatVersion 内只会新增可选字段，读取方忽略不认识的字段。",
+  "type": "object",
+  "required": ["format", "formatVersion", "version", "generatedAt", "source", "taxonomy", "apps", "drills"],
+  "additionalProperties": true,
+  "properties": {
+    "format": {"const": "pose-hub-catalog"},
+    "formatVersion": {"const": 1},
+    "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "description": "目录内容版本 MAJOR.MINOR.PATCH。PATCH：修文字/标签；MINOR：增删动作、改剂量/范围、素材变化；MAJOR：字段含义变化（应同时升 formatVersion）。"},
+    "generatedAt": {"type": "string", "format": "date-time", "description": "生成时间，ISO 8601 带时区，如 2026-10-20T01:00:00+08:00"},
+    "source": {
+      "type": "object",
+      "required": ["repo", "commit"],
+      "properties": {
+        "repo": {"type": "string", "description": "mhgd3250905/3D-Pose-Hub"},
+        "commit": {"type": "string", "description": "生成时 Pose-Hub 的提交"},
+        "inputs": {"type": "array", "items": {"type": "object", "properties": {"repo": {"type": "string"}, "commit": {"type": "string"}, "paths": {"type": "array", "items": {"type": "string"}}}}, "description": "生成时读取的各 App 仓库与提交（SmartFit packs、HipLab action_kits、FlareLab drills.json）"}
+      }
+    },
+    "taxonomy": {
+      "type": "object",
+      "description": "所有枚举值及中文名。drills 里出现的值必须在这里登记；SDK 用它做展示和筛选。",
+      "required": ["categories", "muscleGroups", "equipment", "positions", "scenes", "cautions"],
+      "properties": {
+        "categories": {"$ref": "#/$defs/labelMap"},
+        "muscleGroups": {"$ref": "#/$defs/labelMap"},
+        "equipment": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["zh"],
+            "properties": {
+              "zh": {"type": "string"},
+              "en": {"type": "string"},
+              "scenes": {"type": "array", "items": {"$ref": "#/$defs/scene"}, "description": "通常具备该器械的场所（如 mat→home；chair→home,office；cable→gym），用于推断用户可用器械"}
+            }
+          }
+        },
+        "positions": {"type": "object", "additionalProperties": {"type": "object", "required": ["zh"], "properties": {"zh": {"type": "string"}, "floor": {"type": "boolean", "description": "true = 趴/躺/跪地，办公室场景不可用"}}}},
+        "scenes": {"$ref": "#/$defs/labelMap"},
+        "cautions": {"type": "array", "items": {"type": "string"}, "description": "注意部位词表：膝 腰 肩 手腕 颈 髋 大腿内侧 肘 脚踝 …"}
+      }
+    },
+    "apps": {
+      "type": "object",
+      "description": "参与的 App：appId → 仓库与素材根。assets 里的 path 都相对对应 App 仓库根。",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "repo"],
+        "properties": {
+          "name": {"type": "string"},
+          "repo": {"type": "string"},
+          "commit": {"type": "string"},
+          "mediaFormat": {"type": "string", "description": "drill-pack@1 | action-kit@1 | flarelab-drill-media@1"}
+        }
+      }
+    },
+    "drills": {"type": "array", "items": {"$ref": "#/$defs/drill"}}
+  },
+  "$defs": {
+    "labelMap": {"type": "object", "additionalProperties": {"type": "object", "required": ["zh"], "properties": {"zh": {"type": "string"}, "en": {"type": "string"}}}},
+    "scene": {"enum": ["home", "office", "gym"]},
+    "range": {"type": "array", "items": {"type": "integer", "minimum": 0}, "minItems": 2, "maxItems": 2, "description": "[最小, 最大]，闭区间"},
+    "assetSource": {
+      "type": "object",
+      "required": ["app", "path"],
+      "properties": {
+        "app": {"type": "string", "description": "apps 里的 appId；pose-hub = Pose-Hub 发布 ZIP 内路径"},
+        "path": {"type": "string"},
+        "variant": {"type": "string", "description": "dark | light | default"},
+        "width": {"type": "integer"},
+        "height": {"type": "integer"},
+        "bytes": {"type": "integer"},
+        "sha256": {"type": "string"},
+        "loopSeconds": {"type": "number"},
+        "repSeconds": {"type": "number"},
+        "coverSeconds": {"type": "number"},
+        "showsSide": {"enum": ["left", "right"]},
+        "release": {"type": "string", "description": "Pose-Hub 素材版本，如 0.2.0"}
+      }
+    },
+    "assetStatus": {"enum": ["ok", "partial", "missing"]},
+    "dose": {
+      "type": "object",
+      "required": ["mode", "sets", "restSeconds"],
+      "properties": {
+        "mode": {"enum": ["reps", "time"]},
+        "sets": {"type": "integer", "minimum": 1, "maximum": 6},
+        "reps": {"type": "integer", "minimum": 1, "maximum": 30, "description": "mode=reps 必填；单侧动作指每侧"},
+        "seconds": {"type": "integer", "minimum": 10, "maximum": 120, "description": "mode=time 必填；单侧动作指每侧"},
+        "restSeconds": {"type": "integer", "minimum": 0, "maximum": 180}
+      },
+      "allOf": [
+        {"if": {"properties": {"mode": {"const": "reps"}}}, "then": {"required": ["reps"]}},
+        {"if": {"properties": {"mode": {"const": "time"}}}, "then": {"required": ["seconds"]}}
+      ]
+    },
+    "drill": {
+      "type": "object",
+      "required": ["id", "name", "purpose", "category", "muscles", "muscleGroups", "equipment", "position", "unilateral", "level", "scenes", "defaultDose", "doseRange", "cautions", "alternative", "apps", "assets", "completeness"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$", "description": "Pose-Hub 动作 id（不带 -r2/-r3 修订后缀；实际渲染用的修订见 assets.spec.path）"},
+        "name": {"type": "object", "required": ["zh"], "properties": {"zh": {"type": "string"}, "en": {"type": "string"}}},
+        "purpose": {"type": "string", "description": "一句话用途（中文，≤30 字），给 AI 选动作和卡片副标题用"},
+        "category": {"enum": ["strength", "core", "cardio", "mobility", "stretch"], "description": "训练类型（type）。与 drill-pack category 同义"},
+        "muscles": {"type": "array", "items": {"type": "string"}, "description": "展示用中文肌群名"},
+        "muscleGroups": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "Pose-Hub 肌群 id，取值见 taxonomy.muscleGroups"},
+        "equipment": {"type": "array", "items": {"type": "string"}, "uniqueItems": true, "description": "所需器械 id，[] = 徒手；取值见 taxonomy.equipment"},
+        "position": {"type": "string", "description": "起始体位，取值见 taxonomy.positions"},
+        "unilateral": {"type": "boolean", "description": "true = 左右各做一遍；计划里 perSide 必须等于它"},
+        "level": {"type": "integer", "enum": [1, 2, 3], "description": "1 入门 · 2 基础 · 3 进阶"},
+        "scenes": {"type": "array", "items": {"$ref": "#/$defs/scene"}, "minItems": 1, "uniqueItems": true},
+        "defaultDose": {"$ref": "#/$defs/dose"},
+        "doseRange": {
+          "type": "object",
+          "required": ["sets", "restSeconds"],
+          "description": "可调范围（AI 和 UI 调剂量时的上下限，落在 TrainingPlan v1 硬限之内）。mode=reps 给 reps，mode=time 给 seconds",
+          "properties": {
+            "sets": {"$ref": "#/$defs/range"},
+            "reps": {"$ref": "#/$defs/range"},
+            "seconds": {"$ref": "#/$defs/range"},
+            "restSeconds": {"$ref": "#/$defs/range"}
+          }
+        },
+        "cues": {"type": "object", "properties": {"zh": {"type": "array", "items": {"type": "string"}, "maxItems": 3}, "en": {"type": "array", "items": {"type": "string"}, "maxItems": 3}}},
+        "primaryCue": {"type": "integer", "minimum": 0},
+        "cautions": {"type": "array", "items": {"type": "string"}, "description": "需要留意的部位（用户说该部位疼/要保护时避开）"},
+        "contraindications": {"type": "array", "items": {"type": "string"}, "description": "明确禁忌，待专业审核，暂可空"},
+        "alternative": {"type": ["string", "null"], "description": "做不了时的替代动作 id（须在本目录内）"},
+        "apps": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true, "description": "当前 App 内有可播放视频、可直接使用该动作的 App（flarelab / hiplab / smartfit）"},
+        "tags": {"type": "array", "items": {"type": "string"}, "description": "自由标签，如 thomas（托马斯全旋专项肌群）、hip（开胯）、office、desk-break、flarelab:deltoids:A"},
+        "flarelab": {"type": "object", "description": "FlareLab 专有：肌群组与 A/B/C 档", "properties": {"group": {"type": "string"}, "tier": {"enum": ["A", "B", "C"]}, "prescription": {"type": "string"}}},
+        "assets": {
+          "type": "object",
+          "required": ["spec", "cover", "video", "voice"],
+          "description": "这个 id 的整套素材。每类给 status 与 sources（多 App 各一份时都列出，SDK 按自己 App 优先、再 pose-hub 发布、再其他 App 的顺序解析）",
+          "properties": {
+            "spec": {
+              "type": "object",
+              "required": ["status"],
+              "properties": {
+                "status": {"$ref": "#/$defs/assetStatus"},
+                "path": {"type": "string", "description": "Pose-Hub 仓库内实际使用的 spec，如 drill-anim/specs/s-frog-r2.js"},
+                "sha256": {"type": "string"},
+                "revisionOf": {"type": ["string", "null"]},
+                "modelProfile": {"type": ["string", "null"], "description": "training-human-v2 或 null（旧人物）"}
+              }
+            },
+            "releases": {"type": "array", "items": {"type": "string"}, "description": "包含该动作成片的 Pose-Hub 已发布素材版本，如 [\"0.1.0\",\"0.2.0\"]；空 = 只在 App 内有旧媒体、未经 Pose-Hub 发布"},
+            "cover": {"type": "object", "required": ["status", "sources"], "properties": {"status": {"$ref": "#/$defs/assetStatus"}, "sources": {"type": "array", "items": {"$ref": "#/$defs/assetSource"}}}},
+            "video": {"type": "object", "required": ["status", "sources"], "properties": {"status": {"$ref": "#/$defs/assetStatus"}, "sources": {"type": "array", "items": {"$ref": "#/$defs/assetSource"}}}},
+            "voice": {
+              "type": "object",
+              "required": ["status", "languages"],
+              "properties": {
+                "status": {"$ref": "#/$defs/assetStatus"},
+                "languages": {"type": "array", "items": {"type": "string"}},
+                "lines": {"type": "array", "description": "drill-pack 台词（role: name/intro/cue/side_switch/rest/finish）", "items": {"type": "object", "required": ["id", "role", "text"], "properties": {"id": {"type": "string"}, "role": {"type": "string"}, "text": {"type": "object"}, "ms": {"type": "object"}}}},
+                "audio": {"type": "array", "description": "音频位置；pathPattern 里 {lang} {line} 由 SDK 替换", "items": {"type": "object", "required": ["app", "pathPattern"], "properties": {"app": {"type": "string"}, "pathPattern": {"type": "string"}, "languages": {"type": "array", "items": {"type": "string"}}, "keys": {"type": "array", "items": {"type": "string"}, "description": "action-kit 语音键（HipLab manifest 里的 key），如 drill.<id>"}}}}
+              }
+            },
+            "drillPack": {"type": ["object", "null"], "description": "该动作现成的 drill-pack@1 落地包", "properties": {"app": {"type": "string"}, "path": {"type": "string"}, "version": {"type": "string"}}}
+          }
+        },
+        "completeness": {
+          "type": "object",
+          "required": ["complete", "missing"],
+          "properties": {
+            "complete": {"type": "boolean", "description": "定义 + 封面 + 视频 + spec + 中文语音 + Pose-Hub 发布 全齐"},
+            "missing": {"type": "array", "items": {"enum": ["cover", "video", "spec", "voice.zh", "voice.en", "release", "dose.verified"]}, "description": "缺什么。release = 成片未进任何 Pose-Hub 已发布版本"}
+          }
+        },
+        "review": {"type": "object", "description": "人工审阅记录", "properties": {"status": {"enum": ["auto", "reviewed", "doubt"]}, "notes": {"type": "array", "items": {"type": "string"}}}}
+      }
+    }
+  }
+}

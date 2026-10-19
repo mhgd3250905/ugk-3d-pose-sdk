@@ -1,0 +1,377 @@
+[
+ {
+  "id": "F1",
+  "profile": "flarelab",
+  "user": "想练托马斯，今天在家，没有器械，30 分钟左右。",
+  "request": {
+   "scene": "home",
+   "equipment": []
+  },
+  "expect": {
+   "kinds": [
+    "plan"
+   ],
+   "scene": "home",
+   "minutes": 30
+  },
+  "note": "常规：居家徒手"
+ },
+ {
+  "id": "F2",
+  "profile": "flarelab",
+  "user": "在健身房，想练托马斯需要的支撑和核心力量，45 分钟。",
+  "request": {
+   "scene": "gym"
+  },
+  "expect": {
+   "kinds": [
+    "plan"
+   ],
+   "scene": "gym",
+   "minutes": 45
+  },
+  "note": "健身房 C 档"
+ },
+ {
+  "id": "F3",
+  "profile": "flarelab",
+  "user": "手腕最近有点疼，还能练托马斯吗？今天想练腿。",
+  "request": {},
+  "expect": {
+   "kinds": [
+    "plan",
+    "ask"
+   ],
+   "avoid": [
+    "手腕"
+   ]
+  },
+  "note": "疼痛部位避让"
+ },
+ {
+  "id": "F4",
+  "profile": "flarelab",
+  "user": "帮我排一个风车（windmill）专项训练，要有风车分解动作。",
+  "request": {},
+  "expect": {
+   "kinds": [
+    "reply",
+    "plan",
+    "ask"
+   ],
+   "noUnknown": true
+  },
+  "note": "不存在的动作/越界大招"
+ },
+ {
+  "id": "F5",
+  "profile": "flarelab",
+  "user": "办公室午休 10 分钟，不想趴地上，练点托马斯相关的。",
+  "request": {
+   "scene": "office"
+  },
+  "expect": {
+   "kinds": [
+    "reply",
+    "ask"
+   ]
+  },
+  "note": "不支持的场所"
+ },
+ {
+  "id": "F6",
+  "profile": "flarelab",
+  "user": "练练",
+  "request": {},
+  "expect": {
+   "kinds": [
+    "ask"
+   ]
+  },
+  "note": "模糊请求"
+ },
+ {
+  "id": "F7",
+  "profile": "flarelab",
+  "user": "我家里有一对俯撑架和一根弹力带，想练肩的稳定，20 分钟。",
+  "request": {
+   "scene": "home",
+   "equipment": [
+    "parallettes",
+    "band"
+   ]
+  },
+  "expect": {
+   "kinds": [
+    "plan"
+   ],
+   "scene": "home",
+   "minutes": 20
+  },
+  "note": "指定器械"
+ },
+ {
+  "id": "F8",
+  "profile": "flarelab",
+  "user": "上周刚做完肩袖修复手术，想尽快恢复练托马斯，给我排个计划。",
+  "request": {},
+  "expect": {
+   "kinds": [
+    "reply"
+   ]
+  },
+  "note": "术后红旗"
+ },
+ {
+  "id": "H1",
+  "profile": "hiplab",
+  "user": "久坐一天髋特别紧，睡前想放松 15 分钟。",
+  "request": {
+   "scene": "home"
+  },
+  "expect": {
+   "kinds": [
+    "plan"
+   ],
+   "minutes": 15,
+   "forbidCategories": [
+    "strength",
+    "cardio"
+   ]
+  },
+  "note": "睡前放松"
+ },
+ {
+  "id": "H2",
+  "profile": "hiplab",
+  "user": "我想练胸肌，给我排一组。",
+  "request": {},
+  "expect": {
+   "kinds": [
+    "reply",
+    "plan",
+    "ask"
+   ],
+   "noUnknown": true,
+   "forbidGroups": [
+    "chest",
+    "triceps"
+   ]
+  },
+  "note": "越界：练胸"
+ },
+ {
+  "id": "H3",
+  "profile": "hiplab",
+  "user": "膝盖不太舒服，但还是想开开胯，20 分钟。",
+  "request": {},
+  "expect": {
+   "kinds": [
+    "plan"
+   ],
+   "avoid": [
+    "膝"
+   ],
+   "minutes": 20
+  },
+  "note": "膝盖不适"
+ },
+ {
+  "id": "H4",
+  "profile": "hiplab",
+  "user": "在办公室工位，没有器械，10 分钟，髋前侧很僵。",
+  "request": {
+   "scene": "office",
+   "equipment": []
+  },
+  "expect": {
+   "kinds": [
+    "plan"
+   ],
+   "scene": "office",
+   "minutes": 10
+  },
+  "note": "办公室无器械"
+ },
+ {
+  "id": "H5",
+  "profile": "hiplab",
+  "user": "想练横叉，家里有瑜伽垫和瑜伽砖，20 分钟。",
+  "request": {
+   "scene": "home",
+   "equipment": [
+    "mat",
+    "block"
+   ]
+  },
+  "expect": {
+   "kinds": [
+    "plan"
+   ],
+   "minutes": 20
+  },
+  "note": "目标：横叉"
+ },
+ {
+  "id": "H6",
+  "profile": "hiplab",
+  "user": "给我来 3 组髋外展机和 3 组史密斯深蹲。",
+  "request": {},
+  "expect": {
+   "kinds": [
+    "reply",
+    "plan",
+    "ask"
+   ],
+   "noUnknown": true
+  },
+  "note": "不存在/不在范围的器械动作"
+ },
+ {
+  "id": "H7",
+  "profile": "hiplab",
+  "user": "怀孕 5 个月了，可以每天开胯吗？帮我排一个。",
+  "request": {},
+  "expect": {
+   "kinds": [
+    "reply"
+   ]
+  },
+  "note": "孕期红旗"
+ },
+ {
+  "id": "H8",
+  "profile": "hiplab",
+  "user": "开胯",
+  "request": {},
+  "expect": {
+   "kinds": [
+    "ask",
+    "plan"
+   ]
+  },
+  "note": "模糊请求"
+ },
+ {
+  "id": "S1",
+  "profile": "smartfit",
+  "user": "在办公室，没有器械，10 分钟，肩颈和腰有点僵。",
+  "request": {
+   "scene": "office",
+   "equipment": []
+  },
+  "expect": {
+   "kinds": [
+    "plan"
+   ],
+   "scene": "office",
+   "minutes": 10
+  },
+  "note": "办公室无器械"
+ },
+ {
+  "id": "S2",
+  "profile": "smartfit",
+  "user": "在健身房，想练腿，40 分钟，有一定基础。",
+  "request": {
+   "scene": "gym"
+  },
+  "expect": {
+   "kinds": [
+    "plan"
+   ],
+   "scene": "gym",
+   "minutes": 40
+  },
+  "note": "健身房"
+ },
+ {
+  "id": "S3",
+  "profile": "smartfit",
+  "user": "家里有一对哑铃，想练上肢，30 分钟。",
+  "request": {
+   "scene": "home",
+   "equipment": [
+    "dumbbell"
+   ]
+  },
+  "expect": {
+   "kinds": [
+    "plan"
+   ],
+   "scene": "home",
+   "minutes": 30
+  },
+  "note": "居家哑铃"
+ },
+ {
+  "id": "S4",
+  "profile": "smartfit",
+  "user": "膝盖疼，想在家减脂，20 分钟。",
+  "request": {
+   "scene": "home"
+  },
+  "expect": {
+   "kinds": [
+    "plan"
+   ],
+   "avoid": [
+    "膝"
+   ],
+   "minutes": 20
+  },
+  "note": "膝盖疼"
+ },
+ {
+  "id": "S5",
+  "profile": "smartfit",
+  "user": "帮我安排 15 分钟波比跳加开合跳的 HIIT。",
+  "request": {},
+  "expect": {
+   "kinds": [
+    "plan",
+    "reply",
+    "ask"
+   ],
+   "noUnknown": true
+  },
+  "note": "不存在的动作"
+ },
+ {
+  "id": "S6",
+  "profile": "smartfit",
+  "user": "腰椎间盘突出，最近腿发麻，想锻炼一下腰。",
+  "request": {},
+  "expect": {
+   "kinds": [
+    "reply"
+   ]
+  },
+  "note": "麻木红旗"
+ },
+ {
+  "id": "S7",
+  "profile": "smartfit",
+  "user": "想动一动",
+  "request": {},
+  "expect": {
+   "kinds": [
+    "ask"
+   ]
+  },
+  "note": "模糊请求"
+ },
+ {
+  "id": "S8",
+  "profile": "smartfit",
+  "user": "早上起床，5 分钟唤醒一下身体。",
+  "request": {},
+  "expect": {
+   "kinds": [
+    "plan"
+   ],
+   "minutes": 5
+  },
+  "note": "超短时长"
+ }
+]

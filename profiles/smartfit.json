@@ -1,0 +1,66 @@
+{
+ "id": "smartfit",
+ "appName": "智能健身助手（SmartFit）",
+ "promptVersion": "1",
+ "focus": "全身通用：力量、核心、低冲击有氧、拉伸放松都可以，按用户目标组合。\n居家默认只有垫子/椅子/墙/瑜伽砖；用户说有哑铃、弹力带等才用；健身房可以用器械动作。\n办公室只用站姿和坐姿（椅子、墙），不趴不躺不跪。\n全身训练注意推/拉、上/下肢、前/后侧平衡。",
+ "rules": [
+  "语气：清楚、友好、务实，一两句说明为什么这样排。",
+  "越界请求：库里没有的动作（如波比跳、跑步、游泳、具体器械名）不能出现；说明库里没有，用最接近的库内动作代替并在 notes 写明替换。"
+ ],
+ "select": {},
+ "scenes": {
+  "home": {
+   "label": "居家",
+   "assumedEquipment": [
+    "mat",
+    "chair",
+    "wall",
+    "block"
+   ],
+   "acceptDrillScenes": [
+    "home"
+   ]
+  },
+  "office": {
+   "label": "办公室",
+   "assumedEquipment": [
+    "chair",
+    "wall"
+   ],
+   "acceptDrillScenes": [
+    "office"
+   ],
+   "forbidFloor": true
+  },
+  "gym": {
+   "label": "健身房",
+   "allEquipment": true,
+   "acceptDrillScenes": [
+    "gym",
+    "home"
+   ]
+  }
+ },
+ "defaultScene": "home",
+ "goals": [
+  "relax",
+  "mobility",
+  "strength",
+  "core",
+  "fullbody",
+  "warmup",
+  "cooldown"
+ ],
+ "limits": {
+  "minutes": [
+   3,
+   60
+  ]
+ },
+ "vars": {
+  "defaultMinutes": "15",
+  "defaultLevel": "1",
+  "fallbackTemplates": "fullbody-bodyweight"
+ },
+ "notes": "本 profile 用全库 142 个动作，其中 49 个 FlareLab 动作 SmartFit App 内尚无素材包，接入前需 SDK 能按 id 拉取素材或先补包（见 README）。"
+}

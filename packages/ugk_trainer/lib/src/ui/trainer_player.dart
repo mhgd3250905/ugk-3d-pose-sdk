@@ -310,6 +310,11 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   late int _occurrences;
   TrainingHold? _hold;
   Timer? _timer;
+  Timer? _terminalAudio;
+  Future<void>? _audioEnding;
+  bool _audioEnded = false;
+  bool _audioRestarting = false;
+  int _audioOwner = 0;
   StreamSubscription<AudioInterruption>? _interruptions;
   double? _endedAt;
   String? _subtitle;
@@ -390,12 +395,15 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   @override
   void dispose() {
     _disposed = true;
+    _audioOwner++;
+    _terminalAudio?.cancel();
+    _terminalAudio = null;
     _timer?.cancel();
     _progress.dispose();
     unawaited(_interruptions?.cancel());
     ScreenAwake.release();
     _queue.cancelAll(_t);
-    unawaited(_voice.output.end());
+    unawaited(_endAudio());
     _hold?.release();
     if (!_recorder.finished) {
       // Closed without the done view (route removed): still record it.
@@ -443,9 +451,45 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (_recorder.finished) return;
     _endedAt ??= t;
     _clock.stop();
-    // The closing line still plays with the screen locked.
-    _hold?.release(after: const Duration(seconds: 4));
+    // Keep the closing line (including queued tails) audible before ending
+    // the silent loop and the foreground hold. A replay cancels this owner.
+    var tail = 4.0;
+    for (final line in _queue.log) {
+      final remaining = line.end - t + VoiceQueue.tailGrace;
+      if (remaining > tail) tail = remaining;
+    }
+    final owner = _audioOwner;
+    final hold = _hold;
+    _terminalAudio = Timer(Duration(microseconds: (tail * 1e6).ceil()), () {
+      _terminalAudio = null;
+      if (_disposed || owner != _audioOwner || !_engine.done) return;
+      unawaited(_endAudio());
+      hold?.release();
+    });
     unawaited(_save());
+  }
+
+  Future<void> _endAudio() {
+    if (_audioEnded) return _audioEnding ?? Future<void>.value();
+    _audioEnded = true;
+    return _audioEnding = Future<void>.sync(
+      _voice.output.end,
+    ).catchError((Object _) {});
+  }
+
+  Future<void> _restartAudioAfterEnd(int owner) async {
+    await _audioEnding;
+    if (_disposed || !mounted || owner != _audioOwner) return;
+    _audioEnding = null;
+    _audioEnded = false;
+    if (_voice.settings.voice || _voice.settings.chimes) {
+      await Future<void>.sync(_voice.output.begin).catchError((Object _) {});
+    }
+    if (_disposed || !mounted || owner != _audioOwner) return;
+    _audioRestarting = false;
+    _clock.start();
+    _tick();
+    setState(() {});
   }
 
   Future<bool> _save() async {
@@ -456,6 +500,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   void _replay() {
     if (!_engine.done || !_saver.saved || _closing) return;
+    final owner = ++_audioOwner;
+    _terminalAudio?.cancel();
+    _terminalAudio = null;
     // End the previous owner's delayed close before acquiring a new one.
     // The shared output stays open; no old route can end the new session.
     _hold?.release();
@@ -484,7 +531,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _hapticGen = -1;
     _hapticSecond = -1;
     _progress.value = 0;
-    if (_voice.settings.voice || _voice.settings.chimes) {
+    if (!_audioEnded && (_voice.settings.voice || _voice.settings.chimes)) {
       unawaited(_voice.output.begin());
     }
     if (widget.keepAlive) {
@@ -499,8 +546,16 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         ),
       );
     }
-    _clock.start();
-    _tick();
+    if (_audioEnded) {
+      // An earlier terminal end may still be stopping native players. Wait
+      // before beginning and starting the new clock, so it cannot stop a
+      // new round or swallow that round's first cue.
+      _audioRestarting = true;
+      unawaited(_restartAudioAfterEnd(owner));
+    } else {
+      _clock.start();
+      _tick();
+    }
     setState(() {});
   }
 
@@ -540,7 +595,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _togglePause({bool announce = true}) {
-    if (_engine.done) return;
+    if (_engine.done || _audioRestarting) return;
     if (_paused) {
       if (_voice.output case final InterruptibleVoiceOutput out) {
         unawaited(out.reactivate());

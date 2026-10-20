@@ -106,6 +106,9 @@ class JustAudioVoiceOutput
   Future<void>? _ending;
   Future<void>? _disposal;
   bool _disposed = false;
+  bool _keepAliveSuppressed = false;
+  bool _keepAliveExpired = false;
+  Timer? _keepAliveLimit;
 
   bool _current(int generation) =>
       _began && !_disposed && generation == _sessionGeneration;
@@ -113,7 +116,7 @@ class JustAudioVoiceOutput
   @override
   Stream<AudioInterruption> get interruptions => _events.stream;
 
-  /// Silent loop that keeps the iOS audio session alive (bundled here).
+  /// Silent loop that keeps mobile playback active between coaching lines.
   static const defaultKeepAliveAsset =
       'packages/ugk_trainer/assets/silence.m4a';
   final String _silence;
@@ -121,6 +124,15 @@ class JustAudioVoiceOutput
 
   bool get _onIOS =>
       _iOS ?? (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS);
+
+  bool get _onAndroid =>
+      !kIsWeb &&
+      !_onIOS &&
+      (_iOS == false || defaultTargetPlatform == TargetPlatform.android);
+
+  // Same upper bound as the native TrainingHold. Never renew this timer for
+  // each line or reactivation: a forgotten owner must not loop indefinitely.
+  static const _keepAliveCap = Duration(hours: 2);
 
   static AudioSessionConfiguration _config({
     required bool duck,
@@ -146,6 +158,8 @@ class JustAudioVoiceOutput
     if (_disposed) return Future<void>.value();
     if (_began) return _beginning ?? Future<void>.value();
     _began = true;
+    _keepAliveSuppressed = false;
+    _keepAliveExpired = false;
     final generation = ++_sessionGeneration;
     // A new page can open while the previous page is releasing its audio.
     // Finish that release before configuring or starting this session.
@@ -173,25 +187,40 @@ class JustAudioVoiceOutput
     }
   }
 
-  /// iOS: activate the session and loop the silent clip. Android: the
-  /// session runs a foreground service instead (TrainingHold,
-  /// android/TrainingSessionService.kt), so nothing to loop here.
+  /// iOS needs an active session; Android keeps a continuous silent AudioTrack
+  /// alongside TrainingHold. Some devices freeze even a mediaPlayback FGS and
+  /// disable its wake lock once the last spoken track goes inactive (HipLab
+  /// native evidence, 2026-10-20). The silent track does not request Android
+  /// focus: each spoken line still acquires/releases its own ducking focus.
   Future<void> _keepAliveOn() async {
     final generation = _sessionGeneration;
-    if (!_onIOS || !_current(generation)) return;
+    bool current() =>
+        _current(generation) && !_keepAliveSuppressed && !_keepAliveExpired;
+    if ((!_onIOS && !_onAndroid) || !current()) return;
     final s = _session;
     if (s == null) return;
-    await _step(() => s.setActive(true));
-    if (!_current(generation)) return;
+    if (_onIOS) await _step(() => s.setActive(true));
+    if (!current()) return;
+    var prepared = false;
     await _step(() async {
       if (_keepAlive.audioSource == null) {
         await _keepAlive.setAsset(_silence);
-        if (!_current(generation)) return;
-        await _keepAlive.setLoopMode(LoopMode.one);
-        await _keepAlive.setVolume(0);
+        if (!current()) return;
       }
+      // An earlier session may have ended between loading and configuration.
+      // Reapply these even when its source survived stop().
+      await _keepAlive.setLoopMode(LoopMode.one);
+      if (!current()) return;
+      await _keepAlive.setVolume(0);
+      prepared = true;
     });
-    if (!_current(generation)) return;
+    if (!current() || !prepared) return;
+    _keepAliveLimit ??= Timer(_keepAliveCap, () {
+      _keepAliveLimit = null;
+      if (!_current(generation)) return;
+      _keepAliveExpired = true;
+      unawaited(_step(_keepAlive.stop));
+    });
     unawaited(_keepAlive.play().catchError((Object _) {}));
   }
 
@@ -210,12 +239,15 @@ class JustAudioVoiceOutput
       // `duck`: another app's short prompt (Android transient focus); the
       // coach can keep going. Anything else (call, Siri, alarm): stop.
       if (e.type == AudioInterruptionType.duck) return;
+      debugPrint('UgkTrainerVoice interruption began: ${e.type.name}');
+      _keepAliveSuppressed = true;
       ++_speechRequest;
       _lines
         ..abandon()
         ..forgetDuck();
       unawaited(_step(stopVoice));
       unawaited(_step(_chime.stop));
+      unawaited(_step(_keepAlive.pause));
       _events.add(AudioInterruption.began);
     } else {
       if (e.type == AudioInterruptionType.duck) return;
@@ -229,6 +261,8 @@ class JustAudioVoiceOutput
 
   void _onUnplugged() {
     if (!_began) return;
+    debugPrint('UgkTrainerVoice interruption: output unplugged');
+    _keepAliveSuppressed = true;
     ++_speechRequest;
     _lines.abandon();
     unawaited(_releaseUnpluggedAudio());
@@ -238,6 +272,7 @@ class JustAudioVoiceOutput
   Future<void> _releaseUnpluggedAudio() async {
     await _step(stopVoice);
     await _step(_chime.stop);
+    await _step(_keepAlive.pause);
     await _lines.releaseDuck();
   }
 
@@ -253,6 +288,7 @@ class JustAudioVoiceOutput
       await _step(() => s.configure(_config(duck: false)));
       if (!_current(generation)) return;
       _lines.forgetDuck();
+      _keepAliveSuppressed = false;
       await _keepAliveOn();
     });
   }
@@ -260,6 +296,9 @@ class JustAudioVoiceOutput
   @override
   Future<void> end() {
     _began = false;
+    _keepAliveSuppressed = true;
+    _keepAliveLimit?.cancel();
+    _keepAliveLimit = null;
     ++_sessionGeneration;
     ++_speechRequest;
     _lines.abandon();
@@ -335,7 +374,7 @@ class JustAudioVoiceOutput
 
   @override
   Future<void> keepAliveResume() async {
-    if (_began && !_disposed) {
+    if (_began && !_disposed && !_keepAliveSuppressed && !_keepAliveExpired) {
       unawaited(_keepAlive.play().catchError((Object _) {}));
     }
   }

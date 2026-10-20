@@ -38,6 +38,35 @@ class _ReplayOutput extends RecordingOutput {
   Future<void> end() async => ends++;
 }
 
+class _PendingEndOutput extends _ReplayOutput {
+  final ending = Completer<void>();
+  bool active = false;
+  @override
+  Future<void> begin() async {
+    begins++;
+    active = true;
+  }
+
+  @override
+  Future<void> end() async {
+    ends++;
+    await ending.future;
+    active = false;
+  }
+}
+
+class _LongCloseScript extends _AppScript {
+  _LongCloseScript(super.source, super.language);
+  @override
+  List<VoiceCue> cues(
+    SessionPhase p, {
+    required double planSeconds,
+    bool bySkip = false,
+  }) => p.kind == PhaseKind.done
+      ? [VoiceCue(0, List.filled(6, 'p.finish'), CuePriority.call)]
+      : super.cues(p, planSeconds: planSeconds, bySkip: bySkip);
+}
+
 class _SilentPauseOutput extends _ReplayOutput
     implements InterruptibleVoiceOutput {
   int reactivations = 0;
@@ -516,4 +545,136 @@ void main() {
       expect(calls.where((call) => call.method == 'start'), hasLength(2));
     },
   );
+  for (final scenario in ['normal', 'long closing line', 'pending end']) {
+    testWidgets(
+      'terminal audio releases while staying on done, then replays safely ($scenario)',
+      (tester) async {
+        final calls = <MethodCall>[];
+        final messenger =
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+        TrainingKeepAlive.isAndroid = () => true;
+        messenger.setMockMethodCallHandler(TrainingKeepAlive.channel, (
+          call,
+        ) async {
+          calls.add(call);
+          return true;
+        });
+        addTearDown(() {
+          TrainingKeepAlive.isAndroid = () => false;
+          messenger.setMockMethodCallHandler(TrainingKeepAlive.channel, null);
+        });
+        final output = scenario == 'pending end'
+            ? _PendingEndOutput()
+            : _ReplayOutput();
+        final source = hipSource();
+        final builder = _AppBuilder();
+        final saved = <SessionResult>[];
+        await tester.pumpWidget(
+          MaterialApp(
+            home: TrainerPlayer(
+              plan: planOf([timed('a', 30)]),
+              drillOf: (id) => TrainerDrill(id: id, name: id),
+              strings: TrainerStrings.en(),
+              sessionBuilder: builder,
+              voice: TrainerVoice(
+                source: source,
+                output: output,
+                scriptBuilder: scenario == 'long closing line'
+                    ? _LongCloseScript.new
+                    : _AppScript.new,
+              ),
+              mediaBuilder: (_, _) => const SizedBox(height: 100),
+              onFinished: (result) async => saved.add(result),
+              replayBuilder: (_, _, replay) => TextButton(
+                key: const ValueKey('replay'),
+                onPressed: () {
+                  builder.workSecondsOverride = 20;
+                  replay();
+                },
+                child: const Text('again'),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 2));
+        await tester.pump();
+        expect(saved, hasLength(1));
+        final firstOwner = TrainingKeepAlive.currentSession;
+        expect(firstOwner, isNotNull);
+        expect(output.ends, 0);
+        await tester.pump(const Duration(milliseconds: 3900));
+        expect(
+          output.ends,
+          0,
+          reason: 'closing audio keeps at least the original four seconds',
+        );
+        if (scenario == 'long closing line') {
+          expect(
+            output.spoken.last,
+            List.filled(6, source.asset('p.finish', lang: 'zh')),
+          );
+          await tester.pump(const Duration(milliseconds: 200));
+          expect(
+            output.ends,
+            0,
+            reason: 'a long queued closing line is not cut at four seconds',
+          );
+          final seconds =
+              source.total(List.filled(6, 'p.finish'), lang: 'zh') +
+              VoiceQueue.tailGrace;
+          await tester.pump(
+            Duration(milliseconds: ((seconds - 4.1) * 1000).ceil() + 100),
+          );
+        } else {
+          await tester.pump(const Duration(milliseconds: 200));
+        }
+        expect(
+          output.ends,
+          1,
+          reason: 'remaining on done releases the audio owner',
+        );
+        expect(TrainingKeepAlive.currentSession, isNull);
+        expect(calls.where((c) => c.method == 'stop'), hasLength(1));
+        await tester.tap(find.byKey(const ValueKey('replay')));
+        await tester.pump();
+        if (output is _PendingEndOutput) {
+          expect(
+            output.begins,
+            1,
+            reason: 'new begin waits until native end has finished',
+          );
+          await tester.pump(const Duration(seconds: 1));
+          expect(output.begins, 1);
+          output.ending.complete();
+          await tester.pump();
+          expect(
+            output.active,
+            isTrue,
+            reason: 'old end cannot close new playback',
+          );
+        }
+        expect(output.begins, 2);
+        final secondOwner = TrainingKeepAlive.currentSession;
+        expect(secondOwner, isNot(firstOwner));
+        await tester.pump(const Duration(seconds: 6));
+        expect(
+          output.ends,
+          1,
+          reason: 'the first terminal timer cannot end the replay',
+        );
+        expect(TrainingKeepAlive.currentSession, secondOwner);
+        expect(saved, hasLength(1));
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+        expect(
+          output.ends,
+          2,
+          reason: 'dispose releases the new owner exactly once',
+        );
+        await tester.pump(const Duration(seconds: 10));
+        expect(output.ends, 2, reason: 'dispose cancels terminal timers');
+      },
+    );
+  }
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2
+
+- Keep Android training audio active across coaching gaps with the bundled silent loop, without continuously holding audio focus. This addresses an observed Xiaomi Greeze freeze despite an active mediaPlayback service and wake lock.
+- Pause the loop for interruptions and output disconnection, stop it at session end, and cap each owner at two hours without extending the cap on reactivation.
+- Release audio after completion cues even when the player remains on its result page; cancel the old completion release on immediate replay.
+- Real-device verification remains required for each host's supported devices; the silent loop alone is not a device acceptance result.
+
 ## 0.1.1
 
 - Add app-specific session builders and voice script factories, authored dose labels, discomfort phase replacement, response clips/subtitles, rest feedback, and in-place replay slots.

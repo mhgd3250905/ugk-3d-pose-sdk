@@ -2,7 +2,7 @@ name: ugk_trainer
 description: >-
   三 App（FlareLab 托马斯 / HipLab / SmartFit）共用的跟练模块：TrainingPlan 引擎、
   动作节奏 Rhythm、语音队列与素材源、安卓训练保活、训练播放页与训练结果。
-version: 0.1.1
+version: 0.1.2
 repository: https://github.com/mhgd3250905/ugk-3d-pose-sdk
 publish_to: none
 

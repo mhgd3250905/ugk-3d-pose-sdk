@@ -89,6 +89,8 @@ class ItemResult {
     required this.activeSeconds,
     required this.status,
     this.replacedFrom,
+    this.plannedSideSets = const {},
+    this.completedSideSets = const {},
   });
 
   /// The exercise actually done (after a substitute).
@@ -105,6 +107,10 @@ class ItemResult {
   final ItemStatus status;
   final String? replacedFrom;
 
+  /// Optional per-side detail when sides have different doses/set counts.
+  final Map<String, int> plannedSideSets;
+  final Map<String, int> completedSideSets;
+
   Map<String, Object?> toJson() => {
     'exerciseId': exerciseId,
     'blockIndex': blockIndex,
@@ -114,6 +120,8 @@ class ItemResult {
     'activeSeconds': activeSeconds.round(),
     'status': status.name,
     'replacedFrom': ?replacedFrom,
+    if (plannedSideSets.isNotEmpty) 'plannedSideSets': plannedSideSets,
+    if (completedSideSets.isNotEmpty) 'completedSideSets': completedSideSets,
   };
 
   factory ItemResult.fromJson(Map<String, dynamic> j) => ItemResult(
@@ -128,6 +136,14 @@ class ItemResult {
       orElse: () => ItemStatus.notReached,
     ),
     replacedFrom: j['replacedFrom'] as String?,
+    plannedSideSets: {
+      for (final e in (j['plannedSideSets'] as Map? ?? const {}).entries)
+        e.key as String: (e.value as num).toInt(),
+    },
+    completedSideSets: {
+      for (final e in (j['completedSideSets'] as Map? ?? const {}).entries)
+        e.key as String: (e.value as num).toInt(),
+    },
   );
 }
 
@@ -250,7 +266,7 @@ class SessionRecorder {
       endedAt: clock.now(),
       activeSeconds: activeSeconds,
       endedEarly: engine.endedEarly,
-      completedExercises: engine.completedExercises,
+      completedExercises: engine.fullyCompletedExercises,
       totalExercises: totalExercises,
       items: itemsOf(plan, engine),
       discomfort: List.unmodifiable(_discomfort),
@@ -269,6 +285,30 @@ class SessionRecorder {
           (v) => v.phase.blockIndex == bi && v.phase.itemInBlock == ii,
         );
         final work = mine.where((v) => v.phase.isWork).toList();
+        final sideRequirements = <(int, Side), int>{};
+        for (final phase in engine.initialWorkPhases) {
+          if (phase.blockIndex != bi ||
+              phase.itemInBlock != ii ||
+              phase.side == null) {
+            continue;
+          }
+          final key = (phase.itemIndex, phase.side!);
+          final n = phase.sets > 0 ? phase.sets : 1;
+          if (n > (sideRequirements[key] ?? 0)) sideRequirements[key] = n;
+        }
+        final sideCompleted = <Side, Set<(int, int)>>{};
+        for (final visit in work) {
+          final phase = visit.phase;
+          if (phase.side == null ||
+              (visit.exit != PhaseExit.natural &&
+                  visit.exit != PhaseExit.completed)) {
+            continue;
+          }
+          sideCompleted.putIfAbsent(phase.side!, () => {}).add((
+            phase.itemIndex,
+            phase.set,
+          ));
+        }
         var completed = 0;
         for (final v in work) {
           final lastSide = !item.perSide || v.phase.side == Side.left;
@@ -302,6 +342,18 @@ class SessionRecorder {
             activeSeconds: work.fold(0.0, (s, v) => s + v.seconds),
             status: status,
             replacedFrom: actual != item.exerciseId ? item.exerciseId : null,
+            plannedSideSets: {
+              for (final side in Side.values)
+                if (sideRequirements.keys.any((key) => key.$2 == side))
+                  side.name: sideRequirements.entries
+                      .where((e) => e.key.$2 == side)
+                      .fold(0, (sum, e) => sum + e.value),
+            },
+            completedSideSets: {
+              for (final side in Side.values)
+                if (sideRequirements.keys.any((key) => key.$2 == side))
+                  side.name: sideCompleted[side]?.length ?? 0,
+            },
           ),
         );
       }

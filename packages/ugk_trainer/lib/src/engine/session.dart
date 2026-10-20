@@ -388,14 +388,26 @@ class PhaseVisit {
 /// background never drift the count.
 class SessionEngine {
   SessionEngine(List<SessionPhase> phases)
-    : _phases = List.unmodifiable(phases);
+    : _phases = List.unmodifiable(phases),
+      initialWorkPhases = List.unmodifiable(phases.where((p) => p.isWork)) {
+    for (final phase in phases.where((p) => p.isWork)) {
+      _requiredWork.putIfAbsent(phase.itemIndex, () => {}).add((
+        phase.set,
+        phase.side,
+      ));
+    }
+  }
 
   List<SessionPhase> _phases;
+
+  /// Original work arrangement, before substitutions/direction filtering.
+  final List<SessionPhase> initialWorkPhases;
   int _index = 0;
   double _phaseStart = 0;
   bool _enteredBySkip = false;
   int? _completedOnEarlyEnd;
   final List<PhaseVisit> _visits = [];
+  final Map<int, Set<(int, Side?)>> _requiredWork = {};
 
   /// Bumped every time the phase changes (for listeners).
   int generation = 0;
@@ -429,6 +441,26 @@ class SessionEngine {
   /// points at the next one, so its index equals the count done).
   int get completedExercises =>
       _completedOnEarlyEnd ?? phase.itemIndex.clamp(0, 1 << 30);
+
+  /// Exercises whose originally required sets/sides actually finished.
+  /// [completedExercises] is a navigation position and includes skipped items.
+  int get fullyCompletedExercises {
+    final finished = <int, Set<(int, Side?)>>{};
+    for (final v in _visits) {
+      if (v.phase.isWork &&
+          (v.exit == PhaseExit.natural || v.exit == PhaseExit.completed)) {
+        finished.putIfAbsent(v.phase.itemIndex, () => {}).add((
+          v.phase.set,
+          v.phase.side,
+        ));
+      }
+    }
+    return _requiredWork.entries
+        .where(
+          (entry) => finished[entry.key]?.containsAll(entry.value) ?? false,
+        )
+        .length;
+  }
 
   void _leave(double at, PhaseExit exit) {
     if (done) return;
@@ -514,13 +546,31 @@ class SessionEngine {
   /// Replace the phases from the current exercise occurrence on with
   /// [phases] (a rebuilt plan with the same occurrences, e.g. a substitute)
   /// and restart at its first work phase.
-  void restartWith(List<SessionPhase> phases, double t) {
+  void restartWith(
+    List<SessionPhase> phases,
+    double t, {
+    int? fromItemIndex,
+    bool withRest = false,
+  }) {
     update(t);
     if (done) return;
-    final cur = phase.itemIndex;
+    final cur = fromItemIndex ?? phase.itemIndex;
     final head = _phases.sublist(0, _index);
-    final tailStart = phases.indexWhere((p) => p.itemIndex == cur && p.isWork);
-    if (tailStart < 0) return;
+    var tailStart = phases.indexWhere(
+      (p) =>
+          p.itemIndex >= cur &&
+          (p.isWork ||
+              (withRest &&
+                  (p.kind == PhaseKind.rest || p.kind == PhaseKind.roundRest))),
+    );
+    // Direction filters may remove the current item and every later item.
+    // Still enter done so saving and keep-alive release follow the usual path.
+    if (tailStart < 0) {
+      tailStart = phases.indexWhere((p) => p.kind == PhaseKind.done);
+    }
+    if (tailStart < 0) {
+      throw ArgumentError('Replacement phases need a done phase');
+    }
     _leave(t, PhaseExit.replaced);
     _phases = List.unmodifiable([...head, ...phases.sublist(tailStart)]);
     _index = head.length;

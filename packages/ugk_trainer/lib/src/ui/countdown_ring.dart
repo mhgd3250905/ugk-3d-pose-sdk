@@ -66,29 +66,34 @@ class TrainerCountdownRing extends StatelessWidget {
           glow: theme.isDark,
         ),
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TrainerRollingNumber(
-                key: numberKey,
-                value: value,
-                style: theme.numeral(size * .34, color: numberColor),
-              ),
-              if (caption != null) ...[
-                SizedBox(height: size * .04),
-                Text(
-                  caption!,
-                  style: TextStyle(
-                    fontSize: size * .095,
-                    height: 1.1,
-                    letterSpacing: size * .004,
-                    fontWeight: FontWeight.w500,
-                    color: theme.muted,
-                    fontFamily: theme.fontFamily,
-                  ),
+          // The dial has a fixed diameter. Fit the combined number/caption
+          // inside it when text scaling would otherwise overflow the face.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TrainerRollingNumber(
+                  key: numberKey,
+                  value: value,
+                  style: theme.numeral(size * .34, color: numberColor),
                 ),
+                if (caption != null) ...[
+                  SizedBox(height: size * .04),
+                  Text(
+                    caption!,
+                    style: TextStyle(
+                      fontSize: size * .095,
+                      height: 1.1,
+                      letterSpacing: size * .004,
+                      fontWeight: FontWeight.w500,
+                      color: theme.muted,
+                      fontFamily: theme.fontFamily,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

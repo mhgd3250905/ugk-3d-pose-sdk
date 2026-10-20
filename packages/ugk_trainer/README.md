@@ -1,4 +1,4 @@
-# ugk_trainer 0.1.0
+# ugk_trainer 0.1.1
 
 三 App（托马斯 3D-Body / 开胯 HipLab / SmartFit）共用的跟练模块。方案见仓库根目录 `docs/trainer-plan.md`。
 
@@ -58,6 +58,15 @@ final result = await Navigator.of(context).push<SessionResult>(
 7. **onFinished**：训练结束（完成、提前结束、关闭）时调用一次，传一个 `SessionResult`。**按 `sessionId` 覆盖保存**：保存失败时完成页出现「重试」，重试传的是同一个结果（同一 id），不会产生第二条记录。保存成功前「完成」不可点；关闭和系统返回也等待保存，失败时保留完成页供重试。
 8. **onDiscomfort**（可选）：返回 `DiscomfortDecision(continueEasier | skip | end | substitute, substituteId:, note:)`；HipLab 疼痛阶梯留在 App，在这里弹自己的页面。缺省是内置三选项底部弹层。事件记入结果。
 9. **feedbackBuilder**（可选）：完成页上方的插槽（HipLab 感受反馈），拿到 `SessionResult`。
+10. **sessionBuilder**（可选）：传入 `SessionBuilder` 子类，覆写 `phases` 保留 App 的左右侧剂量和组数编排；相位必须保留原计划的 `itemIndex`、`blockIndex`、`itemInBlock`，并以 `done` 结尾。计时、跳过、语音队列和保存仍由播放器管理。
+11. **restFeedbackBuilder**（可选）：动作间休息的感受插槽，拿到当前 `phase`、刚结束的 `completedPhase` 和 `reportDiscomfort()`。普通反馈不暂停计时；报告疼痛时，`onDiscomfort` 的 `phase` 指刚结束的动作，`resumePhase` 指实际休息相位，`afterExercise` 为 true。完成页反馈发生在自动保存之后；要持久化完成页的新回答，App 应按同一 `sessionId` 更新补充数据。
+12. **DiscomfortDecision.replacementPhases**（可选）：App 的疼痛策略可重建后续相位（减量、替换、方向过滤），`restartItemIndex` 选择开始位置，`withRest` 保留该位置前的休息；全部被过滤时进入 `done`。`voiceClips` 在重排后排入语音队列，用于 App 的疼痛提示。未提供相位时沿用默认动作；`continueEasier` 只表示减小幅度，具体减量由 App 决定。
+13. **replayBuilder**（可选）：保存成功后显示再练入口，拿到 `SessionResult` 和 `replay()`。App 先重置自己的疼痛/感受状态，再调用 replay；同一播放器 State 开新会话和新结果 ID，保留共享语音输出，不建立第二个路由。
+14. **doseLabel**（可选）：以 `SessionPhase` 按 occurrence 返回 App 的剂量文案，同时用于当前动作和下一动作预览；返回 null 则使用默认剂量文字。
+15. **announceDiscomfortPause**（缺省 true）：false 时疼痛对话进出静默暂停/恢复，仍重新激活音频与续期保活；普通暂停按钮的播报不受影响。`DiscomfortDecision.subtitle` 可给出 App 的可见响应，即使没有语音素材也显示。
+
+`SessionResult.completedExercises` 只统计实际完成全部所需侧别/组的动作，跳过不计为完成。引擎的 `completedExercises` 保留播放位置语义；读取实际完成数使用 `fullyCompletedExercises`。
+`ItemResult.plannedSideSets` / `completedSideSets` 用 `right`、`left` 表示各侧实际组数，支持不对称编排；原 `plannedSets` / `completedSets` 继续表示成对组。旧结果没有这些字段时按空映射读取。
 
 ### Android
 
@@ -68,7 +77,7 @@ final result = await Navigator.of(context).push<SessionResult>(
 
 ## 测试
 
-`flutter test`（92 个）：引擎（SmartFit session 测试移植 + 自主计次、rep_hold 停留、循环轮间休息、换动作）、HipLab 节奏计数与换边余量、SmartFit 语音时间线、语音队列/播放控制器/just_audio 输出（HipLab 测试原样移植）、无语音降级、训练保活、结果与幂等保存、播放页。夹具在 `test/fixtures`（HipLab manifest 与 5 个 action kit、SmartFit 5 个 pack.json）。
+`flutter test`（111 个）：引擎（SmartFit session 测试移植 + 自主计次、rep_hold 停留、循环轮间休息、换动作）、HipLab 节奏计数与换边余量、SmartFit 语音时间线、语音队列/播放控制器/just_audio 输出（HipLab 测试原样移植）、无语音降级、训练保活、结果与幂等保存、播放页与 App 插槽。夹具在 `test/fixtures`（HipLab manifest 与 5 个 action kit、SmartFit 5 个 pack.json）。
 
 ## 未带过来（留在各 App）
 

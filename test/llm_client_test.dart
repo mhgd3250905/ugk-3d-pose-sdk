@@ -186,6 +186,35 @@ void main() {
     expect(sleeps, isEmpty);
   });
 
+  test('退避等待中取消 → 立即 cancelled，不再发第二次请求', () async {
+    var n = 0;
+    final gate = Completer<void>();
+    var sleeping = false;
+    final c = OpenAiCompatibleClient(
+      config: config,
+      sleep: (_) {
+        sleeping = true;
+        return gate.future; // 不释放：取消必须自己打断等待
+      },
+      httpClient: MockClient((_) async {
+        n++;
+        return http.Response('limited', 429, headers: {'retry-after': '30'});
+      }),
+    );
+    final t = CancelToken();
+    final f = c.complete(req, cancel: t);
+    while (!sleeping) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    t.cancel();
+    await expectLater(
+        f.timeout(const Duration(seconds: 1)),
+        throwsA(isA<LlmException>()
+            .having((e) => e.kind, 'kind', LlmErrorKind.cancelled)
+            .having((e) => e.httpAttempts, 'attempts', 1)));
+    expect(n, 1);
+  });
+
   test('ApiKeyAuth.lazy 每次读最新 key', () async {
     var k = 'a';
     final auth = ApiKeyAuth.lazy(() async => k);

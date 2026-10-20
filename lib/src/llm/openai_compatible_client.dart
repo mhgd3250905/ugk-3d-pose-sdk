@@ -66,8 +66,14 @@ class OpenAiCompatibleClient implements LlmClient {
           throw LlmException(e.kind, e.message,
               statusCode: e.statusCode, usage: e.usage, latency: sw.elapsed, httpAttempts: attempt);
         }
-        await _sleep(_retryAfter ?? config.retryBackoff * (1 << (attempt - 1)));
+        final wait = _retryAfter ?? config.retryBackoff * (1 << (attempt - 1));
         _retryAfter = null;
+        // 退避等待可被取消：取消后立即结束，不再发下一次请求。
+        await Future.any<void>([_sleep(wait), if (cancel != null) cancel.whenCancelled]);
+        if (cancel?.isCancelled ?? false) {
+          throw LlmException(LlmErrorKind.cancelled, cancel!.reason ?? 'cancelled',
+              statusCode: e.statusCode, latency: sw.elapsed, httpAttempts: attempt);
+        }
       }
     }
   }

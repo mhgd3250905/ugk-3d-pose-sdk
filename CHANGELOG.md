@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2 — 2026-10-20
+
+### 修复
+- `OpenAiCompatibleClient` 重试退避（含 429 `Retry-After`）的等待可被 `CancelToken` 打断：取消后立即抛 `cancelled`，不再发下一次 HTTP 请求（HipLab PR #25 审核 F25-5）。
+
+### 验证
+- `dart test` 165 个全过（新增「退避等待中取消」），`dart analyze` 0 问题。
+
 ## 0.1.1 — 2026-10-20
 
 同步第 1 阶段成果（ai-coach-eval c60023f、Pose-Hub PR #11 809f36a）；未调用真实模型。

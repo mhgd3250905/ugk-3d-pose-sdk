@@ -1,0 +1,182 @@
+{
+ "format": "drill-pack",
+ "formatVersion": 1,
+ "kind": "exercise",
+ "id": "h-squat",
+ "version": "1.1.0",
+ "name": {
+  "zh": "徒手深蹲",
+  "en": "Bodyweight Squat"
+ },
+ "category": "strength",
+ "muscles": [
+  "股四头肌",
+  "臀大肌"
+ ],
+ "muscleGroups": [
+  "quadriceps",
+  "glute-max"
+ ],
+ "equipment": [],
+ "position": "standing",
+ "unilateral": false,
+ "level": 1,
+ "scenes": [
+  "home",
+  "office"
+ ],
+ "defaultDose": {
+  "mode": "reps",
+  "sets": 3,
+  "reps": 12,
+  "restSeconds": 30
+ },
+ "cues": {
+  "zh": [
+   "脚略宽于髋，脚尖微外",
+   "臀部向后下坐，膝盖和脚尖同向"
+  ]
+ },
+ "primaryCue": 1,
+ "cautions": [
+  "膝"
+ ],
+ "contraindications": [],
+ "alternative": null,
+ "media": {
+  "cover": "cover.jpg",
+  "coverSeconds": 0,
+  "video": "demo.mp4",
+  "width": 720,
+  "height": 720,
+  "loopSeconds": 8.0,
+  "repSeconds": 4.0,
+  "light": {
+   "video": "demo-light.mp4",
+   "cover": "cover-light.jpg",
+   "stage": "#EFEFEF"
+  }
+ },
+ "voice": {
+  "languages": [
+   "zh"
+  ],
+  "voices": {
+   "zh": "zh-CN-XiaoxiaoNeural"
+  },
+  "requires": "_common",
+  "lines": [
+   {
+    "id": "name",
+    "role": "name",
+    "text": {
+     "zh": "徒手深蹲"
+    },
+    "ms": {
+     "zh": 975
+    }
+   },
+   {
+    "id": "intro",
+    "role": "intro",
+    "text": {
+     "zh": "徒手深蹲，练大腿前侧和臀部"
+    },
+    "ms": {
+     "zh": 2833
+    }
+   },
+   {
+    "id": "cue1",
+    "role": "cue",
+    "text": {
+     "zh": "脚略宽于髋，脚尖微外"
+    },
+    "ms": {
+     "zh": 2183
+    }
+   },
+   {
+    "id": "cue2",
+    "role": "cue",
+    "text": {
+     "zh": "臀部向后下坐，膝盖和脚尖同向"
+    },
+    "ms": {
+     "zh": 2972
+    }
+   },
+   {
+    "id": "rest",
+    "role": "rest",
+    "text": {
+     "zh": "放松一下。下一组记住，臀部向后下坐，膝盖和脚尖同向"
+    },
+    "ms": {
+     "zh": 5457
+    }
+   },
+   {
+    "id": "finish",
+    "role": "finish",
+    "text": {
+     "zh": "徒手深蹲，完成"
+    },
+    "ms": {
+     "zh": 1718
+    }
+   }
+  ],
+  "postProcess": "HipLab v4.1: edge trim, -16 LUFS fixed gain, alimiter -2.5 dBFS, AAC 64k mono 44.1 kHz cutoff 12 kHz"
+ },
+ "credits": {
+  "media": "3D-Pose-Hub v0.2.0 dark soft-v1 clip (as frozen in HipLab), re-encoded 720²",
+  "mediaSource": "pose-hub-v0.2.0",
+  "spec": "drill-anim/specs/h-squat.js",
+  "license": "Snow Rig © Blender Foundation | studio.blender.org — CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Modified Snow-derived training character rendered with the 3D-Body drill renderer.",
+  "voice": "edge-tts (Microsoft neural voice zh-CN-XiaoxiaoNeural); commercial terms unclear — regenerate with Azure Speech before a store release.",
+  "text": "SmartFit (智能健身助手) authors, 2026-10-19"
+ },
+ "files": {
+  "cover-light.jpg": {
+   "bytes": 9028,
+   "sha256": "ce7810dab9cfe505cc5d0ed614886099bdbc6696527eb63de81e51cc52ea8e41"
+  },
+  "cover.jpg": {
+   "bytes": 7697,
+   "sha256": "c15088f0bf422afaec20a4bbc69abcfc7f493f837d60bf7890aae471a6243889"
+  },
+  "demo-light.mp4": {
+   "bytes": 154680,
+   "sha256": "a4938cfbb3aae3a54c570cbcb34934d0a0c9bdd59286d592d4468d0e716199c1"
+  },
+  "demo.mp4": {
+   "bytes": 145953,
+   "sha256": "097eb8626455234984caf1a415799ffce68d2928e5923b28ce326e6fe39a8036"
+  },
+  "voice/zh/cue1.m4a": {
+   "bytes": 18895,
+   "sha256": "079dce762381b7b3fb5ccecc0e0b5d6c2fe8c4de2f53769baaff13afa694219b"
+  },
+  "voice/zh/cue2.m4a": {
+   "bytes": 25520,
+   "sha256": "b60438108ca67e5d192476b9715c5fed247a6f169a21b0d7247623793b5d2ddb"
+  },
+  "voice/zh/finish.m4a": {
+   "bytes": 15238,
+   "sha256": "9991802e4c1d26445d3b0877984f7520e5010998a9ffb3ce71f9d77923290ff0"
+  },
+  "voice/zh/intro.m4a": {
+   "bytes": 24406,
+   "sha256": "6eb7180f79955292f5ac651f7f1a917e36f5ffd7ed0a77acc6abdc54f67324c3"
+  },
+  "voice/zh/name.m4a": {
+   "bytes": 9062,
+   "sha256": "aaac0d2bd6e3f84f8fd694aa11c2eadaa8d0d4d658b4320379b8712ecff06111"
+  },
+  "voice/zh/rest.m4a": {
+   "bytes": 44713,
+   "sha256": "a60cbee3bbf9dfe4b4f70dc39e3e3543d01b3315a2744bc04c88f2d6ff776735"
+  }
+ }
+}

@@ -1,0 +1,153 @@
+{
+ "schema": "action-kit@1",
+ "id": "h-hip-gate",
+ "display": {
+  "name": {
+   "zh": "扶椅站姿开髋门",
+   "en": "Standing hip gate"
+  },
+  "point": {
+   "zh": "扶住椅子，膝盖抬高，向外画圈打开",
+   "en": "Hold the chair, lift the knee and circle it open"
+  },
+  "cautions": [],
+  "targets": [
+   "external_rotation",
+   "internal_rotation",
+   "abduction",
+   "flexion"
+  ],
+  "methods": [
+   "control"
+  ],
+  "level": "beginner",
+  "sided": true,
+  "firstSide": "right",
+  "poster": {
+   "dark": "assets/drill_media/hip-h-hip-gate.jpg",
+   "light": "assets/drill_media/light/hip-h-hip-gate.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/h-hip-gate.js",
+   "specSha256": "f65d09ec9010e2c5aecaea4a0a0bb912b3ef7af8ff3b941e74adea080ae325b6"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-h-hip-gate.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 1.6
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-h-hip-gate.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 1.6,
+    "sha256": "7ae94af8945fc2a125491eeb955e6b5881b9bceb20d0c4e5e8b0e25255418667",
+    "bytes": 433522
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "lift",
+  "reps": [
+   [
+    0.0,
+    1.0,
+    2.18,
+    8.0
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "rep_alternate",
+  "unit": "reps",
+  "sided": true,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": 6,
+   "sets": 1,
+   "seconds": null,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "cycle": {
+   "seconds": 4.0,
+   "offset": 0.0,
+   "phases": [
+    {
+     "id": "go",
+     "seconds": 0.5,
+     "cue": [
+      "w.gate_open",
+      "w.gate_close"
+     ]
+    },
+    {
+     "id": "hold",
+     "seconds": 1.35
+    },
+    {
+     "id": "back",
+     "seconds": 1.25,
+     "cue": "w.lower"
+    },
+    {
+     "id": "rest",
+     "seconds": 0.9
+    }
+   ],
+   "source": "training parameters (kit_rules phases)"
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.h-hip-gate": {
+    "zh": "扶椅站姿开髋门",
+    "en": "Standing hip gate"
+   },
+   "point.h-hip-gate": {
+    "zh": "扶住椅子，膝盖抬高，向外画圈打开",
+    "en": "Hold the chair, lift the knee and circle it open"
+   },
+   "w.gate_open": {
+    "zh": "开门",
+    "en": "Open the gate"
+   },
+   "w.gate_close": {
+    "zh": "关门",
+    "en": "Close the gate"
+   },
+   "w.lower": {
+    "zh": "放下",
+    "en": "Lower"
+   }
+  },
+  "prepare": [
+   "drill.h-hip-gate",
+   "point.h-hip-gate"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.nice",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": "p.right_first",
+  "coach": [
+   "cue.control.1",
+   "cue.control.2"
+  ],
+  "midHold": null
+ },
+ "review": {
+  "why": "spec: 1 open + 1 close / 8 s (knee up 0.4–0.9 s, out to 2.3 s, down by 3.6 s); \"开 3 + 关 3\" = 6 alternating counts",
+  "flags": []
+ }
+}

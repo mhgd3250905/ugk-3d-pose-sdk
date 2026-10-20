@@ -1,6 +1,9 @@
 include: package:lints/recommended.yaml
 
 analyzer:
+  exclude:
+    # Flutter packages with their own analysis (packages/ugk_trainer).
+    - packages/**
   language:
     strict-casts: true
     strict-raw-types: true

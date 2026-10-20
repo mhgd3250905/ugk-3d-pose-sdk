@@ -1,0 +1,151 @@
+{
+ "schema": "action-kit@1",
+ "id": "h-squat",
+ "display": {
+  "name": {
+   "zh": "徒手深蹲",
+   "en": "Bodyweight squat"
+  },
+  "point": {
+   "zh": "脚跟踩稳，膝盖对准脚尖",
+   "en": "Heels down, knees track over the toes"
+  },
+  "cautions": [
+   "膝"
+  ],
+  "targets": [
+   "flexion"
+  ],
+  "methods": [
+   "strength"
+  ],
+  "level": "beginner",
+  "sided": false,
+  "firstSide": null,
+  "poster": {
+   "dark": "assets/drill_media/hip-h-squat.jpg",
+   "light": "assets/drill_media/light/hip-h-squat.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/h-squat.js",
+   "specSha256": "349e5313795134d9554245b07c13ca94c6f9102a4d41c2ed8ae61cd782e1e58d"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-h-squat.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 0
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-h-squat.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 0.0,
+    "sha256": "3c87f18d8a09ad92b2a3c53e93ec3709ef0670c86ca9648e257f25f916881f3d",
+    "bytes": 432993
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "down",
+  "reps": [
+   [
+    0.57,
+    1.74,
+    2.46,
+    3.55
+   ],
+   [
+    4.57,
+    5.74,
+    6.46,
+    7.55
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "rep_updown",
+  "unit": "reps",
+  "sided": false,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": 8,
+   "sets": 1,
+   "seconds": null,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "cycle": {
+   "seconds": 4.0,
+   "offset": 0.57,
+   "phases": [
+    {
+     "id": "go",
+     "seconds": 1.15,
+     "cue": "w.squat_down"
+    },
+    {
+     "id": "hold",
+     "seconds": 0.7
+    },
+    {
+     "id": "back",
+     "seconds": 1.1,
+     "cue": "w.stand_up"
+    },
+    {
+     "id": "rest",
+     "seconds": 1.05
+    }
+   ],
+   "source": "measured: track 'down' 3 %/97 % crossings, rep 1 of 2"
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.h-squat": {
+    "zh": "徒手深蹲",
+    "en": "Bodyweight squat"
+   },
+   "point.h-squat": {
+    "zh": "脚跟踩稳，膝盖对准脚尖",
+    "en": "Heels down, knees track over the toes"
+   },
+   "w.squat_down": {
+    "zh": "蹲下",
+    "en": "Squat down"
+   },
+   "w.stand_up": {
+    "zh": "站起",
+    "en": "Stand up"
+   }
+  },
+  "prepare": [
+   "drill.h-squat",
+   "point.h-squat"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.nice",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": null,
+  "coach": [
+   "cue.strength.1",
+   "cue.strength.2"
+  ],
+  "midHold": null
+ },
+ "review": {
+  "why": "spec: 2 reps / 8 s, 1 s hold at the bottom",
+  "flags": []
+ }
+}

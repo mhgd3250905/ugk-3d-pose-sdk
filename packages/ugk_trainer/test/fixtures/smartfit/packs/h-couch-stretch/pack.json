@@ -1,0 +1,199 @@
+{
+ "format": "drill-pack",
+ "formatVersion": 1,
+ "kind": "exercise",
+ "id": "h-couch-stretch",
+ "version": "1.1.0",
+ "name": {
+  "zh": "沙发拉伸（后脚搭矮凳）",
+  "en": "Couch Stretch (Rear Foot on a Stool)"
+ },
+ "category": "stretch",
+ "muscles": [
+  "髋屈肌",
+  "股四头肌"
+ ],
+ "muscleGroups": [
+  "hip-flexors",
+  "quadriceps"
+ ],
+ "equipment": [
+  "chair"
+ ],
+ "position": "kneeling",
+ "unilateral": true,
+ "level": 3,
+ "scenes": [
+  "home"
+ ],
+ "defaultDose": {
+  "mode": "time",
+  "sets": 1,
+  "seconds": 30,
+  "restSeconds": 10
+ },
+ "cues": {
+  "zh": [
+   "后脚背靠椅面",
+   "后脚搭高，收紧臀部，髋往前送"
+  ]
+ },
+ "primaryCue": 1,
+ "cautions": [
+  "膝",
+  "腰"
+ ],
+ "contraindications": [],
+ "alternative": "s-kneel-hipflex",
+ "media": {
+  "cover": "cover.jpg",
+  "coverSeconds": 3.8,
+  "video": "demo.mp4",
+  "width": 720,
+  "height": 720,
+  "loopSeconds": 8.0,
+  "repSeconds": null,
+  "showsSide": "right",
+  "light": {
+   "video": "demo-light.mp4",
+   "cover": "cover-light.jpg",
+   "stage": "#EFEFEF"
+  }
+ },
+ "voice": {
+  "languages": [
+   "zh"
+  ],
+  "voices": {
+   "zh": "zh-CN-XiaoxiaoNeural"
+  },
+  "requires": "_common",
+  "lines": [
+   {
+    "id": "name",
+    "role": "name",
+    "text": {
+     "zh": "沙发拉伸，后脚搭矮凳"
+    },
+    "ms": {
+     "zh": 2159
+    }
+   },
+   {
+    "id": "intro",
+    "role": "intro",
+    "text": {
+     "zh": "沙发拉伸，后脚搭矮凳，拉伸髋前侧和大腿前侧"
+    },
+    "ms": {
+     "zh": 4737
+    }
+   },
+   {
+    "id": "cue1",
+    "role": "cue",
+    "text": {
+     "zh": "后脚背靠椅面"
+    },
+    "ms": {
+     "zh": 1277
+    }
+   },
+   {
+    "id": "cue2",
+    "role": "cue",
+    "text": {
+     "zh": "后脚搭高，收紧臀部，髋往前送"
+    },
+    "ms": {
+     "zh": 3042
+    }
+   },
+   {
+    "id": "side_switch",
+    "role": "side_switch",
+    "text": {
+     "zh": "左侧同样，后脚搭高，收紧臀部，髋往前送"
+    },
+    "ms": {
+     "zh": 4203
+    }
+   },
+   {
+    "id": "rest",
+    "role": "rest",
+    "text": {
+     "zh": "放松一下。下一组记住，后脚搭高，收紧臀部，髋往前送"
+    },
+    "ms": {
+     "zh": 5596
+    }
+   },
+   {
+    "id": "finish",
+    "role": "finish",
+    "text": {
+     "zh": "沙发拉伸，后脚搭矮凳，完成"
+    },
+    "ms": {
+     "zh": 2856
+    }
+   }
+  ],
+  "postProcess": "HipLab v4.1: edge trim, -16 LUFS fixed gain, alimiter -2.5 dBFS, AAC 64k mono 44.1 kHz cutoff 12 kHz"
+ },
+ "credits": {
+  "media": "3D-Pose-Hub v0.2.0 dark soft-v1 clip (as frozen in HipLab), re-encoded 720²",
+  "mediaSource": "pose-hub-v0.2.0",
+  "spec": "drill-anim/specs/h-couch-stretch.js",
+  "license": "Snow Rig © Blender Foundation | studio.blender.org — CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Modified Snow-derived training character rendered with the 3D-Body drill renderer.",
+  "voice": "edge-tts (Microsoft neural voice zh-CN-XiaoxiaoNeural); commercial terms unclear — regenerate with Azure Speech before a store release.",
+  "text": "SmartFit (智能健身助手) authors, 2026-10-19"
+ },
+ "files": {
+  "cover-light.jpg": {
+   "bytes": 12924,
+   "sha256": "6b1365511cb7e90e08a0925727866c4deaec3e06f45b2cdfffb6eae2eb7dedb6"
+  },
+  "cover.jpg": {
+   "bytes": 9862,
+   "sha256": "a15331828db714debceb5812abafe1af85dc1ad6744806b99bc10d828319a1e2"
+  },
+  "demo-light.mp4": {
+   "bytes": 102738,
+   "sha256": "cfe2740200b8415984d5cc8c8d052d68474888ced0157d7fc41ebb64bbeadf5a"
+  },
+  "demo.mp4": {
+   "bytes": 100660,
+   "sha256": "7c166181e5e5b284251f473e2d4f8c4110d4d7b489cfb812e9ca04d1a1d125d2"
+  },
+  "voice/zh/cue1.m4a": {
+   "bytes": 11523,
+   "sha256": "b9b60bf25c370e09c9790bc0395f9602333556f1a99340a9c624e15f03ebd957"
+  },
+  "voice/zh/cue2.m4a": {
+   "bytes": 26115,
+   "sha256": "414fcf090dd2c1eb9dc2b2280d985300760e833f5f19c2f1c991e5c07c89d155"
+  },
+  "voice/zh/finish.m4a": {
+   "bytes": 24602,
+   "sha256": "4739a452227d8c437949fdea5ef8f3430bbf7062f24e934656ea1612e8189123"
+  },
+  "voice/zh/intro.m4a": {
+   "bytes": 39810,
+   "sha256": "80a1a651fcab9210ff3e2595a2a286db37e1c07ac9ccd49dd32ceb7d4132c999"
+  },
+  "voice/zh/name.m4a": {
+   "bytes": 18703,
+   "sha256": "098f5ba690eb7860a1f52384474a0ceaa66995e4177eeb6eaac3c1a3c94963ee"
+  },
+  "voice/zh/rest.m4a": {
+   "bytes": 47516,
+   "sha256": "5b12af1eef2738d8da3ea4ba93379277abd1d67a031f5ad18d5f791017544079"
+  },
+  "voice/zh/side_switch.m4a": {
+   "bytes": 35446,
+   "sha256": "4f5b93df14512ffd9803e48500443335fdf493f5454804cc42ecea85755ed545"
+  }
+ }
+}

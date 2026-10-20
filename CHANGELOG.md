@@ -1,5 +1,22 @@
 # Changelog
 
+## ugk_trainer 0.1.0 — 2026-10-20
+
+新 Flutter 包 `packages/ugk_trainer`（依赖本仓库 ugk_coach），按 `docs/trainer-plan.md` 第 1 步实现；根包 ugk_coach 未改（根 `analysis_options.yaml` 排除 `packages/**`）。
+
+### 新增
+- **engine/**：以 SmartFit `session.dart` 为底，输入 ugk_coach `TrainingPlan` + 每动作 `Rhythm`；绝对活动时间；自主计次相位（`completeSet`，决定 A）；rep_hold `holdSeconds`；换边间隔可由语音脚本加宽；相位访问日志；`restartWith` 换动作。
+- **rhythm/**：`ActionKind` / `KitPhase` / `RepPlan`（HipLab action_kit）；`Rhythm.fromJson`（目录 `rhythm` 字段，目录 0.3.0 另做）、`fromActionKitJson`、`fromRepSeconds`、`forDose`；`rhythmsFromCatalog`。
+- **voice/**：HipLab 10-19 版 `VoiceQueue` / `VoiceLineController` / `JustAudioVoiceOutput`（去 dart:io，web 可编译）；合并版 `SessionScript`；`VoiceSource` + `ManifestVoiceSource`（HipLab manifest）+ `DrillPackVoiceSource`（SmartFit 包）；无该语言语音时只放提示音（决定 B）。
+- **platform/**：`TrainingKeepAlive` / `TrainingHold`（HipLab 前台服务做成本包 Android 插件，通道 `ugk_trainer/training_session`，通知文字由 App 传）；`ScreenAwake`。
+- **media/**：`DrillMedia` / `DrillMediaView`（原生 WebView + 本机资源服务；web iframe），播放页随包。
+- **ui/**：`TrainerPlayer`（SmartFit 播放页为底）、`TrainerTheme`、`TrainerStrings`、插槽 `onDiscomfort` / `feedbackBuilder` / `mediaBuilder`。
+- **result/**：`SessionResult`（开始即定 `sessionId`）、`SessionRecorder`、`ResultSaver`（失败可重试、同 id、不重复保存）。
+
+### 验证
+- `flutter test` 92 个全过，`flutter analyze` 0 问题；根包 `dart test` 165 个全过、`dart analyze` 0 问题。
+- 未在沙盒验证：Kotlin 插件编译、真机语音/锁屏保活、web 构建。
+
 ## 0.1.2 — 2026-10-20
 
 ### 修复

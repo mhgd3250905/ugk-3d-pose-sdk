@@ -1,0 +1,150 @@
+{
+ "schema": "action-kit@1",
+ "id": "h-quad-cars",
+ "display": {
+  "name": {
+   "zh": "四足髋关节画圈",
+   "en": "Quadruped hip circles"
+  },
+  "point": {
+   "zh": "四点跪姿，膝盖画一个尽量大的圈，腰不要动",
+   "en": "On all fours, draw a big circle with the knee, keep the low back still"
+  },
+  "cautions": [
+   "腰"
+  ],
+  "targets": [
+   "flexion",
+   "extension",
+   "abduction",
+   "adduction",
+   "internal_rotation",
+   "external_rotation"
+  ],
+  "methods": [
+   "control"
+  ],
+  "level": "advanced",
+  "sided": true,
+  "firstSide": "right",
+  "poster": {
+   "dark": "assets/drill_media/hip-h-quad-cars.jpg",
+   "light": "assets/drill_media/light/hip-h-quad-cars.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/h-quad-cars.js",
+   "specSha256": "33b82f385715391f2142e9c8eb9fef5302652cf73a8fac61142a68fa23248929"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-h-quad-cars.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 2.2
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-h-quad-cars.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 2.2,
+    "sha256": "e4f196065c0cf3f33038e202be05cfbc6308926cb1fc55affbf37968b3c03806",
+    "bytes": 577795
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "lift",
+  "reps": [
+   [
+    0.26,
+    1.54,
+    2.87,
+    7.81
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "rep_cycle",
+  "unit": "reps",
+  "sided": true,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": 3,
+   "sets": 1,
+   "seconds": null,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "cycle": {
+   "seconds": 8.0,
+   "offset": 0.0,
+   "phases": [
+    {
+     "id": "go",
+     "seconds": 3.6,
+     "cue": "w.circle_fwd"
+    },
+    {
+     "id": "rest",
+     "seconds": 0.4
+    },
+    {
+     "id": "back",
+     "seconds": 3.6,
+     "cue": "w.circle_rev"
+    },
+    {
+     "id": "rest",
+     "seconds": 0.4
+    }
+   ],
+   "source": "training parameters (kit_rules phases)"
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.h-quad-cars": {
+    "zh": "四足髋关节画圈",
+    "en": "Quadruped hip circles"
+   },
+   "point.h-quad-cars": {
+    "zh": "四点跪姿，膝盖画一个尽量大的圈，腰不要动",
+    "en": "On all fours, draw a big circle with the knee, keep the low back still"
+   },
+   "w.circle_fwd": {
+    "zh": "向前画圈",
+    "en": "Circle forward"
+   },
+   "w.circle_rev": {
+    "zh": "反着画回来",
+    "en": "Now reverse"
+   }
+  },
+  "prepare": [
+   "drill.h-quad-cars",
+   "point.h-quad-cars"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.nice",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": "p.right_first",
+  "coach": [
+   "cue.control.1",
+   "cue.control.2"
+  ],
+  "midHold": null
+ },
+ "review": {
+  "why": "spec: forward circle 0.5–3.9 s, reverse 4.3–7.7 s; one count = both",
+  "flags": []
+ }
+}

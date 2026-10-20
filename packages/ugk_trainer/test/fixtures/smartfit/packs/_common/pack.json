@@ -1,0 +1,1242 @@
+{
+ "format": "drill-pack",
+ "formatVersion": 1,
+ "kind": "common",
+ "id": "_common",
+ "version": "1.0.0",
+ "name": {
+  "zh": "公共语音包：数字、单位、口令、提示音",
+  "en": "Shared counts, units, calls, chimes"
+ },
+ "chimes": {
+  "end": {
+   "file": "chime/end.m4a"
+  },
+  "finish": {
+   "file": "chime/finish.m4a"
+  },
+  "silence": {
+   "file": "chime/silence.m4a"
+  },
+  "start": {
+   "file": "chime/start.m4a"
+  },
+  "tick": {
+   "file": "chime/tick.m4a"
+  }
+ },
+ "voice": {
+  "languages": [
+   "zh"
+  ],
+  "voices": {
+   "zh": "zh-CN-XiaoxiaoNeural"
+  },
+  "lines": [
+   {
+    "id": "p.welcome",
+    "role": "phrase",
+    "text": {
+     "zh": "准备开始训练"
+    },
+    "ms": {
+     "zh": 1254
+    }
+   },
+   {
+    "id": "p.total",
+    "role": "phrase",
+    "text": {
+     "zh": "全程大约"
+    },
+    "ms": {
+     "zh": 1045
+    }
+   },
+   {
+    "id": "p.first",
+    "role": "phrase",
+    "text": {
+     "zh": "第一个动作"
+    },
+    "ms": {
+     "zh": 952
+    }
+   },
+   {
+    "id": "p.next",
+    "role": "phrase",
+    "text": {
+     "zh": "下一个动作"
+    },
+    "ms": {
+     "zh": 1045
+    }
+   },
+   {
+    "id": "p.go",
+    "role": "phrase",
+    "text": {
+     "zh": "开始"
+    },
+    "ms": {
+     "zh": 673
+    }
+   },
+   {
+    "id": "p.go_right",
+    "role": "phrase",
+    "text": {
+     "zh": "先做右侧，开始"
+    },
+    "ms": {
+     "zh": 1718
+    }
+   },
+   {
+    "id": "p.switch_left",
+    "role": "phrase",
+    "text": {
+     "zh": "换左侧"
+    },
+    "ms": {
+     "zh": 813
+    }
+   },
+   {
+    "id": "p.rest",
+    "role": "phrase",
+    "text": {
+     "zh": "休息"
+    },
+    "ms": {
+     "zh": 650
+    }
+   },
+   {
+    "id": "p.nice",
+    "role": "phrase",
+    "text": {
+     "zh": "很好"
+    },
+    "ms": {
+     "zh": 627
+    }
+   },
+   {
+    "id": "p.di",
+    "role": "phrase",
+    "text": {
+     "zh": "第"
+    },
+    "ms": {
+     "zh": 395
+    }
+   },
+   {
+    "id": "p.last_set",
+    "role": "phrase",
+    "text": {
+     "zh": "最后一组"
+    },
+    "ms": {
+     "zh": 882
+    }
+   },
+   {
+    "id": "p.round_done",
+    "role": "phrase",
+    "text": {
+     "zh": "这一轮完成"
+    },
+    "ms": {
+     "zh": 1045
+    }
+   },
+   {
+    "id": "p.ten_left",
+    "role": "phrase",
+    "text": {
+     "zh": "还剩十秒"
+    },
+    "ms": {
+     "zh": 1022
+    }
+   },
+   {
+    "id": "p.half",
+    "role": "phrase",
+    "text": {
+     "zh": "坚持住，已经过半"
+    },
+    "ms": {
+     "zh": 1695
+    }
+   },
+   {
+    "id": "p.finish",
+    "role": "phrase",
+    "text": {
+     "zh": "训练完成，做得很好"
+    },
+    "ms": {
+     "zh": 2020
+    }
+   },
+   {
+    "id": "p.per_side",
+    "role": "phrase",
+    "text": {
+     "zh": "每侧"
+    },
+    "ms": {
+     "zh": 673
+    }
+   },
+   {
+    "id": "p.resume",
+    "role": "phrase",
+    "text": {
+     "zh": "继续"
+    },
+    "ms": {
+     "zh": 650
+    }
+   },
+   {
+    "id": "p.slow",
+    "role": "phrase",
+    "text": {
+     "zh": "动作放慢，控制节奏"
+    },
+    "ms": {
+     "zh": 1950
+    }
+   },
+   {
+    "id": "p.paused",
+    "role": "phrase",
+    "text": {
+     "zh": "已暂停"
+    },
+    "ms": {
+     "zh": 882
+    }
+   },
+   {
+    "id": "u.min",
+    "role": "unit",
+    "text": {
+     "zh": "分钟"
+    },
+    "ms": {
+     "zh": 580
+    }
+   },
+   {
+    "id": "u.sec",
+    "role": "unit",
+    "text": {
+     "zh": "秒"
+    },
+    "ms": {
+     "zh": 441
+    }
+   },
+   {
+    "id": "u.reps",
+    "role": "unit",
+    "text": {
+     "zh": "次"
+    },
+    "ms": {
+     "zh": 441
+    }
+   },
+   {
+    "id": "u.sets",
+    "role": "unit",
+    "text": {
+     "zh": "组"
+    },
+    "ms": {
+     "zh": 441
+    }
+   },
+   {
+    "id": "u.rounds",
+    "role": "unit",
+    "text": {
+     "zh": "轮"
+    },
+    "ms": {
+     "zh": 441
+    }
+   },
+   {
+    "id": "n.1",
+    "role": "count",
+    "text": {
+     "zh": "一"
+    },
+    "ms": {
+     "zh": 395
+    }
+   },
+   {
+    "id": "n.2",
+    "role": "count",
+    "text": {
+     "zh": "二"
+    },
+    "ms": {
+     "zh": 418
+    }
+   },
+   {
+    "id": "n.3",
+    "role": "count",
+    "text": {
+     "zh": "三"
+    },
+    "ms": {
+     "zh": 464
+    }
+   },
+   {
+    "id": "n.4",
+    "role": "count",
+    "text": {
+     "zh": "四"
+    },
+    "ms": {
+     "zh": 488
+    }
+   },
+   {
+    "id": "n.5",
+    "role": "count",
+    "text": {
+     "zh": "五"
+    },
+    "ms": {
+     "zh": 418
+    }
+   },
+   {
+    "id": "n.6",
+    "role": "count",
+    "text": {
+     "zh": "六"
+    },
+    "ms": {
+     "zh": 441
+    }
+   },
+   {
+    "id": "n.7",
+    "role": "count",
+    "text": {
+     "zh": "七"
+    },
+    "ms": {
+     "zh": 464
+    }
+   },
+   {
+    "id": "n.8",
+    "role": "count",
+    "text": {
+     "zh": "八"
+    },
+    "ms": {
+     "zh": 418
+    }
+   },
+   {
+    "id": "n.9",
+    "role": "count",
+    "text": {
+     "zh": "九"
+    },
+    "ms": {
+     "zh": 418
+    }
+   },
+   {
+    "id": "n.10",
+    "role": "count",
+    "text": {
+     "zh": "十"
+    },
+    "ms": {
+     "zh": 511
+    }
+   },
+   {
+    "id": "n.11",
+    "role": "count",
+    "text": {
+     "zh": "十一"
+    },
+    "ms": {
+     "zh": 650
+    }
+   },
+   {
+    "id": "n.12",
+    "role": "count",
+    "text": {
+     "zh": "十二"
+    },
+    "ms": {
+     "zh": 627
+    }
+   },
+   {
+    "id": "n.13",
+    "role": "count",
+    "text": {
+     "zh": "十三"
+    },
+    "ms": {
+     "zh": 650
+    }
+   },
+   {
+    "id": "n.14",
+    "role": "count",
+    "text": {
+     "zh": "十四"
+    },
+    "ms": {
+     "zh": 673
+    }
+   },
+   {
+    "id": "n.15",
+    "role": "count",
+    "text": {
+     "zh": "十五"
+    },
+    "ms": {
+     "zh": 673
+    }
+   },
+   {
+    "id": "n.16",
+    "role": "count",
+    "text": {
+     "zh": "十六"
+    },
+    "ms": {
+     "zh": 673
+    }
+   },
+   {
+    "id": "n.17",
+    "role": "count",
+    "text": {
+     "zh": "十七"
+    },
+    "ms": {
+     "zh": 697
+    }
+   },
+   {
+    "id": "n.18",
+    "role": "count",
+    "text": {
+     "zh": "十八"
+    },
+    "ms": {
+     "zh": 627
+    }
+   },
+   {
+    "id": "n.19",
+    "role": "count",
+    "text": {
+     "zh": "十九"
+    },
+    "ms": {
+     "zh": 673
+    }
+   },
+   {
+    "id": "n.20",
+    "role": "count",
+    "text": {
+     "zh": "二十"
+    },
+    "ms": {
+     "zh": 650
+    }
+   },
+   {
+    "id": "n.21",
+    "role": "count",
+    "text": {
+     "zh": "二十一"
+    },
+    "ms": {
+     "zh": 697
+    }
+   },
+   {
+    "id": "n.22",
+    "role": "count",
+    "text": {
+     "zh": "二十二"
+    },
+    "ms": {
+     "zh": 697
+    }
+   },
+   {
+    "id": "n.23",
+    "role": "count",
+    "text": {
+     "zh": "二十三"
+    },
+    "ms": {
+     "zh": 743
+    }
+   },
+   {
+    "id": "n.24",
+    "role": "count",
+    "text": {
+     "zh": "二十四"
+    },
+    "ms": {
+     "zh": 743
+    }
+   },
+   {
+    "id": "n.25",
+    "role": "count",
+    "text": {
+     "zh": "二十五"
+    },
+    "ms": {
+     "zh": 743
+    }
+   },
+   {
+    "id": "n.26",
+    "role": "count",
+    "text": {
+     "zh": "二十六"
+    },
+    "ms": {
+     "zh": 743
+    }
+   },
+   {
+    "id": "n.27",
+    "role": "count",
+    "text": {
+     "zh": "二十七"
+    },
+    "ms": {
+     "zh": 743
+    }
+   },
+   {
+    "id": "n.28",
+    "role": "count",
+    "text": {
+     "zh": "二十八"
+    },
+    "ms": {
+     "zh": 697
+    }
+   },
+   {
+    "id": "n.29",
+    "role": "count",
+    "text": {
+     "zh": "二十九"
+    },
+    "ms": {
+     "zh": 766
+    }
+   },
+   {
+    "id": "n.30",
+    "role": "count",
+    "text": {
+     "zh": "三十"
+    },
+    "ms": {
+     "zh": 743
+    }
+   },
+   {
+    "id": "n.31",
+    "role": "count",
+    "text": {
+     "zh": "三十一"
+    },
+    "ms": {
+     "zh": 789
+    }
+   },
+   {
+    "id": "n.32",
+    "role": "count",
+    "text": {
+     "zh": "三十二"
+    },
+    "ms": {
+     "zh": 766
+    }
+   },
+   {
+    "id": "n.33",
+    "role": "count",
+    "text": {
+     "zh": "三十三"
+    },
+    "ms": {
+     "zh": 813
+    }
+   },
+   {
+    "id": "n.34",
+    "role": "count",
+    "text": {
+     "zh": "三十四"
+    },
+    "ms": {
+     "zh": 813
+    }
+   },
+   {
+    "id": "n.35",
+    "role": "count",
+    "text": {
+     "zh": "三十五"
+    },
+    "ms": {
+     "zh": 813
+    }
+   },
+   {
+    "id": "n.36",
+    "role": "count",
+    "text": {
+     "zh": "三十六"
+    },
+    "ms": {
+     "zh": 766
+    }
+   },
+   {
+    "id": "n.37",
+    "role": "count",
+    "text": {
+     "zh": "三十七"
+    },
+    "ms": {
+     "zh": 813
+    }
+   },
+   {
+    "id": "n.38",
+    "role": "count",
+    "text": {
+     "zh": "三十八"
+    },
+    "ms": {
+     "zh": 789
+    }
+   },
+   {
+    "id": "n.39",
+    "role": "count",
+    "text": {
+     "zh": "三十九"
+    },
+    "ms": {
+     "zh": 836
+    }
+   },
+   {
+    "id": "n.40",
+    "role": "count",
+    "text": {
+     "zh": "四十"
+    },
+    "ms": {
+     "zh": 697
+    }
+   },
+   {
+    "id": "n.41",
+    "role": "count",
+    "text": {
+     "zh": "四十一"
+    },
+    "ms": {
+     "zh": 766
+    }
+   },
+   {
+    "id": "n.42",
+    "role": "count",
+    "text": {
+     "zh": "四十二"
+    },
+    "ms": {
+     "zh": 766
+    }
+   },
+   {
+    "id": "n.43",
+    "role": "count",
+    "text": {
+     "zh": "四十三"
+    },
+    "ms": {
+     "zh": 813
+    }
+   },
+   {
+    "id": "n.44",
+    "role": "count",
+    "text": {
+     "zh": "四十四"
+    },
+    "ms": {
+     "zh": 836
+    }
+   },
+   {
+    "id": "n.45",
+    "role": "count",
+    "text": {
+     "zh": "四十五"
+    },
+    "ms": {
+     "zh": 813
+    }
+   },
+   {
+    "id": "n.46",
+    "role": "count",
+    "text": {
+     "zh": "四十六"
+    },
+    "ms": {
+     "zh": 766
+    }
+   },
+   {
+    "id": "n.47",
+    "role": "count",
+    "text": {
+     "zh": "四十七"
+    },
+    "ms": {
+     "zh": 813
+    }
+   },
+   {
+    "id": "n.48",
+    "role": "count",
+    "text": {
+     "zh": "四十八"
+    },
+    "ms": {
+     "zh": 789
+    }
+   },
+   {
+    "id": "n.49",
+    "role": "count",
+    "text": {
+     "zh": "四十九"
+    },
+    "ms": {
+     "zh": 813
+    }
+   },
+   {
+    "id": "n.50",
+    "role": "count",
+    "text": {
+     "zh": "五十"
+    },
+    "ms": {
+     "zh": 650
+    }
+   },
+   {
+    "id": "n.51",
+    "role": "count",
+    "text": {
+     "zh": "五十一"
+    },
+    "ms": {
+     "zh": 697
+    }
+   },
+   {
+    "id": "n.52",
+    "role": "count",
+    "text": {
+     "zh": "五十二"
+    },
+    "ms": {
+     "zh": 720
+    }
+   },
+   {
+    "id": "n.53",
+    "role": "count",
+    "text": {
+     "zh": "五十三"
+    },
+    "ms": {
+     "zh": 720
+    }
+   },
+   {
+    "id": "n.54",
+    "role": "count",
+    "text": {
+     "zh": "五十四"
+    },
+    "ms": {
+     "zh": 720
+    }
+   },
+   {
+    "id": "n.55",
+    "role": "count",
+    "text": {
+     "zh": "五十五"
+    },
+    "ms": {
+     "zh": 766
+    }
+   },
+   {
+    "id": "n.56",
+    "role": "count",
+    "text": {
+     "zh": "五十六"
+    },
+    "ms": {
+     "zh": 720
+    }
+   },
+   {
+    "id": "n.57",
+    "role": "count",
+    "text": {
+     "zh": "五十七"
+    },
+    "ms": {
+     "zh": 743
+    }
+   },
+   {
+    "id": "n.58",
+    "role": "count",
+    "text": {
+     "zh": "五十八"
+    },
+    "ms": {
+     "zh": 697
+    }
+   },
+   {
+    "id": "n.59",
+    "role": "count",
+    "text": {
+     "zh": "五十九"
+    },
+    "ms": {
+     "zh": 766
+    }
+   },
+   {
+    "id": "n.60",
+    "role": "count",
+    "text": {
+     "zh": "六十"
+    },
+    "ms": {
+     "zh": 673
+    }
+   }
+  ],
+  "postProcess": "HipLab v4.1: edge trim, -16 LUFS fixed gain, alimiter -2.5 dBFS, AAC 64k mono 44.1 kHz cutoff 12 kHz"
+ },
+ "credits": {
+  "voice": "edge-tts (Microsoft neural voice zh-CN-XiaoxiaoNeural); commercial terms unclear — regenerate with Azure Speech before a store release.",
+  "chimes": "Synthesised sine tones (ffmpeg), no third-party material.",
+  "text": "SmartFit (智能健身助手) authors, 2026-10-19"
+ },
+ "files": {
+  "chime/end.m4a": {
+   "bytes": 4411,
+   "sha256": "63e0ba463bbe6f2fd00ae9a7212e1672f52367281e83a52122e20106dd7349ea"
+  },
+  "chime/finish.m4a": {
+   "bytes": 6949,
+   "sha256": "57e5be6c7714791f78cbc8a1a2c84965583c28e5d88e9f4bf1911b43561cc975"
+  },
+  "chime/silence.m4a": {
+   "bytes": 1527,
+   "sha256": "b80cc7afb559176d65f24e95ef77a66a6730961eb15d3aba49cf879d761a8078"
+  },
+  "chime/start.m4a": {
+   "bytes": 4090,
+   "sha256": "5550f1514a5fb5c1eb7619f127fc07526e0be7938af8cea75deb78f0b3bab827"
+  },
+  "chime/tick.m4a": {
+   "bytes": 1767,
+   "sha256": "7a872b638edc5989b3f04b7433817579b928b7e32045b7afccec966f3bbd41f7"
+  },
+  "voice/zh/n.1.m4a": {
+   "bytes": 4306,
+   "sha256": "030742fb6fc06da3d0e69c421fb78114cb5246800d3b2c1cea273818cbf4a427"
+  },
+  "voice/zh/n.10.m4a": {
+   "bytes": 5164,
+   "sha256": "c9c2aaeea7d46fa62388379bce44ade144856704732a7e8ba49c3abc854f6835"
+  },
+  "voice/zh/n.11.m4a": {
+   "bytes": 6508,
+   "sha256": "0fe4d4481443cae774f56f8694b8122a1067226de49df441f0229102971ca750"
+  },
+  "voice/zh/n.12.m4a": {
+   "bytes": 6176,
+   "sha256": "978b8d96e810caf28c5d9d6bc019a53d7bb860749240264ad0d48596291a9970"
+  },
+  "voice/zh/n.13.m4a": {
+   "bytes": 6353,
+   "sha256": "13dbce0321adb81e0ca0b629d81b7cd4e976fa701218ceadb00e12ac6eedafc1"
+  },
+  "voice/zh/n.14.m4a": {
+   "bytes": 6593,
+   "sha256": "3af4354204d4ecbfc5e82507ceaffa2bb6c2aa6470e91ec7c01ca6c50a92b581"
+  },
+  "voice/zh/n.15.m4a": {
+   "bytes": 6615,
+   "sha256": "721e38e475b874f2968b3ce5f18e1fb7423f5ba056961c5d0ebdf251e813565a"
+  },
+  "voice/zh/n.16.m4a": {
+   "bytes": 6737,
+   "sha256": "29ee9812c6af62243971d262de291626f406e2bc3cadaf1874da0187f5f0f7f1"
+  },
+  "voice/zh/n.17.m4a": {
+   "bytes": 6720,
+   "sha256": "de3460634351e1362420a66106ae96c8935d63daa0ce5737e2b07ac6864105bf"
+  },
+  "voice/zh/n.18.m4a": {
+   "bytes": 6348,
+   "sha256": "1f7ffc4efa12f990897f480249e191fc8ab1a4e7b3b195872d0362f169217247"
+  },
+  "voice/zh/n.19.m4a": {
+   "bytes": 6682,
+   "sha256": "8bc6821db74a0f41cad6e56210b1e917f782d9b3d058d64666590e397ba59e75"
+  },
+  "voice/zh/n.2.m4a": {
+   "bytes": 4579,
+   "sha256": "12dde4cb85375efb1fb7add67e8a2090ad8c945325137b71302590666f89aad6"
+  },
+  "voice/zh/n.20.m4a": {
+   "bytes": 6467,
+   "sha256": "6b9dc1f32f33f532e8f6cd9bff61bc7baa13f0c7a7bae33b6dfbb38d3525d4df"
+  },
+  "voice/zh/n.21.m4a": {
+   "bytes": 6848,
+   "sha256": "c60ea85f7d02cf1c9c891e92b9ea5f6ea60256c30aab3b369349b8e6f9acbe5f"
+  },
+  "voice/zh/n.22.m4a": {
+   "bytes": 6732,
+   "sha256": "e728d2cfe9724d773b72323a5bbbce24c1e3ae5d5902a19fa741431cf016057e"
+  },
+  "voice/zh/n.23.m4a": {
+   "bytes": 7213,
+   "sha256": "3a151d01c21a46d7977281d0748959fa2476d92a071fd8c866545ed71f22351e"
+  },
+  "voice/zh/n.24.m4a": {
+   "bytes": 7171,
+   "sha256": "e52fe1ef8853bd52a12f3687d84fe613303ec5e9fdd332ce953646f0f48c4606"
+  },
+  "voice/zh/n.25.m4a": {
+   "bytes": 7129,
+   "sha256": "a72a0f78e44f59bb97c8ce1cd8be88eee11bbd01c09734dcee27c15001e02cb1"
+  },
+  "voice/zh/n.26.m4a": {
+   "bytes": 7269,
+   "sha256": "4d07fbceed40ca629c9d3c07562337b46dbb310838019344793224e4b5c160aa"
+  },
+  "voice/zh/n.27.m4a": {
+   "bytes": 7245,
+   "sha256": "f8a89358a8cde92d6a725576f88df0584edcf9ee4251e4f7d920ffa280858532"
+  },
+  "voice/zh/n.28.m4a": {
+   "bytes": 6888,
+   "sha256": "f47f3c1bfd141ef0d2fc49ab9012395aeebe80ccab5988065b11878015091a8e"
+  },
+  "voice/zh/n.29.m4a": {
+   "bytes": 7348,
+   "sha256": "a19c5827a23dbc31adaaf6b39058813aea6ac9c49e7967d99a92e026c007b46f"
+  },
+  "voice/zh/n.3.m4a": {
+   "bytes": 4957,
+   "sha256": "2d98e7db0c671eba5c249a0b35da9df8793648f8a6a833034300e58a51518c27"
+  },
+  "voice/zh/n.30.m4a": {
+   "bytes": 7066,
+   "sha256": "4db24949b17546586ee1ab374d8eddfb7fed3e7fef649d4f3135de52baa57034"
+  },
+  "voice/zh/n.31.m4a": {
+   "bytes": 7438,
+   "sha256": "1c6d929ed4b08e4f08d42236a61e9bb3fe82d36cce52342fe2d74e463dd948bc"
+  },
+  "voice/zh/n.32.m4a": {
+   "bytes": 7266,
+   "sha256": "f493a15cc23828f46c19cef58494b6105ba4867260f05adf7fa0c12732e48c80"
+  },
+  "voice/zh/n.33.m4a": {
+   "bytes": 7782,
+   "sha256": "c66c8bc5f24df2f5b6cbd57270b066de5eb36fea6ba4e952dd193034bea52111"
+  },
+  "voice/zh/n.34.m4a": {
+   "bytes": 7813,
+   "sha256": "edf10af5d94d8b494c578d3aea0dad6a25bd58c7e220ac8402f4175b289729c4"
+  },
+  "voice/zh/n.35.m4a": {
+   "bytes": 7781,
+   "sha256": "a7c046a0d556ac36143d1fcb9c5f4b3fa050ae1939fa7035e7d4cd7cb5bb1897"
+  },
+  "voice/zh/n.36.m4a": {
+   "bytes": 7437,
+   "sha256": "eb228582c55d25b022930e1fe46d07374ad0dfb4e921d6e5fd49254a66a0a1d2"
+  },
+  "voice/zh/n.37.m4a": {
+   "bytes": 7792,
+   "sha256": "8b9d8382c19e4cf17376fcbca963859eb5902faee17d1b32ff97a22040cd67b5"
+  },
+  "voice/zh/n.38.m4a": {
+   "bytes": 7619,
+   "sha256": "1b9c07ddbc87be287e056f451211a98066569544a7daad8ed02c1189103d566e"
+  },
+  "voice/zh/n.39.m4a": {
+   "bytes": 7930,
+   "sha256": "7a924febcc04dfd76dabbf406229aa0eaa0aee9d6c3c999c9f3d6b9a77ca404c"
+  },
+  "voice/zh/n.4.m4a": {
+   "bytes": 5017,
+   "sha256": "9e96403bb0195a252af253f43a4a72c9e3b6b22caa6e766259dd47ddef79b6a0"
+  },
+  "voice/zh/n.40.m4a": {
+   "bytes": 6864,
+   "sha256": "33fcd6bcd642197e6d1140a3b8c5edb4011c40408e7d27a797ebb19651817606"
+  },
+  "voice/zh/n.41.m4a": {
+   "bytes": 7324,
+   "sha256": "a178c8e9c47f5cd4c137254d2ac4cf55cbcd8940368840830c1b4d1e1c6a9f7c"
+  },
+  "voice/zh/n.42.m4a": {
+   "bytes": 7455,
+   "sha256": "0e98baaa4dc393bd688dc4e99fead744285b46efc8249967e0ee467297fce5fe"
+  },
+  "voice/zh/n.43.m4a": {
+   "bytes": 7817,
+   "sha256": "db67d3af2e1eb5115e737bb92763a8bd907708c6fe5f97f1fee7173f44785793"
+  },
+  "voice/zh/n.44.m4a": {
+   "bytes": 7890,
+   "sha256": "f28c9f07a3b6e95137d10c3254757f63e822a2332149122fe1ed44f0a2a42372"
+  },
+  "voice/zh/n.45.m4a": {
+   "bytes": 7815,
+   "sha256": "b74cc95a534b8a24b48a9bb5fd8fc48e5a41ccf4762065dfec4e6d3a91d62081"
+  },
+  "voice/zh/n.46.m4a": {
+   "bytes": 7436,
+   "sha256": "748d17d70da5cc037f015e7ed5b55a3088f81872dee0a386ce0c64d331e0157b"
+  },
+  "voice/zh/n.47.m4a": {
+   "bytes": 7785,
+   "sha256": "af8a65f82c089e542337cfc8fa87474532337f2f149890782b82da619a2c772e"
+  },
+  "voice/zh/n.48.m4a": {
+   "bytes": 7454,
+   "sha256": "42035175c3a3646f9c25a5da89573ee04205f1f9bc506f4ef4a80d190383cf3c"
+  },
+  "voice/zh/n.49.m4a": {
+   "bytes": 7634,
+   "sha256": "643c6b2225fda4968d03a65de938b9dcdbb01094493bc31ea416f8fb4a43c018"
+  },
+  "voice/zh/n.5.m4a": {
+   "bytes": 4569,
+   "sha256": "c092e8c680e9b6776be493ae5b6f9169654515bda5c2492f4db11cf4710b7872"
+  },
+  "voice/zh/n.50.m4a": {
+   "bytes": 6445,
+   "sha256": "5b0855b3789db483247f1e35ae66f2f2450dd5ccff850f8e062551e322bc8f82"
+  },
+  "voice/zh/n.51.m4a": {
+   "bytes": 6758,
+   "sha256": "881095fe2408e6c573505b4f5c07697c327a30b7216bc5e4bef6988e3ebdb363"
+  },
+  "voice/zh/n.52.m4a": {
+   "bytes": 6877,
+   "sha256": "595fe8c6117d4247e41fe799a3c61de31e0a059d2c1054c309d6c5dce97d1d18"
+  },
+  "voice/zh/n.53.m4a": {
+   "bytes": 6896,
+   "sha256": "05fc1f9bc08042cae4b78b407d0ae670db5290a7bf811c2832f00ae775ed2635"
+  },
+  "voice/zh/n.54.m4a": {
+   "bytes": 6879,
+   "sha256": "68a274f88d7289eb7342cad677116c67fb8be16f9d0f5b071980b9d08d39d7c1"
+  },
+  "voice/zh/n.55.m4a": {
+   "bytes": 7306,
+   "sha256": "986aa352bd4522c4ba99e4b381b81ff3aa016ef9d5733905759e119cb2f081cc"
+  },
+  "voice/zh/n.56.m4a": {
+   "bytes": 7041,
+   "sha256": "79a856d41ce09d6a680282e7491785b207606710c589865b8fa2c4f052185a3a"
+  },
+  "voice/zh/n.57.m4a": {
+   "bytes": 7207,
+   "sha256": "c1e8a18a6c5780034095b6918d6ce6637499053f00288076d015cb5756a5172c"
+  },
+  "voice/zh/n.58.m4a": {
+   "bytes": 6865,
+   "sha256": "18c9fcb3b185923e3ecbb2d2fc6f0b960356dc192d65aa12918468a29898e9b8"
+  },
+  "voice/zh/n.59.m4a": {
+   "bytes": 7445,
+   "sha256": "099e2ff67f6a4013615b74df53cbcb99d27d41020595dd9e8ef0c0b34995b8c1"
+  },
+  "voice/zh/n.6.m4a": {
+   "bytes": 4593,
+   "sha256": "999cb2accc1491fe45d9050d92970e488136af855a14200e0d7e9de00e895f74"
+  },
+  "voice/zh/n.60.m4a": {
+   "bytes": 6731,
+   "sha256": "a7aaea04e2d2ac7aea659706ab043a114b9d362ec3f3f107567d00ebef2872b3"
+  },
+  "voice/zh/n.7.m4a": {
+   "bytes": 4907,
+   "sha256": "d6025b968a8f1ddc0f12a9f9e8826d6c802b6e98177cc795f7efd0eb4649490d"
+  },
+  "voice/zh/n.8.m4a": {
+   "bytes": 4381,
+   "sha256": "892278a5fd2fe8a2b6a5c99ee1bf0533baf730da297ae6c971ae648fdeb41c7a"
+  },
+  "voice/zh/n.9.m4a": {
+   "bytes": 4590,
+   "sha256": "11fab8cdcfb1df99cd4b89e6c3453c63c0566d3496194089c13020be45d79ed6"
+  },
+  "voice/zh/p.di.m4a": {
+   "bytes": 4423,
+   "sha256": "724b4d5c607a491751efd4e546ead5e97284060a61140ded270b2000ba262198"
+  },
+  "voice/zh/p.finish.m4a": {
+   "bytes": 17690,
+   "sha256": "c4e7102d2dc6f71260967d6069cff53c97cd77facec210791ab657b1a4ee2bba"
+  },
+  "voice/zh/p.first.m4a": {
+   "bytes": 8470,
+   "sha256": "d8b68c3530854c39bb4e6b3869a90770e0e8ca096b0885511240e7fa97727816"
+  },
+  "voice/zh/p.go.m4a": {
+   "bytes": 6662,
+   "sha256": "f289146460f477c4555fc353a99d3678ce4068ce398eb9afe247c76536a8596f"
+  },
+  "voice/zh/p.go_right.m4a": {
+   "bytes": 15243,
+   "sha256": "cca631799d4df00fc23e1056565d33ca5246f73ead88d5ece6e54daf11ed562d"
+  },
+  "voice/zh/p.half.m4a": {
+   "bytes": 14958,
+   "sha256": "caa638c7490c55f68a39e208284c7ad7b1f4389dae45831861d7f2dcb6aef978"
+  },
+  "voice/zh/p.last_set.m4a": {
+   "bytes": 8367,
+   "sha256": "b87dce7b11b7879b4550d9aa815d38017aabe7f84f6722b0d41c340a3c1f67b1"
+  },
+  "voice/zh/p.next.m4a": {
+   "bytes": 9619,
+   "sha256": "7094849f74dc40ee61e722db5e89a0d7b0a1dd3fb75ddb7a46b6be4baf3ff780"
+  },
+  "voice/zh/p.nice.m4a": {
+   "bytes": 6302,
+   "sha256": "3df933881c37899170a7628edbbfae1226e4bdf56f11183b8f494cf783bd3ada"
+  },
+  "voice/zh/p.paused.m4a": {
+   "bytes": 8210,
+   "sha256": "192381912d30368c1890bf889ceaf4083c55cbceba7de75ab421d5d4ad54b2ff"
+  },
+  "voice/zh/p.per_side.m4a": {
+   "bytes": 6622,
+   "sha256": "a8511883ea3f59832bd024b8a2c55373d4115c2a538ed27500b27f8fd940b817"
+  },
+  "voice/zh/p.rest.m4a": {
+   "bytes": 6496,
+   "sha256": "e5b8e1f54a00948d1c2c52bdf6d557b49e153de03dabcb5003834e5aa14c7eac"
+  },
+  "voice/zh/p.resume.m4a": {
+   "bytes": 6314,
+   "sha256": "91b19ab85b6675750a772fb2ff57d5f50c0294be65bbda43e9e22d81723c4b84"
+  },
+  "voice/zh/p.round_done.m4a": {
+   "bytes": 9561,
+   "sha256": "49a7304f7290118ed5daf8524cff5f3db7adf4ccd25ecffa5cc7008e029db674"
+  },
+  "voice/zh/p.slow.m4a": {
+   "bytes": 16991,
+   "sha256": "e15e71add5a9aa07a0df9e64cfa8ad99880aa48a2dc328617f4ac804fc15f75f"
+  },
+  "voice/zh/p.switch_left.m4a": {
+   "bytes": 7841,
+   "sha256": "7aaa5450f6b34319ad94c7b2574df31d3c93771c28ab809c2e8f85f335f3e77c"
+  },
+  "voice/zh/p.ten_left.m4a": {
+   "bytes": 9548,
+   "sha256": "2b4c465cc57610e926c1bd9576606fe06ecab6ebdda21a6d37162017b94892bc"
+  },
+  "voice/zh/p.total.m4a": {
+   "bytes": 9722,
+   "sha256": "e64d12d1fb2ff8b3ae1ca7979f5c2c2974e712c3d13669ff8f647f245b81eff1"
+  },
+  "voice/zh/p.welcome.m4a": {
+   "bytes": 11426,
+   "sha256": "a3aa37863a0ed90e2a2cd6a81e33c962b03306da4c018f8c1f78319631def182"
+  },
+  "voice/zh/u.min.m4a": {
+   "bytes": 5939,
+   "sha256": "efeb77e4ebac113a875cc48005520a743becef896aa380488f6045f7cfdb68ca"
+  },
+  "voice/zh/u.reps.m4a": {
+   "bytes": 4775,
+   "sha256": "c2816ac32fc863f49eae90a5e3a00671e7a768fcae0918b70bb647fbb70f1143"
+  },
+  "voice/zh/u.rounds.m4a": {
+   "bytes": 4575,
+   "sha256": "fc5fbbbdc4ffd44a2a004db089722e5117ff689226f5aabb1a8faa6c9cc522ac"
+  },
+  "voice/zh/u.sec.m4a": {
+   "bytes": 4590,
+   "sha256": "cbeba01ed471e15d8fa5eb978d0757e50357b1a5b3d3451d5115d6a94154bf9a"
+  },
+  "voice/zh/u.sets.m4a": {
+   "bytes": 4758,
+   "sha256": "893bdd9a0bab8a922caeb3e9997604729bfc16bdf7eb1e730f102ca75b57ad30"
+  }
+ }
+}

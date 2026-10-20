@@ -1,0 +1,16 @@
+<!-- ugk_trainer: training session keep-alive (TrainingSessionService). Merged
+     into the app's manifest. Play Console: each app must declare the
+     "media playback" foreground service use (App content → Foreground
+     service permissions). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <application>
+        <service
+            android:name="com.ugk.trainer.TrainingSessionService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback"
+            android:stopWithTask="true" />
+    </application>
+</manifest>

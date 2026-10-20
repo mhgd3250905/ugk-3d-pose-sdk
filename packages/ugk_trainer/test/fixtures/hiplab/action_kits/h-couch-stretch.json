@@ -1,0 +1,120 @@
+{
+ "schema": "action-kit@1",
+ "id": "h-couch-stretch",
+ "display": {
+  "name": {
+   "zh": "沙发拉伸（后脚搭矮凳）",
+   "en": "Couch stretch"
+  },
+  "point": {
+   "zh": "后脚搭高，收紧臀部，髋往前送",
+   "en": "Back foot up, squeeze your glutes, hips forward"
+  },
+  "cautions": [
+   "膝",
+   "腰"
+  ],
+  "targets": [
+   "extension"
+  ],
+  "methods": [
+   "flexibility"
+  ],
+  "level": "advanced",
+  "sided": true,
+  "firstSide": "right",
+  "poster": {
+   "dark": "assets/drill_media/hip-h-couch-stretch.jpg",
+   "light": "assets/drill_media/light/hip-h-couch-stretch.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/h-couch-stretch.js",
+   "specSha256": "717616a1d48eaf389c904c37f71e67ddfeaf1b5a4c4b080c65d920760c186ef5"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-h-couch-stretch.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 3.8
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-h-couch-stretch.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 3.8,
+    "sha256": "bb6fa8bd9c806e9733f50f74cf8728eb2c16d3dc9d49c6b164c29c3152244162",
+    "bytes": 453076
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "open",
+  "reps": [
+   [
+    0.66,
+    3.49,
+    4.16,
+    7.15
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "hold",
+  "unit": "seconds",
+  "sided": true,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": null,
+   "sets": 1,
+   "seconds": 40,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "hold": {
+   "entrySeconds": 2.85
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.h-couch-stretch": {
+    "zh": "沙发拉伸（后脚搭矮凳）",
+    "en": "Couch stretch"
+   },
+   "point.h-couch-stretch": {
+    "zh": "后脚搭高，收紧臀部，髋往前送",
+    "en": "Back foot up, squeeze your glutes, hips forward"
+   }
+  },
+  "prepare": [
+   "drill.h-couch-stretch",
+   "point.h-couch-stretch"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.release",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": "p.right_first",
+  "coach": [
+   "cue.flexibility.1",
+   "cue.flexibility.2"
+  ],
+  "midHold": {
+   "half": "p.half",
+   "last10": "p.last10",
+   "countdown": 5
+  }
+ },
+ "review": {
+  "why": "static stretch",
+  "flags": []
+ }
+}

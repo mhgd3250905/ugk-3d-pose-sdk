@@ -1,0 +1,160 @@
+{
+ "schema": "action-kit@1",
+ "id": "h-sumo-pry",
+ "display": {
+  "name": {
+   "zh": "相扑深蹲肘推膝停留",
+   "en": "Sumo squat elbow pry"
+  },
+  "point": {
+   "zh": "蹲低，手肘把膝盖轻轻向外推",
+   "en": "Sit low and gently press the knees out with your elbows"
+  },
+  "cautions": [
+   "膝",
+   "髋前侧夹痛"
+  ],
+  "targets": [
+   "abduction",
+   "external_rotation",
+   "flexion"
+  ],
+  "methods": [
+   "flexibility"
+  ],
+  "level": "advanced",
+  "sided": false,
+  "firstSide": null,
+  "poster": {
+   "dark": "assets/drill_media/hip-h-sumo-pry.jpg",
+   "light": "assets/drill_media/light/hip-h-sumo-pry.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/h-sumo-pry.js",
+   "specSha256": "2822e6600f341862bc8491d7e58b35876bddc53c0635a727d69ec270baadac7a"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-h-sumo-pry.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 2.6
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-h-sumo-pry.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 2.6,
+    "sha256": "79f8b260e70c64cef9bcad0dfb9ad0fef692156be804e0004da19bf74df690d7",
+    "bytes": 535288
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "down",
+  "reps": [
+   [
+    0.38,
+    1.63,
+    3.29,
+    3.92
+   ],
+   [
+    4.38,
+    5.63,
+    7.29,
+    7.92
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "rep_hold",
+  "unit": "reps",
+  "sided": false,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": 3,
+   "sets": 1,
+   "seconds": null,
+   "holdSeconds": 10,
+   "restSeconds": 15
+  },
+  "cycle": {
+   "seconds": 4.0,
+   "offset": 0.38,
+   "phases": [
+    {
+     "id": "go",
+     "seconds": 1.25,
+     "cue": "w.squat_down"
+    },
+    {
+     "id": "hold",
+     "seconds": 1.65,
+     "cue": "w.hold",
+     "cueAt": 1.2
+    },
+    {
+     "id": "back",
+     "seconds": 0.65,
+     "cue": "w.up"
+    },
+    {
+     "id": "rest",
+     "seconds": 0.45
+    }
+   ],
+   "source": "measured: track 'down' 3 %/97 % crossings, rep 1 of 2"
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.h-sumo-pry": {
+    "zh": "相扑深蹲肘推膝停留",
+    "en": "Sumo squat elbow pry"
+   },
+   "point.h-sumo-pry": {
+    "zh": "蹲低，手肘把膝盖轻轻向外推",
+    "en": "Sit low and gently press the knees out with your elbows"
+   },
+   "w.squat_down": {
+    "zh": "蹲下",
+    "en": "Squat down"
+   },
+   "w.hold": {
+    "zh": "停住",
+    "en": "Hold"
+   },
+   "w.up": {
+    "zh": "起",
+    "en": "Up"
+   }
+  },
+  "prepare": [
+   "drill.h-sumo-pry",
+   "point.h-sumo-pry"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.nice",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": null,
+  "coach": [
+   "cue.flexibility.1",
+   "cue.flexibility.2"
+  ],
+  "midHold": null
+ },
+ "review": {
+  "why": "spec: 1.6 s down, 1.4 s hold, 1.0 s up; dose holds 10–15 s",
+  "flags": []
+ }
+}

@@ -1,0 +1,179 @@
+{
+ "format": "drill-pack",
+ "formatVersion": 1,
+ "kind": "exercise",
+ "id": "w-dead-bug",
+ "version": "1.1.0",
+ "name": {
+  "zh": "死虫式",
+  "en": "Dead Bug"
+ },
+ "category": "core",
+ "muscles": [
+  "腹直肌"
+ ],
+ "muscleGroups": [
+  "abs"
+ ],
+ "equipment": [
+  "mat"
+ ],
+ "position": "supine",
+ "unilateral": false,
+ "level": 1,
+ "scenes": [
+  "home"
+ ],
+ "defaultDose": {
+  "mode": "reps",
+  "sets": 3,
+  "reps": 10,
+  "restSeconds": 30
+ },
+ "cues": {
+  "zh": [
+   "下背紧贴地面，对侧手脚慢慢伸远",
+   "对侧手脚慢慢下放，腰不离地"
+  ]
+ },
+ "primaryCue": 0,
+ "cautions": [],
+ "contraindications": [],
+ "alternative": null,
+ "media": {
+  "cover": "cover.jpg",
+  "coverSeconds": 1.0,
+  "video": "demo.mp4",
+  "width": 720,
+  "height": 720,
+  "loopSeconds": 8.0,
+  "repSeconds": 3.0,
+  "light": {
+   "video": "demo-light.mp4",
+   "cover": "cover-light.jpg",
+   "stage": "#EFEFEF"
+  }
+ },
+ "voice": {
+  "languages": [
+   "zh"
+  ],
+  "voices": {
+   "zh": "zh-CN-XiaoxiaoNeural"
+  },
+  "requires": "_common",
+  "lines": [
+   {
+    "id": "name",
+    "role": "name",
+    "text": {
+     "zh": "死虫式"
+    },
+    "ms": {
+     "zh": 882
+    }
+   },
+   {
+    "id": "intro",
+    "role": "intro",
+    "text": {
+     "zh": "死虫式，练腹部"
+    },
+    "ms": {
+     "zh": 1718
+    }
+   },
+   {
+    "id": "cue1",
+    "role": "cue",
+    "text": {
+     "zh": "下背紧贴地面，对侧手脚慢慢伸远"
+    },
+    "ms": {
+     "zh": 3228
+    }
+   },
+   {
+    "id": "cue2",
+    "role": "cue",
+    "text": {
+     "zh": "对侧手脚慢慢下放，腰不离地"
+    },
+    "ms": {
+     "zh": 2670
+    }
+   },
+   {
+    "id": "rest",
+    "role": "rest",
+    "text": {
+     "zh": "放松一下。下一组记住，对侧手脚慢慢下放，腰不离地"
+    },
+    "ms": {
+     "zh": 5224
+    }
+   },
+   {
+    "id": "finish",
+    "role": "finish",
+    "text": {
+     "zh": "死虫式，完成"
+    },
+    "ms": {
+     "zh": 1602
+    }
+   }
+  ],
+  "postProcess": "HipLab v4.1: edge trim, -16 LUFS fixed gain, alimiter -2.5 dBFS, AAC 64k mono 44.1 kHz cutoff 12 kHz"
+ },
+ "credits": {
+  "media": "3D-Pose-Hub Drive archive green-screen master, keyed onto #101013 by tools/media/prepare_media.py",
+  "mediaSource": "pose-hub-drive-greenscreen",
+  "spec": "drill-anim/specs/w-dead-bug.js",
+  "license": "Snow Rig © Blender Foundation | studio.blender.org — CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Modified Snow-derived training character rendered with the 3D-Body drill renderer.",
+  "voice": "edge-tts (Microsoft neural voice zh-CN-XiaoxiaoNeural); commercial terms unclear — regenerate with Azure Speech before a store release.",
+  "text": "SmartFit (智能健身助手) authors, 2026-10-19"
+ },
+ "files": {
+  "cover-light.jpg": {
+   "bytes": 8935,
+   "sha256": "ba66e82b880115e239a20010269aae70765e12719fb25f60d198262c24216a69"
+  },
+  "cover.jpg": {
+   "bytes": 6157,
+   "sha256": "043ab1a51e2a7269cde834807bd07adcf573c3f2917ad869ef246f8b6347a49a"
+  },
+  "demo-light.mp4": {
+   "bytes": 108881,
+   "sha256": "7b13d38cce985dbc2cd1f2eae353415f6c7cb4b20fbf6082886e282f6be01e96"
+  },
+  "demo.mp4": {
+   "bytes": 89732,
+   "sha256": "fe5c2f14eb4dad44abb36bb619fb93407688a339bcb34edfbe31c6a2178d3796"
+  },
+  "voice/zh/cue1.m4a": {
+   "bytes": 27658,
+   "sha256": "90089f784cd8d3728cc44638d75c32f77de380430ba949c767c716eabaeed096"
+  },
+  "voice/zh/cue2.m4a": {
+   "bytes": 23073,
+   "sha256": "a8e47b9f8df48282732274472ab243205bbaaf90e86d9b3c9dc412d279f74502"
+  },
+  "voice/zh/finish.m4a": {
+   "bytes": 14323,
+   "sha256": "e528b4088a8298a2db4102877b6d6ab90819a5cfc825e88b351eeee5d519d9e2"
+  },
+  "voice/zh/intro.m4a": {
+   "bytes": 15140,
+   "sha256": "838c795da6a5da6ea98a82b40a9d9561bf40c3a3d011d546d5cd1925402895a9"
+  },
+  "voice/zh/name.m4a": {
+   "bytes": 8194,
+   "sha256": "bd4465a9af6cfd880d4ffdf9251d76fa07d2ec99dd835788cefb05f12a7d4a20"
+  },
+  "voice/zh/rest.m4a": {
+   "bytes": 43851,
+   "sha256": "f85ee4d023e0608930248e9ec2e43f1449650b95570a1897cb47a7cd7b378d43"
+  }
+ }
+}

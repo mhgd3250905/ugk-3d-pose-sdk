@@ -378,6 +378,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (widget.keepAlive) {
       _hold = TrainingHold.begin(
         Duration(seconds: (_runner.planSeconds + widget.prepSeconds).round()),
+        mediaPlayback: true,
         notice: TrainingNotice(
           channelName: _s.notificationChannel,
           channelDescription: _s.notificationChannelDescription,
@@ -537,6 +538,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (widget.keepAlive) {
       _hold = TrainingHold.begin(
         Duration(seconds: (_runner.planSeconds + widget.prepSeconds).round()),
+        mediaPlayback: true,
         notice: TrainingNotice(
           channelName: _s.notificationChannel,
           channelDescription: _s.notificationChannelDescription,
@@ -591,6 +593,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     }
     _queue.cancelAll(_t);
     _clock.stop();
+    _hold?.setPlaybackState(paused: true);
     setState(() {});
   }
 
@@ -604,6 +607,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         Duration(seconds: (_runner.planSeconds - _t).clamp(0, 1e6).round()),
       );
       _clock.start();
+      _hold?.setPlaybackState(paused: false);
       final resume = announce ? _script.call(VoiceCall.resume) : null;
       if (resume != null) {
         _queue.submit(VoiceCue(0, [resume], CuePriority.call), _t);
@@ -615,6 +619,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         _queue.submit(VoiceCue(0, [paused], CuePriority.call), _t);
       }
       _clock.stop();
+      _hold?.setPlaybackState(paused: true);
     }
     setState(() {});
   }

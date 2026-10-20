@@ -99,10 +99,16 @@ class TrainingKeepAlive {
 /// pain, left, or the page disposed – whichever comes first (PR #24 review
 /// F24-3). Releasing twice is harmless.
 class TrainingHold {
-  TrainingHold._(this.session, this.notice);
+  TrainingHold._(this.session, this.notice, this.mediaPlayback, this._duration);
 
   final int session;
   final TrainingNotice? notice;
+
+  /// True only for a guided audio playback session. Self-checks keep the
+  /// service hold without advertising a media playback session.
+  final bool mediaPlayback;
+  final Duration _duration;
+  bool _paused = false;
   bool _released = false;
   Timer? _later;
 
@@ -123,8 +129,17 @@ class TrainingHold {
 
   /// Starts the keep-alive for a new session expected to last [expected].
   /// A previous session's hold stops counting (its release sends nothing).
-  static TrainingHold begin(Duration expected, {TrainingNotice? notice}) {
-    final hold = TrainingHold._(++TrainingKeepAlive._sequence, notice);
+  static TrainingHold begin(
+    Duration expected, {
+    TrainingNotice? notice,
+    bool mediaPlayback = false,
+  }) {
+    final hold = TrainingHold._(
+      ++TrainingKeepAlive._sequence,
+      notice,
+      mediaPlayback,
+      expected,
+    );
     TrainingKeepAlive._current = hold.session;
     hold._start(expected);
     return hold;
@@ -139,6 +154,9 @@ class TrainingHold {
       {
         'session': session,
         'maxMs': capFor(expected).inMilliseconds,
+        'mediaPlayback': mediaPlayback,
+        'paused': _paused,
+        'durationMs': _duration.inMilliseconds,
         ...?notice?.toArgs(),
       },
       then: (ok) {
@@ -154,6 +172,17 @@ class TrainingHold {
   /// left of the training.
   void renew(Duration remaining) {
     if (active) _start(remaining);
+  }
+
+  /// Reports the real player state; a paused training never claims to be
+  /// playing. It does not start a new owner or extend the timeout.
+  void setPlaybackState({required bool paused}) {
+    if (!active || !mediaPlayback || _paused == paused) return;
+    _paused = paused;
+    TrainingKeepAlive._invoke('setPlaybackState', {
+      'session': session,
+      'paused': paused,
+    });
   }
 
   /// Ends the hold. With [after], once that much time has passed – the

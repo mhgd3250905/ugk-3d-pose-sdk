@@ -115,4 +115,72 @@ void main() {
     expect((calls.last.arguments as Map)['text'], 'x');
     h.release();
   });
+
+  test('generic self-check holds do not advertise media playback', () async {
+    final hold = TrainingHold.begin(const Duration(minutes: 5));
+    hold.setPlaybackState(paused: true);
+    await pumpEventQueue();
+    expect(methods(), ['start']);
+    expect((calls.single.arguments as Map)['mediaPlayback'], isFalse);
+    hold.release();
+    await pumpEventQueue();
+  });
+
+  test(
+    'guided media state is explicit, follows pause and survives renewal',
+    () async {
+      final hold = TrainingHold.begin(
+        const Duration(minutes: 5),
+        mediaPlayback: true,
+      );
+      hold.setPlaybackState(paused: true);
+      hold.setPlaybackState(paused: true); // unchanged state is not resent
+      hold.renew(const Duration(minutes: 2));
+      hold.setPlaybackState(paused: false);
+      await pumpEventQueue();
+      expect(methods(), [
+        'start',
+        'setPlaybackState',
+        'start',
+        'setPlaybackState',
+      ]);
+      expect((calls[0].arguments as Map)['mediaPlayback'], isTrue);
+      expect((calls[0].arguments as Map)['paused'], isFalse);
+      expect((calls[1].arguments as Map)['paused'], isTrue);
+      expect((calls[2].arguments as Map)['paused'], isTrue);
+      expect((calls[3].arguments as Map)['paused'], isFalse);
+      // A renewal adjusts the cap, not the original media duration.
+      expect(
+        (calls[2].arguments as Map)['durationMs'],
+        const Duration(minutes: 5).inMilliseconds,
+      );
+      expect(calls.map(sessionOf).toSet(), {hold.session});
+      hold.release();
+      await pumpEventQueue();
+    },
+  );
+
+  test(
+    'late media state from an old owner cannot affect the new owner',
+    () async {
+      final old = TrainingHold.begin(
+        const Duration(minutes: 5),
+        mediaPlayback: true,
+      );
+      final next = TrainingHold.begin(
+        const Duration(minutes: 5),
+        mediaPlayback: true,
+      );
+      old.setPlaybackState(paused: true);
+      old.release();
+      next.setPlaybackState(paused: true);
+      await pumpEventQueue();
+      expect(methods(), ['start', 'start', 'setPlaybackState']);
+      expect(sessionOf(calls.last), next.session);
+      next.release();
+      next.setPlaybackState(paused: false);
+      await pumpEventQueue();
+      expect(methods(), ['start', 'start', 'setPlaybackState', 'stop']);
+    },
+  );
 }

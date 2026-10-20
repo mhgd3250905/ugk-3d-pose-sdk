@@ -234,6 +234,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   String? _subtitle;
   int _shownGen = -1;
   bool _saveFailed = false;
+  bool _closing = false;
   bool _disposed = false;
 
   String _shownKey = '';
@@ -365,10 +366,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     unawaited(_save());
   }
 
-  Future<void> _save() async {
+  Future<bool> _save() async {
     final ok = await _saver(_result());
-    if (!mounted) return;
-    setState(() => _saveFailed = !ok);
+    if (mounted) setState(() => _saveFailed = !ok);
+    return ok;
   }
 
   void _haptics(SessionPhase p, double t) {
@@ -634,8 +635,17 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   Future<void> _close() async {
+    if (_closing) return;
+    _closing = true;
     final nav = Navigator.of(context);
-    if (await _confirmClose()) nav.pop(_recorder.result);
+    try {
+      if (!await _confirmClose() || !mounted) return;
+      // A confirmed early exit and system back share the same save as the
+      // done view. Keep the result and retry action on screen if it fails.
+      if (await _save() && mounted) nav.pop(_recorder.result);
+    } finally {
+      _closing = false;
+    }
   }
 
   @override
@@ -1347,7 +1357,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                   borderRadius: BorderRadius.circular(18),
                 ),
               ),
-              onPressed: () => Navigator.of(context).pop(result),
+              onPressed: _saver.saved ? _close : null,
               child: Text(
                 _s.finish,
                 style: _th.callout.copyWith(

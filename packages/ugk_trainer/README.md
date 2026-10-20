@@ -55,7 +55,7 @@ final result = await Navigator.of(context).push<SessionResult>(
 4. **TrainerTheme**：颜色/字体 token；`TrainerTheme.dark` / `.light` 为 SmartFit 值。
 5. **drillOf**：动作名（App 语言）、休息时显示的要点、示范 `DrillMedia`（`videoAsset` / `posterAsset` 为 App 资源键，可带浅色版）。返回 null 的动作不进训练。
 6. **mediaBuilder**（可选）：默认 `DrillMediaView`——安卓/iOS 用 WebView + 本机回环资源服务，web 用 iframe，播放页 `packages/ugk_trainer/assets/media_player/player.html` 随包带。默认只放行 `assets/` 下的 mp4/jpg/png/webp。
-7. **onFinished**：训练结束（完成、提前结束、关闭）时调用一次，传一个 `SessionResult`。**按 `sessionId` 覆盖保存**：保存失败时完成页出现「重试」，重试传的是同一个结果（同一 id），不会产生第二条记录。
+7. **onFinished**：训练结束（完成、提前结束、关闭）时调用一次，传一个 `SessionResult`。**按 `sessionId` 覆盖保存**：保存失败时完成页出现「重试」，重试传的是同一个结果（同一 id），不会产生第二条记录。保存成功前「完成」不可点；关闭和系统返回也等待保存，失败时保留完成页供重试。
 8. **onDiscomfort**（可选）：返回 `DiscomfortDecision(continueEasier | skip | end | substitute, substituteId:, note:)`；HipLab 疼痛阶梯留在 App，在这里弹自己的页面。缺省是内置三选项底部弹层。事件记入结果。
 9. **feedbackBuilder**（可选）：完成页上方的插槽（HipLab 感受反馈），拿到 `SessionResult`。
 

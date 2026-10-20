@@ -331,7 +331,9 @@ class ResultSaver {
 
   Future<bool> _run(SessionResult result) async {
     try {
-      await save(result);
+      // A synchronous throw must also yield before clearing _running:
+      // call() assigns the returned future after _run() starts.
+      await Future<void>.sync(() => save(result));
       _saved = true;
       lastError = null;
       return true;

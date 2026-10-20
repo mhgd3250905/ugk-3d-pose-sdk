@@ -2,6 +2,8 @@
 // lib/ui/player_page.dart as base): it runs a plan to the end and hands the
 // app one result whose id was fixed at start; a failed save is retried with
 // the same id; self-paced sets wait for 完成本组; 不舒服 → end is recorded.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
@@ -99,6 +101,89 @@ void main() {
     expect(saved, hasLength(2));
     expect(saved[1].sessionId, saved[0].sessionId);
     expect(identical(saved[0], saved[1]), isTrue);
+  });
+
+  testWidgets('finish and system back wait for the pending save', (
+    tester,
+  ) async {
+    final gate = Completer<void>();
+    final popped = <SessionResult>[];
+    final saved = await pump(
+      tester,
+      planOf([timed('a', 3)]),
+      save: (_) => gate.future,
+      popped: popped,
+    );
+    await advance(tester, 6);
+    final finish = find.byKey(const ValueKey('finish'));
+    expect(tester.widget<FilledButton>(finish).onPressed, isNull);
+    await tester.state<NavigatorState>(find.byType(Navigator)).maybePop();
+    await tester.pump();
+    await tester.state<NavigatorState>(find.byType(Navigator)).maybePop();
+    await tester.pump();
+    expect(popped, isEmpty);
+    expect(saved, hasLength(1));
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(popped.single.sessionId, saved.single.sessionId);
+    expect(find.text('open'), findsOneWidget);
+  });
+
+  testWidgets('failed save blocks finish and back until retry succeeds', (
+    tester,
+  ) async {
+    var fail = true;
+    final popped = <SessionResult>[];
+    final saved = await pump(
+      tester,
+      planOf([timed('a', 3)]),
+      save: (_) async {
+        if (fail) throw StateError('disk full');
+      },
+      popped: popped,
+    );
+    await advance(tester, 6);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const ValueKey('finish')))
+          .onPressed,
+      isNull,
+    );
+    await tester.state<NavigatorState>(find.byType(Navigator)).maybePop();
+    await tester.pumpAndSettle();
+    expect(popped, isEmpty);
+    expect(find.byKey(const ValueKey('save-retry')), findsOneWidget);
+    fail = false;
+    await tester.tap(find.byKey(const ValueKey('save-retry')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('finish')));
+    await tester.pumpAndSettle();
+    expect(popped.single.sessionId, saved.first.sessionId);
+    expect(saved.every((r) => identical(r, saved.first)), isTrue);
+  });
+
+  testWidgets('confirmed early close keeps a failed save available to retry', (
+    tester,
+  ) async {
+    final gate = Completer<void>();
+    final popped = <SessionResult>[];
+    final saved = await pump(
+      tester,
+      planOf([timed('a', 30)]),
+      save: (_) => gate.future,
+      popped: popped,
+    );
+    await advance(tester, 3);
+    await tester.tap(find.byKey(const ValueKey('close')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('close-confirm')));
+    await tester.pumpAndSettle();
+    expect(popped, isEmpty);
+    expect(saved.single.endedEarly, isTrue);
+    gate.completeError(StateError('disk full'));
+    await tester.pumpAndSettle();
+    expect(popped, isEmpty);
+    expect(find.byKey(const ValueKey('save-retry')), findsOneWidget);
   });
 
   testWidgets('a self-paced set waits for 完成本组', (tester) async {

@@ -103,6 +103,22 @@ void main() {
     expect(res.items.single.activeSeconds, closeTo(40, 1e-6));
   });
 
+  test('ResultSaver retries a synchronously thrown save error', () async {
+    final e = SessionEngine(builder().phases(plan))..update(1e6);
+    final result = SessionRecorder(
+      plan: plan,
+      totalExercises: 3,
+    ).finish(e, activeSeconds: 1);
+    var calls = 0;
+    final saver = ResultSaver((r) {
+      if (++calls == 1) throw StateError('disk full');
+      return Future<void>.value();
+    });
+    expect(await saver(result), isFalse);
+    expect(await saver(result), isTrue);
+    expect(calls, 2);
+  });
+
   test(
     'ResultSaver: a failed save can be retried with the same result; a '
     'saved one is never sent again; concurrent calls share one save',

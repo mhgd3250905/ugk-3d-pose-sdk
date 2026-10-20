@@ -43,8 +43,19 @@ class UgkTrainerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                     icon = call.argument<String>("icon"),
                 )
                 result.success(
-                    session != 0L && TrainingSessionService.start(ctx, session, maxMs, notice),
+                    session != 0L && TrainingSessionService.start(
+                        ctx, session, maxMs, notice,
+                        call.argument<Boolean>("mediaPlayback") == true,
+                        call.argument<Boolean>("paused") == true,
+                        (call.argument<Number>("durationMs") ?: 0).toLong(),
+                    ),
                 )
+            }
+            "setPlaybackState" -> {
+                val session = (call.argument<Number>("session") ?: 0).toLong()
+                result.success(TrainingSessionService.setPlaybackState(
+                    ctx, session, call.argument<Boolean>("paused") == true,
+                ))
             }
             "stop" -> {
                 val session = (call.argument<Number>("session") ?: 0).toLong()

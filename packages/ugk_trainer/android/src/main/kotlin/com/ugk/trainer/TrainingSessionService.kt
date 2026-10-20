@@ -2,6 +2,8 @@
 // Changes: package com.ugk.trainer (ugk_trainer plugin); notification channel,
 // title, text and small icon come from the app over the channel ([Notice]);
 // wake-lock tag "ugk_trainer:training"; actions com.ugk.trainer.action.*.
+// Guided audio owners additionally publish their real playback state through
+// one framework MediaSession. Self-check holds remain generic notifications.
 package com.ugk.trainer
 
 import android.app.Notification
@@ -12,9 +14,15 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.media.MediaMetadata
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.os.Build
 import android.os.IBinder
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 
 /**
@@ -49,6 +57,13 @@ import android.util.Log
  */
 class TrainingSessionService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
+    private var mediaSession: MediaSession? = null
+    private var playbackPaused = true
+    private var playbackPositionMs = 0L
+    private var playbackUpdatedAt = 0L
+    private val handler = Handler(Looper.getMainLooper())
+    private var expiry: Runnable? = null
+    private var lastStartId = 0
 
     /** Session whose wake lock / foreground state this service holds now. */
     private var heldSession = 0L
@@ -65,10 +80,24 @@ class TrainingSessionService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        lastStartId = startId
+        val session = intent?.getLongExtra(EXTRA_SESSION, 0L) ?: 0L
+        val wanted = desiredSession
+        val update = intent?.action == ACTION_STATE
+        val decision = decide(intent?.action == ACTION_STOP, session, wanted)
+        // Only a current START takes ownership; a state update may arrive
+        // while its START is still pending and must not create a phantom hold.
         // Always enter the foreground first: a service started with
         // startForegroundService must call startForeground even when the
         // request that reached it is a stop.
         try {
+            if (decision == Decision.HOLD && (!update || heldSession == session)) {
+                if (!update && heldSession != session) {
+                    releaseMediaSession()
+                    heldSession = session
+                }
+                syncMediaSession()
+            }
             val notification = buildNotification()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
@@ -87,13 +116,23 @@ class TrainingSessionService : Service() {
             finish(startId)
             return START_NOT_STICKY
         }
-        val session = intent?.getLongExtra(EXTRA_SESSION, 0L) ?: 0L
-        val wanted = desiredSession
-        when (decide(intent?.action == ACTION_STOP, session, wanted)) {
+        when (decision) {
             Decision.HOLD -> {
+                // A pause/resume update only changes PlaybackState and the
+                // notification. It cannot extend a forgotten session's cap.
+                if (update) return START_NOT_STICKY
                 val cap = intent?.getLongExtra(EXTRA_MAX_MS, DEFAULT_CAP_MS) ?: DEFAULT_CAP_MS
                 heldSession = session
-                acquireWakeLock(cap.coerceIn(MIN_CAP_MS, MAX_CAP_MS))
+                val boundedCap = cap.coerceIn(MIN_CAP_MS, MAX_CAP_MS)
+                try {
+                    acquireWakeLock(boundedCap)
+                    armExpiry(session, boundedCap)
+                } catch (e: Exception) {
+                    Log.w(TAG, "could not hold training session", e)
+                    if (desiredSession == session) desiredSession = 0L
+                    finish(startId)
+                    return START_NOT_STICKY
+                }
                 Log.i(TAG, "training session $session held (cap ${cap / 1000} s)")
             }
             Decision.FINISH -> {
@@ -111,22 +150,22 @@ class TrainingSessionService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         desiredSession = 0L
-        releaseWakeLock()
+        releaseResources()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
         super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
-        releaseWakeLock()
+        if (desiredSession == heldSession) desiredSession = 0L
+        releaseResources()
         Log.i(TAG, "training session service stopped")
         super.onDestroy()
     }
 
     /** Ends this service unless a newer start request is still pending. */
     private fun finish(startId: Int) {
-        releaseWakeLock()
-        heldSession = 0L
+        releaseResources()
         stopForeground(STOP_FOREGROUND_REMOVE) // minSdk 24
         if (!stopSelfResult(startId)) {
             Log.i(TAG, "a newer start is pending; service kept")
@@ -148,6 +187,88 @@ class TrainingSessionService : Service() {
     private fun releaseWakeLock() {
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
+    }
+
+    /** A timed-out hold must drop its media token/notification too. A wake
+     * lock timeout alone otherwise leaves a false active playback session. */
+    private fun armExpiry(session: Long, capMs: Long) {
+        expiry?.let(handler::removeCallbacks)
+        val deadline = Runnable {
+            // The old owner's timer must never stop a pending newer START.
+            if (heldSession != session || (desiredSession != session && desiredSession != 0L)) {
+                return@Runnable
+            }
+            if (desiredSession == session) desiredSession = 0L
+            Log.i(TAG, "training session $session safety cap reached")
+            finish(lastStartId)
+        }
+        expiry = deadline
+        handler.postDelayed(deadline, capMs)
+    }
+
+    private fun releaseResources() {
+        expiry?.let(handler::removeCallbacks)
+        expiry = null
+        try {
+            releaseMediaSession()
+        } finally {
+            releaseWakeLock()
+            heldSession = 0L
+        }
+    }
+
+    private fun syncMediaSession() {
+        if (!wantsMediaPlayback) {
+            releaseMediaSession()
+            return
+        }
+        val media = mediaSession ?: MediaSession(this, "ugk_trainer:guided").also {
+            // No advertised external controls: playback stays with the App.
+            it.setFlags(0)
+            it.setMediaButtonReceiver(null)
+            mediaSession = it
+            playbackPaused = true
+            playbackPositionMs = 0L
+            playbackUpdatedAt = SystemClock.elapsedRealtime()
+        }
+        val now = SystemClock.elapsedRealtime()
+        if (!playbackPaused) playbackPositionMs += now - playbackUpdatedAt
+        playbackUpdatedAt = now
+        playbackPaused = wantsPaused
+        media.setMetadata(MediaMetadata.Builder()
+            .putString(MediaMetadata.METADATA_KEY_TITLE, notice.title ?: notice.channelName ?: "Training")
+            .putString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE, notice.text ?: "")
+            .putLong(MediaMetadata.METADATA_KEY_DURATION, durationMs.coerceAtLeast(0L))
+            .build())
+        media.setPlaybackState(PlaybackState.Builder()
+            .setActions(0L)
+            .setState(
+                if (playbackPaused) PlaybackState.STATE_PAUSED else PlaybackState.STATE_PLAYING,
+                playbackPositionMs,
+                if (playbackPaused) 0f else 1f,
+                now,
+            )
+            .build())
+        media.isActive = true
+    }
+
+    private fun releaseMediaSession() {
+        val media = mediaSession
+        mediaSession = null
+        if (media != null) {
+            try {
+                media.setPlaybackState(PlaybackState.Builder()
+                    .setActions(0L)
+                    .setState(PlaybackState.STATE_STOPPED, playbackPositionMs, 0f)
+                    .build())
+                media.isActive = false
+            } finally {
+                media.release()
+            }
+        }
+        playbackPaused = true
+        playbackPositionMs = 0L
+        playbackUpdatedAt = 0L
     }
 
     private fun buildNotification(): Notification {
@@ -189,8 +310,14 @@ class TrainingSessionService : Service() {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
-            .setCategory(Notification.CATEGORY_SERVICE)
-            .apply { if (pending != null) setContentIntent(pending) }
+            .setCategory(if (mediaSession != null) Notification.CATEGORY_TRANSPORT else Notification.CATEGORY_SERVICE)
+            .apply {
+                if (pending != null) {
+                    setContentIntent(pending)
+                    mediaSession?.setSessionActivity(pending)
+                }
+                mediaSession?.let { setStyle(Notification.MediaStyle().setMediaSession(it.sessionToken)) }
+            }
             .build()
     }
 
@@ -217,6 +344,7 @@ class TrainingSessionService : Service() {
         private const val NOTIFICATION_ID = 4107
         private const val ACTION_START = "com.ugk.trainer.action.START_TRAINING_SESSION"
         private const val ACTION_STOP = "com.ugk.trainer.action.STOP_TRAINING_SESSION"
+        private const val ACTION_STATE = "com.ugk.trainer.action.TRAINING_PLAYBACK_STATE"
         private const val EXTRA_SESSION = "session"
         private const val EXTRA_MAX_MS = "maxMs"
         private const val MIN_CAP_MS = 5L * 60 * 1000
@@ -230,6 +358,9 @@ class TrainingSessionService : Service() {
         /** The session that should be kept alive now; 0 = none. */
         @Volatile
         private var desiredSession = 0L
+        private var wantsMediaPlayback = false
+        private var wantsPaused = false
+        private var durationMs = 0L
 
         /**
          * What a delivered request does, given the latest wish. Pure, so the
@@ -248,9 +379,20 @@ class TrainingSessionService : Service() {
         }
 
         /** True when the request reached the system. */
-        fun start(context: Context, session: Long, maxMs: Long, notice: Notice): Boolean {
+        fun start(
+            context: Context,
+            session: Long,
+            maxMs: Long,
+            notice: Notice,
+            mediaPlayback: Boolean,
+            paused: Boolean,
+            durationMs: Long,
+        ): Boolean {
             desiredSession = session
             this.notice = notice
+            wantsMediaPlayback = mediaPlayback
+            wantsPaused = paused
+            this.durationMs = durationMs
             val intent = Intent(context, TrainingSessionService::class.java)
                 .setAction(ACTION_START)
                 .putExtra(EXTRA_SESSION, session)
@@ -266,8 +408,29 @@ class TrainingSessionService : Service() {
                 // e.g. ForegroundServiceStartNotAllowedException when asked
                 // from the background; the session still runs in the
                 // foreground as before.
-                if (desiredSession == session) desiredSession = 0L
+                if (desiredSession == session) {
+                    desiredSession = 0L
+                    // No successful newer owner exists. A pre-existing service
+                    // must not retain the failed replacement's old media token.
+                    context.stopService(Intent(context, TrainingSessionService::class.java))
+                }
                 Log.w(TAG, "could not start training session service", e)
+                false
+            }
+        }
+
+        /** State updates are scoped to the current media owner. They never
+         * start a new session, acquire a lock, or reset its safety timeout. */
+        fun setPlaybackState(context: Context, session: Long, paused: Boolean): Boolean {
+            if (session == 0L || session != desiredSession || !wantsMediaPlayback) return false
+            wantsPaused = paused
+            return try {
+                context.startService(Intent(context, TrainingSessionService::class.java)
+                    .setAction(ACTION_STATE)
+                    .putExtra(EXTRA_SESSION, session))
+                true
+            } catch (e: Exception) {
+                Log.w(TAG, "could not update training playback state", e)
                 false
             }
         }

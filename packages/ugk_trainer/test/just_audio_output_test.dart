@@ -1,5 +1,5 @@
 // Ported from HipLab@99fcc83 test/hip/just_audio_output_test.dart. Unchanged
-// except the import.
+// except the import. Android continuous keep-alive regressions added below.
 import 'dart:async';
 
 import 'package:audio_session/audio_session.dart';
@@ -85,15 +85,19 @@ class _Player extends Fake implements AudioPlayer {
 }
 
 class _Session extends Fake implements AudioSession {
-  _Session(this.events, {this.noisy = const Stream.empty()});
+  _Session(
+    this.events, {
+    this.noisy = const Stream.empty(),
+    this.interruptions = const Stream.empty(),
+  });
   final List<String> events;
   final Stream<void> noisy;
+  final Stream<AudioInterruptionEvent> interruptions;
   final configurations = <AudioSessionConfiguration>[];
   @override
   Stream<void> get becomingNoisyEventStream => noisy;
   @override
-  Stream<AudioInterruptionEvent> get interruptionEventStream =>
-      const Stream.empty();
+  Stream<AudioInterruptionEvent> get interruptionEventStream => interruptions;
   @override
   Future<void> configure(AudioSessionConfiguration configuration) async {
     configurations.add(configuration);
@@ -111,6 +115,42 @@ class _Session extends Fake implements AudioSession {
   }) async {
     events.add('active:$active');
     return true;
+  }
+}
+
+/// Realistic independent loop player: play stays pending until paused/stopped.
+class _LoopPlayer extends _Player {
+  _LoopPlayer(super.events, {this.loading}) : super(autoComplete: false);
+  final Completer<void>? loading;
+  AudioSource? source;
+  LoopMode? mode;
+  final assets = <String>[];
+  final volumes = <double>[];
+  @override
+  AudioSource? get audioSource => source;
+  @override
+  Future<Duration?> setAsset(
+    String assetPath, {
+    String? package,
+    bool preload = true,
+    Duration? initialPosition,
+    dynamic tag,
+  }) async {
+    assets.add(assetPath);
+    source = AudioSource.asset(assetPath);
+    await loading?.future;
+    emit(false, ProcessingState.ready);
+    return Duration.zero;
+  }
+
+  @override
+  Future<void> setLoopMode(LoopMode value) async {
+    mode = value;
+  }
+
+  @override
+  Future<void> setVolume(double volume) async {
+    volumes.add(volume);
   }
 }
 
@@ -337,6 +377,219 @@ void main() {
         expect(config.avAudioSessionMode, AVAudioSessionMode.defaultMode);
       }
       expect(events, ['active:true', 'play', 'active:false']);
+    },
+  );
+  group('Android continuous silent playback', () {
+    test('begin and long speech gaps keep the loop active without '
+        'holding music focus; session end stops it', () async {
+      final focus = <String>[];
+      final loop = _LoopPlayer([]);
+      final output = JustAudioVoiceOutput.forTesting(
+        voice: _Player(focus),
+        chime: _Player([]),
+        keepAlive: loop,
+        session: () async => _Session(focus),
+        iOS: false,
+      );
+      output.volume = .25;
+      await output.begin();
+      expect(loop.assets, [JustAudioVoiceOutput.defaultKeepAliveAsset]);
+      expect(loop.mode, LoopMode.one);
+      expect(
+        loop.volumes,
+        [1],
+        reason: 'silent samples must remain active, not client-volume-muted',
+      );
+      expect(loop.playing, isTrue);
+      expect(
+        focus,
+        isEmpty,
+        reason: 'silent playback must not duck other apps',
+      );
+      await output.speak(['welcome']);
+      await Future<void>.delayed(const Duration(seconds: 1));
+      expect(focus, ['active:true', 'play', 'active:false']);
+      expect(
+        loop.playing,
+        isTrue,
+        reason: 'the voice track ended, the loop did not',
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(
+        loop.playing,
+        isTrue,
+        reason: 'a long hold must not look audio-inactive',
+      );
+      await output.stopSpeech();
+      expect(
+        loop.playing,
+        isTrue,
+        reason: 'cancelling a line does not end the training',
+      );
+      await output.end();
+      expect(loop.playing, isFalse);
+      expect(loop.stops, 1);
+      await output.dispose();
+    });
+
+    test('call and unplug pause the loop, while reactivation restarts '
+        'only silent playback and keeps focus with other apps', () async {
+      final focus = <String>[];
+      final interrupts = StreamController<AudioInterruptionEvent>.broadcast(
+        sync: true,
+      );
+      final noisy = StreamController<void>.broadcast(sync: true);
+      final loop = _LoopPlayer([]);
+      final output = JustAudioVoiceOutput.forTesting(
+        voice: _Player(focus),
+        chime: _Player([]),
+        keepAlive: loop,
+        iOS: false,
+        session: () async => _Session(
+          focus,
+          noisy: noisy.stream,
+          interruptions: interrupts.stream,
+        ),
+      );
+      final events = <AudioInterruption>[];
+      final subscription = output.interruptions.listen(events.add);
+      await output.begin();
+      interrupts.add(AudioInterruptionEvent(true, AudioInterruptionType.pause));
+      await Future<void>.delayed(Duration.zero);
+      expect(loop.playing, isFalse);
+      expect(events, [AudioInterruption.began]);
+      await output.keepAliveResume();
+      expect(
+        loop.playing,
+        isFalse,
+        reason: 'duck release cannot undo a call pause',
+      );
+      final focusCount = focus.length;
+      interrupts.add(
+        AudioInterruptionEvent(false, AudioInterruptionType.pause),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(loop.playing, isTrue);
+      expect(events, [AudioInterruption.began, AudioInterruption.ended]);
+      expect(
+        focus.length,
+        focusCount,
+        reason: 'a call ending cannot steal music focus',
+      );
+      noisy.add(null);
+      await Future<void>.delayed(Duration.zero);
+      expect(loop.playing, isFalse);
+      expect(events.last, AudioInterruption.unplugged);
+      await output.reactivate();
+      expect(loop.playing, isTrue);
+      expect(focus.length, focusCount);
+      expect(loop.volumes, everyElement(1));
+      await output.end();
+      await output.reactivate();
+      expect(loop.playing, isFalse, reason: 'an ended owner cannot reactivate');
+      await subscription.cancel();
+      await output.dispose();
+      await interrupts.close();
+      await noisy.close();
+    });
+
+    test('ending during silent load cannot start stale playback; a '
+        'new session reapplies loop mode and volume', () async {
+      final gate = Completer<void>();
+      final loop = _LoopPlayer([], loading: gate);
+      final output = JustAudioVoiceOutput.forTesting(
+        voice: _Player([]),
+        chime: _Player([]),
+        keepAlive: loop,
+        session: () async => _Session([]),
+        iOS: false,
+      );
+      final beginning = output.begin();
+      await Future<void>.delayed(Duration.zero);
+      expect(loop.assets, hasLength(1));
+      final ending = output.end();
+      gate.complete();
+      await Future.wait([beginning, ending]);
+      expect(loop.playing, isFalse);
+      expect(loop.events, isEmpty);
+      await output.begin();
+      expect(loop.mode, LoopMode.one);
+      expect(loop.volumes.last, 1);
+      expect(loop.playing, isTrue);
+      expect(
+        loop.assets,
+        hasLength(1),
+        reason: 'stop retains the already loaded source',
+      );
+      await output.dispose();
+      expect(loop.playing, isFalse);
+    });
+
+    testWidgets('the two-hour safety cap does not renew on reactivation', (
+      tester,
+    ) async {
+      final loop = _LoopPlayer([]);
+      final output = JustAudioVoiceOutput.forTesting(
+        voice: _Player([]),
+        chime: _Player([]),
+        keepAlive: loop,
+        session: () async => _Session([]),
+        iOS: false,
+      );
+      final beginning = output.begin();
+      await tester.pump();
+      await beginning;
+      await tester.pump(const Duration(hours: 1));
+      final reactivating = output.reactivate();
+      await tester.pump();
+      await reactivating;
+      expect(loop.playing, isTrue);
+      await tester.pump(const Duration(hours: 1, milliseconds: 1));
+      expect(loop.playing, isFalse);
+      final expiredReactivation = output.reactivate();
+      await tester.pump();
+      await expiredReactivation;
+      expect(
+        loop.playing,
+        isFalse,
+        reason: 'the expired owner cannot bypass its cap',
+      );
+      await output.keepAliveResume();
+      expect(
+        loop.playing,
+        isFalse,
+        reason: 'duck release also respects the cap',
+      );
+      final ending = output.end();
+      await tester.pump();
+      await ending;
+      final restarting = output.begin();
+      await tester.pump();
+      await restarting;
+      expect(loop.playing, isTrue, reason: 'a fresh session owns a fresh cap');
+      await tester.runAsync(output.dispose);
+    });
+  });
+
+  test(
+    'iOS silent keep-alive retains zero volume through reactivation',
+    () async {
+      final loop = _LoopPlayer([]);
+      final output = JustAudioVoiceOutput.forTesting(
+        voice: _Player([]),
+        chime: _Player([]),
+        keepAlive: loop,
+        session: () async => _Session([]),
+        iOS: true,
+      );
+      output.volume = .25;
+      await output.begin();
+      expect(loop.playing, isTrue);
+      expect(loop.volumes, [0]);
+      await output.reactivate();
+      expect(loop.volumes, [0, 0]);
+      await output.dispose();
+      expect(loop.playing, isFalse);
     },
   );
 }

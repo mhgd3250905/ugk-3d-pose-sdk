@@ -61,10 +61,16 @@ class TrainerVoice {
     required this.source,
     required this.output,
     this.settings = const VoiceSettings(),
+    this.scriptBuilder,
   });
   final VoiceSource source;
   final VoiceOutput output;
   final VoiceSettings settings;
+
+  /// Optional app-specific calls (course names, authored dose phrases).
+  /// The shared engine and runner still own timing and stale-cue handling.
+  final SessionScript Function(VoiceSource source, String language)?
+  scriptBuilder;
 
   static final silent = TrainerVoice(
     source: _NoVoice(),
@@ -101,8 +107,14 @@ class DiscomfortContext {
     required this.activeSeconds,
     required this.strings,
     required this.theme,
-  });
+    SessionPhase? resumePhase,
+    this.afterExercise = false,
+  }) : resumePhase = resumePhase ?? phase;
   final SessionPhase phase;
+
+  /// The phase to resume; [phase] may instead be the exercise just finished.
+  final SessionPhase resumePhase;
+  final bool afterExercise;
   final double activeSeconds;
   final TrainerStrings strings;
   final TrainerTheme theme;
@@ -110,7 +122,16 @@ class DiscomfortContext {
 
 /// The app's answer to 不舒服 (null: carry on as before).
 class DiscomfortDecision {
-  const DiscomfortDecision(this.action, {this.substituteId, this.note});
+  const DiscomfortDecision(
+    this.action, {
+    this.substituteId,
+    this.note,
+    this.replacementPhases,
+    this.restartItemIndex,
+    this.withRest = false,
+    this.voiceClips = const [],
+    this.subtitle,
+  });
   final DiscomfortAction action;
 
   /// [DiscomfortAction.substitute]: the exercise to do instead (same
@@ -119,6 +140,20 @@ class DiscomfortDecision {
 
   /// Recorded with the event (HipLab: the pain level).
   final String? note;
+
+  /// App-authored remaining session, with original item/block coordinates.
+  /// Takes precedence over the default action (e.g. a dose reduction or
+  /// removing all remaining non-relaxation exercises in one direction).
+  final List<SessionPhase>? replacementPhases;
+  final int? restartItemIndex;
+  final bool withRest;
+
+  /// App-specific response, queued after changing the session so it is not
+  /// cancelled by the transition itself.
+  final List<String> voiceClips;
+
+  /// App response visible even when voice is disabled or has no clip.
+  final String? subtitle;
 }
 
 typedef DiscomfortHandler =
@@ -150,6 +185,29 @@ typedef TrainerMediaBuilder =
 typedef TrainerFeedbackBuilder =
     Widget Function(BuildContext context, SessionResult result);
 
+typedef TrainerReplayBuilder =
+    Widget Function(
+      BuildContext context,
+      SessionResult result,
+      VoidCallback replay,
+    );
+
+class TrainerRestFeedback {
+  const TrainerRestFeedback({
+    required this.phase,
+    required this.completedPhase,
+    required this.reportDiscomfort,
+  });
+  final SessionPhase phase;
+  final SessionPhase completedPhase;
+
+  /// Opens the same app discomfort handler, targeting the finished exercise.
+  final Future<void> Function() reportDiscomfort;
+}
+
+typedef TrainerRestFeedbackBuilder =
+    Widget Function(BuildContext context, TrainerRestFeedback feedback);
+
 /// Full-screen follow-along of one [TrainingPlan]. Pops with the
 /// [SessionResult] when the user taps 完成 (or closes and confirms).
 class TrainerPlayer extends StatefulWidget {
@@ -164,6 +222,11 @@ class TrainerPlayer extends StatefulWidget {
     this.voice,
     this.onDiscomfort,
     this.feedbackBuilder,
+    this.restFeedbackBuilder,
+    this.sessionBuilder,
+    this.replayBuilder,
+    this.doseLabel,
+    this.announceDiscomfortPause = true,
     this.mediaBuilder,
     this.sessionId,
     this.prepSeconds = 10,
@@ -197,6 +260,24 @@ class TrainerPlayer extends StatefulWidget {
   /// Shown on the done view, above 完成.
   final TrainerFeedbackBuilder? feedbackBuilder;
 
+  /// Optional feedback during the transition after an exercise. The clock
+  /// continues while the app records an answer, until discomfort is opened.
+  final TrainerRestFeedbackBuilder? restFeedbackBuilder;
+
+  /// App-specific dose/side arrangement; all clocks and playback stay here.
+  final SessionBuilder? sessionBuilder;
+
+  /// A new session in the same player after the current result is saved.
+  /// The app resets its own pain/feedback state before calling replay.
+  final TrainerReplayBuilder? replayBuilder;
+
+  /// App-authored dose for this occurrence, including upcoming previews.
+  final String? Function(SessionPhase phase)? doseLabel;
+
+  /// Preserve apps whose pain dialog pauses silently; ordinary pause/resume
+  /// controls still announce themselves. Defaults to the shared player policy.
+  final bool announceDiscomfortPause;
+
   /// Null: [DrillMediaView] of [TrainerDrill.media].
   final TrainerMediaBuilder? mediaBuilder;
 
@@ -229,6 +310,11 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   late int _occurrences;
   TrainingHold? _hold;
   Timer? _timer;
+  Timer? _terminalAudio;
+  Future<void>? _audioEnding;
+  bool _audioEnded = false;
+  bool _audioRestarting = false;
+  int _audioOwner = 0;
   StreamSubscription<AudioInterruption>? _interruptions;
   double? _endedAt;
   String? _subtitle;
@@ -256,17 +342,18 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     super.initState();
     _plan = widget.plan;
     _voice = widget.voice ?? TrainerVoice.silent;
-    _script = SessionScript(
-      source: _voice.source,
-      lang: _voice.settings.language,
-    );
-    _builder = SessionBuilder(
-      rhythms: widget.rhythms,
-      known: (id) => widget.drillOf(id) != null,
-      prepSeconds: widget.prepSeconds,
-      transitionSeconds: widget.transitionSeconds,
-      switchSecondsFor: _script.switchSecondsFor,
-    );
+    _script =
+        _voice.scriptBuilder?.call(_voice.source, _voice.settings.language) ??
+        SessionScript(source: _voice.source, lang: _voice.settings.language);
+    _builder =
+        widget.sessionBuilder ??
+        SessionBuilder(
+          rhythms: widget.rhythms,
+          known: (id) => widget.drillOf(id) != null,
+          prepSeconds: widget.prepSeconds,
+          transitionSeconds: widget.transitionSeconds,
+          switchSecondsFor: _script.switchSecondsFor,
+        );
     _occurrences = _builder.occurrenceCount(_plan);
     _runner = SessionRunner(SessionEngine(_builder.phases(_plan)), _script);
     _recorder = SessionRecorder(
@@ -291,6 +378,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (widget.keepAlive) {
       _hold = TrainingHold.begin(
         Duration(seconds: (_runner.planSeconds + widget.prepSeconds).round()),
+        mediaPlayback: _voice.settings.voice || _voice.settings.chimes,
         notice: TrainingNotice(
           channelName: _s.notificationChannel,
           channelDescription: _s.notificationChannelDescription,
@@ -308,12 +396,15 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   @override
   void dispose() {
     _disposed = true;
+    _audioOwner++;
+    _terminalAudio?.cancel();
+    _terminalAudio = null;
     _timer?.cancel();
     _progress.dispose();
     unawaited(_interruptions?.cancel());
     ScreenAwake.release();
     _queue.cancelAll(_t);
-    unawaited(_voice.output.end());
+    unawaited(_endAudio());
     _hold?.release();
     if (!_recorder.finished) {
       // Closed without the done view (route removed): still record it.
@@ -361,15 +452,113 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (_recorder.finished) return;
     _endedAt ??= t;
     _clock.stop();
-    // The closing line still plays with the screen locked.
-    _hold?.release(after: const Duration(seconds: 4));
+    // Keep the closing line (including queued tails) audible before ending
+    // the silent loop and the foreground hold. A replay cancels this owner.
+    var tail = 4.0;
+    for (final line in _queue.log) {
+      final remaining = line.end - t + VoiceQueue.tailGrace;
+      if (remaining > tail) tail = remaining;
+    }
+    final owner = _audioOwner;
+    final hold = _hold;
+    _terminalAudio = Timer(Duration(microseconds: (tail * 1e6).ceil()), () {
+      _terminalAudio = null;
+      if (_disposed || owner != _audioOwner || !_engine.done) return;
+      unawaited(_endAudio());
+      hold?.release();
+    });
     unawaited(_save());
+  }
+
+  Future<void> _endAudio() {
+    if (_audioEnded) return _audioEnding ?? Future<void>.value();
+    _audioEnded = true;
+    return _audioEnding = Future<void>.sync(
+      _voice.output.end,
+    ).catchError((Object _) {});
+  }
+
+  Future<void> _restartAudioAfterEnd(int owner) async {
+    await _audioEnding;
+    if (_disposed || !mounted || owner != _audioOwner) return;
+    _audioEnding = null;
+    _audioEnded = false;
+    if (_voice.settings.voice || _voice.settings.chimes) {
+      await Future<void>.sync(_voice.output.begin).catchError((Object _) {});
+    }
+    if (_disposed || !mounted || owner != _audioOwner) return;
+    _audioRestarting = false;
+    _clock.start();
+    _tick();
+    setState(() {});
   }
 
   Future<bool> _save() async {
     final ok = await _saver(_result());
     if (mounted) setState(() => _saveFailed = !ok);
     return ok;
+  }
+
+  void _replay() {
+    if (!_engine.done || !_saver.saved || _closing) return;
+    final owner = ++_audioOwner;
+    _terminalAudio?.cancel();
+    _terminalAudio = null;
+    // End the previous owner's delayed close before acquiring a new one.
+    // The shared output stays open; no old route can end the new session.
+    _hold?.release();
+    _queue.cancelAll(_t);
+    _clock
+      ..stop()
+      ..reset();
+    _plan = widget.plan;
+    _script =
+        _voice.scriptBuilder?.call(_voice.source, _voice.settings.language) ??
+        SessionScript(source: _voice.source, lang: _voice.settings.language);
+    _occurrences = _builder.occurrenceCount(_plan);
+    _runner = SessionRunner(SessionEngine(_builder.phases(_plan)), _script);
+    _recorder = SessionRecorder(plan: _plan, totalExercises: _occurrences);
+    _saver = ResultSaver(widget.onFinished);
+    _queue = VoiceQueue(
+      output: _voice.output,
+      lib: _voice.source,
+      settings: _voice.settings,
+    );
+    _endedAt = null;
+    _subtitle = null;
+    _shownGen = -1;
+    _shownKey = '';
+    _saveFailed = false;
+    _hapticGen = -1;
+    _hapticSecond = -1;
+    _progress.value = 0;
+    if (!_audioEnded && (_voice.settings.voice || _voice.settings.chimes)) {
+      unawaited(_voice.output.begin());
+    }
+    if (widget.keepAlive) {
+      _hold = TrainingHold.begin(
+        Duration(seconds: (_runner.planSeconds + widget.prepSeconds).round()),
+        mediaPlayback: _voice.settings.voice || _voice.settings.chimes,
+        notice: TrainingNotice(
+          channelName: _s.notificationChannel,
+          channelDescription: _s.notificationChannelDescription,
+          title: _s.notificationTitle,
+          text: _s.notificationText,
+          icon: widget.notificationIcon,
+        ),
+      );
+    }
+    if (_audioEnded) {
+      // An earlier terminal end may still be stopping native players. Wait
+      // before beginning and starting the new clock, so it cannot stop a
+      // new round or swallow that round's first cue.
+      _audioRestarting = true;
+      unawaited(_restartAudioAfterEnd(owner));
+    } else {
+      _clock.start();
+      _tick();
+    }
+    setState(() {});
   }
 
   void _haptics(SessionPhase p, double t) {
@@ -404,11 +593,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     }
     _queue.cancelAll(_t);
     _clock.stop();
+    _hold?.setPlaybackState(paused: true);
     setState(() {});
   }
 
-  void _togglePause() {
-    if (_engine.done) return;
+  void _togglePause({bool announce = true}) {
+    if (_engine.done || _audioRestarting) return;
     if (_paused) {
       if (_voice.output case final InterruptibleVoiceOutput out) {
         unawaited(out.reactivate());
@@ -417,17 +607,19 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         Duration(seconds: (_runner.planSeconds - _t).clamp(0, 1e6).round()),
       );
       _clock.start();
-      final resume = _script.call(VoiceCall.resume);
+      _hold?.setPlaybackState(paused: false);
+      final resume = announce ? _script.call(VoiceCall.resume) : null;
       if (resume != null) {
         _queue.submit(VoiceCue(0, [resume], CuePriority.call), _t);
       }
     } else {
       _queue.cancelAll(_t);
-      final paused = _script.call(VoiceCall.paused);
+      final paused = announce ? _script.call(VoiceCall.paused) : null;
       if (paused != null) {
         _queue.submit(VoiceCue(0, [paused], CuePriority.call), _t);
       }
       _clock.stop();
+      _hold?.setPlaybackState(paused: true);
     }
     setState(() {});
   }
@@ -505,12 +697,14 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _after(() => _runner.restartWith(_builder.phases(_plan), _t));
   }
 
-  Future<void> _discomfort() async {
+  Future<void> _discomfort({SessionPhase? completedPhase}) async {
     if (_engine.done) return;
     final wasRunning = !_paused;
-    if (wasRunning) _togglePause();
+    if (wasRunning) _togglePause(announce: widget.announceDiscomfortPause);
     final at = DiscomfortContext(
-      phase: _phase,
+      phase: completedPhase ?? _phase,
+      resumePhase: _phase,
+      afterExercise: completedPhase != null,
       activeSeconds: _t,
       strings: _s,
       theme: _th,
@@ -518,7 +712,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     final handler = widget.onDiscomfort ?? _defaultDiscomfort;
     final d = await handler(context, at);
     if (!mounted) return;
-    final p = _phase;
+    final p = completedPhase ?? _phase;
     if (d != null) {
       _recorder.discomfort(
         DiscomfortEvent(
@@ -534,18 +728,42 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         ),
       );
     }
+    if (d?.replacementPhases case final phases?) {
+      if (wasRunning) _togglePause(announce: widget.announceDiscomfortPause);
+      _after(
+        () => _runner.restartWith(
+          phases,
+          _t,
+          fromItemIndex: d!.restartItemIndex,
+          withRest: d.withRest,
+        ),
+      );
+      _decisionVoice(d!);
+      return;
+    }
     switch (d?.action) {
       case DiscomfortAction.skip:
-        if (wasRunning) _togglePause();
+        if (wasRunning) _togglePause(announce: widget.announceDiscomfortPause);
         _skip();
       case DiscomfortAction.end:
         _endEarly();
       case DiscomfortAction.substitute when d!.substituteId != null:
-        if (wasRunning) _togglePause();
+        if (wasRunning) _togglePause(announce: widget.announceDiscomfortPause);
         _substitute(d.substituteId!);
       default:
-        if (wasRunning) _togglePause();
+        if (wasRunning) _togglePause(announce: widget.announceDiscomfortPause);
     }
+    if (d != null) _decisionVoice(d);
+  }
+
+  void _decisionVoice(DiscomfortDecision decision) {
+    if (decision.subtitle != null) {
+      setState(() => _subtitle = decision.subtitle);
+    }
+    if (decision.voiceClips.isEmpty) return;
+    _queue.cancelAll(_t);
+    _queue.submit(VoiceCue(0, decision.voiceClips, CuePriority.call), _t);
+    _queue.tick(_t);
   }
 
   Future<DiscomfortDecision?> _defaultDiscomfort(
@@ -777,7 +995,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       _ => '',
     };
     final sub = _subtitle ?? (rest ? d?.cue : null);
-    final current = (done + (rest ? 0 : 1)).clamp(
+    final current = (p.itemIndex + 1).clamp(
       1,
       _occurrences < 1 ? 1 : _occurrences,
     );
@@ -891,26 +1109,31 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                             : const SizedBox.shrink(key: ValueKey('tag-none')),
                       ),
                     ),
-                    Positioned(
-                      right: TrainerSpace.x2,
-                      top: TrainerSpace.x2,
-                      child: Semantics(
-                        button: true,
-                        label: _s.discomfort,
-                        child: GestureDetector(
-                          key: const ValueKey('discomfort'),
+                    if (widget.restFeedbackBuilder == null ||
+                        p.isWork ||
+                        p.kind == PhaseKind.switchSide)
+                      Positioned(
+                        right: TrainerSpace.x2,
+                        top: TrainerSpace.x2,
+                        child: Semantics(
+                          excludeSemantics: true,
+                          button: true,
+                          label: _s.discomfort,
                           onTap: _discomfort,
-                          child: Padding(
-                            padding: const EdgeInsets.all(TrainerSpace.x1),
-                            child: _tag(
-                              _s.discomfort,
-                              icon: Icons.healing,
-                              color: TrainerTheme.dark.caution,
+                          child: GestureDetector(
+                            key: const ValueKey('discomfort'),
+                            onTap: _discomfort,
+                            child: Padding(
+                              padding: const EdgeInsets.all(TrainerSpace.x1),
+                              child: _tag(
+                                _s.discomfort,
+                                icon: Icons.healing,
+                                color: TrainerTheme.dark.caution,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               const SizedBox(height: TrainerSpace.x5),
@@ -1027,7 +1250,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                 height: _nextSlot,
                 child: _fade(
                   alignment: Alignment.topCenter,
-                  (p.selfPaced ? _completeButton() : null) ??
+                  _restFeedback(p) ??
+                      (p.selfPaced ? _completeButton() : null) ??
                       (rest ? null : _nextUp(p)) ??
                       const SizedBox(
                         key: ValueKey('next-none'),
@@ -1111,7 +1335,36 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   static const _subtitleSlot = TrainerSpace.x4 + 15 * 1.55 * 3 + 2;
   static const _nextSlot = TrainerSpace.x5 + 60.0;
 
-  String _dose(PlanItem item) {
+  Widget? _restFeedback(SessionPhase phase) {
+    final build = widget.restFeedbackBuilder;
+    if (build == null ||
+        (phase.kind != PhaseKind.rest && phase.kind != PhaseKind.roundRest)) {
+      return null;
+    }
+    SessionPhase? completed;
+    for (final visit in _engine.visits.reversed) {
+      if (visit.phase.isWork) {
+        completed = visit.phase;
+        break;
+      }
+    }
+    if (completed == null || completed.itemIndex >= phase.itemIndex) {
+      return null;
+    }
+    final target = completed;
+    return build(
+      context,
+      TrainerRestFeedback(
+        phase: phase,
+        completedPhase: target,
+        reportDiscomfort: () => _discomfort(completedPhase: target),
+      ),
+    );
+  }
+
+  String _dose(PlanItem item, {SessionPhase? phase}) {
+    final label = phase == null ? null : widget.doseLabel?.call(phase);
+    if (label != null) return label;
     final reps = item.mode == DoseMode.reps;
     return _s.dose(
       reps: reps,
@@ -1126,7 +1379,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (p.sets > 1) parts.add(_s.setOf(p.set, p.sets));
     if (p.side != null) parts.add(_s.sideName(p.side!));
     final item = p.item;
-    if (item != null) parts.add(_dose(item));
+    if (item != null) parts.add(_dose(item, phase: p));
     return parts.join(' · ');
   }
 
@@ -1175,7 +1428,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     }
     final d = next == null ? null : widget.drillOf(next.exerciseId!);
     if (next == null || d == null) return null;
-    final dose = next.item == null ? null : _dose(next.item!);
+    final dose = next.item == null ? null : _dose(next.item!, phase: next);
     final poster = d.media?.posterFor(light: !_th.isDark);
     return Padding(
       key: ValueKey('next-${d.id}'),
@@ -1259,7 +1512,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   Widget _doneView() {
     final result = _recorder.result;
     final full =
-        !_engine.endedEarly && _engine.completedExercises >= _occurrences;
+        !_engine.endedEarly && _engine.fullyCompletedExercises >= _occurrences;
     final minutes = ((_endedAt ?? _t) / 60).round();
     final numeral = _th.numeral(26);
     return Padding(
@@ -1306,7 +1559,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                         Expanded(
                           child: _stat(
                             Text(
-                              '${_engine.completedExercises}/$_occurrences',
+                              '${_engine.fullyCompletedExercises}/$_occurrences',
                               style: numeral,
                             ),
                             _s.exercisesDone,
@@ -1317,6 +1570,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                     if (result != null && widget.feedbackBuilder != null) ...[
                       const SizedBox(height: TrainerSpace.x6),
                       widget.feedbackBuilder!(context, result),
+                    ],
+                    if (result != null &&
+                        _saver.saved &&
+                        widget.replayBuilder != null) ...[
+                      const SizedBox(height: TrainerSpace.x3),
+                      widget.replayBuilder!(context, result, _replay),
                     ],
                     if (_saveFailed) ...[
                       const SizedBox(height: TrainerSpace.x5),

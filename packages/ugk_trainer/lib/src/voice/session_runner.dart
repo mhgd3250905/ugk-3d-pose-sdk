@@ -98,8 +98,18 @@ class SessionRunner {
     return _due(t);
   }
 
-  void restartWith(List<SessionPhase> phases, double t) {
-    engine.restartWith(phases, t);
+  void restartWith(
+    List<SessionPhase> phases,
+    double t, {
+    int? fromItemIndex,
+    bool withRest = false,
+  }) {
+    engine.restartWith(
+      phases,
+      t,
+      fromItemIndex: fromItemIndex,
+      withRest: withRest,
+    );
     _load();
   }
 }

@@ -1,0 +1,44 @@
+{
+ "case": "H2",
+ "profile": "hiplab",
+ "note": "越界：练胸",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "text",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "H2",
+   "profile": "hiplab",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 5.6,
+   "usage": {
+    "prompt": 6477,
+    "completion": 290,
+    "reasoning": 256,
+    "cached": 6400,
+    "total": 6767
+   },
+   "error": null,
+   "finish": "stop",
+   "ts": "2026-10-20T16:50:32+0000",
+   "content": "这个 App 只做开胯和髋部训练，练胸帮不上。要不要来一组 10 分钟的髋部灵活+臀部小力量？",
+   "tool_calls": [],
+   "validation": {
+    "ok": true,
+    "tool": null,
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": null
+   }
+  }
+ ]
+}

@@ -1,0 +1,103 @@
+{
+ "case": "S1",
+ "profile": "smartfit",
+ "note": "办公室无器械",
+ "ok": true,
+ "submissions": 2,
+ "fallback": false,
+ "leaked": false,
+ "tool": "show_plan",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "S1",
+   "profile": "smartfit",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 79.6,
+   "usage": {
+    "prompt": 13413,
+    "completion": 2936,
+    "reasoning": 2285,
+    "cached": 13312,
+    "total": 16349
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T16:58:35+0000",
+   "content": "按入门强度（默认）给你排了 10 分钟办公室放松，全程站姿坐姿，重点松肩颈和腰背。\n\n",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-ac0852a8947a233b",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"schemaVersion\": 1, \"title\": \"肩颈腰放松\", \"summary\": \"10 分钟办公室放松，缓解肩颈和腰背僵硬\", \"goal\": \"mobility\", \"scene\": \"office\", \"level\": 1, \"targetMinutes\": 10, \"equipment\": [\"chair\", \"wall\"], \"blocks\": [{\"type\": \"warmup\", \"name\": \"热身\", \"items\": [{\"exerciseId\": \"h-wall-angel\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 10, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"n-pelvis-circle\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": false, \"restSeconds\": 10}]}, {\"type\": \"main\", \"name\": \"主放松\", \"items\": [{\"exerciseId\": \"o-seated-catcow\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"o-seated-twist\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-chair-lat\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"o-stand-sidebend\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": true, \"restSeconds\": 10}]}, {\"type\": \"cooldown\", \"name\": \"放松\", \"items\": [{\"exerciseId\": \"o-seated-ham\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": true, \"restSeconds\": 10}]}], \"notes\": [\"全程站姿坐姿，不趴不躺，适合办公室\", \"强度按入门默认\"], \"safetyNotes\": [\"动作幅度以舒适为准，不适加重就停止\"]}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": false,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [
+     "E_SIDE 坐姿扶椅扭转（o-seated-twist）：perSide 应为 false"
+    ],
+    "issues": [
+     {
+      "path": "blocks[1].items[1].perSide",
+      "code": "E_SIDE",
+      "expected": "false",
+      "actual": "true",
+      "message": "坐姿扶椅扭转（o-seated-twist）：perSide 应为 false"
+     }
+    ],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 8.4
+   }
+  },
+  {
+   "mode": "tools",
+   "case": "S1",
+   "profile": "smartfit",
+   "round": 1,
+   "attempt": 2,
+   "seconds": 19.8,
+   "usage": {
+    "prompt": 14189,
+    "completion": 729,
+    "reasoning": 106,
+    "cached": 13312,
+    "total": 14918
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T16:58:55+0000",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-a4417d6d5b181dd1",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"blocks\": [{\"items\": [{\"exerciseId\": \"h-wall-angel\", \"mode\": \"reps\", \"perSide\": false, \"reps\": 10, \"restSeconds\": 10, \"sets\": 2}, {\"exerciseId\": \"n-pelvis-circle\", \"mode\": \"time\", \"perSide\": false, \"restSeconds\": 10, \"sets\": 1, \"workSeconds\": 30}], \"name\": \"热身\", \"type\": \"warmup\"}, {\"items\": [{\"exerciseId\": \"o-seated-catcow\", \"mode\": \"time\", \"perSide\": false, \"restSeconds\": 10, \"sets\": 1, \"workSeconds\": 40}, {\"exerciseId\": \"o-seated-twist\", \"mode\": \"time\", \"perSide\": false, \"restSeconds\": 10, \"sets\": 1, \"workSeconds\": 40}, {\"exerciseId\": \"h-chair-lat\", \"mode\": \"time\", \"perSide\": false, \"restSeconds\": 10, \"sets\": 1, \"workSeconds\": 30}, {\"exerciseId\": \"o-stand-sidebend\", \"mode\": \"time\", \"perSide\": true, \"restSeconds\": 10, \"sets\": 1, \"workSeconds\": 30}], \"name\": \"主放松\", \"type\": \"main\"}, {\"items\": [{\"exerciseId\": \"o-seated-ham\", \"mode\": \"time\", \"perSide\": true, \"restSeconds\": 10, \"sets\": 1, \"workSeconds\": 30}], \"name\": \"放松\", \"type\": \"cooldown\"}], \"equipment\": [\"chair\", \"wall\"], \"goal\": \"mobility\", \"level\": 1, \"notes\": [\"全程站姿坐姿，不趴不躺，适合办公室\", \"强度按入门默认\"], \"safetyNotes\": [\"动作幅度以舒适为准，不适加重就停止\"], \"scene\": \"office\", \"schemaVersion\": 1, \"summary\": \"10 分钟办公室放松，缓解肩颈和腰背僵硬\", \"targetMinutes\": 10, \"title\": \"肩颈腰放松\"}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": true,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 7.7
+   }
+  }
+ ]
+}

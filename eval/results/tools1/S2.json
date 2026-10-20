@@ -1,0 +1,55 @@
+{
+ "case": "S2",
+ "profile": "smartfit",
+ "note": "健身房",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "show_plan",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "S2",
+   "profile": "smartfit",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 97.0,
+   "usage": {
+    "prompt": 13410,
+    "completion": 5808,
+    "reasoning": 4749,
+    "cached": 13312,
+    "total": 19218
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T17:00:33+0000",
+   "content": "给你排了一份 40 分钟的健身房腿部力量计划，覆盖大腿前侧、后侧、臀部和内收肌，按你「有一定基础」用中等强度。\n\n",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-b1e3c4b08719fb61",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"schemaVersion\": 1, \"title\": \"腿部力量训练\", \"summary\": \"健身房下肢力量，覆盖股四头肌、腘绳肌、臀大肌、臀中肌与内收肌，前后侧平衡。\", \"goal\": \"strength\", \"scene\": \"gym\", \"level\": 2, \"targetMinutes\": 40, \"equipment\": [\"mat\", \"dumbbell\", \"wall\", \"cable\", \"leg-extension-machine\", \"reverse-hyper\", \"hip-abductor-machine\"], \"blocks\": [{\"type\": \"warmup\", \"name\": \"热身\", \"items\": [{\"exerciseId\": \"h-step-jack\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 30}, {\"exerciseId\": \"n-pelvis-circle\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"h-calf-raise\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 15, \"perSide\": false, \"restSeconds\": 30}]}, {\"type\": \"main\", \"name\": \"主训练\", \"items\": [{\"exerciseId\": \"h-squat\", \"mode\": \"reps\", \"sets\": 4, \"reps\": 12, \"perSide\": false, \"restSeconds\": 30}, {\"exerciseId\": \"h-db-rdl\", \"mode\": \"reps\", \"sets\": 4, \"reps\": 10, \"perSide\": false, \"restSeconds\": 30}, {\"exerciseId\": \"quadriceps-C\", \"mode\": \"reps\", \"sets\": 4, \"reps\": 10, \"perSide\": false, \"restSeconds\": 45}, {\"exerciseId\": \"hamstrings-A\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 8, \"perSide\": true, \"restSeconds\": 30}, {\"exerciseId\": \"glute-max-C\", \"mode\": \"reps\", \"sets\": 4, \"reps\": 10, \"perSide\": false, \"restSeconds\": 45}, {\"exerciseId\": \"hip-abductors-C\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 12, \"perSide\": false, \"restSeconds\": 45}, {\"exerciseId\": \"adductors-C\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 12, \"perSide\": true, \"restSeconds\": 30}, {\"exerciseId\": \"w-wall-sit\", \"mode\": \"time\", \"sets\": 3, \"workSeconds\": 30, \"perSide\": false, \"restSeconds\": 30}]}, {\"type\": \"cooldown\", \"name\": \"放松\", \"items\": [{\"exerciseId\": \"s-seated-fold\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"o-stand-quad\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-supine-twist\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": true, \"restSeconds\": 10}]}], \"notes\": [\"先深蹲和硬拉打底，再用器械补孤立，最后静蹲收尾，前后侧和内外侧都照顾到。\"], \"safetyNotes\": [\"动作全程核心收紧，膝盖与脚尖方向一致，不适加重就停止。\"]}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": true,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [
+     "plan.equipment 漏写 ['chair']"
+    ],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 44.4
+   }
+  }
+ ]
+}

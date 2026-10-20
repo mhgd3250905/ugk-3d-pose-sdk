@@ -1,0 +1,53 @@
+{
+ "case": "F1",
+ "profile": "flarelab",
+ "note": "常规：居家徒手",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "show_plan",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "F1",
+   "profile": "flarelab",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 43.3,
+   "usage": {
+    "prompt": 7182,
+    "completion": 2426,
+    "reasoning": 1578,
+    "cached": 0,
+    "total": 9608
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T16:34:20+0000",
+   "content": "在家没器械，我按徒手给你排了 30 分钟，难度 1，主攻支撑臂、核心压缩和髋外展。\n\n",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-ae43c69bfacf91f2",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"schemaVersion\": 1, \"title\": \"居家托马斯专项\", \"summary\": \"徒手 30 分钟，先活动手腕和肩胛，再练支撑臂、核心压缩与髋外展，最后放松后链。\", \"goal\": \"strength\", \"scene\": \"home\", \"level\": 1, \"targetMinutes\": 30, \"equipment\": [], \"blocks\": [{\"type\": \"warmup\", \"name\": \"热身\", \"items\": [{\"exerciseId\": \"forearms-A\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 10, \"perSide\": false, \"restSeconds\": 15, \"note\": \"撑地前先活动手腕\"}, {\"exerciseId\": \"serratus-A\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 10, \"perSide\": false, \"restSeconds\": 30, \"note\": \"激活前锯肌\"}]}, {\"type\": \"main\", \"name\": \"主训练\", \"items\": [{\"exerciseId\": \"deltoids-A\", \"mode\": \"time\", \"sets\": 3, \"workSeconds\": 25, \"perSide\": true, \"restSeconds\": 30, \"note\": \"承重肩稳定\"}, {\"exerciseId\": \"triceps-A\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 8, \"perSide\": false, \"restSeconds\": 45, \"note\": \"支撑臂锁肘\"}, {\"exerciseId\": \"chest-A\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 5, \"perSide\": true, \"restSeconds\": 45, \"note\": \"前撑转侧撑\"}, {\"exerciseId\": \"obliques-A\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 6, \"perSide\": true, \"restSeconds\": 45, \"note\": \"转体与侧向控制\"}, {\"exerciseId\": \"lats-A\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 8, \"perSide\": false, \"restSeconds\": 45, \"note\": \"肩下压支撑\"}, {\"exerciseId\": \"adductors-A\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 5, \"perSide\": true, \"restSeconds\": 45, \"note\": \"髋内收与侧向\"}, {\"exerciseId\": \"hamstrings-A\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 8, \"perSide\": true, \"restSeconds\": 30, \"note\": \"后链平衡\"}]}, {\"type\": \"cooldown\", \"name\": \"放松\", \"items\": [{\"exerciseId\": \"erectors-A\", \"mode\": \"time\", \"sets\": 3, \"workSeconds\": 20, \"perSide\": false, \"restSeconds\": 30, \"note\": \"后链放松\"}]}], \"safetyNotes\": [\"撑地动作多，手腕不适就减少次数或暂停。\"]}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": true,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 31.0
+   }
+  }
+ ]
+}

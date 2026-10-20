@@ -1,0 +1,44 @@
+{
+ "case": "F6",
+ "profile": "flarelab",
+ "note": "模糊请求",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "text",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "F6",
+   "profile": "flarelab",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 44.1,
+   "usage": {
+    "prompt": 7170,
+    "completion": 498,
+    "reasoning": 481,
+    "cached": 6912,
+    "total": 7668
+   },
+   "error": null,
+   "finish": "stop",
+   "ts": "2026-10-20T16:46:34+0000",
+   "content": "在家练还是去健身房？告诉我一个就行，我直接给你排。",
+   "tool_calls": [],
+   "validation": {
+    "ok": true,
+    "tool": null,
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": null
+   }
+  }
+ ]
+}

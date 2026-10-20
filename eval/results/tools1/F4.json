@@ -1,0 +1,44 @@
+{
+ "case": "F4",
+ "profile": "flarelab",
+ "note": "不存在的动作/越界大招",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "text",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "F4",
+   "profile": "flarelab",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 7.3,
+   "usage": {
+    "prompt": 7186,
+    "completion": 425,
+    "reasoning": 378,
+    "cached": 6912,
+    "total": 7611
+   },
+   "error": null,
+   "finish": "stop",
+   "ts": "2026-10-20T16:45:45+0000",
+   "content": "这个 App 只做托马斯全旋的专项体能，风车（windmill）是另一个大招，不在范围内。要不要我给你排一组托马斯专项？比如支撑臂加核心压缩的 20 分钟训练。",
+   "tool_calls": [],
+   "validation": {
+    "ok": true,
+    "tool": null,
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": null
+   }
+  }
+ ]
+}

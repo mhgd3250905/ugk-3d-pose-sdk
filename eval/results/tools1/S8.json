@@ -1,0 +1,53 @@
+{
+ "case": "S8",
+ "profile": "smartfit",
+ "note": "超短时长",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "show_plan",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "S8",
+   "profile": "smartfit",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 21.5,
+   "usage": {
+    "prompt": 13406,
+    "completion": 1891,
+    "reasoning": 1434,
+    "cached": 13312,
+    "total": 15297
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T17:05:13+0000",
+   "content": "按居家、难度 1 给你排了 5 分钟晨间唤醒，从脊柱活动到肩髋再到低冲击有氧。\n\n",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-98473babc120c4d9",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"schemaVersion\": 1, \"title\": \"晨间唤醒\", \"summary\": \"5 分钟轻活动唤醒身体，从脊柱到肩髋再到心肺。\", \"goal\": \"warmup\", \"scene\": \"home\", \"level\": 1, \"targetMinutes\": 5, \"equipment\": [\"mat\", \"wall\"], \"blocks\": [{\"type\": \"warmup\", \"name\": \"唤醒热身\", \"items\": [{\"exerciseId\": \"h-catcow-quad\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"n-pelvis-circle\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"h-wall-angel\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 10, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"h-step-jack\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 30}]}], \"notes\": [\"默认居家、难度 1；动作都选轻量级，适合刚起床。\"]}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": true,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 4.2
+   }
+  }
+ ]
+}

@@ -1,0 +1,55 @@
+{
+ "case": "H5",
+ "profile": "hiplab",
+ "note": "目标：横叉",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "show_plan",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "H5",
+   "profile": "hiplab",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 75.2,
+   "usage": {
+    "prompt": 6485,
+    "completion": 4845,
+    "reasoning": 3966,
+    "cached": 6400,
+    "total": 11330
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T16:54:56+0000",
+   "content": "按入门难度给你排了 20 分钟横叉拉伸，全程在无痛范围内慢慢呼吸。\n\n",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-bd99ec8c6e5414bd",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"schemaVersion\": 1, \"title\": \"横叉入门拉伸\", \"summary\": \"以拉伸大腿内侧和腘绳肌为主，配合髋部活动度，循序渐进练横叉。\", \"goal\": \"mobility\", \"scene\": \"home\", \"level\": 1, \"targetMinutes\": 20, \"equipment\": [\"mat\", \"chair\", \"wall\", \"block\"], \"notes\": [\"按入门难度安排，全程在无痛范围内慢慢呼吸。\"], \"safetyNotes\": [\"不适加重就停止。\"], \"blocks\": [{\"type\": \"warmup\", \"items\": [{\"exerciseId\": \"n-pelvis-circle\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"h-hip-gate\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 6, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"n-chair-wiper\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 6, \"perSide\": false, \"restSeconds\": 10}]}, {\"type\": \"main\", \"items\": [{\"exerciseId\": \"h-wall-straddle\", \"mode\": \"time\", \"sets\": 3, \"workSeconds\": 45, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"n-straddle-fold\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"h-adductor-rock\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 30, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"n-half-split\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 30, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"s-kneel-hipflex\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 30, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"s-seated-fold\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"n-wide-fold\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": false, \"restSeconds\": 10}]}, {\"type\": \"cooldown\", \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": true, \"restSeconds\": 10}]}]}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": true,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [
+     "靠墙仰卧 V 字分腿（h-wall-straddle）：组数 3 超出推荐 [1, 2]"
+    ],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 20.0
+   }
+  }
+ ]
+}

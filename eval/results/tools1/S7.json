@@ -1,0 +1,44 @@
+{
+ "case": "S7",
+ "profile": "smartfit",
+ "note": "模糊请求",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "text",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "S7",
+   "profile": "smartfit",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 2.9,
+   "usage": {
+    "prompt": 13399,
+    "completion": 199,
+    "reasoning": 174,
+    "cached": 13312,
+    "total": 13598
+   },
+   "error": null,
+   "finish": "stop",
+   "ts": "2026-10-20T17:04:51+0000",
+   "content": "想动一动很好！你更想练哪方面，还是先来 10 分钟全身活动一下？",
+   "tool_calls": [],
+   "validation": {
+    "ok": true,
+    "tool": null,
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": null
+   }
+  }
+ ]
+}

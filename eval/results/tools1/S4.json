@@ -1,0 +1,103 @@
+{
+ "case": "S4",
+ "profile": "smartfit",
+ "note": "膝盖疼",
+ "ok": true,
+ "submissions": 2,
+ "fallback": false,
+ "leaked": false,
+ "tool": "show_plan",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "S4",
+   "profile": "smartfit",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 78.4,
+   "usage": {
+    "prompt": 13408,
+    "completion": 3735,
+    "reasoning": 2959,
+    "cached": 13312,
+    "total": 17143
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T17:03:02+0000",
+   "content": "膝盖不舒服，我按「护膝」来排，全程避开屈膝承重动作，用居家徒手+垫子/椅子完成，难度按入门来。\n\n",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-8cdcd45d1947ae9e",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"schemaVersion\": 1, \"title\": \"居家减脂 20 分钟\", \"summary\": \"护膝版居家全身燃脂，用不伤膝的推拉、臀腿与核心动作组合，20 分钟可完成。\", \"goal\": \"fullbody\", \"scene\": \"home\", \"level\": 1, \"targetMinutes\": 20, \"equipment\": [\"mat\", \"chair\", \"wall\"], \"avoid\": [\"膝\"], \"safetyNotes\": [\"不适加重就停止\"], \"notes\": [\"默认居家、入门难度，时长 20 分钟\"], \"blocks\": [{\"type\": \"warmup\", \"name\": \"热身\", \"items\": [{\"exerciseId\": \"h-calf-raise\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 15, \"perSide\": false, \"restSeconds\": 30}, {\"exerciseId\": \"h-catcow-quad\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 10}]}, {\"type\": \"main\", \"name\": \"主训练\", \"items\": [{\"exerciseId\": \"h-good-morning\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 12, \"perSide\": false, \"restSeconds\": 30}, {\"exerciseId\": \"h-incline-pushup\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 10, \"perSide\": false, \"restSeconds\": 30}, {\"exerciseId\": \"w-feet-on-chair-bridge\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 12, \"perSide\": false, \"restSeconds\": 30}, {\"exerciseId\": \"h-side-leg-raise\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 12, \"perSide\": true, \"restSeconds\": 30}, {\"exerciseId\": \"h-crunch\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 15, \"perSide\": false, \"restSeconds\": 30}]}, {\"type\": \"cooldown\", \"name\": \"放松\", \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-supine-twist\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}]}]}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": false,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [
+     "E_SIDE 仰卧抱膝（h-knee-hug）：perSide 应为 false"
+    ],
+    "issues": [
+     {
+      "path": "blocks[2].items[0].perSide",
+      "code": "E_SIDE",
+      "expected": "false",
+      "actual": "true",
+      "message": "仰卧抱膝（h-knee-hug）：perSide 应为 false"
+     }
+    ],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 25.5
+   }
+  },
+  {
+   "mode": "tools",
+   "case": "S4",
+   "profile": "smartfit",
+   "round": 1,
+   "attempt": 2,
+   "seconds": 17.7,
+   "usage": {
+    "prompt": 14308,
+    "completion": 784,
+    "reasoning": 42,
+    "cached": 13312,
+    "total": 15092
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T17:03:20+0000",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-a06999a7eb34f6e0",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"avoid\": [\"膝\"], \"blocks\": [{\"items\": [{\"exerciseId\": \"h-calf-raise\", \"mode\": \"reps\", \"perSide\": false, \"reps\": 15, \"restSeconds\": 30, \"sets\": 2}, {\"exerciseId\": \"h-catcow-quad\", \"mode\": \"time\", \"perSide\": false, \"restSeconds\": 10, \"sets\": 1, \"workSeconds\": 40}], \"name\": \"热身\", \"type\": \"warmup\"}, {\"items\": [{\"exerciseId\": \"h-good-morning\", \"mode\": \"reps\", \"perSide\": false, \"reps\": 12, \"restSeconds\": 30, \"sets\": 3}, {\"exerciseId\": \"h-incline-pushup\", \"mode\": \"reps\", \"perSide\": false, \"reps\": 10, \"restSeconds\": 30, \"sets\": 3}, {\"exerciseId\": \"w-feet-on-chair-bridge\", \"mode\": \"reps\", \"perSide\": false, \"reps\": 12, \"restSeconds\": 30, \"sets\": 3}, {\"exerciseId\": \"h-side-leg-raise\", \"mode\": \"reps\", \"perSide\": true, \"reps\": 12, \"restSeconds\": 30, \"sets\": 2}, {\"exerciseId\": \"h-crunch\", \"mode\": \"reps\", \"perSide\": false, \"reps\": 15, \"restSeconds\": 30, \"sets\": 3}], \"name\": \"主训练\", \"type\": \"main\"}, {\"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"perSide\": false, \"restSeconds\": 10, \"sets\": 1, \"workSeconds\": 30}, {\"exerciseId\": \"h-supine-twist\", \"mode\": \"time\", \"perSide\": true, \"restSeconds\": 10, \"sets\": 1, \"workSeconds\": 40}], \"name\": \"放松\", \"type\": \"cooldown\"}], \"equipment\": [\"mat\", \"chair\", \"wall\"], \"goal\": \"fullbody\", \"level\": 1, \"notes\": [\"默认居家、入门难度，时长 20 分钟\"], \"safetyNotes\": [\"不适加重就停止\"], \"scene\": \"home\", \"schemaVersion\": 1, \"summary\": \"护膝版居家全身燃脂，用不伤膝的推拉、臀腿与核心动作组合，20 分钟可完成。\", \"targetMinutes\": 20, \"title\": \"居家减脂 20 分钟\"}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": true,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 24.9
+   }
+  }
+ ]
+}

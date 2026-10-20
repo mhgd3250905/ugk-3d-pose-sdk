@@ -1,0 +1,53 @@
+{
+ "case": "H6",
+ "profile": "hiplab",
+ "note": "不存在/不在范围的器械动作",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "show_plan",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "H6",
+   "profile": "hiplab",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 49.0,
+   "usage": {
+    "prompt": 6486,
+    "completion": 4221,
+    "reasoning": 3556,
+    "cached": 6400,
+    "total": 10707
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T16:55:46+0000",
+   "content": "本 App 只做开胯与髋部训练，健身房器械（髋外展机、史密斯深蹲）不在范围内。给你排一份居家髋部灵活+臀部小力量，12 分钟，默认难度 1。\n\n",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-9344c284ddd3e632",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"schemaVersion\": 1, \"title\": \"居家髋部灵活+臀力\", \"summary\": \"髋部灵活+臀部小力量\", \"goal\": \"mobility\", \"scene\": \"home\", \"level\": 1, \"targetMinutes\": 12, \"equipment\": [\"mat\", \"block\"], \"blocks\": [{\"id\": \"warmup\", \"type\": \"warmup\", \"items\": [{\"exerciseId\": \"n-pelvis-circle\", \"mode\": \"time\", \"sets\": 1, \"perSide\": false, \"workSeconds\": 30, \"restSeconds\": 10}]}, {\"id\": \"main\", \"type\": \"main\", \"items\": [{\"exerciseId\": \"w-clamshell\", \"mode\": \"reps\", \"sets\": 2, \"perSide\": true, \"reps\": 12, \"restSeconds\": 30}, {\"exerciseId\": \"glute-max-A\", \"mode\": \"reps\", \"sets\": 2, \"perSide\": true, \"reps\": 10, \"restSeconds\": 30}, {\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 1, \"perSide\": false, \"workSeconds\": 40, \"restSeconds\": 10}, {\"exerciseId\": \"n-straddle-fold\", \"mode\": \"time\", \"sets\": 1, \"perSide\": false, \"workSeconds\": 40, \"restSeconds\": 10}]}, {\"id\": \"cooldown\", \"type\": \"cooldown\", \"items\": [{\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"perSide\": true, \"workSeconds\": 30, \"restSeconds\": 10}, {\"exerciseId\": \"s-kneel-hipflex\", \"mode\": \"time\", \"sets\": 1, \"perSide\": true, \"workSeconds\": 30, \"restSeconds\": 10}]}], \"notes\": [\"用默认难度 1、居家、12 分钟；健身房器械不在本 App 范围。\"], \"safetyNotes\": [\"不痛的范围内，慢慢呼吸。\"]}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": true,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 12.9
+   }
+  }
+ ]
+}

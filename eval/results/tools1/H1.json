@@ -1,0 +1,55 @@
+{
+ "case": "H1",
+ "profile": "hiplab",
+ "note": "睡前放松",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "show_plan",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "H1",
+   "profile": "hiplab",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 99.6,
+   "usage": {
+    "prompt": 6483,
+    "completion": 3818,
+    "reasoning": 3013,
+    "cached": 6400,
+    "total": 10301
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T16:50:25+0000",
+   "content": "给你排了 15 分钟睡前髋部放松，以仰卧和坐姿拉伸为主，动作放慢、不痛的范围内慢慢呼吸。\n\n",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-b32b56843440c845",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"schemaVersion\": 1, \"title\": \"睡前髋部放松\", \"summary\": \"睡前舒缓久坐紧绷的髋部，以仰卧和坐姿拉伸为主，动作放慢。\", \"goal\": \"relax\", \"scene\": \"home\", \"level\": 1, \"targetMinutes\": 15, \"equipment\": [\"mat\", \"block\"], \"blocks\": [{\"id\": \"warmup\", \"type\": \"warmup\", \"items\": [{\"exerciseId\": \"n-windshield\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 8, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"n-leg-circles\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 6, \"perSide\": true, \"restSeconds\": 10}]}, {\"id\": \"main\", \"type\": \"main\", \"items\": [{\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 60, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"n-thomas-test\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-wall-straddle\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 60, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"s-seated-fold\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 60, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"n-straddle-fold\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 60, \"perSide\": false, \"restSeconds\": 10}]}, {\"id\": \"cooldown\", \"type\": \"cooldown\", \"items\": [{\"exerciseId\": \"h-supine-twist\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}]}], \"notes\": [\"睡前放松以仰卧、坐姿为主，不安排力量动作。\", \"动作放慢，不痛的范围内慢慢呼吸。\"], \"safetyNotes\": [\"所有动作在舒适范围内进行，不痛的范围内慢慢呼吸；若不适加重就停止。\"]}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": true,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [
+     "plan.equipment 漏写 ['wall']"
+    ],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 11.6
+   }
+  }
+ ]
+}

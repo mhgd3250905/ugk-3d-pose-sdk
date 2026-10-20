@@ -142,10 +142,18 @@ def run_case(case, profiles, prompts, tools, rnd):
     return f"{case['id']} {'✓' if ok else '✗'} subs={len(subs)} tool={out['tool']} expect={probs} errs={errs}"
 
 
-def summary(rnd):
+def summary(rnd, recheck=False):
     d = os.path.join(RES, f"tools{rnd}")
     cases = {c["id"]: c for c in load(CASES)}
     rows = [load(os.path.join(d, f"{cid}.json")) for cid in cases if os.path.exists(os.path.join(d, f"{cid}.json"))]
+    if recheck:  # 用例期望改了：对已落盘的最后一次提交重算期望（不调模型）
+        profiles = {k: load(os.path.join(PROFILES_DIR, f"{k}.json")) for k in ("flarelab", "hiplab", "smartfit")}
+        for r in rows:
+            last = r["subs"][-1]
+            if r["ok"]:
+                R = validate_tool_turn(last.get("content", ""), last.get("tool_calls", []), legacy.CATALOG, profiles[r["profile"]], cases[r["case"]].get("request"))
+                r["expectProblems"] = check_expect(cases[r["case"]], R, last.get("content", ""), last.get("tool_calls", []))
+                json.dump(r, open(os.path.join(d, f"{r['case']}.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     calls = [s for r in rows for s in r["subs"]]
     tok = lambda k: sum((s.get("usage") or {}).get(k) or 0 for s in calls)
     n = len(rows)
@@ -179,11 +187,12 @@ def main():
     ap.add_argument("--round", type=int, default=1)
     ap.add_argument("--cases", default="")
     ap.add_argument("--gap", type=float, default=1.0)
+    ap.add_argument("--recheck", action="store_true", help="summary 时按当前用例期望重算（不调模型）")
     a = ap.parse_args()
     legacy.CATALOG = load(default_catalog_path())
     os.makedirs(RES, exist_ok=True)
     if a.cmd == "summary":
-        return summary(a.round)
+        return summary(a.round, a.recheck)
     profiles = {k: load(os.path.join(PROFILES_DIR, f"{k}.json")) for k in ("flarelab", "hiplab", "smartfit")}
     prompts = {k: build_system_prompt(legacy.CATALOG, p, v3=True) for k, p in profiles.items()}
     tools = {k: build_tools(legacy.CATALOG, p) for k, p in profiles.items()}

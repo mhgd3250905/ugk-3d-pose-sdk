@@ -1,0 +1,53 @@
+{
+ "case": "S5",
+ "profile": "smartfit",
+ "note": "不存在的动作",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "show_plan",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "S5",
+   "profile": "smartfit",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 78.8,
+   "usage": {
+    "prompt": 13413,
+    "completion": 2990,
+    "reasoning": 2384,
+    "cached": 13056,
+    "total": 16403
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T17:04:39+0000",
+   "content": "波比跳库里没有，用深蹲+上斜俯卧撑代替，开合跳用低冲击版；给你排了 15 分钟循环。\n\n",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-89784c3679b89557",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"schemaVersion\": 1, \"title\": \"15分钟HIIT\", \"summary\": \"深蹲+上斜俯卧撑代替波比跳，配低冲击开合跳，快速燃脂。\", \"goal\": \"fullbody\", \"scene\": \"home\", \"level\": 1, \"targetMinutes\": 15, \"equipment\": [\"mat\", \"chair\", \"wall\"], \"blocks\": [{\"type\": \"warmup\", \"name\": \"热身\", \"items\": [{\"exerciseId\": \"h-wall-angel\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 10, \"perSide\": false, \"restSeconds\": 10}]}, {\"type\": \"circuit\", \"name\": \"HIIT循环\", \"rounds\": 5, \"restBetweenRoundsSeconds\": 30, \"items\": [{\"exerciseId\": \"h-squat\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 12, \"perSide\": false, \"restSeconds\": 15}, {\"exerciseId\": \"h-incline-pushup\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 8, \"perSide\": false, \"restSeconds\": 15}, {\"exerciseId\": \"h-step-jack\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": false, \"restSeconds\": 15}]}, {\"type\": \"cooldown\", \"name\": \"放松\", \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": false, \"restSeconds\": 0}]}], \"notes\": [\"波比跳库里没有，用深蹲+上斜俯卧撑代替；开合跳用低冲击开合跳代替。\"], \"safetyNotes\": [\"动作中不适加重就停止。\"]}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": true,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 17.3
+   }
+  }
+ ]
+}

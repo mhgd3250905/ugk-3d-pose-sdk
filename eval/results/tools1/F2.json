@@ -1,0 +1,53 @@
+{
+ "case": "F2",
+ "profile": "flarelab",
+ "note": "健身房 C 档",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "show_plan",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "F2",
+   "profile": "flarelab",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 50.6,
+   "usage": {
+    "prompt": 7184,
+    "completion": 3188,
+    "reasoning": 2217,
+    "cached": 0,
+    "total": 10372
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T16:35:12+0000",
+   "content": "按 45 分钟、健身房、入门水平排好了，支撑臂和核心都照顾到，直接开练。\n\n",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-91464f936fbdd5ba",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"schemaVersion\": 1, \"title\": \"支撑核心45分钟\", \"summary\": \"健身房 45 分钟，先热身手腕肩胛，再练支撑臂与核心，最后放松。\", \"goal\": \"strength\", \"scene\": \"gym\", \"level\": 1, \"targetMinutes\": 45, \"equipment\": [\"mat\", \"band\", \"parallettes\", \"foam-roller\", \"wall\"], \"blocks\": [{\"type\": \"warmup\", \"name\": \"热身\", \"items\": [{\"exerciseId\": \"forearms-A\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 10, \"perSide\": false, \"restSeconds\": 15}, {\"exerciseId\": \"serratus-A\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 10, \"perSide\": false, \"restSeconds\": 30}, {\"exerciseId\": \"scapular-A\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 8, \"perSide\": false, \"restSeconds\": 30}, {\"exerciseId\": \"rotator-cuff-B\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 12, \"perSide\": true, \"restSeconds\": 30}]}, {\"type\": \"main\", \"name\": \"主训练\", \"items\": [{\"exerciseId\": \"rotator-cuff-A\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 8, \"perSide\": true, \"restSeconds\": 30}, {\"exerciseId\": \"triceps-B\", \"mode\": \"time\", \"sets\": 4, \"workSeconds\": 15, \"perSide\": false, \"restSeconds\": 45}, {\"exerciseId\": \"abs-A\", \"mode\": \"time\", \"sets\": 3, \"workSeconds\": 20, \"perSide\": false, \"restSeconds\": 30}, {\"exerciseId\": \"obliques-B\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 10, \"perSide\": true, \"restSeconds\": 30}, {\"exerciseId\": \"deltoids-A\", \"mode\": \"time\", \"sets\": 3, \"workSeconds\": 25, \"perSide\": true, \"restSeconds\": 30}, {\"exerciseId\": \"lats-A\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 8, \"perSide\": false, \"restSeconds\": 45}]}, {\"type\": \"circuit\", \"name\": \"循环\", \"rounds\": 2, \"restBetweenRoundsSeconds\": 60, \"items\": [{\"exerciseId\": \"chest-A\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 5, \"perSide\": true, \"restSeconds\": 45}, {\"exerciseId\": \"obliques-A\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 6, \"perSide\": true, \"restSeconds\": 45}, {\"exerciseId\": \"hip-abductors-A\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 8, \"perSide\": true, \"restSeconds\": 30}]}, {\"type\": \"cooldown\", \"name\": \"放松\", \"items\": [{\"exerciseId\": \"erectors-A\", \"mode\": \"time\", \"sets\": 3, \"workSeconds\": 20, \"perSide\": false, \"restSeconds\": 30}, {\"exerciseId\": \"serratus-B\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 10, \"perSide\": false, \"restSeconds\": 30}]}]}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": true,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 43.7
+   }
+  }
+ ]
+}

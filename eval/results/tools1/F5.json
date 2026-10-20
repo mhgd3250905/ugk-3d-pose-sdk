@@ -1,0 +1,44 @@
+{
+ "case": "F5",
+ "profile": "flarelab",
+ "note": "不支持的场所",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "text",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "F5",
+   "profile": "flarelab",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 2.6,
+   "usage": {
+    "prompt": 7185,
+    "completion": 409,
+    "reasoning": 376,
+    "cached": 0,
+    "total": 7594
+   },
+   "error": null,
+   "finish": "stop",
+   "ts": "2026-10-20T16:45:49+0000",
+   "content": "办公室这个场所 App 不覆盖，没法给你排计划。要不你回家或去健身房时，我给你排一组 10 分钟的托马斯专项？",
+   "tool_calls": [],
+   "validation": {
+    "ok": true,
+    "tool": null,
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": null
+   }
+  }
+ ]
+}

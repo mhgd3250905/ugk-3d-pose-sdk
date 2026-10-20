@@ -1,0 +1,53 @@
+{
+ "case": "H4",
+ "profile": "hiplab",
+ "note": "办公室无器械",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "show_plan",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "H4",
+   "profile": "hiplab",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 65.8,
+   "usage": {
+    "prompt": 6486,
+    "completion": 3021,
+    "reasoning": 2374,
+    "cached": 0,
+    "total": 9507
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T16:53:40+0000",
+   "content": "工位用椅子辅助，10 分钟放松髋前侧，全程在舒服的范围内慢慢呼吸。\n\n",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-aba2eeb456679054",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"schemaVersion\": 1, \"title\": \"工位髋前侧放松\", \"summary\": \"10 分钟工位髋前侧拉伸，用椅子辅助，全程不痛的范围内慢慢呼吸。\", \"goal\": \"mobility\", \"scene\": \"office\", \"level\": 1, \"targetMinutes\": 10, \"equipment\": [\"chair\"], \"blocks\": [{\"type\": \"warmup\", \"id\": \"warmup\", \"items\": [{\"exerciseId\": \"n-pelvis-circle\", \"mode\": \"time\", \"sets\": 1, \"perSide\": false, \"workSeconds\": 30, \"restSeconds\": 10}]}, {\"type\": \"main\", \"id\": \"main\", \"items\": [{\"exerciseId\": \"o-stand-lunge\", \"mode\": \"time\", \"sets\": 1, \"perSide\": true, \"workSeconds\": 30, \"restSeconds\": 10}, {\"exerciseId\": \"h-hip-gate\", \"mode\": \"reps\", \"sets\": 1, \"perSide\": true, \"reps\": 6, \"restSeconds\": 10}, {\"exerciseId\": \"n-wide-fold\", \"mode\": \"time\", \"sets\": 1, \"perSide\": false, \"workSeconds\": 30, \"restSeconds\": 10}, {\"exerciseId\": \"o-seated-fig4\", \"mode\": \"time\", \"sets\": 1, \"perSide\": true, \"workSeconds\": 30, \"restSeconds\": 10}, {\"exerciseId\": \"o-seated-ham\", \"mode\": \"time\", \"sets\": 1, \"perSide\": true, \"workSeconds\": 30, \"restSeconds\": 10}]}, {\"type\": \"cooldown\", \"id\": \"cooldown\", \"items\": [{\"exerciseId\": \"o-stand-crossreach\", \"mode\": \"time\", \"sets\": 1, \"perSide\": true, \"workSeconds\": 30, \"restSeconds\": 10}]}], \"notes\": [\"工位只用椅子和站姿动作，没用到其他器械。\"], \"safetyNotes\": [\"全程在舒服的范围内，不痛的范围内慢慢呼吸。\"]}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": true,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 7.7
+   }
+  }
+ ]
+}

@@ -1,0 +1,55 @@
+{
+ "case": "S3",
+ "profile": "smartfit",
+ "note": "居家哑铃",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "show_plan",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "S3",
+   "profile": "smartfit",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 68.5,
+   "usage": {
+    "prompt": 13410,
+    "completion": 4215,
+    "reasoning": 3563,
+    "cached": 13056,
+    "total": 17625
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T17:01:43+0000",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-bce2dab797bea92f",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"schemaVersion\": 1, \"title\": \"哑铃上肢训练\", \"summary\": \"一对哑铃的 30 分钟上肢力量训练，推拉结合，按入门强度排。\", \"goal\": \"strength\", \"scene\": \"home\", \"level\": 1, \"targetMinutes\": 30, \"equipment\": [\"dumbbell\", \"mat\", \"chair\"], \"blocks\": [{\"type\": \"warmup\", \"name\": \"热身\", \"items\": [{\"exerciseId\": \"h-wall-angel\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 10, \"perSide\": false, \"restSeconds\": 10}]}, {\"type\": \"main\", \"name\": \"主训练\", \"items\": [{\"exerciseId\": \"h-db-floor-press\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 10, \"perSide\": false, \"restSeconds\": 30}, {\"exerciseId\": \"h-db-row\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 10, \"perSide\": true, \"restSeconds\": 30}, {\"exerciseId\": \"h-db-lateral\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 12, \"perSide\": false, \"restSeconds\": 30}, {\"exerciseId\": \"h-db-curl\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 12, \"perSide\": false, \"restSeconds\": 30}, {\"exerciseId\": \"h-incline-pushup\", \"mode\": \"reps\", \"sets\": 3, \"reps\": 10, \"perSide\": false, \"restSeconds\": 30}]}, {\"type\": \"cooldown\", \"name\": \"放松\", \"items\": [{\"exerciseId\": \"h-seated-reachback\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": false, \"restSeconds\": 10}, {\"exerciseId\": \"h-chair-lat\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": false, \"restSeconds\": 10}]}], \"notes\": [\"你没说水平，按入门强度排；哑铃重量以能标准做完为准。\"]}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": true,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [
+     "plan.equipment 漏写 ['wall']"
+    ],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 22.5
+   }
+  }
+ ]
+}

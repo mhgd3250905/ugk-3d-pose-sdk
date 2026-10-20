@@ -1,0 +1,33 @@
+{
+ "case": "F7",
+ "profile": "flarelab",
+ "note": "指定器械",
+ "ok": false,
+ "submissions": 1,
+ "fallback": true,
+ "leaked": false,
+ "tool": "text",
+ "expectProblems": [
+  "回落（门禁未过或调用失败）"
+ ],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "F7",
+   "profile": "flarelab",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 120.0,
+   "usage": null,
+   "error": "HTTP 504: upstream request deadline exceeded",
+   "finish": null,
+   "ts": "2026-10-20T16:48:35+0000",
+   "validation": {
+    "ok": false,
+    "errors": [
+     "E_CALL HTTP 504: upstream request deadline exceeded"
+    ]
+   }
+  }
+ ]
+}

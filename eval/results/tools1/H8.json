@@ -1,0 +1,55 @@
+{
+ "case": "H8",
+ "profile": "hiplab",
+ "note": "模糊请求",
+ "ok": true,
+ "submissions": 1,
+ "fallback": false,
+ "leaked": false,
+ "tool": "show_plan",
+ "expectProblems": [],
+ "subs": [
+  {
+   "mode": "tools",
+   "case": "H8",
+   "profile": "hiplab",
+   "round": 1,
+   "attempt": 1,
+   "seconds": 81.4,
+   "usage": {
+    "prompt": 6470,
+    "completion": 2206,
+    "reasoning": 1413,
+    "cached": 6400,
+    "total": 8676
+   },
+   "error": null,
+   "finish": "tool_calls",
+   "ts": "2026-10-20T16:57:15+0000",
+   "content": "给你排了一份 12 分钟、居家、入门级的开胯计划，以拉伸和活动度为主，全程在舒服的范围内慢慢呼吸。\n\n",
+   "tool_calls": [
+    {
+     "id": "chatcmpl-tool-8f8f624331e697ed",
+     "type": "function",
+     "function": {
+      "name": "show_plan",
+      "arguments": "{\"schemaVersion\": 1, \"title\": \"开胯放松 12 分钟\", \"summary\": \"以拉伸和活动度为主的温和开胯计划，放松髋部四周。\", \"goal\": \"mobility\", \"scene\": \"home\", \"level\": 1, \"targetMinutes\": 12, \"equipment\": [\"mat\", \"wall\", \"block\"], \"blocks\": [{\"type\": \"warmup\", \"name\": \"热身\", \"items\": [{\"exerciseId\": \"n-pelvis-circle\", \"mode\": \"time\", \"sets\": 1, \"perSide\": false, \"workSeconds\": 30, \"restSeconds\": 10}, {\"exerciseId\": \"h-hip-gate\", \"mode\": \"reps\", \"sets\": 1, \"perSide\": true, \"reps\": 6, \"restSeconds\": 10}]}, {\"type\": \"main\", \"name\": \"主训练\", \"items\": [{\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 1, \"perSide\": false, \"workSeconds\": 40, \"restSeconds\": 10}, {\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"perSide\": true, \"workSeconds\": 30, \"restSeconds\": 10}, {\"exerciseId\": \"h-wall-straddle\", \"mode\": \"time\", \"sets\": 1, \"perSide\": false, \"workSeconds\": 45, \"restSeconds\": 10}, {\"exerciseId\": \"s-9090\", \"mode\": \"time\", \"sets\": 1, \"perSide\": true, \"workSeconds\": 40, \"restSeconds\": 10}, {\"exerciseId\": \"s-kneel-hipflex\", \"mode\": \"time\", \"sets\": 1, \"perSide\": true, \"workSeconds\": 30, \"restSeconds\": 10}, {\"exerciseId\": \"s-frog\", \"mode\": \"time\", \"sets\": 1, \"perSide\": false, \"workSeconds\": 40, \"restSeconds\": 10}, {\"exerciseId\": \"n-straddle-fold\", \"mode\": \"time\", \"sets\": 1, \"perSide\": false, \"workSeconds\": 40, \"restSeconds\": 10}]}, {\"type\": \"cooldown\", \"name\": \"放松\", \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"perSide\": false, \"workSeconds\": 30, \"restSeconds\": 10}]}], \"notes\": [\"默认按 12 分钟、居家、入门级安排。\", \"全程在舒服的范围内，不勉强、慢慢呼吸。\"], \"safetyNotes\": [\"任何动作出现刺痛或不适加重就停止。\"]}"
+     }
+    }
+   ],
+   "validation": {
+    "ok": true,
+    "tool": "show_plan",
+    "leaked": false,
+    "errors": [],
+    "issues": [],
+    "warnings": [
+     "plan.equipment 漏写 ['chair']"
+    ],
+    "unknownIds": [],
+    "scopeIds": [],
+    "estMinutes": 10.4
+   }
+  }
+ ]
+}

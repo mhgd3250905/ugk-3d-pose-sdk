@@ -87,7 +87,9 @@ class Rhythm {
       ],
       holdSeconds: (j['holdSeconds'] as num?)?.toInt(),
       defaultReps: (j['reps'] as num?)?.toInt(),
-      source: RhythmSource.catalog,
+      source: j['source'] == 'repSeconds'
+          ? RhythmSource.repSeconds
+          : RhythmSource.catalog,
     );
   }
 

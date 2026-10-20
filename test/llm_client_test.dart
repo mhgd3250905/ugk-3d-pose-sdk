@@ -222,4 +222,132 @@ void main() {
     k = 'b';
     expect((await auth.headers())['Authorization'], 'Bearer b');
   });
+  test(
+    'async auth failure cancels its attempt timer and never sends HTTP or retries',
+    () async {
+      final timers = <Timer>[];
+      var headersRead = 0;
+      var sent = 0;
+      await runZoned(
+        () async {
+          final c = OpenAiCompatibleClient(
+            config: config,
+            auth: ApiKeyAuth.lazy(() async {
+              headersRead++;
+              await Future<void>.delayed(Duration.zero);
+              throw StateError('local auth preparation failed');
+            }),
+            sleep: noSleep,
+            httpClient: MockClient((_) async {
+              sent++;
+              return res(jsonEncode(okBody()));
+            }),
+          );
+          await expectLater(
+            c.complete(req),
+            throwsA(
+              isA<LlmException>().having(
+                (e) => e.kind,
+                'kind',
+                LlmErrorKind.auth,
+              ),
+            ),
+          );
+        },
+        zoneSpecification: ZoneSpecification(
+          createTimer: (self, parent, zone, duration, callback) {
+            final timer = parent.createTimer(zone, duration, callback);
+            if (duration == config.timeout) timers.add(timer);
+            return timer;
+          },
+        ),
+      );
+      expect(headersRead, 1);
+      expect(sent, 0);
+      expect(sleeps, isEmpty);
+      expect(timers, hasLength(1));
+      expect(timers.single.isActive, isFalse);
+    },
+  );
+
+  test(
+    'cancel pending auth promptly, cancel timer, and ignore late headers',
+    () async {
+      final timers = <Timer>[];
+      final headers = Completer<String>();
+      final cancel = CancelToken();
+      var sent = 0;
+      await runZoned(
+        () async {
+          final c = OpenAiCompatibleClient(
+            config: config,
+            auth: ApiKeyAuth.lazy(() => headers.future),
+            sleep: noSleep,
+            httpClient: MockClient((_) async {
+              sent++;
+              return res(jsonEncode(okBody()));
+            }),
+          );
+          final request = c.complete(req, cancel: cancel);
+          await Future<void>.delayed(Duration.zero);
+          cancel.cancel('auth cancelled');
+          await expectLater(
+            request.timeout(const Duration(seconds: 1)),
+            throwsA(
+              isA<LlmException>().having(
+                (e) => e.kind,
+                'kind',
+                LlmErrorKind.cancelled,
+              ),
+            ),
+          );
+          headers.complete('late');
+          await Future<void>.delayed(Duration.zero);
+        },
+        zoneSpecification: ZoneSpecification(
+          createTimer: (self, parent, zone, duration, callback) {
+            final timer = parent.createTimer(zone, duration, callback);
+            if (duration == config.timeout) timers.add(timer);
+            return timer;
+          },
+        ),
+      );
+      expect(sent, 0);
+      expect(sleeps, isEmpty);
+      expect(timers, hasLength(1));
+      expect(timers.single.isActive, isFalse);
+    },
+  );
+
+  test(
+    'pending auth times out without HTTP; a late auth error is handled',
+    () async {
+      final headers = Completer<String>();
+      var sent = 0;
+      final c = OpenAiCompatibleClient(
+        config: config.copyWith(
+          timeout: const Duration(milliseconds: 30),
+          maxRetries: 0,
+        ),
+        auth: ApiKeyAuth.lazy(() => headers.future),
+        httpClient: MockClient((_) async {
+          sent++;
+          return res(jsonEncode(okBody()));
+        }),
+      );
+      await expectLater(
+        c.complete(req).timeout(const Duration(seconds: 1)),
+        throwsA(
+          isA<LlmException>().having(
+            (e) => e.kind,
+            'kind',
+            LlmErrorKind.timeout,
+          ),
+        ),
+      );
+      headers.completeError(StateError('late auth failure'));
+      await Future<void>.delayed(Duration.zero);
+      expect(sent, 0);
+    },
+  );
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3 — 2026-10-20
+
+### 修复
+- 异步鉴权头准备纳入同一请求的取消/超时及 finally 清理；存储等鉴权准备失败不遗留计时器、不发送或重试 HTTP。
+- 取消/超时后迟到的鉴权结果不再触发请求；已有 HTTP 重试与取消语义保持。HipLab 新中转用宿主 AuthProvider 提供 X-App-Key / X-Device-Id，无需改变其他 App 的默认鉴权。
+
+### 验证
+- 根包 `dart test` 168项、`dart analyze` 0问题；训练包118项、`flutter analyze` 0问题。新中转真实调用与手机流程由HipLab单独记录，不由SDK单测推定通过。
+
 ## ugk_trainer 0.1.0 — 2026-10-20
 
 新 Flutter 包 `packages/ugk_trainer`（依赖本仓库 ugk_coach），按 `docs/trainer-plan.md` 第 1 步实现；根包 ugk_coach 未改（根 `analysis_options.yaml` 排除 `packages/**`）。

@@ -87,22 +87,57 @@ class OpenAiCompatibleClient implements LlmClient {
       timedOut = true;
       if (!abort.isCompleted) abort.complete();
     });
-    unawaited(cancel?.whenCancelled.then((_) {
-      if (!abort.isCompleted) abort.complete();
-    }));
-    final req = http.AbortableRequest('POST', config.chatCompletionsUri, abortTrigger: abort.future)
-      ..headers.addAll({
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...await auth.headers(),
-      })
-      ..body = body;
+    unawaited(
+      cancel?.whenCancelled.then((_) {
+        if (!abort.isCompleted) abort.complete();
+      }),
+    );
     http.Response res;
     try {
+      Map<String, String> headers;
+      try {
+        // Auth can involve local persistence or token refresh. It shares the
+        // attempt deadline/cancellation, and a late result must never send HTTP.
+        headers = await Future.any<Map<String, String>>([
+          Future<Map<String, String>>.sync(auth.headers),
+          abort.future.then<Map<String, String>>(
+            (_) => throw http.RequestAbortedException(),
+          ),
+        ]);
+      } on http.RequestAbortedException {
+        rethrow;
+      } on Object {
+        throw LlmException(
+          LlmErrorKind.auth,
+          'Authentication headers unavailable',
+        );
+      }
+      if (abort.isCompleted || (cancel?.isCancelled ?? false)) {
+        throw http.RequestAbortedException();
+      }
+      final req =
+          http.AbortableRequest(
+              'POST',
+              config.chatCompletionsUri,
+              abortTrigger: abort.future,
+            )
+            ..headers.addAll({
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              ...headers,
+            })
+            ..body = body;
       res = await http.Response.fromStream(await _http.send(req));
     } on http.RequestAbortedException {
-      if (timedOut) throw LlmException(LlmErrorKind.timeout, '超过 ${config.timeout.inSeconds}s 未响应');
+      if (timedOut) {
+        throw LlmException(
+          LlmErrorKind.timeout,
+          '超过 ${config.timeout.inSeconds}s 未响应',
+        );
+      }
       throw LlmException(LlmErrorKind.cancelled, cancel?.reason ?? 'cancelled');
+    } on LlmException {
+      rethrow;
     } on http.ClientException catch (e) {
       throw LlmException(LlmErrorKind.network, e.message);
     } on Exception catch (e) {

@@ -54,6 +54,7 @@ class CoachResult {
   double? get cost => records.any((r) => r.cost != null) ? records.fold<double>(0, (a, r) => a + (r.cost ?? 0)) : null;
 }
 
+@Deprecated('0.2 起改用 CoachSession（工具版 + 门禁）；0.1 接口保留一版，0.3 移除')
 class CoachAssistant {
   CoachAssistant({
     required this.client,

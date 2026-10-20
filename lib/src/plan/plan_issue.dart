@@ -4,8 +4,10 @@ library;
 enum IssueSeverity { error, warning }
 
 class PlanIssue {
-  const PlanIssue(this.code, this.message, {this.path, this.exerciseId, this.severity = IssueSeverity.error});
-  const PlanIssue.warning(this.code, this.message, {this.path, this.exerciseId}) : severity = IssueSeverity.warning;
+  const PlanIssue(this.code, this.message,
+      {this.path, this.exerciseId, this.severity = IssueSeverity.error, this.expected, this.actual, this.fix});
+  const PlanIssue.warning(this.code, this.message, {this.path, this.exerciseId, this.expected, this.actual, this.fix})
+    : severity = IssueSeverity.warning;
 
   final String code;
   final String message;
@@ -14,6 +16,14 @@ class PlanIssue {
   final String? path;
   final String? exerciseId;
   final IssueSeverity severity;
+
+  /// 期望值 / 实际值 / 一句改法（门禁回传给模型用；旧规则可能为空）。
+  final String? expected;
+  final String? actual;
+  final String? fix;
+
+  PlanIssue copyWith({String? path, String? fix}) => PlanIssue(code, message,
+      path: path ?? this.path, exerciseId: exerciseId, severity: severity, expected: expected, actual: actual, fix: fix ?? this.fix);
 
   bool get isError => severity == IssueSeverity.error;
 
@@ -29,6 +39,9 @@ class PlanIssue {
     if (path != null) 'path': path,
     if (exerciseId != null) 'exerciseId': exerciseId,
     'severity': severity.name,
+    'expected': ?expected,
+    'actual': ?actual,
+    'fix': ?fix,
   };
 
   @override
@@ -72,10 +85,21 @@ abstract final class IssueCodes {
   static const equipmentUndeclared = 'equipment_undeclared';
   static const avoidVocabulary = 'avoid_vocabulary';
   static const goalOutOfProfile = 'goal_out_of_profile';
+  // 工具门禁（0.2）
+  static const invalidJson = 'invalid_json';
+  static const multipleTools = 'multiple_tools';
+  static const unknownTool = 'unknown_tool';
+  static const emptyReply = 'empty_reply';
+  static const itemsCount = 'items_count';
+  static const unexpectedField = 'unexpected_field';
+  static const duplicateAction = 'duplicate_action';
 
   /// 粗分类，与 ai-coach-eval `tools/validate.py` 的 E_* 代码一一对应（评测与线上统计口径一致）。
   static String category(String code) => switch (code) {
-    notJson || envelope => 'E_JSON',
+    notJson || envelope || invalidJson => 'E_JSON',
+    multipleTools || unknownTool || emptyReply => 'E_TOOL',
+    itemsCount || unexpectedField => 'E_SCHEMA',
+    duplicateAction => 'E_DUP',
     schema || schemaVersion || emptyPlan || emptyBlock || goal => 'E_SCHEMA',
     unknownExercise => 'E_UNKNOWN',
     outOfProfile => 'E_SCOPE',

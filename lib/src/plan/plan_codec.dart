@@ -43,7 +43,9 @@ class PlanCodec {
     int? minutes,
   }) {
     final issues = <PlanIssue>[];
-    void bad(String p, String msg) => issues.add(PlanIssue(IssueCodes.schema, msg, path: p));
+    void bad(String p, String msg, [String? expected, String? actual]) =>
+        issues.add(PlanIssue(IssueCodes.schema, msg, path: p, expected: expected, actual: actual));
+    String show(Object? v) => v == null ? '缺失' : jsonEncode(v);
     if (json is! Map) {
       bad(path, 'plan 必须是 JSON 对象');
       return PlanDecodeResult(null, issues);
@@ -53,9 +55,9 @@ class PlanCodec {
     String str(String k, {String? or, bool required = true}) {
       final v = j[k];
       if (v is String && v.trim().isNotEmpty) return v.trim();
-      if (v != null && v is! String) bad('$path.$k', '$k 应为字符串');
+      if (v != null && v is! String) bad('$path.$k', '$k 应为字符串', 'string', show(v));
       if (or != null) return or;
-      if (required && !lenient) bad('$path.$k', '缺少 $k');
+      if (required && !lenient) bad('$path.$k', '缺少 $k', 'string', '缺失');
       return '';
     }
 
@@ -63,9 +65,9 @@ class PlanCodec {
       final v = m[k];
       if (v is num && v == v.roundToDouble()) return v.toInt();
       if (v != null) {
-        bad('$p.$k', '$k 应为整数，实际 ${jsonEncode(v)}');
+        bad('$p.$k', '$k 应为整数，实际 ${jsonEncode(v)}', 'integer', jsonEncode(v));
       } else if (or == null && required && !lenient) {
-        bad('$p.$k', '缺少 $k');
+        bad('$p.$k', '缺少 $k', 'integer', '缺失');
       }
       return or ?? 0;
     }
@@ -73,7 +75,7 @@ class PlanCodec {
     final sv = integer(j, path, 'schemaVersion', or: planSchemaVersion);
     final blocksRaw = j['blocks'];
     if (blocksRaw is! List) {
-      bad('$path.blocks', 'blocks 必须是数组');
+      bad('$path.blocks', 'blocks 必须是数组', 'array', show(blocksRaw));
       return PlanDecodeResult(null, issues);
     }
     final blocks = <PlanBlock>[];
@@ -86,9 +88,12 @@ class PlanCodec {
       }
       final b = asMap(braw);
       final type = BlockType.tryParse(b['type']);
-      if (type == null) bad('$bp.type', 'type 必须是 warmup / main / circuit / cooldown，实际 ${jsonEncode(b['type'])}');
+      if (type == null) {
+        bad('$bp.type', 'type 必须是 warmup / main / circuit / cooldown，实际 ${jsonEncode(b['type'])}',
+            'warmup / main / circuit / cooldown', show(b['type']));
+      }
       final itemsRaw = b['items'];
-      if (itemsRaw is! List) bad('$bp.items', 'items 必须是数组');
+      if (itemsRaw is! List) bad('$bp.items', 'items 必须是数组', 'array', show(itemsRaw));
       final items = <PlanItem>[];
       for (var ii = 0; ii < (itemsRaw is List ? itemsRaw.length : 0); ii++) {
         final ip = '$bp.items[$ii]';
@@ -101,11 +106,11 @@ class PlanCodec {
         // 规范化：模型常把目录里的 seconds 抄过来。
         if (!it.containsKey('workSeconds') && it['seconds'] is num) it['workSeconds'] = it['seconds'];
         final exId = it['exerciseId'];
-        if (exId is! String || exId.isEmpty) bad('$ip.exerciseId', '缺少 exerciseId');
+        if (exId is! String || exId.isEmpty) bad('$ip.exerciseId', '缺少 exerciseId', '白名单动作 id', show(exId));
         final mode = switch (it['mode']) { 'reps' => DoseMode.reps, 'time' => DoseMode.time, _ => null };
-        if (mode == null) bad('$ip.mode', 'mode 必须是 reps 或 time，实际 ${jsonEncode(it['mode'])}');
+        if (mode == null) bad('$ip.mode', 'mode 必须是 reps 或 time，实际 ${jsonEncode(it['mode'])}', 'reps / time', show(it['mode']));
         final perSide = it['perSide'];
-        if (perSide is! bool && !(lenient && perSide == null)) bad('$ip.perSide', 'perSide 必须是 true / false');
+        if (perSide is! bool && !(lenient && perSide == null)) bad('$ip.perSide', 'perSide 必须是 true / false', 'boolean', show(perSide));
         final sets = integer(it, ip, 'sets', or: lenient ? 1 : null);
         int? reps, work;
         if (mode == DoseMode.reps) {

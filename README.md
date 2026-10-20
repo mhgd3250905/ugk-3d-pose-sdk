@@ -52,7 +52,57 @@ eval/          评测（原 ai-coach-eval，subtree 并入）：tools/validate.p
 test/fixtures/ pose-hub-catalog.json（目录快照）golden/（提示词金样）parity.json（校验对照）packs/
 ```
 
-## 快速上手
+## 0.2 工具版接入（推荐）
+
+0.2 起入口是 `CoachSession`：模型每次回复只能是「纯文字」或「文字 + 一个工具」，两个工具：
+
+| 工具 | 用途 | 参数 |
+|---|---|---|
+| `show_actions` | 看动作（演示卡） | `items`: 1–6 个 `{actionId, note?}`，不带剂量，不重复 |
+| `show_plan` | 开练 / 改计划 | 完整 TrainingPlan v1（同一动作全计划只出现一次，多做用 sets） |
+
+门禁 `ToolGate` **只判不修**：不合格就把全部错误（位置、错误码、期望、实际、改法）作为 tool 结果回给模型重交，
+最多重交 2 次；仍不过、网络错误或回复里出现提示词暗号 → 回落 App 模板。卡片只接受门禁产出的
+`ValidatedPlan` / `ValidatedActions`（私有构造，App 造不出来；模板计划也要经 `admitTemplate`）。
+
+```dart
+import 'package:ugk_coach/ugk_coach.dart';
+
+// --dart-define=UGK_APP_KEY=...（值不进仓库）
+const appKey = String.fromEnvironment('UGK_APP_KEY');
+
+final client = OpenAiCompatibleClient(
+  config: LlmConfig.ugkWorker, // Base URL https://api.uuugk.win/v1，模型 deepseek-v4-flash-0731
+  auth: UgkWorkerAuth(
+    appKey: appKey,                          // 请求头 X-App-Key
+    deviceId: () => deviceIdStore.getOrCreateUuid(), // 请求头 X-Device-Id：每设备首次生成 UUID，持久保存一直用
+  ),                                         // 不带 Authorization（中转站 token 在 Worker 里）
+);
+
+final session = CoachSession(            // 一个 App 一个会话；关弹窗不清空
+  client: client,
+  catalog: () => catalogRepo.current,
+  profile: hiplabProfile,
+  fallback: (r) => SessionFallbackReply('先按模板给你排一套', plan: myTemplateFor(r.context)),
+);
+
+final r = await session.send(userText, context: CoachContext(scene: 'home', avoid: {'膝'}));
+switch (r.status) {
+  case TurnStatus.ok || TurnStatus.fallback:
+    showText(r.text);
+    if (r.plan != null) showPlanCard(r.plan!);        // ValidatedPlan
+    if (r.actions != null) showActionCards(r.actions!); // ValidatedActions
+  case TurnStatus.limitReached: askUserToReset();     // 会话到硬上限（默认 20 轮 / 4 万字符），session.reset()
+  case TurnStatus.inputTooLong: tellUserTooLong();    // 默认 500 字
+  case TurnStatus.cancelled || TurnStatus.error: showTemplateEntry();
+}
+```
+
+- 自定义请求头：`LlmConfig.headers`（静态）或自定义 `AuthProvider`（动态）。直连 New API（ai.uuugk.win）时 Cloudflare 会拦 Python 默认 UA，Dart 默认 UA 实测可过。
+- 提示词：内核 v3（`prompts/kernel_v3.md`）= 身份与范围 / 防破甲 / 回答方式 / 何时用哪个工具 / 参数规则 / 被打回时 / 多轮修改 / App 配置（profile 生成）/ 用户上下文。本轮条件放用户消息前缀，系统消息不变以命中前缀缓存。暗号默认 `defaultPromptCanary`，可用 `ToolPromptBuilder(canary: ...)` 换。
+- 0.1 的 `CoachAssistant.ask`（JSON 信封）保留一版，标 deprecated，HipLab / 托马斯可不跟着升；0.3 移除。
+
+## 快速上手（0.1 旧接口，deprecated）
 
 ```yaml
 # pubspec.yaml

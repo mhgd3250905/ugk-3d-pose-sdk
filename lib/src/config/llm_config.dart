@@ -15,7 +15,11 @@ class LlmConfig {
     this.jsonMode = true,
     this.extraBody = const {},
     this.pricing,
+    this.headers = const {},
   });
+
+  /// 每次请求都带的自定义头（如 Worker 的 `X-App-Key`）。鉴权头建议走 [AuthProvider]。
+  final Map<String, String> headers;
 
   /// OpenAI 兼容地址，到 `/v1` 为止，SDK 自己拼 `/chat/completions`。
   /// 中转 Worker 也填这里（例如 `https://coach-relay.example.workers.dev/v1`）。
@@ -62,6 +66,7 @@ class LlmConfig {
     bool? jsonMode,
     Map<String, Object?>? extraBody,
     Pricing? pricing,
+    Map<String, String>? headers,
   }) => LlmConfig(
     baseUrl: baseUrl ?? this.baseUrl,
     model: model ?? this.model,
@@ -73,6 +78,16 @@ class LlmConfig {
     jsonMode: jsonMode ?? this.jsonMode,
     extraBody: extraBody ?? this.extraBody,
     pricing: pricing ?? this.pricing,
+    headers: headers ?? this.headers,
+  );
+
+  /// UGK Worker（开哥的 Cloudflare Worker，中转站 token 藏在 Worker 里）。
+  /// 请求头 `X-App-Key`（--dart-define 注入）与 `X-Device-Id`（每设备 UUID）用 [UgkWorkerAuth] 带上；不带 Authorization。
+  static const ugkWorker = LlmConfig(
+    baseUrl: 'https://api.uuugk.win/v1',
+    model: 'deepseek-v4-flash-0731',
+    maxTokens: 6000,
+    timeout: Duration(seconds: 90),
   );
 
   /// 当前选定：OpenCSG 网关上的 DeepSeek（推理模型，返回 reasoning_content）。

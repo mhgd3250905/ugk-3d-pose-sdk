@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.0 — 2026-10-21
+
+### 新增：工具版（function calling）
+- `CoachSession`：单会话多轮（`send` / `reset`），用户输入上限（500 字）、硬上限（20 轮 / 4 万字符，超了返回 `TurnStatus.limitReached`，不报错）。
+- 两个工具 `show_actions`（1–6 个动作、不带剂量）/ `show_plan`（TrainingPlan v1）；本 App 动作白名单写进参数 enum。
+- `ToolGate` 门禁（只判不修，不修 JSON 语法）：错误码 `invalid_json` `schema` `unexpected_field` `items_count` `multiple_tools` `unknown_tool` `empty_reply` `unknown_exercise` `out_of_profile` `mode_mismatch` `avoid` `duplicate_action`（看动作 / 计划内同块或跨块重复），并沿用 0.1 其余计划规则；剂量超推荐、时长偏差、块顺序不理想只警告。一次报全部错误（位置 / 错误码 / 期望 / 实际 / 改法）作为 tool 结果回给模型，最多重交 2 次，仍不过回落模板。
+- `ValidatedPlan` / `ValidatedActions` 私有构造，只能由门禁产出；模板计划经 `ToolGate.admitTemplate`。
+- 内核提示词 v3（`prompts/kernel_v3.md`）含防破甲段与暗号；回复或参数里出现暗号整轮丢弃、直接回落。
+- `LlmMessage` 支持 tool 角色 / tool_calls，`LlmRequest.tools` / `toolChoice`，`LlmResponse.toolCalls`；`OpenAiCompatibleClient` 带工具时不发 response_format，正文可为空。
+- `LlmConfig.headers`（自定义请求头）、`LlmConfig.ugkWorker`、`UgkWorkerAuth`（X-App-Key + X-Device-Id，不带 Authorization）。
+- `PlanIssue` 增加 `expected` / `actual` / `fix`。
+
+### 兼容
+- 0.1 的 `CoachAssistant`（JSON 信封）保留一版，标 `@Deprecated`，行为不变。
+
+### 评测
+- `eval/tools/validate.py` 新增 `validate_tool_turn`（与 ToolGate 同口径，`test/fixtures/parity_tools.json` 逐例对照）；`eval/tools/eval_tools.py` 工具版评测；用例 24 + 破甲 8。
+
 ## ugk_trainer 0.1.0 — 2026-10-20
 
 新 Flutter 包 `packages/ugk_trainer`（依赖本仓库 ugk_coach），按 `docs/trainer-plan.md` 第 1 步实现；根包 ugk_coach 未改（根 `analysis_options.yaml` 排除 `packages/**`）。

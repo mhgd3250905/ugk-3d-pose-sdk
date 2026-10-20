@@ -1,33 +1,100 @@
 /// 模型调用的请求 / 响应 / 错误类型（与具体服务商无关）。
 library;
 
+import 'dart:convert';
+
 import '../util/json.dart';
 
-enum LlmRole { system, user, assistant }
+enum LlmRole { system, user, assistant, tool }
 
 class LlmMessage {
-  const LlmMessage(this.role, this.content);
-  const LlmMessage.system(this.content) : role = LlmRole.system;
-  const LlmMessage.user(this.content) : role = LlmRole.user;
-  const LlmMessage.assistant(this.content) : role = LlmRole.assistant;
+  const LlmMessage(this.role, this.content, {this.toolCalls = const [], this.toolCallId});
+  const LlmMessage.system(this.content) : role = LlmRole.system, toolCalls = const [], toolCallId = null;
+  const LlmMessage.user(this.content) : role = LlmRole.user, toolCalls = const [], toolCallId = null;
+  const LlmMessage.assistant(this.content, {this.toolCalls = const []}) : role = LlmRole.assistant, toolCallId = null;
+
+  /// 工具结果（回给模型的门禁结论）。
+  const LlmMessage.tool(String this.toolCallId, this.content) : role = LlmRole.tool, toolCalls = const [];
 
   final LlmRole role;
   final String content;
 
-  Map<String, Object?> toJson() => {'role': role.name, 'content': content};
+  /// assistant 消息里的工具调用（原样回传，多轮时保持上下文）。
+  final List<LlmToolCall> toolCalls;
+
+  /// tool 消息对应的调用 id。
+  final String? toolCallId;
+
+  Map<String, Object?> toJson() => {
+    'role': role.name,
+    'content': role == LlmRole.assistant && toolCalls.isNotEmpty && content.isEmpty ? null : content,
+    if (toolCalls.isNotEmpty) 'tool_calls': [for (final c in toolCalls) c.toJson()],
+    if (toolCallId != null) 'tool_call_id': toolCallId,
+  };
 
   @override
-  String toString() => '${role.name}: $content';
+  String toString() => '${role.name}: $content${toolCalls.isEmpty ? '' : ' $toolCalls'}';
+}
+
+/// 模型发起的一次工具调用。[arguments] 是原始 JSON 字符串（门禁负责解析，不做修复）。
+class LlmToolCall {
+  const LlmToolCall({required this.id, required this.name, required this.arguments});
+  final String id;
+  final String name;
+  final String arguments;
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'type': 'function',
+    'function': {'name': name, 'arguments': arguments},
+  };
+
+  factory LlmToolCall.fromOpenAi(Object? raw, int index) {
+    final j = asMap(raw);
+    final f = asMap(j['function']);
+    final args = f['arguments'];
+    return LlmToolCall(
+      id: asString(j['id']) ?? 'call_$index',
+      name: asString(f['name']) ?? '',
+      arguments: args is String ? args : (args == null ? '' : _encode(args)),
+    );
+  }
+
+  @override
+  String toString() => '$name($arguments)';
+}
+
+String _encode(Object? v) => jsonEncode(v);
+
+/// 提供给模型的工具（OpenAI function 格式）。
+class LlmTool {
+  const LlmTool({required this.name, required this.description, required this.parameters});
+  final String name;
+  final String description;
+
+  /// JSON Schema。
+  final Map<String, Object?> parameters;
+
+  Map<String, Object?> toJson() => {
+    'type': 'function',
+    'function': {'name': name, 'description': description, 'parameters': parameters},
+  };
 }
 
 class LlmRequest {
-  const LlmRequest({required this.messages, this.maxTokens, this.temperature, this.jsonMode});
+  const LlmRequest({required this.messages, this.maxTokens, this.temperature, this.jsonMode, this.tools = const [], this.toolChoice});
   final List<LlmMessage> messages;
 
   /// 覆盖 [LlmConfig] 的同名参数；null = 用配置。
   final int? maxTokens;
   final double? temperature;
+
+  /// 带 [tools] 时不发 response_format（工具与 JSON 模式互斥）。
   final bool? jsonMode;
+  final List<LlmTool> tools;
+
+  /// `auto` / `none` / `required`；null = 不传（服务端默认 auto）。
+  final String? toolChoice;
 }
 
 /// token 用量。DeepSeek / OpenAI 的 completion_tokens 已包含推理 token。
@@ -101,10 +168,14 @@ class LlmResponse {
     this.finishReason,
     this.latency = Duration.zero,
     this.httpAttempts = 1,
+    this.toolCalls = const [],
   });
 
-  /// 正文（期望是 JSON）。
+  /// 正文（旧接口期望是 JSON；工具版是给用户的文字，可为空）。
   final String content;
+
+  /// 工具调用（工具版）。
+  final List<LlmToolCall> toolCalls;
 
   /// 推理模型的 `reasoning_content`（只记录，不解析、不展示）。
   final String? reasoning;

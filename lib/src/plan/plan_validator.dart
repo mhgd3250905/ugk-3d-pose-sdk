@@ -59,8 +59,8 @@ class PlanValidator {
 
   ValidationReport validate(TrainingPlan plan, [CoachContext context = const CoachContext()]) {
     final out = <PlanIssue>[];
-    void err(String code, String msg, String path, [String? id]) =>
-        out.add(PlanIssue(code, msg, path: path, exerciseId: id));
+    void err(String code, String msg, String path, [String? id, String? expected, String? actual]) =>
+        out.add(PlanIssue(code, msg, path: path, exerciseId: id, expected: expected, actual: actual));
     void warn(String code, String msg, String path, [String? id]) =>
         out.add(PlanIssue.warning(code, msg, path: path, exerciseId: id));
     final tax = catalog.taxonomy;
@@ -138,15 +138,17 @@ class PlanValidator {
         final ip = '$bp.items[$ii]';
         final d = catalog[i.exerciseId];
         if (d == null) {
-          err(IssueCodes.unknownExercise, '未知动作 ID：${i.exerciseId}（只能用目录里的 id）', '$ip.exerciseId', i.exerciseId);
+          err(IssueCodes.unknownExercise, '未知动作 ID：${i.exerciseId}（只能用目录里的 id）', '$ip.exerciseId', i.exerciseId,
+              '本 App 动作目录里的 id', i.exerciseId);
           continue;
         }
         final n = '${d.name.of(lang)}（${d.id}）';
-        if (!scope.contains(d.id)) err(IssueCodes.outOfProfile, '$n 不在本 App 的动作范围', '$ip.exerciseId', d.id);
+        if (!scope.contains(d.id)) err(IssueCodes.outOfProfile, '$n 不在本 App 的动作范围', '$ip.exerciseId', d.id, '本 App 动作目录里的 id', d.id);
         if (!seen.add(d.id)) warn(IssueCodes.duplicateExercise, '「${b.name}」里重复了 $n', ip, d.id);
 
         if (i.mode != d.defaultDose.mode) {
-          err(IssueCodes.modeMismatch, '$n：mode 应为 ${d.defaultDose.mode.name}（目录剂量单位）', '$ip.mode', d.id);
+          err(IssueCodes.modeMismatch, '$n：mode 应为 ${d.defaultDose.mode.name}（目录剂量单位）', '$ip.mode', d.id,
+              d.defaultDose.mode.name, i.mode.name);
         }
         final r = d.doseRange;
         _dose(out, IssueCodes.setsRange, '$n：组数', i.sets, lim.sets, b.type == BlockType.circuit ? null : r.sets, '$ip.sets', d.id, '');
@@ -164,10 +166,11 @@ class PlanValidator {
         _dose(out, IssueCodes.restRange, '$n：休息', i.restSeconds, lim.restSeconds, r.restSeconds, '$ip.restSeconds', d.id, ' 秒');
 
         if (i.perSide != d.unilateral) {
-          err(IssueCodes.perSide, '$n：perSide 应为 ${d.unilateral}${d.unilateral ? '（单侧动作，reps/workSeconds 指每侧）' : ''}', '$ip.perSide', d.id);
+          err(IssueCodes.perSide, '$n：perSide 应为 ${d.unilateral}${d.unilateral ? '（单侧动作，reps/workSeconds 指每侧）' : ''}', '$ip.perSide', d.id,
+              '${d.unilateral}', '${i.perSide}');
         }
         for (final c in d.cautions) {
-          if (avoid.contains(c)) err(IssueCodes.avoid, '$n 会加重$c部负担（用户要保护）', '$ip.exerciseId', d.id);
+          if (avoid.contains(c)) err(IssueCodes.avoid, '$n 会加重$c部负担（用户要保护）', '$ip.exerciseId', d.id, '注意列不含「$c」的动作', d.id);
         }
         used.addAll(d.equipment);
         if (have != null) {
@@ -207,10 +210,10 @@ class PlanValidator {
   void _dose(List<PlanIssue> out, String code, String what, int v, IntRange hard, IntRange? drill, String path,
       String id, String unit) {
     if (!hard.contains(v)) {
-      out.add(PlanIssue(code, '$what $v$unit 超出 $hard$unit', path: path, exerciseId: id));
+      out.add(PlanIssue(code, '$what $v$unit 超出 $hard$unit', path: path, exerciseId: id, expected: '$hard', actual: '$v'));
     } else if (drill != null && !drill.contains(v)) {
       out.add(PlanIssue(enforceDrillDoseRange ? code : IssueCodes.doseRange, '$what $v$unit 超出推荐 $drill$unit',
-          path: path, exerciseId: id, severity: enforceDrillDoseRange ? IssueSeverity.error : IssueSeverity.warning));
+          path: path, exerciseId: id, expected: '$drill', actual: '$v', severity: enforceDrillDoseRange ? IssueSeverity.error : IssueSeverity.warning));
     }
   }
 }

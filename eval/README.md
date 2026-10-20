@@ -7,6 +7,17 @@
 
 动作目录本体在 Pose-Hub `catalog/`（分支 `feat/ai-coach-catalog`，809f36a）。
 
+## 工具版（SDK 0.2）
+
+- `../prompts/kernel_v3.md` 工具版内核；`build_prompt.py --v3 --tools-out` 生成 v3 金样与工具 JSON（`../test/fixtures/golden/*.v3.md`、`*.tools.json`）。
+- `validate.py` 的 `validate_tool_turn`：与 SDK `ToolGate` 同口径（只判不修；多工具、非法 JSON、缺字段 / 多余字段、白名单、单位、保护部位、重复动作必须改）；`export_parity.py` 另导出 `../test/fixtures/parity_tools.json` 给 Dart 对照。
+- `tools/eval_tools.py`：工具版评测，最多 3 次提交（错误作为 tool 结果回传），用例 24 条常规 + 8 条破甲（J1–J8，`expect.mustNot` / `mustAny`）。结果 `results/tools<N>/`、`results/tools<N>.md/.json`。
+
+```bash
+python3 eval/tools/eval_tools.py run --round 1       # 串行，直连 New API（ai.uuugk.win），注意限流
+python3 eval/tools/eval_tools.py summary --round 1
+```
+
 ## 目录
 
 | 路径 | 内容 |

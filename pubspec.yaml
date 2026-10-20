@@ -2,7 +2,7 @@ name: ugk_coach
 description: >-
   三 App（FlareLab / HipLab / SmartFit）共用的 AI 训练助理 SDK：动作目录、
   TrainingPlan v1 校验、提示词、OpenAI 兼容模型调用、用量记录与回落。
-version: 0.1.2
+version: 0.2.0
 repository: https://github.com/mhgd3250905/ugk-3d-pose-sdk
 publish_to: none
 

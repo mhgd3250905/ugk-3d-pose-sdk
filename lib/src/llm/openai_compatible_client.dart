@@ -1,5 +1,5 @@
 /// OpenAI 兼容 `/chat/completions` 客户端（DeepSeek、OpenCSG 网关、中转 Worker 均适用）。
-/// 非流式；超时与取消都会真正中止 HTTP 请求。
+/// 非流式；支持工具调用（tools / tool_calls）；超时与取消都会真正中止 HTTP 请求。
 library;
 
 import 'dart:async';
@@ -41,7 +41,9 @@ class OpenAiCompatibleClient implements LlmClient {
     'max_tokens': r.maxTokens ?? config.maxTokens,
     if ((r.temperature ?? config.temperature) != null)
       'temperature': r.temperature ?? config.temperature,
-    if (r.jsonMode ?? config.jsonMode) 'response_format': {'type': 'json_object'},
+    if (r.tools.isNotEmpty) 'tools': [for (final t in r.tools) t.toJson()],
+    if (r.tools.isNotEmpty && r.toolChoice != null) 'tool_choice': r.toolChoice,
+    if (r.tools.isEmpty && (r.jsonMode ?? config.jsonMode)) 'response_format': {'type': 'json_object'},
     'stream': false,
     ...config.extraBody,
   };
@@ -94,6 +96,7 @@ class OpenAiCompatibleClient implements LlmClient {
       ..headers.addAll({
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        ...config.headers,
         ...await auth.headers(),
       })
       ..body = body;
@@ -149,10 +152,11 @@ class OpenAiCompatibleClient implements LlmClient {
           '输出被 max_tokens 截断（completion ${usage.completionTokens}，其中推理 ${usage.reasoningTokens}）',
           usage: usage);
     }
-    if (content.trim().isEmpty) {
+    final calls = [for (final (i, c) in asList(msg['tool_calls']).indexed) LlmToolCall.fromOpenAi(c, i)];
+    if (content.trim().isEmpty && calls.isEmpty) {
       throw LlmException(LlmErrorKind.badResponse, '正文为空', usage: usage);
     }
-    return _Raw(content, asString(msg['reasoning_content']), usage, asString(j['model']), finish);
+    return _Raw(content, asString(msg['reasoning_content']), usage, asString(j['model']), finish, calls);
   }
 
   static String _errorMessage(String body) {
@@ -172,7 +176,8 @@ class OpenAiCompatibleClient implements LlmClient {
 }
 
 class _Raw {
-  const _Raw(this.content, this.reasoning, this.usage, this.model, this.finish);
+  const _Raw(this.content, this.reasoning, this.usage, this.model, this.finish, [this.toolCalls = const []]);
+  final List<LlmToolCall> toolCalls;
   final String content;
   final String? reasoning;
   final TokenUsage usage;
@@ -187,5 +192,6 @@ class _Raw {
     finishReason: finish,
     latency: latency,
     httpAttempts: attempts,
+    toolCalls: toolCalls,
   );
 }

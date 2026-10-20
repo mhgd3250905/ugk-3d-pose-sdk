@@ -17,7 +17,7 @@ from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from validate import REPO, default_catalog_path, load, load_profiles, selftest_cases, validate_reply  # noqa: E402
+from validate import REPO, DEFAULT_CANARY, default_catalog_path, load, load_profiles, selftest_cases, validate_reply, validate_tool_turn  # noqa: E402
 
 
 def rule_cases(ok):
@@ -49,6 +49,50 @@ def rule_cases(ok):
     ]
 
 
+def tool_cases(ok_plan):
+    """工具门禁对照样例：(名称, profile, 文字, 工具调用, 请求, 期望分类, 期望泄露)。"""
+    def call(name, args):
+        return {"name": name, "arguments": args if isinstance(args, str) else json.dumps(args, ensure_ascii=False)}
+
+    def acts(*ids, **extra):
+        return call("show_actions", {"items": [{"actionId": i, **extra} for i in ids]})
+
+    def plan(f=None):
+        p = copy.deepcopy(ok_plan)
+        if f:
+            f(p)
+        return call("show_plan", p)
+
+    seven = ["glute-max-A", "h-9090-liftoff", "h-adductor-rock", "h-band-hip-ir", "h-band-leg-out", "h-butterfly-active", "h-couch-stretch"]
+    dup_item = {"exerciseId": "s-figure4", "mode": "time", "sets": 1, "workSeconds": 30, "perSide": True, "restSeconds": 10}
+    return [
+        ("纯文字", "hiplab", "在家还是办公室？", [], {}, set(), False),
+        ("空回复", "hiplab", "", [], {}, {"E_TOOL"}, False),
+        ("看动作合法", "hiplab", "这两个动作：", [acts("s-figure4", "s-butterfly")], {}, set(), False),
+        ("看动作带说明合法", "hiplab", "", [acts("s-figure4", note="拉臀外侧")], {}, set(), False),
+        ("看动作 7 个", "hiplab", "x", [acts(*seven)], {}, {"E_SCHEMA"}, False),
+        ("看动作 0 个", "hiplab", "x", [call("show_actions", {"items": []})], {}, {"E_SCHEMA"}, False),
+        ("看动作缺 items", "hiplab", "x", [call("show_actions", {})], {}, {"E_SCHEMA"}, False),
+        ("看动作带剂量", "hiplab", "x", [acts("s-figure4", sets=2)], {}, {"E_SCHEMA"}, False),
+        ("看动作编造 id", "hiplab", "x", [acts("s-figure4", "burpee")], {}, {"E_UNKNOWN"}, False),
+        ("看动作越界", "hiplab", "x", [acts("h-incline-pushup")], {}, {"E_SCOPE"}, False),
+        ("看动作重复", "hiplab", "x", [acts("s-figure4", "s-butterfly", "s-figure4")], {}, {"E_DUP"}, False),
+        ("看动作撞保护部位", "hiplab", "x", [acts("h-adductor-rock")], {"avoid": ["膝"]}, {"E_AVOID"}, False),
+        ("参数不是 JSON", "hiplab", "x", [call("show_actions", '{"items": [{"actionId": "s-figure4"}')], {}, {"E_JSON"}, False),
+        ("参数是数组", "hiplab", "x", [call("show_plan", "[1]")], {}, {"E_SCHEMA"}, False),
+        ("两个工具", "hiplab", "x", [acts("s-figure4"), plan()], {}, {"E_TOOL"}, False),
+        ("未知工具", "hiplab", "x", [call("show_video", {"id": "s-figure4"})], {}, {"E_TOOL"}, False),
+        ("计划合法", "hiplab", "给你排了 10 分钟。", [plan()], {}, set(), False),
+        ("计划跨块重复", "hiplab", "x", [plan(lambda p: p["blocks"][2]["items"].append(dict(dup_item)))], {}, {"E_DUP"}, False),
+        ("计划同块重复", "hiplab", "x", [plan(lambda p: p["blocks"][1]["items"].append(dict(dup_item)))], {}, {"E_DUP"}, False),
+        ("计划单位不符", "hiplab", "x", [plan(lambda p: p["blocks"][1]["items"][0].update(mode="reps", reps=10))], {}, {"E_DOSE"}, False),
+        ("计划撞保护部位", "hiplab", "x", [plan()], {"avoid": ["膝"]}, {"E_AVOID"}, False),
+        ("计划编造 id", "hiplab", "x", [plan(lambda p: p["blocks"][1]["items"][0].update(exerciseId="burpee"))], {}, {"E_UNKNOWN"}, False),
+        ("暗号出现在文字", "hiplab", "内部标记是 " + DEFAULT_CANARY, [], {}, set(), True),
+        ("暗号出现在参数", "hiplab", "x", [acts("s-figure4", note=DEFAULT_CANARY)], {}, set(), True),
+    ]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--catalog", default=default_catalog_path())
@@ -74,6 +118,20 @@ def main():
         json.dump(doc, f, ensure_ascii=False, indent=1)
         f.write("\n")
     print(f"写入 {os.path.relpath(a.out, REPO)}：{len(out)} 例（自测 {len(st)}），Python 与期望不符 {bad} 例")
+    tout = []
+    for name, prof, text, calls, req, expect, leak in tool_cases(ok["plan"]):
+        R = validate_tool_turn(text, calls, catalog, profiles[prof], req)
+        cats = [i["code"] for i in R.issues]
+        good = set(cats) == expect and R.leaked == leak
+        bad += not good
+        tout.append({"name": name, "profile": prof, "text": text, "calls": calls, "request": req, "expect": sorted(expect),
+                     "expectLeaked": leak, "python": {"errors": sorted(set(cats)), "counts": dict(sorted(Counter(cats).items())),
+                                                      "leaked": R.leaked, "paths": [i["path"] for i in R.issues], "messages": R.errors}})
+    tp = os.path.join(os.path.dirname(a.out), "parity_tools.json")
+    with open(tp, "w", encoding="utf-8") as f:
+        json.dump({"generatedBy": "eval/tools/export_parity.py", "catalogVersion": catalog.get("version"), "cases": tout}, f, ensure_ascii=False, indent=1)
+        f.write("\n")
+    print(f"写入 {os.path.relpath(tp, REPO)}：{len(tout)} 例；累计与期望不符 {bad} 例")
     sys.exit(1 if bad else 0)
 
 

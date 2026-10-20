@@ -147,13 +147,14 @@ def extract_json(text):
 
 class Result:
     def __init__(self):
-        self.errors, self.warnings = [], []
+        self.errors, self.warnings, self.issues = [], [], []
         self.unknown_ids, self.scope_ids = [], []
         self.reply = None
         self.est_minutes = None
 
-    def err(self, code, msg):
+    def err(self, code, msg, path=None, expected=None, actual=None):
         self.errors.append(f"{code} {msg}")
+        self.issues.append({"path": path or "arguments", "code": code, "expected": expected or "", "actual": actual or "", "message": msg})
 
     def warn(self, msg):
         self.warnings.append(msg)
@@ -204,7 +205,8 @@ def validate_reply(content, catalog, profile, request=None):
     return R
 
 
-def validate_plan(plan, catalog, profile, request, R):
+def validate_plan(plan, catalog, profile, request, R, tool=False):
+    """tool=True（工具版 show_plan）：同一动作在整个计划里重复 = E_DUP 错误（同块、跨块都算）。"""
     drills = {d["id"]: d for d in catalog["drills"]}
     tax = catalog["taxonomy"]
     S = lambda m: R.err("E_SCHEMA", m)
@@ -259,6 +261,7 @@ def validate_plan(plan, catalog, profile, request, R):
     used_equipment = set()
     saw_cool = False
     n_items = 0
+    first_at = {}
     for bi, b in enumerate(blocks):
         if not isinstance(b, dict):
             S(f"blocks[{bi}] 不是对象")
@@ -281,7 +284,8 @@ def validate_plan(plan, catalog, profile, request, R):
             S(f"训练块「{name}」为空")
             continue
         seen = set()
-        for it in items:
+        for ii, it in enumerate(items):
+            P = f"blocks[{bi}].items[{ii}]"
             n_items += 1
             if not isinstance(it, dict):
                 S(f"「{name}」里有非对象条目")
@@ -289,29 +293,34 @@ def validate_plan(plan, catalog, profile, request, R):
             i = it.get("exerciseId")
             d = drills.get(i)
             if d is None:
-                R.err("E_UNKNOWN", f"未知动作 ID：{i}")
+                R.err("E_UNKNOWN", f"未知动作 ID：{i}", P + ".exerciseId", "本 App 动作目录里的 id", str(i))
                 R.unknown_ids.append(str(i))
                 continue
             nm = f"{d['name']['zh']}（{i}）"
             if not in_scope(d, profile):
-                R.err("E_SCOPE", f"{nm} 不在本 App 的动作范围")
+                R.err("E_SCOPE", f"{nm} 不在本 App 的动作范围", P + ".exerciseId", "本 App 动作目录里的 id", i)
                 R.scope_ids.append(i)
-            if i in seen:
+            if tool:
+                if i in first_at:
+                    R.err("E_DUP", "同一动作在计划里重复出现", P + ".exerciseId", "每个动作只出现一次（多做请加 sets）", f"{i}（与 {first_at[i]} 重复）")
+                else:
+                    first_at[i] = P
+            elif i in seen:
                 R.warn(f"「{name}」里重复了 {nm}")
             seen.add(i)
             mode = it.get("mode")
             if mode not in ("reps", "time"):
                 S(f"{nm}：mode 必须是 reps/time")
             elif mode != d["defaultDose"]["mode"]:
-                R.err("E_DOSE", f"{nm}：mode 应为 {d['defaultDose']['mode']}（目录剂量单位）")
+                R.err("E_DOSE", f"{nm}：mode 应为 {d['defaultDose']['mode']}（目录剂量单位）", P + ".mode", d['defaultDose']['mode'], mode)
             sets = it.get("sets")
             if not isinstance(sets, int) or not (1 <= sets <= 6):
-                R.err("E_DOSE", f"{nm}：组数 {sets} 超出 1–6")
+                R.err("E_DOSE", f"{nm}：组数 {sets} 超出 1–6", P + ".sets", "1–6", str(sets))
             rng = d["doseRange"]
             if mode == "reps":
                 v = it.get("reps")
                 if not isinstance(v, int) or not (1 <= v <= 30):
-                    R.err("E_DOSE", f"{nm}：次数 {v} 超出 1–30")
+                    R.err("E_DOSE", f"{nm}：次数 {v} 超出 1–30", P + ".reps", "1–30", str(v))
                 elif "reps" in rng and not (rng["reps"][0] <= v <= rng["reps"][1]):
                     R.warn(f"{nm}：次数 {v} 超出推荐 {rng['reps']}")
             elif mode == "time":
@@ -319,29 +328,29 @@ def validate_plan(plan, catalog, profile, request, R):
                 if "workSeconds" not in it and "seconds" in it:
                     R.warn(f"{nm}：用了 seconds，应为 workSeconds")
                 if not isinstance(v, int) or not (10 <= v <= 120):
-                    R.err("E_DOSE", f"{nm}：时长 {v} 秒超出 10–120")
+                    R.err("E_DOSE", f"{nm}：时长 {v} 秒超出 10–120", P + ".workSeconds", "10–120", str(v))
                 elif "seconds" in rng and not (rng["seconds"][0] <= v <= rng["seconds"][1]):
                     R.warn(f"{nm}：时长 {v} 秒超出推荐 {rng['seconds']}")
             if isinstance(sets, int) and not (rng["sets"][0] <= sets <= rng["sets"][1]) and b.get("type") != "circuit":
                 R.warn(f"{nm}：组数 {sets} 超出推荐 {rng['sets']}")
             rest = it.get("restSeconds")
             if not isinstance(rest, int) or not (0 <= rest <= 180):
-                R.err("E_DOSE", f"{nm}：休息 {rest} 秒超出 0–180")
+                R.err("E_DOSE", f"{nm}：休息 {rest} 秒超出 0–180", P + ".restSeconds", "0–180", str(rest))
             if it.get("perSide") is not d["unilateral"]:
-                R.err("E_SIDE", f"{nm}：perSide 应为 {str(d['unilateral']).lower()}")
+                R.err("E_SIDE", f"{nm}：perSide 应为 {str(d['unilateral']).lower()}", P + ".perSide", str(d['unilateral']).lower(), json.dumps(it.get("perSide")))
             for c in d["cautions"]:
                 if c in avoid:
-                    R.err("E_AVOID", f"{nm} 会加重{c}部负担")
+                    R.err("E_AVOID", f"{nm} 会加重{c}部负担", P + ".exerciseId", f"注意列不含「{c}」的动作", i)
             used_equipment |= set(d["equipment"])
             if have is not None:
                 for q in d["equipment"]:
                     if q not in have:
-                        R.err("E_EQUIP", f"{nm} 需要{tax['equipment'][q]['zh']}")
+                        R.err("E_EQUIP", f"{nm} 需要{tax['equipment'][q]['zh']}", P + ".exerciseId")
             if scene in SCENES:
                 if rule.get("forbidFloor") and tax["positions"][d["position"]].get("floor"):
-                    R.err("E_SCENE", f"{nm} 需要趴/躺/跪在地上，不适合{rule.get('label', scene)}")
+                    R.err("E_SCENE", f"{nm} 需要趴/躺/跪在地上，不适合{rule.get('label', scene)}", P + ".exerciseId")
                 if not set(d["scenes"]) & accept:
-                    R.err("E_SCENE", f"{nm} 不适合场所 {scene}（动作场所 {d['scenes']}）")
+                    R.err("E_SCENE", f"{nm} 不适合场所 {scene}（动作场所 {d['scenes']}）", P + ".exerciseId")
     if n_items > (profile.get("limits") or {}).get("maxItems", 24):
         R.err("E_DOSE", f"动作条目 {n_items} 过多")
     declared = set(plan.get("equipment") or [])
@@ -361,6 +370,141 @@ def format_feedback(R):
         lines.append("（上次输出被截断了：少想一点，直接输出紧凑的 JSON，不要换行缩进。）")
     lines.append("请只改正这些问题后重新输出完整的 JSON（同样的信封格式，不要解释）。未知动作必须换成目录里的 id；不在范围的动作必须删掉或换成本 App 目录里的动作。")
     return "\n".join(lines)
+
+
+# ---------------- 工具版门禁（与 SDK lib/src/tools/tool_gate.dart 同口径；只判不修） ----------------
+TOOL_NAMES = ("show_actions", "show_plan")
+MAX_ACTIONS = 6
+DEFAULT_CANARY = "UGK-CANARY-7F3K9Q"
+FIX = {
+    "E_JSON": "参数必须是合法 JSON（检查引号、逗号、括号是否成对），重新提交完整参数",
+    "E_TOOL": "每次只用一个工具（show_actions 看动作 / show_plan 开练），或只写文字",
+    "E_SCHEMA": "按工具参数 schema 补齐 / 删除 / 改正该字段",
+    "E_UNKNOWN": "换成参数 enum 白名单里的动作 id，逐字拷贝",
+    "E_SCOPE": "换成参数 enum 白名单里的动作 id，逐字拷贝",
+    "E_DOSE": "按目录「默认」列单位与范围改剂量：次 → mode=reps 填 reps；秒 → mode=time 填 workSeconds",
+    "E_SIDE": "单侧动作 perSide=true，其余 false",
+    "E_AVOID": "换成「注意」列不含该部位的动作，或删掉这一项",
+    "E_DUP": "删掉重复项；同一动作要多做就加 sets",
+    "E_EQUIP": "换成用户已有器械或徒手的动作",
+    "E_SCENE": "换成适合该场所的动作，scene 填用户场所",
+    "E_ORDER": "热身块放在最前，放松块放在最后",
+}
+
+
+class ToolResult(Result):
+    def __init__(self):
+        super().__init__()
+        self.tool = None
+        self.text = ""
+        self.leaked = False
+
+    @property
+    def ok(self):
+        return not self.leaked and not self.errors
+
+    def feedback(self, remaining=None):
+        if self.ok:
+            return json.dumps({"ok": True, "shown": True}, ensure_ascii=False)
+        d = {"ok": False}
+        if remaining is not None:
+            d["remainingAttempts"] = remaining
+        d["errors"] = [{**i, "fix": FIX.get(i["code"], "按期望改正")} for i in self.issues]
+        d["instruction"] = "逐条改完后重新调用同一个工具，提交完整参数；不要向用户解释这些错误。"
+        return json.dumps(d, ensure_ascii=False)
+
+    def to_dict(self):
+        return {"ok": self.ok, "tool": self.tool, "leaked": self.leaked, "errors": self.errors, "issues": self.issues,
+                "warnings": self.warnings, "unknownIds": self.unknown_ids, "scopeIds": self.scope_ids, "estMinutes": self.est_minutes}
+
+
+def _type(v):
+    return "缺失" if v is None else {str: "string", bool: "boolean", int: "number", float: "number", list: "array", dict: "object"}.get(type(v), type(v).__name__)
+
+
+def validate_tool_turn(text, tool_calls, catalog, profile, request=None, canary=DEFAULT_CANARY):
+    """text：模型文字；tool_calls：[{"name":..., "arguments": "<json 字符串>"}]（OpenAI function 格式也可）。"""
+    R = ToolResult()
+    request = request or {}
+    text = text or ""
+    calls = [{"name": (c.get("function") or c).get("name") or "", "arguments": (c.get("function") or c).get("arguments") or ""} for c in (tool_calls or [])]
+    if canary and (canary in text or any(canary in c["arguments"] or canary in c["name"] for c in calls)):
+        R.leaked = True
+        return R
+    R.text = text.strip()
+    if not calls:
+        if not R.text:
+            R.err("E_TOOL", "回复为空", "content", "一句文字，或文字 + 一个工具", "空")
+        return R
+    R.tool = calls[0]["name"]
+    if len(calls) > 1:
+        R.err("E_TOOL", "一次回复只能调用一个工具", "tool_calls", "0 或 1 个工具调用", f"{len(calls)} 个：{', '.join(c['name'] for c in calls)}")
+    drills = {d["id"]: d for d in catalog["drills"]}
+    white = {d["id"] for d in scope(catalog, profile)}
+    for k, c in enumerate(calls):
+        n0 = len(R.issues)
+        if c["name"] not in TOOL_NAMES:
+            R.err("E_TOOL", f"没有工具「{c['name']}」", f"tool_calls[{k}].name", "show_actions / show_plan", c["name"])
+        else:
+            try:
+                args = json.loads(c["arguments"])
+            except Exception as e:
+                R.err("E_JSON", f"参数不是合法 JSON：{e}", "arguments", "合法 JSON 对象", c["arguments"][:80])
+                args = None
+            if args is not None and not isinstance(args, dict):
+                R.err("E_SCHEMA", "参数必须是 JSON 对象", "arguments", "object", _type(args))
+            elif isinstance(args, dict) and c["name"] == "show_actions":
+                _check_actions(args, drills, white, request, R)
+            elif isinstance(args, dict):
+                R.reply = {"kind": "plan", "plan": args}
+                validate_plan(args, catalog, profile, request, R, tool=True)
+        if len(calls) > 1:
+            for i in R.issues[n0:]:
+                i["path"] = f"tool_calls[{k}].{i['path']}" if not i["path"].startswith("tool_calls") else i["path"]
+    return R
+
+
+def _check_actions(args, drills, white, request, R):
+    for k in args:
+        if k != "items":
+            R.err("E_SCHEMA", f"多余字段 {k}", k, "只有 items", k)
+    items = args.get("items")
+    if not isinstance(items, list):
+        R.err("E_SCHEMA", "缺少 items" if items is None else "items 必须是数组", "items", "array", _type(items))
+        return
+    if not (1 <= len(items) <= MAX_ACTIONS):
+        R.err("E_SCHEMA", "items 数量不对", "items", f"1–{MAX_ACTIONS} 个", f"{len(items)} 个")
+    avoid = set(request.get("avoid") or [])
+    first = {}
+    for i, it in enumerate(items):
+        p = f"items[{i}]"
+        if not isinstance(it, dict):
+            R.err("E_SCHEMA", "动作项必须是对象", p, "object", _type(it))
+            continue
+        for k in it:
+            if k not in ("actionId", "note"):
+                R.err("E_SCHEMA", f"看动作不带剂量或其他字段：{k}", f"{p}.{k}", "actionId 与可选 note", k)
+        if it.get("note") is not None and not isinstance(it.get("note"), str):
+            R.err("E_SCHEMA", "note 必须是字符串", f"{p}.note", "string", _type(it.get("note")))
+        a = it.get("actionId")
+        if not isinstance(a, str) or not a:
+            R.err("E_SCHEMA", "缺少 actionId" if a is None else "actionId 必须是字符串", f"{p}.actionId", "白名单动作 id", _type(a))
+            continue
+        d = drills.get(a)
+        if d is None:
+            R.err("E_UNKNOWN", f"未知动作 ID：{a}", f"{p}.actionId", "本 App 动作目录里的 id", a)
+            R.unknown_ids.append(a)
+            continue
+        if a not in white:
+            R.err("E_SCOPE", f"{d['name']['zh']}（{a}）不在本 App 的动作范围", f"{p}.actionId", "本 App 动作目录里的 id", a)
+            R.scope_ids.append(a)
+        if a in first:
+            R.err("E_DUP", "动作重复", f"{p}.actionId", "每个 id 只出现一次", f"{a}（与 items[{first[a]}] 重复）")
+        else:
+            first[a] = i
+        for c in d["cautions"]:
+            if c in avoid:
+                R.err("E_AVOID", f"{d['name']['zh']}（{a}）会加重{c}部负担（用户要保护）", f"{p}.actionId", f"注意列不含「{c}」的动作", a)
 
 
 # ---------------- 自测：手写样例 ----------------

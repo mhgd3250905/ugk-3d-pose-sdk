@@ -45,3 +45,17 @@ class NoAuth implements AuthProvider {
   @override
   Future<Map<String, String>> headers() async => const {};
 }
+
+/// UGK Worker 鉴权：`X-App-Key`（App 级，走 --dart-define，不进仓库）+ `X-Device-Id`（每设备首次生成 UUID、持久保存）。
+/// 不带 Authorization。[deviceId] 由 App 实现持久化（SDK 不碰存储）。
+class UgkWorkerAuth implements AuthProvider {
+  UgkWorkerAuth({required this.appKey, required Future<String> Function() deviceId}) : _deviceId = deviceId;
+  final String appKey;
+  final Future<String> Function() _deviceId;
+
+  @override
+  Future<Map<String, String>> headers() async => {
+    if (appKey.isNotEmpty) 'X-App-Key': appKey,
+    'X-Device-Id': await _deviceId(),
+  };
+}

@@ -61,7 +61,16 @@ def scene_rules_text(catalog, profile, drills):
     return "\n".join(lines)
 
 
-def build_system_prompt(catalog, profile, kernel_path=None):
+DEFAULT_CANARY = "UGK-CANARY-7F3K9Q"
+LIMITS = {"sets": [1, 6], "reps": [1, 30], "workSeconds": [10, 120], "restSeconds": [0, 180], "rounds": [1, 6],
+          "restBetweenRoundsSeconds": [0, 300], "minutes": [3, 60]}
+GOALS = ["relax", "mobility", "strength", "core", "fullbody", "warmup", "cooldown"]
+
+
+def build_system_prompt(catalog, profile, kernel_path=None, v3=False, canary=DEFAULT_CANARY):
+    """v3=True：工具版内核 prompts/kernel_v3.md（与 SDK ToolPromptBuilder 逐字节一致）。"""
+    if v3 and not kernel_path:
+        kernel_path = os.path.join(REPO, "prompts", "kernel_v3.md")
     kernel = open(kernel_path or os.path.join(REPO, "prompts", "kernel.md"), encoding="utf-8").read()
     drills = scope(catalog, profile)
     v = profile.get("vars", {})
@@ -82,10 +91,46 @@ def build_system_prompt(catalog, profile, kernel_path=None):
         "drillCount": str(len(drills)),
         "table": "\n".join(row(d) for d in drills),
     }
+    if v3:
+        subs["canary"] = canary
     for k, val in subs.items():
         kernel = kernel.replace("{{" + k + "}}", val)
     assert "{{" not in kernel, "提示词里还有未替换的变量"
     return kernel
+
+
+def build_tools(catalog, profile):
+    """两个工具（OpenAI function 格式），与 SDK CoachTools.build 产出同一 JSON。"""
+    ids = [d["id"] for d in scope(catalog, profile)]
+    lim = {**LIMITS, **(profile.get("limits") or {})}
+    rng = lambda k: {"type": "integer", "minimum": lim[k][0], "maximum": lim[k][1]}
+    cautions = catalog["taxonomy"]["cautions"]
+    show_actions = {"type": "object", "properties": {"items": {"type": "array", "minItems": 1, "maxItems": 6, "items": {
+        "type": "object", "properties": {"actionId": {"type": "string", "enum": ids},
+                                         "note": {"type": "string", "description": "可选，一句说明（不写组数次数）"}},
+        "required": ["actionId"], "additionalProperties": False}}}, "required": ["items"], "additionalProperties": False}
+    item = {"type": "object", "properties": {
+        "exerciseId": {"type": "string", "enum": ids}, "mode": {"type": "string", "enum": ["reps", "time"]},
+        "sets": rng("sets"), "reps": rng("reps"), "workSeconds": rng("workSeconds"), "perSide": {"type": "boolean"},
+        "restSeconds": rng("restSeconds"), "note": {"type": "string"}},
+        "required": ["exerciseId", "mode", "sets", "perSide", "restSeconds"]}
+    block = {"type": "object", "properties": {
+        "id": {"type": "string"}, "name": {"type": "string"}, "type": {"type": "string", "enum": ["warmup", "main", "circuit", "cooldown"]},
+        "rounds": rng("rounds"), "restBetweenRoundsSeconds": rng("restBetweenRoundsSeconds"),
+        "items": {"type": "array", "minItems": 1, "items": item}}, "required": ["type", "items"]}
+    show_plan = {"type": "object", "properties": {
+        "schemaVersion": {"type": "integer", "enum": [1]}, "title": {"type": "string", "description": "≤12 字"},
+        "summary": {"type": "string"}, "goal": {"type": "string", "enum": GOALS},
+        "scene": {"type": "string", "enum": list(profile["scenes"].keys())},
+        "equipment": {"type": "array", "items": {"type": "string"}}, "level": {"type": "integer", "minimum": 1, "maximum": 3},
+        "targetMinutes": rng("minutes"),
+        "avoid": {"type": "array", "items": {"type": "string", "enum": cautions} if cautions else {"type": "string"}},
+        "blocks": {"type": "array", "minItems": 1, "items": block},
+        "notes": {"type": "array", "items": {"type": "string"}}, "safetyNotes": {"type": "array", "items": {"type": "string"}}},
+        "required": ["schemaVersion", "title", "summary", "goal", "scene", "level", "targetMinutes", "blocks"]}
+    fn = lambda n, d, p: {"type": "function", "function": {"name": n, "description": d, "parameters": p}}
+    return [fn("show_actions", "给用户展示 1–6 个动作的演示卡（看动作怎么做，不开练、不带剂量）。", show_actions),
+            fn("show_plan", "给用户一份可直接开练的训练计划（TrainingPlan v1）。修改计划时提交完整新计划。", show_plan)]
 
 
 def main():
@@ -93,8 +138,13 @@ def main():
     ap.add_argument("--catalog", default=default_catalog_path())
     ap.add_argument("--profile", required=True)
     ap.add_argument("--out")
+    ap.add_argument("--v3", action="store_true", help="工具版内核")
+    ap.add_argument("--tools-out", help="同时写出工具定义 JSON")
     a = ap.parse_args()
-    p = build_system_prompt(load(a.catalog), load(a.profile))
+    cat, prof = load(a.catalog), load(a.profile)
+    p = build_system_prompt(cat, prof, v3=a.v3)
+    if a.tools_out:
+        json.dump(build_tools(cat, prof), open(a.tools_out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     if a.out:
         os.makedirs(os.path.dirname(a.out), exist_ok=True)
         open(a.out, "w", encoding="utf-8").write(p)

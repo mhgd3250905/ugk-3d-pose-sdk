@@ -378,7 +378,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (widget.keepAlive) {
       _hold = TrainingHold.begin(
         Duration(seconds: (_runner.planSeconds + widget.prepSeconds).round()),
-        mediaPlayback: true,
+        mediaPlayback: _voice.settings.voice || _voice.settings.chimes,
         notice: TrainingNotice(
           channelName: _s.notificationChannel,
           channelDescription: _s.notificationChannelDescription,
@@ -538,7 +538,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (widget.keepAlive) {
       _hold = TrainingHold.begin(
         Duration(seconds: (_runner.planSeconds + widget.prepSeconds).round()),
-        mediaPlayback: true,
+        mediaPlayback: _voice.settings.voice || _voice.settings.chimes,
         notice: TrainingNotice(
           channelName: _s.notificationChannel,
           channelDescription: _s.notificationChannelDescription,

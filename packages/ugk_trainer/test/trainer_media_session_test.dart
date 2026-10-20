@@ -10,6 +10,10 @@ import 'support.dart';
 class _InterruptibleOutput extends RecordingOutput
     implements InterruptibleVoiceOutput {
   final events = StreamController<AudioInterruption>.broadcast(sync: true);
+  int begins = 0;
+
+  @override
+  Future<void> begin() async => begins++;
 
   @override
   Stream<AudioInterruption> get interruptions => events.stream;
@@ -50,6 +54,7 @@ void main() {
     WidgetTester tester,
     _InterruptibleOutput output, {
     Future<DiscomfortDecision?> Function()? discomfort,
+    VoiceSettings settings = const VoiceSettings(),
   }) => tester.pumpWidget(
     MaterialApp(
       home: TrainerPlayer(
@@ -57,7 +62,11 @@ void main() {
         prepSeconds: 0,
         drillOf: (id) => TrainerDrill(id: id, name: id),
         strings: TrainerStrings.en(),
-        voice: TrainerVoice(source: hipSource(), output: output),
+        voice: TrainerVoice(
+          source: hipSource(),
+          output: output,
+          settings: settings,
+        ),
         mediaBuilder: (_, _) => const SizedBox(height: 50),
         onFinished: (_) async {},
         onDiscomfort: discomfort == null ? null : (_, _) => discomfort(),
@@ -69,6 +78,45 @@ void main() {
       ),
     ),
   );
+
+  testWidgets('silent visual training and replay use only a generic hold', (
+    tester,
+  ) async {
+    final output = _InterruptibleOutput();
+    await open(
+      tester,
+      output,
+      settings: const VoiceSettings(voice: false, chimes: false),
+    );
+    await tester.pump();
+    final first = TrainingKeepAlive.currentSession;
+    expect(args(calls.single)['mediaPlayback'], isFalse);
+    expect(output.begins, 0);
+    await tester.tap(find.byKey(const ValueKey('pause')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('pause')));
+    await tester.pump();
+    expect(states(), isEmpty);
+    await tester.tap(find.byKey(const ValueKey('skip')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('replay')));
+    await tester.pump();
+    final second = TrainingKeepAlive.currentSession;
+    expect(second, isNot(first));
+    final starts = calls.where((call) => call.method == 'start');
+    expect(starts, hasLength(3), reason: 'initial, renew and fresh replay');
+    expect(
+      starts.every((call) => args(call)['mediaPlayback'] == false),
+      isTrue,
+    );
+    expect(output.begins, 0);
+    expect(states(), isEmpty);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    expect(calls.last.method, 'stop');
+    expect(args(calls.last)['session'], second);
+    await output.events.close();
+  });
 
   testWidgets(
     'player media state follows pause, interruption and manual resume',

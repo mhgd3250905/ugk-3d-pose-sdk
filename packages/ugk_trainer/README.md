@@ -1,4 +1,4 @@
-# ugk_trainer 0.1.2
+# ugk_trainer 0.1.3
 
 三 App（托马斯 3D-Body / 开胯 HipLab / SmartFit）共用的跟练模块。方案见仓库根目录 `docs/trainer-plan.md`。
 
@@ -71,7 +71,7 @@ final result = await Navigator.of(context).push<SessionResult>(
 ### Android
 
 - 本包是 Flutter 插件：`com.ugk.trainer.TrainingSessionService`（`mediaPlayback` 前台服务 + 部分唤醒锁）和 `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_MEDIA_PLAYBACK` / `WAKE_LOCK` 权限由包内 manifest 合并进 App，通道 `ugk_trainer/training_session`。
-- `JustAudioVoiceOutput` 在训练期间循环包内静音音频，填补两句口令之间的播放空隙：HipLab 真机观察到小米 Greeze 在音频空闲时仍会冻结前台服务并禁用唤醒锁。静音播放器不持续申请 Android 音频焦点；口令仍按句申请和释放焦点。来电等中断和耳机断开会暂停保活，训练结束后释放，单会话上限两小时。完成页留屏及快速再练也要验证释放/交接。实际兼容性必须由宿主真机复测确认。
+- `JustAudioVoiceOutput` 在训练期间循环包内静音音频，填补两句口令之间的播放空隙：HipLab 真机观察到小米 Greeze 在音频空闲时仍会冻结前台服务并禁用唤醒锁。Android 使用正常播放器音量播放采样值全零的包内音源；设为零音量会被系统标记为客户端静音，不计入有效音频活动（0.1.2 已在真机复现此失败）。iOS 保持零音量。静音播放器不持续申请 Android 音频焦点；口令仍按句申请和释放焦点。来电等中断和耳机断开会暂停保活，训练结束后释放，单会话上限两小时。完成页留屏及快速再练也要验证释放/交接。实际兼容性必须由宿主真机复测确认。
 - **Play Console 需补「媒体播放」前台服务声明**（应用内容 → 前台服务权限），每个 App 各自做。
 - HipLab 切换时删掉 App 自己的 `TrainingSessionService.kt`、MainActivity 里的 `hiplab/training_session` 通道和 manifest 里的 service 声明，避免两份服务。
 - 通知小图标用 `notificationIcon`（`mipmap/…` 或 `drawable/…`），不填用应用图标。

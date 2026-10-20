@@ -1,6 +1,6 @@
 // Ported from HipLab@99fcc83 lib/hip/voice/just_audio_output.dart (10-19
 // Android voice fix). Changes: no dart:io (web must compile) – the platform
-// comes from defaultTargetPlatform; the iOS keep-alive clip is this
+// comes from defaultTargetPlatform; the Android/iOS keep-alive clip is this
 // package's silent asset unless [keepAliveAsset] says otherwise; log tag
 // UgkTrainerVoice.
 import 'dart:async';
@@ -27,9 +27,9 @@ import 'voice_queue.dart';
 /// * Other apps' music is lowered (ducked) only while a line is playing:
 ///   `duckOthers` is taken right before a line and released ~0.7 s after it
 ///   ends; between lines the session mixes with others at full volume.
-/// * During a session a looping silent clip keeps the audio session alive,
-///   so with iOS `UIBackgroundModes: audio` the app – and its absolute-time
-///   training clock – keeps running with the screen locked.
+/// * During a session a looping silent clip keeps mobile playback active:
+///   on iOS with `UIBackgroundModes: audio`, and on Android alongside the
+///   foreground service, including gaps between spoken lines.
 /// * Interruptions are handled here, not by just_audio (its default would
 ///   resume a stale line after a call and pause the keep-alive when
 ///   headphones are unplugged): a call / Siri / alarm or unplugging the
@@ -42,6 +42,9 @@ import 'voice_queue.dart';
 /// docs/ios-setup-and-release.md.
 class JustAudioVoiceOutput
     implements VoiceOutput, InterruptibleVoiceOutput, VoicePlatform {
+  /// [keepAliveAsset] overrides must contain truly silent samples. Android
+  /// plays the track at normal player volume so it counts as active playback;
+  /// the bundled zero-sample asset supplies the silence.
   JustAudioVoiceOutput({String keepAliveAsset = defaultKeepAliveAsset})
     : this._(
         AudioPlayer(
@@ -211,7 +214,10 @@ class JustAudioVoiceOutput
       // Reapply these even when its source survived stop().
       await _keepAlive.setLoopMode(LoopMode.one);
       if (!current()) return;
-      await _keepAlive.setVolume(0);
+      // The bundled clip decodes to zero-valued samples. Android excludes a
+      // client-volume-muted track from active playback, so keep its gain at
+      // unity while the samples themselves remain silent. iOS stays at zero.
+      await _keepAlive.setVolume(_onAndroid ? 1 : 0);
       prepared = true;
     });
     if (!current() || !prepared) return;

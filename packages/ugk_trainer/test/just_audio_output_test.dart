@@ -391,10 +391,15 @@ void main() {
         session: () async => _Session(focus),
         iOS: false,
       );
+      output.volume = .25;
       await output.begin();
       expect(loop.assets, [JustAudioVoiceOutput.defaultKeepAliveAsset]);
       expect(loop.mode, LoopMode.one);
-      expect(loop.volumes, [0]);
+      expect(
+        loop.volumes,
+        [1],
+        reason: 'silent samples must remain active, not client-volume-muted',
+      );
       expect(loop.playing, isTrue);
       expect(
         focus,
@@ -478,6 +483,7 @@ void main() {
       await output.reactivate();
       expect(loop.playing, isTrue);
       expect(focus.length, focusCount);
+      expect(loop.volumes, everyElement(1));
       await output.end();
       await output.reactivate();
       expect(loop.playing, isFalse, reason: 'an ended owner cannot reactivate');
@@ -508,7 +514,7 @@ void main() {
       expect(loop.events, isEmpty);
       await output.begin();
       expect(loop.mode, LoopMode.one);
-      expect(loop.volumes.last, 0);
+      expect(loop.volumes.last, 1);
       expect(loop.playing, isTrue);
       expect(
         loop.assets,
@@ -564,4 +570,26 @@ void main() {
       await tester.runAsync(output.dispose);
     });
   });
+
+  test(
+    'iOS silent keep-alive retains zero volume through reactivation',
+    () async {
+      final loop = _LoopPlayer([]);
+      final output = JustAudioVoiceOutput.forTesting(
+        voice: _Player([]),
+        chime: _Player([]),
+        keepAlive: loop,
+        session: () async => _Session([]),
+        iOS: true,
+      );
+      output.volume = .25;
+      await output.begin();
+      expect(loop.playing, isTrue);
+      expect(loop.volumes, [0]);
+      await output.reactivate();
+      expect(loop.volumes, [0, 0]);
+      await output.dispose();
+      expect(loop.playing, isFalse);
+    },
+  );
 }

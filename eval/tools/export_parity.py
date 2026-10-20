@@ -82,6 +82,7 @@ def tool_cases(ok_plan):
         ("参数是数组", "hiplab", "x", [call("show_plan", "[1]")], {}, {"E_SCHEMA"}, False),
         ("两个工具", "hiplab", "x", [acts("s-figure4"), plan()], {}, {"E_TOOL"}, False),
         ("未知工具", "hiplab", "x", [call("show_video", {"id": "s-figure4"})], {}, {"E_TOOL"}, False),
+        ("计划多包一层 plan", "hiplab", "x", [call("show_plan", {"plan": copy.deepcopy(ok_plan)})], {}, {"E_SCHEMA"}, False),
         ("计划合法", "hiplab", "给你排了 10 分钟。", [plan()], {}, set(), False),
         ("计划跨块重复", "hiplab", "x", [plan(lambda p: p["blocks"][2]["items"].append(dict(dup_item)))], {}, {"E_DUP"}, False),
         ("计划同块重复", "hiplab", "x", [plan(lambda p: p["blocks"][1]["items"].append(dict(dup_item)))], {}, {"E_DUP"}, False),

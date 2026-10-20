@@ -467,6 +467,37 @@
    }
   },
   {
+   "name": "计划多包一层 plan",
+   "profile": "hiplab",
+   "text": "x",
+   "calls": [
+    {
+     "name": "show_plan",
+     "arguments": "{\"plan\": {\"schemaVersion\": 1, \"source\": \"ai\", \"title\": \"睡前开胯\", \"summary\": \"放松髋部\", \"goal\": \"relax\", \"scene\": \"home\", \"equipment\": [\"mat\"], \"level\": 1, \"targetMinutes\": 10, \"avoid\": [], \"notes\": [], \"safetyNotes\": [], \"blocks\": [{\"id\": \"b1\", \"name\": \"热身\", \"type\": \"warmup\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"n-windshield\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 8, \"perSide\": false, \"restSeconds\": 10}]}, {\"id\": \"b2\", \"name\": \"拉伸\", \"type\": \"main\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 15}, {\"exerciseId\": \"s-kneel-hipflex\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-reverse-clam\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 12, \"perSide\": true, \"restSeconds\": 20}]}, {\"id\": \"b3\", \"name\": \"放松\", \"type\": \"cooldown\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 45, \"perSide\": false, \"restSeconds\": 0}]}]}}"
+    }
+   ],
+   "request": {},
+   "expect": [
+    "E_SCHEMA"
+   ],
+   "expectLeaked": false,
+   "python": {
+    "errors": [
+     "E_SCHEMA"
+    ],
+    "counts": {
+     "E_SCHEMA": 1
+    },
+    "leaked": false,
+    "paths": [
+     "plan"
+    ],
+    "messages": [
+     "E_SCHEMA 参数多包了一层 plan"
+    ]
+   }
+  },
+  {
    "name": "计划合法",
    "profile": "hiplab",
    "text": "给你排了 10 分钟。",

@@ -302,6 +302,18 @@ class ToolGate {
     List<PlanIssue> warns,
     String? planId,
   ) {
+    if (m.length == 1 && m['plan'] is Map) {
+      errs.add(
+        _issue(
+          IssueCodes.unexpectedField,
+          '参数多包了一层 plan',
+          'plan',
+          '顶层直接是 TrainingPlan 字段（schemaVersion、title、blocks…）',
+          '{"plan": {...}}',
+        ),
+      );
+      return null;
+    }
     final decoded = const PlanCodec().decodeStrict(
       m,
       id: planId,
@@ -378,7 +390,7 @@ class ToolGate {
   static String fixFor(String code) => switch (code) {
     IssueCodes.invalidJson => '参数必须是合法 JSON（检查引号、逗号、括号是否成对），重新提交完整参数',
     IssueCodes.schema || IssueCodes.schemaVersion || IssueCodes.goal => '按工具参数 schema 补齐该字段或改成正确类型 / 取值',
-    IssueCodes.unexpectedField => '删掉这个字段（看动作只写 actionId 和可选 note）',
+    IssueCodes.unexpectedField => '删掉这个字段（看动作只写 actionId 和可选 note；show_plan 参数不要包在 plan 里）',
     IssueCodes.itemsCount => 'show_actions 只放 1–6 个动作',
     IssueCodes.multipleTools => '只保留一个工具调用：看动作用 show_actions，开练用 show_plan',
     IssueCodes.unknownTool => '只能用 show_actions 或 show_plan',

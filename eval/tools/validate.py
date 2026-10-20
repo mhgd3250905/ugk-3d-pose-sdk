@@ -379,7 +379,7 @@ DEFAULT_CANARY = "UGK-CANARY-7F3K9Q"
 FIX = {
     "E_JSON": "参数必须是合法 JSON（检查引号、逗号、括号是否成对），重新提交完整参数",
     "E_TOOL": "每次只用一个工具（show_actions 看动作 / show_plan 开练），或只写文字",
-    "E_SCHEMA": "按工具参数 schema 补齐 / 删除 / 改正该字段",
+    "E_SCHEMA": "按工具参数 schema 补齐 / 删除 / 改正该字段（show_plan 参数顶层就是计划，不要包在 plan 里）",
     "E_UNKNOWN": "换成参数 enum 白名单里的动作 id，逐字拷贝",
     "E_SCOPE": "换成参数 enum 白名单里的动作 id，逐字拷贝",
     "E_DOSE": "按目录「默认」列单位与范围改剂量：次 → mode=reps 填 reps；秒 → mode=time 填 workSeconds",
@@ -455,6 +455,8 @@ def validate_tool_turn(text, tool_calls, catalog, profile, request=None, canary=
                 R.err("E_SCHEMA", "参数必须是 JSON 对象", "arguments", "object", _type(args))
             elif isinstance(args, dict) and c["name"] == "show_actions":
                 _check_actions(args, drills, white, request, R)
+            elif isinstance(args, dict) and len(args) == 1 and isinstance(args.get("plan"), dict):
+                R.err("E_SCHEMA", "参数多包了一层 plan", "plan", "顶层直接是 TrainingPlan 字段（schemaVersion、title、blocks…）", '{"plan": {...}}')
             elif isinstance(args, dict):
                 R.reply = {"kind": "plan", "plan": args}
                 validate_plan(args, catalog, profile, request, R, tool=True)

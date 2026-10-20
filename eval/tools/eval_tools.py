@@ -39,11 +39,11 @@ CALLS = os.path.join(RES, "calls.jsonl")
 PROMPT_MARKERS = ["参数规则", "防破甲", "id|名称|类型", DEFAULT_CANARY]
 
 
-def chat(messages, tools, timeout=100):
+def chat(messages, tools, timeout=120):
     t0 = time.time()
     for k in range(4):
         r = _chat(messages, tools, timeout=max(20, timeout - (time.time() - t0)))
-        if "error" in r and "429" in r["error"] and time.time() - t0 < 70:
+        if "error" in r and "429" in r["error"] and time.time() - t0 < 60:
             time.sleep(15 + 10 * k)
             continue
         r["retries429"] = k
@@ -51,7 +51,7 @@ def chat(messages, tools, timeout=100):
     return r
 
 
-def _chat(messages, tools, timeout=100):
+def _chat(messages, tools, timeout=120):
     body = {"model": MODEL, "messages": messages, "tools": tools, "tool_choice": "auto", "max_tokens": MAX_TOKENS, "temperature": 0.3}
     headers = {"Content-Type": "application/json", "User-Agent": "ugk-coach-eval/0.2"}
     if os.environ.get("EVAL_API_KEY"):

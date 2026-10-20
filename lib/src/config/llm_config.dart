@@ -87,7 +87,8 @@ class LlmConfig {
     baseUrl: 'https://api.uuugk.win/v1',
     model: 'deepseek-v4-flash-0731',
     maxTokens: 6000,
-    timeout: Duration(seconds: 90),
+    // 评测实测：首轮出计划含推理常要 75–100 秒。
+    timeout: Duration(seconds: 120),
   );
 
   /// 当前选定：OpenCSG 网关上的 DeepSeek（推理模型，返回 reasoning_content）。

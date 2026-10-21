@@ -299,7 +299,7 @@ class CoachSession {
             _turns++;
             _history
               ..add(userMsg)
-              ..add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls))
+              ..add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls, reasoning: res.reasoning))
               ..addAll([for (final t in res.toolCalls) LlmMessage.tool(t.id, g.feedback())]);
           },
         );
@@ -307,7 +307,7 @@ class CoachSession {
       calls.add(_Call.ok(n, res, CallOutcome.rejected, codes: [for (final e in g.errors) e.code]));
       lastErrors = g.errors;
       final fb = g.feedback(remaining: 1 + maxResubmits - n);
-      attempts.add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls));
+      attempts.add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls, reasoning: res.reasoning));
       if (res.toolCalls.isEmpty) {
         attempts.add(LlmMessage.user(fb));
       } else {
@@ -385,7 +385,8 @@ class CoachSession {
     }
   }
 
-  static int _chars(LlmMessage m) => m.content.length + m.toolCalls.fold(0, (n, t) => n + t.arguments.length);
+  static int _chars(LlmMessage m) =>
+      m.content.length + (m.reasoning?.length ?? 0) + m.toolCalls.fold(0, (n, t) => n + t.arguments.length);
 
   static FallbackReason _reasonFor(LlmErrorKind k) => switch (k) {
     LlmErrorKind.network => FallbackReason.offline,

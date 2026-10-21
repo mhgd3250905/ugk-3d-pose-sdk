@@ -8,16 +8,20 @@ import '../util/json.dart';
 enum LlmRole { system, user, assistant, tool }
 
 class LlmMessage {
-  const LlmMessage(this.role, this.content, {this.toolCalls = const [], this.toolCallId});
-  const LlmMessage.system(this.content) : role = LlmRole.system, toolCalls = const [], toolCallId = null;
-  const LlmMessage.user(this.content) : role = LlmRole.user, toolCalls = const [], toolCallId = null;
-  const LlmMessage.assistant(this.content, {this.toolCalls = const []}) : role = LlmRole.assistant, toolCallId = null;
+  const LlmMessage(this.role, this.content, {this.toolCalls = const [], this.toolCallId, this.reasoning});
+  const LlmMessage.system(this.content) : role = LlmRole.system, toolCalls = const [], toolCallId = null, reasoning = null;
+  const LlmMessage.user(this.content) : role = LlmRole.user, toolCalls = const [], toolCallId = null, reasoning = null;
+  const LlmMessage.assistant(this.content, {this.toolCalls = const [], this.reasoning}) : role = LlmRole.assistant, toolCallId = null;
 
   /// 工具结果（回给模型的门禁结论）。
-  const LlmMessage.tool(String this.toolCallId, this.content) : role = LlmRole.tool, toolCalls = const [];
+  const LlmMessage.tool(String this.toolCallId, this.content) : role = LlmRole.tool, toolCalls = const [], reasoning = null;
 
   final LlmRole role;
   final String content;
+
+  /// 模型返回的协议字段，只供后续模型请求原样回传；不得作为用户可见正文。
+  /// DeepSeek 思考模式带工具时，历史 assistant 消息也需要 reasoning_content。
+  final String? reasoning;
 
   /// assistant 消息里的工具调用（原样回传，多轮时保持上下文）。
   final List<LlmToolCall> toolCalls;
@@ -28,6 +32,7 @@ class LlmMessage {
   Map<String, Object?> toJson() => {
     'role': role.name,
     'content': role == LlmRole.assistant && toolCalls.isNotEmpty && content.isEmpty ? null : content,
+    if (role == LlmRole.assistant && reasoning != null) 'reasoning_content': reasoning,
     if (toolCalls.isNotEmpty) 'tool_calls': [for (final c in toolCalls) c.toJson()],
     if (toolCallId != null) 'tool_call_id': toolCallId,
   };
@@ -177,7 +182,7 @@ class LlmResponse {
   /// 工具调用（工具版）。
   final List<LlmToolCall> toolCalls;
 
-  /// 推理模型的 `reasoning_content`（只记录，不解析、不展示）。
+  /// 推理模型的 `reasoning_content`（协议回传，不解析、不展示）。
   final String? reasoning;
   final TokenUsage usage;
 

@@ -13,7 +13,11 @@
 
 ### 兼容
 - 0.2 `CoachSession` 保留作降级，行为不变；0.1 `CoachAssistant` 仍为 deprecated。
-- 真实中转调用待本机实测（沙盒无 X-App-Key）。
+
+### 本机验收（2026-10-21）
+- PR #4 已合入 main，合并提交 `1f8be6edf9c0c57575d963448af379e8fdf8df2a`；与复审 head `48417e03f5ff05d4434dc2e15cc36237464153d2` 的代码树一致。
+- 根包 `dart test` 284 项全部通过，`dart analyze` 无问题；修复复现、适用代码状态及非阻塞 P3 见 [项目维护台账](docs/project-ledger.md)。
+- 0.3 `CoachAgent` 的真实 Worker 多步链路尚未冒烟；历史 0.1 冒烟和 0.2 tools 请求不能替代该验证。
 
 ## 0.2.0 — 2026-10-21
 

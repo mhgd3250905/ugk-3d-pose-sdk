@@ -275,11 +275,6 @@ class CoachSession {
       }
       if (g.ok) {
         calls.add(_Call.ok(n, res, n == 1 ? CallOutcome.passed : CallOutcome.rewritten));
-        _turns++;
-        _history
-          ..add(userMsg)
-          ..add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls))
-          ..addAll([for (final t in res.toolCalls) LlmMessage.tool(t.id, g.feedback())]);
         return _finish(
           turnId,
           meta,
@@ -291,6 +286,14 @@ class CoachSession {
           actions: g.actions,
           warnings: g.warnings,
           submissions: n,
+          dead: dead,
+          commit: () {
+            _turns++;
+            _history
+              ..add(userMsg)
+              ..add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls))
+              ..addAll([for (final t in res.toolCalls) LlmMessage.tool(t.id, g.feedback())]);
+          },
         );
       }
       calls.add(_Call.ok(n, res, CallOutcome.rejected, codes: [for (final e in g.errors) e.code]));
@@ -321,6 +324,7 @@ class CoachSession {
         error: error,
         leaked: leaked,
         submissions: calls.length,
+        dead: dead,
       );
     }
     try {
@@ -332,10 +336,6 @@ class CoachSession {
         return _finish(turnId, meta, calls, TurnStatus.cancelled, TurnOutcome.cancelled, submissions: calls.length);
       }
       final plan = r.plan == null ? null : gate.admitTemplate(r.plan!, context);
-      _turns++;
-      _history
-        ..add(userMsg)
-        ..add(LlmMessage.assistant(r.text));
       return _finish(
         turnId,
         meta,
@@ -349,6 +349,13 @@ class CoachSession {
         error: error,
         leaked: leaked,
         submissions: calls.length,
+        dead: dead,
+        commit: () {
+          _turns++;
+          _history
+            ..add(userMsg)
+            ..add(LlmMessage.assistant(r.text));
+        },
       );
     } on Object catch (e) {
       if (dead()) {
@@ -365,6 +372,7 @@ class CoachSession {
         error: e,
         leaked: leaked,
         submissions: calls.length,
+        dead: dead,
       );
     }
   }
@@ -395,6 +403,8 @@ class CoachSession {
     Object? error,
     bool leaked = false,
     int submissions = 0,
+    bool Function()? dead,
+    void Function()? commit,
   }) async {
     final pricing = client.pricing;
     final records = [
@@ -430,6 +440,19 @@ class CoachSession {
         // 记账失败不影响对话。
       }
     }
+    // 记账是本轮最后一个异步边界：其间 reset / 取消则本轮作废——
+    // 返回 cancelled、不带任何可渲染内容、不写历史 / 轮数。
+    // 复查与提交之间没有 await，提交即生效。
+    if (dead != null && dead()) {
+      return CoachTurnResult(
+        turnId: turnId,
+        status: TurnStatus.cancelled,
+        submissions: submissions,
+        error: error,
+        records: records,
+      );
+    }
+    commit?.call();
     return CoachTurnResult(
       turnId: turnId,
       status: status,

@@ -344,12 +344,13 @@ class ToolGate {
     );
     errs.addAll(decoded.issues.where((i) => i.isError).map(_strip));
     // 只判不修：本轮已知的水平 / 时长为准，冲突打回重交（旧入口会覆盖，这里不改值）。
-    final lv = m['level'];
-    if (ctx.level != null && lv is int && lv != ctx.level) {
+    // 与 PlanCodec 同口径：整值 double（3.0）视为整数 3 比较；非整值由 codec 报 schema 错。
+    final lv = _wholeInt(m['level']);
+    if (ctx.level != null && lv != null && lv != ctx.level) {
       errs.add(_issue(IssueCodes.contextConflict, '计划水平与本轮条件不符', 'level', '${ctx.level}（本轮条件）', '$lv'));
     }
-    final tm = m['targetMinutes'];
-    if (ctx.minutes != null && tm is int && tm != ctx.minutes) {
+    final tm = _wholeInt(m['targetMinutes']);
+    if (ctx.minutes != null && tm != null && tm != ctx.minutes) {
       errs.add(_issue(IssueCodes.contextConflict, '计划时长与本轮条件不符', 'targetMinutes', '${ctx.minutes}（本轮条件）', '$tm'));
     }
     final raw = decoded.plan;
@@ -445,4 +446,11 @@ class ToolGate {
     IssueCodes.tooManyItems => '减少动作条目，多做用 sets / rounds',
     _ => '按期望改正',
   };
+}
+
+/// 整数或整值 double（JSON 的 3 / 3.0）→ int；其余（非整值、非数字、NaN/∞）→ null。
+int? _wholeInt(Object? v) {
+  if (v is int) return v;
+  if (v is double && v.isFinite && v == v.truncateToDouble()) return v.toInt();
+  return null;
 }

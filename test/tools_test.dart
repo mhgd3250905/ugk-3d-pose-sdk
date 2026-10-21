@@ -350,6 +350,49 @@ void main() {
       }
     });
 
+    test('context_conflict：整值 double（3.0 / 10.0，经 JSON 往返）同样报冲突', () {
+      final p =
+          jsonDecode(
+                jsonEncode(
+                  okPlan()
+                    ..['level'] = 3.0
+                    ..['targetMinutes'] = 10.0,
+                ),
+              )
+              as Map<String, Object?>;
+      expect(p['level'], isA<double>());
+      expect(p['targetMinutes'], isA<double>());
+      final g = gate.check('x', [call('show_plan', p)], context: const CoachContext(level: 1, minutes: 30));
+      expect(g.ok, isFalse);
+      expect(g.plan, isNull);
+      final errs = g.errors.where((e) => e.code == IssueCodes.contextConflict).toList();
+      expect(errs.map((e) => e.path), ['level', 'targetMinutes']);
+      expect(errs.map((e) => e.actual), ['3', '10']);
+    });
+
+    test('context_conflict：整值 double 与本轮值相同（1.0 对 1）不报，规范为整数', () {
+      final base = okPlan();
+      final lv = base['level'] as int, tm = base['targetMinutes'] as int;
+      final p =
+          jsonDecode(
+                jsonEncode(
+                  base
+                    ..['level'] = lv.toDouble()
+                    ..['targetMinutes'] = tm.toDouble(),
+                ),
+              )
+              as Map<String, Object?>;
+      final g = gate.check('x', [call('show_plan', p)], context: CoachContext(level: lv, minutes: tm));
+      expect(g.errors.map((e) => e.code), isNot(contains(IssueCodes.contextConflict)));
+      expect(g.ok, isTrue);
+      expect(g.plan!.plan.level, lv);
+      final one = jsonDecode(jsonEncode(okPlan()..['level'] = 1.0)) as Map<String, Object?>;
+      expect(
+        gate.check('x', [call('show_plan', one)], context: const CoachContext(level: 1)).errors.map((e) => e.code),
+        isNot(contains(IssueCodes.contextConflict)),
+      );
+    });
+
     test('context_conflict：与本轮值一致或本轮未给值时不报', () {
       final p = okPlan();
       final same = CoachContext(level: p['level'] as int, minutes: p['targetMinutes'] as int);
@@ -536,6 +579,110 @@ void main() {
       expect(users, hasLength(2));
       expect(users.first, contains('新请求'));
       expect(users.last, contains('第三轮'));
+    });
+
+    test('记账 await 期间 reset：旧轮返回 cancelled、无可渲染内容、不写新会话', () async {
+      final gateSink = Completer<void>();
+      final inSink = Completer<void>();
+      var entered = 0;
+      final c = FakeLlmClient([good]);
+      final s = CoachSession(
+        client: c,
+        catalog: () => catalog,
+        profile: hip,
+        usage: CallbackUsageSink((_) {
+          entered++;
+          if (!inSink.isCompleted) inSink.complete();
+          return gateSink.future;
+        }),
+      );
+      final oldTurn = s.send('旧请求');
+      await inSink.future;
+      expect(entered, 1);
+      expect(s.isBusy, isTrue);
+      s.reset();
+      gateSink.complete();
+      final r = await oldTurn;
+      expect(r.status, TurnStatus.cancelled);
+      expect(r.plan, isNull);
+      expect(r.actions, isNull);
+      expect(r.text, isEmpty);
+      expect(r.records, hasLength(1), reason: '已发生的调用仍记账');
+      expect(s.history, isEmpty);
+      expect(s.turnCount, 0);
+    });
+
+    test('记账 await 期间取消：返回 cancelled，不写历史 / 轮数', () async {
+      final gateSink = Completer<void>();
+      final inSink = Completer<void>();
+      final token = CancelToken();
+      final s = CoachSession(
+        client: FakeLlmClient([good]),
+        catalog: () => catalog,
+        profile: hip,
+        usage: CallbackUsageSink((_) {
+          if (!inSink.isCompleted) inSink.complete();
+          return gateSink.future;
+        }),
+      );
+      final turn = s.send('x', cancel: token);
+      await inSink.future;
+      token.cancel();
+      gateSink.complete();
+      final r = await turn;
+      expect(r.status, TurnStatus.cancelled);
+      expect(r.plan, isNull);
+      expect(r.text, isEmpty);
+      expect(s.history, isEmpty);
+      expect(s.turnCount, 0);
+    });
+
+    test('回落路径记账 await 期间 reset：不返回模板计划、不写历史', () async {
+      final gateSink = Completer<void>();
+      final inSink = Completer<void>();
+      final s = CoachSession(
+        client: FakeLlmClient([const LlmException(LlmErrorKind.network, 'down')]),
+        catalog: () => catalog,
+        profile: hip,
+        fallback: (r) => SessionFallbackReply('先用模板', plan: fallbackPlan),
+        usage: CallbackUsageSink((_) {
+          if (!inSink.isCompleted) inSink.complete();
+          return gateSink.future;
+        }),
+      );
+      final turn = s.send('x');
+      await inSink.future;
+      s.reset();
+      gateSink.complete();
+      final r = await turn;
+      expect(r.status, TurnStatus.cancelled);
+      expect(r.plan, isNull);
+      expect(r.text, isEmpty);
+      expect(s.history, isEmpty);
+      expect(s.turnCount, 0);
+    });
+
+    test('记账正常完成：ok 结果在记账之后才写历史', () async {
+      final gateSink = Completer<void>();
+      final inSink = Completer<void>();
+      final s = CoachSession(
+        client: FakeLlmClient([good]),
+        catalog: () => catalog,
+        profile: hip,
+        usage: CallbackUsageSink((_) {
+          if (!inSink.isCompleted) inSink.complete();
+          return gateSink.future;
+        }),
+      );
+      final turn = s.send('x');
+      await inSink.future;
+      expect(s.history, isEmpty);
+      gateSink.complete();
+      final r = await turn;
+      expect(r.status, TurnStatus.ok);
+      expect(r.plan, isNotNull);
+      expect(s.turnCount, 1);
+      expect(s.history, hasLength(3));
     });
 
     test('并发 send：进行中的第二次返回 busy，不调模型；硬上限计入进行中轮次；历史顺序不乱', () async {

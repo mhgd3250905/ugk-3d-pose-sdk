@@ -205,6 +205,17 @@ def validate_reply(content, catalog, profile, request=None):
     return R
 
 
+def _whole_int(v):
+    """与 Dart PlanCodec 同口径：int 或整值 float（3.0）→ int；bool、非整值、非数字 → None。"""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float) and v.is_integer():
+        return int(v)
+    return None
+
+
 def validate_plan(plan, catalog, profile, request, R, tool=False):
     """tool=True（工具版 show_plan）：同一动作在整个计划里重复 = E_DUP 错误（同块、跨块都算）。"""
     drills = {d["id"]: d for d in catalog["drills"]}
@@ -229,17 +240,17 @@ def validate_plan(plan, catalog, profile, request, R, tool=False):
         R.err("E_SCENE", f"本 App 不支持场所 {plan.get('scene')}")
     if request.get("scene") and plan.get("scene") != request["scene"]:
         R.err("E_SCENE", f"计划场所 {plan.get('scene')} 与用户场所 {request['scene']} 不符")
-    if not isinstance(plan.get("level"), int) or plan.get("level") not in (1, 2, 3):
+    if _whole_int(plan.get("level")) not in (1, 2, 3):
         S("level 必须是 1/2/3")
     if tool:
         # 与 Dart ToolGate 同口径：本轮明确给出的水平 / 时长为准，冲突打回重交（只判不修）。
         for key, rk, what in (("level", "level", "水平"), ("targetMinutes", "minutes", "时长")):
-            v, want = plan.get(key), request.get(rk)
-            if want is not None and isinstance(v, int) and not isinstance(v, bool) and v != want:
+            v, want = _whole_int(plan.get(key)), request.get(rk)
+            if want is not None and v is not None and v != want:
                 R.err("E_CONTEXT", f"计划{what}与本轮条件不符", key, f"{want}（本轮条件）", str(v))
-    tm = plan.get("targetMinutes")
+    tm = _whole_int(plan.get("targetMinutes"))
     lo, hi = (profile.get("limits") or {}).get("minutes", [3, 60])
-    if not isinstance(tm, int):
+    if tm is None:
         S("targetMinutes 必须是整数")
     elif not (lo <= tm <= hi):
         R.err("E_DOSE", f"targetMinutes {tm} 超出 {lo}–{hi}")

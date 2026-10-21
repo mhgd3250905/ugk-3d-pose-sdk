@@ -158,7 +158,7 @@ Set<String> compressContext(
   required int fixedTokens,
   required int budget,
   required int keepRecent,
-  required Map<String, CompressibleResult> compressible,
+  required Map<LlmMessage, CompressibleResult> compressible,
   bool force = false,
 }) {
   var total = fixedTokens + msgs.fold(0, (n, m) => n + estimateMessageTokens(m));
@@ -177,7 +177,7 @@ Set<String> compressContext(
     if (!force && total <= budget) break;
     final m = msgs[i];
     if (m.role != LlmRole.tool) continue;
-    final c = compressible.remove(m.toolCallId);
+    final c = compressible.remove(m);
     if (c == null || m.content == c.summary) continue;
     final next = LlmMessage.tool(m.toolCallId!, c.summary);
     total += estimateMessageTokens(next) - estimateMessageTokens(m);

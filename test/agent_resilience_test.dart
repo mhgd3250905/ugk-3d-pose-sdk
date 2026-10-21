@@ -57,8 +57,10 @@ void main() {
     int contextBudgetTokens = 60000,
     int keepRecentSteps = 3,
     Future<void> Function(Duration)? sleep,
+    UserMemoryStore? store,
   }) => CoachAgent(
     client: c,
+    memoryStore: store,
     usage: usage,
     catalog: () => catalog,
     profile: hiplab,
@@ -246,5 +248,131 @@ void main() {
     final hint = c.requests[3].messages.last;
     expect(hint.role, LlmRole.user);
     expect(hint.content, contains('完全相同'));
+  });
+
+  String wire(LlmRequest r) => jsonEncode({
+    'messages': [for (final m in r.messages) m.toJson()],
+    'tools': [for (final t in r.tools) t.toJson()],
+  });
+
+  // 第一步：读记忆技能 + remember（参数含私密标记）；第二步请求失败后重试。
+  for (final when in ['backoff', 'inflight']) {
+    test('[P2] ${when == 'backoff' ? '退避期间' : '在途失败前'}关闭记忆：重试请求不含摘要、记忆技能、记忆工具与调用参数/结果', () async {
+      const stored = 'stored-only-private-sentinel';
+      const said = 'remember-arg-private-sentinel';
+      final store = InMemoryUserMemoryStore([MemoryEntry(MemoryKind.goal, stored, at: DateTime.utc(2026))]);
+      late CoachAgent a;
+      final c = FakeLlmClient([
+        _tools([
+          _call('read', {'path': 'user-memory/SKILL.md'}),
+          _call('remember', {'kind': 'injury', 'text': said}),
+        ]),
+        if (when == 'backoff')
+          const LlmException(LlmErrorKind.network, 'down')
+        else
+          (_) async {
+            a.enableUserMemory = false;
+            throw const LlmException(LlmErrorKind.network, 'down');
+          },
+        '好的。',
+      ]);
+      a = agent(
+        c,
+        store: store,
+        sleep: (_) async {
+          if (when == 'backoff') a.enableUserMemory = false;
+        },
+      );
+      final r = await a.send('我左膝疼');
+      expect(r.status, TurnStatus.ok);
+      expect(c.requests.length, 3);
+      expect(wire(c.requests[1]), allOf(contains(stored), contains(said)));
+      final retry = c.requests[2];
+      final w = wire(retry);
+      expect(w, isNot(contains(stored)));
+      expect(w, isNot(contains(said)));
+      expect(retry.messages.first.content, isNot(contains('user-memory/SKILL.md')));
+      expect(retry.tools.map((t) => t.name), isNot(anyOf(contains('remember'), contains('forget'))));
+      expect(w, contains('用户记忆已关闭'));
+      _expectProtocol(retry.messages);
+      await Future<void>.delayed(Duration.zero);
+      expect(store.entries.map((e) => e.text), [stored]);
+    });
+  }
+
+  test('[P2] retrying 同步监听器里 reset：旧轮无需放行退避即返回 cancelled，不发第二次请求、不回写', () async {
+    final c = FakeLlmClient([const LlmException(LlmErrorKind.network, 'down'), '不该到这']);
+    var fellBack = false;
+    final a = agent(
+      c,
+      fallback: (_) {
+        fellBack = true;
+        return const SessionFallbackReply('模板');
+      },
+      sleep: (_) => Completer<void>().future, // 永不放行
+    );
+    a.events.listen((e) {
+      if (e.kind == AgentEventKind.retrying) a.reset();
+    });
+    final r = await a.send('练练').timeout(const Duration(milliseconds: 150));
+    expect(r.status, TurnStatus.cancelled);
+    expect(c.requests.length, 1);
+    expect(fellBack, isFalse);
+    expect(a.history, isEmpty);
+    expect(a.turnCount, 0);
+  });
+
+  test('[P2] 不同目录的 read 探索不触发空转，正常交付', () async {
+    final c = FakeLlmClient([
+      _read(''),
+      _read('action-library'),
+      _read('action-library/index'),
+      _read('action-library/index/scene'),
+      _showActions(['s-figure4']),
+    ]);
+    final r = await agent(c).send('练臀');
+    expect(r.status, TurnStatus.ok);
+    expect(r.error, isNull);
+    expect(c.requests.length, 5);
+    for (final req in c.requests) {
+      expect(req.messages.last.content, isNot(contains('系统提示')));
+    }
+  });
+
+  test('[P2] 同一目录反复 read / ls 仍判为无新信息：提示一次，再犯回落', () async {
+    final c = FakeLlmClient([
+      for (var i = 0; i < 3; i++) ...[
+        _read('action-library'),
+        _tools([
+          _call('ls', {'dir': 'action-library'}),
+        ]),
+      ],
+    ]);
+    final r = await agent(c).send('练臀');
+    expect(r.status, TurnStatus.fallback);
+    expect((r.error as AgentStalled).why, 'no_new_info');
+    expect(c.requests.length, 5);
+    expect(c.requests[4].messages.last.content, contains('没有获得新信息'));
+  });
+
+  test('[P3] 跨步骤复用 tool_call_id：压缩元数据按消息关联，不错配摘要与已读集合', () async {
+    LlmResponse readAs(String id, String path) => _tools([
+      LlmToolCall(id: id, name: 'read', arguments: jsonEncode({'path': path})),
+    ]);
+    final c = FakeLlmClient([
+      readAs('call_0', 'action-library/SKILL.md'),
+      readAs('call_0', 'plan-training/SKILL.md'),
+      _read('action-library/SKILL.md'),
+      _showActions(['s-figure4']),
+    ]);
+    final r = await agent(c, contextBudgetTokens: 1, keepRecentSteps: 1).send('练臀');
+    expect(r.status, TurnStatus.ok);
+    final third = c.requests[2].messages.where((m) => m.role == LlmRole.tool).toList();
+    expect(third.first.content, startsWith('已读 action-library/SKILL.md（'));
+    expect(third[1].content, isNot(startsWith('已读'))); // 第二步完整保留
+    final t4 = c.requests[3].messages.where((m) => m.role == LlmRole.tool).toList();
+    expect(t4[1].content, startsWith('已读 plan-training/SKILL.md（'));
+    expect(t4.last.content, isNot(contains('已读'))); // 第一个文件被压缩后再读给全文
+    expect(t4.last.content.length, greaterThan(100));
   });
 }

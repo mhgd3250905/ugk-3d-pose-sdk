@@ -12,6 +12,7 @@
 library;
 
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -331,6 +332,8 @@ class CoachAgent {
 
   Future<CoachTurnResult> _run(String turnId, String text, CoachContext context, CancelToken? cancel, int gen) async {
     bool dead() => gen != _generation || (cancel?.isCancelled ?? false);
+    // 固定本轮的 reset 信号：reset() 会替换 _resetSig，之后再读到的是新轮的信号。
+    final resetSig = _resetSig;
     void emit(
       AgentEventKind k, {
       int step = 0,
@@ -405,7 +408,8 @@ class CoachAgent {
     Object? error;
     var leaked = false;
     // 上下文压缩：可压缩的 read / ls 结果；防空转状态。
-    final compressible = <String, CompressibleResult>{};
+    // 按具体 tool 消息（对象身份）关联，避免跨步骤复用同一 tool_call_id 时元数据错配。
+    final compressible = LinkedHashMap<LlmMessage, CompressibleResult>.identity();
     final listed = <String>{};
     String? lastSig;
     var repeat = 0, idle = 0;
@@ -475,16 +479,24 @@ class CoachAgent {
       step++;
       emit(AgentEventKind.thinking, step: step);
       if (step > 1 || memoryOn != enableUserMemory) await rebuild();
-      if (!memoryOn) memOps.clear();
       // 记忆加载等异步之后、实际调模型之前复查世代与取消。
       if (dead()) return cancelled(step - 1);
-      final memOff = !memoryOn;
-      final tools = AgentTools.build(profile, cat, memory: memoryOn);
-      final fixedTokens =
-          estimateTokens(system) +
-          estimateTokens(jsonEncode([for (final t in tools) t.toJson()])) +
-          _history.fold<int>(0, (n, m) => n + estimateMessageTokens(m)) +
-          estimateMessageTokens(userMsg);
+      var memOff = !memoryOn;
+      var tools = <LlmTool>[];
+      var fixedTokens = 0;
+      // 按当前 memoryOn 生成工具与固定开销；关闭时丢弃暂存的记忆操作。
+      void prepare() {
+        if (!memoryOn) memOps.clear();
+        memOff = !memoryOn;
+        tools = AgentTools.build(profile, cat, memory: memoryOn);
+        fixedTokens =
+            estimateTokens(system) +
+            estimateTokens(jsonEncode([for (final t in tools) t.toJson()])) +
+            _history.fold<int>(0, (n, m) => n + estimateMessageTokens(m)) +
+            estimateMessageTokens(userMsg);
+      }
+
+      prepare();
       void compress({bool force = false}) {
         final freed = compressContext(
           turnMsgs,
@@ -507,6 +519,12 @@ class CoachAgent {
       LlmException? failure;
       while (true) {
         if (dead()) return cancelled(step);
+        // 每次实际请求前复查记忆开关（退避期间或在途失败前可能被关闭），必要时重建 system / tools / files。
+        if (memoryOn != enableUserMemory) {
+          await rebuild();
+          if (dead()) return cancelled(step);
+          prepare();
+        }
         final left = turnTimeout - turnWatch.elapsed;
         if (left <= Duration.zero) {
           error = AgentRequestFailed(
@@ -543,7 +561,7 @@ class CoachAgent {
                 emit(AgentEventKind.slow, step: step);
               });
         unawaited(cancel?.whenCancelled.then((_) => child.cancel(cancel.reason ?? 'cancelled')));
-        unawaited(_resetSig.future.then((_) => child.cancel('reset')));
+        unawaited(resetSig.future.then((_) => child.cancel('reset')));
         final sw = Stopwatch()..start();
         try {
           final f = client.complete(req, cancel: child)..ignore();
@@ -623,8 +641,10 @@ class CoachAgent {
             reason: cls,
             delay: delay,
           );
+          // 同步监听器可能在 retrying 里直接 cancel / reset：先复查再退避。
+          if (dead()) return cancelled(step);
           // 退避可被取消 / reset 立即打断；打断后不回写。
-          await Future.any<void>([_sleep(delay), ?cancel?.whenCancelled, _resetSig.future]);
+          await Future.any<void>([_sleep(delay), ?cancel?.whenCancelled, resetSig.future]);
           if (dead()) return cancelled(step);
         } finally {
           timer.cancel();
@@ -679,6 +699,7 @@ class CoachAgent {
 
       // 先执行中间工具，再判最终 show_*。
       final results = <String, String>{};
+      final pendingCompress = <String, CompressibleResult>{};
       final finals = <LlmToolCall>[];
       var fresh = false;
       for (final t in res.toolCalls) {
@@ -688,10 +709,19 @@ class CoachAgent {
             emit(AgentEventKind.reading, step: step, path: path);
             if (path.startsWith('${SkillFiles.userMemory}/')) memResultIds.add(t.id);
             final before = readSet.length;
+            final isDir = fs.read(path) == null && fs.ls(path) != null;
             results[t.id] = _read(fs, path, readSet, reads);
-            if (readSet.length > before) {
+            if (isDir) {
+              // 目录 read 与 ls 共用目录去重 / 新信息 / 压缩跟踪。
+              if (listed.add(path)) fresh = true;
+              pendingCompress[t.id] = CompressibleResult(t.id, '已列目录 $path（略，需要可再 ls）');
+            } else if (readSet.length > before) {
               fresh = true;
-              compressible[t.id] = CompressibleResult(t.id, '已读 $path（内容已省略以节省上下文，需要可再 read）', path: path);
+              pendingCompress[t.id] = CompressibleResult(
+                t.id,
+                '已读 $path（内容已省略以节省上下文，需要可再 read）',
+                path: path,
+              );
             }
           case AgentTools.ls:
             final dir = SkillFiles.normalize(_arg(t, 'dir') ?? '');
@@ -700,7 +730,7 @@ class CoachAgent {
             results[t.id] = l == null ? '没有这个目录：$dir' : l.join('\n');
             if (l != null) {
               if (listed.add(dir)) fresh = true;
-              compressible[t.id] = CompressibleResult(t.id, '已列目录 $dir（略，需要可再 ls）');
+              pendingCompress[t.id] = CompressibleResult(t.id, '已列目录 $dir（略，需要可再 ls）');
             }
           case AgentTools.checkPlan:
             emit(AgentEventKind.checking, step: step);
@@ -730,9 +760,13 @@ class CoachAgent {
 
       if (finals.isEmpty) {
         calls.add(_Call.ok(step, res, retry: tag, CallOutcome.toolStep));
-        turnMsgs
-          ..add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls))
-          ..addAll([for (final t in res.toolCalls) LlmMessage.tool(t.id, results[t.id]!)]);
+        turnMsgs.add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls));
+        for (final t in res.toolCalls) {
+          final m = LlmMessage.tool(t.id, results[t.id]!);
+          turnMsgs.add(m);
+          final c = pendingCompress[t.id];
+          if (c != null) compressible[m] = c;
+        }
         // 防空转：连续相同的工具调用（同名同参数）或连续无新信息。
         final sig = [for (final t in res.toolCalls) '${t.name}\u0000${t.arguments}'].join('\u0001');
         repeat = sig == lastSig ? repeat + 1 : 1;
@@ -787,9 +821,13 @@ class CoachAgent {
       lastErrors = g.errors;
       if (++rejected > maxResubmits) break;
       final fb = _feedback(g.errors, remaining: 1 + maxResubmits - rejected);
-      turnMsgs
-        ..add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls))
-        ..addAll([for (final t in res.toolCalls) LlmMessage.tool(t.id, results[t.id] ?? fb)]);
+      turnMsgs.add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls));
+      for (final t in res.toolCalls) {
+        final m = LlmMessage.tool(t.id, results[t.id] ?? fb);
+        turnMsgs.add(m);
+        final c = pendingCompress[t.id];
+        if (c != null) compressible[m] = c;
+      }
     }
     if (step >= maxSteps && error == null && !leaked && rejected <= maxResubmits) {
       reason = FallbackReason.invalidOutput;

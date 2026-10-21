@@ -10,6 +10,12 @@
 - `requestTimeout`（60s）、`turnTimeout`（180s）、`slowAfter`（15s）；事件新增 `retrying` / `slow`。
 - 最终失败回落模板，`error = AgentRequestFailed(kind, errorClass, attempts)`，records / usage 完整；`UsageRecord.retry` 标注重试序号；`LlmException.retryAfter`（客户端在 429/503 时填）。
 
+### 审核修复（PR #5）
+- 每次实际请求（含重试）前复查 `enableUserMemory`：退避期间或在途失败前关闭记忆，重试请求按当前开关重建 system / tools / files，并过滤本轮记忆调用与结果。
+- 固定本轮 reset 信号，`retrying` 事件后立即复查作废：同步监听器里 `reset()` 时旧轮即时返回 `cancelled`，不再等退避。
+- 目录 `read` 与 `ls` 共用目录去重 / 新信息 / 压缩跟踪：不同目录探索不再误判空转，重复目录仍受防护。
+- 压缩元数据按具体 tool 消息关联（不再按 tool_call_id），跨步骤复用 id 时不错配摘要与已读集合。
+
 ## 0.3.0 — 2026-10-21
 
 ### 新增：Agent 版（Skill 渐进式披露）

@@ -20,6 +20,9 @@ enum CallOutcome {
   /// 网络 / HTTP / 截断等错误。
   error,
   cancelled,
+
+  /// Agent 中间步（读文件 / 自检 / 记忆），不是最终交付。
+  toolStep,
 }
 
 /// 这一轮 ask 的最终走向（同一 turnId 的每条记录都带上）。

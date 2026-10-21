@@ -20,8 +20,11 @@ abstract final class CoachTools {
     for (final d in profile.scope(catalog)) d.id,
   ];
 
-  static List<LlmTool> build(CoachProfile profile, Catalog catalog) {
-    final ids = whitelist(profile, catalog);
+  /// [idEnum] = false 时动作 id 不写 enum（Agent 版：id 由模型读文件得到，门禁照样判定白名单）。
+  static List<LlmTool> build(CoachProfile profile, Catalog catalog, {bool idEnum = true}) {
+    final idSchema = idEnum
+        ? <String, Object?>{'type': 'string', 'enum': whitelist(profile, catalog)}
+        : <String, Object?>{'type': 'string', 'description': '动作 id，必须来自读到的动作库文件'};
     final lim = profile.limits;
     Map<String, Object?> intRange(int min, int max) => {'type': 'integer', 'minimum': min, 'maximum': max};
     final cautions = catalog.taxonomy.cautions;
@@ -39,7 +42,7 @@ abstract final class CoachTools {
               'items': {
                 'type': 'object',
                 'properties': {
-                  'actionId': {'type': 'string', 'enum': ids},
+                  'actionId': idSchema,
                   'note': {'type': 'string', 'description': '可选，一句说明（不写组数次数）'},
                 },
                 'required': ['actionId'],
@@ -98,7 +101,7 @@ abstract final class CoachTools {
                     'items': {
                       'type': 'object',
                       'properties': {
-                        'exerciseId': {'type': 'string', 'enum': ids},
+                        'exerciseId': idSchema,
                         'mode': {
                           'type': 'string',
                           'enum': ['reps', 'time'],

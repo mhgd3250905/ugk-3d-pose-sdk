@@ -170,6 +170,36 @@ class PlanLimits {
   };
 }
 
+/// App 专属 skill（Agent 版，渐进式披露）：挂到虚拟文件系统 `<name>/SKILL.md`，
+/// [files] 是它引用的资源文件（相对 `<name>/` 的路径 → 全文）。
+class ProfileSkill {
+  const ProfileSkill({required this.name, required this.description, required this.content, this.files = const {}});
+  final String name;
+  final String description;
+  final String content;
+  final Map<String, String> files;
+
+  static ProfileSkill? tryParse(Object? raw) {
+    final j = asMap(raw);
+    final name = asString(j['name']);
+    final content = asString(j['content']);
+    if (name == null || name.isEmpty || content == null || !RegExp(r'^[a-z0-9][a-z0-9-]*$').hasMatch(name)) return null;
+    return ProfileSkill(
+      name: name,
+      description: asString(j['description']) ?? '',
+      content: content,
+      files: {for (final e in asMap(j['files']).entries) if (e.value is String) e.key: e.value! as String},
+    );
+  }
+
+  Map<String, Object?> toJson() => {
+    'name': name,
+    'description': description,
+    'content': content,
+    if (files.isNotEmpty) 'files': files,
+  };
+}
+
 class CoachProfile {
   const CoachProfile({
     required this.id,
@@ -184,6 +214,7 @@ class CoachProfile {
     this.limits = const PlanLimits(),
     this.assetApps = const [],
     this.vars = const {},
+    this.skills = const [],
   });
 
   /// flarelab / hiplab / smartfit …（随调用记录）。
@@ -214,6 +245,9 @@ class CoachProfile {
   /// 自定义提示词变量。
   final Map<String, String> vars;
 
+  /// App 专属 skill（Agent 版，渐进式披露）。
+  final List<ProfileSkill> skills;
+
   /// 本 App 可用的动作（保持目录顺序）。
   List<Drill> scope(Catalog c) => [for (final d in c.drills) if (select.matches(d)) d];
 
@@ -241,6 +275,7 @@ class CoachProfile {
       limits: PlanLimits.fromJson(j['limits']),
       assetApps: asStringList(j['assetApps']),
       vars: {for (final e in asMap(j['vars']).entries) if (e.value is String) e.key: e.value! as String},
+      skills: [for (final x in asList(j['skills'])) ?ProfileSkill.tryParse(x)],
     );
   }
 
@@ -257,5 +292,6 @@ class CoachProfile {
     'limits': limits.toJson(),
     if (assetApps.isNotEmpty) 'assetApps': assetApps,
     if (vars.isNotEmpty) 'vars': vars,
+    if (skills.isNotEmpty) 'skills': [for (final x in skills) x.toJson()],
   };
 }

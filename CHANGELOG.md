@@ -21,10 +21,11 @@
 - 修复 SmartFit 首次真实 Worker 多步联调发现的 DeepSeek 思考模式 HTTP 400：`LlmMessage` 新增可选 `reasoning`，`CoachAgent` 中间工具、门禁重交及最终交付历史按协议回传 `reasoning_content`，`CoachSession` 同步修复；推理不混入用户正文或 `toString()`。
 - 记忆关闭后，当前工具轮与历史 assistant 的推理也脱敏，避免通过新增协议字段重新带回记忆摘要原文；历史推理计入会话字符上限。
 - SmartFit 再次真实冒烟发现上游某步省略 / 返回 null 推理时的同类 HTTP 400：Agent / Session 的工具轮、最终回复及预设回落历史统一保留显式空 `reasoning_content`，已有推理仍原样回传；普通手写 `LlmMessage` 默认请求不变。
+- 加强记忆开启时的系统指令：用户主动陈述水平、器械等稳定事实时，先读 user-memory skill 并分别 remember，工具成功后才确认；只陈述条件且没有待完成的训练请求时不擅自排课。记忆关闭的系统提示词与工具定义保持逐字节不变，Agent 循环与持久化逻辑不变。
 - 影响使用思考模型工具调用的 SmartFit / HipLab / FlareLab；新增字段可选，现有 App 接口兼容，版本仍为 0.3.0。
 
 ### 验证
-- 根包 `dart test` 299 项（含 15 项推理回传回归）、`dart analyze` 0 问题；训练包 `flutter test` 126 项、`flutter analyze` 0 问题。真实 Worker 多步与记忆开关冒烟由 SmartFit 记录，不用 mock 协议测试替代。
+- 根包 `dart test` 304 项（含 15 项推理回传、5 项记忆指令与持久化回归）、`dart analyze` 0 问题；训练包 `flutter test` 126 项、`flutter analyze` 0 问题。真实 Worker 多步与记忆开关冒烟由 SmartFit 记录，不用 mock 协议测试替代。
 
 ## 0.3.0 — 2026-10-21
 

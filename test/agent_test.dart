@@ -171,10 +171,10 @@ void main() {
   });
 
   group('第 1 层', () {
-    test('系统提示词不含动作表，工具不带 id enum；记忆开关控制工具和摘要', () {
+    test('系统提示词包含作用域内紧凑索引，工具不带 id enum；记忆开关控制工具和摘要', () {
       final fs = SkillFiles.build(hiplab, catalog);
       final sys = AgentPromptBuilder().system(hiplab, fs, memory: true, memorySummary: '- injury：左膝疼');
-      expect(sys, isNot(contains('s-figure4')));
+      expect(sys, contains('s-figure4'));
       expect(sys, contains(defaultPromptCanary));
       expect(sys, contains('左膝疼'));
       final tools = jsonEncode([for (final t in AgentTools.build(hiplab, catalog, memory: true)) t.toJson()]);

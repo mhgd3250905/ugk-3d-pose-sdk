@@ -6,7 +6,7 @@
 
 - 纯 Dart，不依赖 Flutter（Web 也能用）；`dart:io` 的部分（文件缓存、JSONL 记账）单独在 `package:ugk_coach/ugk_coach_io.dart`。
 - 一个动作 id = 定义 + 封面 + 示范视频 + 建模源（Pose-Hub spec）+ 语音：`assistant.resolve(id)` 带出整套素材。
-- 当前版本为 **0.3.2**，经开哥批准合入 main，代码集成提交为 `31fb6f8`。根包 342 项测试通过，静态分析 0 问题；尚无新 0.3.2 代码树的真实 Worker 验收。原 `712cb7b` / `43dfef6` 的 SmartFit 六类分组验证和历史 0.1 冒烟分别保留在[项目维护台账](docs/project-ledger.md)和 [docs/smoke-2026-10-20.md](docs/smoke-2026-10-20.md)。
+- 当前开发版本为 **0.3.3**，基于 main `b26e4fd`，待开哥验收批准合入。Agent 内联作用域内的紧凑索引和三条技能快路径，常规计划直接提交门禁；基线拆解见 [0.3.2 分析](docs/coach-033-baseline-analysis-2026-10-21.md)，本次验证与合并状态见[项目维护台账](docs/project-ledger.md)。
 
 ## 维护与事实来源
 
@@ -60,7 +60,7 @@ test/fixtures/ pose-hub-catalog.json（目录快照）golden/（提示词金样�
 
 ## 0.3 Agent 版接入（推荐）
 
-`CoachAgent` 与 `CoachSession` 用法相同（构造参数、`send` / `reset`、`CoachTurnResult`），区别是模型按需读取 skill 文件查动作、用 `check_plan` 自检后再交付；系统提示词不再放动作表。设计、文件地图、事件与记忆见 [docs/agent-plan.md](docs/agent-plan.md)。
+`CoachAgent` 与 `CoachSession` 用法相同（构造参数、`send` / `reset`、`CoachTurnResult`）。系统提示词内含按 profile 筛选的紧凑动作索引与排课、讲要领、展示三条技能快路径；动作详情按需读取，常规计划直接 `show_plan`，`check_plan` 留作可选自检，最终门禁始终执行。明确点名的要领问答可自动预载少量详情，省去模型请求文件的一次往返。设计、文件地图、事件与记忆见 [docs/agent-plan.md](docs/agent-plan.md)。
 
 ```dart
 final agent = CoachAgent(
@@ -74,7 +74,7 @@ agent.events.listen((e) => showProgress(e));   // reading / checking / done …
 final r = await agent.send(userText, context: CoachContext(scene: 'home'));
 ```
 
-0.3.2 默认整轮时限为 360s，单步请求时限为 60s，30s 发出 `slow` 事件；60k 上下文估算不计推理协议字段，只压缩较早的 read / ls 工具结果。单步失败保留已有工具进度后重试，记忆关闭时重试也过滤记忆相关推理。
+默认整轮时限为 360s，单步请求时限为 60s，30s 发出 `slow` 事件；60k 上下文估算不计推理协议字段，只压缩较早的 read / ls 工具结果。0.3.3 沿用这些参数；单步失败保留已有工具进度后重试，记忆关闭时重试也过滤记忆相关推理。`badResponse` 提供结构、长度及 SHA-256 诊断，供区分 SSE、空正文、结构错误等情况，不记录响应正文或推理原文。
 
 `remember` / `forget` 等待 `myMemoryStore.save` 成功后才返回 `ok:true`；App 实现必须在保存完成后才完成 Future，失败应抛出异常，SDK 会返回工具错误。已确认保存的操作在后续取消时保留；pending 保存被取消 / reset 后不会回写缓存或会话，底层迟到写入由串行队列补偿。每条 assistant 请求消息均带 `reasoning_content`，没有推理时为空串。
 

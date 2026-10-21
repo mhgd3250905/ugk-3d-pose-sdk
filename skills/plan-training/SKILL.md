@@ -4,11 +4,23 @@ description: 排一份能直接开练的训练计划，或修改上一份计划
 ---
 # 排课
 
+<!-- fast-path:start -->
+## 排计划快路径
+理解目标/部位、场所、器械、时长、水平和保护部位；以 App 已知条件为准，其余用系统默认值。直接从紧凑索引筛选，按默认剂量组成完整计划后 show_plan；不必先 read 技能、索引或逐条详情，也不必先 check_plan。复杂组合、需核对时长或提交失败时才可选 check_plan；修改仍提交完整新计划。
+- 红旗情况只给就医建议，不排课。普通不适写入 avoid（词表：{{cautions}}），排除注意标签相交或命中禁忌的动作；safetyNotes 写不适加重就停止。
+- 结构按 warmup→main/circuit→cooldown；8分钟内可1–2块。动作全计划不重复；难度不高于用户水平，单侧左右都做。
+- show_plan 顶层直接填 schemaVersion=1、title（≤12字）、summary、goal（{{goals}}）、scene（{{sceneIds}}）、level、targetMinutes、blocks，按需 equipment/avoid/notes/safetyNotes，不包 plan。块填 type/items；循环块 rounds≥2、items.sets=1。
+- 每项填 exerciseId/mode/sets/perSide/restSeconds；mode=reps填reps，mode=time填workSeconds，与索引一致。索引剂量 mode:组×次数或秒@休息秒；每项 perSide 严格拷贝索引：1→true、0→false，不能根据动作名称、单腿或交替做法自行猜测，剂量指每侧。拿不准用默认剂量；硬限：{{limits}}。
+- equipment 填所有实际器械id，徒手用空数组；只用用户已有或场所默认器械。场所规则：
+{{sceneRules}}
+- 时长粗算：每组次数×3秒或workSeconds，单侧×2，加休息，换动作约15秒；按目标调整组数/动作，不靠省休息硬凑。门禁会校验，失败按返回错误修正。
+<!-- fast-path:end -->
+
 ## 步骤
 1. 理解需求：目标/部位、场所、器械、时长、水平、要保护的部位（以用户消息开头括号里的条件为准；没说的用默认值）。
-2. 按 action-library/SKILL.md 的查法选动作：先开对应索引取交集，只对候选读 details。
-3. 按下面的原则编排，写出完整计划，先调 check_plan 自检；有错逐条改完再查，估算时长与 targetMinutes 差太多就增减组数或动作。
-4. 自检通过后调 show_plan 交付，文字里先说你的理解，再说排法和理由。
+2. 直接从系统紧凑索引选动作；只在信息不足时补查资料。
+3. 按下面原则编排完整计划；复杂或被门禁打回时可选 check_plan，按错误和时长差调整。
+4. 调 show_plan 交付，文字里先说理解，再说排法和理由。
 
 ## 编排原则
 - 结构：热身（warmup）→ 主训练（main 或 circuit）→ 放松（cooldown），热身块不能排在放松块之后；8 分钟以内可以只有 1–2 块。
@@ -32,4 +44,4 @@ description: 排一份能直接开练的训练计划，或修改上一份计划
 - 时长估算口径：每组用时 ≈ 次数 × 约 3 秒或计时秒数，单侧 ×2，加组间休息，每换一个动作约 15 秒；check_plan 会给出实际估算。
 
 ## 多轮修改
-用户在已有计划上提修改（换动作、加减时长、换部位）：在上一份计划基础上改，check_plan 后用 show_plan 提交完整新计划，不要只给差异。
+用户在已有计划上提修改（换动作、加减时长、换部位）：在上一份计划基础上改，按需 check_plan 后用 show_plan 提交完整新计划，不要只给差异。

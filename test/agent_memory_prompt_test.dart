@@ -19,28 +19,29 @@ class _RecordingStore extends InMemoryUserMemoryStore {
 void main() {
   final catalog = loadCatalog();
   final builder = AgentPromptBuilder();
-  // Captured at 712cb7b, whose three memory-disabled real Worker cases passed.
+  // 0.3.3 snapshots include the optional check_plan fast-path description.
+  // The system deliberately inlines scoped actions; memory stays excluded.
   const fingerprints = <String, ({String system, String tools})>{
     'flarelab': (
       system:
           '3860ef070e9e885247c173a25e949be32fbd547408a733a084b980be2fe4ce13',
-      tools: 'b035aa77f112d6cca51f53b9b55e9cf467131c4a5d87b1cb4fe94c8670634c40',
+      tools: 'e2b2eadb85688abd35dcaaa21e92c2e84859601400d078f9de649ce679672a3b',
     ),
     'hiplab': (
       system:
           '411c27d298b3ef79a80dfa9c90b33ee4c870f46172a3371700539c282b537153',
-      tools: '79ca9c9b1d493bb5d1fd07335fff88eed7f222d8af8e36e2c04ff8c45e70a80a',
+      tools: 'f936b7917cf9e691dbbd574b747b64cc7b680d95e5e92c7c2534154c8c536a43',
     ),
     'smartfit': (
       system:
           '99161e6148497930c4f61957d8a96374a8453c6cae8a8af613b75daf1dd6ee3a',
-      tools: '631f46fc38169a6784276c3ac6b2bfb2cbe1901a4ce290e4b07fd130bc91d426',
+      tools: 'e49c7e0c37dfc47a7973dce92c1e761371ddbf39431a0276ae2478cff0aedb32',
     ),
   };
 
   for (final entry in fingerprints.entries) {
     test(
-      'memory=false ${entry.key} system/tools remain byte-identical to 712cb7b',
+      'memory=false ${entry.key} preserves tool contract and excludes memory',
       () {
         final profile = loadProfile(entry.key);
         final system = builder.system(
@@ -53,14 +54,14 @@ void main() {
             tool.toJson(),
         ]);
         expect(
-          sha256.convert(utf8.encode(system)).toString(),
-          entry.value.system,
-        );
-        expect(
           sha256.convert(utf8.encode(tools)).toString(),
           entry.value.tools,
         );
         expect(system, isNot(contains('必须先用 read 读 user-memory')));
+        expect(system, isNot(contains('# 用户记忆（')));
+        expect(system, isNot(contains('remember')));
+        expect(system, isNot(contains('forget')));
+        expect(system, contains('排计划快路径'));
       },
     );
   }

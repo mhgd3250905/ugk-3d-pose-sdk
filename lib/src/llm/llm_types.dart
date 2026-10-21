@@ -267,6 +267,73 @@ enum LlmErrorKind {
   cancelled,
 }
 
+/// HTTP 已返回，但响应无法作为一次完整模型回复使用的具体原因。
+/// 不改变 [LlmErrorKind.badResponse] 的重试策略。
+enum LlmResponseProblem {
+  nonJson,
+  eventStream,
+  noChoices,
+  invalidShape,
+  emptyContent,
+  reasoningOnly,
+
+  /// HTTP 200 返回 error 信封，而不是有效 choices。
+  errorEnvelope,
+}
+
+/// 响应失败的安全诊断：只保留结构、长度及摘要，不保存正文、推理原文或响应头。
+class LlmResponseDiagnostic {
+  const LlmResponseDiagnostic({
+    required this.subtype,
+    required this.statusCode,
+    required this.bodyBytes,
+    required this.bodySha256,
+    this.shapes = const {},
+    this.choicesCount,
+    this.toolCallsCount,
+    this.contentLength,
+    this.reasoningLength,
+    this.finishReason,
+    this.finishReasonLength,
+    this.finishReasonSha256,
+    this.hasError = false,
+  });
+
+  final LlmResponseProblem subtype;
+  final int statusCode;
+  final int bodyBytes;
+  final String bodySha256;
+
+  /// JSON 路径到形态（missing / null / object / array / string / number / boolean）。
+  final Map<String, String> shapes;
+  final int? choicesCount;
+  final int? toolCallsCount;
+  final int? contentLength;
+  final int? reasoningLength;
+
+  /// 已识别的协议标签，未知字符串只保存 unknown 与长度 / SHA-256。
+  final String? finishReason;
+  final int? finishReasonLength;
+  final String? finishReasonSha256;
+  final bool hasError;
+
+  Map<String, Object?> toJson() => {
+    'subtype': subtype.name,
+    'statusCode': statusCode,
+    'bodyBytes': bodyBytes,
+    'bodySha256': bodySha256,
+    if (shapes.isNotEmpty) 'shapes': shapes,
+    if (choicesCount != null) 'choicesCount': choicesCount,
+    if (toolCallsCount != null) 'toolCallsCount': toolCallsCount,
+    if (contentLength != null) 'contentLength': contentLength,
+    if (reasoningLength != null) 'reasoningLength': reasoningLength,
+    if (finishReason != null) 'finishReason': finishReason,
+    if (finishReasonLength != null) 'finishReasonLength': finishReasonLength,
+    if (finishReasonSha256 != null) 'finishReasonSha256': finishReasonSha256,
+    if (hasError) 'hasError': true,
+  };
+}
+
 class LlmException implements Exception {
   const LlmException(
     this.kind,
@@ -276,6 +343,8 @@ class LlmException implements Exception {
     this.latency = Duration.zero,
     this.httpAttempts = 1,
     this.retryAfter,
+    this.finishReason,
+    this.responseDiagnostic,
   });
 
   final LlmErrorKind kind;
@@ -289,6 +358,13 @@ class LlmException implements Exception {
 
   /// 服务端 Retry-After（429 / 503），没有为 null。
   final Duration? retryAfter;
+
+  /// 失败响应的已识别 finish_reason（如 length / content_filter）。
+  /// 未知标签脱敏为 unknown，原值仅在诊断中保留长度与 SHA-256。
+  final String? finishReason;
+
+  /// 可选响应诊断；不包含原始正文或推理。
+  final LlmResponseDiagnostic? responseDiagnostic;
 
   /// 换个时间可能就好了的错误（会重试）。
   bool get isTransient =>

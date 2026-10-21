@@ -447,6 +447,7 @@ class CoachAgent {
         fs,
         memory: memoryOn,
         memorySummary: summary,
+        userText: text,
       );
     }
 
@@ -1457,7 +1458,9 @@ class _Call {
       latency = e.latency,
       httpAttempts = e.httpAttempts,
       model = null,
-      finishReason = e.kind == LlmErrorKind.truncated ? 'length' : null,
+      finishReason =
+          e.finishReason ??
+          (e.kind == LlmErrorKind.truncated ? 'length' : null),
       outcome = e.kind == LlmErrorKind.cancelled
           ? CallOutcome.cancelled
           : CallOutcome.error,

@@ -1,4 +1,4 @@
-# 0.3 Agent 版：Skill 渐进式披露
+# 0.3 Agent 版：紧凑索引与按需详情
 
 入口 `CoachAgent`（`lib/src/agent/`）。0.2 的 `CoachSession` 保留作降级，门禁、回落、记账口径不变。
 
@@ -6,18 +6,19 @@
 
 | 层 | 内容 | 何时进上下文 |
 |---|---|---|
-| 1 系统提示词 `prompts/agent_kernel.md` | 身份、防破甲（沿用 v3 + 暗号）、回答风格（先回应理解再说理由，可简短分点）、skill 列表（名称 — 一句描述 — 入口）、工具说明、App 侧重（profile.focus / rules）、记忆摘要（开关开时） | 每次调用；约 2k 字 + 工具 schema（不含动作表、不含 id enum） |
-| 2 `<skill>/SKILL.md` | 某项能力的做法 | 模型 `read` 时 |
-| 3 SKILL.md 指向的文件 | 索引、动作详情 | 模型按需 `read` |
+| 1 系统提示词 `prompts/agent_kernel.md` | 身份、安全、回答风格、三条内置技能快路径、按 profile.scope 生成的紧凑动作索引、其他 skill 列表、App 规则、可选记忆摘要 | 每次调用；明确动作要领问句另可预载少量匹配详情，工具 schema 不枚举 id |
+| 2 `<skill>/SKILL.md` | 完整技能、记忆规则或 App 专属能力 | 按需 `read`；内置训练快路径来自同一份模板，无需重复读 |
+| 3 SKILL.md 指向的文件 | 维度索引、动作详情 | 按需 `read`；明确匹配详情已预载时直接回答 |
 
 ## 文件地图（只读、内存，按 profile 白名单生成）
 
 ```
 action-library/SKILL.md                    维度与取值（id + 中英释义 + 数量）、查法、放宽规则、场所规则
+action-library/compact.md                 id｜中文名｜部位｜器械｜难度｜注意部位｜类型｜体位｜场所｜默认剂量｜perSide｜禁忌
 action-library/index/<维度>/<取值>.md       id｜名称（中英）｜关键标签｜用途｜默认剂量
     维度：scene / equipment（none=徒手）/ muscle / category / level / caution / position / unilateral
 action-library/details/<动作id>.md          用途、要领、注意、禁忌、替代、剂量与范围、单侧、器械、场所、体位
-plan-training/SKILL.md                     排课原则 + 参数硬规则（由 kernel_v3 迁入）+ 交付前 check_plan
+plan-training/SKILL.md                     排课原则 + 参数硬规则；直接 show_plan，复杂/失败时可选 check_plan
 action-coaching/SKILL.md                   讲动作、纠错、show_actions
 user-memory/SKILL.md                       仅记忆开关开时存在
 <profile.skills[].name>/SKILL.md (+files)  App 专属 skill（本次不写内容）

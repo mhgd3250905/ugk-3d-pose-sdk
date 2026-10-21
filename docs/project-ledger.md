@@ -8,14 +8,15 @@
 
 | 项目 | 已核对状态 |
 |---|---|
-| 本机主线 | `main`；核验时与 `origin/main` 一致 |
-| 本次文档对齐 baseline / 起始 HEAD | `1f8be6edf9c0c57575d963448af379e8fdf8df2a`；来自本会话 Cockpit init 记录，已核对为 main 且是 HEAD 的祖先 |
-| 对齐开始前的 stage delta | baseline..HEAD 为 0 提交、0 路径；完整工作区 tracked 0、untracked 0 |
+| 主线核验快照 | `origin/main` = `1d1aad86f516bd7121cc73c71d623043f1042dc3`；SDK 修复尚未合入 main |
+| 当前修复分支 / 运行代码 | `fix/coach-agent-reasoning-replay`；实现与测试 source 为 `43dfef637144a1e08b5eda5ed743db0671ba5a8d`；吸收上述 main 文档后的 HEAD 为 `5b5aa27747b6eeaf67c18cc8bd7bebdeea566381`，运行与测试树不变 |
+| 最初文档对齐 baseline（历史） | `1f8be6edf9c0c57575d963448af379e8fdf8df2a`；来自原文档会话 Cockpit init 记录，已核对为当时 main 且是当前 HEAD 的祖先 |
+| 最初对齐前的 stage delta（历史） | baseline..HEAD 为 0 提交、0 路径；完整工作区 tracked 0、untracked 0；不代表修复分支当前成果 |
 | 根包 | `ugk_coach` 0.3.0；`publish_to: none`，已合并不表示已发布到 pub.dev |
 | 推荐入口 | `CoachAgent`；`CoachSession` 保留作 0.2 降级，`CoachAssistant` 为 deprecated 旧接口 |
-| 训练执行 | PR #1 已合入，版本记录为 `ugk_trainer` 0.1.0；本轮不重新验收训练包 |
-| 验收边界 | 根包离线复审通过；0.3 Agent 的真实 Worker 多步链路待验证 |
-| Cockpit | 本会话已接入 working；本次文档提交只登记非终态检查点，不结束会话或生成交接 |
+| 训练执行 | PR #1 引入 `ugk_trainer` 0.1.0，当前包清单为 0.1.4；修复分支训练包 126 项测试通过 |
+| 验收边界 | SDK 根包 304 项、训练包 126 项测试及两包分析通过；SmartFit 的 0.3 Agent 真实 Worker 六类分组验证通过；SDK / App 合入 main 待开哥批准；本轮未验真机 UI 或完整训练 |
+| Cockpit | 原文档会话已接入 working（历史记录）；文档更新不自动结束会话或生成交接 |
 
 ## 事实来源与文档分工
 
@@ -31,7 +32,7 @@
 | [docs/smoke-2026-10-20.md](smoke-2026-10-20.md) | 历史真实调用 | archive/history | 0.1 / OpenCSG 的一次真实冒烟，不能证明 0.3 Worker 多步链路通过 |
 | [docs/project-ledger.md](project-ledger.md) | 维护与验收台账 | current | 本文；承接当前合并状态、验证适用范围、未决事项和维护规则 |
 
-未对 profile、目录、提示词或依赖做变更；其原有事实来源与生成流程继续按 README 执行。本轮没有递归追踪历史文档中的其他项目链接。
+最初文档对齐未对 profile、目录、提示词或依赖做变更。之后的修复分支调整了推理协议回传及记忆开启时的指令，具体变更见 Unreleased；本次验证记录同步仅改 README、CHANGELOG 和本文。
 
 ## 合并记录
 
@@ -47,7 +48,7 @@ PR #4 的复审 head 为 `48417e03f5ff05d4434dc2e15cc36237464153d2`。合并提�
 
 ## 验证证据与适用范围
 
-根包验证在 2026-10-21 本机执行，Dart 3.12.2。结果已发布到 [PR #4 复审评论](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/4#issuecomment-6309269982)。
+以下为原 main 基线的历史验证，2026-10-21 本机执行，Dart 3.12.2。结果已发布到 [PR #4 复审评论](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/4#issuecomment-6309269982)。修复分支补验单列在后文，不覆盖这些历史结果。
 
 | 命令 / 检查 | 结果 | 对应 source state / 来源 |
 |---|---|---|
@@ -60,18 +61,38 @@ PR #4 的复审 head 为 `48417e03f5ff05d4434dc2e15cc36237464153d2`。合并提�
 | `gh pr view <1/3/4> --repo mhgd3250905/ugk-3d-pose-sdk --json number,title,state,mergedAt,mergeCommit,headRefOid,url` | 三个 PR 均为 MERGED | 2026-10-21 远端观察；不代替测试证据 |
 | `git ls-remote origin refs/heads/main` | 返回上述 main 快照 SHA | 2026-10-21 远端观察；后续分支推进需重新核对 |
 
-本轮收束只修改 README、CHANGELOG 和本文，不改代码、测试、配置或生成物。后续文档提交可复用上述代码验证，但应以有限 delta 证明仅有这三份 Markdown 文档变化；文档本身另查相对链接、版本与 SHA 引用及 `git diff --check`，无需为这次文档修改重跑模型或全量测试。
+### 修复分支补验与真实 Worker（2026-10-21）
 
-历史训练包测试和 Android 编译记录不升级为本次 HEAD 的验收证据；真机语音、锁屏保活和 Web 等流程也不能由根包 284 项测试推定通过。
+修复依次为 `029af4a1e735b5f1c3f1ee5cef6c82aad8a1c3f4`（推理回传）、`712cb7b3d636a5314c5aa08211c822928a0af4f4`（空推理协议字段）、`43dfef637144a1e08b5eda5ed743db0671ba5a8d`（记忆开启指令）。根包 `dart test` 304 项、`dart analyze` 0 问题，训练包 `flutter test` 126 项、`flutter analyze` 0 问题，均绑定到 `43dfef6` 的运行与测试树。吸收 main 的文档提交后，`git diff --quiet 43dfef637144a1e08b5eda5ed743db0671ba5a8d 5b5aa27747b6eeaf67c18cc8bd7bebdeea566381 -- lib test packages tool prompts skills profiles pubspec.yaml analysis_options.yaml` 退出码 0。
+
+真实请求由 SmartFit App 链路访问 `https://api.uuugk.win/v1` / `deepseek-v4-flash-0731`，在 Flutter 测试宿主执行，记忆使用本机文件；不是假模型或真机 UI 验收。App 最终运行源码 `5743073691547d44aec891ab6d4a45b5b3fa381b`，217 项测试及分析通过。完整问题、初始失败、用量口径与本机证据目录见 [SmartFit 真实 Worker 报告](https://github.com/mhgd3250905/Sport-Helper/blob/feat/smartfit-skill-agent/docs/coach-agent-smoke-2026-10-21.md)。
+
+| 最终采用用例 | SDK source / 记忆状态 | 步数 | 耗时（秒） | token 合计 | 结果 |
+|---|---|---:|---:|---:|---|
+| 在家 15 分钟练核心，徒手 | `712cb7b` / 关闭 | 7 | 140.800 | 63,487 | ok；有效核心计划，无回落 |
+| 臀桥怎么做 | `712cb7b` / 关闭 | 7 | 101.670 | 39,219 | ok；有效动作卡，无回落 |
+| 我腰不太舒服，想练腿 20 分钟 | `712cb7b` / 关闭 | 8 | 204.564 | 98,806 | ok；护腰条件与计划通过门禁，无回落 |
+| 我是新手，家里有哑铃 | `43dfef6` / 开启 | 3 | 35.372 | 11,487 | ok；先读记忆 skill，实际保存 level=新手、equipment=家里有哑铃，文字确认且未擅自排课，无回落 |
+| 请给我排一个15分钟的居家力量训练计划 | `43dfef6` / 开启、新对话 | 6 | 119.549 | 72,881 | ok；请求含记忆摘要，难度 1，实际含哑铃地板卧推和划船，无回落 |
+| 同一句计划问题 | `43dfef6` / 关闭、再开新对话 | 7 | 167.122 | 80,886 | ok；无记忆摘要、无记忆工具、无哑铃动作，本机原两条记忆保留，无回落 |
+
+这是分组复验：`43dfef6` 唯一生产代码差异是 `memory ? ... : ''` 的开启分支字符串；新增回归验证三个 profile 的关闭记忆 system/tools 完整 SHA-256 与 `712cb7b` 相同，因此复用前三条通过记录，未声称最终 SHA 再完整执行六轮。六条合计 38 步、366,766 token（prompt + completion，reasoning 不重复相加）。
+
+当前成果仍在修复分支，尚未合入 SDK main。经开哥批准后，先合 SDK 修复并推送，再将 App 的 git ref 固定到包含修复的 SDK main 具体提交，最后合 App main；不把临时修复分支 ref 带入 App main。
+
+本次同步只修改 README、CHANGELOG 和本文，不改代码、测试、配置或生成物，复用上述验证。文档另查相对链接、版本与 SHA 引用及 `git diff --check`，不为此文档修改重跑模型或全量测试。
+
+历史 Android 编译记录不升级为本次 HEAD 的验收证据；真机语音、锁屏保活和 Web 等流程也不能由 SDK 离线测试或此次真实 Worker 验证推定通过。
 
 ## 未决事项
 
 | 编号 | 状态 / 级别 | 事项 | 验收条件 |
 |---|---|---|---|
-| SDK-001 | 待验证 | 0.3 `CoachAgent` 真实 Worker 多步链路 | 使用本机配置请求真实服务，记录工具读取、后续调用及最终交付结果；绑定完整 source SHA。历史 0.1 冒烟和 0.2 tools 请求不能替代 |
+| SDK-001 | 修复分支已验证，待合 main | 0.3 `CoachAgent` 真实 Worker 多步链路 | 上文六类分组验证通过，绑定 `712cb7b` / `43dfef6`；main 仍为未包含这些修复的独立状态，不能把分支验证改写成修复已合主线 |
 | SDK-002 | 已知非阻塞 P3 | `_withoutMemory` 的跨消息 ID 过滤：不同步骤复用工具调用 ID 时，后续普通调用和回复可能被误过滤 | 修正按消息配对或缺失 ID 的回退策略后，验证唯一 ID 正常路径及跨步骤复用 ID 场景；当前没有证据证明实际 Worker 会缺失或复用 ID |
+| SDK-003 | 待开哥批准 | SDK / SmartFit 修复合入 main 并推送 | 先合 SDK 修复，再确认 App 固定 ref 为 SDK main 具体提交，最后合 App main；详细报告随 App 修复分支保存 |
 
-两项均未在本次文档对齐中宣称完成。SDK-002 的条件与不阻塞合并的判断见上述 PR #4 复审评论。
+SDK-001 只在修复分支完成真实验证，主线合并与 SDK-003 仍待批准。SDK-002 未在本次修复中处理，其条件与不阻塞合并的判断见上述 PR #4 复审评论。
 
 ## 台账维护规则
 

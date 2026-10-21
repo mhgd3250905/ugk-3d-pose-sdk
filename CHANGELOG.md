@@ -11,6 +11,8 @@
 
 ### 验证
 - 根包 `dart test` 304 项（含 15 项推理回传、5 项记忆指令与持久化回归）、`dart analyze` 0 问题；训练包 `flutter test` 126 项、`flutter analyze` 0 问题。真实 Worker 多步与记忆开关冒烟由 SmartFit 记录，不用 mock 协议测试替代。
+- SmartFit App 运行源码 `5743073691547d44aec891ab6d4a45b5b3fa381b`（217 项测试、分析 0 问题）完成六类真实 Worker 分组验证，最终采用记录均为 ok、无回落：核心计划、臀桥动作、护腰腿部计划、主动记忆与本机保存、新对话参考记忆排课、关闭记忆后的隔离。前三条使用 SDK `712cb7b3d636a5314c5aa08211c822928a0af4f4`，后三条使用 `43dfef637144a1e08b5eda5ed743db0671ba5a8d`；后者仅加强记忆开启时的指令，关闭记忆 system/tools 的 SHA-256 不变，故复用前三条。详见[台账](docs/project-ledger.md)与 [SmartFit 完整报告](https://github.com/mhgd3250905/Sport-Helper/blob/feat/smartfit-skill-agent/docs/coach-agent-smoke-2026-10-21.md)。
+- 上述修复仍在 `fix/coach-agent-reasoning-replay`；已吸收 main 文档提交 `1d1aad86f516bd7121cc73c71d623043f1042dc3`，运行与测试树保持 `43dfef6` 不变。SDK / App 合入 main 并推送仍待开哥批准，本轮未验证真机 UI 或完整训练流程。
 
 ## 0.3.0 — 2026-10-21
 
@@ -29,7 +31,7 @@
 ### 本机验收（2026-10-21）
 - PR #4 已合入 main，合并提交 `1f8be6edf9c0c57575d963448af379e8fdf8df2a`；与复审 head `48417e03f5ff05d4434dc2e15cc36237464153d2` 的代码树一致。
 - 根包 `dart test` 284 项全部通过，`dart analyze` 无问题；修复复现、适用代码状态及非阻塞 P3 见 [项目维护台账](docs/project-ledger.md)。
-- 0.3 `CoachAgent` 的真实 Worker 多步链路尚未冒烟；历史 0.1 冒烟和 0.2 tools 请求不能替代该验证。
+- 该 main 基线首次真实 Worker 冒烟暴露推理协议回传问题；修复分支随后完成多步与记忆六类分组验证，证据和待批准合并状态见上方 Unreleased。历史 0.1 冒烟和 0.2 tools 请求不作为 0.3 真实验证的替代证据。
 
 ## 0.2.0 — 2026-10-21
 

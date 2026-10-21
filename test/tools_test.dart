@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -63,7 +64,11 @@ void main() {
     for (final c in (doc['cases']! as List).cast<Map<String, Object?>>()) {
       test(c['name']! as String, () {
         final req = (c['request']! as Map).cast<String, Object?>();
-        final ctx = CoachContext(avoid: {for (final a in (req['avoid'] as List?) ?? const []) a as String});
+        final ctx = CoachContext(
+          avoid: {for (final a in (req['avoid'] as List?) ?? const []) a as String},
+          level: req['level'] as int?,
+          minutes: req['minutes'] as int?,
+        );
         final calls = [
           for (final (i, x) in (c['calls']! as List).cast<Map<String, Object?>>().indexed)
             LlmToolCall(id: 'c$i', name: x['name']! as String, arguments: x['arguments']! as String),
@@ -303,6 +308,57 @@ void main() {
       expect(gate.admitTemplate(plan), isNotNull);
       expect(gate.admitTemplate(plan, const CoachContext(avoid: {'膝'})), isNull);
     });
+
+    test('暗号以 JSON Unicode 转义藏在动作 note：解码后检测，整轮丢弃', () {
+      final raw = '{"items":[{"actionId":"s-figure4","note":"\\u0055${defaultPromptCanary.substring(1)}"}]}';
+      expect(raw, isNot(contains(defaultPromptCanary)));
+      final g = gate.check('x', [call('show_actions', raw)]);
+      expect(g.leaked, isTrue);
+      expect(g.ok, isFalse);
+      expect(g.actions, isNull);
+    });
+
+    test('暗号以 JSON Unicode 转义藏在计划文字字段（title / notes）：整轮丢弃', () {
+      String esc(Map<String, Object?> p) =>
+          jsonEncode(p).replaceAll(defaultPromptCanary, '\\u0055${defaultPromptCanary.substring(1)}');
+      final t = okPlan()..['title'] = defaultPromptCanary;
+      final n = okPlan()..['notes'] = ['记住 $defaultPromptCanary'];
+      for (final p in [t, n]) {
+        final g = gate.check('x', [call('show_plan', esc(p))]);
+        expect(g.leaked, isTrue);
+        expect(g.plan, isNull);
+      }
+    });
+
+    test('context_conflict：计划 level / targetMinutes 与本轮明确值冲突，报错要求重交', () {
+      final p = okPlan()
+        ..['level'] = 3
+        ..['targetMinutes'] = 10;
+      final g = gate.check('x', [call('show_plan', p)], context: const CoachContext(level: 1, minutes: 30));
+      expect(g.ok, isFalse);
+      expect(g.plan, isNull);
+      final errs = g.errors.where((e) => e.code == IssueCodes.contextConflict).toList();
+      expect(errs.map((e) => e.path), ['level', 'targetMinutes']);
+      expect(errs.map((e) => e.actual), ['3', '10']);
+      expect(errs.first.expected, contains('1'));
+      expect(errs.last.expected, contains('30'));
+      expect(errs.first.category, 'E_CONTEXT');
+      final fb = jsonDecode(g.feedback(remaining: 1)) as Map<String, Object?>;
+      final j = (fb['errors']! as List).cast<Map<String, Object?>>().firstWhere((e) => e['code'] == 'context_conflict');
+      for (final k in ['path', 'code', 'expected', 'actual', 'fix']) {
+        expect(j[k], isA<String>().having((s) => s.isNotEmpty, '非空', isTrue));
+      }
+    });
+
+    test('context_conflict：与本轮值一致或本轮未给值时不报', () {
+      final p = okPlan();
+      final same = CoachContext(level: p['level'] as int, minutes: p['targetMinutes'] as int);
+      expect(gate.check('x', [call('show_plan', p)], context: same).ok, isTrue);
+      expect(
+        gate.check('x', [call('show_plan', okPlan()..['level'] = 2)]).errors.map((e) => e.code),
+        isNot(contains(IssueCodes.contextConflict)),
+      );
+    });
   });
 
   group('CoachSession', () {
@@ -455,6 +511,108 @@ void main() {
       );
       expect(c.requests[0].messages.first.content, c.requests[1].messages.first.content);
       expect(c.requests[1].messages.last.content, contains('腰'));
+    });
+
+    test('reset 后旧轮响应晚到：返回 cancelled，不写入新会话', () async {
+      final old = Completer<Object>();
+      final c = FakeLlmClient([(_) => old.future, good, good]);
+      final s = session(c);
+      final oldTurn = s.send('旧请求');
+      await pumpEventQueue();
+      expect(s.isBusy, isTrue);
+      s.reset();
+      expect(s.isBusy, isFalse);
+      expect((await s.send('新请求')).status, TurnStatus.ok);
+      old.complete(resp(text: '旧回复', calls: [call('show_plan', okPlan())]));
+      final r = await oldTurn;
+      expect(r.status, TurnStatus.cancelled);
+      expect(r.plan, isNull);
+      expect(s.turnCount, 1);
+      expect(s.history.where((m) => m.role == LlmRole.user), hasLength(1));
+      expect(s.history.first.content, contains('新请求'));
+      expect(s.history.any((m) => m.content.contains('旧')), isFalse);
+      await s.send('第三轮');
+      final users = c.requests.last.messages.where((m) => m.role == LlmRole.user).map((m) => m.content).toList();
+      expect(users, hasLength(2));
+      expect(users.first, contains('新请求'));
+      expect(users.last, contains('第三轮'));
+    });
+
+    test('并发 send：进行中的第二次返回 busy，不调模型；硬上限计入进行中轮次；历史顺序不乱', () async {
+      final first = Completer<Object>();
+      final c = FakeLlmClient([(_) => first.future, good]);
+      final s = session(c, maxTurns: 1);
+      final a = s.send('第一轮');
+      await pumpEventQueue();
+      expect(s.isFull, isTrue, reason: '进行中的一轮计入硬上限');
+      final b = await s.send('第二轮');
+      expect(b.status, TurnStatus.busy);
+      expect(b.submissions, 0);
+      expect(c.requests, hasLength(1));
+      first.complete(good);
+      expect((await a).status, TurnStatus.ok);
+      expect(s.turnCount, 1);
+      expect((await s.send('第三轮')).status, TurnStatus.limitReached);
+      expect(c.requests, hasLength(1));
+    });
+
+    test('并发 send 被拒后再发：上下文含第一轮，顺序为第一轮在前', () async {
+      final first = Completer<Object>();
+      final c = FakeLlmClient([(_) => first.future, good]);
+      final s = session(c);
+      final a = s.send('第一轮');
+      await pumpEventQueue();
+      expect((await s.send('抢跑')).status, TurnStatus.busy);
+      first.complete(good);
+      await a;
+      expect(s.isBusy, isFalse);
+      expect((await s.send('第二轮')).status, TurnStatus.ok);
+      final users = s.history.where((m) => m.role == LlmRole.user).map((m) => m.content).toList();
+      expect(users.first, contains('第一轮'));
+      expect(users.last, contains('第二轮'));
+      expect(users.any((u) => u.contains('抢跑')), isFalse);
+      expect(c.requests[1].messages.where((m) => m.role == LlmRole.user).first.content, contains('第一轮'));
+    });
+
+    test('异步回落期间取消：await 回落后复查，返回 cancelled，历史与轮数不变', () async {
+      final fb = Completer<SessionFallbackReply>();
+      final cancel = CancelToken();
+      final c = FakeLlmClient([const LlmException(LlmErrorKind.network, 'down')]);
+      final s = session(c, fallback: (_) => fb.future);
+      final t = s.send('x', cancel: cancel);
+      await pumpEventQueue();
+      cancel.cancel();
+      fb.complete(SessionFallbackReply('模板', plan: fallbackPlan));
+      final r = await t;
+      expect(r.status, TurnStatus.cancelled);
+      expect(r.plan, isNull);
+      expect(r.text, isEmpty);
+      expect(s.turnCount, 0);
+      expect(s.history, isEmpty);
+      expect(s.isBusy, isFalse);
+    });
+
+    test('异步回落期间 reset：旧轮回落结果不写入', () async {
+      final fb = Completer<SessionFallbackReply>();
+      final c = FakeLlmClient([const LlmException(LlmErrorKind.network, 'down')]);
+      final s = session(c, fallback: (_) => fb.future);
+      final t = s.send('x');
+      await pumpEventQueue();
+      s.reset();
+      fb.complete(const SessionFallbackReply('模板'));
+      expect((await t).status, TurnStatus.cancelled);
+      expect(s.turnCount, 0);
+      expect(s.history, isEmpty);
+    });
+
+    test('会话把本轮 level / minutes 冲突打回重交', () async {
+      final conflict = resp(text: 'x', calls: [call('show_plan', okPlan()..['level'] = 3)]);
+      final c = FakeLlmClient([conflict, good]);
+      final r = await session(c).send('x', context: const CoachContext(level: 1));
+      expect(r.status, TurnStatus.ok);
+      expect(r.resubmits, 1);
+      expect(c.requests[1].messages.last.content, contains('context_conflict'));
+      expect(r.plan!.plan.level, 1);
     });
   });
 

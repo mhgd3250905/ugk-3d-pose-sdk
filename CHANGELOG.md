@@ -12,6 +12,13 @@
 - `LlmConfig.headers`（自定义请求头）、`LlmConfig.ugkWorker`、`UgkWorkerAuth`（X-App-Key + X-Device-Id，不带 Authorization）。
 - `PlanIssue` 增加 `expected` / `actual` / `fix`。
 
+### 审核修复（PR #3）
+- `CoachSession` 会话世代：`reset()` 后进行中的旧轮返回 `cancelled`，不写回新会话。
+- 并发策略为拒绝：进行中再 `send` 返回新增的 `TurnStatus.busy`；硬上限计入进行中轮次，历史不再按响应到达顺序倒置。
+- 异步回落返回后复查取消与世代，取消返回 `cancelled`，历史与轮数不变。
+- 暗号检测覆盖参数 JSON 解码后的全部字符串（`\u0055GK-…` 转义不再漏检）；Python `validate_tool_turn` 同步。
+- 新错误码 `context_conflict`（E_CONTEXT）：计划 `level` / `targetMinutes` 与本轮 `CoachContext` 明确值冲突即打回重交；Python 评测校验同步，`parity_tools.json` 增至 31 例。
+
 ### 兼容
 - 0.1 的 `CoachAssistant`（JSON 信封）保留一版，标 `@Deprecated`，行为不变。
 

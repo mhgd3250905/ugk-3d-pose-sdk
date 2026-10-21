@@ -231,6 +231,12 @@ def validate_plan(plan, catalog, profile, request, R, tool=False):
         R.err("E_SCENE", f"计划场所 {plan.get('scene')} 与用户场所 {request['scene']} 不符")
     if not isinstance(plan.get("level"), int) or plan.get("level") not in (1, 2, 3):
         S("level 必须是 1/2/3")
+    if tool:
+        # 与 Dart ToolGate 同口径：本轮明确给出的水平 / 时长为准，冲突打回重交（只判不修）。
+        for key, rk, what in (("level", "level", "水平"), ("targetMinutes", "minutes", "时长")):
+            v, want = plan.get(key), request.get(rk)
+            if want is not None and isinstance(v, int) and not isinstance(v, bool) and v != want:
+                R.err("E_CONTEXT", f"计划{what}与本轮条件不符", key, f"{want}（本轮条件）", str(v))
     tm = plan.get("targetMinutes")
     lo, hi = (profile.get("limits") or {}).get("minutes", [3, 60])
     if not isinstance(tm, int):
@@ -377,6 +383,7 @@ TOOL_NAMES = ("show_actions", "show_plan")
 MAX_ACTIONS = 6
 DEFAULT_CANARY = "UGK-CANARY-7F3K9Q"
 FIX = {
+    "E_CONTEXT": "level / targetMinutes 改成本轮条件给出的值（expected），并按新时长调整动作与组数",
     "E_JSON": "参数必须是合法 JSON（检查引号、逗号、括号是否成对），重新提交完整参数",
     "E_TOOL": "每次只用一个工具（show_actions 看动作 / show_plan 开练），或只写文字",
     "E_SCHEMA": "按工具参数 schema 补齐 / 删除 / 改正该字段（show_plan 参数顶层就是计划，不要包在 plan 里）",
@@ -422,13 +429,31 @@ def _type(v):
     return "缺失" if v is None else {str: "string", bool: "boolean", int: "number", float: "number", list: "array", dict: "object"}.get(type(v), type(v).__name__)
 
 
+def _decoded_has(raw, needle):
+    """参数 JSON 解码后的任一字符串（键或值）含 needle：防 \\u0055GK-… 转义绕过暗号检测。"""
+    try:
+        v = json.loads(raw)
+    except Exception:
+        return False
+
+    def walk(x):
+        if isinstance(x, str):
+            return needle in x
+        if isinstance(x, list):
+            return any(walk(i) for i in x)
+        if isinstance(x, dict):
+            return any(walk(k) or walk(i) for k, i in x.items())
+        return False
+    return walk(v)
+
+
 def validate_tool_turn(text, tool_calls, catalog, profile, request=None, canary=DEFAULT_CANARY):
     """text：模型文字；tool_calls：[{"name":..., "arguments": "<json 字符串>"}]（OpenAI function 格式也可）。"""
     R = ToolResult()
     request = request or {}
     text = text or ""
     calls = [{"name": (c.get("function") or c).get("name") or "", "arguments": (c.get("function") or c).get("arguments") or ""} for c in (tool_calls or [])]
-    if canary and (canary in text or any(canary in c["arguments"] or canary in c["name"] for c in calls)):
+    if canary and (canary in text or any(canary in c["arguments"] or canary in c["name"] or _decoded_has(c["arguments"], canary) for c in calls)):
         R.leaked = True
         return R
     R.text = text.strip()

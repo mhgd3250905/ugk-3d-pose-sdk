@@ -94,9 +94,14 @@ switch (r.status) {
     if (r.actions != null) showActionCards(r.actions!); // ValidatedActions
   case TurnStatus.limitReached: askUserToReset();     // 会话到硬上限（默认 20 轮 / 4 万字符），session.reset()
   case TurnStatus.inputTooLong: tellUserTooLong();    // 默认 500 字
+  case TurnStatus.busy: ignore();                     // 上一轮还在进行：本次被拒绝，未调模型
   case TurnStatus.cancelled || TurnStatus.error: showTemplateEntry();
 }
 ```
+
+- 并发策略：**拒绝，不排队**。同一会话一次只处理一轮，进行中再 `send` 立即返回 `TurnStatus.busy`（不调模型、不占轮数）；`isFull` 的硬上限把进行中的一轮也计入。App 应在等待回复时禁用发送按钮。
+- `reset()` 让进行中的旧轮作废（会话世代 +1）：旧轮的模型响应或异步回落晚到时返回 `cancelled`，不写历史、不计轮数。取消（`CancelToken`）在模型返回后、异步回落返回后都会复查，取消后历史与轮数不变。
+- 门禁以本轮 `CoachContext` 明确给出的 `level` / `minutes` 为准：计划的 `level` / `targetMinutes` 不一致报 `context_conflict`（E_CONTEXT）打回重交，不替模型改值。暗号检测覆盖参数 JSON 解码后的全部字符串（防 `\u0055…` 转义绕过）。
 
 - 自定义请求头：`LlmConfig.headers`（静态）或自定义 `AuthProvider`（动态）。直连 New API（ai.uuugk.win）时 Cloudflare 会拦 Python 默认 UA，Dart 默认 UA 实测可过。
 - 提示词：内核 v3（`prompts/kernel_v3.md`）= 身份与范围 / 防破甲 / 回答方式 / 何时用哪个工具 / 参数规则 / 被打回时 / 多轮修改 / App 配置（profile 生成）/ 用户上下文。本轮条件放用户消息前缀，系统消息不变以命中前缀缓存。暗号默认 `defaultPromptCanary`，可用 `ToolPromptBuilder(canary: ...)` 换。

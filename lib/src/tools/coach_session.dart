@@ -1,5 +1,8 @@
 /// 工具版会话（0.2 推荐入口）：一个 App 维护一个 [CoachSession]，每轮 [send]，关弹窗不清空，[reset] 重开。
 ///
+/// 并发策略：同一会话一次只处理一轮，进行中再 [send] 直接返回 [TurnStatus.busy]（不排队、不调模型）；
+/// [reset] 让进行中的旧轮作废，旧轮返回时不写历史、不计轮数（返回 [TurnStatus.cancelled]）。
+///
 /// 每轮：输入长度检查 → 硬上限检查 → 调模型（带 show_actions / show_plan）→ 门禁 →
 /// 不过就把全部错误作为 tool 结果回给模型重交（最多 [maxResubmits] 次）→ 仍不过 / 网络错 / 暗号泄露 → 回落 App 模板。
 /// 绝不渲染未通过门禁的内容：结果里只有 [ValidatedPlan] / [ValidatedActions]。
@@ -34,7 +37,12 @@ enum TurnStatus {
 
   /// 用户输入过长，没有调用模型。
   inputTooLong,
+
+  /// 被取消；或在返回前会话已 [CoachSession.reset]（旧轮作废）。历史与轮数不变。
   cancelled,
+
+  /// 上一轮还在进行：本次被拒绝，没有调用模型（同一会话一次只处理一轮）。
+  busy,
 
   /// 需要回落但没有配置回落（或回落本身出错）。
   error,
@@ -159,14 +167,26 @@ class CoachSession {
   final List<LlmMessage> _history = [];
   int _turns = 0;
 
+  /// 会话世代：[reset] 加一，进行中的旧轮据此作废。
+  int _generation = 0;
+
+  /// 进行中轮次所属的世代；null = 空闲。
+  int? _busyGen;
+
   /// 已送入上下文的消息（不含系统消息）。
   List<LlmMessage> get history => List.unmodifiable(_history);
   int get turnCount => _turns;
   int get historyChars => _history.fold(0, (n, m) => n + _chars(m));
-  bool get isFull => _turns >= maxTurns || historyChars >= maxHistoryChars;
 
-  /// 清空对话（App 的「重新开始」）。
+  /// 本会话有一轮正在进行。
+  bool get isBusy => _busyGen == _generation;
+
+  /// 硬上限：进行中的一轮也计入。
+  bool get isFull => _turns + (isBusy ? 1 : 0) >= maxTurns || historyChars >= maxHistoryChars;
+
+  /// 清空对话（App 的「重新开始」）。进行中的旧轮作废，返回时不会写回历史。
   void reset() {
+    _generation++;
     _history.clear();
     _turns = 0;
   }
@@ -187,7 +207,20 @@ class CoachSession {
     final turnId = _ids.next('turn');
     final text = userText.trim();
     if (text.length > maxInputChars) return CoachTurnResult(turnId: turnId, status: TurnStatus.inputTooLong);
+    if (isBusy) return CoachTurnResult(turnId: turnId, status: TurnStatus.busy);
     if (isFull) return CoachTurnResult(turnId: turnId, status: TurnStatus.limitReached);
+    final gen = _generation;
+    _busyGen = gen;
+    try {
+      return await _run(turnId, text, context, cancel, gen);
+    } finally {
+      if (_busyGen == gen) _busyGen = null;
+    }
+  }
+
+  Future<CoachTurnResult> _run(String turnId, String text, CoachContext context, CancelToken? cancel, int gen) async {
+    // 取消或已 reset：本轮作废，不写历史、不计轮数。
+    bool dead() => gen != _generation || (cancel?.isCancelled ?? false);
 
     final cat = _catalog();
     final gate = gateFor(cat);
@@ -212,14 +245,14 @@ class CoachSession {
         );
       } on LlmException catch (e) {
         calls.add(_Call.failed(n, e));
-        if (e.kind == LlmErrorKind.cancelled || (cancel?.isCancelled ?? false)) {
+        if (e.kind == LlmErrorKind.cancelled || dead()) {
           return _finish(turnId, meta, calls, TurnStatus.cancelled, TurnOutcome.cancelled, error: e, submissions: n);
         }
         reason = _reasonFor(e.kind);
         error = e;
         break;
       } on Object catch (e) {
-        if (cancel?.isCancelled ?? false) {
+        if (dead()) {
           calls.add(_Call.failed(n, const LlmException(LlmErrorKind.cancelled, 'cancelled')));
           return _finish(turnId, meta, calls, TurnStatus.cancelled, TurnOutcome.cancelled, error: e, submissions: n);
         }
@@ -229,6 +262,10 @@ class CoachSession {
         break;
       }
 
+      if (dead()) {
+        calls.add(_Call.ok(n, res, CallOutcome.cancelled));
+        return _finish(turnId, meta, calls, TurnStatus.cancelled, TurnOutcome.cancelled, submissions: n);
+      }
       final g = gate.check(res.content, res.toolCalls, context: context, planId: _ids.next('plan'));
       if (g.leaked) {
         calls.add(_Call.ok(n, res, CallOutcome.rejected, codes: const ['canary_leak']));
@@ -268,7 +305,7 @@ class CoachSession {
     }
 
     // 回落：绝不渲染未通过的内容。
-    if (cancel?.isCancelled ?? false) {
+    if (dead()) {
       return _finish(turnId, meta, calls, TurnStatus.cancelled, TurnOutcome.cancelled, submissions: calls.length);
     }
     final fbFn = fallback;
@@ -290,6 +327,10 @@ class CoachSession {
       final r = await fbFn(
         SessionFallbackRequest(userText: text, context: context, reason: reason, issues: lastErrors, error: error),
       );
+      // 回落是异步的：返回后复查取消与世代，作废就不接纳、不改状态。
+      if (dead()) {
+        return _finish(turnId, meta, calls, TurnStatus.cancelled, TurnOutcome.cancelled, submissions: calls.length);
+      }
       final plan = r.plan == null ? null : gate.admitTemplate(r.plan!, context);
       _turns++;
       _history
@@ -310,6 +351,9 @@ class CoachSession {
         submissions: calls.length,
       );
     } on Object catch (e) {
+      if (dead()) {
+        return _finish(turnId, meta, calls, TurnStatus.cancelled, TurnOutcome.cancelled, submissions: calls.length);
+      }
       return _finish(
         turnId,
         meta,

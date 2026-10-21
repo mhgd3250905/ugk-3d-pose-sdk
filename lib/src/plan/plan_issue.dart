@@ -94,6 +94,9 @@ abstract final class IssueCodes {
   static const unexpectedField = 'unexpected_field';
   static const duplicateAction = 'duplicate_action';
 
+  /// 计划的 level / targetMinutes 与本轮 [CoachContext] 明确给出的值不一致（工具版门禁）。
+  static const contextConflict = 'context_conflict';
+
   /// 粗分类，与 ai-coach-eval `tools/validate.py` 的 E_* 代码一一对应（评测与线上统计口径一致）。
   static String category(String code) => switch (code) {
     notJson || envelope || invalidJson => 'E_JSON',
@@ -110,6 +113,7 @@ abstract final class IssueCodes {
     equipment => 'E_EQUIP',
     scene || position || sceneUnsupported => 'E_SCENE',
     blockOrder => 'E_ORDER',
+    contextConflict => 'E_CONTEXT',
     _ => 'W',
   };
 }

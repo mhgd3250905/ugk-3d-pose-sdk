@@ -5,6 +5,7 @@
 /// - `items_count` show_actions 不是 1–6 个；`multiple_tools` 一次调了两个及以上工具；`unknown_tool`；`empty_reply`
 /// - `unknown_exercise` id 不在目录；`out_of_profile` 不在本 App 白名单
 /// - `mode_mismatch` 剂量单位与动作不符；`avoid` 撞用户保护部位；`duplicate_action` 同一动作重复
+/// - `context_conflict` 计划 level / targetMinutes 与本轮 [CoachContext] 明确值不一致
 /// - 沿用 0.1 的其余计划规则（硬限、单侧、器械、场所、热身在放松后……）
 ///
 /// 只警告放行：剂量超出动作推荐范围、估算时长偏差、块顺序不理想（沿用 0.1 口径）。
@@ -118,12 +119,7 @@ class ToolGate {
     CoachContext context = const CoachContext(),
     String? planId,
   }) {
-    final c = canary;
-    if (c != null &&
-        c.isNotEmpty &&
-        (text.contains(c) || calls.any((t) => t.arguments.contains(c) || t.name.contains(c)))) {
-      return GateResult._(text: '', leaked: true);
-    }
+    if (_leaks(text, calls)) return GateResult._(text: '', leaked: true);
     final errors = <PlanIssue>[];
     final warnings = <PlanIssue>[];
     if (calls.isEmpty) {
@@ -200,6 +196,31 @@ class ToolGate {
       toolName: calls.single.name,
     );
   }
+
+  /// 暗号检测：原文 + 参数 JSON 解码后的全部字符串（键和值），防 `\u0055GK-…` 这类转义绕过。
+  bool _leaks(String text, List<LlmToolCall> calls) {
+    final c = canary;
+    if (c == null || c.isEmpty) return false;
+    if (text.contains(c)) return true;
+    for (final t in calls) {
+      if (t.name.contains(c) || t.arguments.contains(c)) return true;
+      Object? args;
+      try {
+        args = jsonDecode(t.arguments);
+      } on FormatException {
+        continue;
+      }
+      if (_anyString(args, (s) => s.contains(c))) return true;
+    }
+    return false;
+  }
+
+  static bool _anyString(Object? v, bool Function(String) test) => switch (v) {
+    String() => test(v),
+    List() => v.any((x) => _anyString(x, test)),
+    Map() => v.entries.any((e) => _anyString(e.key, test) || _anyString(e.value, test)),
+    _ => false,
+  };
 
   /// App 自己的模板计划（回落用）也只能经门禁变成 [ValidatedPlan]；不合格返回 null。
   ValidatedPlan? admitTemplate(TrainingPlan plan, [CoachContext context = const CoachContext()]) {
@@ -322,6 +343,15 @@ class ToolGate {
       minutes: ctx.minutes,
     );
     errs.addAll(decoded.issues.where((i) => i.isError).map(_strip));
+    // 只判不修：本轮已知的水平 / 时长为准，冲突打回重交（旧入口会覆盖，这里不改值）。
+    final lv = m['level'];
+    if (ctx.level != null && lv is int && lv != ctx.level) {
+      errs.add(_issue(IssueCodes.contextConflict, '计划水平与本轮条件不符', 'level', '${ctx.level}（本轮条件）', '$lv'));
+    }
+    final tm = m['targetMinutes'];
+    if (ctx.minutes != null && tm is int && tm != ctx.minutes) {
+      errs.add(_issue(IssueCodes.contextConflict, '计划时长与本轮条件不符', 'targetMinutes', '${ctx.minutes}（本轮条件）', '$tm'));
+    }
     final raw = decoded.plan;
     if (raw == null) return null;
     // 只判不修：不改场所 / 等级 / 时长；只标 source=ai 并带上本轮保护部位（随计划保存）。
@@ -410,6 +440,7 @@ class ToolGate {
     IssueCodes.equipment => '换成用户已有器械或徒手的动作',
     IssueCodes.scene || IssueCodes.position || IssueCodes.sceneUnsupported => '换成适合该场所的动作，scene 填用户场所',
     IssueCodes.blockOrder => '热身块放在最前，放松块放在最后',
+    IssueCodes.contextConflict => 'level / targetMinutes 改成本轮条件给出的值（expected），并按新时长调整动作与组数',
     IssueCodes.emptyPlan || IssueCodes.emptyBlock => '每个块至少放一个动作',
     IssueCodes.tooManyItems => '减少动作条目，多做用 sets / rounds',
     _ => '按期望改正',

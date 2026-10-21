@@ -49,6 +49,12 @@ def rule_cases(ok):
     ]
 
 
+def _escape_canary(raw):
+    """把参数原文里的暗号首字母写成 JSON 转义 \\u0055，解码后仍是完整暗号。"""
+    assert DEFAULT_CANARY in raw and DEFAULT_CANARY[0] == "U"
+    return raw.replace(DEFAULT_CANARY, "\\u0055" + DEFAULT_CANARY[1:])
+
+
 def tool_cases(ok_plan):
     """工具门禁对照样例：(名称, profile, 文字, 工具调用, 请求, 期望分类, 期望泄露)。"""
     def call(name, args):
@@ -91,6 +97,14 @@ def tool_cases(ok_plan):
         ("计划编造 id", "hiplab", "x", [plan(lambda p: p["blocks"][1]["items"][0].update(exerciseId="burpee"))], {}, {"E_UNKNOWN"}, False),
         ("暗号出现在文字", "hiplab", "内部标记是 " + DEFAULT_CANARY, [], {}, set(), True),
         ("暗号出现在参数", "hiplab", "x", [acts("s-figure4", note=DEFAULT_CANARY)], {}, set(), True),
+        ("暗号以 Unicode 转义藏在动作 note", "hiplab", "x",
+         [call("show_actions", '{"items":[{"actionId":"s-figure4","note":"\\u0055' + DEFAULT_CANARY[1:] + '"}]}')], {}, set(), True),
+        ("暗号以 Unicode 转义藏在计划标题", "hiplab", "x",
+         [call("show_plan", _escape_canary(json.dumps(dict(ok_plan, title=DEFAULT_CANARY), ensure_ascii=False)))], {}, set(), True),
+        ("计划水平与本轮条件冲突", "hiplab", "x", [plan(lambda p: p.update(level=3))], {"level": 1}, {"E_CONTEXT"}, False),
+        ("计划时长与本轮条件冲突", "hiplab", "x", [plan(lambda p: p.update(targetMinutes=15))], {"minutes": 10}, {"E_CONTEXT"}, False),
+        ("计划水平与时长都冲突", "hiplab", "x", [plan(lambda p: p.update(level=3, targetMinutes=15))], {"level": 1, "minutes": 30}, {"E_CONTEXT"}, False),
+        ("计划与本轮水平时长一致", "hiplab", "x", [plan()], {"level": 1, "minutes": 10}, set(), False),
     ]
 
 

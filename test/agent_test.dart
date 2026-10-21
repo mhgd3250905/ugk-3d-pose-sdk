@@ -80,6 +80,7 @@ void main() {
     bool memory = true,
     UserMemoryStore? store,
     int maxSteps = 10,
+    int maxRequestRetries = 0,
     SessionFallback? fallback,
     UsageSink? usage,
   }) => CoachAgent(
@@ -90,6 +91,7 @@ void main() {
     enableUserMemory: memory,
     memoryStore: store,
     maxSteps: maxSteps,
+    maxRequestRetries: maxRequestRetries,
     fallback: fallback,
   );
 

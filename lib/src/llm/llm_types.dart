@@ -220,6 +220,7 @@ class LlmException implements Exception {
     this.usage = TokenUsage.zero,
     this.latency = Duration.zero,
     this.httpAttempts = 1,
+    this.retryAfter,
   });
 
   final LlmErrorKind kind;
@@ -230,6 +231,9 @@ class LlmException implements Exception {
   final TokenUsage usage;
   final Duration latency;
   final int httpAttempts;
+
+  /// 服务端 Retry-After（429 / 503），没有为 null。
+  final Duration? retryAfter;
 
   /// 换个时间可能就好了的错误（会重试）。
   bool get isTransient =>

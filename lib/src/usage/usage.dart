@@ -61,6 +61,7 @@ class UsageRecord {
     required this.outcome,
     required this.turnOutcome,
     this.httpAttempts = 1,
+    this.retry = 0,
     this.finishReason,
     this.errorKind,
     this.errorMessage,
@@ -88,6 +89,9 @@ class UsageRecord {
   final CallOutcome outcome;
   final TurnOutcome turnOutcome;
   final int httpAttempts;
+
+  /// Agent 单步请求的重试序号（0 = 首次请求，1 = 第 1 次重试…）。
+  final int retry;
   final String? finishReason;
   final String? errorKind;
   final String? errorMessage;
@@ -113,6 +117,7 @@ class UsageRecord {
     ...usage.toJson(),
     'latencyMs': latency.inMilliseconds,
     'httpAttempts': httpAttempts,
+    if (retry > 0) 'retry': retry,
     'outcome': outcome.name,
     'turnOutcome': turnOutcome.name,
     if (finishReason != null) 'finishReason': finishReason,
@@ -137,6 +142,7 @@ class UsageRecord {
     usage: TokenUsage.fromJson(j),
     latency: Duration(milliseconds: asInt(j['latencyMs']) ?? 0),
     httpAttempts: asInt(j['httpAttempts']) ?? 1,
+    retry: asInt(j['retry']) ?? 0,
     outcome: CallOutcome.values.byName(asString(j['outcome'])!),
     turnOutcome: TurnOutcome.values.byName(asString(j['turnOutcome'])!),
     finishReason: asString(j['finishReason']),

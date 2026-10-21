@@ -1,14 +1,20 @@
 # ugk_coach · 三 App 共用的 AI 训练助理 SDK
 
-仓库 `mhgd3250905/ugk-3d-pose-sdk`，Dart 包名 **`ugk_coach`**（Dart 包名不能带连字符；仓库名留给以后放更多包，比如训练执行 runtime）。
+仓库 `mhgd3250905/ugk-3d-pose-sdk`，根目录是纯 Dart 包 **`ugk_coach`**，`packages/ugk_trainer` 是 Flutter 训练执行包（PR #1 已合入）。
 
-给 **FlareLab（托马斯训练助手）/ HipLab（开胯训练助手）/ SmartFit（智能健身助手）** 用的同一套助理内核：AI 只从 Pose-Hub 动作目录里挑动作，输出统一的 **TrainingPlan v1**，SDK 负责校验、带错误重写一次、仍不行就回落到 App 自己的模板；每次模型调用都记账。各 App 只需提供 **profile（侧重/范围）+ 自己的 UI**。
+给 **FlareLab（托马斯训练助手）/ HipLab（开胯训练助手）/ SmartFit（智能健身助手）** 用的同一套助理内核：AI 只从 Pose-Hub 动作目录里挑动作，输出统一的 **TrainingPlan v1**，SDK 负责校验，不合格时回传错误重交，达到对应入口上限后回落到 App 自己的模板；每次模型调用都记账。各 App 只需提供 **profile（侧重/范围）+ 自己的 UI**。
 
 - 纯 Dart，不依赖 Flutter（Web 也能用）；`dart:io` 的部分（文件缓存、JSONL 记账）单独在 `package:ugk_coach/ugk_coach_io.dart`。
 - 一个动作 id = 定义 + 封面 + 示范视频 + 建模源（Pose-Hub spec）+ 语音：`assistant.resolve(id)` 带出整套素材。
-- 测试 274 个（`dart test`），`dart analyze` 0 问题；评测（Python 校验器、用例、结果）在同仓 `eval/`；开发全程用假模型，真实冒烟见 [docs/smoke-2026-10-20.md](docs/smoke-2026-10-20.md)。
+- 根包本机离线验证：测试 284 项（`dart test`），`dart analyze` 0 问题（2026-10-21，代码状态与证据见[项目维护台账](docs/project-ledger.md)）；评测在同仓 `eval/`。历史 0.1 真实冒烟见 [docs/smoke-2026-10-20.md](docs/smoke-2026-10-20.md)，不代表 0.3 Agent 的真实 Worker 多步链路已验证。
 
-## 架构
+## 维护与事实来源
+
+[项目维护台账](docs/project-ledger.md)是当前维护状态、PR 合并、验证证据和未决事项的统一记录入口。包版本以 [pubspec.yaml](pubspec.yaml) 为准；版本变更历史见 [CHANGELOG.md](CHANGELOG.md)；当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)。[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
+
+## 架构（0.1 旧接口）
+
+下图与目录说明保留 0.1 `CoachAssistant` 的结构；当前推荐入口是下文的 0.3 `CoachAgent`。
 
 ```
                          ┌────────────── App（Flutter）──────────────┐
@@ -216,7 +222,7 @@ repo.updates.listen((c) => revalidateSavedPlans(c));
 - **素材解析**：`assistant.resolve('glute-max-A', variant: 'dark')` → `ResolvedDrill { cover, video, spec, voice{lineId → 路径+时长}, voiceKeys, missing }`。按 profile 的 `assetApps`（缺省 `[profileId, 'pose-hub']`）挑来源；`baseByApp: {'pose-hub': 'https://cdn/…/'}` 给远端素材加前缀。`AssetResolver(...).missingReport(drills)` 列缺素材。
 - 统一目录之外，`DrillPackAdapter` / `tool/packs_to_catalog.dart` 可直接把 SmartFit 的 `assets/packs` 转成同格式目录。
 
-## 输出规范与校验
+## 输出规范与校验（0.1 JSON 信封接口）
 
 模型每轮只输出一个 JSON 对象（`schema/coach-reply.schema.json`）：
 
@@ -250,7 +256,7 @@ repo.updates.listen((c) => revalidateSavedPlans(c));
 
 **流程**：通过 → `model`；不合格 → 把输出和 `- E_DOSE …` 错误清单回传，重写 `maxRewrites`（默认 1）次 → 通过则 `rewritten`；仍不合格 → `fallback(invalidOutput)`；断网 / 超时 / 限流 / 鉴权 / 服务端错误 / 截断 → 直接 `fallback(对应原因)`，不重写；取消 → `cancelled`（不回落、不改会话）；没配回落 → `error`。模型计划会被规范化：`source=ai`、分配 id、保护部位并上本轮条件、场所/等级/时长以本轮条件为准。
 
-## 提示词
+## 提示词（0.1 JSON 信封接口）
 
 `prompts/kernel.md` 是系统提示词内核 v2（评测脚本 `eval/tools/build_prompt.py` 直接读这一份；`test/prompt_test.dart` 断言 SDK 渲染结果与它的产物 `test/fixtures/golden/*.md` 逐字节一致）。v2 相对 v1：`kind → plan → text` 顺序、kind=plan 时 plan 必填、思考简短、text ≤80 字、plan.equipment 含场所默认器械（评测第 2 轮把 v1 失败的 2 条修好，24/24）。系统消息 = 内核 + profile（侧重、规则、场所规则）+ 按 profile 筛过的紧凑目录表；**不含本轮条件**，所以同一 App 连续调用共享前缀，命中前缀缓存（冒烟：4520 个 prompt token 里 4096 命中缓存）。本轮条件（App 已知的场所/器械/保护部位/时长…）作为一行前缀放进用户消息，什么都不知道时只发原话。
 
@@ -265,7 +271,7 @@ repo.updates.listen((c) => revalidateSavedPlans(c));
 
 Sink 可插拔：`MemoryUsageSink`（含 `summary`：调用数、轮数、token、花费、各走向轮数、按模型分）、`JsonlUsageSink`（io）、`CallbackUsageSink`（上报自己的服务）、`MultiUsageSink`。sink 抛错不影响对话。
 
-## 各 App 接入
+## 各 App 接入（0.1 接口示例）
 
 三个 App 的差异只在 profile + UI（`profiles/*.json`，SDK 与 `eval/` 共用，唯一来源）。
 
@@ -298,7 +304,9 @@ profile 开 home / gym；A 徒手 / B 家用 / C 健身房三档由提示词侧�
 - 取消：用户点「停止」→ `cancelToken.cancel()`，HTTP 请求真正中止。
 - 推理模型一次 30 秒上下（冒烟 31 s）：UI 显示「正在排计划…」并可取消；不建议做流式（输出是一个 JSON，半截无法展示）。
 
-## 训练执行（本阶段只规划接口，不实现）
+## 训练执行（0.1 历史接口草案）
+
+训练执行已由 `packages/ugk_trainer` 承接，见 [CHANGELOG 的 ugk_trainer 0.1.0 记录](CHANGELOG.md)。以下是根包 0.1 阶段的接口草案，保留作设计背景，实际接口以训练包为准。
 
 计划 → 时间线 → 播放，由 SDK 提供与 UI 无关的部分，App 只接音频/视频播放器：
 
@@ -320,7 +328,7 @@ abstract interface class SessionRunner { Stream<TimelineEvent> get events; void 
 ```bash
 dart pub get
 dart analyze           # 0 问题
-dart test              # 164 个，全部离线
+dart test              # 根包 284 项，全部离线；验证状态见项目维护台账
 dart run tool/embed_prompts.dart        # 改了 prompts/*.md 之后
 dart run example/quickstart.dart        # 离线演示
 dart run example/smoke.dart             # 真实调用（花钱，按需跑一次）
@@ -338,4 +346,4 @@ python3 eval/tools/eval.py dry                                # 评测流程空�
 
 目录更新：用 Pose-Hub `catalog/catalog.json` 覆盖 `test/fixtures/pose-hub-catalog.json`、`catalog/catalog.schema.json` 覆盖 `schema/catalog.schema.json`，再跑上面几步；`dart test` 会指出任何不一致。
 
-设计取舍见 [docs/design.md](docs/design.md)，版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+当前维护状态见[项目维护台账](docs/project-ledger.md)，Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)，0.1.2 历史设计取舍见 [docs/design.md](docs/design.md)，版本变化见 [CHANGELOG.md](CHANGELOG.md)。

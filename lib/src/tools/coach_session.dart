@@ -299,7 +299,7 @@ class CoachSession {
             _turns++;
             _history
               ..add(userMsg)
-              ..add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls, reasoning: res.reasoning))
+              ..add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls, reasoning: res.reasoning ?? ''))
               ..addAll([for (final t in res.toolCalls) LlmMessage.tool(t.id, g.feedback())]);
           },
         );
@@ -307,7 +307,7 @@ class CoachSession {
       calls.add(_Call.ok(n, res, CallOutcome.rejected, codes: [for (final e in g.errors) e.code]));
       lastErrors = g.errors;
       final fb = g.feedback(remaining: 1 + maxResubmits - n);
-      attempts.add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls, reasoning: res.reasoning));
+      attempts.add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls, reasoning: res.reasoning ?? ''));
       if (res.toolCalls.isEmpty) {
         attempts.add(LlmMessage.user(fb));
       } else {
@@ -362,7 +362,7 @@ class CoachSession {
           _turns++;
           _history
             ..add(userMsg)
-            ..add(LlmMessage.assistant(r.text));
+            ..add(LlmMessage.assistant(r.text, reasoning: ''));
         },
       );
     } on Object catch (e) {

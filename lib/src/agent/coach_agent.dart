@@ -413,7 +413,9 @@ class CoachAgent {
       final msg = LlmMessage.assistant(
         content ?? response.content,
         toolCalls: toolCalls ?? response.toolCalls,
-        reasoning: response.reasoning,
+        // Worker 的不同上游可能在无推理正文时返回 null / 不返回字段。
+        // 后续思考模型仍要求字段存在，显式空串不会编造任何推理内容。
+        reasoning: response.reasoning ?? '',
       );
       if (memoryOn) (history ? _memoryReasoning : memoryReasoning).add(msg);
       return msg;
@@ -882,7 +884,7 @@ class CoachAgent {
           _turns++;
           _history
             ..add(userMsg)
-            ..add(LlmMessage.assistant(r.text));
+            ..add(LlmMessage.assistant(r.text, reasoning: ''));
         },
       );
     } on Object catch (e) {

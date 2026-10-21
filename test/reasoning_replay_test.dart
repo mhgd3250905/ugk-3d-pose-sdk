@@ -268,6 +268,123 @@ void main() {
     expect(step, 4);
   });
 
+  for (final useAgent in [true, false]) {
+    for (final mode in <String, Map<String, Object?>>{
+      'missing': {},
+      'null': {'reasoning_content': null},
+      'empty': {'reasoning_content': ''},
+    }.entries) {
+      test(
+        'HTTP 请求体：${useAgent ? 'Agent' : 'Session'} ${mode.key} 推理在工具步及最终历史保留显式空字段',
+        () async {
+          Map<String, Object?> message(
+            String content, [
+            List<Map<String, Object?>> calls = const [],
+          ]) => _message(content, null, calls)..addAll(mode.value);
+          final replies = [
+            message('', [
+              useAgent
+                  ? _tool('read-empty', 'read', {
+                      'path': 'action-library/SKILL.md',
+                    })
+                  : _tool('rejected-empty', 'show_actions', {
+                      'items': [
+                        {'actionId': 'unknown-action'},
+                      ],
+                    }),
+            ]),
+            message('动作演示', [_tool('show-empty', 'show_actions', actions)]),
+            message('好。'),
+            message('继续。'),
+          ];
+          final expected = <List<String>>[
+            [],
+            [''],
+            [''],
+            ['', ''],
+          ];
+          var step = 0;
+          final client = OpenAiCompatibleClient(
+            config: LlmConfig.ugkWorker.copyWith(maxRetries: 0),
+            httpClient: MockClient((request) async {
+              final body = jsonDecode(request.body) as Map;
+              final assistants = (body['messages'] as List)
+                  .cast<Map<String, dynamic>>()
+                  .where((m) => m['role'] == 'assistant');
+              expect(
+                assistants.map((m) => m['reasoning_content']),
+                expected[step],
+              );
+              for (final m in assistants) {
+                expect(m.containsKey('reasoning_content'), isTrue);
+              }
+              return _response(replies[step++]);
+            }),
+          );
+          final agent = CoachAgent(
+            client: client,
+            catalog: () => catalog,
+            profile: profile,
+            enableUserMemory: false,
+          );
+          final session = CoachSession(
+            client: client,
+            catalog: () => catalog,
+            profile: profile,
+          );
+          addTearDown(client.close);
+          addTearDown(agent.dispose);
+          Future<CoachTurnResult> send(String input) =>
+              useAgent ? agent.send(input) : session.send(input);
+          expect((await send('看动作')).actions, isNotNull);
+          expect((await send('谢谢')).status, TurnStatus.ok);
+          expect((await send('再说一句')).status, TurnStatus.ok);
+          expect(step, 4);
+        },
+      );
+    }
+
+    test(
+      'HTTP 请求体：${useAgent ? 'Agent' : 'Session'} 预设回落后历史也保留空推理协议字段',
+      () async {
+        var step = 0;
+        final client = OpenAiCompatibleClient(
+          config: LlmConfig.ugkWorker.copyWith(maxRetries: 0),
+          httpClient: MockClient((request) async {
+            if (step++ == 0) return http.Response('upstream unavailable', 503);
+            final body = jsonDecode(request.body) as Map;
+            final assistants = (body['messages'] as List)
+                .cast<Map<String, dynamic>>()
+                .where((m) => m['role'] == 'assistant');
+            expect(assistants.single['reasoning_content'], '');
+            expect(assistants.single['content'], '先用预设方案。');
+            return _response(_message('好。', null));
+          }),
+        );
+        const fallbackReply = SessionFallbackReply('先用预设方案。');
+        final agent = CoachAgent(
+          client: client,
+          catalog: () => catalog,
+          profile: profile,
+          fallback: (_) => fallbackReply,
+        );
+        final session = CoachSession(
+          client: client,
+          catalog: () => catalog,
+          profile: profile,
+          fallback: (_) => fallbackReply,
+        );
+        addTearDown(client.close);
+        addTearDown(agent.dispose);
+        Future<CoachTurnResult> send(String input) =>
+            useAgent ? agent.send(input) : session.send(input);
+        expect((await send('看动作')).status, TurnStatus.fallback);
+        expect((await send('再来')).status, TurnStatus.ok);
+        expect(step, 2);
+      },
+    );
+  }
+
   test('运行时关闭记忆：当前中间步、记忆工具及先前最终历史推理不回传记忆原文', () async {
     const sentinel = 'stored-only-private-reasoning-sentinel';
     final store = InMemoryUserMemoryStore([

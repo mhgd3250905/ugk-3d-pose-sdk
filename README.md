@@ -6,7 +6,7 @@
 
 - 纯 Dart，不依赖 Flutter（Web 也能用）；`dart:io` 的部分（文件缓存、JSONL 记账）单独在 `package:ugk_coach/ugk_coach_io.dart`。
 - 一个动作 id = 定义 + 封面 + 示范视频 + 建模源（Pose-Hub spec）+ 语音：`assistant.resolve(id)` 带出整套素材。
-- 根包本机离线验证：测试 284 项（`dart test`），`dart analyze` 0 问题（2026-10-21，代码状态与证据见[项目维护台账](docs/project-ledger.md)）；评测在同仓 `eval/`。历史 0.1 真实冒烟见 [docs/smoke-2026-10-20.md](docs/smoke-2026-10-20.md)，不代表 0.3 Agent 的真实 Worker 多步链路已验证。
+- 修复分支本机验证：根包 304 项、训练包 126 项测试通过，两包分析 0 问题；SmartFit 已完成 0.3 Agent 真实 Worker 多步与记忆六类分组验证，最终采用记录均未回落（2026-10-21，source SHA、适用范围见[项目维护台账](docs/project-ledger.md)）。修复仍在 `fix/coach-agent-reasoning-replay`，SDK / App 合入 main 待开哥批准；原 main 的离线证据及历史 0.1 冒烟分别保留在台账和 [docs/smoke-2026-10-20.md](docs/smoke-2026-10-20.md)。
 
 ## 维护与事实来源
 
@@ -328,7 +328,7 @@ abstract interface class SessionRunner { Stream<TimelineEvent> get events; void 
 ```bash
 dart pub get
 dart analyze           # 0 问题
-dart test              # 根包 284 项，全部离线；验证状态见项目维护台账
+dart test              # 当前修复分支根包 304 项，全部离线；验证状态见项目维护台账
 dart run tool/embed_prompts.dart        # 改了 prompts/*.md 之后
 dart run example/quickstart.dart        # 离线演示
 dart run example/smoke.dart             # 真实调用（花钱，按需跑一次）

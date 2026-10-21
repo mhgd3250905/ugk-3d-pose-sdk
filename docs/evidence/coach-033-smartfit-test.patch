@@ -1,0 +1,115 @@
+diff --git a/test/ai_chat_engine_test.dart b/test/ai_chat_engine_test.dart
+index c5a3e02..df44c84 100644
+--- a/test/ai_chat_engine_test.dart
++++ b/test/ai_chat_engine_test.dart
+@@ -382 +382 @@ void main() {
+-      final reply = await ai.reply('在家 10 分钟练全身，徒手', const ChatState());
++      final reply = await ai.reply('先检查再排：在家 10 分钟练全身，徒手', const ChatState());
+@@ -406 +406 @@ void main() {
+-        result.records.every((r) => r.promptVersion.startsWith('agent-v1-')),
++        result.records.every((r) => r.promptVersion.startsWith('agent-v2-')),
+diff --git a/tools/coach/worker_agent_smoke.dart b/tools/coach/worker_agent_smoke.dart
+index 9b374a1..65962b2 100644
+--- a/tools/coach/worker_agent_smoke.dart
++++ b/tools/coach/worker_agent_smoke.dart
+@@ -76 +76,11 @@ class _ObservedClient implements coach.LlmClient {
+-    final response = await inner.complete(request, cancel: cancel);
++    late final coach.LlmResponse response;
++    try {
++      response = await inner.complete(request, cancel: cancel);
++    } on coach.LlmException catch (error) {
++      responseProtocol.add({
++        'requestIndex': index,
++        'errorKind': error.kind.name,
++        'responseDiagnostic': error.responseDiagnostic?.toJson(),
++      });
++      rethrow;
++    }
+@@ -80,0 +91,3 @@ class _ObservedClient implements coach.LlmClient {
++      'usage': response.usage.toJson(),
++      'finishReason': response.finishReason,
++      'tools': [for (final call in response.toolCalls) _toolSummary(call)],
+@@ -85,0 +99,33 @@ class _ObservedClient implements coach.LlmClient {
++Map<String, Object?> _toolSummary(coach.LlmToolCall call) {
++  Object? arguments;
++  try {
++    arguments = jsonDecode(call.arguments);
++  } catch (_) {}
++  final ids = <String>[];
++  void visit(Object? value) {
++    if (value is Map) {
++      for (final entry in value.entries) {
++        if ((entry.key == 'actionId' || entry.key == 'exerciseId') &&
++            entry.value is String) {
++          ids.add(entry.value as String);
++        } else {
++          visit(entry.value);
++        }
++      }
++    } else if (value is List) {
++      for (final item in value) {
++        visit(item);
++      }
++    }
++  }
++
++  visit(arguments);
++  return {
++    'name': call.name,
++    if (arguments is Map && arguments['path'] is String)
++      'path': arguments['path'],
++    if (arguments is Map && call.name == 'remember') 'kind': arguments['kind'],
++    if (ids.isNotEmpty) 'actionIds': ids,
++  };
++}
++
+@@ -101,2 +147,2 @@ void main() {
+-        ? 'real Worker CoachAgent 0.3.2 explicit action-card supplement'
+-        : 'real Worker CoachAgent 0.3.2 six-case smoke',
++        ? 'real Worker CoachAgent 0.3.3 explicit action-card supplement'
++        : 'real Worker CoachAgent 0.3.3 six-case smoke',
+@@ -189,2 +235,4 @@ void main() {
+-          'sdkRef': 'b26e4fda807b6ef3db15a61ba30c67fb51dce5e1',
+-          'sdkVersion': '0.3.2',
++          'sdkRef':
++              Platform.environment['SMARTFIT_SMOKE_SDK_REF'] ??
++              'codex/coach-033-speed (working tree)',
++          'sdkVersion': '0.3.3',
+@@ -227,0 +276 @@ void main() {
++      final performanceFailures = <String>[];
+@@ -323,0 +373 @@ void main() {
++                'errorMessage': record.errorMessage,
+@@ -367,0 +418,25 @@ void main() {
++        if ([
++              'core',
++              'back-protection',
++              'memory-on-plan',
++              'memory-off-plan',
++            ].contains(id) &&
++            (r.steps > 4 ||
++                watch.elapsedMilliseconds > 60000 ||
++                r.usage.totalTokens > 30000)) {
++          performanceFailures.add('$id: exceeds plan target');
++        }
++        if (id == 'actions' &&
++            (r.steps > 2 || watch.elapsedMilliseconds > 30000)) {
++          performanceFailures.add('$id: exceeds coaching target');
++        }
++        final inventedIds = <String>[
++          for (final protocol in client.responseProtocol.where(
++            (p) => (p['requestIndex'] as int) > before,
++          ))
++            for (final tool in (protocol['tools'] as List? ?? const []))
++              for (final actionId in (tool['actionIds'] as List? ?? const []))
++                if (!catalog.contains(actionId as String)) actionId,
++        ];
++        result['inventedIdCount'] = inventedIds.length;
++        if (inventedIds.isNotEmpty) failures.add('$id: invented action ids');
+@@ -463,0 +539 @@ void main() {
++            'performanceFailures': performanceFailures,
+@@ -475,0 +552,5 @@ void main() {
++        expect(
++          performanceFailures,
++          isEmpty,
++          reason: 'Measured speed targets must pass.',
++        );

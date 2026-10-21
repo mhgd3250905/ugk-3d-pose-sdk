@@ -9,13 +9,14 @@
 | 项目 | 已核对状态 |
 |---|---|
 | 主线代码核验快照 | main 已包含 `31fb6f806612e0416f3bea4e32332068fd333473`，根包 0.3.2；后续批准状态文档提交不改变该源码快照 |
+| 0.3.3 开发状态 | 基于 main `b26e4fd`，分支 `codex/coach-033-speed`；源码 `e8c8921508139dc0f3eee1d2099eb5feefa80774`。377 项 SDK 测试、分析 0 问题；当前真实冒烟两条计划达标，余项因网关余额不足 403 阻塞。最终六条与网关推理对照未完成，尚未请求本次合并批准或推送 |
 | 集成分支 / 来源 | `codex/coach-agent-032-integration`；按指定源 `9bc392c42222d61d8c57e8dc00373ee165e56e06` 在 main `517fdbef6d9e611eff3f68bc2138f8e00e35c82e` 上 rebase 后补齐 0.3.2，已获批准合入 main；原修复分支保留，后续额外评审文档未作为集成源 |
 | 最初文档对齐 baseline（历史） | `1f8be6edf9c0c57575d963448af379e8fdf8df2a`；来自原文档会话 Cockpit init 记录，已核对为当时 main 且是当前 HEAD 的祖先 |
 | 最初对齐前的 stage delta（历史） | baseline..HEAD 为 0 提交、0 路径；完整工作区 tracked 0、untracked 0；不代表修复分支当前成果 |
 | 根包 | main 为 `ugk_coach` 0.3.2；`publish_to: none`，已合入主线不表示已发布到 pub.dev |
 | 推荐入口 | `CoachAgent`；`CoachSession` 保留作 0.2 降级，`CoachAssistant` 为 deprecated 旧接口 |
 | 训练执行 | PR #1 引入 `ugk_trainer` 0.1.0，当前包清单为 0.1.4；本次未修改训练包；原 source 的 126 项测试为历史证据 |
-| 验收边界 | 0.3.2 根包 342 项测试、Dart 3.12.2 分析 0 问题及差异检查通过；SDK 集成已获批准合入 main，尚无新代码树的真实 Worker 验收。历史 SmartFit 六类分组验证绑定 `712cb7b` / `43dfef6`，不升级为本次真实服务验收；真机 UI / 完整训练未验 |
+| 验收边界 | main 0.3.2 根包 342 项测试、Dart 3.12.2 分析 0 问题；其主线真实六条已另有 SmartFit b393044 / SDK b26e4fd 记录，拆解见下。0.3.3 当前离线 377 项及定向 App 56 项通过，最终真实六条仍待续；真机 UI / 完整训练未验 |
 | Cockpit | 原文档会话已接入 working（历史记录）；文档更新不自动结束会话或生成交接 |
 
 ## 事实来源与文档分工
@@ -25,9 +26,10 @@
 | 路径 | 类别 | current / archive-history | 用途与核对结果 |
 |---|---|---|---|
 | [README.md](../README.md) | 项目入口 | current | 当前接入方式与文档入口；区分 Agent、工具版和 JSON 信封旧接口 |
-| [pubspec.yaml](../pubspec.yaml) | 包配置 | current | 根包名 `ugk_coach`、集成版本 0.3.2、禁止 pub.dev 发布 |
+| [pubspec.yaml](../pubspec.yaml) | 包配置 | current | 根包名 `ugk_coach`、本开发分支 0.3.3（main 仍 0.3.2）、禁止 pub.dev 发布 |
 | [docs/agent-plan.md](agent-plan.md) | Agent 设计 | current | 0.3 工具循环、技能披露、用户记忆和事件；不充当真实服务验收记录 |
-| [CHANGELOG.md](../CHANGELOG.md) | 版本变更记录 | current / history；首条为已合入 0.3.2 | 记录各版本与训练包成果；历史条目的测试数和待定项保留原时间语境 |
+| [CHANGELOG.md](../CHANGELOG.md) | 版本变更记录 | current / history；首条为待验收 0.3.3 | 记录各版本与训练包成果；历史条目的测试数和待定项保留原时间语境 |
+| [0.3.3 提速记录](coach-033-speed-2026-10-21.md) | 实测与待验收状态 | current | 区分 0.3.2 基线、各候选完整测量与当前余额不足的未完成验收，不混用源码版本 |
 | [docs/design.md](design.md) | 早期设计决策 | archive/history | 标题明确为 ugk_coach 0.1.2，不用它覆盖 0.3 行为或判定外部 PR 的当前状态 |
 | [docs/smoke-2026-10-20.md](smoke-2026-10-20.md) | 历史真实调用 | archive/history | 0.1 / OpenCSG 的一次真实冒烟，不能证明 0.3 Worker 多步链路通过 |
 | [docs/project-ledger.md](project-ledger.md) | 维护与验收台账 | current | 本文；承接当前合并状态、验证适用范围、未决事项和维护规则 |
@@ -48,6 +50,16 @@
 PR #4 的复审 head 为 `48417e03f5ff05d4434dc2e15cc36237464153d2`。合并提交的两父提交分别为 `09a392bc0b736e6a23eef71d55d86108660e0e59` 和该复审 head；合并树与复审树一致。
 
 ## 验证证据与适用范围
+
+### 0.3.3 提速：源码完成，真实验收待余额恢复（2026-10-21）
+
+源码 `e8c8921508139dc0f3eee1d2099eb5feefa80774` 在独立分支上实现作用域紧凑索引、内联三条技能快路径、明确动作要领的受限详情预载，以及普通请求隐藏自检/门禁拒绝后开放。默认步数、超时、上下文和重试配置不变，跨轮 reasoning 保留官方协议。旧臀桥 badResponse 缺失原始证据，补安全诊断但未声称已确定或修复历史根因。
+
+SDK 377 项测试与 analyze 0 问题通过；SmartFit 定向 56 项通过（仅隔离测试适配 agent-v2 元数据断言及显式自检输入，App 运行时代码未改）。候选 c4981c9 的完整六条正确性通过，问答 1 步 24.824 秒，但记忆关闭计划因两次自检达到 78.875 秒/34,515 token，不算性能验收通过；据此进一步限制自检工具的初始开放。
+
+当前源码真实运行中核心计划 1 步 35.720 秒/9,907 token、护腰练腿 1 步 34.275 秒/10,516 token，其余因网关余额不足返回 403。完整六条及 full/empty/omitted 跨轮 reasoning 对照待继续；未把候选或快速失败拼成最终达标结果，未合并/推送。详细表格、脱敏记录与复现测试补丁见[提速验证](coach-033-speed-2026-10-21.md)。
+
+本次也补读了 main 0.3.2 的 SmartFit 六条证据（App b393044、SDK b26e4fd），共 39 逻辑步、43 请求、867.891 秒、384,013 token；[逐次拆解](coach-033-baseline-analysis-2026-10-21.md)保留全部 P/C 与工具路径。下面 0.3.2 集成时的“尚无新代码树实测”是当时验收边界，不能覆盖本次后来提供的基线记录。
 
 ### 0.3.2 集成离线已验收并获批合入 main（2026-10-21）
 

@@ -1,0 +1,23 @@
+{
+  "sdkSource": "e8c8921508139dc0f3eee1d2099eb5feefa80774",
+  "sdkTests": {
+    "passed": 377,
+    "exitCode": 0,
+    "logSha256": "dc4f1e9483643fdf957aadc1d7d047325d432459d91c13d04afb7c7059a9055c"
+  },
+  "sdkAnalyze": {
+    "issues": 0,
+    "exitCode": 0,
+    "logSha256": "b5f9bd64eb65892630c2e5aee6c12f1385a0140d7a5ce1fcbc8ee39e4d15e766"
+  },
+  "appTargetedTests": {
+    "passed": 56,
+    "exitCode": 0,
+    "adaptedLegacyTest": true,
+    "logSha256": "d7b2276da30ae5aa15505fd25433c78773d924ffd12314753f26b0fbb97a4295"
+  },
+  "liveAcceptance": "blocked_by_gateway_balance",
+  "historicalBadResponseRootCause": "unknown_missing_raw_response",
+  "reasoningPolicy": "retain_all_historical_assistant_reasoning",
+  "gatewayReasoningProbe": "prepared_not_executed_after_balance_failure"
+}

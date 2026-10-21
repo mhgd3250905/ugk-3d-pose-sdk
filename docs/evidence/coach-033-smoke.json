@@ -1,0 +1,530 @@
+{
+  "sdkRef": "e8c8921508139dc0f3eee1d2099eb5feefa80774",
+  "state": "live_acceptance_blocked_by_gateway_balance",
+  "sdkBase": "b26e4fda807b6ef3db15a61ba30c67fb51dce5e1",
+  "appRef": "530686e224adf34d1e748cde35b4fb5575d6fe3d",
+  "baselineAppRef": "b39304488e964b22a65501363a15140b5d0ca235",
+  "baselineRun": "2026-10-21T09-03-59.110231Z",
+  "trialRun": "2026-10-21T10-43-21.627003Z",
+  "secondCandidateRef": "c4981c98f6bd4471ef77372fb0d63bcef45ac7de",
+  "secondCandidateRun": "2026-10-21T10-53-07.217497Z",
+  "finalAttemptRun": "2026-10-21T11-04-11.375502Z",
+  "sameAppRuntimeAssets": true,
+  "sameDeviceReused": true,
+  "failures": [
+    "actions: fallback auth",
+    "remember: fallback auth",
+    "remember: no durable level/equipment memories",
+    "memory-on-plan: fallback auth",
+    "memory-on-plan: no delivered ValidatedPlan",
+    "enabled: memory not applied in request and delivered plan",
+    "memory-off-plan: fallback auth",
+    "memory-off-plan: no delivered ValidatedPlan",
+    "disabled: remembered-only information in cold request"
+  ],
+  "performanceFailures": [],
+  "cases": [
+    {
+      "id": "core",
+      "question": "在家 15 分钟练核心，徒手",
+      "before": {
+        "steps": 9,
+        "elapsedMs": 213908,
+        "promptTokens": 79226,
+        "completionTokens": 5284,
+        "totalTokens": 84510,
+        "fallback": false
+      },
+      "firstCandidate": {
+        "steps": 2,
+        "elapsedMs": 58866,
+        "promptTokens": 18419,
+        "completionTokens": 3249,
+        "totalTokens": 21668,
+        "fallback": false
+      },
+      "secondCandidate": {
+        "steps": 1,
+        "elapsedMs": 35451,
+        "promptTokens": 8076,
+        "completionTokens": 2566,
+        "totalTokens": 10642,
+        "fallback": false
+      },
+      "currentAttempt": {
+        "steps": 1,
+        "elapsedMs": 35720,
+        "promptTokens": 7483,
+        "completionTokens": 2424,
+        "totalTokens": 9907,
+        "fallback": false
+      },
+      "currentAttemptState": "measured_ok",
+      "correctness": {
+        "status": "ok",
+        "inventedIdCount": 0,
+        "deliveredPlan": true,
+        "memoryEnabled": false,
+        "storedMemoryEntryCount": 0,
+        "memoryToolsPresent": false,
+        "memorySummaryIncluded": false,
+        "planLevel": 1,
+        "planAvoid": []
+      },
+      "calls": [
+        {
+          "outcome": "passed",
+          "httpAttempts": 1,
+          "step": 1,
+          "retry": 0,
+          "latencyMs": 35607,
+          "usage": {
+            "promptTokens": 7483,
+            "completionTokens": 2424,
+            "reasoningTokens": 1503,
+            "cachedTokens": 512
+          },
+          "issues": [],
+          "errorKind": null
+        }
+      ],
+      "responseProtocol": [
+        {
+          "requestIndex": 1,
+          "errorKind": null,
+          "responseDiagnostic": null,
+          "usage": {
+            "promptTokens": 7483,
+            "completionTokens": 2424,
+            "reasoningTokens": 1503,
+            "cachedTokens": 512
+          },
+          "finishReason": "tool_calls",
+          "tools": [
+            {
+              "name": "show_plan",
+              "actionIds": [
+                "n-pelvis-circle",
+                "h-catcow-quad",
+                "h-good-morning",
+                "w-dead-bug",
+                "w-bird-dog",
+                "h-forearm-plank",
+                "h-crunch",
+                "h-supine-twist",
+                "h-knee-hug"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "actions",
+      "question": "臀桥怎么做",
+      "before": {
+        "steps": 7,
+        "elapsedMs": 132244,
+        "promptTokens": 41841,
+        "completionTokens": 1552,
+        "totalTokens": 43393,
+        "fallback": false
+      },
+      "firstCandidate": {
+        "steps": 2,
+        "elapsedMs": 46079,
+        "promptTokens": 16464,
+        "completionTokens": 739,
+        "totalTokens": 17203,
+        "fallback": false
+      },
+      "secondCandidate": {
+        "steps": 1,
+        "elapsedMs": 24824,
+        "promptTokens": 8595,
+        "completionTokens": 560,
+        "totalTokens": 9155,
+        "fallback": false
+      },
+      "currentAttempt": {
+        "steps": 1,
+        "elapsedMs": 494,
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "fallback": true
+      },
+      "currentAttemptState": "gateway_balance_blocked",
+      "correctness": {
+        "status": "fallback",
+        "inventedIdCount": 0,
+        "deliveredPlan": false,
+        "memoryEnabled": false,
+        "storedMemoryEntryCount": 0,
+        "memoryToolsPresent": false,
+        "memorySummaryIncluded": false,
+        "planLevel": null,
+        "planAvoid": null
+      },
+      "calls": [
+        {
+          "outcome": "error",
+          "httpAttempts": 1,
+          "step": 1,
+          "retry": 0,
+          "latencyMs": 249,
+          "usage": {
+            "promptTokens": 0,
+            "completionTokens": 0,
+            "reasoningTokens": 0,
+            "cachedTokens": 0
+          },
+          "issues": [],
+          "errorKind": "auth"
+        }
+      ],
+      "responseProtocol": [
+        {
+          "requestIndex": 2,
+          "errorKind": "auth",
+          "responseDiagnostic": null,
+          "usage": null,
+          "finishReason": null,
+          "tools": null
+        }
+      ]
+    },
+    {
+      "id": "back-protection",
+      "question": "我腰不太舒服，想练腿 20 分钟",
+      "before": {
+        "steps": 7,
+        "elapsedMs": 166198,
+        "promptTokens": 86098,
+        "completionTokens": 6613,
+        "totalTokens": 92711,
+        "fallback": false
+      },
+      "firstCandidate": {
+        "steps": 1,
+        "elapsedMs": 35990,
+        "promptTokens": 7957,
+        "completionTokens": 3543,
+        "totalTokens": 11500,
+        "fallback": false
+      },
+      "secondCandidate": {
+        "steps": 1,
+        "elapsedMs": 31652,
+        "promptTokens": 8070,
+        "completionTokens": 2296,
+        "totalTokens": 10366,
+        "fallback": false
+      },
+      "currentAttempt": {
+        "steps": 1,
+        "elapsedMs": 34275,
+        "promptTokens": 7477,
+        "completionTokens": 3039,
+        "totalTokens": 10516,
+        "fallback": false
+      },
+      "currentAttemptState": "measured_ok",
+      "correctness": {
+        "status": "ok",
+        "inventedIdCount": 0,
+        "deliveredPlan": true,
+        "memoryEnabled": false,
+        "storedMemoryEntryCount": 0,
+        "memoryToolsPresent": false,
+        "memorySummaryIncluded": false,
+        "planLevel": 1,
+        "planAvoid": [
+          "腰"
+        ]
+      },
+      "calls": [
+        {
+          "outcome": "passed",
+          "httpAttempts": 1,
+          "step": 1,
+          "retry": 0,
+          "latencyMs": 34262,
+          "usage": {
+            "promptTokens": 7477,
+            "completionTokens": 3039,
+            "reasoningTokens": 1921,
+            "cachedTokens": 7296
+          },
+          "issues": [],
+          "errorKind": null
+        }
+      ],
+      "responseProtocol": [
+        {
+          "requestIndex": 3,
+          "errorKind": null,
+          "responseDiagnostic": null,
+          "usage": {
+            "promptTokens": 7477,
+            "completionTokens": 3039,
+            "reasoningTokens": 1921,
+            "cachedTokens": 7296
+          },
+          "finishReason": "tool_calls",
+          "tools": [
+            {
+              "name": "show_plan",
+              "actionIds": [
+                "n-pelvis-circle",
+                "h-hip-gate",
+                "h-butterfly-active",
+                "h-squat",
+                "w-feet-on-chair-bridge",
+                "w-clamshell",
+                "h-calf-raise",
+                "h-tib-raise",
+                "o-stand-quad",
+                "o-seated-ham",
+                "h-wall-calf"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "remember",
+      "question": "我是新手，家里有哑铃",
+      "before": {
+        "steps": 3,
+        "elapsedMs": 60845,
+        "promptTokens": 11320,
+        "completionTokens": 360,
+        "totalTokens": 11680,
+        "fallback": false
+      },
+      "firstCandidate": {
+        "steps": 3,
+        "elapsedMs": 34319,
+        "promptTokens": 26443,
+        "completionTokens": 245,
+        "totalTokens": 26688,
+        "fallback": false
+      },
+      "secondCandidate": {
+        "steps": 3,
+        "elapsedMs": 59811,
+        "promptTokens": 27176,
+        "completionTokens": 460,
+        "totalTokens": 27636,
+        "fallback": false
+      },
+      "currentAttempt": {
+        "steps": 1,
+        "elapsedMs": 253,
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "fallback": true
+      },
+      "currentAttemptState": "gateway_balance_blocked",
+      "correctness": {
+        "status": "fallback",
+        "inventedIdCount": 0,
+        "deliveredPlan": false,
+        "memoryEnabled": true,
+        "storedMemoryEntryCount": 0,
+        "memoryToolsPresent": true,
+        "memorySummaryIncluded": false,
+        "planLevel": null,
+        "planAvoid": null
+      },
+      "calls": [
+        {
+          "outcome": "error",
+          "httpAttempts": 1,
+          "step": 1,
+          "retry": 0,
+          "latencyMs": 242,
+          "usage": {
+            "promptTokens": 0,
+            "completionTokens": 0,
+            "reasoningTokens": 0,
+            "cachedTokens": 0
+          },
+          "issues": [],
+          "errorKind": "auth"
+        }
+      ],
+      "responseProtocol": [
+        {
+          "requestIndex": 4,
+          "errorKind": "auth",
+          "responseDiagnostic": null,
+          "usage": null,
+          "finishReason": null,
+          "tools": null
+        }
+      ]
+    },
+    {
+      "id": "memory-on-plan",
+      "question": "请给我排一个15分钟的居家力量训练计划",
+      "before": {
+        "steps": 5,
+        "elapsedMs": 110305,
+        "promptTokens": 47094,
+        "completionTokens": 4754,
+        "totalTokens": 51848,
+        "fallback": false
+      },
+      "firstCandidate": {
+        "steps": 1,
+        "elapsedMs": 34591,
+        "promptTokens": 8514,
+        "completionTokens": 2947,
+        "totalTokens": 11461,
+        "fallback": false
+      },
+      "secondCandidate": {
+        "steps": 1,
+        "elapsedMs": 30739,
+        "promptTokens": 8628,
+        "completionTokens": 2436,
+        "totalTokens": 11064,
+        "fallback": false
+      },
+      "currentAttempt": {
+        "steps": 1,
+        "elapsedMs": 256,
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "fallback": true
+      },
+      "currentAttemptState": "gateway_balance_blocked",
+      "correctness": {
+        "status": "fallback",
+        "inventedIdCount": 0,
+        "deliveredPlan": false,
+        "memoryEnabled": true,
+        "storedMemoryEntryCount": 0,
+        "memoryToolsPresent": true,
+        "memorySummaryIncluded": false,
+        "planLevel": null,
+        "planAvoid": null
+      },
+      "calls": [
+        {
+          "outcome": "error",
+          "httpAttempts": 1,
+          "step": 1,
+          "retry": 0,
+          "latencyMs": 253,
+          "usage": {
+            "promptTokens": 0,
+            "completionTokens": 0,
+            "reasoningTokens": 0,
+            "cachedTokens": 0
+          },
+          "issues": [],
+          "errorKind": "auth"
+        }
+      ],
+      "responseProtocol": [
+        {
+          "requestIndex": 5,
+          "errorKind": "auth",
+          "responseDiagnostic": null,
+          "usage": null,
+          "finishReason": null,
+          "tools": null
+        }
+      ]
+    },
+    {
+      "id": "memory-off-plan",
+      "question": "请给我排一个15分钟的居家力量训练计划",
+      "before": {
+        "steps": 8,
+        "elapsedMs": 184391,
+        "promptTokens": 92570,
+        "completionTokens": 7301,
+        "totalTokens": 99871,
+        "fallback": false
+      },
+      "firstCandidate": {
+        "steps": 1,
+        "elapsedMs": 31077,
+        "promptTokens": 7956,
+        "completionTokens": 2351,
+        "totalTokens": 10307,
+        "fallback": false
+      },
+      "secondCandidate": {
+        "steps": 3,
+        "elapsedMs": 78875,
+        "promptTokens": 30319,
+        "completionTokens": 4196,
+        "totalTokens": 34515,
+        "fallback": false
+      },
+      "currentAttempt": {
+        "steps": 1,
+        "elapsedMs": 248,
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "fallback": true
+      },
+      "currentAttemptState": "gateway_balance_blocked",
+      "correctness": {
+        "status": "fallback",
+        "inventedIdCount": 0,
+        "deliveredPlan": false,
+        "memoryEnabled": false,
+        "storedMemoryEntryCount": 0,
+        "memoryToolsPresent": false,
+        "memorySummaryIncluded": false,
+        "planLevel": null,
+        "planAvoid": null
+      },
+      "calls": [
+        {
+          "outcome": "error",
+          "httpAttempts": 1,
+          "step": 1,
+          "retry": 0,
+          "latencyMs": 235,
+          "usage": {
+            "promptTokens": 0,
+            "completionTokens": 0,
+            "reasoningTokens": 0,
+            "cachedTokens": 0
+          },
+          "issues": [],
+          "errorKind": "auth"
+        }
+      ],
+      "responseProtocol": [
+        {
+          "requestIndex": 6,
+          "errorKind": "auth",
+          "responseDiagnostic": null,
+          "usage": null,
+          "finishReason": null,
+          "tools": null
+        }
+      ]
+    }
+  ],
+  "hashes": {
+    "baselineResults": "3c0e26226ade06b0a0bf7f6edfed9e6b1c88fde46653ae3ea6891153cacd6d87",
+    "finalResults": "78a7d774adac2e0473511ced920ffd90a3980fe2f06eb54f90c8be41808f5bfe",
+    "finalRequests": "a7f135c40ac5363cf6bec65c0c2a1a8944ab0351b494c3e7652357e85cf6efb9",
+    "finalEvents": "3e66b760c96a9c049967e3997ed45d7b6f6bc4be5bb3db0f2898430276c83e5c",
+    "finalVerdict": "02232adbddbda30dc2392297dfc6cfc6aa2f34419866c81c8f6c1b3c7875ad45",
+    "instrumentedHarness": "c14a2c41bb6627024bcde707dfaba6ea973df5880738fd8df5142c29bb99df79"
+  }
+}

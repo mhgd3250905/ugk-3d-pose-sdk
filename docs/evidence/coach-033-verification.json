@@ -1,5 +1,11 @@
 {
   "sdkSource": "e8c8921508139dc0f3eee1d2099eb5feefa80774",
+  "integration": {
+    "approved": true,
+    "mainContainsValidatedCommit": "a931a04d6362ce8efba262556b34df3b485cc51d",
+    "method": "fast_forward",
+    "approvalDate": "2026-10-21"
+  },
   "sdkTests": {
     "passed": 377,
     "exitCode": 0,

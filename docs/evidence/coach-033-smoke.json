@@ -1,7 +1,9 @@
 {
   "sdkRef": "3a23ba0803a05efc1519efac3a231fc480e8ba1a",
   "sdkSource": "e8c8921508139dc0f3eee1d2099eb5feefa80774",
-  "state": "all_six_correctness_and_speed_targets_passed_awaiting_merge_approval",
+  "state": "all_six_correctness_and_speed_targets_passed_merged_main_after_user_approval",
+  "approvedValidatedCommit": "a931a04d6362ce8efba262556b34df3b485cc51d",
+  "approvalDate": "2026-10-21",
   "sdkBase": "b26e4fda807b6ef3db15a61ba30c67fb51dce5e1",
   "appRef": "530686e224adf34d1e748cde35b4fb5575d6fe3d",
   "baselineAppRef": "b39304488e964b22a65501363a15140b5d0ca235",

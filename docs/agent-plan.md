@@ -77,4 +77,6 @@ user-memory/SKILL.md                       仅记忆开关开时存在
 
 `CoachAgent` / `CoachSession` 将响应的 `reasoning_content` 保存在 `LlmMessage.reasoning`，用于中间工具、重交和最终历史的后续模型请求。该字段是传输协议数据，不是可渲染正文；App 仍只使用 `CoachTurnResult.text` 和门禁卡片。记忆关闭时推理字段同步脱敏，避免记忆摘要经推理回传。
 
+Worker 上游不返回推理或返回 null 时，会话回传显式空字符串（预设回落历史也相同），使下一步路由到思考模型时仍具备必需协议字段；不生成或补造推理正文。手写 `LlmMessage.assistant(...)` 未指定 `reasoning` 时仍省略此可选字段。
+
 协议依据：[DeepSeek Thinking Mode — Tool Calls](https://api-docs.deepseek.com/guides/thinking_mode/)。

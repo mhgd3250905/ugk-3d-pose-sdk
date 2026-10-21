@@ -120,7 +120,12 @@ class AgentPromptBuilder {
       'defaultLevel': v['defaultLevel'] ?? '1',
       'defaultSceneLabel': profile.sceneRule(profile.defaultScene).label ?? labels[profile.defaultScene] ?? '居家',
       'skills': [for (final s in files.skills) '- ${s.name} — ${s.description} — ${s.path}'].join('\n'),
-      'memoryTools': memory ? '- remember / forget：记住或忘掉用户主动提供的训练信息（先读 user-memory/SKILL.md）。\n' : '',
+      'memoryTools': memory
+          ? '- remember / forget：记住或忘掉用户主动提供的训练信息（先读 user-memory/SKILL.md）。\n'
+                '- 用户主动陈述稳定的训练信息（水平/经验、家中器械、惯常场所、长期目标、不适/保护部位等）时，必须先用 read 读 user-memory/SKILL.md，再按类别逐条调用 remember；不要把 App 括号中的已知条件或模型推断当作用户新提供的事实，也不要从一次训练请求推断长期习惯或记住「今天」的临时条件。\n'
+                '- 例如「我是新手，家里有哑铃」要分别 remember(kind=level, text=新手) 和 remember(kind=equipment, text=家里有哑铃)。只有记忆工具返回 ok=true 后才能确认「记下了」，禁止只口头确认而不调用工具。\n'
+                '- 用户只陈述条件、未要求找动作/排计划，且对话中没有待完成的训练请求时：完成记忆后只用一句文字确认已记下、以后排课会参考；本轮不调用 show_actions / show_plan，不擅自按默认值排课。若用户同时明确要求训练，先记下稳定事实，再继续该训练任务。\n'
+          : '',
       'focus': [
         for (final x in profile.focus.split('\n'))
           if (x.trim().isNotEmpty) '- $x',

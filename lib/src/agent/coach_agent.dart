@@ -212,6 +212,8 @@ class CoachAgent {
   Stream<AgentEvent> get events => _events.stream;
 
   final List<LlmMessage> _history = [];
+  // 只追踪曾看过用户记忆的响应；记忆从未开启的工具推理必须完整回传。
+  final Set<LlmMessage> _memoryReasoning = {};
   int _turns = 0;
   int _generation = 0;
   int? _busyGen;
@@ -235,6 +237,7 @@ class CoachAgent {
   void reset() {
     _generation++;
     _history.clear();
+    _memoryReasoning.clear();
     _turns = 0;
     _resetSig.complete();
     _resetSig = Completer<void>();
@@ -277,7 +280,11 @@ class CoachAgent {
   /// 记忆关闭后的本轮消息：已执行的 remember / forget 调用项连同其 tool 回复整对移除（参数里可能有记忆原文），
   /// 删空（无正文、无工具调用）的 assistant 消息整条移除；关闭后才发出、被当作未知工具的 remember / forget
   /// 保留回复、参数脱敏为 {}；读 user-memory/ 的结果替换为占位。
-  static List<LlmMessage> _withoutMemory(List<LlmMessage> msgs, Set<String> memResultIds) {
+  static List<LlmMessage> _withoutMemory(
+    List<LlmMessage> msgs,
+    Set<String> memResultIds, {
+    Set<LlmMessage> privateReasoning = const {},
+  }) {
     bool isMem(LlmToolCall t) => t.name == AgentTools.remember || t.name == AgentTools.forget;
     final dropIds = {
       for (final m in msgs)
@@ -295,7 +302,11 @@ class CoachAgent {
             if (!dropIds.contains(t.id)) isMem(t) ? LlmToolCall(id: t.id, name: t.name, arguments: '{}') : t,
         ];
         if (m.content.isEmpty && kept.isEmpty) continue;
-        out.add(LlmMessage.assistant(m.content, toolCalls: kept));
+        out.add(LlmMessage.assistant(m.content, toolCalls: kept, reasoning: m.reasoning == null ? null : ''));
+      } else if (m.role == LlmRole.assistant && m.reasoning != null && privateReasoning.contains(m)) {
+        // 推理可能引用记忆摘要，即使这一条没有调用 remember / forget 也必须脱敏。
+        // 保留空协议字段，不能因脱敏又触发上游要求 reasoning_content 的 400。
+        out.add(LlmMessage.assistant(m.content, toolCalls: m.toolCalls, reasoning: ''));
       } else {
         out.add(m);
       }
@@ -397,6 +408,16 @@ class CoachAgent {
     final turnMsgs = <LlmMessage>[];
     // 与记忆相关的工具结果（读 user-memory/ 文件、remember / forget）：关闭记忆后在后续请求里替换。
     final memResultIds = <String>{};
+    final memoryReasoning = <LlmMessage>{};
+    LlmMessage assistant(LlmResponse response, {String? content, List<LlmToolCall>? toolCalls, bool history = false}) {
+      final msg = LlmMessage.assistant(
+        content ?? response.content,
+        toolCalls: toolCalls ?? response.toolCalls,
+        reasoning: response.reasoning,
+      );
+      if (memoryOn) (history ? _memoryReasoning : memoryReasoning).add(msg);
+      return msg;
+    }
     final calls = <_Call>[];
     final reads = <String>[];
     final readSet = <String>{};
@@ -540,9 +561,9 @@ class CoachAgent {
         final req = LlmRequest(
           messages: [
             LlmMessage.system(system),
-            ..._history,
+            ...(memOff ? _withoutMemory(_history, const {}, privateReasoning: _memoryReasoning) : _history),
             userMsg,
-            ...(memOff ? _withoutMemory(turnMsgs, memResultIds) : turnMsgs),
+            ...(memOff ? _withoutMemory(turnMsgs, memResultIds, privateReasoning: memoryReasoning) : turnMsgs),
           ],
           tools: tools,
           toolChoice: 'auto',
@@ -677,7 +698,7 @@ class CoachAgent {
               _turns++;
               _history
                 ..add(userMsg)
-                ..add(LlmMessage.assistant(g.text));
+                ..add(assistant(res, content: g.text, history: true));
             },
           );
         }
@@ -685,7 +706,7 @@ class CoachAgent {
         lastErrors = g.errors;
         if (++rejected > maxResubmits) break;
         turnMsgs
-          ..add(LlmMessage.assistant(res.content))
+          ..add(assistant(res))
           ..add(LlmMessage.user(_feedback(g.errors, remaining: 1 + maxResubmits - rejected)));
         continue;
       }
@@ -760,7 +781,7 @@ class CoachAgent {
 
       if (finals.isEmpty) {
         calls.add(_Call.ok(step, res, retry: tag, CallOutcome.toolStep));
-        turnMsgs.add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls));
+        turnMsgs.add(assistant(res));
         for (final t in res.toolCalls) {
           final m = LlmMessage.tool(t.id, results[t.id]!);
           turnMsgs.add(m);
@@ -812,7 +833,7 @@ class CoachAgent {
             _turns++;
             _history
               ..add(userMsg)
-              ..add(LlmMessage.assistant(g.text, toolCalls: finals))
+              ..add(assistant(res, content: g.text, toolCalls: finals, history: true))
               ..addAll([for (final t in finals) LlmMessage.tool(t.id, g.feedback())]);
           },
         );
@@ -821,7 +842,7 @@ class CoachAgent {
       lastErrors = g.errors;
       if (++rejected > maxResubmits) break;
       final fb = _feedback(g.errors, remaining: 1 + maxResubmits - rejected);
-      turnMsgs.add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls));
+      turnMsgs.add(assistant(res));
       for (final t in res.toolCalls) {
         final m = LlmMessage.tool(t.id, results[t.id] ?? fb);
         turnMsgs.add(m);
@@ -991,7 +1012,8 @@ class CoachAgent {
     return j;
   }
 
-  static int _chars(LlmMessage m) => m.content.length + m.toolCalls.fold(0, (n, t) => n + t.arguments.length);
+  static int _chars(LlmMessage m) =>
+      m.content.length + (m.reasoning?.length ?? 0) + m.toolCalls.fold(0, (n, t) => n + t.arguments.length);
 
   static FallbackReason _reasonFor(LlmErrorKind k) => switch (k) {
     LlmErrorKind.network => FallbackReason.offline,

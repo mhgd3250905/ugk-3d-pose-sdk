@@ -93,3 +93,9 @@ user-memory/SKILL.md                       仅记忆开关开时存在
 3. 订阅 `agent.events` 显示进度（如 reading → 「正在查动作库」，checking → 「正在核对计划」，retrying → 「网络不稳，正在重试（2/4）…」，slow → 「还在想…」）。
 4. 结果处理不变（`r.plan` / `r.actions` / `r.text` / `r.status`）；Agent 一轮多次调模型，等待时间与 token 比 0.2 长，超时设置留余量。
 5. 可选：profile 加 `skills` 写 App 专属 skill。
+
+### 思考模型的工具协议
+
+`CoachAgent` / `CoachSession` 将响应的 `reasoning_content` 保存在 `LlmMessage.reasoning`，用于中间工具、重交和最终历史的后续模型请求。该字段是传输协议数据，不是可渲染正文；App 仍只使用 `CoachTurnResult.text` 和门禁卡片。记忆关闭时推理字段同步脱敏，避免记忆摘要经推理回传。
+
+协议依据：[DeepSeek Thinking Mode — Tool Calls](https://api-docs.deepseek.com/guides/thinking_mode/)。

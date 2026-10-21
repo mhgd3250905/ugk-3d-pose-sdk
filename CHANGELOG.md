@@ -15,6 +15,15 @@
 - 固定本轮 reset 信号，`retrying` 事件后立即复查作废：同步监听器里 `reset()` 时旧轮即时返回 `cancelled`，不再等退避。
 - 目录 `read` 与 `ls` 共用目录去重 / 新信息 / 压缩跟踪：不同目录探索不再误判空转，重复目录仍受防护。
 - 压缩元数据按具体 tool 消息关联（不再按 tool_call_id），跨步骤复用 id 时不错配摘要与已读集合。
+## Unreleased
+
+### 修复
+- 修复 SmartFit 首次真实 Worker 多步联调发现的 DeepSeek 思考模式 HTTP 400：`LlmMessage` 新增可选 `reasoning`，`CoachAgent` 中间工具、门禁重交及最终交付历史按协议回传 `reasoning_content`，`CoachSession` 同步修复；推理不混入用户正文或 `toString()`。
+- 记忆关闭后，当前工具轮与历史 assistant 的推理也脱敏，避免通过新增协议字段重新带回记忆摘要原文；历史推理计入会话字符上限。
+- 影响使用思考模型工具调用的 SmartFit / HipLab / FlareLab；新增字段可选，现有 App 接口兼容，版本仍为 0.3.0。
+
+### 验证
+- 根包 `dart test` 291 项（含 7 项推理回传回归）、`dart analyze` 0 问题；训练包 `flutter test` 126 项、`flutter analyze` 0 问题。真实 Worker 多步与记忆开关冒烟由 SmartFit 记录，不用 mock 协议测试替代。
 
 ## 0.3.0 — 2026-10-21
 

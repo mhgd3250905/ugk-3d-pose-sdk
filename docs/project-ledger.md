@@ -8,14 +8,14 @@
 
 | 项目 | 已核对状态 |
 |---|---|
-| 主线核验快照 | `origin/main` = `517fdbef6d9e611eff3f68bc2138f8e00e35c82e`；PR #5 已合入，根包 0.3.1；本次 0.3.2 尚未合入 |
-| 当前集成分支 / 来源 | `codex/coach-agent-032-integration`；按指定源 `9bc392c42222d61d8c57e8dc00373ee165e56e06` 在上述 main 上 rebase 后补齐 0.3.2；原 `fix/coach-agent-reasoning-replay` 分支保持原状，后续额外评审文档未作为集成源 |
+| 主线代码核验快照 | main 已包含 `31fb6f806612e0416f3bea4e32332068fd333473`，根包 0.3.2；后续批准状态文档提交不改变该源码快照 |
+| 集成分支 / 来源 | `codex/coach-agent-032-integration`；按指定源 `9bc392c42222d61d8c57e8dc00373ee165e56e06` 在 main `517fdbef6d9e611eff3f68bc2138f8e00e35c82e` 上 rebase 后补齐 0.3.2，已获批准合入 main；原修复分支保留，后续额外评审文档未作为集成源 |
 | 最初文档对齐 baseline（历史） | `1f8be6edf9c0c57575d963448af379e8fdf8df2a`；来自原文档会话 Cockpit init 记录，已核对为当时 main 且是当前 HEAD 的祖先 |
 | 最初对齐前的 stage delta（历史） | baseline..HEAD 为 0 提交、0 路径；完整工作区 tracked 0、untracked 0；不代表修复分支当前成果 |
-| 根包 | 集成分支 `ugk_coach` 0.3.2；main 为 0.3.1；`publish_to: none`，版本修改不表示已发布到 pub.dev |
+| 根包 | main 为 `ugk_coach` 0.3.2；`publish_to: none`，已合入主线不表示已发布到 pub.dev |
 | 推荐入口 | `CoachAgent`；`CoachSession` 保留作 0.2 降级，`CoachAssistant` 为 deprecated 旧接口 |
 | 训练执行 | PR #1 引入 `ugk_trainer` 0.1.0，当前包清单为 0.1.4；本次未修改训练包；原 source 的 126 项测试为历史证据 |
-| 验收边界 | 0.3.2 根包 342 项测试、Dart 3.12.2 分析 0 问题及差异检查通过；本次 SDK 集成待开哥最终批准，尚无新代码树的真实 Worker 验收。历史 SmartFit 六类分组验证绑定 `712cb7b` / `43dfef6`，不升级为本次真实服务验收；真机 UI / 完整训练未验 |
+| 验收边界 | 0.3.2 根包 342 项测试、Dart 3.12.2 分析 0 问题及差异检查通过；SDK 集成已获批准合入 main，尚无新代码树的真实 Worker 验收。历史 SmartFit 六类分组验证绑定 `712cb7b` / `43dfef6`，不升级为本次真实服务验收；真机 UI / 完整训练未验 |
 | Cockpit | 原文档会话已接入 working（历史记录）；文档更新不自动结束会话或生成交接 |
 
 ## 事实来源与文档分工
@@ -27,7 +27,7 @@
 | [README.md](../README.md) | 项目入口 | current | 当前接入方式与文档入口；区分 Agent、工具版和 JSON 信封旧接口 |
 | [pubspec.yaml](../pubspec.yaml) | 包配置 | current | 根包名 `ugk_coach`、集成版本 0.3.2、禁止 pub.dev 发布 |
 | [docs/agent-plan.md](agent-plan.md) | Agent 设计 | current | 0.3 工具循环、技能披露、用户记忆和事件；不充当真实服务验收记录 |
-| [CHANGELOG.md](../CHANGELOG.md) | 版本变更记录 | current / history；首条为待批准 0.3.2 | 记录各版本与训练包成果；历史条目的测试数和待定项保留原时间语境 |
+| [CHANGELOG.md](../CHANGELOG.md) | 版本变更记录 | current / history；首条为已合入 0.3.2 | 记录各版本与训练包成果；历史条目的测试数和待定项保留原时间语境 |
 | [docs/design.md](design.md) | 早期设计决策 | archive/history | 标题明确为 ugk_coach 0.1.2，不用它覆盖 0.3 行为或判定外部 PR 的当前状态 |
 | [docs/smoke-2026-10-20.md](smoke-2026-10-20.md) | 历史真实调用 | archive/history | 0.1 / OpenCSG 的一次真实冒烟，不能证明 0.3 Worker 多步链路通过 |
 | [docs/project-ledger.md](project-ledger.md) | 维护与验收台账 | current | 本文；承接当前合并状态、验证适用范围、未决事项和维护规则 |
@@ -49,9 +49,9 @@ PR #4 的复审 head 为 `48417e03f5ff05d4434dc2e15cc36237464153d2`。合并提�
 
 ## 验证证据与适用范围
 
-### 0.3.2 集成离线已验收，待批准（2026-10-21）
+### 0.3.2 集成离线已验收并获批合入 main（2026-10-21）
 
-本次以 `9bc392c42222d61d8c57e8dc00373ee165e56e06` 为指定源，在 `517fdbef6d9e611eff3f68bc2138f8e00e35c82e` 上集成；版本为 0.3.2，分支 `codex/coach-agent-032-integration`。原修复分支和主线保持原状，主线合并及推送待开哥最终批准。
+本次以 `9bc392c42222d61d8c57e8dc00373ee165e56e06` 为指定源，在 `517fdbef6d9e611eff3f68bc2138f8e00e35c82e` 上集成；版本为 0.3.2，集成提交为 `31fb6f806612e0416f3bea4e32332068fd333473`。开哥审阅后明确同意合并，main 已快进包含该提交；原修复分支保留。批准状态文档单独提交，验证范围仍绑定上述源码。
 
 当前行为为：Agent 整轮默认 360s、slow 提示 30s、单请求 60s；60k 上下文估算不计推理，仅压缩早期 read / ls 的 tool 结果。每条 assistant wire 消息均保留 `reasoning_content`，缺失使用空串；单步重试继续执行记忆隐私过滤。`remember` / `forget` 逐条等待 store.save 成功才返回 ok，失败返回工具错误；已确认前序保存可在后续取消时保留，pending 保存的迟到结果不写缓存 / 会话，并由串行队列补偿，清除记忆优先。
 
@@ -89,7 +89,7 @@ PR #4 的复审 head 为 `48417e03f5ff05d4434dc2e15cc36237464153d2`。合并提�
 
 这是分组复验：`43dfef6` 唯一生产代码差异是 `memory ? ... : ''` 的开启分支字符串；新增回归验证三个 profile 的关闭记忆 system/tools 完整 SHA-256 与 `712cb7b` 相同，因此复用前三条通过记录，未声称最终 SHA 再完整执行六轮。六条合计 38 步、366,766 token（prompt + completion，reasoning 不重复相加）。
 
-以上是原修复分支的历史验收。当前 SDK 0.3.2 在独立集成分支，尚未合入 SDK main。经开哥最终批准后再完成 SDK 主线集成与推送，确认 App 的 git ref 固定到包含修复的 SDK main 具体提交，随后处理 App main；不把临时修复分支 ref 带入 App main。
+以上是原修复分支的历史验收。当前 SDK 0.3.2 已获批准合入 SDK main，代码集成提交为 `31fb6f8`。SmartFit App 后续应将 git ref 固定到包含修复的 SDK main 具体提交，其主线集成待独立安排；不把临时修复分支 ref 带入 App main。
 
 原验证记录同步只修改 README、CHANGELOG 和本文，不改当时的代码、测试、配置或生成物，复用上述验证。该历史范围不覆盖本次含代码、测试与版本变化的 0.3.2；新集成必须以自身最终离线验证记录验收。
 
@@ -101,9 +101,9 @@ PR #4 的复审 head 为 `48417e03f5ff05d4434dc2e15cc36237464153d2`。合并提�
 |---|---|---|---|
 | SDK-001 | 原 source 已验证；0.3.2 真实服务待验 | 0.3 `CoachAgent` 真实 Worker 多步链路 | 上文六类分组验证绑定 `712cb7b` / `43dfef6`；本次 0.3.2 的行为与默认时限已变化，历史记录不能证明新代码树已通过真实 Worker 验收 |
 | SDK-002 | 已知非阻塞 P3 | `_withoutMemory` 的跨消息 ID 过滤：不同步骤复用工具调用 ID 时，后续普通调用和回复可能被误过滤 | 修正按消息配对或缺失 ID 的回退策略后，验证唯一 ID 正常路径及跨步骤复用 ID 场景；当前没有证据证明实际 Worker 会缺失或复用 ID |
-| SDK-003 | 待开哥最终批准 | SDK 0.3.2 / SmartFit 修复合入 main 并推送 | 交付集成差异及最终验证后，批准 SDK 主线集成；确认 App 固定 ref 为 SDK main 具体提交，再处理 App main；历史报告随 App 修复分支保存 |
+| SDK-003 | SDK 已获批合入；App 待安排 | SDK 0.3.2 / SmartFit 主线集成 | SDK 代码集成提交为 `31fb6f8`；确认 App 固定 ref 为包含修复的 SDK main 具体提交，再独立安排 App main；历史报告随 App 修复分支保存 |
 
-SDK-001 的真实验证只覆盖历史 source；当前 0.3.2 主线合并与 SDK-003 仍待批准。SDK-002 未在本次集成中处理，其条件与不阻塞合并的判断见上述 PR #4 复审评论。
+SDK-001 的真实验证只覆盖历史 source；SDK 0.3.2 主线集成已获批准，SDK-003 剩余 App 主线工作待独立安排。SDK-002 未在本次集成中处理，其条件与不阻塞合并的判断见上述 PR #4 复审评论。
 
 ## 台账维护规则
 

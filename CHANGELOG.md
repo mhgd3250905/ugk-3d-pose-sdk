@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.2 — 2026-10-21（集成待批准）
+## 0.3.2 — 2026-10-21
 
 ### 推理协议、请求预算与记忆持久化
 
@@ -14,9 +14,9 @@
 
 ### 验证与合并边界
 
-- 本次 0.3.2 在 Dart 3.12.2 执行 `dart test` 342 项全部通过，`dart analyze` 0 问题，`git diff --check` 通过。当前仍待开哥最终批准，main 快照仍为 `517fdbe`，尚未把本次集成写入主线。
+- 本次 0.3.2 在 Dart 3.12.2 执行 `dart test` 342 项全部通过，`dart analyze` 0 问题，`git diff --check` 通过。经开哥批准，main 已包含代码集成提交 `31fb6f806612e0416f3bea4e32332068fd333473`；后续批准状态文档提交不改变已验证源码。
 - 原修复 source `43dfef637144a1e08b5eda5ed743db0671ba5a8d` 的根包 304 项、训练包 126 项测试及两包分析通过，属于历史证据。SmartFit App source `5743073691547d44aec891ab6d4a45b5b3fa381b`（217 项测试、分析 0 问题）的真实 Worker 六类分组验证，分别绑定 SDK `712cb7b3d636a5314c5aa08211c822928a0af4f4` / `43dfef6`；不能当作新 0.3.2 代码树的真实 Worker 验收。完整来源和 204.564s 等记录保留在[台账](docs/project-ledger.md)与 [SmartFit 报告](https://github.com/mhgd3250905/Sport-Helper/blob/feat/smartfit-skill-agent/docs/coach-agent-smoke-2026-10-21.md)。
-- SDK / App 主线集成及推送待批准；本次未新增真实 Worker、真机 UI 或完整训练流程验收结论。
+- 本次批准范围为 SDK 主线集成及推送；SmartFit App 主线集成待独立安排。本次未新增真实 Worker、真机 UI 或完整训练流程验收结论。
 
 ## 0.3.1 — 2026-10-21
 

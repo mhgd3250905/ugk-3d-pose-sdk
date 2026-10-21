@@ -6,7 +6,7 @@
 
 - 纯 Dart，不依赖 Flutter（Web 也能用）；`dart:io` 的部分（文件缓存、JSONL 记账）单独在 `package:ugk_coach/ugk_coach_io.dart`。
 - 一个动作 id = 定义 + 封面 + 示范视频 + 建模源（Pose-Hub spec）+ 语音：`assistant.resolve(id)` 带出整套素材。
-- 当前集成版本为 **0.3.2**，位于 `codex/coach-agent-032-integration`，待开哥最终批准；main 核验快照为 `517fdbe`（0.3.1）。本次最终离线验证见交付记录，尚无新 0.3.2 代码树的真实 Worker 验收；原 `712cb7b` / `43dfef6` 的 SmartFit 六类分组验证和历史 0.1 冒烟分别保留在[项目维护台账](docs/project-ledger.md)和 [docs/smoke-2026-10-20.md](docs/smoke-2026-10-20.md)。
+- 当前版本为 **0.3.2**，经开哥批准合入 main，代码集成提交为 `31fb6f8`。根包 342 项测试通过，静态分析 0 问题；尚无新 0.3.2 代码树的真实 Worker 验收。原 `712cb7b` / `43dfef6` 的 SmartFit 六类分组验证和历史 0.1 冒烟分别保留在[项目维护台账](docs/project-ledger.md)和 [docs/smoke-2026-10-20.md](docs/smoke-2026-10-20.md)。
 
 ## 维护与事实来源
 

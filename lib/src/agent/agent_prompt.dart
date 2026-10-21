@@ -35,6 +35,7 @@ abstract final class AgentTools {
     CoachProfile profile,
     Catalog catalog, {
     required bool memory,
+    bool includeCheckPlan = true,
   }) {
     final shows = CoachTools.build(profile, catalog, idEnum: false);
     final plan = shows.firstWhere((t) => t.name == showPlan);
@@ -65,12 +66,13 @@ abstract final class AgentTools {
           'additionalProperties': false,
         },
       ),
-      LlmTool(
-        name: checkPlan,
-        description:
-            '可选自检（复杂计划或提交失败后使用，参数与 show_plan 相同）：返回错误清单、估算时长与目标的差。常规计划可直接 show_plan，门禁仍校验。',
-        parameters: plan.parameters,
-      ),
+      if (includeCheckPlan)
+        LlmTool(
+          name: checkPlan,
+          description:
+              '可选自检：仅当前工具列表提供时可用，供用户明确要求检查或提交被门禁打回后使用，参数与 show_plan 相同。普通排课先 show_plan，不为估时反复自检；最终门禁照常校验。',
+          parameters: plan.parameters,
+        ),
       ...shows,
       if (memory) ...[
         LlmTool(

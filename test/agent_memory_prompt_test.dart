@@ -19,24 +19,15 @@ class _RecordingStore extends InMemoryUserMemoryStore {
 void main() {
   final catalog = loadCatalog();
   final builder = AgentPromptBuilder();
-  // 0.3.3 snapshots include the optional check_plan fast-path description.
-  // The system deliberately inlines scoped actions; memory stays excluded.
-  const fingerprints = <String, ({String system, String tools})>{
-    'flarelab': (
-      system:
-          '3860ef070e9e885247c173a25e949be32fbd547408a733a084b980be2fe4ce13',
-      tools: 'e2b2eadb85688abd35dcaaa21e92c2e84859601400d078f9de649ce679672a3b',
-    ),
-    'hiplab': (
-      system:
-          '411c27d298b3ef79a80dfa9c90b33ee4c870f46172a3371700539c282b537153',
-      tools: 'f936b7917cf9e691dbbd574b747b64cc7b680d95e5e92c7c2534154c8c536a43',
-    ),
-    'smartfit': (
-      system:
-          '99161e6148497930c4f61957d8a96374a8453c6cae8a8af613b75daf1dd6ee3a',
-      tools: 'e49c7e0c37dfc47a7973dce92c1e761371ddbf39431a0276ae2478cff0aedb32',
-    ),
+  // Parameter-contract snapshots exclude tool descriptions, which deliberately
+  // change with the fast-path instructions. Memory isolation is semantic below.
+  const fingerprints = <String, String>{
+    'flarelab':
+        '8783e526cfcd5cb2f8ae1d65c95cae9f405c0a098b233fa6a1dae377c9628a01',
+    'hiplab':
+        '705a48ebbc16ff32852cc0959bc5e6831503dd6b91953d5e8a767b2bdcd3289b',
+    'smartfit':
+        'bbb6e330b53dfe4c0a9288f2ececdef91efa12863e82de9cb3780ed91bd7da93',
   };
 
   for (final entry in fingerprints.entries) {
@@ -51,12 +42,9 @@ void main() {
         );
         final tools = jsonEncode([
           for (final tool in AgentTools.build(profile, catalog, memory: false))
-            tool.toJson(),
+            {'name': tool.name, 'parameters': tool.parameters},
         ]);
-        expect(
-          sha256.convert(utf8.encode(tools)).toString(),
-          entry.value.tools,
-        );
+        expect(sha256.convert(utf8.encode(tools)).toString(), entry.value);
         expect(system, isNot(contains('必须先用 read 读 user-memory')));
         expect(system, isNot(contains('# 用户记忆（')));
         expect(system, isNot(contains('remember')));

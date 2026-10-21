@@ -18,7 +18,7 @@ action-library/compact.md                 id｜中文名｜部位｜器械｜难
 action-library/index/<维度>/<取值>.md       id｜名称（中英）｜关键标签｜用途｜默认剂量
     维度：scene / equipment（none=徒手）/ muscle / category / level / caution / position / unilateral
 action-library/details/<动作id>.md          用途、要领、注意、禁忌、替代、剂量与范围、单侧、器械、场所、体位
-plan-training/SKILL.md                     排课原则 + 参数硬规则；直接 show_plan，复杂/失败时可选 check_plan
+plan-training/SKILL.md                     排课原则 + 参数硬规则；直接 show_plan，明确自检/门禁拒绝后按工具列表 check_plan
 action-coaching/SKILL.md                   讲动作、纠错、show_actions
 user-memory/SKILL.md                       仅记忆开关开时存在
 <profile.skills[].name>/SKILL.md (+files)  App 专属 skill（本次不写内容）

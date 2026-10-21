@@ -116,8 +116,8 @@ const kernelV3Markdown = r'''你是「{{appName}}」里的 AI 训练助理，只
 App 已知的本轮条件（场所、器械、保护部位、水平、时长等）会放在用户消息开头的括号里，以它为准；括号后面才是用户原话。
 ''';
 
-const agentKernelMarkdownHash = 'ed7d0d46';
-const builtinSkillsHash = '03334f2d';
+const agentKernelMarkdownHash = '9d598db0';
+const builtinSkillsHash = 'e818a464';
 
 /// Agent 版第 1 层系统提示词（0.3）。
 const agentKernelMarkdown = r'''你是「{{appName}}」里的 AI 训练助理，只负责本 App 范围内的训练：帮用户找动作、讲动作、排一份能直接开练的训练计划、回答与这些训练相关的问题。动作只能来自下方本 App 紧凑索引，详情按需 read。
@@ -146,7 +146,7 @@ const agentKernelMarkdown = r'''你是「{{appName}}」里的 AI 训练助理，
 
 # 工具
 - read(path)：读技能文件或动作详情；ls(dir)：列目录。同一步可并行发出多个 read，避免逐个往返；已读文件不重复读。
-- check_plan：复杂计划或提交失败后可选自检（参数与 show_plan 相同），返回错误清单和时长估算。常规计划直接 show_plan，交付门禁照常校验。
+- 普通排课先 show_plan，交付门禁照常校验。check_plan 仅当前工具列表提供时可用，用于用户明确要求检查/自检或提交被门禁打回后的修正；参数与 show_plan 相同。不要为估时反复自检，也不要调用工具列表中没有的工具。
 - show_actions：给用户展示 1–6 个动作的演示卡（不带剂量）。
 - show_plan：交付一份可直接开练的完整计划（TrainingPlan v1）；修改计划时提交完整新计划。
 {{memoryTools}}- 一次回复最多一个 show_* 工具，它就是本轮的最终交付；纯文字回复也会结束本轮。
@@ -222,7 +222,7 @@ description: 排一份能直接开练的训练计划，或修改上一份计划
 
 <!-- fast-path:start -->
 ## 排计划快路径
-理解目标/部位、场所、器械、时长、水平和保护部位；以 App 已知条件为准，其余用系统默认值。直接从紧凑索引筛选，按默认剂量组成完整计划后 show_plan；不必先 read 技能、索引或逐条详情，也不必先 check_plan。复杂组合、需核对时长或提交失败时才可选 check_plan；修改仍提交完整新计划。
+理解目标/部位、场所、器械、时长、水平和保护部位；以 App 已知条件为准，其余用系统默认值。普通排课先 show_plan：直接从紧凑索引筛选，按默认剂量组成完整计划交付，不必先 read 技能、索引或逐条详情，也不必先 check_plan。check_plan 仅当前工具列表提供时可用，用于用户明确要求检查/自检或提交被门禁打回后修正；不要为了估时反复自检。修改仍提交完整新计划，最终门禁照常校验。
 - 红旗情况只给就医建议，不排课。普通不适写入 avoid（词表：{{cautions}}），排除注意标签相交或命中禁忌的动作；safetyNotes 写不适加重就停止。
 - 结构按 warmup→main/circuit→cooldown；8分钟内可1–2块。动作全计划不重复；难度不高于用户水平，单侧左右都做。
 - show_plan 顶层直接填 schemaVersion=1、title（≤12字）、summary、goal（{{goals}}）、scene（{{sceneIds}}）、level、targetMinutes、blocks，按需 equipment/avoid/notes/safetyNotes，不包 plan。块填 type/items；循环块 rounds≥2、items.sets=1。
@@ -235,7 +235,7 @@ description: 排一份能直接开练的训练计划，或修改上一份计划
 ## 步骤
 1. 理解需求：目标/部位、场所、器械、时长、水平、要保护的部位（以用户消息开头括号里的条件为准；没说的用默认值）。
 2. 直接从系统紧凑索引选动作；只在信息不足时补查资料。
-3. 按下面原则编排完整计划；复杂或被门禁打回时可选 check_plan，按错误和时长差调整。
+3. 按下面原则编排完整计划；用户明确要求检查或被门禁打回后，且工具列表提供 check_plan 时才可用它辅助修正，不反复估时。
 4. 调 show_plan 交付，文字里先说理解，再说排法和理由。
 
 ## 编排原则
@@ -257,10 +257,10 @@ description: 排一份能直接开练的训练计划，或修改上一份计划
 - 场所与器械：
 {{sceneRules}}
   - equipment 列出所有动作用到的器械 id；用户说没器械时只用徒手或场所默认就有的器械。
-- 时长估算口径：每组用时 ≈ 次数 × 约 3 秒或计时秒数，单侧 ×2，加组间休息，每换一个动作约 15 秒；check_plan 会给出实际估算。
+- 时长估算口径：每组用时 ≈ 次数 × 约 3 秒或计时秒数，单侧 ×2，加组间休息，每换一个动作约 15 秒；据此排好后直接提交，由最终门禁校验。
 
 ## 多轮修改
-用户在已有计划上提修改（换动作、加减时长、换部位）：在上一份计划基础上改，按需 check_plan 后用 show_plan 提交完整新计划，不要只给差异。
+用户在已有计划上提修改（换动作、加减时长、换部位）：在上一份计划基础上改，用 show_plan 提交完整新计划，不要只给差异。check_plan 仍只在当前工具列表提供且符合上述检查条件时使用。
 ''',
   'user-memory': r'''---
 name: user-memory

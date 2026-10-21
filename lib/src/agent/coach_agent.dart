@@ -500,6 +500,10 @@ class CoachAgent {
     final readSet = <String>{};
     var submissions = 0;
     var rejected = 0;
+    final explicitlyChecksPlan = RegExp(
+      r'检查|校验|自检|验证|\b(?:check|validate|review)\b',
+      caseSensitive: false,
+    ).hasMatch(text);
     List<PlanIssue> lastErrors = const [];
     FallbackReason reason = FallbackReason.invalidOutput;
     Object? error;
@@ -574,7 +578,13 @@ class CoachAgent {
       // 按当前 memoryOn 生成工具与固定开销。
       void prepare() {
         memOff = !memoryOn;
-        tools = AgentTools.build(profile, cat, memory: memoryOn);
+        tools = AgentTools.build(
+          profile,
+          cat,
+          memory: memoryOn,
+          includeCheckPlan:
+              rejected > 0 || explicitlyChecksPlan || profile.skills.isNotEmpty,
+        );
         fixedTokens =
             estimateTokens(system) +
             estimateTokens(jsonEncode([for (final t in tools) t.toJson()])) +

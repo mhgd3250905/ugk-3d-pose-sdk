@@ -76,6 +76,8 @@ final r = await agent.send(userText, context: CoachContext(scene: 'home'));
 
 默认整轮时限为 360s，单步请求时限为 60s，30s 发出 `slow` 事件；60k 上下文估算不计推理协议字段，只压缩较早的 read / ls 工具结果。0.3.3 沿用这些参数；单步失败保留已有工具进度后重试，记忆关闭时重试也过滤记忆相关推理。`badResponse` 提供结构、长度及 SHA-256 诊断，供区分 SSE、空正文、结构错误等情况，不记录响应正文或推理原文。
 
+普通排课首请求只提供直接交付路径，门禁拒绝后才开放 `check_plan`；用户明确要求检查/自检或 profile 配置了 App 专属技能时可从首请求使用。`AgentTools.build(includeCheckPlan:)` 默认 true，直接构造工具的调用方行为兼容。
+
 `remember` / `forget` 等待 `myMemoryStore.save` 成功后才返回 `ok:true`；App 实现必须在保存完成后才完成 Future，失败应抛出异常，SDK 会返回工具错误。已确认保存的操作在后续取消时保留；pending 保存被取消 / reset 后不会回写缓存或会话，底层迟到写入由串行队列补偿。每条 assistant 请求消息均带 `reasoning_content`，没有推理时为空串。
 
 ## 0.2 工具版接入（降级）

@@ -65,8 +65,13 @@ class OpenAiCompatibleClient implements LlmClient {
       } on LlmException catch (e) {
         final retry = e.isTransient && attempt <= config.maxRetries && !(cancel?.isCancelled ?? false);
         if (!retry) {
+          _retryAfter = null;
           throw LlmException(e.kind, e.message,
-              statusCode: e.statusCode, usage: e.usage, latency: sw.elapsed, httpAttempts: attempt);
+              statusCode: e.statusCode,
+              usage: e.usage,
+              latency: sw.elapsed,
+              httpAttempts: attempt,
+              retryAfter: e.retryAfter);
         }
         final wait = _retryAfter ?? config.retryBackoff * (1 << (attempt - 1));
         _retryAfter = null;
@@ -159,12 +164,11 @@ class OpenAiCompatibleClient implements LlmClient {
     if (status != 200) {
       final msg = _errorMessage(text);
       if (status == 401 || status == 403) throw LlmException(LlmErrorKind.auth, msg, statusCode: status);
-      if (status == 429) {
-        final ra = int.tryParse(res.headers['retry-after'] ?? '');
-        if (ra != null) _retryAfter = Duration(seconds: ra.clamp(0, 30));
-        throw LlmException(LlmErrorKind.rateLimited, msg, statusCode: status);
-      }
-      throw LlmException(LlmErrorKind.http, msg, statusCode: status);
+      final ra = int.tryParse(res.headers['retry-after'] ?? '');
+      final retryAfter = ra == null || (status != 429 && status != 503) ? null : Duration(seconds: ra.clamp(0, 30));
+      if (retryAfter != null) _retryAfter = retryAfter;
+      if (status == 429) throw LlmException(LlmErrorKind.rateLimited, msg, statusCode: status, retryAfter: retryAfter);
+      throw LlmException(LlmErrorKind.http, msg, statusCode: status, retryAfter: retryAfter);
     }
     Object? json;
     try {

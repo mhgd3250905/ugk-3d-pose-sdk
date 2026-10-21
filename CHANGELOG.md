@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.1 — 2026-10-21
+
+### Agent：步数、上下文预算与失败重试
+- `CoachAgent.maxSteps` 默认 10 → 100（可配）。
+- 上下文预算 `contextBudgetTokens`（默认 60k 估算 token）：超出时把较早的 read / ls 结果压成一行摘要，保留最近 `keepRecentSteps`（3）步，tool_call_id 协议不变；被压缩的文件可再读全文。
+- 防空转 `maxStallSteps`（3）：相同工具调用或连续无新信息先提示，再犯回落（`AgentStalled`）。
+- 单步请求失败只重试那一步：`RequestErrorClass` 分类，指数退避 + 抖动（1/2/4/8s 封顶 15s，`maxRequestRetries` 默认 4），429/503 尊重 Retry-After；上下文超长先强制压缩再重试一次；退避与在途请求可被取消 / reset 打断且不回写。
+- `requestTimeout`（60s）、`turnTimeout`（180s）、`slowAfter`（15s）；事件新增 `retrying` / `slow`。
+- 最终失败回落模板，`error = AgentRequestFailed(kind, errorClass, attempts)`，records / usage 完整；`UsageRecord.retry` 标注重试序号；`LlmException.retryAfter`（客户端在 429/503 时填）。
+
 ## 0.3.0 — 2026-10-21
 
 ### 新增：Agent 版（Skill 渐进式披露）

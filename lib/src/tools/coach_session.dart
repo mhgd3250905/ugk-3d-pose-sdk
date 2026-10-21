@@ -89,6 +89,8 @@ class CoachTurnResult {
     this.leaked = false,
     this.error,
     this.records = const [],
+    this.steps = 0,
+    this.reads = const [],
   });
 
   final String turnId;
@@ -114,6 +116,12 @@ class CoachTurnResult {
   final bool leaked;
   final Object? error;
   final List<UsageRecord> records;
+
+  /// Agent 版：本轮调模型的步数（0.2 会话为 0）。
+  final int steps;
+
+  /// Agent 版：本轮读过的文件路径（按顺序）。
+  final List<String> reads;
 
   TokenUsage get usage => records.fold(TokenUsage.zero, (a, r) => a + r.usage);
 }

@@ -49,6 +49,20 @@
       }
     },
     "assetApps": {"$ref": "#/$defs/strings", "description": "素材来源优先级，缺省 [id, pose-hub]"},
-    "vars": {"type": "object", "additionalProperties": {"type": "string"}, "description": "提示词变量（defaultMinutes、defaultLevel …）"}
+    "vars": {"type": "object", "additionalProperties": {"type": "string"}, "description": "提示词变量（defaultMinutes、defaultLevel …）"},
+    "skills": {
+      "type": "array",
+      "description": "Agent 版 App 专属 skill：挂到 <name>/SKILL.md，files 为其资源文件",
+      "items": {
+        "type": "object",
+        "required": ["name", "content"],
+        "properties": {
+          "name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+          "description": {"type": "string"},
+          "content": {"type": "string"},
+          "files": {"type": "object", "additionalProperties": {"type": "string"}}
+        }
+      }
+    }
   }
 }

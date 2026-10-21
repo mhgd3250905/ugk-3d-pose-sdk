@@ -1,0 +1,74 @@
+# 0.3 Agent 版：Skill 渐进式披露
+
+入口 `CoachAgent`（`lib/src/agent/`）。0.2 的 `CoachSession` 保留作降级，门禁、回落、记账口径不变。
+
+## 三层披露
+
+| 层 | 内容 | 何时进上下文 |
+|---|---|---|
+| 1 系统提示词 `prompts/agent_kernel.md` | 身份、防破甲（沿用 v3 + 暗号）、回答风格（先回应理解再说理由，可简短分点）、skill 列表（名称 — 一句描述 — 入口）、工具说明、App 侧重（profile.focus / rules）、记忆摘要（开关开时） | 每次调用；约 2k 字 + 工具 schema（不含动作表、不含 id enum） |
+| 2 `<skill>/SKILL.md` | 某项能力的做法 | 模型 `read` 时 |
+| 3 SKILL.md 指向的文件 | 索引、动作详情 | 模型按需 `read` |
+
+## 文件地图（只读、内存，按 profile 白名单生成）
+
+```
+action-library/SKILL.md                    维度与取值（id + 中英释义 + 数量）、查法、放宽规则、场所规则
+action-library/index/<维度>/<取值>.md       id｜名称（中英）｜关键标签｜用途｜默认剂量
+    维度：scene / equipment（none=徒手）/ muscle / category / level / caution / position / unilateral
+action-library/details/<动作id>.md          用途、要领、注意、禁忌、替代、剂量与范围、单侧、器械、场所、体位
+plan-training/SKILL.md                     排课原则 + 参数硬规则（由 kernel_v3 迁入）+ 交付前 check_plan
+action-coaching/SKILL.md                   讲动作、纠错、show_actions
+user-memory/SKILL.md                       仅记忆开关开时存在
+<profile.skills[].name>/SKILL.md (+files)  App 专属 skill（本次不写内容）
+```
+
+- 运行时由 `SkillFiles.build(profile, catalog, memory:)` 生成，会话按（profile、目录实例、记忆开关）缓存；`catalog()` 返回新目录即重建，随远程目录更新。
+- 内置 SKILL.md 源文件在 `skills/<name>/SKILL.md`，由 `tool/embed_prompts.dart` 嵌入 `prompts.g.dart`。
+- 注意部位索引文件名用标准 id：膝 knee、腰 lower-back、肩 shoulder、手腕 wrist、颈 neck、髋 hip、大腿内侧 inner-thigh。
+
+## 工具
+
+| 工具 | 说明 |
+|---|---|
+| `read(path)` | 读文件；同一轮重复读返回「已读过，见前文」；路径是目录时返回列表 |
+| `ls(dir)` | 列目录 |
+| `check_plan` | 参数同 show_plan（也接受 `{"plan": {...}}`）；复用 ToolGate 校验 + `PlanDuration` 估算，返回 `ok / errors / warnings / estimatedMinutes / targetMinutes / diffMinutes` |
+| `show_actions` / `show_plan` | 最终交付，走原门禁，只产出 `ValidatedActions` / `ValidatedPlan`；id 不放 enum，门禁照判白名单 |
+| `remember` / `forget` | 仅记忆开关开时出现 |
+
+没有 search / query / get_action 之类专用查询接口。
+
+## 循环
+
+调模型 → 执行本次全部工具调用（结果按调用顺序追加）→ 再调，直到：
+- 纯文字（非空、无暗号）→ `ok`；
+- show_* 过门禁 → `ok`（重交过为 `rewritten`）；不过 → 错误作为工具结果回给模型（改法换成 Agent 口径），最多重交 `maxResubmits`（默认 2）次；
+- 步数超 `maxSteps`（默认 10，error = `AgentStepLimitExceeded`）、网络/超时/鉴权错、暗号泄露、重交用尽 → 回落 App 模板（同 0.2 `SessionFallback`）。
+
+历史只保留每轮的用户消息 + 最终交付（show_* 调用与结果，或纯文字），中间读文件不进历史。`send / reset / CancelToken / busy / limitReached / inputTooLong` 与 0.2 同；reset 或取消后不写历史、轮数、记忆，不再发事件。结果仍是 `CoachTurnResult`，新增 `steps`、`reads`。记账每次模型调用一条，中间步 `CallOutcome.toolStep`，promptVersion 为 `agent-v1-<内核哈希>-<skills哈希>@<app>-<版本>`。
+
+## 事件
+
+`agent.events`（broadcast）：`AgentEvent(turnId, kind, step, path, status)`，kind = `thinking`（第 n 次调模型）/ `reading`（path）/ `listing` / `checking` / `memory`（path = kind）/ `done`（status）。
+
+## 用户记忆
+
+- `enableUserMemory`（默认 true，运行时可切）。关闭时 remember/forget 工具、user-memory skill、记忆摘要都不出现。
+- `UserMemoryStore`（`load` / `save` 整表，App 实现）；内置 `InMemoryUserMemoryStore`。
+- `MemoryKind`：injury / goal / level / equipment / scene / schedule / body / preference / other。
+- SDK 去重（同类相同或互相包含视为同一条，用新说法替换）、每类条数（默认 5）、单条（60 字）与总长度（800 字）上限；本轮的 remember/forget 在本轮提交时才生效并保存。
+- `agent.memory()` 读，`agent.clearMemory()` 清空。
+
+## 降级
+
+- 单轮失败 → App 模板（`fallback`）。
+- 整体降级：App 把 `CoachAgent` 换回 `CoachSession`（构造参数基本相同，结果类型相同）。
+
+## App 接入改动点
+
+1. `CoachSession(...)` → `CoachAgent(...)`，参数相同，另可传 `maxSteps`、`enableUserMemory`、`memoryStore`。
+2. 实现 `UserMemoryStore`（本地持久化），设置页加「AI 记忆」开关（`enableUserMemory`）和「清除」（`clearMemory()`）。
+3. 订阅 `agent.events` 显示进度（如 reading → 「正在查动作库」，checking → 「正在核对计划」）。
+4. 结果处理不变（`r.plan` / `r.actions` / `r.text` / `r.status`）；Agent 一轮多次调模型，等待时间与 token 比 0.2 长，超时设置留余量。
+5. 可选：profile 加 `skills` 写 App 专属 skill。

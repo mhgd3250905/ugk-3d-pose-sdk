@@ -197,6 +197,9 @@ class ToolGate {
     );
   }
 
+  /// 暗号检测（公开给 Agent 的中间工具轮复用）。
+  bool leaks(String text, List<LlmToolCall> calls) => _leaks(text, calls);
+
   /// 暗号检测：原文 + 参数 JSON 解码后的全部字符串（键和值），防 `\u0055GK-…` 这类转义绕过。
   bool _leaks(String text, List<LlmToolCall> calls) {
     final c = canary;

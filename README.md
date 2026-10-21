@@ -6,7 +6,7 @@
 
 - 纯 Dart，不依赖 Flutter（Web 也能用）；`dart:io` 的部分（文件缓存、JSONL 记账）单独在 `package:ugk_coach/ugk_coach_io.dart`。
 - 一个动作 id = 定义 + 封面 + 示范视频 + 建模源（Pose-Hub spec）+ 语音：`assistant.resolve(id)` 带出整套素材。
-- 测试 164 个（`dart test`），`dart analyze` 0 问题；评测（Python 校验器、用例、结果）在同仓 `eval/`；开发全程用假模型，真实冒烟见 [docs/smoke-2026-10-20.md](docs/smoke-2026-10-20.md)。
+- 测试 274 个（`dart test`），`dart analyze` 0 问题；评测（Python 校验器、用例、结果）在同仓 `eval/`；开发全程用假模型，真实冒烟见 [docs/smoke-2026-10-20.md](docs/smoke-2026-10-20.md)。
 
 ## 架构
 
@@ -52,7 +52,23 @@ eval/          评测（原 ai-coach-eval，subtree 并入）：tools/validate.p
 test/fixtures/ pose-hub-catalog.json（目录快照）golden/（提示词金样）parity.json（校验对照）packs/
 ```
 
-## 0.2 工具版接入（推荐）
+## 0.3 Agent 版接入（推荐）
+
+`CoachAgent` 与 `CoachSession` 用法相同（构造参数、`send` / `reset`、`CoachTurnResult`），区别是模型按需读取 skill 文件查动作、用 `check_plan` 自检后再交付；系统提示词不再放动作表。设计、文件地图、事件与记忆见 [docs/agent-plan.md](docs/agent-plan.md)。
+
+```dart
+final agent = CoachAgent(
+  client: client,
+  catalog: () => catalogRepo.current,
+  profile: hiplabProfile,
+  fallback: (r) => SessionFallbackReply('先按模板给你排一套', plan: myTemplateFor(r.context)),
+  memoryStore: myMemoryStore,   // App 实现 UserMemoryStore；enableUserMemory 可随时切
+);
+agent.events.listen((e) => showProgress(e));   // reading / checking / done …
+final r = await agent.send(userText, context: CoachContext(scene: 'home'));
+```
+
+## 0.2 工具版接入（降级）
 
 0.2 起入口是 `CoachSession`：模型每次回复只能是「纯文字」或「文字 + 一个工具」，两个工具：
 
@@ -105,7 +121,7 @@ switch (r.status) {
 
 - 自定义请求头：`LlmConfig.headers`（静态）或自定义 `AuthProvider`（动态）。直连 New API（ai.uuugk.win）时 Cloudflare 会拦 Python 默认 UA，Dart 默认 UA 实测可过。
 - 提示词：内核 v3（`prompts/kernel_v3.md`）= 身份与范围 / 防破甲 / 回答方式 / 何时用哪个工具 / 参数规则 / 被打回时 / 多轮修改 / App 配置（profile 生成）/ 用户上下文。本轮条件放用户消息前缀，系统消息不变以命中前缀缓存。暗号默认 `defaultPromptCanary`，可用 `ToolPromptBuilder(canary: ...)` 换。
-- 0.1 的 `CoachAssistant.ask`（JSON 信封）保留一版，标 deprecated，HipLab / 托马斯可不跟着升；0.3 移除。
+- 0.1 的 `CoachAssistant.ask`（JSON 信封）保留一版，标 deprecated，HipLab / 托马斯可不跟着升；后续版本移除。
 
 ## 快速上手（0.1 旧接口，deprecated）
 

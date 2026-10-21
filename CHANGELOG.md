@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0 — 2026-10-21
+
+### 新增：Agent 版（Skill 渐进式披露）
+- `CoachAgent`：Pi 式工具循环（调模型 → 执行全部工具 → 再调，直到纯文字或 show_* 过门禁），`maxSteps` 默认 10；超限 / 网络 / 超时 / 暗号泄露 / 重交用尽回落 App 模板。`send` / `reset` / 取消 / busy 与 0.2 同，reset 或取消后不写历史、不写记忆。
+- 三层披露：第 1 层系统提示词 `prompts/agent_kernel.md`（不含动作表，工具不放 id enum）；第 2 层 `skills/<name>/SKILL.md`（action-library / plan-training / action-coaching / user-memory）；第 3 层按 profile 白名单生成的索引与动作详情（`SkillFiles`，只读、内存，随目录更新重建）。
+- 工具：`read` / `ls` / `check_plan`（复用门禁 + 时长估算，返回与 targetMinutes 的差）/ `show_actions` / `show_plan` / `remember` / `forget`；无专用查询接口。
+- 过程事件流 `CoachAgent.events`（thinking / reading / listing / checking / memory / done）。
+- 用户记忆：`enableUserMemory`（默认开、运行时可切）、`UserMemoryStore` + `InMemoryUserMemoryStore`、`MemoryKind`、去重与上限、`clearMemory()`。
+- profile 新字段 `skills`（App 专属 skill）；`CoachTools.build(idEnum:)`；`CoachTurnResult.steps` / `reads`；`CallOutcome.toolStep`（Agent 中间步）。
+- 文档 `docs/agent-plan.md`。
+
+### 兼容
+- 0.2 `CoachSession` 保留作降级，行为不变；0.1 `CoachAssistant` 仍为 deprecated。
+- 真实中转调用待本机实测（沙盒无 X-App-Key）。
+
 ## 0.2.0 — 2026-10-21
 
 ### 新增：工具版（function calling）

@@ -102,13 +102,14 @@ class SkillFiles {
     final tax = catalog.taxonomy;
     final dims = dimensions(catalog);
     final index = <String, Map<String, List<Drill>>>{};
+    final scopeIds = {for (final d in drills) d.id};
     for (final d in drills) {
       for (final dim in dims) {
         for (final v in dim.valuesOf(d)) {
           (index.putIfAbsent(dim.id, () => {})[v] ??= []).add(d);
         }
       }
-      files['$actionLibrary/details/${d.id}.md'] = detail(d, tax, catalog);
+      files['$actionLibrary/details/${d.id}.md'] = detail(d, tax, catalog, scope: scopeIds);
     }
     for (final dim in dims) {
       final byValue = index[dim.id] ?? const {};
@@ -218,8 +219,8 @@ class SkillFiles {
     return [d.id, _names(d), tags.join(' '), d.purpose, _dose(d.defaultDose)].join('｜');
   }
 
-  /// 动作详情。
-  static String detail(Drill d, Taxonomy tax, Catalog catalog) {
+  /// 动作详情。给 [scope] 时，范围外的替代动作整行省略（与详情、索引同一白名单）。
+  static String detail(Drill d, Taxonomy tax, Catalog catalog, {Set<String>? scope}) {
     final r = PromptBuilder.autoRange(d);
     final reps = d.defaultDose.mode == DoseMode.reps;
     final range = [
@@ -228,7 +229,8 @@ class SkillFiles {
       if (r.restSeconds != null) 'restSeconds ${r.restSeconds}',
     ].join('，');
     final cues = d.cues['zh'] ?? d.cues.values.firstOrNull ?? const [];
-    final alt = d.alternative == null ? null : catalog[d.alternative!];
+    final altId = d.alternative != null && (scope == null || scope.contains(d.alternative)) ? d.alternative : null;
+    final alt = altId == null ? null : catalog[altId];
     return [
       '# ${d.id}｜${_names(d)}',
       '用途：${d.purpose.isEmpty ? '-' : d.purpose}',
@@ -238,7 +240,7 @@ class SkillFiles {
       if (cues.isNotEmpty) '要领：${cues.join('；')}',
       '注意部位：${d.cautions.isEmpty ? '无' : d.cautions.join('、')}',
       if (d.contraindications.isNotEmpty) '禁忌：${d.contraindications.join('；')}',
-      if (d.alternative != null) '替代：${d.alternative}${alt == null ? '' : '（${alt.name.of()}）'}',
+      if (altId != null) '替代：$altId${alt == null ? '' : '（${alt.name.of()}）'}',
     ].join('\n');
   }
 

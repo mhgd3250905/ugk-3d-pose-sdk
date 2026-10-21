@@ -27,6 +27,30 @@ LlmResponse _showActions(List<String> ids, [String text = '这几个动作可以
 
 Map<String, Object?> _okPlan() => planOf(okEnvelope())..remove('source');
 
+/// load 被阻塞的 store：返回调用 load 那一刻的快照。
+class _GatedStore implements UserMemoryStore {
+  _GatedStore([List<MemoryEntry> initial = const []]) : entries = List.of(initial);
+  List<MemoryEntry> entries;
+  final _gate = Completer<void>();
+  void release() => _gate.complete();
+
+  @override
+  Future<List<MemoryEntry>> load() async {
+    final snapshot = List.of(entries);
+    await _gate.future;
+    return snapshot;
+  }
+
+  @override
+  Future<void> save(List<MemoryEntry> e) async => entries = List.of(e);
+}
+
+Future<void> _until(bool Function() ok) async {
+  while (!ok()) {
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+  }
+}
+
 void main() {
   final catalog = loadCatalog();
   final hiplab = loadProfile('hiplab');
@@ -37,8 +61,10 @@ void main() {
     UserMemoryStore? store,
     int maxSteps = 10,
     SessionFallback? fallback,
+    UsageSink? usage,
   }) => CoachAgent(
     client: c,
+    usage: usage,
     catalog: () => catalog,
     profile: hiplab,
     enableUserMemory: memory,
@@ -390,6 +416,170 @@ void main() {
       expect(m.last.text.length, 10);
       expect(m.fold(0, (s, e) => s + e.text.length), lessThanOrEqualTo(20));
       expect(UserMemoryOps.forget(m, text: '腰酸').map((e) => e.text), isNot(contains('腰酸')));
+    });
+  });
+
+  group('审核回归（PR #4）', () {
+    final skillText = SkillFiles.build(hiplab, catalog).read('user-memory/SKILL.md')!;
+
+    test('[P1] clearMemory 作废在途的首次 load：缓存、store、下一轮摘要都不恢复', () async {
+      final store = _GatedStore([MemoryEntry(MemoryKind.injury, '旧记忆', at: DateTime.utc(2026))]);
+      final c = FakeLlmClient(['好的。']);
+      final a = agent(c, store: store);
+      final pending = a.memory();
+      await a.clearMemory();
+      store.release();
+      expect(await pending, isEmpty);
+      expect(await a.memory(), isEmpty);
+      expect(store.entries, isEmpty);
+      await a.send('x');
+      expect(c.requests.single.messages.first.content, isNot(contains('旧记忆')));
+      expect(store.entries, isEmpty);
+    });
+
+    test('[P1] 等最终响应时 clearMemory：暂存的 remember 不随提交写回', () async {
+      final gate = Completer<Object>();
+      final store = InMemoryUserMemoryStore();
+      final c = FakeLlmClient([
+        _tools([
+          _call('remember', {'kind': 'injury', 'text': '左膝疼'}),
+        ]),
+        (_) => gate.future,
+        '好。',
+      ]);
+      final a = agent(c, store: store);
+      final f = a.send('我左膝疼');
+      await _until(() => c.requests.length >= 2);
+      await a.clearMemory();
+      gate.complete('记住了');
+      expect((await f).status, TurnStatus.ok);
+      await Future<void>.delayed(Duration.zero);
+      expect(store.entries, isEmpty);
+      expect(await a.memory(), isEmpty);
+      await a.send('下一轮');
+      expect(c.requests[2].messages.first.content, isNot(contains('左膝疼')));
+    });
+
+    test('[P2] 当前轮中途关闭记忆：后续请求去掉摘要、记忆工具、技能项与已读正文，丢弃暂存操作', () async {
+      final store = InMemoryUserMemoryStore([MemoryEntry(MemoryKind.goal, '想劈叉', at: DateTime.utc(2026))]);
+      late CoachAgent a;
+      final c = FakeLlmClient([
+        (_) {
+          a.enableUserMemory = false;
+          return _tools([
+            _call('read', {'path': 'user-memory/SKILL.md'}),
+            _call('remember', {'kind': 'injury', 'text': '左膝疼'}),
+          ]);
+        },
+        '好的。',
+      ]);
+      a = agent(c, store: store);
+      final r = await a.send('我左膝疼');
+      expect(r.status, TurnStatus.ok);
+      expect(c.requests[0].messages.first.content, contains('想劈叉'));
+      final second = c.requests[1];
+      expect(second.messages.first.content, isNot(contains('想劈叉')));
+      expect(second.messages.first.content, isNot(contains('user-memory/SKILL.md')));
+      expect(second.tools.map((t) => t.name), isNot(anyOf(contains('remember'), contains('forget'))));
+      final all = second.messages.map((m) => m.content).join('\n');
+      expect(all, isNot(contains(skillText)));
+      expect(all, contains('用户记忆已关闭'));
+      await Future<void>.delayed(Duration.zero);
+      expect(store.entries.map((e) => e.text), ['想劈叉']);
+    });
+
+    test('[P2] 中间工具轮的暗号（含 Unicode 转义）：remember(other, 暗号) 后干净文字 → 回落、不写记忆', () async {
+      final store = InMemoryUserMemoryStore();
+      const cn = defaultPromptCanary;
+      final escaped = '\\u${cn.codeUnitAt(0).toRadixString(16).padLeft(4, '0')}${cn.substring(1)}';
+      final c = FakeLlmClient([
+        _tools([LlmToolCall(id: 'm1', name: 'remember', arguments: '{"kind":"other","text":"$escaped"}')]),
+        '好的。',
+      ]);
+      final r = await agent(c, store: store, fallback: (_) => const SessionFallbackReply('t')).send('x');
+      expect(r.status, TurnStatus.fallback);
+      expect(r.leaked, isTrue);
+      expect(c.requests.length, 1);
+      await Future<void>.delayed(Duration.zero);
+      expect(store.entries, isEmpty);
+    });
+
+    test('[P2] read 调用同时正文含暗号 → 不执行工具、回落', () async {
+      final events = <AgentEventKind>[];
+      final c = FakeLlmClient([
+        _tools([
+          _call('read', {'path': 'action-library/SKILL.md'}),
+        ], '先看看 $defaultPromptCanary'),
+        '好的。',
+      ]);
+      final a = agent(c, fallback: (_) => const SessionFallbackReply('t'))..events.listen((e) => events.add(e.kind));
+      final r = await a.send('x');
+      expect(r.status, TurnStatus.fallback);
+      expect(r.leaked, isTrue);
+      expect(r.reads, isEmpty);
+      expect(events, isNot(contains(AgentEventKind.reading)));
+      expect(c.requests.length, 1);
+    });
+
+    test('[P2] 初始记忆加载期间 reset：作废轮不调模型', () async {
+      final store = _GatedStore();
+      final c = FakeLlmClient(['好的。']);
+      final a = agent(c, store: store);
+      final f = a.send('x');
+      await Future<void>.delayed(Duration.zero);
+      a.reset();
+      store.release();
+      final r = await f;
+      expect(r.status, TurnStatus.cancelled);
+      expect(c.requests.length, 0);
+      expect(a.history, isEmpty);
+    });
+
+    test('[P2] 多步中途取消：保留已发生调用的 records / usage / reads，与 sink 一致', () async {
+      const u = TokenUsage(promptTokens: 8, completionTokens: 2);
+      LlmResponse rd(String p) => LlmResponse(
+        content: '',
+        toolCalls: [
+          _call('read', {'path': p}),
+        ],
+        finishReason: 'tool_calls',
+        model: 'fake',
+        usage: u,
+      );
+      final token = CancelToken();
+      final sink = MemoryUsageSink();
+      final c = FakeLlmClient([rd('action-library/SKILL.md'), rd('plan-training/SKILL.md'), '不该到这']);
+      final a = agent(c, usage: sink);
+      a.events.listen((e) {
+        if (e.kind == AgentEventKind.thinking && e.step == 3) token.cancel();
+      });
+      final r = await a.send('x', cancel: token);
+      expect(r.status, TurnStatus.cancelled);
+      expect(c.requests.length, 2);
+      expect(r.records.length, 2);
+      expect(r.usage.totalTokens, 20);
+      expect(sink.records.map((x) => x.id), r.records.map((x) => x.id));
+      expect(r.reads, ['action-library/SKILL.md', 'plan-training/SKILL.md']);
+      expect(r.text, isEmpty);
+      expect(r.plan, isNull);
+      expect(r.actions, isNull);
+      expect(a.history, isEmpty);
+    });
+
+    test('[P2] 所有 profile 的详情：替代动作都在 scope 内且有详情文件', () {
+      final altRe = RegExp(r'^替代：([^（\s]+)', multiLine: true);
+      for (final id in ['hiplab', 'flarelab', 'smartfit']) {
+        final p = loadProfile(id);
+        final fs = SkillFiles.build(p, catalog);
+        final scope = {for (final d in p.scope(catalog)) d.id};
+        for (final path in fs.files.keys.where((k) => k.startsWith('action-library/details/'))) {
+          for (final m in altRe.allMatches(fs.files[path]!)) {
+            final alt = m.group(1)!;
+            expect(scope, contains(alt), reason: '$id $path');
+            expect(fs.read('action-library/details/$alt.md'), isNotNull, reason: '$id $path');
+          }
+        }
+      }
     });
   });
 }

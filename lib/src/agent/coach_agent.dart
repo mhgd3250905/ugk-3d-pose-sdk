@@ -139,6 +139,9 @@ class CoachAgent {
   int? _busyGen;
 
   List<MemoryEntry>? _memory;
+
+  /// 记忆世代：[clearMemory] 递增，使此前发起的 load 结果和各轮暂存的记忆操作全部失效。
+  int _memEpoch = 0;
   Future<void> _saving = Future.value();
 
   ({CoachProfile p, Catalog c, bool m})? _filesKey;
@@ -167,10 +170,19 @@ class CoachAgent {
   }
 
   /// 当前记忆（未加载时从 store 读）。
-  Future<List<MemoryEntry>> memory() async => List.unmodifiable(_memory ??= await memoryStore.load());
+  Future<List<MemoryEntry>> memory() async {
+    final cached = _memory;
+    if (cached != null) return List.unmodifiable(cached);
+    final epoch = _memEpoch;
+    final loaded = await memoryStore.load();
+    // 加载期间被清除：迟到的旧结果作废。
+    if (epoch != _memEpoch) return List.unmodifiable(_memory ?? const <MemoryEntry>[]);
+    return List.unmodifiable(_memory ??= loaded);
+  }
 
-  /// 清空用户记忆（App 的「清除 AI 记忆」）。
+  /// 清空用户记忆（App 的「清除 AI 记忆」）。在途的 load 与各轮待提交的记忆操作一并作废。
   Future<void> clearMemory() {
+    _memEpoch++;
     _memory = [];
     return _save(const []);
   }
@@ -215,23 +227,30 @@ class CoachAgent {
       if (!dead() && !_events.isClosed) _events.add(AgentEvent(turnId, k, step: step, path: path, status: status));
     }
 
-    final memoryOn = enableUserMemory;
+    final memEpoch = _memEpoch;
     final cat = _catalog();
-    final fs = files(cat);
     final gate = gateFor(cat);
-    var summary = '';
-    if (memoryOn) {
-      try {
-        summary = UserMemoryOps.summary(await memory());
-      } on Object {
-        summary = '';
+    // 记忆开关、系统提示、工具、文件系统在每次调模型前按当前开关重建（运行时可切）。
+    var memoryOn = enableUserMemory;
+    var fs = files(cat);
+    Future<String> systemNow() async {
+      var summary = '';
+      if (memoryOn) {
+        try {
+          summary = UserMemoryOps.summary(await memory());
+        } on Object {
+          summary = '';
+        }
       }
+      return prompts.system(profile, fs, memory: memoryOn, memorySummary: summary);
     }
-    final system = prompts.system(profile, fs, memory: memoryOn, memorySummary: summary);
+
+    var system = await systemNow();
     final meta = (version: prompts.version(profile), hash: prompts.hash(system), catalog: cat.version);
     final userMsg = LlmMessage.user(prompts.userMessage(profile, cat, context, text));
-    final tools = AgentTools.build(profile, cat, memory: memoryOn);
     final turnMsgs = <LlmMessage>[];
+    // 与记忆相关的工具结果（读 user-memory/ 文件、remember / forget）：关闭记忆后在后续请求里替换。
+    final memResultIds = <String>{};
     final calls = <_Call>[];
     final reads = <String>[];
     final readSet = <String>{};
@@ -243,7 +262,18 @@ class CoachAgent {
     Object? error;
     var leaked = false;
 
-    CoachTurnResult cancelled(int step) => CoachTurnResult(turnId: turnId, status: TurnStatus.cancelled, steps: step);
+    // 取消 / reset：保留已发生调用的记账与元数据，但不返回可渲染内容、不写历史和记忆。
+    Future<CoachTurnResult> cancelled(int step) async {
+      final records = await _record(turnId, meta, calls, TurnOutcome.cancelled);
+      return CoachTurnResult(
+        turnId: turnId,
+        status: TurnStatus.cancelled,
+        submissions: submissions,
+        records: records,
+        steps: step,
+        reads: List.unmodifiable(reads),
+      );
+    }
 
     Future<CoachTurnResult> done(
       TurnStatus status,
@@ -277,7 +307,7 @@ class CoachAgent {
             ? null
             : () {
                 commit();
-                if (memoryOn && enableUserMemory && memOps.isNotEmpty && _memory != null) {
+                if (enableUserMemory && memEpoch == _memEpoch && memOps.isNotEmpty && _memory != null) {
                   var m = _memory!;
                   for (final op in memOps) {
                     m = op(m);
@@ -295,12 +325,30 @@ class CoachAgent {
     while (step < maxSteps) {
       step++;
       emit(AgentEventKind.thinking, step: step);
+      if (step > 1 || memoryOn != enableUserMemory) {
+        memoryOn = enableUserMemory;
+        fs = files(cat);
+        system = await systemNow();
+      }
+      if (!memoryOn) memOps.clear();
+      // 记忆加载等异步之后、实际调模型之前复查世代与取消。
+      if (dead()) return cancelled(step - 1);
+      final memOff = !memoryOn;
       LlmResponse res;
       try {
         res = await client.complete(
           LlmRequest(
-            messages: [LlmMessage.system(system), ..._history, userMsg, ...turnMsgs],
-            tools: tools,
+            messages: [
+              LlmMessage.system(system),
+              ..._history,
+              userMsg,
+              for (final m in turnMsgs)
+                if (memOff && m.role == LlmRole.tool && memResultIds.contains(m.toolCallId))
+                  LlmMessage.tool(m.toolCallId!, '（用户记忆已关闭）')
+                else
+                  m,
+            ],
+            tools: AgentTools.build(profile, cat, memory: memoryOn),
             toolChoice: 'auto',
           ),
           cancel: cancel,
@@ -308,7 +356,6 @@ class CoachAgent {
       } on LlmException catch (e) {
         calls.add(_Call.failed(step, e));
         if (e.kind == LlmErrorKind.cancelled || dead()) {
-          await _record(turnId, meta, calls, TurnOutcome.cancelled);
           return cancelled(step);
         }
         reason = _reasonFor(e.kind);
@@ -317,7 +364,6 @@ class CoachAgent {
       } on Object catch (e) {
         if (dead()) {
           calls.add(_Call.failed(step, const LlmException(LlmErrorKind.cancelled, 'cancelled')));
-          await _record(turnId, meta, calls, TurnOutcome.cancelled);
           return cancelled(step);
         }
         calls.add(_Call.failed(step, LlmException(LlmErrorKind.badResponse, '$e')));
@@ -327,7 +373,6 @@ class CoachAgent {
       }
       if (dead()) {
         calls.add(_Call.ok(step, res, CallOutcome.cancelled));
-        await _record(turnId, meta, calls, TurnOutcome.cancelled);
         return cancelled(step);
       }
 
@@ -364,6 +409,13 @@ class CoachAgent {
         continue;
       }
 
+      // 执行任何工具之前统一查暗号（正文、工具名、解码后的全部参数字符串）：命中整轮回落，不提交记忆。
+      if (gate.leaks(res.content, res.toolCalls)) {
+        calls.add(_Call.ok(step, res, CallOutcome.rejected, codes: const ['canary_leak']));
+        leaked = true;
+        break;
+      }
+
       // 先执行中间工具，再判最终 show_*。
       final results = <String, String>{};
       final finals = <LlmToolCall>[];
@@ -372,6 +424,7 @@ class CoachAgent {
           case AgentTools.read:
             final path = SkillFiles.normalize(_arg(t, 'path') ?? '');
             emit(AgentEventKind.reading, step: step, path: path);
+            if (path.startsWith('${SkillFiles.userMemory}/')) memResultIds.add(t.id);
             results[t.id] = _read(fs, path, readSet, reads);
           case AgentTools.ls:
             final dir = SkillFiles.normalize(_arg(t, 'dir') ?? '');
@@ -389,6 +442,7 @@ class CoachAgent {
           case AgentTools.remember || AgentTools.forget when memoryOn:
             final kindName = _arg(t, 'kind');
             emit(AgentEventKind.memory, step: step, path: kindName);
+            memResultIds.add(t.id);
             results[t.id] = _memoryOp(t, memOps);
           case AgentTools.showActions || AgentTools.showPlan:
             finals.add(t);
@@ -447,9 +501,11 @@ class CoachAgent {
       error = AgentStepLimitExceeded(maxSteps);
     }
 
+    // 暗号泄露的轮次不提交任何记忆操作。
+    if (leaked) memOps.clear();
+
     // 回落：绝不渲染未通过的内容。
     if (dead()) {
-      await _record(turnId, meta, calls, TurnOutcome.cancelled);
       return cancelled(step);
     }
     final fbFn = fallback;
@@ -459,7 +515,6 @@ class CoachAgent {
         SessionFallbackRequest(userText: text, context: context, reason: reason, issues: lastErrors, error: error),
       );
       if (dead()) {
-        await _record(turnId, meta, calls, TurnOutcome.cancelled);
         return cancelled(step);
       }
       final plan = r.plan == null ? null : gate.admitTemplate(r.plan!, context);
@@ -478,7 +533,6 @@ class CoachAgent {
       );
     } on Object catch (e) {
       if (dead()) {
-        await _record(turnId, meta, calls, TurnOutcome.cancelled);
         return cancelled(step);
       }
       error = e;

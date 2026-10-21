@@ -12,6 +12,8 @@
 
 [项目维护台账](docs/project-ledger.md)是当前维护状态、PR 合并、验证证据和未决事项的统一记录入口。包版本以 [pubspec.yaml](pubspec.yaml) 为准；版本变更历史见 [CHANGELOG.md](CHANGELOG.md)；当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)。[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
 
+SmartFit 联调引出的 SDK 修复待维护者审核：[修改说明与固定审核范围](docs/review-smartfit-agent-fixes-2026-10-21.md)。
+
 ## 架构（0.1 旧接口）
 
 下图与目录说明保留 0.1 `CoachAssistant` 的结构；当前推荐入口是下文的 0.3 `CoachAgent`。

@@ -45,6 +45,26 @@ class _GatedStore implements UserMemoryStore {
   Future<void> save(List<MemoryEntry> e) async => entries = List.of(e);
 }
 
+/// 第一次 load 抛错，第二次起阻塞到 [release]。
+class _FlakyGatedStore implements UserMemoryStore {
+  _FlakyGatedStore(this.entries);
+  List<MemoryEntry> entries;
+  int loads = 0;
+  final _gate = Completer<void>();
+  void release() => _gate.complete();
+
+  @override
+  Future<List<MemoryEntry>> load() async {
+    if (++loads == 1) throw StateError('temporary');
+    final snapshot = List.of(entries);
+    await _gate.future;
+    return snapshot;
+  }
+
+  @override
+  Future<void> save(List<MemoryEntry> e) async => entries = List.of(e);
+}
+
 Future<void> _until(bool Function() ok) async {
   while (!ok()) {
     await Future<void>.delayed(const Duration(milliseconds: 1));
@@ -486,6 +506,70 @@ void main() {
       expect(all, contains('用户记忆已关闭'));
       await Future<void>.delayed(Duration.zero);
       expect(store.entries.map((e) => e.text), ['想劈叉']);
+    });
+
+    String wire(LlmRequest r) => jsonEncode({
+      'messages': [for (final m in r.messages) m.toJson()],
+      'tools': [for (final t in r.tools) t.toJson()],
+    });
+
+    test('[P2] 等首个响应时关闭记忆、模型仍调 forget：下一次请求序列化后不含记忆调用参数与回复', () async {
+      const sentinel = 'stored-only-private-sentinel';
+      final store = InMemoryUserMemoryStore([MemoryEntry(MemoryKind.goal, sentinel, at: DateTime.utc(2026))]);
+      late CoachAgent a;
+      final c = FakeLlmClient([
+        (_) {
+          a.enableUserMemory = false;
+          return _tools([
+            _call('forget', {'kind': 'goal', 'text': sentinel}),
+            _call('ls', {'dir': ''}),
+          ]);
+        },
+        (_) => _tools([
+          _call('forget', {'kind': 'goal', 'text': sentinel}),
+        ]),
+        '好的。',
+      ]);
+      a = agent(c, store: store);
+      final r = await a.send('忘掉我的目标');
+      expect(r.status, TurnStatus.ok);
+      expect(wire(c.requests[0]), contains(sentinel));
+      expect(wire(c.requests[1]), isNot(contains('"forget"')));
+      for (final req in c.requests.skip(1)) {
+        final w = wire(req);
+        expect(w, isNot(contains(sentinel)));
+        // 协议有效：每个 tool 回复都对应前面 assistant 的某个调用。
+        final ids = {for (final m in req.messages) ...m.toolCalls.map((t) => t.id)};
+        for (final m in req.messages.where((m) => m.role == LlmRole.tool)) {
+          expect(ids, contains(m.toolCallId));
+        }
+      }
+      await Future<void>.delayed(Duration.zero);
+      expect(store.entries.map((e) => e.text), [sentinel]);
+    });
+
+    test('[P2] 记忆加载挂起期间关闭记忆：放行后请求按当前开关重建，无摘要/记忆工具/技能项', () async {
+      const sentinel = 'stored-only-private-sentinel';
+      final store = _FlakyGatedStore([MemoryEntry(MemoryKind.goal, sentinel, at: DateTime.utc(2026))]);
+      late CoachAgent a;
+      final c = FakeLlmClient([
+        _tools([
+          _call('ls', {'dir': ''}),
+        ]),
+        '好的。',
+      ]);
+      a = agent(c, store: store);
+      final pending = a.send('你好');
+      await _until(() => store.loads == 2);
+      a.enableUserMemory = false;
+      store.release();
+      final r = await pending;
+      expect(r.status, TurnStatus.ok);
+      final w = wire(c.requests[1]);
+      expect(w, isNot(contains(sentinel)));
+      expect(w, isNot(contains('user-memory/SKILL.md')));
+      expect(c.requests[1].messages.first.content, isNot(contains('user-memory')));
+      expect(c.requests[1].tools.map((t) => t.name), isNot(anyOf(contains('remember'), contains('forget'))));
     });
 
     test('[P2] 中间工具轮的暗号（含 Unicode 转义）：remember(other, 暗号) 后干净文字 → 回落、不写记忆', () async {

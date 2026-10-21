@@ -194,6 +194,35 @@ class CoachAgent {
 
   Future<void> dispose() => _events.close();
 
+  /// 记忆关闭后的本轮消息：已执行的 remember / forget 调用项连同其 tool 回复整对移除（参数里可能有记忆原文），
+  /// 删空（无正文、无工具调用）的 assistant 消息整条移除；关闭后才发出、被当作未知工具的 remember / forget
+  /// 保留回复、参数脱敏为 {}；读 user-memory/ 的结果替换为占位。
+  static List<LlmMessage> _withoutMemory(List<LlmMessage> msgs, Set<String> memResultIds) {
+    bool isMem(LlmToolCall t) => t.name == AgentTools.remember || t.name == AgentTools.forget;
+    final dropIds = {
+      for (final m in msgs)
+        for (final t in m.toolCalls)
+          if (isMem(t) && memResultIds.contains(t.id)) t.id,
+    };
+    final out = <LlmMessage>[];
+    for (final m in msgs) {
+      if (m.role == LlmRole.tool) {
+        if (dropIds.contains(m.toolCallId)) continue;
+        out.add(memResultIds.contains(m.toolCallId) ? LlmMessage.tool(m.toolCallId!, '（用户记忆已关闭）') : m);
+      } else if (m.role == LlmRole.assistant && m.toolCalls.any(isMem)) {
+        final kept = [
+          for (final t in m.toolCalls)
+            if (!dropIds.contains(t.id)) isMem(t) ? LlmToolCall(id: t.id, name: t.name, arguments: '{}') : t,
+        ];
+        if (m.content.isEmpty && kept.isEmpty) continue;
+        out.add(LlmMessage.assistant(m.content, toolCalls: kept));
+      } else {
+        out.add(m);
+      }
+    }
+    return out;
+  }
+
   ToolGate gateFor(Catalog c) => ToolGate(
     catalog: c,
     profile: profile,
@@ -245,7 +274,17 @@ class CoachAgent {
       return prompts.system(profile, fs, memory: memoryOn, memorySummary: summary);
     }
 
-    var system = await systemNow();
+    var system = '';
+    // 每次异步加载之后复查当前开关：加载期间被切换就按当前状态重建，直到稳定（或本轮作废）。
+    Future<void> rebuild() async {
+      do {
+        memoryOn = enableUserMemory;
+        fs = files(cat);
+        system = await systemNow();
+      } while (memoryOn != enableUserMemory && !dead());
+    }
+
+    await rebuild();
     final meta = (version: prompts.version(profile), hash: prompts.hash(system), catalog: cat.version);
     final userMsg = LlmMessage.user(prompts.userMessage(profile, cat, context, text));
     final turnMsgs = <LlmMessage>[];
@@ -325,11 +364,7 @@ class CoachAgent {
     while (step < maxSteps) {
       step++;
       emit(AgentEventKind.thinking, step: step);
-      if (step > 1 || memoryOn != enableUserMemory) {
-        memoryOn = enableUserMemory;
-        fs = files(cat);
-        system = await systemNow();
-      }
+      if (step > 1 || memoryOn != enableUserMemory) await rebuild();
       if (!memoryOn) memOps.clear();
       // 记忆加载等异步之后、实际调模型之前复查世代与取消。
       if (dead()) return cancelled(step - 1);
@@ -342,11 +377,7 @@ class CoachAgent {
               LlmMessage.system(system),
               ..._history,
               userMsg,
-              for (final m in turnMsgs)
-                if (memOff && m.role == LlmRole.tool && memResultIds.contains(m.toolCallId))
-                  LlmMessage.tool(m.toolCallId!, '（用户记忆已关闭）')
-                else
-                  m,
+              ...(memOff ? _withoutMemory(turnMsgs, memResultIds) : turnMsgs),
             ],
             tools: AgentTools.build(profile, cat, memory: memoryOn),
             toolChoice: 'auto',

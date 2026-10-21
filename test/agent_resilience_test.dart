@@ -53,7 +53,7 @@ void main() {
     SessionFallback? fallback,
     UsageSink? usage,
     Duration requestTimeout = const Duration(seconds: 60),
-    Duration turnTimeout = const Duration(seconds: 180),
+    Duration turnTimeout = const Duration(seconds: 360),
     int contextBudgetTokens = 60000,
     int keepRecentSteps = 3,
     Future<void> Function(Duration)? sleep,
@@ -77,13 +77,14 @@ void main() {
         },
   );
 
-  test('默认参数：maxSteps=100、重试 4 次、退避 1s 起封顶 15s、整轮 180s、预算 60k', () {
+  test('默认参数：maxSteps=100、重试 4 次、整轮 360s、慢提示 30s、预算 60k', () {
     final a = CoachAgent(client: FakeLlmClient(const []), catalog: () => catalog, profile: hiplab);
     expect(a.maxSteps, 100);
     expect(a.maxRequestRetries, 4);
     expect(a.retryBaseDelay, const Duration(seconds: 1));
     expect(a.retryMaxDelay, const Duration(seconds: 15));
-    expect(a.turnTimeout, const Duration(seconds: 180));
+    expect(a.turnTimeout, const Duration(seconds: 360));
+    expect(a.slowAfter, const Duration(seconds: 30));
     expect(a.requestTimeout, const Duration(seconds: 60));
     expect(a.contextBudgetTokens, 60000);
     expect(a.maxStallSteps, 3);
@@ -296,7 +297,8 @@ void main() {
       expect(w, contains('用户记忆已关闭'));
       _expectProtocol(retry.messages);
       await Future<void>.delayed(Duration.zero);
-      expect(store.entries.map((e) => e.text), [stored]);
+      // 关闭记忆只阻止后续操作；此前已成功的工具已持久化。
+      expect(store.entries.map((e) => e.text), [stored, said]);
     });
   }
 

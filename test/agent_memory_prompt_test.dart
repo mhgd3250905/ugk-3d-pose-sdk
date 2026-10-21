@@ -132,7 +132,7 @@ void main() {
       expect(result.plan, isNull);
       expect(result.text, '记下了，之后安排训练会参考。');
       await Future<void>.delayed(Duration.zero);
-      expect(store.saves, 1);
+      expect(store.saves, 2);
       expect(store.entries.map((e) => e.kind), [
         MemoryKind.level,
         MemoryKind.equipment,

@@ -33,9 +33,16 @@ enum RequestErrorClass {
   other;
 
   bool get retryable =>
-      this == timeout || this == network || this == rateLimited || this == server || this == badResponse;
+      this == timeout ||
+      this == network ||
+      this == rateLimited ||
+      this == server ||
+      this == badResponse;
 
-  static final _ctxRe = RegExp(r'context|length|token|too long|maximum|exceed', caseSensitive: false);
+  static final _ctxRe = RegExp(
+    r'context|length|token|too long|maximum|exceed',
+    caseSensitive: false,
+  );
 
   static RequestErrorClass of(Object e) {
     if (e is! LlmException) return RequestErrorClass.other;
@@ -58,8 +65,12 @@ enum RequestErrorClass {
       case LlmErrorKind.http:
         if (code == null) return server;
         if (code == 429) return rateLimited;
-        if (code >= 500 || code == 408 || code == 409 || code == 425) return server;
-        if (code == 400 || code == 413) return _ctxRe.hasMatch(e.message) ? contextTooLong : badRequest;
+        if (code >= 500 || code == 408 || code == 409 || code == 425) {
+          return server;
+        }
+        if (code == 400 || code == 413) {
+          return _ctxRe.hasMatch(e.message) ? contextTooLong : badRequest;
+        }
         if (code == 401 || code == 403) return auth;
         if (code == 404) return notFound;
         return badRequest;
@@ -81,7 +92,12 @@ enum AgentFailureKind {
 
 /// 模型请求最终失败（回落时放在 `CoachTurnResult.error`）。
 class AgentRequestFailed implements Exception {
-  const AgentRequestFailed(this.kind, {this.errorClass, this.attempts = 1, this.cause});
+  const AgentRequestFailed(
+    this.kind, {
+    this.errorClass,
+    this.attempts = 1,
+    this.cause,
+  });
   final AgentFailureKind kind;
 
   /// 最后一次失败的分类（整轮超时且没有请求失败时为 null）。
@@ -117,7 +133,9 @@ Duration retryDelay(
   final raw = base.inMicroseconds * math.pow(2, retry - 1);
   final capped = math.min(raw.toDouble(), max.inMicroseconds.toDouble());
   final jittered = capped * (0.8 + 0.4 * random());
-  return Duration(microseconds: math.min(jittered, max.inMicroseconds.toDouble()).round());
+  return Duration(
+    microseconds: math.min(jittered, max.inMicroseconds.toDouble()).round(),
+  );
 }
 
 /// 粗估 token：ASCII 约 4 字符 1 token，其余（中文等）1 字符 1 token。
@@ -133,10 +151,14 @@ int estimateTokens(String s) {
   return other + (ascii / 4).ceil();
 }
 
+/// 推理仅作协议回放，不计入可用上下文预算；压缩只替换工具结果。
 int estimateMessageTokens(LlmMessage m) =>
     4 +
     estimateTokens(m.content) +
-    m.toolCalls.fold(0, (n, t) => n + estimateTokens(t.name) + estimateTokens(t.arguments));
+    m.toolCalls.fold(
+      0,
+      (n, t) => n + estimateTokens(t.name) + estimateTokens(t.arguments),
+    );
 
 /// 可压缩的中间工具结果（read / ls）。
 class CompressibleResult {
@@ -161,7 +183,8 @@ Set<String> compressContext(
   required Map<LlmMessage, CompressibleResult> compressible,
   bool force = false,
 }) {
-  var total = fixedTokens + msgs.fold(0, (n, m) => n + estimateMessageTokens(m));
+  var total =
+      fixedTokens + msgs.fold(0, (n, m) => n + estimateMessageTokens(m));
   if (!force && total <= budget) return const {};
   // 最近 keepRecent 个带工具调用的 assistant 消息之后的内容不动。
   var protectFrom = msgs.length;

@@ -65,8 +65,8 @@ void main() {
     expect(
       const LlmMessage.assistant(
         'visible',
-      ).toJson().containsKey('reasoning_content'),
-      isFalse,
+      ).toJson()['reasoning_content'],
+      '',
     );
     expect(
       const LlmMessage.assistant(
@@ -367,6 +367,7 @@ void main() {
           catalog: () => catalog,
           profile: profile,
           fallback: (_) => fallbackReply,
+          maxRequestRetries: 0,
         );
         final session = CoachSession(
           client: client,

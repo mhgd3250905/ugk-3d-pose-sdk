@@ -8,13 +8,35 @@ import '../util/json.dart';
 enum LlmRole { system, user, assistant, tool }
 
 class LlmMessage {
-  const LlmMessage(this.role, this.content, {this.toolCalls = const [], this.toolCallId, this.reasoning});
-  const LlmMessage.system(this.content) : role = LlmRole.system, toolCalls = const [], toolCallId = null, reasoning = null;
-  const LlmMessage.user(this.content) : role = LlmRole.user, toolCalls = const [], toolCallId = null, reasoning = null;
-  const LlmMessage.assistant(this.content, {this.toolCalls = const [], this.reasoning}) : role = LlmRole.assistant, toolCallId = null;
+  const LlmMessage(
+    this.role,
+    this.content, {
+    this.toolCalls = const [],
+    this.toolCallId,
+    this.reasoning,
+  });
+  const LlmMessage.system(this.content)
+    : role = LlmRole.system,
+      toolCalls = const [],
+      toolCallId = null,
+      reasoning = null;
+  const LlmMessage.user(this.content)
+    : role = LlmRole.user,
+      toolCalls = const [],
+      toolCallId = null,
+      reasoning = null;
+  const LlmMessage.assistant(
+    this.content, {
+    this.toolCalls = const [],
+    this.reasoning,
+  }) : role = LlmRole.assistant,
+       toolCallId = null;
 
   /// 工具结果（回给模型的门禁结论）。
-  const LlmMessage.tool(String this.toolCallId, this.content) : role = LlmRole.tool, toolCalls = const [], reasoning = null;
+  const LlmMessage.tool(String this.toolCallId, this.content)
+    : role = LlmRole.tool,
+      toolCalls = const [],
+      reasoning = null;
 
   final LlmRole role;
   final String content;
@@ -31,19 +53,28 @@ class LlmMessage {
 
   Map<String, Object?> toJson() => {
     'role': role.name,
-    'content': role == LlmRole.assistant && toolCalls.isNotEmpty && content.isEmpty ? null : content,
-    if (role == LlmRole.assistant && reasoning != null) 'reasoning_content': reasoning,
-    if (toolCalls.isNotEmpty) 'tool_calls': [for (final c in toolCalls) c.toJson()],
+    'content':
+        role == LlmRole.assistant && toolCalls.isNotEmpty && content.isEmpty
+        ? null
+        : content,
+    if (role == LlmRole.assistant) 'reasoning_content': reasoning ?? '',
+    if (toolCalls.isNotEmpty)
+      'tool_calls': [for (final c in toolCalls) c.toJson()],
     if (toolCallId != null) 'tool_call_id': toolCallId,
   };
 
   @override
-  String toString() => '${role.name}: $content${toolCalls.isEmpty ? '' : ' $toolCalls'}';
+  String toString() =>
+      '${role.name}: $content${toolCalls.isEmpty ? '' : ' $toolCalls'}';
 }
 
 /// 模型发起的一次工具调用。[arguments] 是原始 JSON 字符串（门禁负责解析，不做修复）。
 class LlmToolCall {
-  const LlmToolCall({required this.id, required this.name, required this.arguments});
+  const LlmToolCall({
+    required this.id,
+    required this.name,
+    required this.arguments,
+  });
   final String id;
   final String name;
   final String arguments;
@@ -73,7 +104,11 @@ String _encode(Object? v) => jsonEncode(v);
 
 /// 提供给模型的工具（OpenAI function 格式）。
 class LlmTool {
-  const LlmTool({required this.name, required this.description, required this.parameters});
+  const LlmTool({
+    required this.name,
+    required this.description,
+    required this.parameters,
+  });
   final String name;
   final String description;
 
@@ -82,12 +117,23 @@ class LlmTool {
 
   Map<String, Object?> toJson() => {
     'type': 'function',
-    'function': {'name': name, 'description': description, 'parameters': parameters},
+    'function': {
+      'name': name,
+      'description': description,
+      'parameters': parameters,
+    },
   };
 }
 
 class LlmRequest {
-  const LlmRequest({required this.messages, this.maxTokens, this.temperature, this.jsonMode, this.tools = const [], this.toolChoice});
+  const LlmRequest({
+    required this.messages,
+    this.maxTokens,
+    this.temperature,
+    this.jsonMode,
+    this.tools = const [],
+    this.toolChoice,
+  });
   final List<LlmMessage> messages;
 
   /// 覆盖 [LlmConfig] 的同名参数；null = 用配置。
@@ -140,8 +186,12 @@ class TokenUsage {
     return TokenUsage(
       promptTokens: asInt(u['prompt_tokens']) ?? 0,
       completionTokens: asInt(u['completion_tokens']) ?? 0,
-      reasoningTokens: asInt(cd['reasoning_tokens']) ?? asInt(u['reasoning_tokens']) ?? 0,
-      cachedTokens: asInt(pd['cached_tokens']) ?? asInt(u['prompt_cache_hit_tokens']) ?? 0,
+      reasoningTokens:
+          asInt(cd['reasoning_tokens']) ?? asInt(u['reasoning_tokens']) ?? 0,
+      cachedTokens:
+          asInt(pd['cached_tokens']) ??
+          asInt(u['prompt_cache_hit_tokens']) ??
+          0,
     );
   }
 
@@ -248,5 +298,6 @@ class LlmException implements Exception {
       (kind == LlmErrorKind.http && (statusCode ?? 0) >= 500);
 
   @override
-  String toString() => 'LlmException(${kind.name}${statusCode == null ? '' : ' $statusCode'}): $message';
+  String toString() =>
+      'LlmException(${kind.name}${statusCode == null ? '' : ' $statusCode'}): $message';
 }

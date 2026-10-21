@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.2 — 2026-10-21（集成待批准）
+
+### 推理协议、请求预算与记忆持久化
+
+- 按指定源提交 `9bc392c42222d61d8c57e8dc00373ee165e56e06`，在 main `517fdbef6d9e611eff3f68bc2138f8e00e35c82e` 上集成思考模型修复，分支为 `codex/coach-agent-032-integration`；原修复分支保持原状。
+- `LlmMessage.reasoning` 保存模型返回的协议推理，Agent / Session 的中间工具、门禁重交和最终历史继续回传。每条 assistant 消息序列化时都带 `reasoning_content`，缺失或 null 使用空串；不混入用户正文或 `toString()`。
+- 记忆关闭时，当前工具轮、单步重试与历史 assistant 的记忆相关推理同步脱敏；上下文压缩仅替换早期 read / ls 的 tool 结果，保留 assistant 的工具调用与推理协议字段。60k 上下文预算不计 `reasoning_content`，历史字符上限仍计入推理长度。
+- `CoachAgent.turnTimeout` 默认 180s → 360s，`slowAfter` 默认 15s → 30s；`requestTimeout` 仍为 60s，`contextBudgetTokens` 仍为 60000。
+- `remember` / `forget` 逐条等待 `UserMemoryStore.save` 成功后才更新缓存、返回 `ok:true`；保存失败返回 `ok:false` 工具错误，不吞异常后确认成功。已确认保存的前序操作在后续取消 / reset 时保留，不再等整轮最终交付才保存。
+- pending 保存期间取消 / reset 立即结束 `send`，迟到结果不写缓存、历史或推理；不可取消的底层 save 完成后，串行队列补偿回已确认快照，并尊重 `clearMemory()` 的清空意图。
+- 保留源修复的记忆指令：用户主动陈述水平、器械等稳定事实时，先读 user-memory skill 并分别 remember，工具成功后才确认；没有待完成训练请求时只确认记忆，不擅自排课。训练包未改动。
+
+### 验证与合并边界
+
+- 本次 0.3.2 在 Dart 3.12.2 执行 `dart test` 342 项全部通过，`dart analyze` 0 问题，`git diff --check` 通过。当前仍待开哥最终批准，main 快照仍为 `517fdbe`，尚未把本次集成写入主线。
+- 原修复 source `43dfef637144a1e08b5eda5ed743db0671ba5a8d` 的根包 304 项、训练包 126 项测试及两包分析通过，属于历史证据。SmartFit App source `5743073691547d44aec891ab6d4a45b5b3fa381b`（217 项测试、分析 0 问题）的真实 Worker 六类分组验证，分别绑定 SDK `712cb7b3d636a5314c5aa08211c822928a0af4f4` / `43dfef6`；不能当作新 0.3.2 代码树的真实 Worker 验收。完整来源和 204.564s 等记录保留在[台账](docs/project-ledger.md)与 [SmartFit 报告](https://github.com/mhgd3250905/Sport-Helper/blob/feat/smartfit-skill-agent/docs/coach-agent-smoke-2026-10-21.md)。
+- SDK / App 主线集成及推送待批准；本次未新增真实 Worker、真机 UI 或完整训练流程验收结论。
+
 ## 0.3.1 — 2026-10-21
 
 ### Agent：步数、上下文预算与失败重试
@@ -15,19 +33,6 @@
 - 固定本轮 reset 信号，`retrying` 事件后立即复查作废：同步监听器里 `reset()` 时旧轮即时返回 `cancelled`，不再等退避。
 - 目录 `read` 与 `ls` 共用目录去重 / 新信息 / 压缩跟踪：不同目录探索不再误判空转，重复目录仍受防护。
 - 压缩元数据按具体 tool 消息关联（不再按 tool_call_id），跨步骤复用 id 时不错配摘要与已读集合。
-## Unreleased
-
-### 修复
-- 修复 SmartFit 首次真实 Worker 多步联调发现的 DeepSeek 思考模式 HTTP 400：`LlmMessage` 新增可选 `reasoning`，`CoachAgent` 中间工具、门禁重交及最终交付历史按协议回传 `reasoning_content`，`CoachSession` 同步修复；推理不混入用户正文或 `toString()`。
-- 记忆关闭后，当前工具轮与历史 assistant 的推理也脱敏，避免通过新增协议字段重新带回记忆摘要原文；历史推理计入会话字符上限。
-- SmartFit 再次真实冒烟发现上游某步省略 / 返回 null 推理时的同类 HTTP 400：Agent / Session 的工具轮、最终回复及预设回落历史统一保留显式空 `reasoning_content`，已有推理仍原样回传；普通手写 `LlmMessage` 默认请求不变。
-- 加强记忆开启时的系统指令：用户主动陈述水平、器械等稳定事实时，先读 user-memory skill 并分别 remember，工具成功后才确认；只陈述条件且没有待完成的训练请求时不擅自排课。记忆关闭的系统提示词与工具定义保持逐字节不变，Agent 循环与持久化逻辑不变。
-- 影响使用思考模型工具调用的 SmartFit / HipLab / FlareLab；新增字段可选，现有 App 接口兼容，版本仍为 0.3.0。
-
-### 验证
-- 根包 `dart test` 304 项（含 15 项推理回传、5 项记忆指令与持久化回归）、`dart analyze` 0 问题；训练包 `flutter test` 126 项、`flutter analyze` 0 问题。真实 Worker 多步与记忆开关冒烟由 SmartFit 记录，不用 mock 协议测试替代。
-- SmartFit App 运行源码 `5743073691547d44aec891ab6d4a45b5b3fa381b`（217 项测试、分析 0 问题）完成六类真实 Worker 分组验证，最终采用记录均为 ok、无回落：核心计划、臀桥动作、护腰腿部计划、主动记忆与本机保存、新对话参考记忆排课、关闭记忆后的隔离。前三条使用 SDK `712cb7b3d636a5314c5aa08211c822928a0af4f4`，后三条使用 `43dfef637144a1e08b5eda5ed743db0671ba5a8d`；后者仅加强记忆开启时的指令，关闭记忆 system/tools 的 SHA-256 不变，故复用前三条。详见[台账](docs/project-ledger.md)与 [SmartFit 完整报告](https://github.com/mhgd3250905/Sport-Helper/blob/feat/smartfit-skill-agent/docs/coach-agent-smoke-2026-10-21.md)。
-- 上述修复仍在 `fix/coach-agent-reasoning-replay`；已吸收 main 文档提交 `1d1aad86f516bd7121cc73c71d623043f1042dc3`，运行与测试树保持 `43dfef6` 不变。SDK / App 合入 main 并推送仍待开哥批准，本轮未验证真机 UI 或完整训练流程。
 
 ## 0.3.0 — 2026-10-21
 
@@ -46,7 +51,7 @@
 ### 本机验收（2026-10-21）
 - PR #4 已合入 main，合并提交 `1f8be6edf9c0c57575d963448af379e8fdf8df2a`；与复审 head `48417e03f5ff05d4434dc2e15cc36237464153d2` 的代码树一致。
 - 根包 `dart test` 284 项全部通过，`dart analyze` 无问题；修复复现、适用代码状态及非阻塞 P3 见 [项目维护台账](docs/project-ledger.md)。
-- 该 main 基线首次真实 Worker 冒烟暴露推理协议回传问题；修复分支随后完成多步与记忆六类分组验证，证据和待批准合并状态见上方 Unreleased。历史 0.1 冒烟和 0.2 tools 请求不作为 0.3 真实验证的替代证据。
+- 该 main 基线首次真实 Worker 冒烟暴露推理协议回传问题；修复分支随后完成多步与记忆六类分组验证，历史证据及当前集成状态见上方 0.3.2 与台账。历史 0.1 冒烟和 0.2 tools 请求不作为 0.3 真实验证的替代证据。
 
 ## 0.2.0 — 2026-10-21
 

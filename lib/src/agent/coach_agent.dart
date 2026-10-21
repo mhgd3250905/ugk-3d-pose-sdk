@@ -122,8 +122,8 @@ class CoachAgent {
     this.retryBaseDelay = const Duration(seconds: 1),
     this.retryMaxDelay = const Duration(seconds: 15),
     this.requestTimeout = const Duration(seconds: 60),
-    this.turnTimeout = const Duration(seconds: 180),
-    this.slowAfter = const Duration(seconds: 15),
+    this.turnTimeout = const Duration(seconds: 360),
+    this.slowAfter = const Duration(seconds: 30),
     this.contextBudgetTokens = 60000,
     this.keepRecentSteps = 3,
     this.maxStallSteps = 3,
@@ -175,7 +175,7 @@ class CoachAgent {
   /// 单步多久未返回发一次 [AgentEventKind.slow]。
   final Duration slowAfter;
 
-  /// 上下文预算（估算 token）：超过时把较早的 read / ls 结果压成一行摘要。
+  /// 上下文预算（估算 token，不计 reasoning）：超过时压缩较早的 read / ls 结果。
   final int contextBudgetTokens;
 
   /// 压缩时完整保留最近几个工具步。
@@ -231,7 +231,8 @@ class CoachAgent {
   int get turnCount => _turns;
   int get historyChars => _history.fold(0, (n, m) => n + _chars(m));
   bool get isBusy => _busyGen == _generation;
-  bool get isFull => _turns + (isBusy ? 1 : 0) >= maxTurns || historyChars >= maxHistoryChars;
+  bool get isFull =>
+      _turns + (isBusy ? 1 : 0) >= maxTurns || historyChars >= maxHistoryChars;
 
   /// 清空对话。进行中的旧轮作废，返回时不写历史、不改记忆。
   void reset() {
@@ -259,7 +260,9 @@ class CoachAgent {
     final epoch = _memEpoch;
     final loaded = await memoryStore.load();
     // 加载期间被清除：迟到的旧结果作废。
-    if (epoch != _memEpoch) return List.unmodifiable(_memory ?? const <MemoryEntry>[]);
+    if (epoch != _memEpoch) {
+      return List.unmodifiable(_memory ?? const <MemoryEntry>[]);
+    }
     return List.unmodifiable(_memory ??= loaded);
   }
 
@@ -267,12 +270,28 @@ class CoachAgent {
   Future<void> clearMemory() {
     _memEpoch++;
     _memory = [];
+    final safeHistory = _withoutMemory(
+      _history,
+      const {},
+      privateReasoning: _memoryReasoning,
+    );
+    _history
+      ..clear()
+      ..addAll(safeHistory);
+    _memoryReasoning.clear();
     return _save(const []);
   }
 
   Future<void> _save(List<MemoryEntry> list) {
     final snapshot = List<MemoryEntry>.of(list);
-    return _saving = _saving.then((_) => memoryStore.save(snapshot)).catchError((Object _) {});
+    return _queueMemory(() => memoryStore.save(snapshot));
+  }
+
+  // 保存错误交给本次调用者处理；队列自身恢复，以免一次失败阻塞后续工具或清除。
+  Future<T> _queueMemory<T>(Future<T> Function() action) {
+    final pending = _saving.then((_) => action());
+    _saving = pending.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return pending;
   }
 
   Future<void> dispose() => _events.close();
@@ -285,7 +304,8 @@ class CoachAgent {
     Set<String> memResultIds, {
     Set<LlmMessage> privateReasoning = const {},
   }) {
-    bool isMem(LlmToolCall t) => t.name == AgentTools.remember || t.name == AgentTools.forget;
+    bool isMem(LlmToolCall t) =>
+        t.name == AgentTools.remember || t.name == AgentTools.forget;
     final dropIds = {
       for (final m in msgs)
         for (final t in m.toolCalls)
@@ -295,18 +315,39 @@ class CoachAgent {
     for (final m in msgs) {
       if (m.role == LlmRole.tool) {
         if (dropIds.contains(m.toolCallId)) continue;
-        out.add(memResultIds.contains(m.toolCallId) ? LlmMessage.tool(m.toolCallId!, '（用户记忆已关闭）') : m);
+        out.add(
+          memResultIds.contains(m.toolCallId)
+              ? LlmMessage.tool(m.toolCallId!, '（用户记忆已关闭）')
+              : m,
+        );
       } else if (m.role == LlmRole.assistant && m.toolCalls.any(isMem)) {
         final kept = [
           for (final t in m.toolCalls)
-            if (!dropIds.contains(t.id)) isMem(t) ? LlmToolCall(id: t.id, name: t.name, arguments: '{}') : t,
+            if (!dropIds.contains(t.id))
+              isMem(t)
+                  ? LlmToolCall(id: t.id, name: t.name, arguments: '{}')
+                  : t,
         ];
         if (m.content.isEmpty && kept.isEmpty) continue;
-        out.add(LlmMessage.assistant(m.content, toolCalls: kept, reasoning: m.reasoning == null ? null : ''));
-      } else if (m.role == LlmRole.assistant && m.reasoning != null && privateReasoning.contains(m)) {
+        out.add(
+          LlmMessage.assistant(
+            m.content,
+            toolCalls: kept,
+            reasoning: m.reasoning == null ? null : '',
+          ),
+        );
+      } else if (m.role == LlmRole.assistant &&
+          m.reasoning != null &&
+          privateReasoning.contains(m)) {
         // 推理可能引用记忆摘要，即使这一条没有调用 remember / forget 也必须脱敏。
         // 保留空协议字段，不能因脱敏又触发上游要求 reasoning_content 的 400。
-        out.add(LlmMessage.assistant(m.content, toolCalls: m.toolCalls, reasoning: ''));
+        out.add(
+          LlmMessage.assistant(
+            m.content,
+            toolCalls: m.toolCalls,
+            reasoning: '',
+          ),
+        );
       } else {
         out.add(m);
       }
@@ -329,9 +370,13 @@ class CoachAgent {
   }) async {
     final turnId = _ids.next('turn');
     final text = userText.trim();
-    if (text.length > maxInputChars) return CoachTurnResult(turnId: turnId, status: TurnStatus.inputTooLong);
+    if (text.length > maxInputChars) {
+      return CoachTurnResult(turnId: turnId, status: TurnStatus.inputTooLong);
+    }
     if (isBusy) return CoachTurnResult(turnId: turnId, status: TurnStatus.busy);
-    if (isFull) return CoachTurnResult(turnId: turnId, status: TurnStatus.limitReached);
+    if (isFull) {
+      return CoachTurnResult(turnId: turnId, status: TurnStatus.limitReached);
+    }
     final gen = _generation;
     _busyGen = gen;
     try {
@@ -341,8 +386,17 @@ class CoachAgent {
     }
   }
 
-  Future<CoachTurnResult> _run(String turnId, String text, CoachContext context, CancelToken? cancel, int gen) async {
+  Future<CoachTurnResult> _run(
+    String turnId,
+    String text,
+    CoachContext context,
+    CancelToken? cancel,
+    int gen,
+  ) async {
     bool dead() => gen != _generation || (cancel?.isCancelled ?? false);
+    // 清除记忆也作废本轮先前请求取得的记忆操作；下一轮才重新允许记忆。
+    final turnMemoryEpoch = _memEpoch;
+    bool memoryAllowed() => enableUserMemory && turnMemoryEpoch == _memEpoch;
     // 固定本轮的 reset 信号：reset() 会替换 _resetSig，之后再读到的是新轮的信号。
     final resetSig = _resetSig;
     void emit(
@@ -374,11 +428,10 @@ class CoachAgent {
 
     final turnWatch = Stopwatch()..start();
 
-    final memEpoch = _memEpoch;
     final cat = _catalog();
     final gate = gateFor(cat);
     // 记忆开关、系统提示、工具、文件系统在每次调模型前按当前开关重建（运行时可切）。
-    var memoryOn = enableUserMemory;
+    var memoryOn = memoryAllowed();
     var fs = files(cat);
     Future<String> systemNow() async {
       var summary = '';
@@ -389,41 +442,61 @@ class CoachAgent {
           summary = '';
         }
       }
-      return prompts.system(profile, fs, memory: memoryOn, memorySummary: summary);
+      return prompts.system(
+        profile,
+        fs,
+        memory: memoryOn,
+        memorySummary: summary,
+      );
     }
 
     var system = '';
     // 每次异步加载之后复查当前开关：加载期间被切换就按当前状态重建，直到稳定（或本轮作废）。
     Future<void> rebuild() async {
       do {
-        memoryOn = enableUserMemory;
-        fs = files(cat);
+        memoryOn = memoryAllowed();
+        fs = memoryOn
+            ? files(cat)
+            : SkillFiles.build(profile, cat, memory: false);
         system = await systemNow();
-      } while (memoryOn != enableUserMemory && !dead());
+      } while (memoryOn != memoryAllowed() && !dead());
     }
 
     await rebuild();
-    final meta = (version: prompts.version(profile), hash: prompts.hash(system), catalog: cat.version);
-    final userMsg = LlmMessage.user(prompts.userMessage(profile, cat, context, text));
+    final meta = (
+      version: prompts.version(profile),
+      hash: prompts.hash(system),
+      catalog: cat.version,
+    );
+    final userMsg = LlmMessage.user(
+      prompts.userMessage(profile, cat, context, text),
+    );
     final turnMsgs = <LlmMessage>[];
     // 与记忆相关的工具结果（读 user-memory/ 文件、remember / forget）：关闭记忆后在后续请求里替换。
     final memResultIds = <String>{};
     final memoryReasoning = <LlmMessage>{};
-    LlmMessage assistant(LlmResponse response, {String? content, List<LlmToolCall>? toolCalls, bool history = false}) {
+    LlmMessage assistant(
+      LlmResponse response, {
+      String? content,
+      List<LlmToolCall>? toolCalls,
+      bool history = false,
+    }) {
       final msg = LlmMessage.assistant(
         content ?? response.content,
         toolCalls: toolCalls ?? response.toolCalls,
         // Worker 的不同上游可能在无推理正文时返回 null / 不返回字段。
         // 后续思考模型仍要求字段存在，显式空串不会编造任何推理内容。
-        reasoning: response.reasoning ?? '',
+        reasoning: memoryOn && !memoryAllowed() ? '' : response.reasoning ?? '',
       );
-      if (memoryOn) (history ? _memoryReasoning : memoryReasoning).add(msg);
+      if (memoryOn && memoryAllowed()) {
+        (history ? _memoryReasoning : memoryReasoning).add(msg);
+      }
       return msg;
     }
+
     final calls = <_Call>[];
     final reads = <String>[];
     final readSet = <String>{};
-    final memOps = <List<MemoryEntry> Function(List<MemoryEntry>)>[];
     var submissions = 0;
     var rejected = 0;
     List<PlanIssue> lastErrors = const [];
@@ -432,7 +505,8 @@ class CoachAgent {
     var leaked = false;
     // 上下文压缩：可压缩的 read / ls 结果；防空转状态。
     // 按具体 tool 消息（对象身份）关联，避免跨步骤复用同一 tool_call_id 时元数据错配。
-    final compressible = LinkedHashMap<LlmMessage, CompressibleResult>.identity();
+    final compressible =
+        LinkedHashMap<LlmMessage, CompressibleResult>.identity();
     final listed = <String>{};
     String? lastSig;
     var repeat = 0, idle = 0;
@@ -479,37 +553,25 @@ class CoachAgent {
         steps: step,
         reads: reads,
         dead: dead,
-        commit: commit == null
-            ? null
-            : () {
-                commit();
-                if (enableUserMemory && memEpoch == _memEpoch && memOps.isNotEmpty && _memory != null) {
-                  var m = _memory!;
-                  for (final op in memOps) {
-                    m = op(m);
-                  }
-                  _memory = m;
-                  _save(m);
-                }
-              },
+        commit: commit,
       );
       emit(AgentEventKind.done, step: step, status: r.status);
       return r;
     }
 
     var step = 0;
+    agentSteps:
     while (step < maxSteps) {
       step++;
       emit(AgentEventKind.thinking, step: step);
-      if (step > 1 || memoryOn != enableUserMemory) await rebuild();
+      if (step > 1 || memoryOn != memoryAllowed()) await rebuild();
       // 记忆加载等异步之后、实际调模型之前复查世代与取消。
       if (dead()) return cancelled(step - 1);
       var memOff = !memoryOn;
       var tools = <LlmTool>[];
       var fixedTokens = 0;
-      // 按当前 memoryOn 生成工具与固定开销；关闭时丢弃暂存的记忆操作。
+      // 按当前 memoryOn 生成工具与固定开销。
       void prepare() {
-        if (!memoryOn) memOps.clear();
         memOff = !memoryOn;
         tools = AgentTools.build(profile, cat, memory: memoryOn);
         fixedTokens =
@@ -543,7 +605,7 @@ class CoachAgent {
       while (true) {
         if (dead()) return cancelled(step);
         // 每次实际请求前复查记忆开关（退避期间或在途失败前可能被关闭），必要时重建 system / tools / files。
-        if (memoryOn != enableUserMemory) {
+        if (memoryOn != memoryAllowed()) {
           await rebuild();
           if (dead()) return cancelled(step);
           prepare();
@@ -563,9 +625,21 @@ class CoachAgent {
         final req = LlmRequest(
           messages: [
             LlmMessage.system(system),
-            ...(memOff ? _withoutMemory(_history, const {}, privateReasoning: _memoryReasoning) : _history),
+            ...(memOff
+                ? _withoutMemory(
+                    _history,
+                    const {},
+                    privateReasoning: _memoryReasoning,
+                  )
+                : _history),
             userMsg,
-            ...(memOff ? _withoutMemory(turnMsgs, memResultIds, privateReasoning: memoryReasoning) : turnMsgs),
+            ...(memOff
+                ? _withoutMemory(
+                    turnMsgs,
+                    memResultIds,
+                    privateReasoning: memoryReasoning,
+                  )
+                : turnMsgs),
           ],
           tools: tools,
           toolChoice: 'auto',
@@ -583,22 +657,37 @@ class CoachAgent {
                 slowSent = true;
                 emit(AgentEventKind.slow, step: step);
               });
-        unawaited(cancel?.whenCancelled.then((_) => child.cancel(cancel.reason ?? 'cancelled')));
+        unawaited(
+          cancel?.whenCancelled.then(
+            (_) => child.cancel(cancel.reason ?? 'cancelled'),
+          ),
+        );
         unawaited(resetSig.future.then((_) => child.cancel('reset')));
         final sw = Stopwatch()..start();
         try {
           final f = client.complete(req, cancel: child)..ignore();
           res = await Future.any<LlmResponse>([
             f,
-            child.whenCancelled.then<LlmResponse>((_) => throw const _Aborted()),
+            child.whenCancelled.then<LlmResponse>(
+              (_) => throw const _Aborted(),
+            ),
           ]);
           break;
         } on Object catch (e) {
-          if (dead() || (e is LlmException && e.kind == LlmErrorKind.cancelled && !timedOut)) {
+          if (dead() ||
+              (e is LlmException &&
+                  e.kind == LlmErrorKind.cancelled &&
+                  !timedOut)) {
             calls.add(
               _Call.failed(
                 step,
-                e is LlmException ? e : LlmException(LlmErrorKind.cancelled, 'cancelled', latency: sw.elapsed),
+                e is LlmException
+                    ? e
+                    : LlmException(
+                        LlmErrorKind.cancelled,
+                        'cancelled',
+                        latency: sw.elapsed,
+                      ),
                 retry: tag,
               ),
             );
@@ -612,11 +701,17 @@ class CoachAgent {
                 )
               : e is LlmException
               ? e
-              : LlmException(LlmErrorKind.badResponse, '$e', latency: sw.elapsed);
+              : LlmException(
+                  LlmErrorKind.badResponse,
+                  '$e',
+                  latency: sw.elapsed,
+                );
           calls.add(_Call.failed(step, le, retry: tag));
           failure = le;
           tag++;
-          final cls = e is LlmException || timedOut ? RequestErrorClass.of(le) : RequestErrorClass.other;
+          final cls = e is LlmException || timedOut
+              ? RequestErrorClass.of(le)
+              : RequestErrorClass.other;
           AgentFailureKind? fail;
           var delay = Duration.zero;
           if (timedOut && turnLimited) {
@@ -625,7 +720,14 @@ class CoachAgent {
             // 上下文超长：强制压一次再重试一次（不计入重试次数）。
             forced = true;
             compress(force: true);
-            emit(AgentEventKind.retrying, step: step, attempt: 1, maxAttempts: 1, reason: cls, delay: delay);
+            emit(
+              AgentEventKind.retrying,
+              step: step,
+              attempt: 1,
+              maxAttempts: 1,
+              reason: cls,
+              delay: delay,
+            );
             continue;
           } else if (!cls.retryable) {
             fail = AgentFailureKind.nonRetryable;
@@ -640,7 +742,9 @@ class CoachAgent {
               retryAfter: le.retryAfter,
               random: _random,
             );
-            if (delay >= turnTimeout - turnWatch.elapsed) fail = AgentFailureKind.turnTimeout;
+            if (delay >= turnTimeout - turnWatch.elapsed) {
+              fail = AgentFailureKind.turnTimeout;
+            }
           }
           if (fail != null) {
             error = AgentRequestFailed(
@@ -667,7 +771,11 @@ class CoachAgent {
           // 同步监听器可能在 retrying 里直接 cancel / reset：先复查再退避。
           if (dead()) return cancelled(step);
           // 退避可被取消 / reset 立即打断；打断后不回写。
-          await Future.any<void>([_sleep(delay), ?cancel?.whenCancelled, resetSig.future]);
+          await Future.any<void>([
+            _sleep(delay),
+            ?cancel?.whenCancelled,
+            resetSig.future,
+          ]);
           if (dead()) return cancelled(step);
         } finally {
           timer.cancel();
@@ -675,6 +783,7 @@ class CoachAgent {
         }
       }
       if (res == null) break;
+      final response = res;
       if (dead()) {
         calls.add(_Call.ok(step, res, CallOutcome.cancelled, retry: tag));
         return cancelled(step);
@@ -685,12 +794,27 @@ class CoachAgent {
         submissions++;
         final g = gate.check(res.content, const [], context: context);
         if (g.leaked) {
-          calls.add(_Call.ok(step, res, retry: tag, CallOutcome.rejected, codes: const ['canary_leak']));
+          calls.add(
+            _Call.ok(
+              step,
+              res,
+              retry: tag,
+              CallOutcome.rejected,
+              codes: const ['canary_leak'],
+            ),
+          );
           leaked = true;
           break;
         }
         if (g.ok) {
-          calls.add(_Call.ok(step, res, retry: tag, rejected == 0 ? CallOutcome.passed : CallOutcome.rewritten));
+          calls.add(
+            _Call.ok(
+              step,
+              res,
+              retry: tag,
+              rejected == 0 ? CallOutcome.passed : CallOutcome.rewritten,
+            ),
+          );
           return done(
             TurnStatus.ok,
             rejected == 0 ? TurnOutcome.model : TurnOutcome.rewritten,
@@ -700,22 +824,42 @@ class CoachAgent {
               _turns++;
               _history
                 ..add(userMsg)
-                ..add(assistant(res, content: g.text, history: true));
+                ..add(assistant(response, content: g.text, history: true));
             },
           );
         }
-        calls.add(_Call.ok(step, res, retry: tag, CallOutcome.rejected, codes: [for (final e in g.errors) e.code]));
+        calls.add(
+          _Call.ok(
+            step,
+            response,
+            retry: tag,
+            CallOutcome.rejected,
+            codes: [for (final e in g.errors) e.code],
+          ),
+        );
         lastErrors = g.errors;
         if (++rejected > maxResubmits) break;
         turnMsgs
           ..add(assistant(res))
-          ..add(LlmMessage.user(_feedback(g.errors, remaining: 1 + maxResubmits - rejected)));
+          ..add(
+            LlmMessage.user(
+              _feedback(g.errors, remaining: 1 + maxResubmits - rejected),
+            ),
+          );
         continue;
       }
 
       // 执行任何工具之前统一查暗号（正文、工具名、解码后的全部参数字符串）：命中整轮回落，不提交记忆。
       if (gate.leaks(res.content, res.toolCalls)) {
-        calls.add(_Call.ok(step, res, retry: tag, CallOutcome.rejected, codes: const ['canary_leak']));
+        calls.add(
+          _Call.ok(
+            step,
+            res,
+            retry: tag,
+            CallOutcome.rejected,
+            codes: const ['canary_leak'],
+          ),
+        );
         leaked = true;
         break;
       }
@@ -730,14 +874,19 @@ class CoachAgent {
           case AgentTools.read:
             final path = SkillFiles.normalize(_arg(t, 'path') ?? '');
             emit(AgentEventKind.reading, step: step, path: path);
-            if (path.startsWith('${SkillFiles.userMemory}/')) memResultIds.add(t.id);
+            if (path.startsWith('${SkillFiles.userMemory}/')) {
+              memResultIds.add(t.id);
+            }
             final before = readSet.length;
             final isDir = fs.read(path) == null && fs.ls(path) != null;
             results[t.id] = _read(fs, path, readSet, reads);
             if (isDir) {
               // 目录 read 与 ls 共用目录去重 / 新信息 / 压缩跟踪。
               if (listed.add(path)) fresh = true;
-              pendingCompress[t.id] = CompressibleResult(t.id, '已列目录 $path（略，需要可再 ls）');
+              pendingCompress[t.id] = CompressibleResult(
+                t.id,
+                '已列目录 $path（略，需要可再 ls）',
+              );
             } else if (readSet.length > before) {
               fresh = true;
               pendingCompress[t.id] = CompressibleResult(
@@ -753,7 +902,10 @@ class CoachAgent {
             results[t.id] = l == null ? '没有这个目录：$dir' : l.join('\n');
             if (l != null) {
               if (listed.add(dir)) fresh = true;
-              pendingCompress[t.id] = CompressibleResult(t.id, '已列目录 $dir（略，需要可再 ls）');
+              pendingCompress[t.id] = CompressibleResult(
+                t.id,
+                '已列目录 $dir（略，需要可再 ls）',
+              );
             }
           case AgentTools.checkPlan:
             emit(AgentEventKind.checking, step: step);
@@ -766,18 +918,66 @@ class CoachAgent {
             }
           case AgentTools.remember || AgentTools.forget when memoryOn:
             final kindName = _arg(t, 'kind');
+            final memoryEpoch = turnMemoryEpoch;
             emit(AgentEventKind.memory, step: step, path: kindName);
             memResultIds.add(t.id);
             fresh = true;
-            results[t.id] = _memoryOp(t, memOps);
+            var memoryTimedOut = false;
+            final pending = _memoryOp(
+              t,
+              valid: () =>
+                  !dead() &&
+                  !memoryTimedOut &&
+                  enableUserMemory &&
+                  memoryEpoch == _memEpoch,
+              epoch: memoryEpoch,
+            );
+            results[t.id] =
+                await Future.any<String>([
+                  pending,
+                  if (cancel != null)
+                    cancel.whenCancelled.then((_) => _memoryError('cancelled')),
+                  resetSig.future.then((_) => _memoryError('cancelled')),
+                ]).timeout(
+                  turnTimeout - turnWatch.elapsed,
+                  onTimeout: () {
+                    memoryTimedOut = true;
+                    return _memoryError('timeout');
+                  },
+                );
+            if (dead()) {
+              calls.add(_Call.ok(step, res, CallOutcome.cancelled, retry: tag));
+              return cancelled(step);
+            }
+            if (memoryTimedOut) {
+              calls.add(_Call.ok(step, res, CallOutcome.toolStep, retry: tag));
+              error = AgentRequestFailed(
+                AgentFailureKind.turnTimeout,
+                errorClass: RequestErrorClass.timeout,
+                attempts: tag + 1,
+              );
+              reason = FallbackReason.timeout;
+              break agentSteps;
+            }
           case AgentTools.showActions || AgentTools.showPlan:
             finals.add(t);
           default:
-            results[t.id] = jsonEncode({'ok': false, 'error': '没有工具「${t.name}」，只能用已提供的工具'});
+            results[t.id] = jsonEncode({
+              'ok': false,
+              'error': '没有工具「${t.name}」，只能用已提供的工具',
+            });
         }
       }
       if (leaked) {
-        calls.add(_Call.ok(step, res, retry: tag, CallOutcome.rejected, codes: const ['canary_leak']));
+        calls.add(
+          _Call.ok(
+            step,
+            res,
+            retry: tag,
+            CallOutcome.rejected,
+            codes: const ['canary_leak'],
+          ),
+        );
         break;
       }
 
@@ -791,13 +991,19 @@ class CoachAgent {
           if (c != null) compressible[m] = c;
         }
         // 防空转：连续相同的工具调用（同名同参数）或连续无新信息。
-        final sig = [for (final t in res.toolCalls) '${t.name}\u0000${t.arguments}'].join('\u0001');
+        final sig = [
+          for (final t in res.toolCalls) '${t.name}\u0000${t.arguments}',
+        ].join('\u0001');
         repeat = sig == lastSig ? repeat + 1 : 1;
         lastSig = sig;
         idle = fresh ? 0 : idle + 1;
-        if (warned ? (repeat >= 2 || idle >= 1) : (repeat >= maxStallSteps || idle >= maxStallSteps)) {
+        if (warned
+            ? (repeat >= 2 || idle >= 1)
+            : (repeat >= maxStallSteps || idle >= maxStallSteps)) {
           if (warned) {
-            error = AgentStalled(repeat >= 2 ? 'repeated_tool_call' : 'no_new_info');
+            error = AgentStalled(
+              repeat >= 2 ? 'repeated_tool_call' : 'no_new_info',
+            );
             reason = FallbackReason.invalidOutput;
             break;
           }
@@ -815,14 +1021,34 @@ class CoachAgent {
       }
 
       submissions++;
-      final g = gate.check(res.content, finals, context: context, planId: _ids.next('plan'));
+      final g = gate.check(
+        res.content,
+        finals,
+        context: context,
+        planId: _ids.next('plan'),
+      );
       if (g.leaked) {
-        calls.add(_Call.ok(step, res, retry: tag, CallOutcome.rejected, codes: const ['canary_leak']));
+        calls.add(
+          _Call.ok(
+            step,
+            res,
+            retry: tag,
+            CallOutcome.rejected,
+            codes: const ['canary_leak'],
+          ),
+        );
         leaked = true;
         break;
       }
       if (g.ok) {
-        calls.add(_Call.ok(step, res, retry: tag, rejected == 0 ? CallOutcome.passed : CallOutcome.rewritten));
+        calls.add(
+          _Call.ok(
+            step,
+            res,
+            retry: tag,
+            rejected == 0 ? CallOutcome.passed : CallOutcome.rewritten,
+          ),
+        );
         return done(
           TurnStatus.ok,
           rejected == 0 ? TurnOutcome.model : TurnOutcome.rewritten,
@@ -835,12 +1061,29 @@ class CoachAgent {
             _turns++;
             _history
               ..add(userMsg)
-              ..add(assistant(res, content: g.text, toolCalls: finals, history: true))
-              ..addAll([for (final t in finals) LlmMessage.tool(t.id, g.feedback())]);
+              ..add(
+                assistant(
+                  response,
+                  content: g.text,
+                  toolCalls: finals,
+                  history: true,
+                ),
+              )
+              ..addAll([
+                for (final t in finals) LlmMessage.tool(t.id, g.feedback()),
+              ]);
           },
         );
       }
-      calls.add(_Call.ok(step, res, retry: tag, CallOutcome.rejected, codes: [for (final e in g.errors) e.code]));
+      calls.add(
+        _Call.ok(
+          step,
+          res,
+          retry: tag,
+          CallOutcome.rejected,
+          codes: [for (final e in g.errors) e.code],
+        ),
+      );
       lastErrors = g.errors;
       if (++rejected > maxResubmits) break;
       final fb = _feedback(g.errors, remaining: 1 + maxResubmits - rejected);
@@ -852,13 +1095,13 @@ class CoachAgent {
         if (c != null) compressible[m] = c;
       }
     }
-    if (step >= maxSteps && error == null && !leaked && rejected <= maxResubmits) {
+    if (step >= maxSteps &&
+        error == null &&
+        !leaked &&
+        rejected <= maxResubmits) {
       reason = FallbackReason.invalidOutput;
       error = AgentStepLimitExceeded(maxSteps);
     }
-
-    // 暗号泄露的轮次不提交任何记忆操作。
-    if (leaked) memOps.clear();
 
     // 回落：绝不渲染未通过的内容。
     if (dead()) {
@@ -868,7 +1111,13 @@ class CoachAgent {
     if (fbFn == null) return done(TurnStatus.error, TurnOutcome.error, step);
     try {
       final r = await fbFn(
-        SessionFallbackRequest(userText: text, context: context, reason: reason, issues: lastErrors, error: error),
+        SessionFallbackRequest(
+          userText: text,
+          context: context,
+          reason: reason,
+          issues: lastErrors,
+          error: error,
+        ),
       );
       if (dead()) {
         return cancelled(step);
@@ -908,7 +1157,12 @@ class CoachAgent {
     return null;
   }
 
-  static String _read(SkillFiles fs, String path, Set<String> readSet, List<String> reads) {
+  static String _read(
+    SkillFiles fs,
+    String path,
+    Set<String> readSet,
+    List<String> reads,
+  ) {
     final text = fs.read(path);
     if (text == null) {
       final l = fs.ls(path);
@@ -921,7 +1175,12 @@ class CoachAgent {
   }
 
   /// check_plan：复用门禁校验 + SDK 估算时长。返回 null 表示参数里有暗号（整轮回落）。
-  String? _checkPlan(LlmToolCall t, ToolGate gate, CoachContext ctx, Catalog cat) {
+  String? _checkPlan(
+    LlmToolCall t,
+    ToolGate gate,
+    CoachContext ctx,
+    Catalog cat,
+  ) {
     Object? args;
     try {
       args = jsonDecode(t.arguments);
@@ -939,9 +1198,13 @@ class CoachAgent {
       });
     }
     // 自检宽容一层包装：{"plan": {...}}。
-    if (args is Map && args.length == 1 && args['plan'] is Map) args = args['plan'];
+    if (args is Map && args.length == 1 && args['plan'] is Map) {
+      args = args['plan'];
+    }
     final argText = jsonEncode(args);
-    final g = gate.check('', [LlmToolCall(id: t.id, name: AgentTools.showPlan, arguments: argText)], context: ctx);
+    final g = gate.check('', [
+      LlmToolCall(id: t.id, name: AgentTools.showPlan, arguments: argText),
+    ], context: ctx);
     if (g.leaked) return null;
     double? est;
     int? target;
@@ -962,49 +1225,93 @@ class CoachAgent {
     return jsonEncode({
       'ok': ok,
       if (!ok) 'errors': [for (final e in g.errors) _issueJson(e)],
-      if (g.warnings.isNotEmpty) 'warnings': [for (final w in g.warnings) w.message],
+      if (g.warnings.isNotEmpty)
+        'warnings': [for (final w in g.warnings) w.message],
       'estimatedMinutes': ?est == null ? null : (est * 10).round() / 10,
       'targetMinutes': ?target,
-      'diffMinutes': ?(est == null || target == null) ? null : ((est - target) * 10).round() / 10,
+      'diffMinutes': ?(est == null || target == null)
+          ? null
+          : ((est - target) * 10).round() / 10,
       'next': ok ? '没有错误：用 show_plan 提交同样的参数（时长差太大可先调整）。' : '逐条改完再 check_plan。',
     });
   }
 
-  String _memoryOp(LlmToolCall t, List<List<MemoryEntry> Function(List<MemoryEntry>)> ops) {
+  static String _memoryError(String code) => jsonEncode({
+    'ok': false,
+    'error': code,
+    'message': '记忆未确认保存成功，不要向用户确认已记下或已忘记。',
+  });
+
+  Future<String> _memoryOp(
+    LlmToolCall t, {
+    required bool Function() valid,
+    required int epoch,
+  }) async {
     final kindName = _arg(t, 'kind');
     final kind = MemoryKind.values.where((k) => k.name == kindName).firstOrNull;
     final text = _arg(t, 'text');
+    late List<MemoryEntry> Function(List<MemoryEntry>) update;
     if (t.name == AgentTools.remember) {
       if (kind == null || text == null || text.trim().isEmpty) {
         return jsonEncode({
           'ok': false,
-          'error': 'remember 需要 kind（${MemoryKind.values.map((k) => k.name).join('/')}）和 text',
+          'error':
+              'remember 需要 kind（${MemoryKind.values.map((k) => k.name).join('/')}）和 text',
         });
       }
       final at = _clock().toUtc();
-      ops.add((m) => UserMemoryOps.remember(m, MemoryEntry(kind, text, at: at), memoryLimits));
-      return jsonEncode({'ok': true});
+      update = (m) => UserMemoryOps.remember(
+        m,
+        MemoryEntry(kind, text, at: at),
+        memoryLimits,
+      );
+    } else {
+      if (kind == null && (text == null || text.trim().isEmpty)) {
+        return jsonEncode({'ok': false, 'error': 'forget 需要 kind 或 text'});
+      }
+      update = (m) => UserMemoryOps.forget(m, kind: kind, text: text);
     }
-    if (kind == null && (text == null || text.trim().isEmpty)) {
-      return jsonEncode({'ok': false, 'error': 'forget 需要 kind 或 text'});
+    try {
+      return await _queueMemory(() async {
+        if (!valid()) return _memoryError('cancelled');
+        final before = List<MemoryEntry>.of(await memory());
+        if (!valid()) return _memoryError('cancelled');
+        final next = update(before);
+        await memoryStore.save(next);
+        if (!valid()) {
+          // store 的 Future 不可取消。迟到写入仍占有队列，恢复未确认前的快照，
+          // clearMemory 已递增 epoch 时以当前清空意图为准，再放行后续写入。
+          await memoryStore.save(
+            epoch == _memEpoch
+                ? before
+                : List<MemoryEntry>.of(_memory ?? const []),
+          );
+          return _memoryError('cancelled');
+        }
+        _memory = next;
+        return jsonEncode({'ok': true});
+      });
+    } on Object {
+      return _memoryError('memory_save_failed');
     }
-    ops.add((m) => UserMemoryOps.forget(m, kind: kind, text: text));
-    return jsonEncode({'ok': true});
   }
 
   /// show_* 被打回时回给模型的结果（改法换成 Agent 口径：id 来自读到的文件）。
-  static String _feedback(List<PlanIssue> errors, {required int remaining}) => jsonEncode({
-    'ok': false,
-    'remainingAttempts': remaining,
-    'errors': [for (final e in errors) _issueJson(e)],
-    'instruction': '逐条改完后重新提交（可先 check_plan）；不要向用户解释这些错误。',
-  });
+  static String _feedback(List<PlanIssue> errors, {required int remaining}) =>
+      jsonEncode({
+        'ok': false,
+        'remainingAttempts': remaining,
+        'errors': [for (final e in errors) _issueJson(e)],
+        'instruction': '逐条改完后重新提交（可先 check_plan）；不要向用户解释这些错误。',
+      });
 
   static Map<String, Object?> _issueJson(PlanIssue e) {
     final j = ToolGate.issueJson(e);
     final fix = switch (e.code) {
-      IssueCodes.unknownExercise || IssueCodes.outOfProfile => '换成你在 action-library 索引里读到的 id，逐字拷贝',
-      IssueCodes.modeMismatch => '按 details 里的默认剂量：mode=reps 填 reps；mode=time 填 workSeconds',
+      IssueCodes.unknownExercise ||
+      IssueCodes.outOfProfile => '换成你在 action-library 索引里读到的 id，逐字拷贝',
+      IssueCodes.modeMismatch =>
+        '按 details 里的默认剂量：mode=reps 填 reps；mode=time 填 workSeconds',
       IssueCodes.avoid => '换成 details 里注意部位不含该部位的动作，或删掉这一项',
       IssueCodes.unknownTool => '只用已提供的工具',
       IssueCodes.multipleTools => '一次回复只调用一个 show_* 工具',
@@ -1015,7 +1322,9 @@ class CoachAgent {
   }
 
   static int _chars(LlmMessage m) =>
-      m.content.length + (m.reasoning?.length ?? 0) + m.toolCalls.fold(0, (n, t) => n + t.arguments.length);
+      m.content.length +
+      (m.reasoning?.length ?? 0) +
+      m.toolCalls.fold(0, (n, t) => n + t.arguments.length);
 
   static FallbackReason _reasonFor(LlmErrorKind k) => switch (k) {
     LlmErrorKind.network => FallbackReason.offline,
@@ -1023,7 +1332,9 @@ class CoachAgent {
     LlmErrorKind.rateLimited => FallbackReason.rateLimited,
     LlmErrorKind.auth => FallbackReason.auth,
     LlmErrorKind.truncated => FallbackReason.truncated,
-    LlmErrorKind.http || LlmErrorKind.badResponse || LlmErrorKind.cancelled => FallbackReason.server,
+    LlmErrorKind.http ||
+    LlmErrorKind.badResponse ||
+    LlmErrorKind.cancelled => FallbackReason.server,
   };
 
   // ---- 记账 ----
@@ -1114,7 +1425,10 @@ class CoachAgent {
       warnings: warnings,
       issues: issues,
       submissions: submissions,
-      fallbackReason: status == TurnStatus.fallback || status == TurnStatus.error ? reason : null,
+      fallbackReason:
+          status == TurnStatus.fallback || status == TurnStatus.error
+          ? reason
+          : null,
       leaked: leaked,
       error: error,
       records: records,
@@ -1125,13 +1439,18 @@ class CoachAgent {
 }
 
 class _Call {
-  _Call.ok(this.attempt, LlmResponse r, this.outcome, {this.codes = const [], this.retry = 0})
-    : usage = r.usage,
-      latency = r.latency,
-      httpAttempts = r.httpAttempts,
-      model = r.model,
-      finishReason = r.finishReason,
-      error = null;
+  _Call.ok(
+    this.attempt,
+    LlmResponse r,
+    this.outcome, {
+    this.codes = const [],
+    this.retry = 0,
+  }) : usage = r.usage,
+       latency = r.latency,
+       httpAttempts = r.httpAttempts,
+       model = r.model,
+       finishReason = r.finishReason,
+       error = null;
 
   _Call.failed(this.attempt, LlmException e, {this.retry = 0})
     : usage = e.usage,
@@ -1139,7 +1458,9 @@ class _Call {
       httpAttempts = e.httpAttempts,
       model = null,
       finishReason = e.kind == LlmErrorKind.truncated ? 'length' : null,
-      outcome = e.kind == LlmErrorKind.cancelled ? CallOutcome.cancelled : CallOutcome.error,
+      outcome = e.kind == LlmErrorKind.cancelled
+          ? CallOutcome.cancelled
+          : CallOutcome.error,
       codes = const [],
       error = e;
 

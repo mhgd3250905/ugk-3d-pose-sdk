@@ -6,7 +6,7 @@
 
 - 纯 Dart，不依赖 Flutter（Web 也能用）；`dart:io` 的部分（文件缓存、JSONL 记账）单独在 `package:ugk_coach/ugk_coach_io.dart`。
 - 一个动作 id = 定义 + 封面 + 示范视频 + 建模源（Pose-Hub spec）+ 语音：`assistant.resolve(id)` 带出整套素材。
-- 修复分支本机验证：根包 304 项、训练包 126 项测试通过，两包分析 0 问题；SmartFit 已完成 0.3 Agent 真实 Worker 多步与记忆六类分组验证，最终采用记录均未回落（2026-10-21，source SHA、适用范围见[项目维护台账](docs/project-ledger.md)）。修复仍在 `fix/coach-agent-reasoning-replay`，SDK / App 合入 main 待开哥批准；原 main 的离线证据及历史 0.1 冒烟分别保留在台账和 [docs/smoke-2026-10-20.md](docs/smoke-2026-10-20.md)。
+- 当前集成版本为 **0.3.2**，位于 `codex/coach-agent-032-integration`，待开哥最终批准；main 核验快照为 `517fdbe`（0.3.1）。本次最终离线验证见交付记录，尚无新 0.3.2 代码树的真实 Worker 验收；原 `712cb7b` / `43dfef6` 的 SmartFit 六类分组验证和历史 0.1 冒烟分别保留在[项目维护台账](docs/project-ledger.md)和 [docs/smoke-2026-10-20.md](docs/smoke-2026-10-20.md)。
 
 ## 维护与事实来源
 
@@ -73,6 +73,10 @@ final agent = CoachAgent(
 agent.events.listen((e) => showProgress(e));   // reading / checking / done …
 final r = await agent.send(userText, context: CoachContext(scene: 'home'));
 ```
+
+0.3.2 默认整轮时限为 360s，单步请求时限为 60s，30s 发出 `slow` 事件；60k 上下文估算不计推理协议字段，只压缩较早的 read / ls 工具结果。单步失败保留已有工具进度后重试，记忆关闭时重试也过滤记忆相关推理。
+
+`remember` / `forget` 等待 `myMemoryStore.save` 成功后才返回 `ok:true`；App 实现必须在保存完成后才完成 Future，失败应抛出异常，SDK 会返回工具错误。已确认保存的操作在后续取消时保留；pending 保存被取消 / reset 后不会回写缓存或会话，底层迟到写入由串行队列补偿。每条 assistant 请求消息均带 `reasoning_content`，没有推理时为空串。
 
 ## 0.2 工具版接入（降级）
 
@@ -327,8 +331,8 @@ abstract interface class SessionRunner { Stream<TimelineEvent> get events; void 
 
 ```bash
 dart pub get
-dart analyze           # 0 问题
-dart test              # 当前修复分支根包 304 项，全部离线；验证状态见项目维护台账
+dart analyze           # 本次集成的最终结果见交付记录
+dart test              # 根包离线验证；历史 source 与验收边界见项目维护台账
 dart run tool/embed_prompts.dart        # 改了 prompts/*.md 之后
 dart run example/quickstart.dart        # 离线演示
 dart run example/smoke.dart             # 真实调用（花钱，按需跑一次）

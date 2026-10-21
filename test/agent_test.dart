@@ -337,7 +337,7 @@ void main() {
       expect((await first).status, TurnStatus.ok);
     });
 
-    test('reset 后旧轮不回写（含记忆）', () async {
+    test('reset 后旧轮不回写历史，已确认保存的记忆保留', () async {
       final gate = Completer<Object>();
       final store = InMemoryUserMemoryStore();
       final c = FakeLlmClient([
@@ -359,7 +359,7 @@ void main() {
       expect(r.status, TurnStatus.cancelled);
       expect(a.history, isEmpty);
       expect(a.turnCount, 0);
-      expect(store.entries, isEmpty);
+      expect(store.entries.map((e) => e.text), ['左膝疼']);
       expect(events.where((e) => e.kind == AgentEventKind.done), isEmpty);
     });
 
@@ -379,7 +379,7 @@ void main() {
   });
 
   group('用户记忆', () {
-    test('开：remember 在本轮提交后写入，下一轮进系统提示词；forget 删除', () async {
+    test('开：remember 逐工具保存，下一轮进系统提示词；forget 删除', () async {
       final store = InMemoryUserMemoryStore();
       final c = FakeLlmClient([
         _tools([

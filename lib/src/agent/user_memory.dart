@@ -24,8 +24,15 @@ class MemoryEntry {
 }
 
 /// App 实现：读 / 写一个用户的全部记忆（整表覆盖）。
+/// Agent 按工具串行等待 [save] 成功后才确认 remember / forget；已确认操作
+/// 不因本轮后续取消而撤销。取消不能中止此接口已开始的写入，SDK 会在迟到写入
+/// 完成后串行补偿到已确认快照，并尊重 clearMemory 的清空意图。
 abstract interface class UserMemoryStore {
+  /// 读取已保存的完整记忆；读取失败应抛出异常。
   Future<List<MemoryEntry>> load();
+
+  /// 完整替换已保存的记忆。Future 成功必须表示保存已完成，失败必须抛出异常；
+  /// 不应启动后台写入后提前返回成功，否则 Agent 无法可靠确认工具结果。
   Future<void> save(List<MemoryEntry> entries);
 }
 

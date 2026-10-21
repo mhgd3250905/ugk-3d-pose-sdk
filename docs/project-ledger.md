@@ -8,14 +8,14 @@
 
 | 项目 | 已核对状态 |
 |---|---|
-| 主线核验快照 | `origin/main` = `1d1aad86f516bd7121cc73c71d623043f1042dc3`；SDK 修复尚未合入 main |
-| 当前修复分支 / 运行代码 | `fix/coach-agent-reasoning-replay`；实现与测试 source 为 `43dfef637144a1e08b5eda5ed743db0671ba5a8d`；吸收上述 main 文档后的 HEAD 为 `5b5aa27747b6eeaf67c18cc8bd7bebdeea566381`，运行与测试树不变 |
+| 主线核验快照 | `origin/main` = `517fdbef6d9e611eff3f68bc2138f8e00e35c82e`；PR #5 已合入，根包 0.3.1；本次 0.3.2 尚未合入 |
+| 当前集成分支 / 来源 | `codex/coach-agent-032-integration`；按指定源 `9bc392c42222d61d8c57e8dc00373ee165e56e06` 在上述 main 上 rebase 后补齐 0.3.2；原 `fix/coach-agent-reasoning-replay` 分支保持原状，后续额外评审文档未作为集成源 |
 | 最初文档对齐 baseline（历史） | `1f8be6edf9c0c57575d963448af379e8fdf8df2a`；来自原文档会话 Cockpit init 记录，已核对为当时 main 且是当前 HEAD 的祖先 |
 | 最初对齐前的 stage delta（历史） | baseline..HEAD 为 0 提交、0 路径；完整工作区 tracked 0、untracked 0；不代表修复分支当前成果 |
-| 根包 | `ugk_coach` 0.3.0；`publish_to: none`，已合并不表示已发布到 pub.dev |
+| 根包 | 集成分支 `ugk_coach` 0.3.2；main 为 0.3.1；`publish_to: none`，版本修改不表示已发布到 pub.dev |
 | 推荐入口 | `CoachAgent`；`CoachSession` 保留作 0.2 降级，`CoachAssistant` 为 deprecated 旧接口 |
-| 训练执行 | PR #1 引入 `ugk_trainer` 0.1.0，当前包清单为 0.1.4；修复分支训练包 126 项测试通过 |
-| 验收边界 | SDK 根包 304 项、训练包 126 项测试及两包分析通过；SmartFit 的 0.3 Agent 真实 Worker 六类分组验证通过；SDK / App 合入 main 待开哥批准；本轮未验真机 UI 或完整训练 |
+| 训练执行 | PR #1 引入 `ugk_trainer` 0.1.0，当前包清单为 0.1.4；本次未修改训练包；原 source 的 126 项测试为历史证据 |
+| 验收边界 | 0.3.2 根包 342 项测试、Dart 3.12.2 分析 0 问题及差异检查通过；本次 SDK 集成待开哥最终批准，尚无新代码树的真实 Worker 验收。历史 SmartFit 六类分组验证绑定 `712cb7b` / `43dfef6`，不升级为本次真实服务验收；真机 UI / 完整训练未验 |
 | Cockpit | 原文档会话已接入 working（历史记录）；文档更新不自动结束会话或生成交接 |
 
 ## 事实来源与文档分工
@@ -25,14 +25,14 @@
 | 路径 | 类别 | current / archive-history | 用途与核对结果 |
 |---|---|---|---|
 | [README.md](../README.md) | 项目入口 | current | 当前接入方式与文档入口；区分 Agent、工具版和 JSON 信封旧接口 |
-| [pubspec.yaml](../pubspec.yaml) | 包配置 | current | 根包名 `ugk_coach`、版本 0.3.0、禁止 pub.dev 发布 |
+| [pubspec.yaml](../pubspec.yaml) | 包配置 | current | 根包名 `ugk_coach`、集成版本 0.3.2、禁止 pub.dev 发布 |
 | [docs/agent-plan.md](agent-plan.md) | Agent 设计 | current | 0.3 工具循环、技能披露、用户记忆和事件；不充当真实服务验收记录 |
-| [CHANGELOG.md](../CHANGELOG.md) | 版本变更记录 | history；0.3.0 条目对应当前版本 | 记录各版本与训练包成果；历史条目的测试数和待定项保留原时间语境 |
+| [CHANGELOG.md](../CHANGELOG.md) | 版本变更记录 | current / history；首条为待批准 0.3.2 | 记录各版本与训练包成果；历史条目的测试数和待定项保留原时间语境 |
 | [docs/design.md](design.md) | 早期设计决策 | archive/history | 标题明确为 ugk_coach 0.1.2，不用它覆盖 0.3 行为或判定外部 PR 的当前状态 |
 | [docs/smoke-2026-10-20.md](smoke-2026-10-20.md) | 历史真实调用 | archive/history | 0.1 / OpenCSG 的一次真实冒烟，不能证明 0.3 Worker 多步链路通过 |
 | [docs/project-ledger.md](project-ledger.md) | 维护与验收台账 | current | 本文；承接当前合并状态、验证适用范围、未决事项和维护规则 |
 
-最初文档对齐未对 profile、目录、提示词或依赖做变更。之后的修复分支调整了推理协议回传及记忆开启时的指令，具体变更见 Unreleased；本次验证记录同步仅改 README、CHANGELOG 和本文。
+最初文档对齐没有修改 profile、目录、提示词或依赖。原修复新增推理协议回传及记忆开启指令，本次 0.3.2 在指定源上集成，并补齐请求时限、推理预算口径及逐工具记忆持久化；具体变更见 CHANGELOG。源分支原 Unreleased 的必要事实已归入 0.3.2，原真实验证保留在下方历史小节。
 
 ## 合并记录
 
@@ -43,10 +43,21 @@
 | [#1](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/1) | 通用训练模块 ugk_trainer 0.1.0 | MERGED / 2026-10-20 | `68c3f32389749c04ad61a06af96e4b9841ccce87` |
 | [#3](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/3) | ugk_coach 0.2.0 工具版会话与门禁 | MERGED / 2026-10-21 | `09a392bc0b736e6a23eef71d55d86108660e0e59` |
 | [#4](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/4) | ugk_coach 0.3.0 Agent 与渐进式技能披露 | MERGED / 2026-10-21 | `1f8be6edf9c0c57575d963448af379e8fdf8df2a` |
+| [#5](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/5) | ugk_coach 0.3.1 Agent 韧性与审核修复 | MERGED / 2026-10-21 | `517fdbef6d9e611eff3f68bc2138f8e00e35c82e` |
 
 PR #4 的复审 head 为 `48417e03f5ff05d4434dc2e15cc36237464153d2`。合并提交的两父提交分别为 `09a392bc0b736e6a23eef71d55d86108660e0e59` 和该复审 head；合并树与复审树一致。
 
 ## 验证证据与适用范围
+
+### 0.3.2 集成离线已验收，待批准（2026-10-21）
+
+本次以 `9bc392c42222d61d8c57e8dc00373ee165e56e06` 为指定源，在 `517fdbef6d9e611eff3f68bc2138f8e00e35c82e` 上集成；版本为 0.3.2，分支 `codex/coach-agent-032-integration`。原修复分支和主线保持原状，主线合并及推送待开哥最终批准。
+
+当前行为为：Agent 整轮默认 360s、slow 提示 30s、单请求 60s；60k 上下文估算不计推理，仅压缩早期 read / ls 的 tool 结果。每条 assistant wire 消息均保留 `reasoning_content`，缺失使用空串；单步重试继续执行记忆隐私过滤。`remember` / `forget` 逐条等待 store.save 成功才返回 ok，失败返回工具错误；已确认前序保存可在后续取消时保留，pending 保存的迟到结果不写缓存 / 会话，并由串行队列补偿，清除记忆优先。
+
+本次根包 `dart test` 342 项全部通过，Dart 3.12.2 的 `dart analyze` 为 0 问题，`git diff --check` 通过。新增持久化时序、失败恢复、取消/reset/清除/超时补偿和推理跨压缩/重试/清除隔离测试。训练包未改动，本次未重复执行 Flutter 验收。没有为新 0.3.2 代码树重新声明真实 Worker、真机 UI 或完整训练验收通过；下方 304 / 126 / 217 项测试数及 204.564s 等真实请求结果均保留其原 source 语境。
+
+### 原 main 基线的离线证据（历史）
 
 以下为原 main 基线的历史验证，2026-10-21 本机执行，Dart 3.12.2。结果已发布到 [PR #4 复审评论](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/4#issuecomment-6309269982)。修复分支补验单列在后文，不覆盖这些历史结果。
 
@@ -59,9 +70,9 @@ PR #4 的复审 head 为 `48417e03f5ff05d4434dc2e15cc36237464153d2`。合并提�
 | `git diff --quiet 48417e03f5ff05d4434dc2e15cc36237464153d2 1f8be6edf9c0c57575d963448af379e8fdf8df2a` | 退出码 0，树一致 | 2026-10-21 文档 Preflight；因此可把上述离线证据复用于合并后的代码树 |
 | `git status --porcelain=v1 --untracked-files=all` | 对齐前无输出 | 2026-10-21 文档 Preflight；没有证据之后的未提交代码变更 |
 | `gh pr view <1/3/4> --repo mhgd3250905/ugk-3d-pose-sdk --json number,title,state,mergedAt,mergeCommit,headRefOid,url` | 三个 PR 均为 MERGED | 2026-10-21 远端观察；不代替测试证据 |
-| `git ls-remote origin refs/heads/main` | 返回上述 main 快照 SHA | 2026-10-21 远端观察；后续分支推进需重新核对 |
+| `git ls-remote origin refs/heads/main` | 当时返回 `1d1aad86f516bd7121cc73c71d623043f1042dc3` | 原文档对齐时的历史远端观察，不代表当前 main |
 
-### 修复分支补验与真实 Worker（2026-10-21）
+### 原修复分支补验与真实 Worker（历史，2026-10-21）
 
 修复依次为 `029af4a1e735b5f1c3f1ee5cef6c82aad8a1c3f4`（推理回传）、`712cb7b3d636a5314c5aa08211c822928a0af4f4`（空推理协议字段）、`43dfef637144a1e08b5eda5ed743db0671ba5a8d`（记忆开启指令）。根包 `dart test` 304 项、`dart analyze` 0 问题，训练包 `flutter test` 126 项、`flutter analyze` 0 问题，均绑定到 `43dfef6` 的运行与测试树。吸收 main 的文档提交后，`git diff --quiet 43dfef637144a1e08b5eda5ed743db0671ba5a8d 5b5aa27747b6eeaf67c18cc8bd7bebdeea566381 -- lib test packages tool prompts skills profiles pubspec.yaml analysis_options.yaml` 退出码 0。
 
@@ -78,9 +89,9 @@ PR #4 的复审 head 为 `48417e03f5ff05d4434dc2e15cc36237464153d2`。合并提�
 
 这是分组复验：`43dfef6` 唯一生产代码差异是 `memory ? ... : ''` 的开启分支字符串；新增回归验证三个 profile 的关闭记忆 system/tools 完整 SHA-256 与 `712cb7b` 相同，因此复用前三条通过记录，未声称最终 SHA 再完整执行六轮。六条合计 38 步、366,766 token（prompt + completion，reasoning 不重复相加）。
 
-当前成果仍在修复分支，尚未合入 SDK main。经开哥批准后，先合 SDK 修复并推送，再将 App 的 git ref 固定到包含修复的 SDK main 具体提交，最后合 App main；不把临时修复分支 ref 带入 App main。
+以上是原修复分支的历史验收。当前 SDK 0.3.2 在独立集成分支，尚未合入 SDK main。经开哥最终批准后再完成 SDK 主线集成与推送，确认 App 的 git ref 固定到包含修复的 SDK main 具体提交，随后处理 App main；不把临时修复分支 ref 带入 App main。
 
-本次同步只修改 README、CHANGELOG 和本文，不改代码、测试、配置或生成物，复用上述验证。文档另查相对链接、版本与 SHA 引用及 `git diff --check`，不为此文档修改重跑模型或全量测试。
+原验证记录同步只修改 README、CHANGELOG 和本文，不改当时的代码、测试、配置或生成物，复用上述验证。该历史范围不覆盖本次含代码、测试与版本变化的 0.3.2；新集成必须以自身最终离线验证记录验收。
 
 历史 Android 编译记录不升级为本次 HEAD 的验收证据；真机语音、锁屏保活和 Web 等流程也不能由 SDK 离线测试或此次真实 Worker 验证推定通过。
 
@@ -88,11 +99,11 @@ PR #4 的复审 head 为 `48417e03f5ff05d4434dc2e15cc36237464153d2`。合并提�
 
 | 编号 | 状态 / 级别 | 事项 | 验收条件 |
 |---|---|---|---|
-| SDK-001 | 修复分支已验证，待合 main | 0.3 `CoachAgent` 真实 Worker 多步链路 | 上文六类分组验证通过，绑定 `712cb7b` / `43dfef6`；main 仍为未包含这些修复的独立状态，不能把分支验证改写成修复已合主线 |
+| SDK-001 | 原 source 已验证；0.3.2 真实服务待验 | 0.3 `CoachAgent` 真实 Worker 多步链路 | 上文六类分组验证绑定 `712cb7b` / `43dfef6`；本次 0.3.2 的行为与默认时限已变化，历史记录不能证明新代码树已通过真实 Worker 验收 |
 | SDK-002 | 已知非阻塞 P3 | `_withoutMemory` 的跨消息 ID 过滤：不同步骤复用工具调用 ID 时，后续普通调用和回复可能被误过滤 | 修正按消息配对或缺失 ID 的回退策略后，验证唯一 ID 正常路径及跨步骤复用 ID 场景；当前没有证据证明实际 Worker 会缺失或复用 ID |
-| SDK-003 | 待开哥批准 | SDK / SmartFit 修复合入 main 并推送 | 先合 SDK 修复，再确认 App 固定 ref 为 SDK main 具体提交，最后合 App main；详细报告随 App 修复分支保存 |
+| SDK-003 | 待开哥最终批准 | SDK 0.3.2 / SmartFit 修复合入 main 并推送 | 交付集成差异及最终验证后，批准 SDK 主线集成；确认 App 固定 ref 为 SDK main 具体提交，再处理 App main；历史报告随 App 修复分支保存 |
 
-SDK-001 只在修复分支完成真实验证，主线合并与 SDK-003 仍待批准。SDK-002 未在本次修复中处理，其条件与不阻塞合并的判断见上述 PR #4 复审评论。
+SDK-001 的真实验证只覆盖历史 source；当前 0.3.2 主线合并与 SDK-003 仍待批准。SDK-002 未在本次集成中处理，其条件与不阻塞合并的判断见上述 PR #4 复审评论。
 
 ## 台账维护规则
 

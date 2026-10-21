@@ -13,7 +13,10 @@
 //   [SessionResult], a failed save can be retried with the same result;
 // * Android keep-alive (TrainingHold, from HipLab) while the session runs;
 // * SmartFit's star sky, custom glyphs and finish animations are not
-//   carried over (Material icons, plain background).
+//   carried over (Material icons);
+// * liquid-glass UI after SmartFit@63c8720 (feat/ui-polish): clear glass
+//   round controls and HUD pills ([TrainerGlass]), an emerald primary disc,
+//   calm 500 ms phase changes that never overlap mid-flight.
 import 'dart:async';
 
 import 'package:clock/clock.dart';
@@ -34,6 +37,7 @@ import '../voice/voice_cue.dart';
 import '../voice/voice_queue.dart';
 import '../voice/voice_source.dart';
 import 'countdown_ring.dart';
+import 'trainer_glass.dart';
 import 'trainer_strings.dart';
 import 'trainer_theme.dart';
 
@@ -773,14 +777,23 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     context: context,
     backgroundColor: _th.surface,
     isScrollControlled: true,
+    showDragHandle: true,
+    shape: RoundedSuperellipseBorder(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      side: BorderSide(color: _th.glass.hairline, width: .8),
+    ),
+    sheetAnimationStyle: const AnimationStyle(
+      duration: TrainerMotion.calm,
+      reverseDuration: Duration(milliseconds: 420),
+    ),
     builder: (c) => SafeArea(
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            TrainerSpace.gutter,
-            TrainerSpace.x5,
-            TrainerSpace.gutter,
-            TrainerSpace.x2,
+            TrainerSpace.x6,
+            0,
+            TrainerSpace.x6,
+            TrainerSpace.x4,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -813,12 +826,15 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                   _th.danger,
                 ),
               ])
-                ListTile(
-                  key: ValueKey('discomfort-${action.name}'),
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(icon, color: color),
-                  title: Text(label, style: _th.callout.copyWith(color: color)),
-                  onTap: () => Navigator.pop(c, DiscomfortDecision(action)),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: TrainerSpace.x2),
+                  child: _pillOption(
+                    key: ValueKey('discomfort-${action.name}'),
+                    icon: icon,
+                    label: label,
+                    color: color,
+                    onTap: () => Navigator.pop(c, DiscomfortDecision(action)),
+                  ),
                 ),
             ],
           ),
@@ -833,17 +849,37 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       context: context,
       builder: (c) => AlertDialog(
         backgroundColor: _th.surface,
+        shape: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(28),
+          side: BorderSide(color: _th.glass.hairline, width: .8),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(
+          TrainerSpace.x4,
+          0,
+          TrainerSpace.x4,
+          TrainerSpace.x4,
+        ),
         title: Text(_s.closeTitle, style: _th.title),
-        content: Text(_s.closeBody, style: _th.body),
+        content: Text(_s.closeBody, style: _th.body.copyWith(color: _th.muted)),
         actions: [
           TextButton(
             key: const ValueKey('close-confirm'),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(64, 44),
+              shape: const StadiumBorder(),
+            ),
             onPressed: () => Navigator.pop(c, true),
             child: Text(_s.closeConfirm, style: TextStyle(color: _th.muted)),
           ),
-          TextButton(
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: _th.accent,
+              foregroundColor: _th.onAccent,
+              minimumSize: const Size(88, 44),
+              shape: const StadiumBorder(),
+            ),
             onPressed: () => Navigator.pop(c, false),
-            child: Text(_s.closeCancel, style: TextStyle(color: _th.accent)),
+            child: Text(_s.closeCancel),
           ),
         ],
       ),
@@ -878,7 +914,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       },
       child: Scaffold(
         backgroundColor: _th.background,
-        body: SafeArea(child: _engine.done ? _doneView() : _sessionView(p, d)),
+        body: Stack(
+          children: [
+            Positioned.fill(child: TrainerGlassField(theme: _th)),
+            SafeArea(child: _engine.done ? _doneView() : _sessionView(p, d)),
+          ],
+        ),
       ),
     );
   }
@@ -889,46 +930,70 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     required String tooltip,
     required VoidCallback onPressed,
     double size = 44,
-  }) => Tooltip(
-    message: tooltip,
-    child: Material(
+  }) => TrainerGlassButton(
+    key: key,
+    theme: _th,
+    icon: Icon(icon),
+    tooltip: tooltip,
+    size: size,
+    onPressed: () {
+      unawaited(HapticFeedback.selectionClick());
+      onPressed();
+    },
+  );
+
+  /// A full-width glass pill row (the built-in discomfort choices).
+  Widget _pillOption({
+    required Key key,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) => Semantics(
+    button: true,
+    child: GestureDetector(
       key: key,
-      color: _th.surfaceHigh,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: () {
-          unawaited(HapticFeedback.selectionClick());
-          onPressed();
-        },
-        child: SizedBox.square(
-          dimension: size,
-          child: Icon(icon, size: size * .46, color: _th.text),
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: TrainerGlass(
+        theme: _th,
+        control: true,
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: TrainerSpace.x5),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: TrainerSpace.x3),
+            Expanded(
+              child: Text(label, style: _th.callout.copyWith(color: color)),
+            ),
+          ],
         ),
       ),
     ),
   );
 
+  /// A glass HUD pill floating on the clip / camera / 3D (40 px, light
+  /// text on the darker media tint, so it reads at arm's length).
   Widget _tag(String label, {IconData? icon, Color? color, Key? key}) =>
-      Container(
+      TrainerGlass(
         key: key,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: _th.scrim,
-          borderRadius: BorderRadius.circular(999),
-        ),
+        theme: _th,
+        overMedia: true,
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: TrainerSpace.x4),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 14, color: color ?? Colors.white),
-              const SizedBox(width: 4),
+              Icon(icon, size: 16, color: color ?? Colors.white),
+              const SizedBox(width: 6),
             ],
             Text(
               label,
               style: TextStyle(
                 fontFamily: _th.fontFamily,
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: color ?? Colors.white,
               ),
@@ -939,7 +1004,11 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   Widget _fade(Widget child, {Alignment alignment = Alignment.centerLeft}) =>
       AnimatedSwitcher(
-        duration: TrainerMotion.fast,
+        // Calm and sequential: the old text is gone (first 40 %) before the
+        // new one fades in (last 60 %); fade only, no layout motion.
+        duration: TrainerMotion.calm,
+        switchInCurve: const Interval(.4, 1, curve: TrainerMotion.calmCurve),
+        switchOutCurve: const Interval(.6, 1, curve: TrainerMotion.calmCurve),
         layoutBuilder: (current, previous) =>
             Stack(alignment: alignment, children: [...previous, ?current]),
         child: child,
@@ -1039,13 +1108,13 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                     const SizedBox(height: 6),
                     TweenAnimationBuilder<double>(
                       tween: Tween(end: fraction),
-                      duration: still ? Duration.zero : TrainerMotion.slow,
-                      curve: TrainerMotion.standard,
+                      duration: still ? Duration.zero : TrainerMotion.calm,
+                      curve: TrainerMotion.calmCurve,
                       builder: (_, v, _) => ClipRRect(
                         borderRadius: BorderRadius.circular(2),
                         child: LinearProgressIndicator(
                           value: v,
-                          minHeight: 4,
+                          minHeight: 3,
                           backgroundColor: _th.track,
                           color: _th.accent,
                         ),
@@ -1055,17 +1124,29 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                 ),
               ),
               const SizedBox(width: TrainerSpace.x4),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '$current',
-                      style: _th.callout.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    TextSpan(text: ' / $_occurrences', style: _th.label),
-                  ],
+              TrainerGlass(
+                theme: _th,
+                height: 40,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: TrainerSpace.x4,
                 ),
-                style: const TextStyle(fontFeatures: TrainerTheme.tabular),
+                child: Center(
+                  widthFactor: 1,
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '$current',
+                          style: _th.callout.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        TextSpan(text: ' / $_occurrences', style: _th.label),
+                      ],
+                    ),
+                    style: const TextStyle(fontFeatures: TrainerTheme.tabular),
+                  ),
+                ),
               ),
             ],
           ),
@@ -1083,12 +1164,22 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                 Stack(
                   children: [
                     AnimatedSwitcher(
-                      duration: TrainerMotion.slow,
+                      duration: TrainerMotion.calm,
+                      switchInCurve: const Interval(
+                        .3,
+                        1,
+                        curve: TrainerMotion.calmCurve,
+                      ),
+                      switchOutCurve: const Interval(
+                        .7,
+                        1,
+                        curve: TrainerMotion.calmCurve,
+                      ),
                       layoutBuilder: (current, previous) =>
                           Stack(children: [...previous, ?current]),
                       child: KeyedSubtree(
                         key: ValueKey('media-${d.id}'),
-                        child: _media(p, d),
+                        child: RepaintBoundary(child: _media(p, d)),
                       ),
                     ),
                     Positioned(
@@ -1113,8 +1204,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                         p.isWork ||
                         p.kind == PhaseKind.switchSide)
                       Positioned(
-                        right: TrainerSpace.x2,
-                        top: TrainerSpace.x2,
+                        right: TrainerSpace.x3,
+                        top: TrainerSpace.x3,
                         child: Semantics(
                           excludeSemantics: true,
                           button: true,
@@ -1123,13 +1214,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                           child: GestureDetector(
                             key: const ValueKey('discomfort'),
                             onTap: _discomfort,
-                            child: Padding(
-                              padding: const EdgeInsets.all(TrainerSpace.x1),
-                              child: _tag(
-                                _s.discomfort,
-                                icon: Icons.healing,
-                                color: TrainerTheme.dark.caution,
-                              ),
+                            child: _tag(
+                              _s.discomfort,
+                              icon: Icons.healing,
+                              color: TrainerTheme.dark.caution,
                             ),
                           ),
                         ),
@@ -1174,9 +1262,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: _th.title.copyWith(
-                                fontSize: 24,
+                                fontSize: 26,
                                 height: 1.25,
                                 fontWeight: FontWeight.w800,
+                                letterSpacing: -.2,
                               ),
                             ),
                           ),
@@ -1264,10 +1353,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            48,
-            TrainerSpace.x2,
-            48,
-            TrainerSpace.x5,
+            40,
+            TrainerSpace.x3,
+            40,
+            TrainerSpace.x6,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1279,41 +1368,33 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                 size: 56,
                 onPressed: _previous,
               ),
-              Tooltip(
-                message: _paused ? _s.resume : _s.pause,
-                child: Material(
-                  key: const ValueKey('pause'),
-                  color: _th.accent,
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () {
-                      unawaited(HapticFeedback.lightImpact());
-                      _togglePause();
-                    },
-                    child: SizedBox.square(
-                      dimension: 76,
-                      child: AnimatedSwitcher(
-                        duration: TrainerMotion.fast,
-                        transitionBuilder: (child, a) => still
-                            ? FadeTransition(opacity: a, child: child)
-                            : FadeTransition(
-                                opacity: a,
-                                child: ScaleTransition(
-                                  scale: a.drive(Tween(begin: .6, end: 1)),
-                                  child: child,
-                                ),
-                              ),
-                        child: Icon(
-                          _paused
-                              ? Icons.play_arrow_rounded
-                              : Icons.pause_rounded,
-                          key: ValueKey(_paused),
-                          size: 36,
-                          color: _th.onAccent,
+              TrainerGlassButton(
+                key: const ValueKey('pause'),
+                theme: _th,
+                primary: true,
+                size: 76,
+                tooltip: _paused ? _s.resume : _s.pause,
+                onPressed: () {
+                  unawaited(HapticFeedback.lightImpact());
+                  _togglePause();
+                },
+                icon: AnimatedSwitcher(
+                  duration: TrainerMotion.medium,
+                  switchInCurve: TrainerMotion.calmCurve,
+                  transitionBuilder: (child, a) => still
+                      ? FadeTransition(opacity: a, child: child)
+                      : FadeTransition(
+                          opacity: a,
+                          child: ScaleTransition(
+                            scale: a.drive(Tween(begin: .7, end: 1)),
+                            child: child,
+                          ),
                         ),
-                      ),
-                    ),
+                  child: Icon(
+                    _paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                    key: ValueKey(_paused),
+                    size: 38,
+                    color: _th.onAccent,
                   ),
                 ),
               ),
@@ -1390,15 +1471,14 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       padding: const EdgeInsets.only(top: TrainerSpace.x5),
       child: SizedBox(
         width: double.infinity,
-        height: 52,
+        height: 56,
         child: FilledButton(
           key: const ValueKey('complete-set-button'),
           style: FilledButton.styleFrom(
             backgroundColor: _th.accent,
             foregroundColor: _th.onAccent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
+            elevation: 0,
+            shape: const StadiumBorder(),
           ),
           onPressed: _paused ? null : _completeSet,
           child: Text(
@@ -1433,16 +1513,14 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     return Padding(
       key: ValueKey('next-${d.id}'),
       padding: const EdgeInsets.only(top: TrainerSpace.x5),
-      child: Container(
+      child: TrainerGlass(
+        theme: _th,
+        radius: _th.radius,
         padding: const EdgeInsets.all(TrainerSpace.x2),
-        decoration: BoxDecoration(
-          color: _th.surface,
-          borderRadius: BorderRadius.circular(18),
-        ),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+            ClipRSuperellipse(
+              borderRadius: BorderRadius.circular(14),
               child: SizedBox.square(
                 dimension: 44,
                 child: ColoredBox(
@@ -1502,7 +1580,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       value: _counterValue(p, t),
       numberKey: const ValueKey('counter'),
       caption: caption,
-      size: 112,
+      size: 128,
       color: working || urgent ? _th.accent : _th.text.withValues(alpha: .55),
       urgent: urgent,
       dim: _paused,
@@ -1514,7 +1592,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     final full =
         !_engine.endedEarly && _engine.fullyCompletedExercises >= _occurrences;
     final minutes = ((_endedAt ?? _t) / 60).round();
-    final numeral = _th.numeral(26);
+    final numeral = _th.numeral(32);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         TrainerSpace.x6,
@@ -1530,12 +1608,17 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      full ? Icons.check_circle_rounded : Icons.flag_rounded,
-                      size: 64,
-                      color: _th.accent,
+                    TrainerGlass(
+                      theme: _th,
+                      width: 96,
+                      height: 96,
+                      child: Icon(
+                        full ? Icons.check_rounded : Icons.flag_rounded,
+                        size: 48,
+                        color: _th.accent,
+                      ),
                     ),
-                    const SizedBox(height: TrainerSpace.x2),
+                    const SizedBox(height: TrainerSpace.x5),
                     Text(
                       full ? _s.doneFull : _s.donePartial,
                       style: _th.display,
@@ -1606,15 +1689,15 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
           ),
           SizedBox(
             width: double.infinity,
-            height: 54,
+            height: 56,
             child: FilledButton(
               key: const ValueKey('finish'),
               style: FilledButton.styleFrom(
                 backgroundColor: _th.accent,
                 foregroundColor: _th.onAccent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
+                disabledBackgroundColor: _th.track,
+                elevation: 0,
+                shape: const StadiumBorder(),
               ),
               onPressed: _saver.saved ? _close : null,
               child: Text(
@@ -1631,12 +1714,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     );
   }
 
-  Widget _stat(Widget value, String label) => Container(
-    padding: const EdgeInsets.symmetric(vertical: TrainerSpace.x4),
-    decoration: BoxDecoration(
-      color: _th.surface,
-      borderRadius: BorderRadius.circular(18),
-    ),
+  Widget _stat(Widget value, String label) => TrainerGlass(
+    theme: _th,
+    radius: _th.radius,
+    padding: const EdgeInsets.symmetric(vertical: TrainerSpace.x5),
     child: Column(
       children: [
         value,

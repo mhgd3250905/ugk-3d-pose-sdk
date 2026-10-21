@@ -211,4 +211,49 @@ void main() {
     expect(r.discomfort.single.exerciseId, 'a');
     expect(r.items.last.status, ItemStatus.notReached);
   });
+
+  testWidgets('glass controls keep button semantics; theme hook keeps glass', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final custom = TrainerTheme.light.copyWith(
+      glassStyle: TrainerGlassStyle.dark,
+    );
+    expect(custom.glass, TrainerGlassStyle.dark);
+    expect(TrainerTheme.dark.glass, TrainerGlassStyle.dark);
+    expect(TrainerTheme.light.glass, TrainerGlassStyle.light);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TrainerPlayer(
+          plan: planOf([timed('a', 30)]),
+          drillOf: drillOf,
+          strings: TrainerStrings.zh(),
+          theme: TrainerTheme.light,
+          prepSeconds: 0,
+          keepAlive: false,
+          mediaBuilder: (_, _) => const SizedBox(height: 100),
+          onFinished: (_) async {},
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(TrainerGlassButton), findsNWidgets(4));
+    final pause = find.semantics.byLabel('暂停训练');
+    expect(pause, findsOneWidget);
+    expect(
+      pause.evaluate().single,
+      matchesSemantics(
+        label: '暂停训练',
+        isButton: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        hasTapAction: true,
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('pause')));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.semantics.byLabel('继续训练'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    semantics.dispose();
+  });
 }

@@ -4,6 +4,8 @@
 // are SmartFit's values.
 import 'package:flutter/material.dart';
 
+import 'trainer_glass.dart';
+
 @immutable
 class TrainerTheme {
   const TrainerTheme({
@@ -24,6 +26,7 @@ class TrainerTheme {
     required this.scrim,
     this.fontFamily,
     this.radius = 22,
+    this.glassStyle,
   });
 
   final Brightness brightness;
@@ -62,11 +65,52 @@ class TrainerTheme {
   /// Media / panel corner radius.
   final double radius;
 
+  /// The app's own glass material; null: SmartFit's clear glass preset.
+  final TrainerGlassStyle? glassStyle;
+
+  /// Clear liquid glass for controls and HUD pills (SmartFit, 2026-10-21).
+  TrainerGlassStyle get glass =>
+      glassStyle ?? (isDark ? TrainerGlassStyle.dark : TrainerGlassStyle.light);
+
   bool get isDark => brightness == Brightness.dark;
+
+  /// A copy with some tokens replaced (host apps pass their own theme).
+  TrainerTheme copyWith({
+    Color? background,
+    Color? surface,
+    Color? surfaceHigh,
+    Color? accent,
+    Color? accentText,
+    Color? onAccent,
+    Color? text,
+    Color? muted,
+    String? fontFamily,
+    double? radius,
+    TrainerGlassStyle? glassStyle,
+  }) => TrainerTheme(
+    brightness: brightness,
+    background: background ?? this.background,
+    surface: surface ?? this.surface,
+    surfaceHigh: surfaceHigh ?? this.surfaceHigh,
+    track: track,
+    accent: accent ?? this.accent,
+    accentText: accentText ?? this.accentText,
+    onAccent: onAccent ?? this.onAccent,
+    text: text ?? this.text,
+    muted: muted ?? this.muted,
+    faint: faint,
+    caution: caution,
+    danger: danger,
+    mediaStage: mediaStage,
+    scrim: scrim,
+    fontFamily: fontFamily ?? this.fontFamily,
+    radius: radius ?? this.radius,
+    glassStyle: glassStyle ?? this.glassStyle,
+  );
 
   static const dark = TrainerTheme(
     brightness: Brightness.dark,
-    background: Color(0xFF060709),
+    background: Color(0xFF0E0F11), // neutral sky (SmartFit round 4)
     surface: Color(0xFF15171C),
     surfaceHigh: Color(0xFF1F2228),
     track: Color(0x1FFFFFFF),
@@ -146,6 +190,14 @@ abstract final class TrainerMotion {
   static const roll = Duration(milliseconds: 260);
   static const breath = Duration(milliseconds: 1000);
   static const Curve standard = Curves.easeOutCubic;
+
+  /// Calm phase changes (SmartFit r10): unhurried, one curve, the old
+  /// content leaves before the new arrives — nothing overlaps mid-flight.
+  static const calm = Duration(milliseconds: 500);
+  static const Curve calmCurve = Curves.fastOutSlowIn;
+
+  /// Stagger between neighbours entering together.
+  static const stagger = Duration(milliseconds: 60);
 
   static bool reduced(BuildContext context) =>
       MediaQuery.maybeDisableAnimationsOf(context) ?? false;

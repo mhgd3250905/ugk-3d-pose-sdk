@@ -11,6 +11,7 @@ export 'src/media/media_controller.dart';
 export 'src/platform/screen_awake.dart';
 export 'src/platform/training_keep_alive.dart';
 export 'src/ui/countdown_ring.dart';
+export 'src/ui/trainer_glass.dart';
 export 'src/ui/trainer_player.dart';
 export 'src/ui/trainer_strings.dart';
 export 'src/ui/trainer_theme.dart';

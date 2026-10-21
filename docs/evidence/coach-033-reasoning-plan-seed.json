@@ -1,0 +1,119 @@
+{
+  "state": "completed",
+  "seed": "smartfit_core_plan",
+  "modelRequested": "deepseek-v4-flash-0731",
+  "protocolPolicy": "retain_all_historical_reasoning",
+  "interpretation": "gateway_acceptance_is_only_comparison_evidence",
+  "maxTokens": 8192,
+  "sdkRequestTimeoutMs": 120000,
+  "quota": {
+    "limit": 30,
+    "windowSeconds": 600,
+    "requireRecentCountBelow": 29,
+    "inFlightMarginSeconds": 45
+  },
+  "calls": [
+    {
+      "phase": "seed_tool",
+      "mode": "full",
+      "state": "ok",
+      "usage": {
+        "promptTokens": 7202,
+        "completionTokens": 2062,
+        "reasoningTokens": 1222,
+        "cachedTokens": 6144
+      },
+      "latencyMs": 35480,
+      "httpAttempts": 1,
+      "finishReason": "tool_calls",
+      "diagnostic": {
+        "toolCallsCount": 1,
+        "contentLength": 51,
+        "reasoningLength": 3762
+      }
+    },
+    {
+      "phase": "seed_final",
+      "mode": "full",
+      "state": "ok",
+      "usage": {
+        "promptTokens": 9284,
+        "completionTokens": 43,
+        "reasoningTokens": 0,
+        "cachedTokens": 7168
+      },
+      "latencyMs": 7480,
+      "httpAttempts": 1,
+      "finishReason": "stop",
+      "diagnostic": {
+        "toolCallsCount": 0,
+        "contentLength": 58,
+        "reasoningLength": 0
+      }
+    },
+    {
+      "phase": "next_turn",
+      "mode": "full",
+      "state": "ok",
+      "usage": {
+        "promptTokens": 9343,
+        "completionTokens": 18,
+        "reasoningTokens": 0,
+        "cachedTokens": 6272
+      },
+      "latencyMs": 3726,
+      "httpAttempts": 1,
+      "finishReason": "stop",
+      "diagnostic": {
+        "toolCallsCount": 0,
+        "contentLength": 28,
+        "reasoningLength": 0
+      }
+    },
+    {
+      "phase": "next_turn",
+      "mode": "empty",
+      "state": "ok",
+      "usage": {
+        "promptTokens": 8121,
+        "completionTokens": 19,
+        "reasoningTokens": 0,
+        "cachedTokens": 7168
+      },
+      "latencyMs": 2821,
+      "httpAttempts": 1,
+      "finishReason": "stop",
+      "diagnostic": {
+        "toolCallsCount": 0,
+        "contentLength": 28,
+        "reasoningLength": 0
+      }
+    },
+    {
+      "phase": "next_turn",
+      "mode": "omitted",
+      "state": "ok",
+      "usage": {
+        "promptTokens": 8121,
+        "completionTokens": 37,
+        "reasoningTokens": 0,
+        "cachedTokens": 0
+      },
+      "latencyMs": 4277,
+      "httpAttempts": 1,
+      "finishReason": "stop",
+      "diagnostic": {
+        "toolCallsCount": 0,
+        "contentLength": 53,
+        "reasoningLength": 0
+      }
+    }
+  ],
+  "seedGateAccepted": true,
+  "diagnostic": {
+    "priorAssistantCount": 2,
+    "priorAssistantNonEmptyReasoningCount": 1,
+    "sameSeedForAllModes": true,
+    "toolsPresentForAllModes": true
+  }
+}

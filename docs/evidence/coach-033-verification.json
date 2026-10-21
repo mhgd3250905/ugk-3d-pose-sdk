@@ -16,8 +16,26 @@
     "adaptedLegacyTest": true,
     "logSha256": "d7b2276da30ae5aa15505fd25433c78773d924ffd12314753f26b0fbb97a4295"
   },
-  "liveAcceptance": "blocked_by_gateway_balance",
+  "liveAcceptance": "all_six_correctness_and_speed_targets_passed",
   "historicalBadResponseRootCause": "unknown_missing_raw_response",
   "reasoningPolicy": "retain_all_historical_assistant_reasoning",
-  "gatewayReasoningProbe": "prepared_not_executed_after_balance_failure"
+  "gatewayReasoningProbe": "completed_full_empty_omitted_accepted_contract_uncertain_policy_unchanged",
+  "liveCheckout": "3a23ba0803a05efc1519efac3a231fc480e8ba1a",
+  "finalRun": "2026-10-21T12-44-51.876219Z",
+  "liveCorrectness": {
+    "failures": 0,
+    "performanceFailures": 0,
+    "inventedIdCount": 0,
+    "fallbacks": 0,
+    "memoryIsolationPassed": true,
+    "independentDataReviewPassed": true
+  },
+  "reasoningProbeEvidence": {
+    "emptySeedReportSha256": "ac2337bbec628cec909c73e94a1b72840eaa1736345ee7b1f0d2d12c30a4a499",
+    "planSeedReportSha256": "fbf602b746f05753a1ab99cc73575dec6bf6eb3a849b57be6f88a279125c1752",
+    "priorAssistantNonEmptyReasoningCount": 1,
+    "priorReasoningTokens": 1222,
+    "allThreeArmsAccepted": true,
+    "officialSource": "https://api-docs.deepseek.com/guides/thinking_mode/"
+  }
 }

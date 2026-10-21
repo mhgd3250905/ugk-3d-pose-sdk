@@ -1,6 +1,7 @@
 {
-  "sdkRef": "e8c8921508139dc0f3eee1d2099eb5feefa80774",
-  "state": "live_acceptance_blocked_by_gateway_balance",
+  "sdkRef": "3a23ba0803a05efc1519efac3a231fc480e8ba1a",
+  "sdkSource": "e8c8921508139dc0f3eee1d2099eb5feefa80774",
+  "state": "all_six_correctness_and_speed_targets_passed_awaiting_merge_approval",
   "sdkBase": "b26e4fda807b6ef3db15a61ba30c67fb51dce5e1",
   "appRef": "530686e224adf34d1e748cde35b4fb5575d6fe3d",
   "baselineAppRef": "b39304488e964b22a65501363a15140b5d0ca235",
@@ -8,20 +9,11 @@
   "trialRun": "2026-10-21T10-43-21.627003Z",
   "secondCandidateRef": "c4981c98f6bd4471ef77372fb0d63bcef45ac7de",
   "secondCandidateRun": "2026-10-21T10-53-07.217497Z",
-  "finalAttemptRun": "2026-10-21T11-04-11.375502Z",
+  "balanceBlockedRun": "2026-10-21T11-04-11.375502Z",
+  "finalRun": "2026-10-21T12-44-51.876219Z",
   "sameAppRuntimeAssets": true,
   "sameDeviceReused": true,
-  "failures": [
-    "actions: fallback auth",
-    "remember: fallback auth",
-    "remember: no durable level/equipment memories",
-    "memory-on-plan: fallback auth",
-    "memory-on-plan: no delivered ValidatedPlan",
-    "enabled: memory not applied in request and delivered plan",
-    "memory-off-plan: fallback auth",
-    "memory-off-plan: no delivered ValidatedPlan",
-    "disabled: remembered-only information in cold request"
-  ],
+  "failures": [],
   "performanceFailures": [],
   "cases": [
     {
@@ -51,7 +43,7 @@
         "totalTokens": 10642,
         "fallback": false
       },
-      "currentAttempt": {
+      "balanceBlockedAttempt": {
         "steps": 1,
         "elapsedMs": 35720,
         "promptTokens": 7483,
@@ -59,7 +51,15 @@
         "totalTokens": 9907,
         "fallback": false
       },
-      "currentAttemptState": "measured_ok",
+      "balanceBlockedAttemptState": "measured_ok",
+      "after": {
+        "steps": 1,
+        "elapsedMs": 32993,
+        "promptTokens": 7483,
+        "completionTokens": 2139,
+        "totalTokens": 9622,
+        "fallback": false
+      },
       "correctness": {
         "status": "ok",
         "inventedIdCount": 0,
@@ -68,6 +68,8 @@
         "storedMemoryEntryCount": 0,
         "memoryToolsPresent": false,
         "memorySummaryIncluded": false,
+        "memorySummaryMentionsDumbbell": false,
+        "memorySummaryMentionsBeginner": false,
         "planLevel": 1,
         "planAvoid": []
       },
@@ -77,12 +79,12 @@
           "httpAttempts": 1,
           "step": 1,
           "retry": 0,
-          "latencyMs": 35607,
+          "latencyMs": 32899,
           "usage": {
             "promptTokens": 7483,
-            "completionTokens": 2424,
-            "reasoningTokens": 1503,
-            "cachedTokens": 512
+            "completionTokens": 2139,
+            "reasoningTokens": 1225,
+            "cachedTokens": 7296
           },
           "issues": [],
           "errorKind": null
@@ -95,21 +97,20 @@
           "responseDiagnostic": null,
           "usage": {
             "promptTokens": 7483,
-            "completionTokens": 2424,
-            "reasoningTokens": 1503,
-            "cachedTokens": 512
+            "completionTokens": 2139,
+            "reasoningTokens": 1225,
+            "cachedTokens": 7296
           },
           "finishReason": "tool_calls",
           "tools": [
             {
               "name": "show_plan",
               "actionIds": [
-                "n-pelvis-circle",
                 "h-catcow-quad",
-                "h-good-morning",
+                "n-pelvis-circle",
+                "h-forearm-plank",
                 "w-dead-bug",
                 "w-bird-dog",
-                "h-forearm-plank",
                 "h-crunch",
                 "h-supine-twist",
                 "h-knee-hug"
@@ -146,7 +147,7 @@
         "totalTokens": 9155,
         "fallback": false
       },
-      "currentAttempt": {
+      "balanceBlockedAttempt": {
         "steps": 1,
         "elapsedMs": 494,
         "promptTokens": 0,
@@ -154,43 +155,58 @@
         "totalTokens": 0,
         "fallback": true
       },
-      "currentAttemptState": "gateway_balance_blocked",
+      "balanceBlockedAttemptState": "gateway_balance_blocked",
+      "after": {
+        "steps": 1,
+        "elapsedMs": 25397,
+        "promptTokens": 8002,
+        "completionTokens": 731,
+        "totalTokens": 8733,
+        "fallback": false
+      },
       "correctness": {
-        "status": "fallback",
+        "status": "ok",
         "inventedIdCount": 0,
         "deliveredPlan": false,
         "memoryEnabled": false,
         "storedMemoryEntryCount": 0,
         "memoryToolsPresent": false,
         "memorySummaryIncluded": false,
+        "memorySummaryMentionsDumbbell": false,
+        "memorySummaryMentionsBeginner": false,
         "planLevel": null,
         "planAvoid": null
       },
       "calls": [
         {
-          "outcome": "error",
+          "outcome": "passed",
           "httpAttempts": 1,
           "step": 1,
           "retry": 0,
-          "latencyMs": 249,
+          "latencyMs": 25378,
           "usage": {
-            "promptTokens": 0,
-            "completionTokens": 0,
-            "reasoningTokens": 0,
-            "cachedTokens": 0
+            "promptTokens": 8002,
+            "completionTokens": 731,
+            "reasoningTokens": 458,
+            "cachedTokens": 6144
           },
           "issues": [],
-          "errorKind": "auth"
+          "errorKind": null
         }
       ],
       "responseProtocol": [
         {
           "requestIndex": 2,
-          "errorKind": "auth",
+          "errorKind": null,
           "responseDiagnostic": null,
-          "usage": null,
-          "finishReason": null,
-          "tools": null
+          "usage": {
+            "promptTokens": 8002,
+            "completionTokens": 731,
+            "reasoningTokens": 458,
+            "cachedTokens": 6144
+          },
+          "finishReason": "stop",
+          "tools": []
         }
       ]
     },
@@ -221,7 +237,7 @@
         "totalTokens": 10366,
         "fallback": false
       },
-      "currentAttempt": {
+      "balanceBlockedAttempt": {
         "steps": 1,
         "elapsedMs": 34275,
         "promptTokens": 7477,
@@ -229,7 +245,15 @@
         "totalTokens": 10516,
         "fallback": false
       },
-      "currentAttemptState": "measured_ok",
+      "balanceBlockedAttemptState": "measured_ok",
+      "after": {
+        "steps": 1,
+        "elapsedMs": 36306,
+        "promptTokens": 7477,
+        "completionTokens": 3157,
+        "totalTokens": 10634,
+        "fallback": false
+      },
       "correctness": {
         "status": "ok",
         "inventedIdCount": 0,
@@ -238,6 +262,8 @@
         "storedMemoryEntryCount": 0,
         "memoryToolsPresent": false,
         "memorySummaryIncluded": false,
+        "memorySummaryMentionsDumbbell": false,
+        "memorySummaryMentionsBeginner": false,
         "planLevel": 1,
         "planAvoid": [
           "腰"
@@ -249,11 +275,11 @@
           "httpAttempts": 1,
           "step": 1,
           "retry": 0,
-          "latencyMs": 34262,
+          "latencyMs": 36294,
           "usage": {
             "promptTokens": 7477,
-            "completionTokens": 3039,
-            "reasoningTokens": 1921,
+            "completionTokens": 3157,
+            "reasoningTokens": 2220,
             "cachedTokens": 7296
           },
           "issues": [],
@@ -267,8 +293,8 @@
           "responseDiagnostic": null,
           "usage": {
             "promptTokens": 7477,
-            "completionTokens": 3039,
-            "reasoningTokens": 1921,
+            "completionTokens": 3157,
+            "reasoningTokens": 2220,
             "cachedTokens": 7296
           },
           "finishReason": "tool_calls",
@@ -278,15 +304,12 @@
               "actionIds": [
                 "n-pelvis-circle",
                 "h-hip-gate",
-                "h-butterfly-active",
                 "h-squat",
                 "w-feet-on-chair-bridge",
                 "w-clamshell",
                 "h-calf-raise",
-                "h-tib-raise",
-                "o-stand-quad",
-                "o-seated-ham",
-                "h-wall-calf"
+                "o-seated-fig4",
+                "o-seated-ham"
               ]
             }
           ]
@@ -320,7 +343,7 @@
         "totalTokens": 27636,
         "fallback": false
       },
-      "currentAttempt": {
+      "balanceBlockedAttempt": {
         "steps": 1,
         "elapsedMs": 253,
         "promptTokens": 0,
@@ -328,43 +351,128 @@
         "totalTokens": 0,
         "fallback": true
       },
-      "currentAttemptState": "gateway_balance_blocked",
+      "balanceBlockedAttemptState": "gateway_balance_blocked",
+      "after": {
+        "steps": 3,
+        "elapsedMs": 27206,
+        "promptTokens": 25265,
+        "completionTokens": 373,
+        "totalTokens": 25638,
+        "fallback": false
+      },
       "correctness": {
-        "status": "fallback",
+        "status": "ok",
         "inventedIdCount": 0,
         "deliveredPlan": false,
         "memoryEnabled": true,
-        "storedMemoryEntryCount": 0,
+        "storedMemoryEntryCount": 2,
         "memoryToolsPresent": true,
         "memorySummaryIncluded": false,
+        "memorySummaryMentionsDumbbell": false,
+        "memorySummaryMentionsBeginner": false,
         "planLevel": null,
         "planAvoid": null
       },
       "calls": [
         {
-          "outcome": "error",
+          "outcome": "toolStep",
           "httpAttempts": 1,
           "step": 1,
           "retry": 0,
-          "latencyMs": 242,
+          "latencyMs": 16547,
           "usage": {
-            "promptTokens": 0,
-            "completionTokens": 0,
+            "promptTokens": 8003,
+            "completionTokens": 219,
+            "reasoningTokens": 175,
+            "cachedTokens": 0
+          },
+          "issues": [],
+          "errorKind": null
+        },
+        {
+          "outcome": "toolStep",
+          "httpAttempts": 1,
+          "step": 2,
+          "retry": 0,
+          "latencyMs": 7731,
+          "usage": {
+            "promptTokens": 8549,
+            "completionTokens": 102,
+            "reasoningTokens": 0,
+            "cachedTokens": 1600
+          },
+          "issues": [],
+          "errorKind": null
+        },
+        {
+          "outcome": "passed",
+          "httpAttempts": 1,
+          "step": 3,
+          "retry": 0,
+          "latencyMs": 2311,
+          "usage": {
+            "promptTokens": 8713,
+            "completionTokens": 52,
             "reasoningTokens": 0,
             "cachedTokens": 0
           },
           "issues": [],
-          "errorKind": "auth"
+          "errorKind": null
         }
       ],
       "responseProtocol": [
         {
           "requestIndex": 4,
-          "errorKind": "auth",
+          "errorKind": null,
           "responseDiagnostic": null,
-          "usage": null,
-          "finishReason": null,
-          "tools": null
+          "usage": {
+            "promptTokens": 8003,
+            "completionTokens": 219,
+            "reasoningTokens": 175,
+            "cachedTokens": 0
+          },
+          "finishReason": "tool_calls",
+          "tools": [
+            {
+              "name": "read",
+              "path": "user-memory/SKILL.md"
+            }
+          ]
+        },
+        {
+          "requestIndex": 5,
+          "errorKind": null,
+          "responseDiagnostic": null,
+          "usage": {
+            "promptTokens": 8549,
+            "completionTokens": 102,
+            "reasoningTokens": 0,
+            "cachedTokens": 1600
+          },
+          "finishReason": "tool_calls",
+          "tools": [
+            {
+              "name": "remember",
+              "kind": "level"
+            },
+            {
+              "name": "remember",
+              "kind": "equipment"
+            }
+          ]
+        },
+        {
+          "requestIndex": 6,
+          "errorKind": null,
+          "responseDiagnostic": null,
+          "usage": {
+            "promptTokens": 8713,
+            "completionTokens": 52,
+            "reasoningTokens": 0,
+            "cachedTokens": 0
+          },
+          "finishReason": "stop",
+          "tools": []
         }
       ]
     },
@@ -395,7 +503,7 @@
         "totalTokens": 11064,
         "fallback": false
       },
-      "currentAttempt": {
+      "balanceBlockedAttempt": {
         "steps": 1,
         "elapsedMs": 256,
         "promptTokens": 0,
@@ -403,43 +511,71 @@
         "totalTokens": 0,
         "fallback": true
       },
-      "currentAttemptState": "gateway_balance_blocked",
+      "balanceBlockedAttemptState": "gateway_balance_blocked",
+      "after": {
+        "steps": 1,
+        "elapsedMs": 28616,
+        "promptTokens": 8035,
+        "completionTokens": 1876,
+        "totalTokens": 9911,
+        "fallback": false
+      },
       "correctness": {
-        "status": "fallback",
+        "status": "ok",
         "inventedIdCount": 0,
-        "deliveredPlan": false,
+        "deliveredPlan": true,
         "memoryEnabled": true,
-        "storedMemoryEntryCount": 0,
+        "storedMemoryEntryCount": 2,
         "memoryToolsPresent": true,
-        "memorySummaryIncluded": false,
-        "planLevel": null,
-        "planAvoid": null
+        "memorySummaryIncluded": true,
+        "memorySummaryMentionsDumbbell": true,
+        "memorySummaryMentionsBeginner": true,
+        "planLevel": 1,
+        "planAvoid": []
       },
       "calls": [
         {
-          "outcome": "error",
+          "outcome": "passed",
           "httpAttempts": 1,
           "step": 1,
           "retry": 0,
-          "latencyMs": 253,
+          "latencyMs": 28612,
           "usage": {
-            "promptTokens": 0,
-            "completionTokens": 0,
-            "reasoningTokens": 0,
-            "cachedTokens": 0
+            "promptTokens": 8035,
+            "completionTokens": 1876,
+            "reasoningTokens": 1068,
+            "cachedTokens": 1408
           },
           "issues": [],
-          "errorKind": "auth"
+          "errorKind": null
         }
       ],
       "responseProtocol": [
         {
-          "requestIndex": 5,
-          "errorKind": "auth",
+          "requestIndex": 7,
+          "errorKind": null,
           "responseDiagnostic": null,
-          "usage": null,
-          "finishReason": null,
-          "tools": null
+          "usage": {
+            "promptTokens": 8035,
+            "completionTokens": 1876,
+            "reasoningTokens": 1068,
+            "cachedTokens": 1408
+          },
+          "finishReason": "tool_calls",
+          "tools": [
+            {
+              "name": "show_plan",
+              "actionIds": [
+                "h-wall-angel",
+                "h-hip-gate",
+                "h-squat",
+                "h-db-floor-press",
+                "h-db-row",
+                "h-db-rdl",
+                "h-supine-twist"
+              ]
+            }
+          ]
         }
       ]
     },
@@ -470,7 +606,7 @@
         "totalTokens": 34515,
         "fallback": false
       },
-      "currentAttempt": {
+      "balanceBlockedAttempt": {
         "steps": 1,
         "elapsedMs": 248,
         "promptTokens": 0,
@@ -478,53 +614,83 @@
         "totalTokens": 0,
         "fallback": true
       },
-      "currentAttemptState": "gateway_balance_blocked",
+      "balanceBlockedAttemptState": "gateway_balance_blocked",
+      "after": {
+        "steps": 1,
+        "elapsedMs": 29912,
+        "promptTokens": 7476,
+        "completionTokens": 2116,
+        "totalTokens": 9592,
+        "fallback": false
+      },
       "correctness": {
-        "status": "fallback",
+        "status": "ok",
         "inventedIdCount": 0,
-        "deliveredPlan": false,
+        "deliveredPlan": true,
         "memoryEnabled": false,
-        "storedMemoryEntryCount": 0,
+        "storedMemoryEntryCount": 2,
         "memoryToolsPresent": false,
         "memorySummaryIncluded": false,
-        "planLevel": null,
-        "planAvoid": null
+        "memorySummaryMentionsDumbbell": false,
+        "memorySummaryMentionsBeginner": false,
+        "planLevel": 1,
+        "planAvoid": []
       },
       "calls": [
         {
-          "outcome": "error",
+          "outcome": "passed",
           "httpAttempts": 1,
           "step": 1,
           "retry": 0,
-          "latencyMs": 235,
+          "latencyMs": 29899,
           "usage": {
-            "promptTokens": 0,
-            "completionTokens": 0,
-            "reasoningTokens": 0,
-            "cachedTokens": 0
+            "promptTokens": 7476,
+            "completionTokens": 2116,
+            "reasoningTokens": 1288,
+            "cachedTokens": 7296
           },
           "issues": [],
-          "errorKind": "auth"
+          "errorKind": null
         }
       ],
       "responseProtocol": [
         {
-          "requestIndex": 6,
-          "errorKind": "auth",
+          "requestIndex": 8,
+          "errorKind": null,
           "responseDiagnostic": null,
-          "usage": null,
-          "finishReason": null,
-          "tools": null
+          "usage": {
+            "promptTokens": 7476,
+            "completionTokens": 2116,
+            "reasoningTokens": 1288,
+            "cachedTokens": 7296
+          },
+          "finishReason": "tool_calls",
+          "tools": [
+            {
+              "name": "show_plan",
+              "actionIds": [
+                "h-wall-angel",
+                "n-pelvis-circle",
+                "h-squat",
+                "h-incline-pushup",
+                "w-feet-on-chair-bridge",
+                "h-superman",
+                "h-chair-lat",
+                "o-stand-quad"
+              ]
+            }
+          ]
         }
       ]
     }
   ],
   "hashes": {
     "baselineResults": "3c0e26226ade06b0a0bf7f6edfed9e6b1c88fde46653ae3ea6891153cacd6d87",
-    "finalResults": "78a7d774adac2e0473511ced920ffd90a3980fe2f06eb54f90c8be41808f5bfe",
-    "finalRequests": "a7f135c40ac5363cf6bec65c0c2a1a8944ab0351b494c3e7652357e85cf6efb9",
-    "finalEvents": "3e66b760c96a9c049967e3997ed45d7b6f6bc4be5bb3db0f2898430276c83e5c",
-    "finalVerdict": "02232adbddbda30dc2392297dfc6cfc6aa2f34419866c81c8f6c1b3c7875ad45",
+    "balanceBlockedResults": "78a7d774adac2e0473511ced920ffd90a3980fe2f06eb54f90c8be41808f5bfe",
+    "finalResults": "bfdbbf32279c226565775af6ec224a592021257327e306eb6b0026357b5fcc9f",
+    "finalRequests": "57812716ae457d4e1ca9c15342b2d52de4aec32dd25739934ba44900e877bf40",
+    "finalEvents": "119d180941f5ec56c522968781ee7c5a40f17663d666f4ef5ad4d7f04c1c36ff",
+    "finalVerdict": "c1d7f14842ca8a317e78d79b8970b6098e31ecf2224321fced2616803a2a9873",
     "instrumentedHarness": "c14a2c41bb6627024bcde707dfaba6ea973df5880738fd8df5142c29bb99df79"
   }
 }

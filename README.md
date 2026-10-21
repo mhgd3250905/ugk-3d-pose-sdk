@@ -6,7 +6,7 @@
 
 - 纯 Dart，不依赖 Flutter（Web 也能用）；`dart:io` 的部分（文件缓存、JSONL 记账）单独在 `package:ugk_coach/ugk_coach_io.dart`。
 - 一个动作 id = 定义 + 封面 + 示范视频 + 建模源（Pose-Hub spec）+ 语音：`assistant.resolve(id)` 带出整套素材。
-- 当前开发版本为 **0.3.3**，基于 main `b26e4fd`，待开哥验收批准合入。377 项 SDK 测试和分析 0 问题通过，最终真实六条受网关余额不足阻塞。Agent 内联作用域内的紧凑索引和三条技能快路径，常规计划直接提交门禁；见[基线拆解](docs/coach-033-baseline-analysis-2026-10-21.md)、[提速测量与验收状态](docs/coach-033-speed-2026-10-21.md)及[项目维护台账](docs/project-ledger.md)。
+- 当前开发版本为 **0.3.3**，基于 main `b26e4fd`，待开哥批准合入。377 项 SDK 测试、分析 0 问题及 SmartFit 最终真实六条通过：计划均 1 步、28.6–36.3 秒，要领问答 1 步、25.4 秒，无回落、编造 id 为 0、记忆隔离通过。Agent 内联作用域内的紧凑索引和三条技能快路径，常规计划直接提交门禁；见[基线拆解](docs/coach-033-baseline-analysis-2026-10-21.md)、[前后对比与验收状态](docs/coach-033-speed-2026-10-21.md)及[项目维护台账](docs/project-ledger.md)。
 
 ## 维护与事实来源
 

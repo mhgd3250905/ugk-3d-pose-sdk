@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import 'training_media_models.dart';
+import 'training_media_preview_policy.dart';
 import 'training_media_storage.dart';
 
 export 'training_media_models.dart';
@@ -148,7 +149,7 @@ class TrainingMediaRepository extends ChangeNotifier {
   /// Changes when cache capabilities are invalidated, including during clear.
   int get cacheRevision => _generation;
 
-  bool get allowPending => kDebugMode && _allowPending;
+  bool get allowPending => TrainingMediaPreviewPolicy.enabled && _allowPending;
   set allowPending(bool value) {
     _allowPending = value;
     if (!allowPending) _ready.removeWhere((id) => !_eligible(id));

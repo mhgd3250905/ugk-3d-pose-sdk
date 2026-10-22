@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.6
+
+- Export the shared compile-time `TrainingMediaPreviewPolicy.enabled` so hosts and the repository use the same pending-media preview gate. Preserve the existing debug behavior; release/profile require both the `internal` Flutter flavor and `UGK_INTERNAL_MEDIA_PREVIEW=true`.
+- Keep pending actions hidden by default, including internal builds: callers must still explicitly request `allowPending: true`. Ordinary production builds and either opt-in alone remain blocked. The policy does not change platform cleartext settings; hosts must separately isolate any LAN HTTP allowance to their internal flavor.
+- Add a standalone AOT compilation matrix for all debug/profile/release, absent/production/internal flavor and preview-flag combinations, plus a Flutter build-mode agreement test. Host release APK and physical-device acceptance are separate validation steps.
+
 ## 0.1.5
 
 - Add a shared `TrainingMediaRepository` for the three apps: bundled assets first, versioned native cache second, then ordered HTTP(S) mirrors. Download to temporary files and verify declared length and SHA-256 before publishing; verify persistent cache again before reuse.

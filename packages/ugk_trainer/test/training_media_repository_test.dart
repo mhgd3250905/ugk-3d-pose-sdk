@@ -261,6 +261,52 @@ void main() {
   );
 
   test(
+    'cache size and clear include old versions but preserve other app caches',
+    () async {
+      final fixture = _Fixture();
+      final server = await serve((r) => respond(r, fixture));
+      final repository = await fixture.create(temp, mirrors: [base(server)]);
+      repositories.add(repository);
+      final current = await repository.ensureVideo('extra');
+      expect(current.cachePath, contains('/training-media/0.3.0/'));
+      final old = Directory('${temp.path}/training-media/0.2.0');
+      await old.create(recursive: true);
+      await File('${old.path}/old-video').writeAsBytes(List.filled(73, 1));
+      await File(
+        '${old.path}/interrupted.part',
+      ).writeAsBytes(List.filled(11, 0));
+      final unrelated = File('${temp.path}/other-feature/cache');
+      await unrelated.parent.create(recursive: true);
+      await unrelated.writeAsString('keep app cache');
+      expect(await repository.cacheBytes(), fixture.extraVideo.length + 73);
+      await repository.clearCache();
+      expect(await repository.cacheBytes(), 0);
+      expect(await Directory('${temp.path}/training-media').exists(), isFalse);
+      expect(await unrelated.readAsString(), 'keep app cache');
+      expect(repository.readyActionIds, {'builtin'});
+    },
+  );
+
+  test(
+    'cache size tolerates concurrent deletion of version directories and files',
+    () async {
+      final repository = await _Fixture().create(temp);
+      repositories.add(repository);
+      final old = Directory('${temp.path}/training-media/0.2.0');
+      await old.create(recursive: true);
+      for (var i = 0; i < 128; i++) {
+        await File('${old.path}/video-$i').writeAsBytes(List.filled(16, i));
+      }
+      final snapshots = List.generate(12, (_) => repository.cacheBytes());
+      final clear = repository.clearCache();
+      final sizes = await Future.wait(snapshots);
+      await clear;
+      expect(sizes.every((size) => size >= 0 && size <= 128 * 16), isTrue);
+      expect(await repository.cacheBytes(), 0);
+    },
+  );
+
+  test(
     'clear cancels in-flight transfer and generation prevents late cache resurrection',
     () async {
       final fixture = _Fixture();

@@ -5,6 +5,7 @@
 - Add a shared `TrainingMediaRepository` for the three apps: bundled assets first, versioned native cache second, then ordered HTTP(S) mirrors. Download to temporary files and verify declared length and SHA-256 before publishing; verify persistent cache again before reuse.
 - Resolve submanifests through the bundled main index, verify their hashes and action/file indexes, and fetch additional render manifests with their packages. Only release-eligible actions are visible outside an explicit debug-only pending-action gate.
 - Default downloads to Wi-Fi, resume policy-blocked actions/packages when the connection permits, expose progress and cache usage, and cancel/join transfers before cache deletion. A failed HTTP response or digest remains failed until an explicit retry.
+- Report and clear every version under the app-owned `training-media` cache root while preserving unrelated app caches; tolerate files/directories disappearing during size scans.
 - Keep the poster and a loading/failure label while media is unavailable; training timing and voice remain independent. Native WebViews stream verified cache files through one fixed loopback capability route with bounded byte ranges; existing bundled-only constructors remain compatible.
 - Add local HTTP fault-injection tests for offline playback, stalled bodies, mirror fallback, invalid digests/manifests, startup corruption, Wi-Fi changes, cache-clear races, range handling, and nonblocking view fallback. Native device playback acceptance remains the host app's responsibility.
 

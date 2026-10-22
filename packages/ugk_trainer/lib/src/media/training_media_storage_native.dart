@@ -13,13 +13,17 @@ Future<TrainingMediaStorage> createStorage(
 ) async {
   final root = directory ?? (await getApplicationCacheDirectory()).path;
   return _NativeStorage(
+    Directory('$root/training-media'),
     Directory('$root/training-media/$version'),
     downloadTimeout,
   );
 }
 
 class _NativeStorage implements TrainingMediaStorage {
-  _NativeStorage(this.directory, this.downloadTimeout);
+  _NativeStorage(this.managedRoot, this.directory, this.downloadTimeout);
+
+  /// Owned media cache only; sibling app caches are outside this boundary.
+  final Directory managedRoot;
   final Directory directory;
   final Duration downloadTimeout;
   final Set<HttpClient> _clients = {};
@@ -117,12 +121,22 @@ class _NativeStorage implements TrainingMediaStorage {
       File(entry.path).readAsBytes();
   @override
   Future<int> bytes() async {
-    if (!await directory.exists()) return 0;
     var total = 0;
-    await for (final entity in directory.list(followLinks: false)) {
-      if (entity is File && !entity.path.endsWith('.part')) {
-        total += await entity.length();
+    try {
+      await for (final entity in managedRoot.list(
+        recursive: true,
+        followLinks: false,
+      )) {
+        if (entity is File && !entity.path.endsWith('.part')) {
+          try {
+            total += await entity.length();
+          } on FileSystemException {
+            // A clear/eviction can remove a file after directory enumeration.
+          }
+        }
       }
+    } on FileSystemException {
+      // This is a snapshot: the entire root or a listed version may disappear.
     }
     return total;
   }
@@ -137,7 +151,11 @@ class _NativeStorage implements TrainingMediaStorage {
 
   @override
   Future<void> clear() async {
-    if (await directory.exists()) await directory.delete(recursive: true);
+    try {
+      await managedRoot.delete(recursive: true);
+    } on PathNotFoundException {
+      // Concurrent eviction or an empty first-run cache already did the work.
+    }
   }
 
   @override

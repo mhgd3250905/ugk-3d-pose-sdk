@@ -79,7 +79,20 @@ class TrainerGlassStyle {
   /// The fixed body of pills on media (sdk-stage-r6): HUD chips on the clip
   /// take no backdrop sample, so their colour never depends on what is
   /// behind them (poster, stage, loading or playing video, a cross-fade).
+  /// Dark: a deep smoke with white text. Light (sdk-stage-r7): a white
+  /// frost with ink text, so light mode never shows dark slabs.
   final Color overMediaFill;
+
+  /// Whether [overMediaFill] is a light body (ink text and icons on top)
+  /// rather than a dark one (white text).
+  bool get overMediaIsLight =>
+      Color.fromARGB(
+        255,
+        (overMediaFill.r * 255).round(),
+        (overMediaFill.g * 255).round(),
+        (overMediaFill.b * 255).round(),
+      ).computeLuminance() >
+      .5;
 
   static const dark = TrainerGlassStyle(
     tint: Color(0x0AFFFFFF),
@@ -115,6 +128,7 @@ class TrainerGlassStyle {
     innerShade: Color(0x0F27405A),
     contactShadow: Color(0x1F1B2A3A),
     ambientShadow: Color(0x241B3A4A),
+    overMediaFill: Color(0xE6FBFCFE),
   );
 
   /// Blur + colour boost in one image filter.
@@ -167,7 +181,9 @@ class TrainerGlass extends StatelessWidget {
   /// A tappable control: visibly glassy when idle.
   final bool control;
 
-  /// Floats on media: darker tint for contrast; light text on top.
+  /// Floats on media: a fixed, unsampled body ([TrainerGlassStyle.overMediaFill]
+  /// of the theme's glass) — dark with white text in dark mode, white frost
+  /// with ink text in light mode.
   final bool overMedia;
   final bool pressed;
 
@@ -177,8 +193,8 @@ class TrainerGlass extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // On media the dark material is used in both themes (light text).
-    final g = overMedia ? TrainerGlassStyle.dark : theme.glass;
+    // On media the theme's own material, with its fixed media body.
+    final g = theme.glass;
     final dir = Directionality.maybeOf(context) ?? TextDirection.ltr;
     final shape = _shape();
     final body = CustomPaint(
@@ -207,8 +223,7 @@ class TrainerGlass extends StatelessWidget {
                 child: CustomPaint(
                   painter: _ShadowPainter(
                     shape: shape,
-                    // Pills on media keep the page's shadow weight.
-                    style: overMedia ? theme.glass : g,
+                    style: g,
                     textDirection: dir,
                   ),
                 ),
@@ -445,7 +460,7 @@ class _TrainerGlassButtonState extends State<TrainerGlassButton> {
         widget.iconColor ??
         (widget.primary
             ? th.onAccent
-            : widget.overMedia
+            : widget.overMedia && !th.glass.overMediaIsLight
             ? Colors.white
             : th.text);
     final face = IconTheme.merge(

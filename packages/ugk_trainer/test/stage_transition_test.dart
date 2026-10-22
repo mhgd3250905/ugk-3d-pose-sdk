@@ -73,10 +73,24 @@ void main() {
     await until(tester, prepChip);
     await tester.pump(const Duration(milliseconds: 700));
     final prep = tester.getBottomLeft(prepChip).dy;
+    // r7: the subtitle hangs below the pendant slot, lowest on the stage.
+    expect(
+      tester.getTopLeft(prepChip).dy,
+      greaterThan(
+        tester.getRect(find.byKey(const ValueKey('pendant-slot'))).bottom,
+      ),
+    );
 
     // Work (next-up pendant), then rest: the chip appears while the old
     // pendant is still fading out and the next clip is still "loading".
     await until(tester, find.byKey(const ValueKey('next-b')));
+    final pendantSlot = tester.getRect(
+      find.byKey(const ValueKey('pendant-slot')),
+    );
+    expect(
+      tester.getBottomLeft(find.byKey(const ValueKey('next-b'))).dy,
+      lessThanOrEqualTo(pendantSlot.bottom),
+    );
     final restChip = find.byKey(const ValueKey('sub-cue-b'));
     await until(tester, restChip);
     await tester.pump(const Duration(milliseconds: 200));
@@ -86,6 +100,13 @@ void main() {
 
     expect(midFade, settled);
     expect(settled, prep);
+  });
+
+  test('media chips: light frost in light mode, dark smoke in dark', () {
+    expect(TrainerGlassStyle.light.overMediaIsLight, isTrue);
+    expect(TrainerGlassStyle.dark.overMediaIsLight, isFalse);
+    expect(TrainerTheme.light.glass.overMediaIsLight, isTrue);
+    expect(TrainerTheme.dark.glass.overMediaIsLight, isFalse);
   });
 
   testWidgets('HUD chips on the clip take no backdrop sample', (tester) async {

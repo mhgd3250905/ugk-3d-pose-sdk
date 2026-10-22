@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — stage chips r7
+
+- The coach subtitle chip (e.g. 收紧臀部) is now the lowest thing on the stage, just above the transport — below the clip's bottom edge wherever the stage leaves room — so it covers as little of the demo as possible. The next-up / 完成本组 / rest-feedback pendant hangs above it. Both sit in fixed slots (pendant 44 px, subtitle two lines), so neither moves across pages, phases, clip loading or one- vs two-line subtitles; `stage_transition_test` still asserts no jump and now also that the subtitle sits below the pendant slot.
+- On-media chips (下一个 / 不舒服 / paused / switch-side tags, subtitle, next-up preview) follow the theme: light mode paints a white frost (`TrainerGlassStyle.light.overMediaFill` `0xE6FBFCFE`) with ink text / icons, the light glass hairline, rim and soft shadow, and the light caution amber; dark mode keeps the dark smoke `0xC71A1D22` with white text. Still a fixed fill with no backdrop sample, so the tone is stable from the first frame while the clip loads.
+- `TrainerGlassStyle` gains an `overMediaIsLight` getter (from the fill's luminance); `TrainerGlass(overMedia: true)` now uses the theme's own glass instead of always the dark preset. Custom styles without `overMediaFill` keep the dark default. Public API otherwise unchanged.
+
 ## Unreleased — stage transitions r6
 
 - Subtitle chip no longer jumps on page / phase changes: the bottom pendant (none / 下一个 preview / 完成本组) sits in a fixed 44 px slot, and the cross-fades lay out at the incoming child's size (the outgoing one is overlaid, takes no room), so the chip above keeps one position from its first frame instead of moving when the old pendant is removed. The clip slot was already a fixed square independent of media load.

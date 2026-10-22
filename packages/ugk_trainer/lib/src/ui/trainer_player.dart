@@ -995,8 +995,16 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     ),
   );
 
-  /// A small glass HUD chip on the stage (32 px, light text on the darker
-  /// media tint, so it reads at arm's length without covering the figure).
+  /// Text / icon colour on the fixed media body: ink on light frost, white
+  /// on dark smoke.
+  Color get _mediaInk => _th.glass.overMediaIsLight ? _th.text : Colors.white;
+
+  /// Caution (amber) that reads on the media body.
+  Color get _mediaCaution =>
+      _th.glass.overMediaIsLight ? _th.caution : TrainerTheme.dark.caution;
+
+  /// A small glass HUD chip on the stage (32 px, on the fixed media body,
+  /// so it reads at arm's length without covering the figure).
   Widget _tag(String label, {IconData? icon, Color? color, Key? key}) =>
       TrainerGlass(
         key: key,
@@ -1008,7 +1016,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 14, color: color ?? Colors.white),
+              Icon(icon, size: 14, color: color ?? _mediaInk),
               const SizedBox(width: 4),
             ],
             Text(
@@ -1017,7 +1025,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                 fontFamily: _th.fontFamily,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: color ?? Colors.white,
+                color: color ?? _mediaInk,
               ),
             ),
           ],
@@ -1162,12 +1170,16 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                 clipTop: top,
               ),
             ),
-            // Bottom pendants: subtitle chip above one action / preview
-            // pendant, both hanging just above the transport.
+            // Bottom pendants (sdk-stage-r7): the subtitle chip is the
+            // lowest thing on the stage, just above the transport — below
+            // the clip's bottom edge wherever the stage leaves room — so it
+            // covers as little of the demo as possible. The action / preview
+            // pendant hangs above it. Both sit in fixed slots, so neither
+            // moves across pages, phases or subtitle line counts.
             Positioned(
               left: TrainerSpace.x3,
               right: TrainerSpace.x3,
-              bottom: h - midBottom + TrainerSpace.x3,
+              bottom: h - midBottom + TrainerSpace.x2,
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 520),
@@ -1175,15 +1187,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _fade(
-                        alignment: Alignment.bottomCenter,
-                        sizeToCurrent: true,
-                        _subtitleChip(sub),
-                      ),
-                      const SizedBox(height: TrainerSpace.x2),
                       // A fixed slot for the built-in pendants (none / next
-                      // up / 完成本组), so the subtitle chip above keeps one
-                      // height across pages and phases (sdk-stage-r6).
+                      // up / 完成本组) (sdk-stage-r6).
                       ConstrainedBox(
                         key: const ValueKey('pendant-slot'),
                         constraints: const BoxConstraints(
@@ -1200,6 +1205,25 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                                   key: ValueKey('next-none'),
                                   width: double.infinity,
                                 ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: TrainerSpace.x2),
+                      // A fixed slot for the subtitle (two lines), the chip
+                      // bottom-aligned in it, so a one- or two-line line
+                      // never shifts the pendant above.
+                      ConstrainedBox(
+                        key: const ValueKey('subtitle-slot'),
+                        constraints: const BoxConstraints(
+                          minHeight: _subtitleSlot,
+                        ),
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          heightFactor: 1,
+                          child: _fade(
+                            alignment: Alignment.bottomCenter,
+                            sizeToCurrent: true,
+                            _subtitleChip(sub),
                           ),
                         ),
                       ),
@@ -1227,7 +1251,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                           _s.switchTo(p.side ?? Side.left),
                           key: const ValueKey('tag-side'),
                           icon: Icons.swap_horiz,
-                          color: TrainerTheme.dark.caution,
+                          color: _mediaCaution,
                         )
                       : rest && p.nextExerciseId != null
                       ? _tag(_s.next, key: const ValueKey('tag-next'))
@@ -1256,7 +1280,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                       child: _tag(
                         _s.discomfort,
                         icon: Icons.healing,
-                        color: TrainerTheme.dark.caution,
+                        color: _mediaCaution,
                       ),
                     ),
                   ),
@@ -1572,7 +1596,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                   fontFamily: _th.fontFamily,
                   fontSize: 13,
                   height: 1.4,
-                  color: Colors.white.withValues(alpha: .92),
+                  color: _mediaInk.withValues(alpha: .92),
                 ),
               ),
             ),
@@ -1714,9 +1738,13 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   /// How far the square clip may run past the screen's width.
   static const _clipOverscan = 1.15;
 
-  /// Height reserved under the subtitle chip for the bottom pendant: the
+  /// Height reserved above the subtitle chip for the bottom pendant: the
   /// tallest built-in one (完成本组, 44 px).
   static const double _pendantSlot = 44;
+
+  /// Height reserved for the subtitle chip: two 13 px lines at 1.4 plus
+  /// its 6 px vertical padding.
+  static const double _subtitleSlot = 2 * 13 * 1.4 + 12 + 1;
 
   /// Countdown number slot above the button, and the ring around it.
   static const _digitsH = 36.0;
@@ -1822,7 +1850,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     final small = TextStyle(
       fontFamily: _th.fontFamily,
       fontSize: 13,
-      color: Colors.white.withValues(alpha: .7),
+      color: _mediaInk.withValues(alpha: .7),
     );
     return Align(
       key: ValueKey('next-${d.id}'),
@@ -1860,7 +1888,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: small.copyWith(
-                    color: Colors.white,
+                    color: _mediaInk,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

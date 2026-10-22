@@ -8,6 +8,7 @@ export 'src/media/asset_router.dart';
 export 'src/media/drill_media.dart';
 export 'src/media/drill_media_view.dart';
 export 'src/media/media_controller.dart';
+export 'src/media/training_media_repository.dart';
 export 'src/platform/screen_awake.dart';
 export 'src/platform/training_keep_alive.dart';
 export 'src/ui/countdown_ring.dart';

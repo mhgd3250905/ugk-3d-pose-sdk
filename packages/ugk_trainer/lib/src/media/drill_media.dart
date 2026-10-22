@@ -12,9 +12,17 @@ class DrillMedia {
     this.posterTime = 0,
     this.lightVideoAsset,
     this.lightPosterAsset,
+    this.actionId,
+    this.skin = 'realistic',
+    this.theme = 'dark',
   });
 
   final String id;
+
+  /// Optional manifest id when an app's own drill id differs.
+  final String? actionId;
+  final String skin;
+  final String theme;
 
   /// Flutter asset keys (`assets/packs/h-squat/demo.mp4`).
   final String videoAsset;

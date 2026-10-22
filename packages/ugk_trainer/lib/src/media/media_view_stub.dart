@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 
 import 'drill_media.dart';
 import 'media_controller.dart';
+import 'training_media_repository.dart';
 
 class DrillMediaPlatformView extends StatefulWidget {
   const DrillMediaPlatformView({
@@ -13,6 +14,7 @@ class DrillMediaPlatformView extends StatefulWidget {
     this.labels = const {},
     this.fit = 'contain',
     this.align = Alignment.center,
+    this.resource,
   });
   final DrillMedia media;
   final DrillMediaController controller;
@@ -22,6 +24,7 @@ class DrillMediaPlatformView extends StatefulWidget {
   final Map<String, String> labels;
   final String fit;
   final Alignment align;
+  final TrainingMediaResource? resource;
   @override
   State<DrillMediaPlatformView> createState() => _UnsupportedState();
 }

@@ -2,11 +2,14 @@
 // then the looping clip on top once its first frame is on screen – the
 // HipLab hand-over, no black flash). Changes: takes a [DrillMedia] instead
 // of a SmartFit Exercise; colours come from the caller.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'drill_media.dart';
 import 'media_controller.dart';
 import 'media_view.dart';
+import 'training_media_repository.dart';
 
 class DrillMediaView extends StatefulWidget {
   const DrillMediaView({
@@ -19,6 +22,7 @@ class DrillMediaView extends StatefulWidget {
     this.stage = const Color(0xFF101013),
     this.errorLabel,
     this.errorColor = const Color(0xB8FFFFFF),
+    this.repository,
   });
 
   final DrillMedia media;
@@ -37,6 +41,7 @@ class DrillMediaView extends StatefulWidget {
   /// Shown when the clip cannot load.
   final String? errorLabel;
   final Color errorColor;
+  final TrainingMediaRepository? repository;
 
   @override
   State<DrillMediaView> createState() => _DrillMediaViewState();
@@ -44,6 +49,12 @@ class DrillMediaView extends StatefulWidget {
 
 class _DrillMediaViewState extends State<DrillMediaView> {
   DrillMediaController? _controller;
+  TrainingMediaRepository? _repository;
+  TrainingMediaResource? _resource;
+  Object? _downloadError;
+  int _request = 0;
+  int _cacheRevision = 0;
+  bool _resolving = false;
 
   /// Theme the running clip was started for: a switch reloads the
   /// light/dark render (the poster covers the hand-over).
@@ -54,9 +65,18 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final repository = widget.repository ?? TrainingMediaScope.maybeOf(context);
+    if (_repository != repository) {
+      _repository?.removeListener(_repositoryChanged);
+      _repository = repository;
+      _cacheRevision = repository?.cacheRevision ?? 0;
+      _repository?.addListener(_repositoryChanged);
+      _reload();
+    }
     final b = Theme.of(context).brightness;
     if (_brightness != null &&
         b != _brightness &&
+        _repository == null &&
         widget.media.lightVideoAsset != null &&
         _controller != null) {
       _brightness = b;
@@ -75,9 +95,19 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   @override
   void didUpdateWidget(DrillMediaView old) {
     super.didUpdateWidget(old);
-    if (old.media.id != widget.media.id || old.playing != widget.playing) {
-      _stop();
-      if (widget.playing) _start();
+    if (old.media.id != widget.media.id ||
+        old.media.actionId != widget.media.actionId ||
+        old.media.skin != widget.media.skin ||
+        old.media.theme != widget.media.theme ||
+        old.repository != widget.repository ||
+        old.playing != widget.playing) {
+      if (old.repository != widget.repository) {
+        _repository?.removeListener(_repositoryChanged);
+        _repository = widget.repository ?? TrainingMediaScope.maybeOf(context);
+        _cacheRevision = _repository?.cacheRevision ?? 0;
+        _repository?.addListener(_repositoryChanged);
+      }
+      _reload();
     } else if (old.paused != widget.paused) {
       final c = _controller;
       if (widget.paused) {
@@ -86,6 +116,79 @@ class _DrillMediaViewState extends State<DrillMediaView> {
         c.toggle();
       }
     }
+  }
+
+  void _reload() {
+    _request++;
+    _stop();
+    _resource = null;
+    _downloadError = null;
+    _resolving = false;
+    if (!widget.playing) return;
+    if (_repository == null) {
+      _start();
+    } else {
+      unawaited(_resolve(_request));
+    }
+  }
+
+  Future<void> _resolve(int request) async {
+    _resolving = true;
+    try {
+      final media = widget.media;
+      final resource = await _repository!.ensureVideo(
+        media.actionId ?? media.id,
+        skin: media.skin,
+        theme: media.theme,
+      );
+      if (!mounted || request != _request) return;
+      setState(() {
+        _resource = resource;
+        _start();
+      });
+    } catch (error) {
+      if (mounted && request == _request) {
+        setState(() => _downloadError = error);
+      }
+    } finally {
+      if (request == _request) _resolving = false;
+    }
+  }
+
+  void _repositoryChanged() {
+    if (!mounted) return;
+    final repository = _repository!;
+    final id = widget.media.actionId ?? widget.media.id;
+    if (_cacheRevision != repository.cacheRevision) {
+      _cacheRevision = repository.cacheRevision;
+      if (_resource?.assetKey == null) {
+        _request++;
+        _resolving = false;
+        _stop();
+        _resource = null;
+        _downloadError = StateError('Media cache cleared');
+      }
+      setState(() {});
+      return;
+    }
+    if (!repository.visibleActions.any((a) => a.id == id)) {
+      _request++;
+      _resolving = false;
+      _stop();
+      _resource = null;
+      _downloadError = StateError('Action is not release eligible');
+    } else if (widget.playing && _resource == null && !_resolving) {
+      final phase = repository.stateFor(id).phase;
+      if ([
+        TrainingMediaPhase.queued,
+        TrainingMediaPhase.downloading,
+        TrainingMediaPhase.ready,
+      ].contains(phase)) {
+        _downloadError = null;
+        unawaited(_resolve(++_request));
+      }
+    }
+    setState(() {});
   }
 
   void _start() {
@@ -106,6 +209,8 @@ class _DrillMediaViewState extends State<DrillMediaView> {
 
   @override
   void dispose() {
+    _request++;
+    _repository?.removeListener(_repositoryChanged);
     _stop();
     super.dispose();
   }
@@ -114,17 +219,20 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   Widget build(BuildContext context) {
     final m = widget.media;
     final c = _controller;
-    final video = m.videoFor(light: _light);
+    final video = _resource?.assetKey ?? m.videoFor(light: _light);
     final poster = m.posterFor(light: _light);
     Widget content = Stack(
       fit: StackFit.expand,
       children: [
-        if (c != null)
+        if (c != null && (_repository == null || _resource != null))
           DrillMediaPlatformView(
-            key: ValueKey('${m.id}/$video'),
+            key: ValueKey(
+              '${m.id}/$video/${_resource?.cachePath}/$_cacheRevision',
+            ),
             media: m,
             controller: c,
             videoAsset: video,
+            resource: _resource,
           ),
         if (c == null || !c.hasFrame)
           Image.asset(
@@ -134,7 +242,7 @@ class _DrillMediaViewState extends State<DrillMediaView> {
             errorBuilder: (_, _, _) => ColoredBox(
               color: widget.stage,
               child: Center(
-                child: widget.errorLabel == null
+                child: widget.errorLabel == null || _repository != null
                     ? null
                     : Text(
                         widget.errorLabel!,
@@ -143,6 +251,35 @@ class _DrillMediaViewState extends State<DrillMediaView> {
                           color: widget.errorColor,
                         ),
                       ),
+              ),
+            ),
+          ),
+        if (_repository != null &&
+            widget.playing &&
+            (_resource == null || c?.failed == true))
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 12,
+            child: Semantics(
+              liveRegion: true,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_downloadError == null && _resource == null)
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  Text(
+                    _downloadError != null || c?.failed == true
+                        ? (widget.errorLabel ?? '动作视频暂不可用，训练继续')
+                        : '正在加载动作视频',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: widget.errorColor),
+                  ),
+                ],
               ),
             ),
           ),

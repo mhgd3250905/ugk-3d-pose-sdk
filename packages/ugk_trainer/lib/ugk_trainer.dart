@@ -13,6 +13,7 @@ export 'src/platform/training_keep_alive.dart';
 export 'src/ui/countdown_ring.dart';
 export 'src/ui/trainer_glass.dart';
 export 'src/ui/trainer_player.dart';
+export 'src/ui/trainer_stage.dart';
 export 'src/ui/trainer_strings.dart';
 export 'src/ui/trainer_theme.dart';
 export 'src/voice/just_audio_output.dart';

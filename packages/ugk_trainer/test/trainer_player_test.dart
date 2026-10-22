@@ -256,4 +256,39 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     semantics.dispose();
   });
+
+  for (final (w, h, dark) in [(360.0, 780.0, false), (390.0, 844.0, true)])
+    testWidgets(
+      'stage layout fits ${w.toInt()}x${h.toInt()} without overflow',
+      (tester) async {
+        tester.view.physicalSize = Size(w, h);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: TrainerPlayer(
+              plan: planOf([reps('a', 8), timed('b', 30)]),
+              drillOf: drillOf,
+              strings: TrainerStrings.zh(),
+              theme: dark ? TrainerTheme.dark : TrainerTheme.light,
+              prepSeconds: 0,
+              keepAlive: false,
+              mediaBuilder: (_, _) => const SizedBox.expand(),
+              onFinished: (_) async {},
+            ),
+          ),
+        );
+        await tester.pump(const Duration(seconds: 1));
+        expect(tester.takeException(), isNull);
+        // The clip spans the width at the top, edge to edge.
+        final clip = tester.getRect(find.byKey(const ValueKey('media-a')));
+        expect(clip.top, 0);
+        expect(clip.width, w);
+        for (final k in ['close', 'pause', 'skip', 'prev', 'discomfort']) {
+          final r = tester.getRect(find.byKey(ValueKey(k)));
+          expect(r.bottom <= h && r.top >= 0, isTrue, reason: k);
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
 }

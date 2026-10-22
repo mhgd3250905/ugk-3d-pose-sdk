@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — stage layout r4
+
+- Top card calmed to two levels: the move name (17 semibold, one line) over a single short muted line — at most two parts (`第 2/3 组 · 左侧`, `左侧 · 30 秒`, or the block name `热身`; a rep set's dose lives at the transport, not here; prep / rest / switch: phase label · dose up next). Block names, round counters and the duplicated n / total text are gone. On the right a designed exercise index: a large light `4` with a small muted `/5` on one tabular baseline (semantics `4 / 5`). Hairline progress kept along the inside bottom; more padding, same ~73 px height.
+- The counter ring left the card: the countdown is now a thin ring around the emerald pause / play button (remaining time for timed moves, prep, rest and side switches; rep progress for clock-counted sets; empty track for self-paced sets; fades with pause).
+- The number sits just above the button on the same axis (new `TrainerCountdownDigits`: 32 px light tabular numeral, small muted unit `秒` / `/ 12 次`; self-paced sets show the dose). Last 3 s of a timed move take the accent and breathe once per second (reduced motion: colour only). Kept outside the button so the button keeps its one job and its 暂停训练 / 继续训练 label; the number has its own semantics label (e.g. `28 秒`).
+- `TrainerRingPainter` gains optional `thickness` (default .05, unchanged). Pendants (完成本组, next-up, subtitle) now hang above the number slot, so nothing collides. Public API otherwise unchanged.
+
 ## Unreleased — stage layout r3
 
 - Top card slimmed to one row (~71 px, was 172): small close, move name on one line, phase / block label · dose and n / total on a small second line, a 46 px counter ring (its caption kept as the ring's semantics label), and the workout progress as a 3 px hairline along the card's inside bottom.

@@ -310,6 +310,20 @@ void main() {
         expect(done.width, lessThan(w * .7));
         expect(done.top, greaterThan(clip.center.dy + clip.height * .3));
         expect(done.bottom, lessThan(pause.top));
+        // The countdown ring is the pause button's border; its number (here
+        // the self-paced dose) sits just above it, under 完成本组; the
+        // exercise index sits inside the card.
+        final ring = tester.getRect(find.byKey(const ValueKey('ring')));
+        expect(ring.center.dx, closeTo(pause.center.dx, .5));
+        expect(ring.center.dy, closeTo(pause.center.dy, .5));
+        expect(ring.width, greaterThan(pause.width));
+        final counter = tester.getRect(find.byKey(const ValueKey('counter')));
+        expect(counter.bottom, lessThanOrEqualTo(ring.top));
+        expect(counter.center.dx, closeTo(pause.center.dx, 1));
+        expect(done.bottom, lessThan(counter.top));
+        final index = tester.getRect(find.byKey(const ValueKey('index')));
+        expect(card.contains(index.center), isTrue);
+        expect(index.left, greaterThan(card.center.dx));
         final discomfort = tester.getRect(
           find.byKey(const ValueKey('discomfort')),
         );

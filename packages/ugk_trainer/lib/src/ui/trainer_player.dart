@@ -1295,73 +1295,82 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
               radius: 24,
               height: _cardH,
               padding: const EdgeInsets.fromLTRB(
-                TrainerSpace.x2,
+                TrainerSpace.x3,
                 _cardPadV,
                 TrainerSpace.x4,
                 _cardPadV,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+              // Close is centred on the card's full height; name, muted
+              // line and the segmented progress share one left edge, and
+              // the progress ends under the index's right edge.
+              child: Row(
                 children: [
+                  _circle(
+                    key: const ValueKey('close'),
+                    icon: Icons.close,
+                    tooltip: _s.close,
+                    size: 34,
+                    onPressed: _close,
+                  ),
+                  const SizedBox(width: TrainerSpace.x3),
                   Expanded(
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _circle(
-                          key: const ValueKey('close'),
-                          icon: Icons.close,
-                          tooltip: _s.close,
-                          size: 34,
-                          onPressed: _close,
-                        ),
-                        const SizedBox(width: TrainerSpace.x3),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          child: Row(
                             children: [
-                              _fade(
-                                Text(
-                                  d?.name ?? '',
-                                  key: ValueKey('name-${d?.id}'),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: _th.title.copyWith(
-                                    fontSize: 17,
-                                    height: 1.2,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: -.2,
-                                  ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    _fade(
+                                      Text(
+                                        d?.name ?? '',
+                                        key: ValueKey('name-${d?.id}'),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: _th.title.copyWith(
+                                          fontSize: 17,
+                                          height: 1.2,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: -.2,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    _fade(
+                                      Text(
+                                        line,
+                                        key: ValueKey('label-$line'),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: _th.label.copyWith(
+                                          fontSize: 12.5,
+                                          height: 1.25,
+                                          fontWeight: FontWeight.w500,
+                                          color: lineColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: 3),
-                              _fade(
-                                Text(
-                                  line,
-                                  key: ValueKey('label-$line'),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: _th.label.copyWith(
-                                    fontSize: 12.5,
-                                    height: 1.25,
-                                    fontWeight: FontWeight.w500,
-                                    color: lineColor,
-                                  ),
-                                ),
-                              ),
+                              const SizedBox(width: TrainerSpace.x3),
+                              _index(current, total),
                             ],
                           ),
                         ),
-                        const SizedBox(width: TrainerSpace.x3),
-                        _index(current, total),
+                        const SizedBox(height: 8),
+                        _track(
+                          done: done,
+                          current: current,
+                          still: still,
+                          compact: true,
+                        ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  _track(
-                    done: done,
-                    current: current,
-                    still: still,
-                    compact: true,
                   ),
                 ],
               ),

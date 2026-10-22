@@ -1,9 +1,10 @@
-// Clear liquid glass for the player, after SmartFit@63c8720
-// lib/ui/theme/glass.dart (SfGlassSurface, SfGlass.standardMaterial,
-// SfControlInk, SfGlassField). SmartFit draws it with a shader package;
-// this is a compact, dependency-free port: near-zero blur, a 2–6 % tint,
-// a Fresnel rim (bright upper-left, faint lower-right), a soft specular
-// and — in dark mode — a calm white hairline (40 % on idle controls).
+// Liquid glass for the player (sdk-stage-r5), after SmartFit@63c8720
+// lib/ui/theme/glass.dart. Dependency-free: one backdrop filter per surface
+// (blur + saturation/brightness boost composed into one ImageFilter), a
+// cool tint, a crisp 1 px specular rim bright on top and fading down, an
+// inner top sheen, a faint inner bottom shade, and a contact + ambient
+// shadow painted only outside the shape so the glass stays clear.
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -26,22 +27,28 @@ class TrainerGlassStyle {
     required this.overMediaTint,
     this.blur = 1.2,
     this.rimWidth = 1.0,
+    this.saturation = 1.0,
+    this.brightness = 0.0,
+    this.innerShade = const Color(0x00000000),
+    this.contactShadow = const Color(0x00000000),
+    this.ambientShadow = const Color(0x00000000),
   });
 
-  /// Body tint (≈2 % dark, ≈6 % light).
+  /// Body tint.
   final Color tint;
 
-  /// Fresnel rim at the light (upper-left) and away from it.
+  /// Specular rim: [rimLight] on the top edge fading to [rimShade] at the
+  /// sides (the bottom edge catches a little light again).
   final Color rimLight;
   final Color rimShade;
 
-  /// Soft highlight in the upper-left of the body.
+  /// Inner sheen just under the top edge.
   final Color specular;
 
-  /// Calm edge on passive glass (white hairline dark, faint ink light).
+  /// Calm edge on passive glass.
   final Color hairline;
 
-  /// Idle control rim (≥3:1 on the dark sky) and fill.
+  /// Idle control rim and fill.
   final Color controlRim;
   final Color controlFillTop;
   final Color controlFill;
@@ -50,39 +57,87 @@ class TrainerGlassStyle {
   /// numerals and labels stay legible at arm's length.
   final Color overMediaTint;
 
-  /// Backdrop blur sigma: near zero, only to soften what it bends.
+  /// Backdrop blur sigma.
   final double blur;
   final double rimWidth;
 
+  /// Backdrop colour boost (1 = none) and lift (0 = none, in 0..1 of white)
+  /// applied with the blur in the same filter, so what's behind reads
+  /// through brighter and richer.
+  final double saturation;
+  final double brightness;
+
+  /// Faint shade along the inside of the bottom edge (thickness).
+  final Color innerShade;
+
+  /// Outer shadow: a tight contact shadow and a soft ambient one, painted
+  /// only outside the shape so the glass itself stays clear.
+  final Color contactShadow;
+  final Color ambientShadow;
+
   static const dark = TrainerGlassStyle(
-    tint: Color(0x05FFFFFF),
-    rimLight: Color(0x8CFFFFFF),
-    rimShade: Color(0x14FFFFFF),
-    specular: Color(0x1FFFFFFF),
-    hairline: Color(0x1FFFFFFF),
-    controlRim: Color(0x66FFFFFF),
-    controlFillTop: Color(0x24FFFFFF),
-    controlFill: Color(0x17FFFFFF),
-    overMediaTint: Color(0x73000000),
+    tint: Color(0x0AFFFFFF),
+    rimLight: Color(0x80FFFFFF),
+    rimShade: Color(0x12FFFFFF),
+    specular: Color(0x1AFFFFFF),
+    hairline: Color(0x14FFFFFF),
+    controlRim: Color(0x33FFFFFF),
+    controlFillTop: Color(0x21FFFFFF),
+    controlFill: Color(0x12FFFFFF),
+    overMediaTint: Color(0x66000000),
+    blur: 6,
+    saturation: 1.3,
+    brightness: .02,
+    innerShade: Color(0x2E000000),
+    contactShadow: Color(0x73000000),
+    ambientShadow: Color(0x59000000),
   );
 
   static const light = TrainerGlassStyle(
-    tint: Color(0x0FFFFFFF),
-    rimLight: Color(0xF2FFFFFF),
-    rimShade: Color(0x1A1D2B25),
-    specular: Color(0x66FFFFFF),
-    hairline: Color(0x141D2B25),
-    controlRim: Color(0x1F1D2B25),
-    controlFillTop: Color(0x8CFFFFFF),
-    controlFill: Color(0x59FFFFFF),
-    overMediaTint: Color(0x66000000),
-    blur: 1.5,
+    tint: Color(0x47F6FAFF),
+    rimLight: Color(0xFFFFFFFF),
+    rimShade: Color(0x80FFFFFF),
+    specular: Color(0x8CFFFFFF),
+    hairline: Color(0x1A1D2B3A),
+    controlRim: Color(0x1F1D2B3A),
+    controlFillTop: Color(0x80FFFFFF),
+    controlFill: Color(0x4DFFFFFF),
+    overMediaTint: Color(0x59000000),
+    blur: 10,
+    saturation: 1.6,
+    brightness: .05,
+    innerShade: Color(0x0F27405A),
+    contactShadow: Color(0x1F1B2A3A),
+    ambientShadow: Color(0x241B3A4A),
   );
+
+  /// Blur + colour boost in one image filter.
+  ui.ImageFilter get backdrop {
+    final blurF = ui.ImageFilter.blur(
+      sigmaX: blur,
+      sigmaY: blur,
+      tileMode: TileMode.mirror,
+    );
+    if (saturation == 1 && brightness == 0) return blurF;
+    final s = saturation, l = brightness * 255;
+    const r = .2126, g = .7152, b = .0722;
+    final m = <double>[
+      r * (1 - s) + s, g * (1 - s), b * (1 - s), 0, l, //
+      r * (1 - s), g * (1 - s) + s, b * (1 - s), 0, l, //
+      r * (1 - s), g * (1 - s), b * (1 - s) + s, 0, l, //
+      0, 0, 0, 1, 0,
+    ];
+    return ui.ImageFilter.compose(
+      outer: ui.ColorFilter.matrix(m),
+      inner: blurF,
+    );
+  }
 }
 
 /// One glass platter behind [child]: a circle / capsule when [radius] is
 /// null, otherwise a rounded superellipse. It only paints; the child keeps
-/// its own semantics and taps. Never nest one inside another.
+/// its own semantics and taps. One backdrop filter per surface; never nest
+/// one inside another.
 class TrainerGlass extends StatelessWidget {
   const TrainerGlass({
     super.key,
@@ -103,57 +158,114 @@ class TrainerGlass extends StatelessWidget {
   final double? width;
   final double? height;
 
-  /// A tappable control: visibly glassy when idle (fill + 40 % rim, dark).
+  /// A tappable control: visibly glassy when idle.
   final bool control;
 
   /// Floats on media: darker tint for contrast; light text on top.
   final bool overMedia;
   final bool pressed;
 
-  ShapeBorder _shape([BorderSide side = BorderSide.none]) => radius == null
-      ? StadiumBorder(side: side)
-      : RoundedSuperellipseBorder(
-          borderRadius: BorderRadius.circular(radius!),
-          side: side,
-        );
+  ShapeBorder _shape() => radius == null
+      ? const StadiumBorder()
+      : RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(radius!));
 
   @override
   Widget build(BuildContext context) {
     // On media the dark material is used in both themes (light text).
     final g = overMedia ? TrainerGlassStyle.dark : theme.glass;
-    final dark = theme.isDark || overMedia;
-    Widget body = CustomPaint(
+    final dir = Directionality.maybeOf(context) ?? TextDirection.ltr;
+    final shape = _shape();
+    final body = CustomPaint(
       painter: _GlassPainter(
-        shape: _shape(),
+        shape: shape,
         style: g,
         mediaTint: theme.glass.overMediaTint,
-        dark: dark,
         control: control,
         overMedia: overMedia,
         pressed: pressed,
-        textDirection: Directionality.maybeOf(context) ?? TextDirection.ltr,
+        textDirection: dir,
       ),
       child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
     );
-    if (g.blur > 0) {
-      body = Stack(
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Stack(
         fit: StackFit.passthrough,
+        clipBehavior: Clip.none,
         children: [
-          Positioned.fill(
-            child: ClipPath(
-              clipper: ShapeBorderClipper(shape: _shape()),
-              child: BackdropFilter(
-                filter: ui.ImageFilter.blur(sigmaX: g.blur, sigmaY: g.blur),
-                child: const SizedBox.expand(),
+          if (theme.glass.contactShadow.a > 0 || g.contactShadow.a > 0)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _ShadowPainter(
+                    shape: shape,
+                    // Pills on media keep the page's shadow weight.
+                    style: overMedia ? theme.glass : g,
+                    textDirection: dir,
+                  ),
+                ),
               ),
             ),
-          ),
+          if (g.blur > 0)
+            Positioned.fill(
+              child: ClipPath(
+                clipper: ShapeBorderClipper(shape: shape),
+                child: BackdropFilter(
+                  filter: g.backdrop,
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
           body,
         ],
+      ),
+    );
+  }
+}
+
+/// Contact + ambient shadow outside the shape only.
+class _ShadowPainter extends CustomPainter {
+  _ShadowPainter({
+    required this.shape,
+    required this.style,
+    required this.textDirection,
+  });
+  final ShapeBorder shape;
+  final TrainerGlassStyle style;
+  final TextDirection textDirection;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final path = shape.getOuterPath(rect, textDirection: textDirection);
+    final small = size.shortestSide < 60;
+    canvas.save();
+    canvas.clipPath(
+      Path.combine(
+        PathOperation.difference,
+        Path()..addRect(rect.inflate(60)),
+        path,
+      ),
+    );
+    void shadow(Color c, double dy, double sigma) {
+      if (c.a == 0) return;
+      canvas.drawPath(
+        path.shift(Offset(0, dy)),
+        Paint()
+          ..color = c
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, sigma),
       );
     }
-    return SizedBox(width: width, height: height, child: body);
+
+    shadow(style.ambientShadow, small ? 4 : 10, small ? 6 : 14);
+    shadow(style.contactShadow, small ? 1 : 1.5, small ? 1.5 : 2.5);
+    canvas.restore();
   }
+
+  @override
+  bool shouldRepaint(_ShadowPainter old) =>
+      old.style != style || old.shape != shape;
 }
 
 class _GlassPainter extends CustomPainter {
@@ -161,7 +273,6 @@ class _GlassPainter extends CustomPainter {
     required this.shape,
     required this.style,
     required this.mediaTint,
-    required this.dark,
     required this.control,
     required this.overMedia,
     required this.pressed,
@@ -170,7 +281,6 @@ class _GlassPainter extends CustomPainter {
   final ShapeBorder shape;
   final TrainerGlassStyle style;
   final Color mediaTint;
-  final bool dark;
   final bool control;
   final bool overMedia;
   final bool pressed;
@@ -193,64 +303,82 @@ class _GlassPainter extends CustomPainter {
           ..shader = LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            stops: const [0, .5],
+            stops: const [0, .55],
             colors: [top, style.controlFill],
           ).createShader(rect),
       );
     }
-    // Specular: a soft lens highlight towards the light.
+    // Inner sheen under the top edge, and a faint shade along the bottom
+    // for thickness — both within a fixed depth so pills and cards match.
+    final h = size.height;
+    final sheenDepth = math.min(h * .5, 22.0);
+    final shadeDepth = math.min(h * .4, 16.0);
     canvas.save();
     canvas.clipPath(path);
     canvas.drawRect(
-      rect,
+      Rect.fromLTWH(0, 0, size.width, sheenDepth),
       Paint()
-        ..shader = RadialGradient(
-          center: const Alignment(-.6, -1.1),
-          radius: 1.1,
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
           colors: [style.specular, style.specular.withValues(alpha: 0)],
-        ).createShader(rect),
+        ).createShader(Rect.fromLTWH(0, 0, size.width, sheenDepth)),
     );
+    if (style.innerShade.a > 0) {
+      final r = Rect.fromLTWH(0, h - shadeDepth, size.width, shadeDepth);
+      canvas.drawRect(
+        r,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [style.innerShade.withValues(alpha: 0), style.innerShade],
+          ).createShader(r),
+      );
+    }
     canvas.restore();
-    // Fresnel rim: bright where the light hits, nearly gone opposite.
+    // Edge definition (an ink hairline on light / white on dark), then the
+    // crisp specular rim: bright along the top, fading down the sides, a
+    // faint return on the bottom edge.
     final w = style.rimWidth;
     final inner = shape.getOuterPath(
       rect.deflate(w / 2),
       textDirection: textDirection,
     );
+    final edge = control ? style.controlRim : style.hairline;
+    if (edge.a > 0) {
+      canvas.drawPath(
+        inner,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w
+          ..color = pressed ? Color.lerp(edge, Colors.white, .35)! : edge,
+      );
+    }
+    final top = math.min(1.0, 14 / math.max(h, 1));
     canvas.drawPath(
       inner,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = w
         ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
           colors: [
             style.rimLight,
-            style.rimShade,
-            style.rimLight.withValues(alpha: style.rimLight.a * .35),
+            Color.lerp(style.rimLight, style.rimShade, .6)!,
+            style.rimShade.withValues(alpha: style.rimShade.a * .35),
+            style.rimShade.withValues(alpha: style.rimShade.a * .8),
           ],
-          stops: const [0, .55, 1],
+          stops: [0, top.clamp(.08, .5), .7, 1],
         ).createShader(rect),
     );
-    // Dark: calm hairline (controls: the 40 % rim, so idle reads as a button).
-    final edge = control ? style.controlRim : style.hairline;
-    if (edge != null && edge.a > 0) {
-      canvas.drawPath(
-        inner,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = control ? 1.0 : .8
-          ..color = pressed ? Color.lerp(edge, Colors.white, .35)! : edge,
-      );
-    }
   }
 
   @override
   bool shouldRepaint(_GlassPainter old) =>
       old.style != style ||
       old.mediaTint != mediaTint ||
-      old.dark != dark ||
       old.control != control ||
       old.overMedia != overMedia ||
       old.pressed != pressed ||

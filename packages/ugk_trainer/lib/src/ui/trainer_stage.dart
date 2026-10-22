@@ -181,6 +181,39 @@ class _FloorPainter extends CustomPainter {
           const [0, .45, 1],
         ),
     );
+    // Ambient light (sdk-stage-r5): low-saturation tinted pools at the
+    // corners, under the top card and the transport, so the glass has
+    // colour to refract. Painted over clip and floor alike, so the clip's
+    // backdrop edge stays seamless; the figure in the middle is untouched.
+    void blob(double x, double y, double r, Color c, double a) {
+      final o = Offset(w * x, h * y);
+      final rad = math.max(w, 320.0) * r;
+      canvas.drawCircle(
+        o,
+        rad,
+        Paint()
+          ..shader = ui.Gradient.radial(
+            o,
+            rad,
+            [
+              c.withValues(alpha: a),
+              c.withValues(alpha: a * .4),
+              c.withValues(alpha: 0),
+            ],
+            const [0, .5, 1],
+          ),
+      );
+    }
+
+    if (dark) {
+      blob(.08, .06, .55, accent, .07);
+      blob(.95, .96, .55, const Color(0xFF6E8BFF), .05);
+    } else {
+      blob(.04, .07, .62, accent, .20);
+      blob(.98, .03, .55, const Color(0xFF7DB8F2), .20);
+      blob(.96, .95, .62, const Color(0xFFFFB98E), .20);
+      blob(.04, .92, .55, const Color(0xFF6FD6B6), .16);
+    }
   }
 
   @override

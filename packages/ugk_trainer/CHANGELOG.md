@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — stage layout r5
+
+- Top card: the close button is centred on the card's full height on the left; the move name, its muted line and the segmented progress now share one left edge, and the progress ends under the index's right edge (no longer card-edge to card-edge). Padding balanced (12 / 16).
+- Liquid glass refined (both themes): one backdrop filter per surface, now blur + saturation / brightness boost composed into a single `ImageFilter` (light σ10 ×1.6, dark σ6 ×1.3); a crisp 1 px specular rim bright on the top edge fading down the sides; an inner top sheen; a faint inner bottom shade for thickness; a tight contact + soft ambient shadow painted only outside the shape so the glass stays clear. Applied to every `TrainerGlass` surface (card, chips / pendants, transport buttons, sheets).
+- Light stage given colour for the glass to refract: low-saturation ambient pools (emerald top-left under the card, sky top-right, peach bottom-right under the transport, mint bottom-left), painted over clip and floor alike so the clip's backdrop edge stays seamless. Light glass is cooler / whiter with a stronger top rim and more shadow contrast. Dark: a faint emerald / indigo glow at the corners, softer rim.
+- `TrainerGlassStyle` gains optional `saturation`, `brightness`, `innerShade`, `contactShadow`, `ambientShadow` and a `backdrop` getter (all defaulted; existing constructors keep working). Public API otherwise unchanged.
+
 ## Unreleased — stage layout r4
 
 - Top card calmed to two levels: the move name (17 semibold, one line) over a single short muted line — at most two parts (`第 2/3 组 · 左侧`, `左侧 · 30 秒`, or the block name `热身`; a rep set's dose lives at the transport, not here; prep / rest / switch: phase label · dose up next). Block names, round counters and the duplicated n / total text are gone. On the right a designed exercise index: a large light `4` with a small muted `/5` on one tabular baseline (semantics `4 / 5`). Hairline progress kept along the inside bottom; more padding, same ~73 px height.

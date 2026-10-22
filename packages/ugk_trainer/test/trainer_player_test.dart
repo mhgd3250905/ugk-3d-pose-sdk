@@ -211,4 +211,130 @@ void main() {
     expect(r.discomfort.single.exerciseId, 'a');
     expect(r.items.last.status, ItemStatus.notReached);
   });
+
+  testWidgets('glass controls keep button semantics; theme hook keeps glass', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final custom = TrainerTheme.light.copyWith(
+      glassStyle: TrainerGlassStyle.dark,
+    );
+    expect(custom.glass, TrainerGlassStyle.dark);
+    expect(TrainerTheme.dark.glass, TrainerGlassStyle.dark);
+    expect(TrainerTheme.light.glass, TrainerGlassStyle.light);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TrainerPlayer(
+          plan: planOf([timed('a', 30)]),
+          drillOf: drillOf,
+          strings: TrainerStrings.zh(),
+          theme: TrainerTheme.light,
+          prepSeconds: 0,
+          keepAlive: false,
+          mediaBuilder: (_, _) => const SizedBox(height: 100),
+          onFinished: (_) async {},
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(TrainerGlassButton), findsNWidgets(4));
+    final pause = find.semantics.byLabel('暂停训练');
+    expect(pause, findsOneWidget);
+    expect(
+      pause.evaluate().single,
+      matchesSemantics(
+        label: '暂停训练',
+        isButton: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        hasTapAction: true,
+        // Keyboard-focusable like the InkWell it replaced (sdk-stage-r9).
+        isFocusable: true,
+        hasFocusAction: true,
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('pause')));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.semantics.byLabel('继续训练'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    semantics.dispose();
+  });
+
+  for (final (w, h, dark) in [(360.0, 780.0, false), (390.0, 844.0, true)]) {
+    testWidgets(
+      'stage layout fits ${w.toInt()}x${h.toInt()} without overflow',
+      (tester) async {
+        tester.view.physicalSize = Size(w, h);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: TrainerPlayer(
+              plan: planOf([reps('a', 8), timed('b', 30)]),
+              drillOf: drillOf,
+              strings: TrainerStrings.zh(),
+              theme: dark ? TrainerTheme.dark : TrainerTheme.light,
+              prepSeconds: 0,
+              keepAlive: false,
+              mediaBuilder: (_, _) => const SizedBox.expand(),
+              onFinished: (_) async {},
+            ),
+          ),
+        );
+        await tester.pump(const Duration(seconds: 1));
+        expect(tester.takeException(), isNull);
+        // A slim card on top; the clip takes the whole stage between it and
+        // the fixed transport (it may run a little past the sides); the
+        // pendants hang below the figure, above the transport.
+        final card = tester.getRect(find.byKey(const ValueKey('info-card')));
+        final clip = tester.getRect(find.byKey(const ValueKey('media-a')));
+        final pause = tester.getRect(find.byKey(const ValueKey('pause')));
+        expect(card.top, lessThan(16));
+        expect(card.height, lessThanOrEqualTo(76));
+        expect(clip.top, greaterThan(card.bottom));
+        expect(clip.bottom, lessThan(pause.top));
+        expect(clip.width, closeTo(clip.height, .01));
+        expect(clip.width, greaterThanOrEqualTo(w));
+        expect(clip.height, greaterThan((pause.top - card.bottom) * .65));
+        expect(clip.center.dx, closeTo(w / 2, .5));
+        expect(h - pause.bottom, lessThan(40));
+        final track = tester.getRect(find.byKey(const ValueKey('progress')));
+        expect(
+          track.bottom <= card.bottom && track.top > card.center.dy,
+          isTrue,
+        );
+        // 完成本组 (r8): a compact pill in the transport, below the clip,
+        // right above the pause button, at least 44 px tall.
+        final done = tester.getRect(
+          find.byKey(const ValueKey('complete-set-button')),
+        );
+        expect(done.height, greaterThanOrEqualTo(44));
+        expect(done.height, lessThan(56));
+        expect(done.width, lessThan(w * .7));
+        expect(done.top, greaterThanOrEqualTo(clip.bottom));
+        expect(done.bottom, lessThan(pause.top));
+        // The countdown ring is the pause button's border; its number slot
+        // sits just above it — on a self-paced set 完成本组 takes it (the
+        // dose is on the card); the exercise index sits inside the card.
+        final ring = tester.getRect(find.byKey(const ValueKey('ring')));
+        expect(ring.center.dx, closeTo(pause.center.dx, .5));
+        expect(ring.center.dy, closeTo(pause.center.dy, .5));
+        expect(ring.width, greaterThan(pause.width));
+        expect(done.bottom, lessThanOrEqualTo(ring.top));
+        expect(done.center.dx, closeTo(pause.center.dx, 1));
+        final index = tester.getRect(find.byKey(const ValueKey('index')));
+        expect(card.contains(index.center), isTrue);
+        expect(index.left, greaterThan(card.center.dx));
+        final discomfort = tester.getRect(
+          find.byKey(const ValueKey('discomfort')),
+        );
+        expect(discomfort.bottom, lessThan(clip.top + clip.height * .25));
+        for (final k in ['close', 'pause', 'skip', 'prev', 'discomfort']) {
+          final r = tester.getRect(find.byKey(ValueKey(k)));
+          expect(r.bottom <= h && r.top >= 0, isTrue, reason: k);
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
 }

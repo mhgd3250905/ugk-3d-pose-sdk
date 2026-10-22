@@ -175,6 +175,7 @@ class TrainerRingPainter extends CustomPainter {
     required this.color,
     required this.knob,
     this.glow = true,
+    this.thickness = .05,
   }) : super(repaint: progress);
   final ValueListenable<double> progress;
   final Color track;
@@ -182,10 +183,13 @@ class TrainerRingPainter extends CustomPainter {
   final Color knob;
   final bool glow;
 
+  /// Arc stroke as a fraction of the diameter (track is 42 % of it).
+  final double thickness;
+
   @override
   void paint(Canvas canvas, Size size) {
     final p = progress.value.clamp(0.0, 1.0);
-    final stroke = size.width * .05;
+    final stroke = size.width * thickness;
     final center = size.center(Offset.zero);
     final radius = size.width / 2 - stroke / 2 - size.width * .03;
     final rect = Rect.fromCircle(center: center, radius: radius);
@@ -248,7 +252,8 @@ class TrainerRingPainter extends CustomPainter {
       old.track != track ||
       old.color != color ||
       old.knob != knob ||
-      old.glow != glow;
+      old.glow != glow ||
+      old.thickness != thickness;
 }
 
 /// A number that rolls over when it changes: the old value rises out and
@@ -290,6 +295,77 @@ class TrainerRollingNumber extends StatelessWidget {
         );
       },
       child: Text(value, key: ValueKey(value), style: style),
+    );
+  }
+}
+
+/// The countdown as a bare numeral (no dial): a rolling tabular number with
+/// a small muted unit on its baseline, e.g. `28 秒` or `5 / 12 次`. In the
+/// last seconds ([urgent]) it takes the accent and breathes once per beat
+/// (reduced motion: colour only); [dim] (paused) fades it to 45 %.
+class TrainerCountdownDigits extends StatelessWidget {
+  const TrainerCountdownDigits({
+    super.key,
+    required this.theme,
+    required this.value,
+    this.unit,
+    this.size = 32,
+    this.color,
+    this.urgent = false,
+    this.dim = false,
+    this.numberKey,
+  });
+  final TrainerTheme theme;
+  final String value;
+  final String? unit;
+  final double size;
+  final Color? color;
+  final bool urgent;
+  final bool dim;
+  final Key? numberKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final still = TrainerMotion.reduced(context);
+    final c = urgent
+        ? (theme.isDark ? theme.accent : theme.accentText)
+        : color ?? theme.text;
+    Widget face = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        TrainerRollingNumber(
+          key: numberKey,
+          value: value,
+          style: theme
+              .numeral(size, color: c)
+              .copyWith(
+                fontWeight: FontWeight.w300,
+                letterSpacing: -size * .02,
+              ),
+        ),
+        if (unit != null) ...[
+          SizedBox(width: size * .12),
+          Text(
+            unit!,
+            style: TextStyle(
+              fontFamily: theme.fontFamily,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: theme.muted,
+              fontFeatures: TrainerTheme.tabular,
+            ),
+          ),
+        ],
+      ],
+    );
+    face = _Breath(active: urgent && !still, beat: value, child: face);
+    return AnimatedOpacity(
+      opacity: dim ? .45 : 1,
+      duration: TrainerMotion.medium,
+      curve: TrainerMotion.standard,
+      child: face,
     );
   }
 }

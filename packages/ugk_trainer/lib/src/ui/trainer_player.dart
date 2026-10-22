@@ -13,8 +13,15 @@
 //   [SessionResult], a failed save can be retried with the same result;
 // * Android keep-alive (TrainingHold, from HipLab) while the session runs;
 // * SmartFit's star sky, custom glyphs and finish animations are not
-//   carried over (Material icons, plain background).
+//   carried over (Material icons);
+// * liquid-glass UI after SmartFit@63c8720 (feat/ui-polish): clear glass
+//   round controls and HUD pills ([TrainerGlass]), an emerald primary disc,
+//   calm 500 ms phase changes that never overlap mid-flight;
+// * immersive stage (sdk-stage-r1): the square clip edge-to-edge at the top,
+//   its backdrop continued as a floor ([TrainerStageFloor]), glass controls
+//   hovering in that space ([TrainerHover]).
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +41,8 @@ import '../voice/voice_cue.dart';
 import '../voice/voice_queue.dart';
 import '../voice/voice_source.dart';
 import 'countdown_ring.dart';
+import 'trainer_glass.dart';
+import 'trainer_stage.dart';
 import 'trainer_strings.dart';
 import 'trainer_theme.dart';
 
@@ -773,14 +782,23 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     context: context,
     backgroundColor: _th.surface,
     isScrollControlled: true,
+    showDragHandle: true,
+    shape: RoundedSuperellipseBorder(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      side: BorderSide(color: _th.glass.hairline, width: .8),
+    ),
+    sheetAnimationStyle: const AnimationStyle(
+      duration: TrainerMotion.calm,
+      reverseDuration: Duration(milliseconds: 420),
+    ),
     builder: (c) => SafeArea(
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            TrainerSpace.gutter,
-            TrainerSpace.x5,
-            TrainerSpace.gutter,
-            TrainerSpace.x2,
+            TrainerSpace.x6,
+            0,
+            TrainerSpace.x6,
+            TrainerSpace.x4,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -813,12 +831,15 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                   _th.danger,
                 ),
               ])
-                ListTile(
-                  key: ValueKey('discomfort-${action.name}'),
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(icon, color: color),
-                  title: Text(label, style: _th.callout.copyWith(color: color)),
-                  onTap: () => Navigator.pop(c, DiscomfortDecision(action)),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: TrainerSpace.x2),
+                  child: _pillOption(
+                    key: ValueKey('discomfort-${action.name}'),
+                    icon: icon,
+                    label: label,
+                    color: color,
+                    onTap: () => Navigator.pop(c, DiscomfortDecision(action)),
+                  ),
                 ),
             ],
           ),
@@ -833,17 +854,37 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       context: context,
       builder: (c) => AlertDialog(
         backgroundColor: _th.surface,
+        shape: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(28),
+          side: BorderSide(color: _th.glass.hairline, width: .8),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(
+          TrainerSpace.x4,
+          0,
+          TrainerSpace.x4,
+          TrainerSpace.x4,
+        ),
         title: Text(_s.closeTitle, style: _th.title),
-        content: Text(_s.closeBody, style: _th.body),
+        content: Text(_s.closeBody, style: _th.body.copyWith(color: _th.muted)),
         actions: [
           TextButton(
             key: const ValueKey('close-confirm'),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(64, 44),
+              shape: const StadiumBorder(),
+            ),
             onPressed: () => Navigator.pop(c, true),
             child: Text(_s.closeConfirm, style: TextStyle(color: _th.muted)),
           ),
-          TextButton(
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: _th.accent,
+              foregroundColor: _th.onAccent,
+              minimumSize: const Size(88, 44),
+              shape: const StadiumBorder(),
+            ),
             onPressed: () => Navigator.pop(c, false),
-            child: Text(_s.closeCancel, style: TextStyle(color: _th.accent)),
+            child: Text(_s.closeCancel),
           ),
         ],
       ),
@@ -876,9 +917,31 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         if (didPop) return;
         await _close();
       },
+      // The stage is the clips' own backdrop ([TrainerTheme.mediaStage]),
+      // so the edge-to-edge clip and the floor below read as one space.
       child: Scaffold(
-        backgroundColor: _th.background,
-        body: SafeArea(child: _engine.done ? _doneView() : _sessionView(p, d)),
+        backgroundColor: _th.mediaStage,
+        body: _engine.done
+            ? LayoutBuilder(
+                builder: (context, box) {
+                  final v = math.min(box.maxWidth, box.maxHeight * .5);
+                  return Stack(
+                    children: [
+                      Positioned.fill(
+                        child: TrainerStageFloor(
+                          theme: _th,
+                          clipSize: v,
+                          clipLeft: (box.maxWidth - v) / 2,
+                          clipTop: (box.maxHeight - v) / 2,
+                          fadeClipEdge: false,
+                        ),
+                      ),
+                      SafeArea(child: _doneView()),
+                    ],
+                  );
+                },
+              )
+            : _sessionView(p, d),
       ),
     );
   }
@@ -889,89 +952,134 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     required String tooltip,
     required VoidCallback onPressed,
     double size = 44,
-  }) => Tooltip(
-    message: tooltip,
-    child: Material(
+  }) => TrainerGlassButton(
+    key: key,
+    theme: _th,
+    icon: Icon(icon),
+    tooltip: tooltip,
+    size: size,
+    onPressed: () {
+      unawaited(HapticFeedback.selectionClick());
+      onPressed();
+    },
+  );
+
+  /// A full-width glass pill row (the built-in discomfort choices).
+  Widget _pillOption({
+    required Key key,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) => Semantics(
+    button: true,
+    child: GestureDetector(
       key: key,
-      color: _th.surfaceHigh,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: () {
-          unawaited(HapticFeedback.selectionClick());
-          onPressed();
-        },
-        child: SizedBox.square(
-          dimension: size,
-          child: Icon(icon, size: size * .46, color: _th.text),
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: TrainerGlass(
+        theme: _th,
+        control: true,
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: TrainerSpace.x5),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: TrainerSpace.x3),
+            Expanded(
+              child: Text(label, style: _th.callout.copyWith(color: color)),
+            ),
+          ],
         ),
       ),
     ),
   );
 
+  /// Text / icon colour on the fixed media body: ink on light frost, white
+  /// on dark smoke.
+  Color get _mediaInk => _th.glass.overMediaIsLight ? _th.text : Colors.white;
+
+  /// Caution (amber) that reads on the media body.
+  Color get _mediaCaution =>
+      _th.glass.overMediaIsLight ? _th.caution : TrainerTheme.dark.caution;
+
+  /// A small glass HUD chip on the stage (32 px, on the fixed media body,
+  /// so it reads at arm's length without covering the figure).
   Widget _tag(String label, {IconData? icon, Color? color, Key? key}) =>
-      Container(
+      TrainerGlass(
         key: key,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: _th.scrim,
-          borderRadius: BorderRadius.circular(999),
-        ),
+        theme: _th,
+        overMedia: true,
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: TrainerSpace.x3),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 14, color: color ?? Colors.white),
+              Icon(icon, size: 14, color: color ?? _mediaInk),
               const SizedBox(width: 4),
             ],
             Text(
               label,
               style: TextStyle(
                 fontFamily: _th.fontFamily,
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: color ?? Colors.white,
+                color: color ?? _mediaInk,
               ),
             ),
           ],
         ),
       );
 
-  Widget _fade(Widget child, {Alignment alignment = Alignment.centerLeft}) =>
-      AnimatedSwitcher(
-        duration: TrainerMotion.fast,
-        layoutBuilder: (current, previous) =>
-            Stack(alignment: alignment, children: [...previous, ?current]),
-        child: child,
-      );
+  Widget _fade(
+    Widget child, {
+    Alignment alignment = Alignment.centerLeft,
+    bool sizeToCurrent = false,
+  }) => AnimatedSwitcher(
+    // Calm and sequential: the old text is gone (first 40 %) before the
+    // new one fades in (last 60 %); fade only, no layout motion.
+    duration: TrainerMotion.calm,
+    switchInCurve: const Interval(.4, 1, curve: TrainerMotion.calmCurve),
+    switchOutCurve: const Interval(.6, 1, curve: TrainerMotion.calmCurve),
+    // [sizeToCurrent]: the outgoing child is laid out but takes no room,
+    // so the slot is the new child's size from the first frame and does
+    // not snap when the old one is removed at the end of the fade.
+    layoutBuilder: (current, previous) => Stack(
+      alignment: alignment,
+      clipBehavior: Clip.none,
+      children: [
+        if (sizeToCurrent)
+          for (final w in previous)
+            Positioned(left: 0, right: 0, bottom: 0, child: w)
+        else
+          ...previous,
+        ?current,
+      ],
+    ),
+    child: child,
+  );
 
-  Widget _media(SessionPhase p, TrainerDrill d) {
+  /// Edge-to-edge on the stage: [theme] carries radius 0.
+  Widget _media(SessionPhase p, TrainerDrill d, TrainerTheme theme) {
     final req = TrainerMediaRequest(
       drill: d,
       paused: _paused,
       mirrored: p.side == Side.left,
-      theme: _th,
+      theme: theme,
       strings: _s,
     );
     if (widget.mediaBuilder != null) return widget.mediaBuilder!(context, req);
     final m = d.media;
     if (m == null) {
-      return AspectRatio(
-        aspectRatio: 1,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: _th.mediaStage,
-            borderRadius: BorderRadius.circular(_th.radius),
-          ),
-        ),
-      );
+      return ColoredBox(color: _th.mediaStage);
     }
     return DrillMediaView(
       key: ValueKey('player-${d.id}'),
       media: m,
       paused: _paused,
       mirrored: p.side == Side.left,
-      radius: _th.radius,
+      radius: 0,
       stage: _th.mediaStage,
       errorLabel: _s.mediaUnavailable,
       errorColor: _th.muted,
@@ -999,308 +1107,604 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       1,
       _occurrences < 1 ? 1 : _occurrences,
     );
-    final fraction = _occurrences == 0 ? 0.0 : done / _occurrences;
-    final meta = _meta(p);
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            TrainerSpace.x4,
-            TrainerSpace.x2,
-            TrainerSpace.gutter,
-            TrainerSpace.x2,
-          ),
-          child: Row(
-            children: [
-              _circle(
-                key: const ValueKey('close'),
-                icon: Icons.close,
-                tooltip: _s.close,
-                onPressed: _close,
-              ),
-              const SizedBox(width: TrainerSpace.x4),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _fade(
-                      Text(
-                        p.blockName,
-                        key: ValueKey('block-${p.blockName}'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: _th.label.copyWith(
-                          color: _th.accentText,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(end: fraction),
-                      duration: still ? Duration.zero : TrainerMotion.slow,
-                      curve: TrainerMotion.standard,
-                      builder: (_, v, _) => ClipRRect(
-                        borderRadius: BorderRadius.circular(2),
-                        child: LinearProgressIndicator(
-                          value: v,
-                          minHeight: 4,
-                          backgroundColor: _th.track,
-                          color: _th.accent,
-                        ),
-                      ),
-                    ),
-                  ],
+    final mq = MediaQuery.of(context);
+    return LayoutBuilder(
+      builder: (context, box) {
+        final w = box.maxWidth;
+        final h = box.maxHeight;
+        // Slim top card · the clip as large as fits · transport. Everything
+        // else (tags, next-up, 完成本组, subtitle, rest feedback) is a small
+        // pendant overlaid on the stage, at the edges, never on the body.
+        final midTop = mq.padding.top + _cardTop;
+        final midBottom = h - _transportH - mq.padding.bottom;
+        final room = math.max(0.0, midBottom - midTop);
+        // The clips are square on a flat backdrop that continues as the
+        // stage, so the clip may run a little past the screen's sides; the
+        // figure stands in the middle of the frame.
+        final v = math.min(w * _clipOverscan, math.max(160.0, room));
+        final left = (w - v) / 2;
+        // Sit a little above centre: the room below the feet is where the
+        // pendants hang.
+        final top = midTop + math.max(0.0, room - v) * .35;
+        final tagTop = midTop + TrainerSpace.x1;
+        final mediaRadius = _th.copyWith(radius: 0);
+        final bottomPendant =
+            // 完成本组 is not a pendant any more (sdk-stage-r8): it sits in
+            // the transport, in the number slot right above the pause
+            // button, below the clip.
+            _restFeedback(p) ?? (rest ? null : _nextUp(p));
+        return Stack(
+          children: [
+            if (d != null)
+              Positioned(
+                left: left,
+                top: top,
+                width: v,
+                height: v,
+                child: AnimatedSwitcher(
+                  duration: TrainerMotion.calm,
+                  switchInCurve: const Interval(
+                    .3,
+                    1,
+                    curve: TrainerMotion.calmCurve,
+                  ),
+                  switchOutCurve: const Interval(
+                    .7,
+                    1,
+                    curve: TrainerMotion.calmCurve,
+                  ),
+                  layoutBuilder: (current, previous) => Stack(
+                    fit: StackFit.expand,
+                    children: [...previous, ?current],
+                  ),
+                  child: KeyedSubtree(
+                    key: ValueKey('media-${d.id}'),
+                    child: RepaintBoundary(child: _media(p, d, mediaRadius)),
+                  ),
                 ),
               ),
-              const SizedBox(width: TrainerSpace.x4),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '$current',
-                      style: _th.callout.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    TextSpan(text: ' / $_occurrences', style: _th.label),
-                  ],
-                ),
-                style: const TextStyle(fontFeatures: TrainerTheme.tabular),
+            Positioned.fill(
+              child: TrainerStageFloor(
+                theme: _th,
+                clipSize: v,
+                clipLeft: left,
+                clipTop: top,
               ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              TrainerSpace.x4,
-              TrainerSpace.x2,
-              TrainerSpace.x4,
-              TrainerSpace.x2,
             ),
-            children: [
-              if (d != null)
-                Stack(
-                  children: [
-                    AnimatedSwitcher(
-                      duration: TrainerMotion.slow,
-                      layoutBuilder: (current, previous) =>
-                          Stack(children: [...previous, ?current]),
-                      child: KeyedSubtree(
-                        key: ValueKey('media-${d.id}'),
-                        child: _media(p, d),
-                      ),
-                    ),
-                    Positioned(
-                      left: TrainerSpace.x3,
-                      top: TrainerSpace.x3,
-                      child: _fade(
-                        _paused
-                            ? _tag(_s.paused, key: const ValueKey('tag-paused'))
-                            : p.kind == PhaseKind.switchSide
-                            ? _tag(
-                                _s.switchTo(p.side ?? Side.left),
-                                key: const ValueKey('tag-side'),
-                                icon: Icons.swap_horiz,
-                                color: TrainerTheme.dark.caution,
-                              )
-                            : rest && p.nextExerciseId != null
-                            ? _tag(_s.next, key: const ValueKey('tag-next'))
-                            : const SizedBox.shrink(key: ValueKey('tag-none')),
-                      ),
-                    ),
-                    if (widget.restFeedbackBuilder == null ||
-                        p.isWork ||
-                        p.kind == PhaseKind.switchSide)
-                      Positioned(
-                        right: TrainerSpace.x2,
-                        top: TrainerSpace.x2,
-                        child: Semantics(
-                          excludeSemantics: true,
-                          button: true,
-                          label: _s.discomfort,
-                          onTap: _discomfort,
-                          child: GestureDetector(
-                            key: const ValueKey('discomfort'),
-                            onTap: _discomfort,
-                            child: Padding(
-                              padding: const EdgeInsets.all(TrainerSpace.x1),
-                              child: _tag(
-                                _s.discomfort,
-                                icon: Icons.healing,
-                                color: TrainerTheme.dark.caution,
-                              ),
-                            ),
+            // Bottom pendants (sdk-stage-r7): the subtitle chip is the
+            // lowest thing on the stage, just above the transport — below
+            // the clip's bottom edge wherever the stage leaves room — so it
+            // covers as little of the demo as possible. The action / preview
+            // pendant hangs above it. Both sit in fixed slots, so neither
+            // moves across pages, phases or subtitle line counts.
+            Positioned(
+              left: TrainerSpace.x3,
+              right: TrainerSpace.x3,
+              bottom: h - midBottom + TrainerSpace.x2,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // A fixed slot for the built-in pendants (none / next
+                      // up / 完成本组) (sdk-stage-r6).
+                      ConstrainedBox(
+                        key: const ValueKey('pendant-slot'),
+                        constraints: const BoxConstraints(
+                          minHeight: _pendantSlot,
+                        ),
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          heightFactor: 1,
+                          child: _fade(
+                            alignment: Alignment.bottomCenter,
+                            sizeToCurrent: true,
+                            bottomPendant ??
+                                const SizedBox(
+                                  key: ValueKey('next-none'),
+                                  width: double.infinity,
+                                ),
                           ),
                         ),
                       ),
-                  ],
-                ),
-              const SizedBox(height: TrainerSpace.x5),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: TrainerSpace.x1,
-                ),
-                // Fixed slots: changing phase only changes what is written,
-                // never where.
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            height: _labelSlot,
-                            child: _fade(
-                              Text(
-                                label,
-                                key: ValueKey('label-$label'),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: _th.label.copyWith(
-                                  color: p.kind == PhaseKind.switchSide
-                                      ? _th.caution
-                                      : _th.muted,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
+                      const SizedBox(height: TrainerSpace.x2),
+                      // A fixed slot for the subtitle (two lines), the chip
+                      // bottom-aligned in it, so a one- or two-line line
+                      // never shifts the pendant above.
+                      ConstrainedBox(
+                        key: const ValueKey('subtitle-slot'),
+                        constraints: BoxConstraints(minHeight: _subtitleSlot),
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          heightFactor: 1,
+                          child: _fade(
+                            alignment: Alignment.bottomCenter,
+                            sizeToCurrent: true,
+                            _subtitleChip(sub),
                           ),
-                          _fade(
-                            Text(
-                              d?.name ?? '',
-                              key: ValueKey('name-${d?.id}'),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: _th.title.copyWith(
-                                fontSize: 24,
-                                height: 1.25,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          _fade(
-                            Text(
-                              meta,
-                              key: ValueKey('meta-$meta'),
-                              style: _th.label.copyWith(fontSize: 14),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: TrainerSpace.x3),
-                    _counter(
-                      p,
-                      t,
-                      working: !rest && p.kind != PhaseKind.switchSide,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-              SizedBox(
-                height: _subtitleSlot,
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _transport(p, t, rest, still, mq.padding.bottom),
+            ),
+            if (d != null)
+              Positioned(
+                left: TrainerSpace.x3,
+                // Level with the 不舒服 chip inside its 44 px touch target.
+                top: tagTop + 6,
                 child: _fade(
-                  alignment: Alignment.topLeft,
-                  sub == null
-                      ? const SizedBox(
-                          key: ValueKey('sub-none'),
-                          width: double.infinity,
+                  _paused
+                      ? _tag(_s.paused, key: const ValueKey('tag-paused'))
+                      : p.kind == PhaseKind.switchSide
+                      ? _tag(
+                          _s.switchTo(p.side ?? Side.left),
+                          key: const ValueKey('tag-side'),
+                          icon: Icons.swap_horiz,
+                          color: _mediaCaution,
                         )
-                      : Padding(
-                          key: ValueKey('sub-$sub'),
-                          padding: const EdgeInsets.fromLTRB(
-                            TrainerSpace.x1,
-                            TrainerSpace.x4,
-                            TrainerSpace.x1,
-                            0,
-                          ),
+                      : rest && p.nextExerciseId != null
+                      ? _tag(_s.next, key: const ValueKey('tag-next'))
+                      : const SizedBox.shrink(key: ValueKey('tag-none')),
+                ),
+              ),
+            if (d != null &&
+                (widget.restFeedbackBuilder == null ||
+                    p.isWork ||
+                    p.kind == PhaseKind.switchSide))
+              Positioned(
+                right: TrainerSpace.x3,
+                top: tagTop,
+                child: Semantics(
+                  excludeSemantics: true,
+                  button: true,
+                  label: _s.discomfort,
+                  onTap: _discomfort,
+                  child: GestureDetector(
+                    key: const ValueKey('discomfort'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _discomfort,
+                    child: Padding(
+                      // 32 px chip, 44 px touch target.
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: _tag(
+                        _s.discomfort,
+                        icon: Icons.healing,
+                        color: _mediaCaution,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: SafeArea(
+                bottom: false,
+                child: _infoCard(
+                  p,
+                  label,
+                  d,
+                  rest,
+                  current: current,
+                  done: done,
+                  still: still,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// The top glass card, two levels only: the move name (the one prominent
+  /// line) over one short muted line (block / set · side / what is next),
+  /// and on the right a quiet exercise index — a large light current number
+  /// with a small muted `/ total` on its baseline. The workout progress is a
+  /// hairline along the inside bottom. Fixed slots: a phase change only
+  /// changes what is written, never where.
+  Widget _infoCard(
+    SessionPhase p,
+    String label,
+    TrainerDrill? d,
+    bool rest, {
+    required int current,
+    required int done,
+    required bool still,
+  }) {
+    final total = _occurrences < 1 ? 1 : _occurrences;
+    final line = _subline(p, label);
+    final lineColor = p.kind == PhaseKind.switchSide
+        ? _th.caution
+        : label.isEmpty
+        ? _th.muted
+        : _th.accentText;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            TrainerSpace.x3,
+            TrainerSpace.x2,
+            TrainerSpace.x3,
+            0,
+          ),
+          child: TrainerHover(
+            theme: _th,
+            lift: 8,
+            child: TrainerGlass(
+              key: const ValueKey('info-card'),
+              theme: _th,
+              radius: 24,
+              height: _cardH,
+              padding: const EdgeInsets.fromLTRB(
+                TrainerSpace.x3,
+                _cardPadV,
+                TrainerSpace.x4,
+                _cardPadV,
+              ),
+              // Close is centred on the card's full height; name, muted
+              // line and the segmented progress share one left edge, and
+              // the progress ends under the index's right edge.
+              child: Row(
+                children: [
+                  _circle(
+                    key: const ValueKey('close'),
+                    icon: Icons.close,
+                    tooltip: _s.close,
+                    size: 34,
+                    onPressed: _close,
+                  ),
+                  const SizedBox(width: TrainerSpace.x3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Icon(
-                                  Icons.subtitles_outlined,
-                                  size: 18,
-                                  color: _th.faint,
-                                ),
-                              ),
-                              const SizedBox(width: TrainerSpace.x2),
                               Expanded(
-                                child: Text(
-                                  sub,
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: _th.body.copyWith(
-                                    fontSize: 15,
-                                    height: 1.55,
-                                    color: _th.muted,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    _fade(
+                                      Text(
+                                        d?.name ?? '',
+                                        key: ValueKey('name-${d?.id}'),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: _th.title.copyWith(
+                                          fontSize: 17,
+                                          height: 1.2,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: -.2,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    _fade(
+                                      Text(
+                                        line,
+                                        key: ValueKey('label-$line'),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: _th.label.copyWith(
+                                          fontSize: 12.5,
+                                          height: 1.25,
+                                          fontWeight: FontWeight.w500,
+                                          color: lineColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
+                              const SizedBox(width: TrainerSpace.x3),
+                              _index(current, total),
                             ],
                           ),
                         ),
-                ),
+                        const SizedBox(height: 8),
+                        _track(
+                          done: done,
+                          current: current,
+                          still: still,
+                          compact: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(
-                height: _nextSlot,
-                child: _fade(
-                  alignment: Alignment.topCenter,
-                  _restFeedback(p) ??
-                      (p.selfPaced ? _completeButton() : null) ??
-                      (rest ? null : _nextUp(p)) ??
-                      const SizedBox(
-                        key: ValueKey('next-none'),
-                        width: double.infinity,
-                      ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            48,
-            TrainerSpace.x2,
-            48,
-            TrainerSpace.x5,
+      ),
+    );
+  }
+
+  /// Exercise index: a large light `4` and a small muted `/5` on one
+  /// baseline, tabular so it never jitters.
+  Widget _index(int current, int total) => Semantics(
+    key: const ValueKey('index'),
+    label: '$current / $total',
+    excludeSemantics: true,
+    child: Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '$current',
+            style: _th
+                .numeral(30, color: _th.text)
+                .copyWith(fontWeight: FontWeight.w300, letterSpacing: -.6),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _circle(
+          TextSpan(
+            text: ' /$total',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: _th.muted,
+              letterSpacing: .2,
+            ),
+          ),
+        ],
+      ),
+      style: TextStyle(
+        fontFamily: _th.fontFamily,
+        fontFeatures: TrainerTheme.tabular,
+      ),
+    ),
+  );
+
+  /// The card's one muted line, at most two short parts. Working: set ·
+  /// side, topped up with a timed move's dose when there is room
+  /// (`第 2/3 组 · 左侧`, `左侧 · 30 秒`), else the block name (`热身`). Prep / rest / switch: the phase label · the
+  /// dose coming up.
+  String _subline(SessionPhase p, String label) {
+    final item = p.item;
+    final dose = item == null ? null : _dose(item, phase: p);
+    if (label.isNotEmpty) return dose == null ? label : '$label · $dose';
+    final parts = <String>[
+      if (p.sets > 1) _s.setOf(p.set, p.sets),
+      if (p.side != null) _s.sideName(p.side!),
+    ];
+    // A self-paced set's target (e.g. `8 次`, or the host's doseLabel)
+    // stays on the card for the whole set — work, paused, next set — since
+    // 完成本组 holds the transport slot (sdk-stage-r9). It leads, so a
+    // narrow card ellipsizes the set / side, never the target.
+    if (p.selfPaced && dose != null) {
+      return [dose, ...parts].join(' · ');
+    }
+    // Clock-counted sets show their dose at the transport.
+    if (parts.length < 2 && dose != null && !p.countedOnClock) {
+      parts.add(dose);
+    }
+    return parts.isEmpty ? p.blockName : parts.join(' · ');
+  }
+
+  /// Workout progress: one short segment per exercise (filled = done, tinted
+  /// = now), or a single bar for long plans, with n / total beside it.
+  Widget _track({
+    required int done,
+    required int current,
+    required bool still,
+    bool finished = false,
+    bool compact = false,
+  }) {
+    final total = _occurrences < 1 ? 1 : _occurrences;
+    final dur = still ? Duration.zero : TrainerMotion.calm;
+    final Widget bar;
+    if (total <= 24) {
+      bar = Row(
+        children: [
+          for (var i = 0; i < total; i++) ...[
+            if (i > 0) const SizedBox(width: 3),
+            Expanded(
+              child: AnimatedContainer(
+                duration: dur,
+                curve: TrainerMotion.calmCurve,
+                height: 4,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(2),
+                  color: i < done
+                      ? _th.accent
+                      : !finished && i == done
+                      ? _th.accent.withValues(alpha: .38)
+                      : _th.track,
+                ),
+              ),
+            ),
+          ],
+        ],
+      );
+    } else {
+      bar = TweenAnimationBuilder<double>(
+        tween: Tween(end: done / total),
+        duration: dur,
+        curve: TrainerMotion.calmCurve,
+        builder: (_, v, _) => ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: LinearProgressIndicator(
+            value: v,
+            minHeight: 4,
+            backgroundColor: _th.track,
+            color: _th.accent,
+          ),
+        ),
+      );
+    }
+    if (compact) {
+      return SizedBox(key: const ValueKey('progress'), height: 3, child: bar);
+    }
+    return SizedBox(
+      key: const ValueKey('progress'),
+      height: 16,
+      child: Row(
+        children: [
+          const SizedBox(width: TrainerSpace.x1),
+          Expanded(child: bar),
+          const SizedBox(width: TrainerSpace.x3),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: '${finished ? done : current}',
+                  style: _th.label.copyWith(
+                    color: _th.text,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                TextSpan(text: ' / $total', style: _th.label),
+              ],
+            ),
+            style: const TextStyle(
+              fontSize: 13,
+              fontFeatures: TrainerTheme.tabular,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The coach's line as a small translucent chip (max two lines).
+  Widget _subtitleChip(String? sub) => sub == null
+      ? const SizedBox(key: ValueKey('sub-none'), width: double.infinity)
+      : Center(
+          key: ValueKey('sub-$sub'),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 340),
+            child: TrainerGlass(
+              theme: _th,
+              overMedia: true,
+              radius: 16,
+              padding: const EdgeInsets.symmetric(
+                horizontal: TrainerSpace.x3,
+                vertical: 6,
+              ),
+              child: Text(
+                sub,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: _th.fontFamily,
+                  fontSize: 13,
+                  height: 1.4,
+                  color: _mediaInk.withValues(alpha: .92),
+                ),
+              ),
+            ),
+          ),
+        );
+
+  /// Previous / pause / skip, hovering above the stage floor. The phase's
+  /// countdown is a thin ring around the emerald button, and its number sits
+  /// just above the button on the same axis: read at a glance from the mat,
+  /// while the button keeps its one job (pause / resume).
+  Widget _transport(
+    SessionPhase p,
+    double t,
+    bool rest,
+    bool still,
+    double bottomInset,
+  ) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      40,
+      TrainerSpace.x3,
+      40,
+      TrainerSpace.x5 + bottomInset,
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: _digitsH,
+          // Scale down rather than clip if a host theme's numerals run
+          // taller than the slot (sdk-stage-r9).
+          child: Center(
+            child: FittedBox(fit: BoxFit.scaleDown, child: _digits(p, t)),
+          ),
+        ),
+        const SizedBox(height: _digitsGap),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TrainerHover(
+              theme: _th,
+              lift: 8,
+              inset: .2,
+              child: _circle(
                 key: const ValueKey('prev'),
                 icon: Icons.skip_previous_rounded,
                 tooltip: _s.previous,
                 size: 56,
                 onPressed: _previous,
               ),
-              Tooltip(
-                message: _paused ? _s.resume : _s.pause,
-                child: Material(
-                  key: const ValueKey('pause'),
-                  color: _th.accent,
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () {
-                      unawaited(HapticFeedback.lightImpact());
-                      _togglePause();
-                    },
-                    child: SizedBox.square(
-                      dimension: 76,
-                      child: AnimatedSwitcher(
-                        duration: TrainerMotion.fast,
+            ),
+            SizedBox.square(
+              dimension: _ringD,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned.fill(
+                    child: AnimatedOpacity(
+                      opacity: _paused ? .45 : 1,
+                      duration: TrainerMotion.medium,
+                      child: CustomPaint(
+                        key: const ValueKey('ring'),
+                        painter: TrainerRingPainter(
+                          _progress,
+                          thickness: .032,
+                          track: _th.isDark
+                              ? Colors.white.withValues(alpha: .14)
+                              : _th.track,
+                          color: rest || p.kind == PhaseKind.switchSide
+                              ? _th.text.withValues(alpha: .5)
+                              : _th.accent,
+                          knob: _th.isDark
+                              ? const Color(0xFFFFFFFF)
+                              : _th.surface,
+                          glow: _th.isDark,
+                        ),
+                      ),
+                    ),
+                  ),
+                  TrainerHover(
+                    theme: _th,
+                    lift: 10,
+                    inset: .18,
+                    child: TrainerGlassButton(
+                      key: const ValueKey('pause'),
+                      theme: _th,
+                      primary: true,
+                      size: 76,
+                      tooltip: _paused ? _s.resume : _s.pause,
+                      onPressed: () {
+                        unawaited(HapticFeedback.lightImpact());
+                        _togglePause();
+                      },
+                      icon: AnimatedSwitcher(
+                        duration: TrainerMotion.medium,
+                        switchInCurve: TrainerMotion.calmCurve,
                         transitionBuilder: (child, a) => still
                             ? FadeTransition(opacity: a, child: child)
                             : FadeTransition(
                                 opacity: a,
                                 child: ScaleTransition(
-                                  scale: a.drive(Tween(begin: .6, end: 1)),
+                                  scale: a.drive(Tween(begin: .7, end: 1)),
                                   child: child,
                                 ),
                               ),
@@ -1309,31 +1713,69 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                               ? Icons.play_arrow_rounded
                               : Icons.pause_rounded,
                           key: ValueKey(_paused),
-                          size: 36,
+                          size: 38,
                           color: _th.onAccent,
                         ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-              _circle(
+            ),
+            TrainerHover(
+              theme: _th,
+              lift: 8,
+              inset: .2,
+              child: _circle(
                 key: const ValueKey('skip'),
                 icon: Icons.skip_next_rounded,
                 tooltip: _s.skip,
                 size: 56,
                 onPressed: _skip,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
-    );
-  }
+    ),
+  );
 
-  static const _labelSlot = 22.0;
-  static const _subtitleSlot = TrainerSpace.x4 + 15 * 1.55 * 3 + 2;
-  static const _nextSlot = TrainerSpace.x5 + 60.0;
+  /// Fixed slots follow the system text size (sdk-stage-r9): each is at
+  /// least its 1× size and grows with [MediaQuery.textScalerOf], so large
+  /// text is never clipped and the slots stay fixed within one screen.
+  double _sc(double fontSize) =>
+      MediaQuery.textScalerOf(context).scale(fontSize);
+
+  /// Top card: one row (close, name over one muted line, index; 42 px at
+  /// 1×) and the hairline progress under it.
+  static const _cardPadV = 10.0;
+  double get _cardRowH => math.max(
+    42.0,
+    math.max(_sc(17) * 1.2 + 3 + _sc(12.5) * 1.25 + 2, _sc(30) * 1.25),
+  );
+  double get _cardH => _cardPadV + _cardRowH + 8 + 3 + _cardPadV;
+  double get _cardTop => TrainerSpace.x2 + _cardH + TrainerSpace.x2;
+
+  /// How far the square clip may run past the screen's width.
+  static const _clipOverscan = 1.15;
+
+  /// Height reserved above the subtitle chip for the bottom pendant: the
+  /// built-in next-up chip (36 px). 完成本组 lives in the transport.
+  static const double _pendantSlot = 36;
+
+  /// Height reserved for the subtitle chip: two 13 px lines at 1.4 plus
+  /// its 6 px vertical padding.
+  double get _subtitleSlot => 2 * _sc(13) * 1.4 + 12 + 1;
+
+  /// Countdown number slot above the button, and the ring around it.
+  /// 44: also holds 完成本组 (44 px touch target) on self-paced sets.
+  double get _digitsH => math.max(44.0, _sc(32) * 1.2);
+  static const _digitsGap = 2.0;
+  static const _ringD = 96.0;
+
+  /// The transport (number slot + row) without the bottom inset.
+  double get _transportH =>
+      TrainerSpace.x3 + _digitsH + _digitsGap + _ringD + TrainerSpace.x5;
 
   Widget? _restFeedback(SessionPhase phase) {
     final build = widget.restFeedbackBuilder;
@@ -1373,39 +1815,37 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     );
   }
 
-  String _meta(SessionPhase p) {
-    final parts = <String>[];
-    if (p.rounds > 0) parts.add(_s.roundOf(p.round, p.rounds));
-    if (p.sets > 1) parts.add(_s.setOf(p.set, p.sets));
-    if (p.side != null) parts.add(_s.sideName(p.side!));
-    final item = p.item;
-    if (item != null) parts.add(_dose(item, phase: p));
-    return parts.join(' · ');
-  }
-
+  /// 完成本组: a compact emerald pill in the transport's number slot, just
+  /// above the pause button (sdk-stage-r8).
   Widget? _completeButton() {
     if (!_engine.awaitingCompletion) return null;
-    return Padding(
+    return Center(
       key: const ValueKey('complete-set'),
-      padding: const EdgeInsets.only(top: TrainerSpace.x5),
-      child: SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: FilledButton(
-          key: const ValueKey('complete-set-button'),
-          style: FilledButton.styleFrom(
-            backgroundColor: _th.accent,
-            foregroundColor: _th.onAccent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+      child: TrainerHover(
+        theme: _th,
+        lift: 6,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: FilledButton.icon(
+            key: const ValueKey('complete-set-button'),
+            style: FilledButton.styleFrom(
+              backgroundColor: _th.accent,
+              foregroundColor: _th.onAccent,
+              disabledBackgroundColor: _th.accent.withValues(alpha: .45),
+              disabledForegroundColor: _th.onAccent.withValues(alpha: .8),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: TrainerSpace.x5),
+              shape: const StadiumBorder(),
             ),
-          ),
-          onPressed: _paused ? null : _completeSet,
-          child: Text(
-            _s.completeSet,
-            style: _th.callout.copyWith(
-              color: _th.onAccent,
-              fontWeight: FontWeight.w700,
+            onPressed: _paused ? null : _completeSet,
+            icon: const Icon(Icons.check_rounded, size: 20),
+            label: Text(
+              _s.completeSet,
+              style: _th.callout.copyWith(
+                fontSize: 15,
+                color: _th.onAccent,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),
@@ -1413,7 +1853,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     );
   }
 
-  /// While working: the move after this one.
+  /// While working: the move after this one, as a small glass chip in the
+  /// bottom-left corner of the stage.
   Widget? _nextUp(SessionPhase p) {
     final phases = _engine.phases;
     SessionPhase? next;
@@ -1428,84 +1869,113 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     }
     final d = next == null ? null : widget.drillOf(next.exerciseId!);
     if (next == null || d == null) return null;
-    final dose = next.item == null ? null : _dose(next.item!, phase: next);
     final poster = d.media?.posterFor(light: !_th.isDark);
-    return Padding(
+    final small = TextStyle(
+      fontFamily: _th.fontFamily,
+      fontSize: 13,
+      color: _mediaInk.withValues(alpha: .7),
+    );
+    return Align(
       key: ValueKey('next-${d.id}'),
-      padding: const EdgeInsets.only(top: TrainerSpace.x5),
-      child: Container(
-        padding: const EdgeInsets.all(TrainerSpace.x2),
-        decoration: BoxDecoration(
-          color: _th.surface,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: SizedBox.square(
-                dimension: 44,
-                child: ColoredBox(
-                  color: _th.mediaStage,
-                  child: poster == null
-                      ? null
-                      : Image.asset(
-                          poster,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                        ),
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 240),
+        child: TrainerGlass(
+          theme: _th,
+          overMedia: true,
+          height: 36,
+          padding: const EdgeInsets.fromLTRB(4, 4, TrainerSpace.x3, 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipOval(
+                child: SizedBox.square(
+                  dimension: 28,
+                  child: ColoredBox(
+                    color: _th.mediaStage,
+                    child: poster == null
+                        ? null
+                        : Image.asset(
+                            poster,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                          ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: TrainerSpace.x3),
-            Text(_s.nextUp, style: _th.label),
-            const SizedBox(width: TrainerSpace.x2),
-            Expanded(
-              child: Text(
-                d.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _th.callout,
-              ),
-            ),
-            if (dose != null) ...[
               const SizedBox(width: TrainerSpace.x2),
-              Text(dose, style: _th.label),
+              Text('${_s.nextUp} · ', style: small),
+              Flexible(
+                child: Text(
+                  d.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: small.copyWith(
+                    color: _mediaInk,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ],
-            const SizedBox(width: TrainerSpace.x2),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _counter(SessionPhase p, double t, {required bool working}) {
+  /// The number above the button: seconds left for timed moves, prep, rest
+  /// and side switches (the last three seconds of a timed move take the
+  /// accent and breathe); the rep on the clock with `/ 12 次` for counted
+  /// sets; the dose alone for self-paced sets. Screen readers get the same
+  /// reading as one label.
+  Widget _digits(SessionPhase p, double t) {
     final counted = p.countedOnClock;
     final left = _engine.secondsLeft(t);
+    final working = p.isWork;
+    if (working && p.selfPaced) {
+      // 完成本组 takes the number slot above the pause button (the dose
+      // is already on the top card) (sdk-stage-r8).
+      final done = _completeButton();
+      if (done != null) return done;
+      final item = p.item;
+      if (item == null) return const SizedBox.shrink(key: ValueKey('counter'));
+      final dose = _dose(item, phase: p);
+      return Text(
+        dose,
+        key: const ValueKey('counter'),
+        style: _th.callout.copyWith(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: _th.muted,
+        ),
+      );
+    }
     final urgent =
         !counted &&
-        !p.selfPaced &&
+        working &&
         p.seconds > 0 &&
         left >= 1 &&
         left <= 3 &&
         !_paused;
-    final caption = p.isWork && p.selfPaced
-        ? _s.selfPacedCaption
-        : counted
+    final value = _counterValue(p, t);
+    final unit = counted
         ? _s.repsCaption(p.reps!)
-        : p.isWork
+        : working
         ? _s.secondsCaption
         : _s.startsInCaption;
-    return TrainerCountdownRing(
-      theme: _th,
-      progress: _progress,
-      value: _counterValue(p, t),
-      numberKey: const ValueKey('counter'),
-      caption: caption,
-      size: 112,
-      color: working || urgent ? _th.accent : _th.text.withValues(alpha: .55),
-      urgent: urgent,
-      dim: _paused,
+    return Semantics(
+      label: '$value $unit',
+      excludeSemantics: true,
+      child: TrainerCountdownDigits(
+        theme: _th,
+        value: value,
+        unit: unit,
+        size: 32,
+        color: working ? _th.text : _th.text.withValues(alpha: .72),
+        urgent: urgent,
+        dim: _paused,
+        numberKey: const ValueKey('counter'),
+      ),
     );
   }
 
@@ -1514,39 +1984,100 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     final full =
         !_engine.endedEarly && _engine.fullyCompletedExercises >= _occurrences;
     final minutes = ((_endedAt ?? _t) / 60).round();
-    final numeral = _th.numeral(26);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        TrainerSpace.x6,
-        0,
-        TrainerSpace.x6,
-        TrainerSpace.x5,
-      ),
-      child: Column(
-        children: [
-          Expanded(
-            child: Center(
-              child: SingleChildScrollView(
+    final numeral = _th.numeral(32);
+    return Column(
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                TrainerSpace.x3,
+                TrainerSpace.x2,
+                TrainerSpace.x3,
+                0,
+              ),
+              child: TrainerHover(
+                theme: _th,
+                lift: 10,
+                child: TrainerGlass(
+                  key: const ValueKey('done-card'),
+                  theme: _th,
+                  radius: 28,
+                  padding: const EdgeInsets.fromLTRB(
+                    TrainerSpace.x4,
+                    TrainerSpace.x4,
+                    TrainerSpace.x4,
+                    TrainerSpace.x4,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          TrainerGlass(
+                            theme: _th,
+                            width: 56,
+                            height: 56,
+                            child: Icon(
+                              full ? Icons.check_rounded : Icons.flag_rounded,
+                              size: 30,
+                              color: _th.accent,
+                            ),
+                          ),
+                          const SizedBox(width: TrainerSpace.x4),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  full ? _s.doneFull : _s.donePartial,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: _th.title.copyWith(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _plan.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: _th.label.copyWith(fontSize: 14),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: TrainerSpace.x4),
+                      _track(
+                        done: _engine.fullyCompletedExercises,
+                        current: _engine.fullyCompletedExercises,
+                        still: TrainerMotion.reduced(context),
+                        finished: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: TrainerSpace.x6,
+                vertical: TrainerSpace.x5,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      full ? Icons.check_circle_rounded : Icons.flag_rounded,
-                      size: 64,
-                      color: _th.accent,
-                    ),
-                    const SizedBox(height: TrainerSpace.x2),
-                    Text(
-                      full ? _s.doneFull : _s.donePartial,
-                      style: _th.display,
-                    ),
-                    const SizedBox(height: TrainerSpace.x2),
-                    Text(
-                      _plan.title,
-                      textAlign: TextAlign.center,
-                      style: _th.body.copyWith(color: _th.muted),
-                    ),
-                    const SizedBox(height: TrainerSpace.x8),
                     Row(
                       children: [
                         Expanded(
@@ -1604,17 +2135,25 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
               ),
             ),
           ),
-          SizedBox(
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            TrainerSpace.x6,
+            0,
+            TrainerSpace.x6,
+            TrainerSpace.x5,
+          ),
+          child: SizedBox(
             width: double.infinity,
-            height: 54,
+            height: 56,
             child: FilledButton(
               key: const ValueKey('finish'),
               style: FilledButton.styleFrom(
                 backgroundColor: _th.accent,
                 foregroundColor: _th.onAccent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
+                disabledBackgroundColor: _th.track,
+                elevation: 0,
+                shape: const StadiumBorder(),
               ),
               onPressed: _saver.saved ? _close : null,
               child: Text(
@@ -1626,23 +2165,24 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _stat(Widget value, String label) => Container(
-    padding: const EdgeInsets.symmetric(vertical: TrainerSpace.x4),
-    decoration: BoxDecoration(
-      color: _th.surface,
-      borderRadius: BorderRadius.circular(18),
-    ),
-    child: Column(
-      children: [
-        value,
-        const SizedBox(height: 2),
-        Text(label, style: _th.label),
-      ],
+  Widget _stat(Widget value, String label) => TrainerHover(
+    theme: _th,
+    child: TrainerGlass(
+      theme: _th,
+      radius: _th.radius,
+      padding: const EdgeInsets.symmetric(vertical: TrainerSpace.x5),
+      child: Column(
+        children: [
+          value,
+          const SizedBox(height: 2),
+          Text(label, style: _th.label),
+        ],
+      ),
     ),
   );
 }

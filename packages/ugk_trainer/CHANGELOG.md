@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — stage review fixes r9
+
+- Self-paced sets keep their target visible: the top card's muted line now leads with the set's dose (e.g. `8 次 · 第 2/3 组`, or the host's `doseLabel`) for the whole set — working, paused and on the next set — while 完成本组 holds the transport slot above the pause button.
+- Large system text: the top card, the stage space reserved under it, the subtitle slot and the countdown number slot now size from `MediaQuery.textScalerOf` (never below their 1× sizes), so 1.5× / 2× text no longer overflows the card or clips the countdown; the number slot also scales down instead of clipping if a host theme's numerals run taller, and 完成本组 has a 44 px minimum instead of a fixed height. Slots stay fixed within one screen, so the r6–r8 no-jump guarantees hold.
+- `TrainerGlassButton` (close, previous, pause / resume, skip) is keyboard-operable again: Tab focuses it, Enter / Space activate it, and keyboard focus shows a 2.5 px accent ring; disabled buttons are skipped. Semantics gain the focus action.
+- New `stage_r9_test.dart`: target reps visible in work / paused / next set and with a host `doseLabel`; no overflow and an unclipped countdown / 完成本组 at 1 / 1.5 / 2× in portrait and landscape; Tab + Enter / Space on a glass button and on the player's pause button. Public API unchanged.
+
 ## Unreleased — stage 完成本组 r8
 
 - 完成本组 is no longer a pendant over the clip: on a self-paced set it takes the transport's number slot, centred right above the pause button (the dose it replaces is already on the top card). It now sits below the clip's bottom edge, so the demo is never covered; 44 px tap target, emerald pill as before. The number slot grows 36 → 44 px for every phase, so nothing moves between timed and self-paced sets.

@@ -248,6 +248,9 @@ void main() {
         hasEnabledState: true,
         isEnabled: true,
         hasTapAction: true,
+        // Keyboard-focusable like the InkWell it replaced (sdk-stage-r9).
+        isFocusable: true,
+        hasFocusAction: true,
       ),
     );
     await tester.tap(find.byKey(const ValueKey('pause')));

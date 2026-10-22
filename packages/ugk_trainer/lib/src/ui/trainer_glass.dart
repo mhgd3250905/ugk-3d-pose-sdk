@@ -446,10 +446,13 @@ class TrainerGlassButton extends StatefulWidget {
 
 class _TrainerGlassButtonState extends State<TrainerGlassButton> {
   bool _down = false;
+  bool _focused = false;
 
   void _set(bool v) {
     if (_down != v) setState(() => _down = v);
   }
+
+  void _activate() => widget.onPressed?.call();
 
   @override
   Widget build(BuildContext context) {
@@ -488,27 +491,70 @@ class _TrainerGlassButtonState extends State<TrainerGlassButton> {
             pressed: _down,
             child: face,
           );
-    return Tooltip(
-      message: widget.tooltip,
-      child: Semantics(
-        button: true,
-        enabled: widget.onPressed != null,
-        label: widget.tooltip,
-        excludeSemantics: true,
-        onTap: widget.onPressed,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (_) => _set(true),
-          onTapUp: (_) => _set(false),
-          onTapCancel: () => _set(false),
+    final enabled = widget.onPressed != null;
+    // Keyboard (sdk-stage-r9): Tab focuses the button, Enter / Space
+    // activate it (the app's default ActivateIntent shortcuts), and a
+    // visible accent ring marks keyboard focus.
+    return FocusableActionDetector(
+      enabled: enabled,
+      mouseCursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
+      onShowFocusHighlight: (v) {
+        if (_focused != v) setState(() => _focused = v);
+      },
+      actions: <Type, Action<Intent>>{
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            _activate();
+            return null;
+          },
+        ),
+        ButtonActivateIntent: CallbackAction<ButtonActivateIntent>(
+          onInvoke: (_) {
+            _activate();
+            return null;
+          },
+        ),
+      },
+      child: Tooltip(
+        message: widget.tooltip,
+        child: Semantics(
+          button: true,
+          enabled: enabled,
+          label: widget.tooltip,
+          excludeSemantics: true,
           onTap: widget.onPressed,
-          child: AnimatedScale(
-            scale: _down && !still ? .96 : 1,
-            duration: _down
-                ? const Duration(milliseconds: 100)
-                : const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            child: SizedBox.square(dimension: s, child: disc),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (_) => _set(true),
+            onTapUp: (_) => _set(false),
+            onTapCancel: () => _set(false),
+            onTap: widget.onPressed,
+            child: AnimatedScale(
+              scale: _down && !still ? .96 : 1,
+              duration: _down
+                  ? const Duration(milliseconds: 100)
+                  : const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              child: SizedBox.square(
+                dimension: s,
+                child: _focused
+                    ? DecoratedBox(
+                        key: const ValueKey('glass-button-focus'),
+                        position: DecorationPosition.foreground,
+                        decoration: ShapeDecoration(
+                          shape: CircleBorder(
+                            side: BorderSide(
+                              color: th.isDark ? th.accent : th.accentText,
+                              width: 2.5,
+                              strokeAlign: BorderSide.strokeAlignOutside,
+                            ),
+                          ),
+                        ),
+                        child: disc,
+                      )
+                    : disc,
+              ),
+            ),
           ),
         ),
       ),

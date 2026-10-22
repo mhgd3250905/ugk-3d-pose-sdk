@@ -1215,9 +1215,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                       // never shifts the pendant above.
                       ConstrainedBox(
                         key: const ValueKey('subtitle-slot'),
-                        constraints: const BoxConstraints(
-                          minHeight: _subtitleSlot,
-                        ),
+                        constraints: BoxConstraints(minHeight: _subtitleSlot),
                         child: Align(
                           alignment: Alignment.bottomCenter,
                           heightFactor: 1,
@@ -1482,9 +1480,17 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       if (p.sets > 1) _s.setOf(p.set, p.sets),
       if (p.side != null) _s.sideName(p.side!),
     ];
-    // Rep sets already show their dose at the transport.
-    final atTransport = p.selfPaced || p.countedOnClock;
-    if (parts.length < 2 && dose != null && !atTransport) parts.add(dose);
+    // A self-paced set's target (e.g. `8 次`, or the host's doseLabel)
+    // stays on the card for the whole set — work, paused, next set — since
+    // 完成本组 holds the transport slot (sdk-stage-r9). It leads, so a
+    // narrow card ellipsizes the set / side, never the target.
+    if (p.selfPaced && dose != null) {
+      return [dose, ...parts].join(' · ');
+    }
+    // Clock-counted sets show their dose at the transport.
+    if (parts.length < 2 && dose != null && !p.countedOnClock) {
+      parts.add(dose);
+    }
     return parts.isEmpty ? p.blockName : parts.join(' · ');
   }
 
@@ -1626,7 +1632,11 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       children: [
         SizedBox(
           height: _digitsH,
-          child: Center(child: _digits(p, t)),
+          // Scale down rather than clip if a host theme's numerals run
+          // taller than the slot (sdk-stage-r9).
+          child: Center(
+            child: FittedBox(fit: BoxFit.scaleDown, child: _digits(p, t)),
+          ),
         ),
         const SizedBox(height: _digitsGap),
         Row(
@@ -1730,11 +1740,21 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     ),
   );
 
-  /// Top card: one 42 px row (close, name over one muted line, index) and
-  /// the hairline progress under it.
+  /// Fixed slots follow the system text size (sdk-stage-r9): each is at
+  /// least its 1× size and grows with [MediaQuery.textScalerOf], so large
+  /// text is never clipped and the slots stay fixed within one screen.
+  double _sc(double fontSize) =>
+      MediaQuery.textScalerOf(context).scale(fontSize);
+
+  /// Top card: one row (close, name over one muted line, index; 42 px at
+  /// 1×) and the hairline progress under it.
   static const _cardPadV = 10.0;
-  static const _cardH = _cardPadV + 42 + 8 + 3 + _cardPadV;
-  static const _cardTop = TrainerSpace.x2 + _cardH + TrainerSpace.x2;
+  double get _cardRowH => math.max(
+    42.0,
+    math.max(_sc(17) * 1.2 + 3 + _sc(12.5) * 1.25 + 2, _sc(30) * 1.25),
+  );
+  double get _cardH => _cardPadV + _cardRowH + 8 + 3 + _cardPadV;
+  double get _cardTop => TrainerSpace.x2 + _cardH + TrainerSpace.x2;
 
   /// How far the square clip may run past the screen's width.
   static const _clipOverscan = 1.15;
@@ -1745,16 +1765,16 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   /// Height reserved for the subtitle chip: two 13 px lines at 1.4 plus
   /// its 6 px vertical padding.
-  static const double _subtitleSlot = 2 * 13 * 1.4 + 12 + 1;
+  double get _subtitleSlot => 2 * _sc(13) * 1.4 + 12 + 1;
 
   /// Countdown number slot above the button, and the ring around it.
   /// 44: also holds 完成本组 (44 px touch target) on self-paced sets.
-  static const _digitsH = 44.0;
+  double get _digitsH => math.max(44.0, _sc(32) * 1.2);
   static const _digitsGap = 2.0;
   static const _ringD = 96.0;
 
   /// The transport (number slot + row) without the bottom inset.
-  static const _transportH =
+  double get _transportH =>
       TrainerSpace.x3 + _digitsH + _digitsGap + _ringD + TrainerSpace.x5;
 
   Widget? _restFeedback(SessionPhase phase) {
@@ -1804,8 +1824,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       child: TrainerHover(
         theme: _th,
         lift: 6,
-        child: SizedBox(
-          height: 44,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
           child: FilledButton.icon(
             key: const ValueKey('complete-set-button'),
             style: FilledButton.styleFrom(

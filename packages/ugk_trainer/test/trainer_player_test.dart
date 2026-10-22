@@ -300,27 +300,25 @@ void main() {
           track.bottom <= card.bottom && track.top > card.center.dy,
           isTrue,
         );
-        // 完成本组: a compact pill below the figure's middle, above the
-        // transport, at least 40 px tall.
+        // 完成本组 (r8): a compact pill in the transport, below the clip,
+        // right above the pause button, at least 44 px tall.
         final done = tester.getRect(
           find.byKey(const ValueKey('complete-set-button')),
         );
-        expect(done.height, greaterThanOrEqualTo(40));
+        expect(done.height, greaterThanOrEqualTo(44));
         expect(done.height, lessThan(56));
         expect(done.width, lessThan(w * .7));
-        expect(done.top, greaterThan(clip.center.dy + clip.height * .3));
+        expect(done.top, greaterThanOrEqualTo(clip.bottom));
         expect(done.bottom, lessThan(pause.top));
-        // The countdown ring is the pause button's border; its number (here
-        // the self-paced dose) sits just above it, under 完成本组; the
-        // exercise index sits inside the card.
+        // The countdown ring is the pause button's border; its number slot
+        // sits just above it — on a self-paced set 完成本组 takes it (the
+        // dose is on the card); the exercise index sits inside the card.
         final ring = tester.getRect(find.byKey(const ValueKey('ring')));
         expect(ring.center.dx, closeTo(pause.center.dx, .5));
         expect(ring.center.dy, closeTo(pause.center.dy, .5));
         expect(ring.width, greaterThan(pause.width));
-        final counter = tester.getRect(find.byKey(const ValueKey('counter')));
-        expect(counter.bottom, lessThanOrEqualTo(ring.top));
-        expect(counter.center.dx, closeTo(pause.center.dx, 1));
-        expect(done.bottom, lessThan(counter.top));
+        expect(done.bottom, lessThanOrEqualTo(ring.top));
+        expect(done.center.dx, closeTo(pause.center.dx, 1));
         final index = tester.getRect(find.byKey(const ValueKey('index')));
         expect(card.contains(index.center), isTrue);
         expect(index.left, greaterThan(card.center.dx));

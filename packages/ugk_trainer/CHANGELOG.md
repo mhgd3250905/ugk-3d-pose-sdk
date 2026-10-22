@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — stage 完成本组 r8
+
+- 完成本组 is no longer a pendant over the clip: on a self-paced set it takes the transport's number slot, centred right above the pause button (the dose it replaces is already on the top card). It now sits below the clip's bottom edge, so the demo is never covered; 44 px tap target, emerald pill as before. The number slot grows 36 → 44 px for every phase, so nothing moves between timed and self-paced sets.
+- The over-stage pendant slot (next-up preview / host rest feedback) shrinks 44 → 36 px, the next-up chip's height, keeping it low just above the subtitle chip; still fixed slots, bottom-anchored.
+- `stage_transition_test` asserts on 360×780 and 390×844 that 完成本组 sits below the clip and above the pause button, ≥ 44 px, and keeps the same rect from one set to the next; `trainer_player_test` layout checks updated. Public API unchanged.
+
 ## Unreleased — stage chips r7
 
 - The coach subtitle chip (e.g. 收紧臀部) is now the lowest thing on the stage, just above the transport — below the clip's bottom edge wherever the stage leaves room — so it covers as little of the demo as possible. The next-up / 完成本组 / rest-feedback pendant hangs above it. Both sit in fixed slots (pendant 44 px, subtitle two lines), so neither moves across pages, phases, clip loading or one- vs two-line subtitles; `stage_transition_test` still asserts no jump and now also that the subtitle sits below the pendant slot.

@@ -121,4 +121,55 @@ void main() {
       findsNothing,
     );
   });
+
+  // sdk-stage-r8: 完成本组 sits in the transport, below the clip's bottom
+  // edge on phones, and keeps one position from set to set.
+  for (final (w, h) in [(360.0, 780.0), (390.0, 844.0)]) {
+    testWidgets('完成本组 below the clip, fixed across sets ${w.toInt()}x'
+        '${h.toInt()}', (tester) async {
+      tester.view.physicalSize = Size(w, h);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TrainerPlayer(
+            plan: planOf([reps('a', 8, rest: 3), reps('b', 8)]),
+            drillOf: (id) =>
+                TrainerDrill(id: id, name: 'name-$id', cue: 'cue-$id'),
+            strings: TrainerStrings.zh(),
+            keepAlive: false,
+            prepSeconds: 0,
+            mediaBuilder: (_, _) => const SizedBox.expand(),
+            onFinished: (_) async {},
+          ),
+        ),
+      );
+      final done = find.byKey(const ValueKey('complete-set-button'));
+      await until(tester, done);
+      await tester.pump(const Duration(seconds: 1));
+      final first = tester.getRect(done);
+      final clip = tester.getRect(find.byKey(const ValueKey('media-a')));
+      final pause = tester.getRect(find.byKey(const ValueKey('pause')));
+      expect(first.top, greaterThanOrEqualTo(clip.bottom));
+      expect(first.bottom, lessThan(pause.top));
+      expect(first.height, greaterThanOrEqualTo(44));
+      // The next-up chip stays in its slot, also under the figure's middle.
+      final next = tester.getRect(find.byKey(const ValueKey('next-b')));
+      expect(next.top, greaterThan(clip.center.dy));
+
+      await tester.tap(done);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(done, findsNothing);
+      // Rest, then the next set's lead-in, then its 完成本组.
+      for (var i = 0; i < 400 && done.evaluate().isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(done, findsOneWidget);
+      expect(find.byKey(const ValueKey('media-b')), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
+      expect(tester.getRect(done), first);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
 }

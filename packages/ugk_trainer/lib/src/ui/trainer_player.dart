@@ -1129,9 +1129,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         final tagTop = midTop + TrainerSpace.x1;
         final mediaRadius = _th.copyWith(radius: 0);
         final bottomPendant =
-            _restFeedback(p) ??
-            (p.selfPaced ? _completeButton() : null) ??
-            (rest ? null : _nextUp(p));
+            // 完成本组 is not a pendant any more (sdk-stage-r8): it sits in
+            // the transport, in the number slot right above the pause
+            // button, below the clip.
+            _restFeedback(p) ?? (rest ? null : _nextUp(p));
         return Stack(
           children: [
             if (d != null)
@@ -1739,15 +1740,16 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   static const _clipOverscan = 1.15;
 
   /// Height reserved above the subtitle chip for the bottom pendant: the
-  /// tallest built-in one (完成本组, 44 px).
-  static const double _pendantSlot = 44;
+  /// built-in next-up chip (36 px). 完成本组 lives in the transport.
+  static const double _pendantSlot = 36;
 
   /// Height reserved for the subtitle chip: two 13 px lines at 1.4 plus
   /// its 6 px vertical padding.
   static const double _subtitleSlot = 2 * 13 * 1.4 + 12 + 1;
 
   /// Countdown number slot above the button, and the ring around it.
-  static const _digitsH = 36.0;
+  /// 44: also holds 完成本组 (44 px touch target) on self-paced sets.
+  static const _digitsH = 44.0;
   static const _digitsGap = 2.0;
   static const _ringD = 96.0;
 
@@ -1793,7 +1795,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     );
   }
 
-  /// 完成本组: a compact emerald pill pendant above the transport.
+  /// 完成本组: a compact emerald pill in the transport's number slot, just
+  /// above the pause button (sdk-stage-r8).
   Widget? _completeButton() {
     if (!_engine.awaitingCompletion) return null;
     return Center(
@@ -1910,6 +1913,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     final left = _engine.secondsLeft(t);
     final working = p.isWork;
     if (working && p.selfPaced) {
+      // 完成本组 takes the number slot above the pause button (the dose
+      // is already on the top card) (sdk-stage-r8).
+      final done = _completeButton();
+      if (done != null) return done;
       final item = p.item;
       if (item == null) return const SizedBox.shrink(key: ValueKey('counter'));
       final dose = _dose(item, phase: p);

@@ -18,11 +18,15 @@ class TrainerStageFloor extends StatelessWidget {
     required this.theme,
     required this.clipSize,
     this.clipLeft = 0,
+    this.clipTop = 0,
     this.fadeClipEdge = true,
   });
   final TrainerTheme theme;
   final double clipSize;
   final double clipLeft;
+
+  /// Top of the clip; 0 when it sits at the very top of the stage.
+  final double clipTop;
 
   /// Blend the clip's lower edge into the stage (hides any seam when a
   /// host clip's backdrop is a shade off [TrainerTheme.mediaStage]).
@@ -39,6 +43,7 @@ class TrainerStageFloor extends StatelessWidget {
           dark: theme.isDark,
           clipSize: clipSize,
           clipLeft: clipLeft,
+          clipTop: clipTop,
           fadeClipEdge: fadeClipEdge,
         ),
       ),
@@ -53,6 +58,7 @@ class _FloorPainter extends CustomPainter {
     required this.dark,
     required this.clipSize,
     required this.clipLeft,
+    required this.clipTop,
     required this.fadeClipEdge,
   });
   final Color stage;
@@ -60,6 +66,7 @@ class _FloorPainter extends CustomPainter {
   final bool dark;
   final double clipSize;
   final double clipLeft;
+  final double clipTop;
   final bool fadeClipEdge;
 
   @override
@@ -67,20 +74,33 @@ class _FloorPainter extends CustomPainter {
     final w = size.width, h = size.height, v = clipSize;
     final cx = clipLeft + v / 2;
     // The clips' feet stand at ~0.9 of the frame; the horizon sits above.
-    final feet = v * .9;
-    final horizon = v * .78;
+    final y0 = clipTop;
+    final feet = y0 + v * .9;
+    final horizon = y0 + v * .78;
     final ink = dark ? Colors.white : const Color(0xFF1B2420);
 
     if (fadeClipEdge && v > 0) {
-      final top = v * .9;
+      final top = y0 + v * .9;
       canvas.drawRect(
-        Rect.fromLTWH(clipLeft, top, v, v - top),
+        Rect.fromLTWH(clipLeft, top, v, y0 + v - top),
         Paint()
-          ..shader = ui.Gradient.linear(Offset(0, top), Offset(0, v), [
+          ..shader = ui.Gradient.linear(Offset(0, top), Offset(0, y0 + v), [
             stage.withValues(alpha: 0),
             stage,
           ]),
       );
+      if (y0 > 0) {
+        // A centred clip: soften its top edge into the stage as well.
+        final end = y0 + v * .05;
+        canvas.drawRect(
+          Rect.fromLTWH(clipLeft, y0, v, end - y0),
+          Paint()
+            ..shader = ui.Gradient.linear(Offset(0, y0), Offset(0, end), [
+              stage,
+              stage.withValues(alpha: 0),
+            ]),
+        );
+      }
     }
 
     // Receding floor grid from the feet towards the viewer, faded radially
@@ -151,7 +171,7 @@ class _FloorPainter extends CustomPainter {
       Offset.zero & size,
       Paint()
         ..shader = ui.Gradient.radial(
-          Offset(cx, v * .62),
+          Offset(cx, y0 + v * .62),
           math.max(w, h) * .95,
           [
             Colors.black.withValues(alpha: 0),
@@ -170,6 +190,7 @@ class _FloorPainter extends CustomPainter {
       old.dark != dark ||
       old.clipSize != clipSize ||
       old.clipLeft != clipLeft ||
+      old.clipTop != clipTop ||
       old.fadeClipEdge != fadeClipEdge;
 }
 

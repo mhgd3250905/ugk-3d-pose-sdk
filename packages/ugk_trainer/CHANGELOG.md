@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — stage layout r2
+
+- Player re-laid out top → bottom: a glass title / count card at the top (close, block or phase label, move name, dose, counter ring 104), the square demo clip centred in the space left between it and the controls, and the prev / pause / skip row unchanged and fixed to the bottom safe area.
+- Workout progress redesigned into the card's inside bottom edge: one slim segment per exercise (done = accent, now = tinted, upcoming = track; a single bar above 24 exercises) with n / total beside it. The old top progress bar and floating n / total pill are gone.
+- HUD pills (paused / next / switch side, 不舒服) sit at the clip's top corners; coach subtitle is two centred lines under the clip; one fixed action slot above the controls holds the compact next-up card while working, 完成本组 for self-paced sets, or the host's rest feedback. Rest uses the same structure; the done view puts badge, title and the finished track in the same top card, stats in the middle, finish at the bottom.
+- `TrainerStageFloor` gains optional `clipTop` (default 0) so the floor glow, grid and edge fades follow a centred clip; it also softens a centred clip's top edge. Public API otherwise unchanged. Reduced motion keeps segment / bar changes instant.
+
 ## Unreleased — immersive stage
 
 - Player laid out as a 3D stage: the square demo clip sits edge-to-edge at the top (full width, under the status bar, no card frame or radius) and its own backdrop (`TrainerTheme.mediaStage`, the colour the clips are baked on) continues down the screen, so clip and stage read as one space. The clip narrows only on short / wide screens so the fixed slots never squeeze.

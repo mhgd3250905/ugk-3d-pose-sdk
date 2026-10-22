@@ -257,7 +257,7 @@ void main() {
     semantics.dispose();
   });
 
-  for (final (w, h, dark) in [(360.0, 780.0, false), (390.0, 844.0, true)])
+  for (final (w, h, dark) in [(360.0, 780.0, false), (390.0, 844.0, true)]) {
     testWidgets(
       'stage layout fits ${w.toInt()}x${h.toInt()} without overflow',
       (tester) async {
@@ -280,10 +280,23 @@ void main() {
         );
         await tester.pump(const Duration(seconds: 1));
         expect(tester.takeException(), isNull);
-        // The clip spans the width at the top, edge to edge.
+        // Title / count card on top, the square clip centred between it and
+        // the fixed transport row at the bottom.
+        final card = tester.getRect(find.byKey(const ValueKey('info-card')));
         final clip = tester.getRect(find.byKey(const ValueKey('media-a')));
-        expect(clip.top, 0);
-        expect(clip.width, w);
+        final pause = tester.getRect(find.byKey(const ValueKey('pause')));
+        expect(card.top, lessThan(16));
+        expect(clip.top, greaterThan(card.bottom));
+        expect(clip.bottom, lessThan(pause.top));
+        expect(clip.width, clip.height);
+        expect(clip.width, greaterThan(w * .9));
+        expect(clip.center.dx, closeTo(w / 2, .5));
+        expect(h - pause.bottom, lessThan(40));
+        final track = tester.getRect(find.byKey(const ValueKey('progress')));
+        expect(
+          track.bottom <= card.bottom && track.top > card.center.dy,
+          isTrue,
+        );
         for (final k in ['close', 'pause', 'skip', 'prev', 'discomfort']) {
           final r = tester.getRect(find.byKey(ValueKey(k)));
           expect(r.bottom <= h && r.top >= 0, isTrue, reason: k);
@@ -291,4 +304,5 @@ void main() {
         await tester.pumpWidget(const SizedBox.shrink());
       },
     );
+  }
 }

@@ -2,7 +2,7 @@
 
 仓库 `mhgd3250905/ugk-3d-pose-sdk`，根目录是纯 Dart 包 **`ugk_coach`**，`packages/ugk_trainer` 是 Flutter 训练执行包（PR #1 已合入）。
 
-`ugk_trainer 0.1.6` 提供三 App 共用的 `TrainingMediaRepository`：精简内置素材、版本化原生缓存、SHA-256 校验下载、Wi-Fi 策略和封面降级；新增独立 internal flavor 的显式内测预览，生产门禁不变。接入与局域网 HTTP 验收方式见 [训练包文档](packages/ugk_trainer/README.md#内置精简与按需素材)。
+`ugk_trainer 0.1.7` 已合入 PR #6 的沉浸式舞台播放器：玻璃控件、持续可见的自主计次目标、系统大字号适配及键盘操作。沿用 0.1.5 / 0.1.6 的 `TrainingMediaRepository`、版本化缓存、SHA-256 校验、Wi-Fi 策略和独立 internal flavor 预览门禁。接入、验证边界及按需素材见[训练包文档](packages/ugk_trainer/README.md)。
 
 给 **FlareLab（托马斯训练助手）/ HipLab（开胯训练助手）/ SmartFit（智能健身助手）** 用的同一套助理内核：AI 只从 Pose-Hub 动作目录里挑动作，输出统一的 **TrainingPlan v1**，SDK 负责校验，不合格时回传错误重交，达到对应入口上限后回落到 App 自己的模板；每次模型调用都记账。各 App 只需提供 **profile（侧重/范围）+ 自己的 UI**。
 
@@ -12,7 +12,7 @@
 
 ## 维护与事实来源
 
-[项目维护台账](docs/project-ledger.md)是当前维护状态、PR 合并、验证证据和未决事项的统一记录入口。包版本以 [pubspec.yaml](pubspec.yaml) 为准；版本变更历史见 [CHANGELOG.md](CHANGELOG.md)；当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)。[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
+[项目维护台账](docs/project-ledger.md)是当前维护状态、PR 合并、验证证据和未决事项的统一记录入口。两个包独立管理版本：根包 `ugk_coach` 以 [pubspec.yaml](pubspec.yaml) 为准，当前为 0.3.3；`ugk_trainer` 以[训练包 pubspec.yaml](packages/ugk_trainer/pubspec.yaml) 为准，当前为 0.1.7。版本历史见[根 CHANGELOG](CHANGELOG.md)和[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)，训练接口与接入约定见[训练包 README](packages/ugk_trainer/README.md)。两个包均为 `publish_to: none`，合入和版本归档不表示已发布到 pub.dev。当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)；[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
 
 ## 架构（0.1 旧接口）
 

@@ -1,6 +1,6 @@
 # 项目维护台账
 
-更新日期：2026-10-21。仓库：[mhgd3250905/ugk-3d-pose-sdk](https://github.com/mhgd3250905/ugk-3d-pose-sdk)。
+更新日期：2026-10-23。仓库：[mhgd3250905/ugk-3d-pose-sdk](https://github.com/mhgd3250905/ugk-3d-pose-sdk)。
 
 本台账统一记录维护状态、已合并成果、验证证据和待办。包版本、接口行为仍以对应清单和实现为准；发布历史保留在 CHANGELOG。表内 SHA 是核验快照，后续文档提交会推进 main，不能把快照当成永远最新的分支指针。
 
@@ -8,15 +8,16 @@
 
 | 项目 | 已核对状态 |
 |---|---|
-| 主线代码核验快照 | main 已包含 0.3.3 源码 `e8c8921508139dc0f3eee1d2099eb5feefa80774` 及验收提交 `a931a04d6362ce8efba262556b34df3b485cc51d`；后续批准状态文档提交不改变该源码快照 |
+| 主线代码核验快照 | PR #6 已合入 main `eb29c749a52c1b226841726a3fba8e9f62e9e6be`，整树与复审 head `b84881f58c035b1fce2ff929cdb207e465821c92` 一致；保留 coach 0.3.3 源码及验收提交 a931a04。后续版本/文档提交不改变该运行时代码快照 |
 | 0.3.3 合入状态 | 基于原 main `b26e4fd`，分支 `codex/coach-033-speed`；已获开哥批准，main 快进包含验收提交 a931a04。377 项 SDK 测试、分析 0 问题，SmartFit 最终六条正确性/性能全通过：计划均 1 步、28.6–36.3 秒，要领 1 步、25.4 秒，无回落 |
 | 0.3.2 集成分支 / 来源（历史） | `codex/coach-agent-032-integration`；按指定源 `9bc392c42222d61d8c57e8dc00373ee165e56e06` 在 main `517fdbef6d9e611eff3f68bc2138f8e00e35c82e` 上 rebase 后补齐 0.3.2，已获批准合入 main；原修复分支保留，后续额外评审文档未作为集成源 |
 | 最初文档对齐 baseline（历史） | `1f8be6edf9c0c57575d963448af379e8fdf8df2a`；来自原文档会话 Cockpit init 记录，已核对为当时 main 且是当前 HEAD 的祖先 |
 | 最初对齐前的 stage delta（历史） | baseline..HEAD 为 0 提交、0 路径；完整工作区 tracked 0、untracked 0；不代表修复分支当前成果 |
 | 根包 | main 为 `ugk_coach` 0.3.3；`publish_to: none`，已合入主线不表示已发布到 pub.dev |
 | 推荐入口 | `CoachAgent`；`CoachSession` 保留作 0.2 降级，`CoachAssistant` 为 deprecated 旧接口 |
-| 训练执行 | PR #1 引入 `ugk_trainer` 0.1.0，当前包清单为 0.1.4；本次未修改训练包；原 source 的 126 项测试为历史证据 |
-| 验收边界 | 当前 main 0.3.3 离线 377 项、定向 App 56 项及最终真实六条通过，Dart 3.12.2 分析 0 问题，SDK/App 门禁、编造 id 为 0、记忆隔离均核对。原 0.3.2 的 342 项及真实六条作为提速基线保留；真机 UI / 完整训练未验 |
+| 训练执行 | `ugk_trainer` 当前版本归档为 0.1.7：PR #6 舞台 UI 与 r9 审核修复；沿用 0.1.5 媒体缓存和 0.1.6 internal 预览门禁。完整复审 170 项 Flutter 测试、分析 0 问题，证据绑定 b84881f；旧 126 项为历史 source 的结果 |
+| 版本管理 | 根 `pubspec.yaml` 管理 coach 0.3.3，训练包自己的 `pubspec.yaml` 管理 trainer 0.1.7；两包独立版本且均为 `publish_to: none`。PR 合并、包版本归档、Git 预览 tag 与对外发布是不同状态 |
+| 验收边界 | Coach 0.3.3 的历史离线 377 项、定向 App 56 项及最终真实六条保持原 source 语境；PR #6 复审另执行根包 377 项与 trainer 170 项，trainer 分析 0 问题。真机帧率、原生媒体播放和宿主完整训练未验收 |
 | Cockpit | 原文档会话已接入 working（历史记录）；文档更新不自动结束会话或生成交接 |
 
 ## 事实来源与文档分工
@@ -28,7 +29,10 @@
 | [README.md](../README.md) | 项目入口 | current | 当前接入方式与文档入口；区分 Agent、工具版和 JSON 信封旧接口 |
 | [pubspec.yaml](../pubspec.yaml) | 包配置 | current | 根包名 `ugk_coach`、main 0.3.3、禁止 pub.dev 发布 |
 | [docs/agent-plan.md](agent-plan.md) | Agent 设计 | current | 0.3 工具循环、技能披露、用户记忆和事件；不充当真实服务验收记录 |
-| [CHANGELOG.md](../CHANGELOG.md) | 版本变更记录 | current / history；首条为已批准合入 0.3.3 | 记录各版本与训练包成果；历史条目的测试数和待定项保留原时间语境 |
+| [CHANGELOG.md](../CHANGELOG.md) | 仓库版本变更记录 | current / history；按包名区分 | 根包保持 0.3.3，训练包 0.1.7 独立列出；历史测试数和待定项保留原时间语境 |
+| [packages/ugk_trainer/pubspec.yaml](../packages/ugk_trainer/pubspec.yaml) | 训练包配置 | current | trainer 0.1.7，依赖和 `publish_to: none` 保留 |
+| [packages/ugk_trainer/README.md](../packages/ugk_trainer/README.md) | 训练接口与接入约定 | current | 0.1.7 舞台 UI、剂量/字号/键盘行为及媒体接入；明确离线与真机边界 |
+| [packages/ugk_trainer/CHANGELOG.md](../packages/ugk_trainer/CHANGELOG.md) | 训练包版本记录 | current / history | 0.1.7 为最终归档；r1–r9 是历史开发迭代，0.1.5 / 0.1.6 原记录保留 |
 | [0.3.3 提速记录](coach-033-speed-2026-10-21.md) | 实测与合入状态 | current | 记录最终六条前后对比，保留先前性能未达标候选与余额不足尝试，不混用源码版本 |
 | [docs/design.md](design.md) | 早期设计决策 | archive/history | 标题明确为 ugk_coach 0.1.2，不用它覆盖 0.3 行为或判定外部 PR 的当前状态 |
 | [docs/smoke-2026-10-20.md](smoke-2026-10-20.md) | 历史真实调用 | archive/history | 0.1 / OpenCSG 的一次真实冒烟，不能证明 0.3 Worker 多步链路通过 |
@@ -38,7 +42,7 @@
 
 ## 合并记录
 
-合并状态与完整 SHA 已于 2026-10-21 通过 GitHub PR 状态和本机 Git 核对。日期按 Asia/Shanghai 记录。
+PR #1 / #3 / #4 / #5 的状态与完整 SHA 于 2026-10-21 核对；PR #6 于 2026-10-23 通过 GitHub 和本机 Git 核对。日期按 Asia/Shanghai 记录。
 
 | PR | 成果 | 状态 / 日期 | 合入提交 |
 |---|---|---|---|
@@ -46,12 +50,35 @@
 | [#3](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/3) | ugk_coach 0.2.0 工具版会话与门禁 | MERGED / 2026-10-21 | `09a392bc0b736e6a23eef71d55d86108660e0e59` |
 | [#4](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/4) | ugk_coach 0.3.0 Agent 与渐进式技能披露 | MERGED / 2026-10-21 | `1f8be6edf9c0c57575d963448af379e8fdf8df2a` |
 | [#5](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/5) | ugk_coach 0.3.1 Agent 韧性与审核修复 | MERGED / 2026-10-21 | `517fdbef6d9e611eff3f68bc2138f8e00e35c82e` |
+| [#6](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/6) | ugk_trainer 沉浸式舞台 UI 与 r9 修复，版本收束为 0.1.7 | MERGED / 2026-10-23 | `eb29c749a52c1b226841726a3fba8e9f62e9e6be` |
 
 PR #4 的复审 head 为 `48417e03f5ff05d4434dc2e15cc36237464153d2`。合并提交的两父提交分别为 `09a392bc0b736e6a23eef71d55d86108660e0e59` 和该复审 head；合并树与复审树一致。
 
 0.3.3 在开哥明确批准后通过 Git 快进合入 main，包含验收提交 `a931a04d6362ce8efba262556b34df3b485cc51d`；本次没有新建 PR。批准状态文档独立提交，运行时代码与已验证的 `e8c8921508139dc0f3eee1d2099eb5feefa80774` 相同。
 
+PR #6 在开哥明确同意后合并，两个父提交为原 main `f684e02f38e652633c23fa8946a53d02b6aa3ea2` 与复审 head `b84881f58c035b1fce2ff929cdb207e465821c92`。合并树与复审树一致；后续 0.1.7 版本及文档收束不改运行时代码。0.1.5 / 0.1.6 的媒体功能已在合并前的 main 中，本次不将其冒记为 PR #6 新增。
+
 ## 验证证据与适用范围
+
+### ugk_trainer 0.1.7：PR #6 已合并，版本与文档收束（2026-10-23）
+
+本阶段 baseline 是 PR #6 合并前已审核的 main `f684e02f38e652633c23fa8946a53d02b6aa3ea2`（合并提交第一父提交）；收束起点 HEAD 为 `eb29c749a52c1b226841726a3fba8e9f62e9e6be`。baseline 是 HEAD 祖先，stage delta 为 12 个提交、10 个路径：6 个 trainer UI/导出文件、3 个测试文件和 1 个 CHANGELOG。收束前在主目录执行完整 `git status --porcelain=v1 --untracked-files=all` 无输出，tracked/staged/unstaged/deleted/renamed/untracked 均为 0。
+
+收束核对的 current 来源为根 README / pubspec / CHANGELOG、本台账及训练包 README / pubspec / CHANGELOG；版本与接入事实分别按包核对。训练包 CHANGELOG 中原 10 组 Unreleased 改归 0.1.7，原迭代原文降为 history，避免旧位置/尺寸说明覆盖最终 r9 行为；既有 0.1.5 / 0.1.6 记录保留。根包维持 0.3.3，依赖和运行时代码不变。
+
+以下测试由本会话在 2026-10-23 复审时独立执行；[通过审核记录](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/6#pullrequestreview-5617366622) 提交于当日 00:15:49（Asia/Shanghai），绑定完整 source `b84881f58c035b1fce2ff929cdb207e465821c92`。这是复审 source 的证据，不是声称在版本/文档提交后重复跑过全套测试。
+
+| 命令 / 检查 | 结果 | source state / 适用性 |
+|---|---|---|
+| trainer 目录：`$reviewTests = @(git ls-files 'test/*_test.dart'); flutter test --no-pub --reporter expanded @reviewTests` | 170 项通过，退出码 0 | b84881f 完整已跟踪测试，含 r9 新增 17 项；未计入审查工作副本的旧故障诊断文件 |
+| trainer 目录：`flutter analyze --no-pub` | No issues found，退出码 0 | b84881f；包括 UI 及合并后的媒体代码 |
+| 根目录：`dart test --reporter expanded` | 377 项通过，退出码 0 | b84881f；根包证据，不代替 Flutter 或真机验收 |
+| `git diff --quiet b84881f58c035b1fce2ff929cdb207e465821c92 eb29c749a52c1b226841726a3fba8e9f62e9e6be` | 退出码 0，整树一致 | 合并后及本次 Preflight 重查；上述证据可复用于合并树 |
+| GitHub PR #6 状态、合入 SHA 与复审记录 | MERGED；合入 eb29c74、审核 b84881f | 远端观察，不充当测试或对外发布证明 |
+
+本次收束验证于 2026-10-23 执行，source state 为 eb29c74 加以下 6 个已归属改动：根 README、根 CHANGELOG、本台账及训练包 README、CHANGELOG、pubspec。`git diff --check` 通过；`node --input-type=module` 的只读 stdin 核对确认 41 个本地文档链接可解析，两个包版本一致，训练包 manifest 仅有 0.1.6 → 0.1.7 的版本行变化，0.1.6 及更早发布记录和 10 组历史迭代正文保留。完整状态为 tracked modified 6、staged 0、untracked 0；没有其他来源改动。
+
+已用 `git diff --exit-code eb29c749a52c1b226841726a3fba8e9f62e9e6be -- lib test prompts skills profiles packages/ugk_trainer/lib packages/ugk_trainer/test packages/ugk_trainer/assets packages/ugk_trainer/android pubspec.yaml` 确认运行时、测试、素材、平台代码与根包配置无变化；训练包依赖也已通过 manifest 整文对比确认不变，因此复用上述测试证据。浅色和深色 Web 预览只作为外部界面观察；真机帧率、原生媒体播放、锁屏保活及宿主完整训练仍须另行验收。本地版本收束不创建 Git tag 或对外 release，不结束 Cockpit 会话。
 
 ### 0.3.3 提速：离线与真实六条通过，已批准合入 main（2026-10-21）
 
@@ -118,6 +145,7 @@ SDK 377 项测试与 analyze 0 问题通过；SmartFit 定向 56 项通过（仅
 | SDK-001 | 原 source 已验证；0.3.2 真实服务待验 | 0.3 `CoachAgent` 真实 Worker 多步链路 | 上文六类分组验证绑定 `712cb7b` / `43dfef6`；本次 0.3.2 的行为与默认时限已变化，历史记录不能证明新代码树已通过真实 Worker 验收 |
 | SDK-002 | 已知非阻塞 P3 | `_withoutMemory` 的跨消息 ID 过滤：不同步骤复用工具调用 ID 时，后续普通调用和回复可能被误过滤 | 修正按消息配对或缺失 ID 的回退策略后，验证唯一 ID 正常路径及跨步骤复用 ID 场景；当前没有证据证明实际 Worker 会缺失或复用 ID |
 | SDK-003 | SDK 已获批合入；App 待安排 | SDK 0.3.2 / SmartFit 主线集成 | SDK 代码集成提交为 `31fb6f8`；确认 App 固定 ref 为包含修复的 SDK main 具体提交，再独立安排 App main；历史报告随 App 修复分支保存 |
+| SDK-004 | trainer 0.1.7 已合入；宿主真机待验 | 舞台 UI 真机帧率、原生媒体播放及完整训练 | 按宿主支持的设备、主题和训练链路实测；170 项离线测试与 Web 预览不能替代该验收 |
 
 SDK-001 的真实验证只覆盖历史 source；SDK 0.3.2 主线集成已获批准，SDK-003 剩余 App 主线工作待独立安排。SDK-002 未在本次集成中处理，其条件与不阻塞合并的判断见上述 PR #4 复审评论。
 

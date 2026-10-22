@@ -1,5 +1,11 @@
 # Changelog
 
+## ugk_trainer 0.1.7 — 2026-10-23
+
+- 归档 [PR #6](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/6) 的沉浸式舞台与玻璃控件 UI，含自主计次目标持续展示、系统大字号适配、Tab / Enter / Space 操作及焦点环。合入 main 的提交为 `eb29c749a52c1b226841726a3fba8e9f62e9e6be`，复审 head 为 `b84881f58c035b1fce2ff929cdb207e465821c92`。
+- 训练包版本从 0.1.6 归档为 0.1.7；根包 `ugk_coach` 保持 0.3.3。既有媒体缓存、内测预览门禁和训练引擎行为保留；本次收束只调整训练包版本与文档。
+- 复审 source 的 170 项 Flutter 测试、377 项根包 Dart 测试通过，`flutter analyze --no-pub` 为 0 问题；合并树与复审树一致。真机帧率及宿主完整训练尚未验收。完整版本细节与证据适用范围见[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)及[维护台账](docs/project-ledger.md)。
+
 ## 0.3.3 — 2026-10-21
 
 - 按 `profile.scope` 生成一动作一行的紧凑索引并内联到 Agent system，保留 id、中文名、部位、器械、难度、注意/禁忌，以及直接排课所需的场所、体位、默认剂量与 perSide。原维度索引和完整详情仍可按需读取。

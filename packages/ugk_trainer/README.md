@@ -1,6 +1,8 @@
-# ugk_trainer 0.1.6
+# ugk_trainer 0.1.7
 
 三 App（托马斯 3D-Body / 开胯 HipLab / SmartFit）共用的跟练模块。方案见仓库根目录 `docs/trainer-plan.md`。
+
+当前包版本以 [pubspec.yaml](pubspec.yaml) 为准，版本历史见 [CHANGELOG.md](CHANGELOG.md)，合并与验证记录见[项目维护台账](../../docs/project-ledger.md)。本包与根包 `ugk_coach` 0.3.3 独立管理版本；`publish_to: none`，版本归档不表示 pub.dev 发布。
 
 | 层 | 内容 | 来源 |
 |---|---|---|
@@ -9,10 +11,20 @@
 | `voice/` | `VoiceQueue` / `VoiceLineController` / `JustAudioVoiceOutput`（10-19 安卓修复版）；`SessionScript`（SmartFit 组/轮 + HipLab 节奏计数、换边余量）；`VoiceSource` 接口 + `ManifestVoiceSource` / `DrillPackVoiceSource`；`SessionRunner` | HipLab / SmartFit |
 | `platform/` | `TrainingKeepAlive` / `TrainingHold`（安卓前台服务 + 唤醒锁，本包 Android 插件）、`ScreenAwake`（wakelock_plus） | HipLab |
 | `media/` | `DrillMedia`、`DrillMediaView`（封面 → WebView/iframe 循环示范）、本地资源服务 | SmartFit + 3D-Body web |
-| `ui/` | `TrainerPlayer`、`TrainerTheme`、`TrainerStrings`、`TrainerCountdownRing` | SmartFit `player_page.dart` |
+| `ui/` | `TrainerPlayer`、`TrainerTheme`、`TrainerStrings`、倒计时环/数字、`TrainerGlass`、`TrainerStageFloor`、`TrainerHover` | SmartFit 播放页与 PR #6 舞台 UI |
 | `result/` | `SessionResult`（开始即定 `sessionId`）、`SessionRecorder`、`ResultSaver` | 新 |
 
 `package:ugk_trainer/engine.dart` 只导出纯 Dart 部分（可在 `dart test` / 工具里用）；`package:ugk_trainer/ugk_trainer.dart` 导出全部。
+
+## 0.1.7 播放器
+
+[PR #6](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/6) 已于 2026-10-23（Asia/Shanghai）合入 main，合入提交为 `eb29c749a52c1b226841726a3fba8e9f62e9e6be`。播放器采用方形示范画面与舞台地面、玻璃悬浮控件、动作序号和分段进度，倒计时环放在暂停按钮外侧。
+
+自主计次时，“完成本组”与顶部目标剂量同时可见，工作、暂停和下一组均保留目标；宿主 `doseLabel` 继续生效。顶卡、字幕和数字槽随系统 `TextScaler` 调整，倒计时有 `scaleDown` 兜底；已覆盖 1 / 1.5 / 2 倍字号及 390×844 / 844×390 横竖屏。关闭、上一项、暂停/继续、跳过按钮支持 Tab 聚焦及 Enter / Space 激活，并显示焦点环。
+
+原有 `TrainerPlayer` 接入参数继续可用。`TrainerTheme.glassStyle` / `glass` / `copyWith` 提供玻璃主题入口，另导出 `TrainerGlassStyle`、`TrainerGlassButton`、`TrainerGlassField`、`TrainerStageFloor`、`TrainerHover` 和 `TrainerCountdownDigits`。默认媒体以圆角 0 铺入舞台；宿主 `mediaBuilder` 收到的 `TrainerMediaRequest.theme.radius` 同样为 0，可据此保持画面边缘一致。
+
+0.1.5 / 0.1.6 的媒体缓存与内测预览策略沿用。测试和 Web 预览不能证明真机帧率、原生媒体播放或整节训练体验已验收，这些仍由宿主 App 验证。
 
 ## 接入
 
@@ -115,7 +127,9 @@ await media.clearCache();
 
 ## 测试
 
-`flutter test --no-pub`（145 个）：引擎（SmartFit session 测试移植 + 自主计次、rep_hold 停留、循环轮间休息、换动作）、HipLab 节奏计数与换边余量、SmartFit 语音时间线、语音队列/播放控制器/just_audio 输出（HipLab 测试移植）、Android间隙保活/中断/加载竞态/两小时上限、无语音降级、训练保活、结果与幂等保存、播放页与 App 插槽、完成页音频释放与快速/延迟再练。夹具在 `test/fixtures`（HipLab manifest 与 5 个 action kit、SmartFit 5 个 pack.json）。
+最近完整复审的 `flutter test --no-pub` 为 170 项通过，`flutter analyze --no-pub` 为 0 问题，source 为 `b84881f58c035b1fce2ff929cdb207e465821c92`；其与合入提交 `eb29c749a52c1b226841726a3fba8e9f62e9e6be` 整树一致。0.1.7 收束仅调整版本与文档，验证命令和适用性见[维护台账](../../docs/project-ledger.md)。
+
+覆盖引擎、自主计次与换边、节奏与语音队列、保活、结果幂等保存、App 插槽、完成页音频释放及再练、媒体仓库下载/缓存/策略故障注入，以及舞台切换稳定性。`stage_r9_test.dart` 的 17 项回归覆盖剂量持续显示、宿主剂量文案、大字号横竖屏和键盘操作。夹具在 `test/fixtures`；真机帧率和宿主完整训练不在这 170 项离线测试的证明范围内。
 
 ## 未带过来（留在各 App）
 

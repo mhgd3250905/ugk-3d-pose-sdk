@@ -1024,17 +1024,33 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         ),
       );
 
-  Widget _fade(Widget child, {Alignment alignment = Alignment.centerLeft}) =>
-      AnimatedSwitcher(
-        // Calm and sequential: the old text is gone (first 40 %) before the
-        // new one fades in (last 60 %); fade only, no layout motion.
-        duration: TrainerMotion.calm,
-        switchInCurve: const Interval(.4, 1, curve: TrainerMotion.calmCurve),
-        switchOutCurve: const Interval(.6, 1, curve: TrainerMotion.calmCurve),
-        layoutBuilder: (current, previous) =>
-            Stack(alignment: alignment, children: [...previous, ?current]),
-        child: child,
-      );
+  Widget _fade(
+    Widget child, {
+    Alignment alignment = Alignment.centerLeft,
+    bool sizeToCurrent = false,
+  }) => AnimatedSwitcher(
+    // Calm and sequential: the old text is gone (first 40 %) before the
+    // new one fades in (last 60 %); fade only, no layout motion.
+    duration: TrainerMotion.calm,
+    switchInCurve: const Interval(.4, 1, curve: TrainerMotion.calmCurve),
+    switchOutCurve: const Interval(.6, 1, curve: TrainerMotion.calmCurve),
+    // [sizeToCurrent]: the outgoing child is laid out but takes no room,
+    // so the slot is the new child's size from the first frame and does
+    // not snap when the old one is removed at the end of the fade.
+    layoutBuilder: (current, previous) => Stack(
+      alignment: alignment,
+      clipBehavior: Clip.none,
+      children: [
+        if (sizeToCurrent)
+          for (final w in previous)
+            Positioned(left: 0, right: 0, bottom: 0, child: w)
+        else
+          ...previous,
+        ?current,
+      ],
+    ),
+    child: child,
+  );
 
   /// Edge-to-edge on the stage: [theme] carries radius 0.
   Widget _media(SessionPhase p, TrainerDrill d, TrainerTheme theme) {
@@ -1161,16 +1177,31 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                     children: [
                       _fade(
                         alignment: Alignment.bottomCenter,
+                        sizeToCurrent: true,
                         _subtitleChip(sub),
                       ),
                       const SizedBox(height: TrainerSpace.x2),
-                      _fade(
-                        alignment: Alignment.bottomCenter,
-                        bottomPendant ??
-                            const SizedBox(
-                              key: ValueKey('next-none'),
-                              width: double.infinity,
-                            ),
+                      // A fixed slot for the built-in pendants (none / next
+                      // up / 完成本组), so the subtitle chip above keeps one
+                      // height across pages and phases (sdk-stage-r6).
+                      ConstrainedBox(
+                        key: const ValueKey('pendant-slot'),
+                        constraints: const BoxConstraints(
+                          minHeight: _pendantSlot,
+                        ),
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          heightFactor: 1,
+                          child: _fade(
+                            alignment: Alignment.bottomCenter,
+                            sizeToCurrent: true,
+                            bottomPendant ??
+                                const SizedBox(
+                                  key: ValueKey('next-none'),
+                                  width: double.infinity,
+                                ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -1682,6 +1713,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   /// How far the square clip may run past the screen's width.
   static const _clipOverscan = 1.15;
+
+  /// Height reserved under the subtitle chip for the bottom pendant: the
+  /// tallest built-in one (完成本组, 44 px).
+  static const double _pendantSlot = 44;
 
   /// Countdown number slot above the button, and the ring around it.
   static const _digitsH = 36.0;

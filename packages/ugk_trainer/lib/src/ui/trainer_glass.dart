@@ -32,6 +32,7 @@ class TrainerGlassStyle {
     this.innerShade = const Color(0x00000000),
     this.contactShadow = const Color(0x00000000),
     this.ambientShadow = const Color(0x00000000),
+    this.overMediaFill = const Color(0xC71A1D22),
   });
 
   /// Body tint.
@@ -74,6 +75,11 @@ class TrainerGlassStyle {
   /// only outside the shape so the glass itself stays clear.
   final Color contactShadow;
   final Color ambientShadow;
+
+  /// The fixed body of pills on media (sdk-stage-r6): HUD chips on the clip
+  /// take no backdrop sample, so their colour never depends on what is
+  /// behind them (poster, stage, loading or playing video, a cross-fade).
+  final Color overMediaFill;
 
   static const dark = TrainerGlassStyle(
     tint: Color(0x0AFFFFFF),
@@ -180,6 +186,7 @@ class TrainerGlass extends StatelessWidget {
         shape: shape,
         style: g,
         mediaTint: theme.glass.overMediaTint,
+        mediaFill: g.overMediaFill,
         control: control,
         overMedia: overMedia,
         pressed: pressed,
@@ -207,7 +214,9 @@ class TrainerGlass extends StatelessWidget {
                 ),
               ),
             ),
-          if (g.blur > 0)
+          // Pills on media are a stable fill, never a backdrop sample: a
+          // loading / cross-fading clip behind them must not shift their tone.
+          if (g.blur > 0 && !overMedia)
             Positioned.fill(
               child: ClipPath(
                 clipper: ShapeBorderClipper(shape: shape),
@@ -273,6 +282,7 @@ class _GlassPainter extends CustomPainter {
     required this.shape,
     required this.style,
     required this.mediaTint,
+    required this.mediaFill,
     required this.control,
     required this.overMedia,
     required this.pressed,
@@ -281,6 +291,7 @@ class _GlassPainter extends CustomPainter {
   final ShapeBorder shape;
   final TrainerGlassStyle style;
   final Color mediaTint;
+  final Color mediaFill;
   final bool control;
   final bool overMedia;
   final bool pressed;
@@ -291,8 +302,11 @@ class _GlassPainter extends CustomPainter {
     final rect = Offset.zero & size;
     final path = shape.getOuterPath(rect, textDirection: textDirection);
     // Body: tint (+ media tint) and, on controls, the idle fill.
-    canvas.drawPath(path, Paint()..color = style.tint);
-    if (overMedia) canvas.drawPath(path, Paint()..color = mediaTint);
+    if (overMedia) {
+      canvas.drawPath(path, Paint()..color = mediaFill);
+    } else {
+      canvas.drawPath(path, Paint()..color = style.tint);
+    }
     if (control) {
       final top = pressed
           ? Color.lerp(style.controlFillTop, Colors.white, .12)!
@@ -379,6 +393,7 @@ class _GlassPainter extends CustomPainter {
   bool shouldRepaint(_GlassPainter old) =>
       old.style != style ||
       old.mediaTint != mediaTint ||
+      old.mediaFill != mediaFill ||
       old.control != control ||
       old.overMedia != overMedia ||
       old.pressed != pressed ||

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — stage transitions r6
+
+- Subtitle chip no longer jumps on page / phase changes: the bottom pendant (none / 下一个 preview / 完成本组) sits in a fixed 44 px slot, and the cross-fades lay out at the incoming child's size (the outgoing one is overlaid, takes no room), so the chip above keeps one position from its first frame instead of moving when the old pendant is removed. The clip slot was already a fixed square independent of media load.
+- HUD chips on the clip (下一个 / 不舒服 tags, subtitle, next-up) no longer take a backdrop sample: they paint a stable dark fill (`TrainerGlassStyle.overMediaFill`, default `0xC71A1D22`), so their tone does not drift from light grey to dark while the new clip loads / cross-fades behind them. Other glass surfaces unchanged.
+- New regression test `stage_transition_test.dart` (chip position identical mid-fade, settled and in prep with a media builder that changes on load; no `BackdropFilter` under on-media chips). Public API unchanged apart from the new optional style field.
+
 ## Unreleased — stage layout r5
 
 - Top card: the close button is centred on the card's full height on the left; the move name, its muted line and the segmented progress now share one left edge, and the progress ends under the index's right edge (no longer card-edge to card-edge). Padding balanced (12 / 16).

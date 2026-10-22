@@ -17,6 +17,7 @@ import 'asset_router.dart';
 import 'asset_server.dart';
 import 'drill_media.dart';
 import 'media_controller.dart';
+import 'training_media_repository.dart';
 
 class DrillMediaPlatformView extends StatefulWidget {
   const DrillMediaPlatformView({
@@ -27,6 +28,7 @@ class DrillMediaPlatformView extends StatefulWidget {
     this.labels = const {},
     this.fit = 'contain',
     this.align = Alignment.center,
+    this.resource,
   });
   final DrillMedia media;
   final DrillMediaController controller;
@@ -39,6 +41,7 @@ class DrillMediaPlatformView extends StatefulWidget {
   /// BoxFit so the poster → video hand-over does not jump.
   final String fit;
   final Alignment align;
+  final TrainingMediaResource? resource;
   @override
   State<DrillMediaPlatformView> createState() => _MediaNativeState();
 }
@@ -64,7 +67,7 @@ class _MediaNativeState extends State<DrillMediaPlatformView> {
   Future<void> _initialize() async {
     AssetServer? server;
     try {
-      server = await AssetServer.start();
+      server = await AssetServer.start(resource: widget.resource);
       if (!mounted) {
         await server.close();
         return;
@@ -137,7 +140,9 @@ class _MediaNativeState extends State<DrillMediaPlatformView> {
                 'pos':
                     '${((widget.align.x + 1) * 50).round()}% '
                     '${((widget.align.y + 1) * 50).round()}%',
-                'src': '/${widget.videoAsset}',
+                'src': widget.resource?.cachePath != null
+                    ? AssetServer.verifiedMediaPath
+                    : '/${widget.videoAsset}',
               },
             ),
       );

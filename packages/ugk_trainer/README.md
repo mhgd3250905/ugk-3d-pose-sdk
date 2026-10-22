@@ -1,4 +1,4 @@
-# ugk_trainer 0.1.4
+# ugk_trainer 0.1.6
 
 三 App（托马斯 3D-Body / 开胯 HipLab / SmartFit）共用的跟练模块。方案见仓库根目录 `docs/trainer-plan.md`。
 
@@ -77,9 +77,45 @@ final result = await Navigator.of(context).push<SessionResult>(
 - HipLab 切换时删掉 App 自己的 `TrainingSessionService.kt`、MainActivity 里的 `hiplab/training_session` 通道和 manifest 里的 service 声明，避免两份服务。
 - 通知小图标用 `notificationIcon`（`mipmap/…` 或 `drawable/…`），不填用应用图标。
 
+## 内置精简与按需素材
+
+`TrainingMediaRepository` 位于共用 trainer 包，三个 App 可接入同一套清单、下载、缓存与播放器。宿主选择动作及保存 Wi-Fi/开发开关偏好，仓库负责素材完整性与网络策略。原来的 `DrillMedia` / `DrillMediaView` 不传仓库时继续读取宿主 assets。
+
+```dart
+final media = await TrainingMediaRepository.create(
+  manifestAsset: 'assets/training_media/v0.3.0-app/app-manifest.json',
+  baseUrls: [
+    Uri.parse('http://192.168.1.10:8765/v0.3.0-app/'),
+    // 正式部署时依次配置国内、海外的同版本目录。
+  ],
+  wifiOnly: savedWifiOnly, // 缺省 true
+  allowPending: savedDeveloperSwitch, // 还受下方编译策略限制，缺省 false
+);
+// 在应用根部或训练路由上包 TrainingMediaScope(repository: media, child: ...)。
+// DrillMedia.actionId 可把 App 自己的 drill id 映射为清单动作 id。
+unawaited(media.prefetchActions(planActionIds));
+// 设置页：media.manifest.packages['realistic-dark']!.totalBytes 显示包大小；
+// media.stateFor('realistic-dark') 显示进度；调用前保存 media.wifiOnly。
+await media.downloadPackage();
+final usedBytes = await media.cacheBytes();
+await media.clearCache();
+```
+
+主清单打进 assets；只带 `packages/builtin.json`、`packages/realistic-dark.json` 两份子清单，`common-lossy/covers/` 和缩略图，以及 builtin 所列 32 段 realistic/dark 视频。保持 `v0.3.0-app/` 与 `v0.3.0/` 相邻，仓库按清单相对路径解析。主清单可信于 APK，子清单按主清单的 SHA-256 和长度验证；额外皮肤的子清单随包从相同镜像下载。`skin` / `theme` 是预留接口，宿主无需提供额外皮肤界面。
+
+读取顺序是内置、已校验本地缓存、下载。原生下载写入 `<app-cache>/training-media/<version>/<sha256>.<sequence>.part`，以流方式写盘，检查长度和 SHA-256 后重命名为 `<sha256>` 才可用；现有缓存每次读取也复校验，损坏即删除。`availableActionIds()` / `readyActionIds` 只包含当前允许动作的默认深色写实视频，离线计划可优先选这些 ID。`isOffline` 是当前连接探测结果，HTTP 不可达仍可能发生；`canDownload()` 可主动刷新，真实连接变更由插件监听。
+
+默认只允许 Wi-Fi；移动网络、其他网络、无网络不会开启新请求，下载期间网络策略变更会取消临时文件。策略受阻动作和包在 Wi-Fi 恢复或用户取消 Wi-Fi 限制时自动续试；HTTP/完整性失败停在失败状态，由用户显式重试。连接、响应及数据空闲各默认 15 秒超时，可在 `create(downloadTimeout: ...)` 调整。镜像按配置顺序尝试，关闭自动重定向。后台最多并发 3 个媒体文件，同一哈希的请求合并。
+
+`DrillMediaView` 等待时保留封面和加载状态，失败保留封面与说明；不等待下载再启动训练引擎或语音。清缓存先取消并等待已有下载，推进 generation 撤销旧能力，再删文件；并发清理共享同一个 Future，旧任务不能重新写入。空间统计与清理覆盖 `training-media/` 下所有版本，目录遍历和逐文件计数容忍并发删除；不访问其他 App 缓存。包内资源始终保留。缓存视频只通过本机回环固定 `/verified-media/clip.mp4` 读取，路径不能选取其他文件，支持 GET/HEAD、单区间 Range，非法/多区间返回 416。
+
+`releaseEligible` 为 false 的动作缺省不可见、不可下载。`allowPending: true` 还必须通过共用编译策略 `TrainingMediaPreviewPolicy.enabled`：debug 维持开发预览；release/profile 只有 `FLUTTER_APP_FLAVOR=internal` **同时** `UGK_INTERNAL_MEDIA_PREVIEW=true` 才能预览。普通 production 构建、缺少 flavor 或仅一个开关都不放行。内测构建缺省 `allowPending: false` 仍隐藏待审核动作；该开关不能在运行时打开生产门禁。
+
+宿主可复用此 const 判断是否启用内测设置及局域网下载地址。Flutter 内测命令采用 `flutter build apk --release --flavor internal --dart-define=UGK_INTERNAL_MEDIA_PREVIEW=true`，并由宿主另设“允许待审核”的开关。宿主需要先定义独立 `internal` flavor，隔离应用标识、显示名称及 Android 网络安全配置；生产 flavor 不配置内测 opt-in。此策略不自行修改平台网络权限，不保证 HTTP 自动可用。Web 暂仅支持内置素材，缺失素材降级到封面，不播放未经校验的远端 URL。本包不创建云资源或上传素材。
+
 ## 测试
 
-`flutter test`（118 个）：引擎（SmartFit session 测试移植 + 自主计次、rep_hold 停留、循环轮间休息、换动作）、HipLab 节奏计数与换边余量、SmartFit 语音时间线、语音队列/播放控制器/just_audio 输出（HipLab 测试移植）、Android间隙保活/中断/加载竞态/两小时上限、无语音降级、训练保活、结果与幂等保存、播放页与 App 插槽、完成页音频释放与快速/延迟再练。夹具在 `test/fixtures`（HipLab manifest 与 5 个 action kit、SmartFit 5 个 pack.json）。
+`flutter test --no-pub`（145 个）：引擎（SmartFit session 测试移植 + 自主计次、rep_hold 停留、循环轮间休息、换动作）、HipLab 节奏计数与换边余量、SmartFit 语音时间线、语音队列/播放控制器/just_audio 输出（HipLab 测试移植）、Android间隙保活/中断/加载竞态/两小时上限、无语音降级、训练保活、结果与幂等保存、播放页与 App 插槽、完成页音频释放与快速/延迟再练。夹具在 `test/fixtures`（HipLab manifest 与 5 个 action kit、SmartFit 5 个 pack.json）。
 
 ## 未带过来（留在各 App）
 

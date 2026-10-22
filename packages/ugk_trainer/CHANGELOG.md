@@ -59,6 +59,21 @@
 - Calm motion: 500 ms `Curves.fastOutSlowIn` phase changes where the old content leaves before the new arrives; reduced motion keeps crossfades.
 - Theme hook: `TrainerTheme.glassStyle` / `glass` and `TrainerTheme.copyWith`; dark background is now SmartFit's neutral sky. Public widget signatures unchanged.
 
+## 0.1.6
+
+- Export the shared compile-time `TrainingMediaPreviewPolicy.enabled` so hosts and the repository use the same pending-media preview gate. Preserve the existing debug behavior; release/profile require both the `internal` Flutter flavor and `UGK_INTERNAL_MEDIA_PREVIEW=true`.
+- Keep pending actions hidden by default, including internal builds: callers must still explicitly request `allowPending: true`. Ordinary production builds and either opt-in alone remain blocked. The policy does not change platform cleartext settings; hosts must separately isolate any LAN HTTP allowance to their internal flavor.
+- Add a standalone AOT compilation matrix for all debug/profile/release, absent/production/internal flavor and preview-flag combinations, plus a Flutter build-mode agreement test. Host release APK and physical-device acceptance are separate validation steps.
+
+## 0.1.5
+
+- Add a shared `TrainingMediaRepository` for the three apps: bundled assets first, versioned native cache second, then ordered HTTP(S) mirrors. Download to temporary files and verify declared length and SHA-256 before publishing; verify persistent cache again before reuse.
+- Resolve submanifests through the bundled main index, verify their hashes and action/file indexes, and fetch additional render manifests with their packages. Only release-eligible actions are visible outside an explicit debug-only pending-action gate.
+- Default downloads to Wi-Fi, resume policy-blocked actions/packages when the connection permits, expose progress and cache usage, and cancel/join transfers before cache deletion. A failed HTTP response or digest remains failed until an explicit retry.
+- Report and clear every version under the app-owned `training-media` cache root while preserving unrelated app caches; tolerate files/directories disappearing during size scans.
+- Keep the poster and a loading/failure label while media is unavailable; training timing and voice remain independent. Native WebViews stream verified cache files through one fixed loopback capability route with bounded byte ranges; existing bundled-only constructors remain compatible.
+- Add local HTTP fault-injection tests for offline playback, stalled bodies, mirror fallback, invalid digests/manifests, startup corruption, Wi-Fi changes, cache-clear races, range handling, and nonblocking view fallback. Native device playback acceptance remains the host app's responsibility.
+
 ## 0.1.4
 
 - Add an explicit media-playback owner mode to the existing Android training service, with one framework MediaSession and a MediaStyle token. Generic self-check holds do not advertise media playback.

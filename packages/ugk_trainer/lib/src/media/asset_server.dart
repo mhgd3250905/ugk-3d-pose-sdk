@@ -6,15 +6,18 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 
 import 'asset_router.dart';
+import 'training_media_repository.dart';
 
 /// A same-origin module/GLB server reachable only on this device's loopback.
 class AssetServer {
-  AssetServer._(this._server, this._router) {
+  AssetServer._(this._server, this._router, this._resource) {
     _subscription = _server.listen((request) => unawaited(_serve(request)));
   }
 
   final HttpServer _server;
   final AssetRouter _router;
+  final TrainingMediaResource? _resource;
+  static const verifiedMediaPath = '/verified-media/clip.mp4';
   late final StreamSubscription<HttpRequest> _subscription;
   bool _closed = false;
 
@@ -27,6 +30,7 @@ class AssetServer {
   static Future<AssetServer> start({
     AssetRouter? router,
     List<String> prefixes = AssetRouter.defaultPrefixes,
+    TrainingMediaResource? resource,
   }) async {
     if (router == null) {
       final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
@@ -43,7 +47,7 @@ class AssetServer {
       );
     }
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    return AssetServer._(server, router);
+    return AssetServer._(server, router, resource);
   }
 
   bool permitsNavigation(Uri target) =>
@@ -59,6 +63,13 @@ class AssetServer {
       if (!permitsNavigation(target)) {
         request.response.statusCode = HttpStatus.forbidden;
       } else {
+        if (request.uri.path == verifiedMediaPath &&
+            _resource?.cachePath != null &&
+            !request.uri.hasQuery &&
+            !request.uri.hasFragment) {
+          await _serveVerified(request);
+          return;
+        }
         final result = await _router.route(
           request.uri.toString(),
           method: request.method,
@@ -79,6 +90,48 @@ class AssetServer {
       // A WebView may disappear while an asset is loading or close its socket.
       // Force-closing the server during dispose handles those pending requests.
     }
+  }
+
+  /// Fixed capability route; request paths are never joined to cache paths.
+  Future<void> _serveVerified(HttpRequest request) async {
+    final response = request.response;
+    if (request.method != 'GET' && request.method != 'HEAD') {
+      response.statusCode = HttpStatus.methodNotAllowed;
+      await response.close();
+      return;
+    }
+    final file = File(_resource!.cachePath!);
+    if (!await file.exists()) {
+      response.statusCode = HttpStatus.notFound;
+      await response.close();
+      return;
+    }
+    final length = await file.length();
+    var start = 0;
+    var end = length - 1;
+    response.headers.set(HttpHeaders.contentTypeHeader, 'video/mp4');
+    response.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('Accept-Ranges', 'bytes');
+    final range = request.headers[HttpHeaders.rangeHeader]?.join(',');
+    if (request.method == 'GET' && range != null) {
+      final selected = AssetRouter.parseByteRange(range, length);
+      if (selected == null) {
+        response.statusCode = HttpStatus.requestedRangeNotSatisfiable;
+        response.headers.set('Content-Range', 'bytes */$length');
+        response.contentLength = 0;
+        await response.close();
+        return;
+      }
+      (start, end) = selected;
+      response.statusCode = HttpStatus.partialContent;
+      response.headers.set('Content-Range', 'bytes $start-$end/$length');
+    }
+    response.contentLength = end - start + 1;
+    if (request.method == 'GET') {
+      await response.addStream(file.openRead(start, end + 1));
+    }
+    await response.close();
   }
 
   Future<void> close() async {

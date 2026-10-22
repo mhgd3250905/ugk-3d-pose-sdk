@@ -58,7 +58,7 @@ class AssetRouter {
       final isMedia = mime.startsWith('video/');
       final headers = <String, String>{if (isMedia) 'Accept-Ranges': 'bytes'};
       if (isMedia && method == 'GET' && range != null) {
-        final selected = _range(range, bytes.length);
+        final selected = parseByteRange(range, bytes.length);
         if (selected == null) {
           return AssetResponse(
             statusCode: 416,
@@ -94,7 +94,7 @@ class AssetRouter {
 
   // A bounded, open-ended or suffix byte range. Multiple ranges are not
   // supported: never return multipart bytes under a video MIME type.
-  static (int, int)? _range(String value, int length) {
+  static (int, int)? parseByteRange(String value, int length) {
     if (length == 0) return null;
     final match = RegExp(r'^bytes=(\d*)-(\d*)$').firstMatch(value.trim());
     if (match == null) return null;

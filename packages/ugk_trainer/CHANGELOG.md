@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — stage layout r3
+
+- Top card slimmed to one row (~71 px, was 172): small close, move name on one line, phase / block label · dose and n / total on a small second line, a 46 px counter ring (its caption kept as the ring's semantics label), and the workout progress as a 3 px hairline along the card's inside bottom.
+- The demo clip now takes the whole stage between the card and the transport, as large as fits (up to 1.15× the screen width; its flat backdrop continues as the stage, so the sides run off seamlessly), sitting slightly above centre. No layout slots are reserved under it any more.
+- Everything else is a small pendant over the stage, never on the body: paused / next / switch-side tag and 不舒服 as 32 px chips in the top corners under the card (不舒服 keeps a 44 px touch target and its label); next-up as a 36 px glass chip (round thumbnail, 下一个 · name) at the bottom-left; 完成本组 as a compact 44 px emerald pill centred just above the transport (same key and label); the coach subtitle as a small translucent chip (max two lines) above that; the host's rest feedback in the same bottom pendant slot.
+- Prev / pause / skip row and the done view unchanged. Public API unchanged.
+
 ## Unreleased — stage layout r2
 
 - Player re-laid out top → bottom: a glass title / count card at the top (close, block or phase label, move name, dose, counter ring 104), the square demo clip centred in the space left between it and the controls, and the prev / pause / skip row unchanged and fixed to the bottom safe area.

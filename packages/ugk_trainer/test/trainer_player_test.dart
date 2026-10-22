@@ -280,16 +280,19 @@ void main() {
         );
         await tester.pump(const Duration(seconds: 1));
         expect(tester.takeException(), isNull);
-        // Title / count card on top, the square clip centred between it and
-        // the fixed transport row at the bottom.
+        // A slim card on top; the clip takes the whole stage between it and
+        // the fixed transport (it may run a little past the sides); the
+        // pendants hang below the figure, above the transport.
         final card = tester.getRect(find.byKey(const ValueKey('info-card')));
         final clip = tester.getRect(find.byKey(const ValueKey('media-a')));
         final pause = tester.getRect(find.byKey(const ValueKey('pause')));
         expect(card.top, lessThan(16));
+        expect(card.height, lessThanOrEqualTo(76));
         expect(clip.top, greaterThan(card.bottom));
         expect(clip.bottom, lessThan(pause.top));
-        expect(clip.width, clip.height);
-        expect(clip.width, greaterThan(w * .9));
+        expect(clip.width, closeTo(clip.height, .01));
+        expect(clip.width, greaterThanOrEqualTo(w));
+        expect(clip.height, greaterThan((pause.top - card.bottom) * .65));
         expect(clip.center.dx, closeTo(w / 2, .5));
         expect(h - pause.bottom, lessThan(40));
         final track = tester.getRect(find.byKey(const ValueKey('progress')));
@@ -297,6 +300,20 @@ void main() {
           track.bottom <= card.bottom && track.top > card.center.dy,
           isTrue,
         );
+        // 完成本组: a compact pill below the figure's middle, above the
+        // transport, at least 40 px tall.
+        final done = tester.getRect(
+          find.byKey(const ValueKey('complete-set-button')),
+        );
+        expect(done.height, greaterThanOrEqualTo(40));
+        expect(done.height, lessThan(56));
+        expect(done.width, lessThan(w * .7));
+        expect(done.top, greaterThan(clip.center.dy + clip.height * .3));
+        expect(done.bottom, lessThan(pause.top));
+        final discomfort = tester.getRect(
+          find.byKey(const ValueKey('discomfort')),
+        );
+        expect(discomfort.bottom, lessThan(clip.top + clip.height * .25));
         for (final k in ['close', 'pause', 'skip', 'prev', 'discomfort']) {
           final r = tester.getRect(find.byKey(ValueKey(k)));
           expect(r.bottom <= h && r.top >= 0, isTrue, reason: k);

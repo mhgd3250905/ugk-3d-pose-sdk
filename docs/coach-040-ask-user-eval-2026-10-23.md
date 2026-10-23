@@ -1,6 +1,6 @@
 # ugk_coach 0.4.0：ask_user 验证记录
 
-2026-10-23（Asia/Shanghai）。候选分支 `codex/coach-0.4.0-ask-user` 基于 main `f577f5724812585fffdd1cd2d0a62dac3f74cdf2`。本次升级尚待开哥同意后合入 main、推送，没有新建 tag/release 或发布包。
+2026-10-23（Asia/Shanghai）。开发分支 `codex/coach-0.4.0-ask-user` 基于 main `f577f5724812585fffdd1cd2d0a62dac3f74cdf2`。开哥已明确同意合入 main 并推送，main 已快进包含验收提交 `8ba0cde60d4fcfb10ff46c65c1558e992c82bac3`；后续批准状态文档提交不改变已验收的运行源码。没有新建 tag/release 或发布包。
 
 ## 结果
 

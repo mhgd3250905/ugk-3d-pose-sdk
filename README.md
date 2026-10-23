@@ -8,7 +8,7 @@
 
 - 纯 Dart，不依赖 Flutter（Web 也能用）；`dart:io` 的部分（文件缓存、JSONL 记账）单独在 `package:ugk_coach/ugk_coach_io.dart`。
 - 一个动作 id = 定义 + 封面 + 示范视频 + 建模源（Pose-Hub spec）+ 语音：`assistant.resolve(id)` 带出整套素材。
-- 当前版本为 **0.4.0**，Agent 新增 `ask_user`：一次一个 text / choice 问题，事件交给 App，用户下一条消息继续；SDK 限制同任务最多问 3 次，信息足够时直接排课。字段、事件顺序和可审阅的 Dart 接入代码见 [ask_user 接口说明](docs/ask-user.md)。本仓库提供 SDK 接口，气泡和选项 UI 由各 App 接入。
+- 当前版本为 **0.4.0**，已获开哥批准合入 main，包含验收提交 `8ba0cde`。Agent 新增 `ask_user`：一次一个 text / choice 问题，事件交给 App，用户下一条消息继续；SDK 限制同任务最多问 3 次，信息足够时直接排课。426 项测试、分析无问题及 6 例真实多轮评测通过，见 [0.4.0 评测记录](docs/coach-040-ask-user-eval-2026-10-23.md)。字段、事件顺序和可审阅的 Dart 接入代码见 [ask_user 接口说明](docs/ask-user.md)。本仓库提供 SDK 接口，气泡和选项 UI 由各 App 接入。
 - **0.3.3 历史验收**：已获开哥批准合入 main，包含验收提交 `a931a04`。377 项 SDK 测试、分析 0 问题及 SmartFit 最终真实六条通过：计划均 1 步、28.6–36.3 秒，要领问答 1 步、25.4 秒，无回落、编造 id 为 0、记忆隔离通过。Agent 内联作用域内的紧凑索引和三条技能快路径，常规计划直接提交门禁；见[基线拆解](docs/coach-033-baseline-analysis-2026-10-21.md)、[前后对比与验收状态](docs/coach-033-speed-2026-10-21.md)及[项目维护台账](docs/project-ledger.md)。这些数据保留为 0.3.3 的历史结果。
 
 ## 维护与事实来源

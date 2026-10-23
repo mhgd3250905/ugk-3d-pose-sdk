@@ -1,0 +1,1119 @@
+{
+  "schemaVersion": 1,
+  "mode": "real-CoachAgent",
+  "startedAt": "2026-10-23T02:17:08.475134Z",
+  "finishedAt": "2026-10-23T02:19:08.357446Z",
+  "sourceSha256": "a60798545e73ec1dea2ccf994be6241331582905ebd0486ef2854b9d38ef3160",
+  "sourceUnchangedDuringRun": true,
+  "sdkVersion": "0.4.0",
+  "requestedModel": "deepseek-v4-flash-0731",
+  "endpoint": "https://api.uuugk.win/v1",
+  "authType": "UgkWorkerAuth",
+  "fixtureSha256": "186485919d635a005d131372b1f75fef7e7263a7f31647ff2133171fda547419",
+  "catalogVersion": "0.1.0",
+  "catalogSha256": "505a196a2b43d7a6a20faef76f6efcadcce14634dc670ed9ee6e990564a7b46f",
+  "agentOverrides": {
+    "enableUserMemoryByCase": {
+      "bboy_free_text": false,
+      "known_context": false,
+      "direct_after_question": false,
+      "question_budget": false
+    },
+    "maxHistoryChars": 200000,
+    "maxTurns": 20
+  },
+  "passed": true,
+  "passedCases": 4,
+  "totalCases": 4,
+  "cases": [
+    {
+      "id": "bboy_free_text",
+      "title": "不点选项直接打字：下一条消息补齐条件",
+      "passed": true,
+      "failures": [],
+      "questions": 1,
+      "enableUserMemory": false,
+      "budgetExhausted": false,
+      "choiceAnswers": 0,
+      "elapsedMs": 27719,
+      "turns": [
+        {
+          "user": "我明天打算去练托马斯。我是一个 bboy，也是个程序员。我日常久坐，引起了肌肉相关的比较紧张，所以我在练习之前需要进行放松。你给我出一个放松的方案计划。",
+          "status": "ok",
+          "text": "久坐之后，你觉得最紧的主要是哪一块？",
+          "question": {
+            "question": "久坐之后，你觉得最紧的主要是哪一块？",
+            "mode": "choice",
+            "options": [
+              "髋屈肌和大腿前侧",
+              "大腿内侧（内收肌）",
+              "腘绳肌和大腿后侧",
+              "臀部和髋外侧",
+              "腰背和下背",
+              "肩颈和上背"
+            ],
+            "multiple": true
+          },
+          "plan": null,
+          "steps": 1,
+          "reads": [],
+          "questionsAsked": 1,
+          "events": [
+            {
+              "kind": "thinking",
+              "step": 1
+            },
+            {
+              "kind": "askUser",
+              "step": 1,
+              "question": {
+                "question": "久坐之后，你觉得最紧的主要是哪一块？",
+                "mode": "choice",
+                "options": [
+                  "髋屈肌和大腿前侧",
+                  "大腿内侧（内收肌）",
+                  "腘绳肌和大腿后侧",
+                  "臀部和髋外侧",
+                  "腰背和下背",
+                  "肩颈和上背"
+                ],
+                "multiple": true
+              }
+            },
+            {
+              "kind": "done",
+              "step": 1
+            }
+          ],
+          "calls": [
+            {
+              "at": "2026-10-23T02:17:08.594260Z",
+              "model": "deepseek-flash",
+              "elapsedMs": 8302,
+              "tools": [
+                "ask_user"
+              ],
+              "usage": {
+                "promptTokens": 11120,
+                "completionTokens": 311,
+                "reasoningTokens": 169,
+                "cachedTokens": 10880
+              },
+              "finishReason": "tool_calls"
+            }
+          ],
+          "usage": {
+            "promptTokens": 11120,
+            "completionTokens": 311,
+            "reasoningTokens": 169,
+            "cachedTokens": 10880
+          },
+          "issues": []
+        },
+        {
+          "user": "在家，只有垫子，12 分钟。重点放松肩颈和髋屈肌，没有疼痛，我是入门水平。",
+          "status": "ok",
+          "text": "",
+          "question": null,
+          "plan": {
+            "schemaVersion": 1,
+            "id": "plan-1792721856249-3",
+            "source": "ai",
+            "title": "托马斯前髋肩放松",
+            "summary": "12 分钟居家垫上放松,先用猫牛和骨盆画圈把脊柱与髋关节唤醒,再集中放开久坐最紧的髋屈肌,同时用俯卧 Y-T-W 和坐姿后撑把肩颈上背松开,最后仰卧扭转收尾。",
+            "goal": "relax",
+            "scene": "home",
+            "equipment": [
+              "mat"
+            ],
+            "level": 1,
+            "targetMinutes": 12,
+            "blocks": [
+              {
+                "id": "warmup",
+                "name": "唤醒脊柱与髋",
+                "type": "warmup",
+                "rounds": 1,
+                "restBetweenRoundsSeconds": 0,
+                "items": [
+                  {
+                    "exerciseId": "h-catcow-quad",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 40,
+                    "perSide": false,
+                    "restSeconds": 10,
+                    "note": "幅度小一点,跟着呼吸走,先把上背和腰松开"
+                  },
+                  {
+                    "exerciseId": "n-pelvis-circle",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": false,
+                    "restSeconds": 10,
+                    "note": "站姿慢慢画圈,让髋关节先润滑起来"
+                  }
+                ]
+              },
+              {
+                "id": "main",
+                "name": "髋屈肌 + 肩颈重点",
+                "type": "main",
+                "rounds": 1,
+                "restBetweenRoundsSeconds": 0,
+                "items": [
+                  {
+                    "exerciseId": "n-thomas-test",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": true,
+                    "restSeconds": 10,
+                    "note": "抱膝贴胸,另一条腿放松伸直,感觉髋前侧和臀部拉开"
+                  },
+                  {
+                    "exerciseId": "s-kneel-hipflex",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": true,
+                    "restSeconds": 10,
+                    "note": "骨盆微后倾、收紧屁股,别用塌腰代替拉伸"
+                  },
+                  {
+                    "exerciseId": "h-seated-reachback",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": false,
+                    "restSeconds": 10,
+                    "note": "坐姿后撑,胸口往上打开,松胸和肩前侧"
+                  },
+                  {
+                    "exerciseId": "scapular-A",
+                    "mode": "reps",
+                    "sets": 2,
+                    "reps": 8,
+                    "perSide": false,
+                    "restSeconds": 30,
+                    "note": "俯卧 Y-T-W 各做几次,动作慢,肩胛骨往中间收"
+                  },
+                  {
+                    "exerciseId": "h-cobra",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": false,
+                    "restSeconds": 10,
+                    "note": "轻轻撑起,髋前侧有拉伸就行,腰不挤"
+                  }
+                ]
+              },
+              {
+                "id": "cooldown",
+                "name": "收尾放松",
+                "type": "cooldown",
+                "rounds": 1,
+                "restBetweenRoundsSeconds": 0,
+                "items": [
+                  {
+                    "exerciseId": "h-supine-twist",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 40,
+                    "perSide": true,
+                    "restSeconds": 10,
+                    "note": "仰卧扭转,肩膀贴地,呼吸放长"
+                  }
+                ]
+              }
+            ],
+            "notes": [
+              "按你说的在家、只有垫子来排,全程不需要椅子或墙。",
+              "进门先做髋屈肌和肩颈:托马斯需要髋前侧能打开、上背能转,先把这两处松开再上地板会更稳。",
+              "练完托马斯如果想再补一下大腿内侧,可以加一组蝴蝶式坐姿放松(垫上就能做)。"
+            ],
+            "safetyNotes": [
+              "全程以“拉得住但能正常呼吸”为准,任何动作出现不适加重就停下来。",
+              "拉伸时别弹振,也别为了幅度塌腰或耸肩。"
+            ]
+          },
+          "steps": 1,
+          "reads": [],
+          "questionsAsked": 0,
+          "events": [
+            {
+              "kind": "thinking",
+              "step": 1
+            },
+            {
+              "kind": "done",
+              "step": 1
+            }
+          ],
+          "calls": [
+            {
+              "at": "2026-10-23T02:17:16.911753Z",
+              "model": "deepseek-flash",
+              "elapsedMs": 19336,
+              "tools": [
+                "show_plan"
+              ],
+              "usage": {
+                "promptTokens": 11493,
+                "completionTokens": 2895,
+                "reasoningTokens": 1913,
+                "cachedTokens": 1920
+              },
+              "finishReason": "tool_calls"
+            }
+          ],
+          "usage": {
+            "promptTokens": 11493,
+            "completionTokens": 2895,
+            "reasoningTokens": 1913,
+            "cachedTokens": 1920
+          },
+          "issues": []
+        }
+      ],
+      "appliedAnswerExpectations": {
+        "goals": [
+          "relax",
+          "warmup",
+          "mobility"
+        ],
+        "minQuestions": 1,
+        "maxQuestions": 1,
+        "scene": "home",
+        "minutes": [
+          12,
+          12
+        ],
+        "level": 1,
+        "focus": [
+          "shoulder",
+          "hip-flexor"
+        ],
+        "equipmentAllowed": [
+          "none",
+          "mat"
+        ]
+      },
+      "sourceSha256": "a60798545e73ec1dea2ccf994be6241331582905ebd0486ef2854b9d38ef3160",
+      "sourceUnchangedDuringCase": true
+    },
+    {
+      "id": "known_context",
+      "title": "筛查和 App 上下文已有条件不再问",
+      "passed": true,
+      "failures": [],
+      "questions": 0,
+      "enableUserMemory": false,
+      "budgetExhausted": false,
+      "choiceAnswers": 0,
+      "elapsedMs": 32840,
+      "turns": [
+        {
+          "user": "我明天练托马斯之前需要放松，给我排个方案。",
+          "status": "ok",
+          "text": "明白了：明天要练托马斯，今天先做一轮以髋屈肌和肩颈为主的放松，全程避免膝盖受压（不跪、不四足支撑），垫子、椅子、墙就能做。时长 12 分钟，强度按入门安排。",
+          "question": null,
+          "plan": {
+            "schemaVersion": 1,
+            "id": "plan-1792721889166-1",
+            "source": "ai",
+            "title": "托马斯前放松",
+            "summary": "12 分钟居家放松：先站姿活动髋与肩热身，再重点拉髋屈肌、臀部和背阔肌，最后仰卧扭转收尾。全程不给膝盖压力。",
+            "goal": "relax",
+            "scene": "home",
+            "equipment": [
+              "mat",
+              "chair",
+              "wall"
+            ],
+            "level": 1,
+            "targetMinutes": 12,
+            "blocks": [
+              {
+                "id": "warmup",
+                "name": "站姿热身",
+                "type": "warmup",
+                "rounds": 1,
+                "restBetweenRoundsSeconds": 0,
+                "items": [
+                  {
+                    "exerciseId": "n-pelvis-circle",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": false,
+                    "restSeconds": 10
+                  },
+                  {
+                    "exerciseId": "h-wall-angel",
+                    "mode": "reps",
+                    "sets": 2,
+                    "reps": 10,
+                    "perSide": false,
+                    "restSeconds": 10
+                  },
+                  {
+                    "exerciseId": "o-stand-sidebend",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": true,
+                    "restSeconds": 10
+                  }
+                ]
+              },
+              {
+                "id": "main",
+                "name": "髋屈肌与肩背拉伸",
+                "type": "main",
+                "rounds": 1,
+                "restBetweenRoundsSeconds": 0,
+                "items": [
+                  {
+                    "exerciseId": "o-stand-lunge",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": true,
+                    "restSeconds": 10
+                  },
+                  {
+                    "exerciseId": "n-thomas-test",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": true,
+                    "restSeconds": 10
+                  },
+                  {
+                    "exerciseId": "s-figure4",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": true,
+                    "restSeconds": 10
+                  },
+                  {
+                    "exerciseId": "h-chair-lat",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": false,
+                    "restSeconds": 10
+                  }
+                ]
+              },
+              {
+                "id": "cooldown",
+                "name": "仰卧收尾",
+                "type": "cooldown",
+                "rounds": 1,
+                "restBetweenRoundsSeconds": 0,
+                "items": [
+                  {
+                    "exerciseId": "h-supine-twist",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 40,
+                    "perSide": true,
+                    "restSeconds": 10
+                  },
+                  {
+                    "exerciseId": "h-banana",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": false,
+                    "restSeconds": 10
+                  }
+                ]
+              }
+            ],
+            "avoid": [
+              "膝"
+            ],
+            "notes": [
+              "库里没有托马斯相关的专项动作，这份按你的紧绷部位（髋屈肌、肩颈）排放松，明天正式练前当作准备即可。",
+              "拉伸以呼吸顺畅为准，越到末端越轻，保持 30 秒左右不用抖着撑。",
+              "椅子、墙都只是扶持用；躺下的动作在垫子上做。"
+            ],
+            "safetyNotes": [
+              "膝盖有任何不适感（酸胀之外的痛、发软）就停下该动作，换成站姿或仰卧版本。",
+              "弓步拉伸时后腿膝下可垫软垫或折叠垫，但不压在硬地面上。",
+              "如果出现刺痛、麻木或放射感，停止训练并咨询医生或康复师。"
+            ]
+          },
+          "steps": 1,
+          "reads": [],
+          "questionsAsked": 0,
+          "events": [
+            {
+              "kind": "thinking",
+              "step": 1
+            },
+            {
+              "kind": "slow",
+              "step": 1
+            },
+            {
+              "kind": "done",
+              "step": 1
+            }
+          ],
+          "calls": [
+            {
+              "at": "2026-10-23T02:17:36.344682Z",
+              "model": "deepseek-flash",
+              "elapsedMs": 32821,
+              "tools": [
+                "show_plan"
+              ],
+              "usage": {
+                "promptTokens": 11155,
+                "completionTokens": 2236,
+                "reasoningTokens": 1295,
+                "cachedTokens": 11008
+              },
+              "finishReason": "tool_calls"
+            }
+          ],
+          "usage": {
+            "promptTokens": 11155,
+            "completionTokens": 2236,
+            "reasoningTokens": 1295,
+            "cachedTokens": 11008
+          },
+          "issues": []
+        }
+      ],
+      "appliedAnswerExpectations": {
+        "scene": "home",
+        "minutes": [
+          12,
+          12
+        ],
+        "level": 1,
+        "focus": [
+          "shoulder",
+          "hip-flexor"
+        ],
+        "avoid": [
+          "膝"
+        ],
+        "goals": [
+          "relax",
+          "warmup",
+          "mobility"
+        ],
+        "minQuestions": 0,
+        "maxQuestions": 0
+      },
+      "sourceSha256": "a60798545e73ec1dea2ccf994be6241331582905ebd0486ef2854b9d38ef3160",
+      "sourceUnchangedDuringCase": true
+    },
+    {
+      "id": "direct_after_question",
+      "title": "用户说直接出：停止询问并说明默认假设",
+      "passed": true,
+      "failures": [],
+      "questions": 1,
+      "enableUserMemory": false,
+      "budgetExhausted": false,
+      "choiceAnswers": 0,
+      "elapsedMs": 32190,
+      "turns": [
+        {
+          "user": "我明天打算去练托马斯。我是一个 bboy，也是个程序员。我日常久坐，引起了肌肉相关的比较紧张，所以我在练习之前需要进行放松。你给我出一个放松的方案计划。",
+          "status": "ok",
+          "text": "久坐之后，你觉得哪几个部位最紧？",
+          "question": {
+            "question": "久坐之后，你觉得哪几个部位最紧？",
+            "mode": "choice",
+            "options": [
+              "髋屈肌/大腿前侧",
+              "大腿内侧",
+              "大腿后侧",
+              "腰背",
+              "肩胸",
+              "臀部"
+            ],
+            "multiple": true
+          },
+          "plan": null,
+          "steps": 1,
+          "reads": [],
+          "questionsAsked": 1,
+          "events": [
+            {
+              "kind": "thinking",
+              "step": 1
+            },
+            {
+              "kind": "askUser",
+              "step": 1,
+              "question": {
+                "question": "久坐之后，你觉得哪几个部位最紧？",
+                "mode": "choice",
+                "options": [
+                  "髋屈肌/大腿前侧",
+                  "大腿内侧",
+                  "大腿后侧",
+                  "腰背",
+                  "肩胸",
+                  "臀部"
+                ],
+                "multiple": true
+              }
+            },
+            {
+              "kind": "done",
+              "step": 1
+            }
+          ],
+          "calls": [
+            {
+              "at": "2026-10-23T02:18:09.275220Z",
+              "model": "deepseek-v4-flash-0731",
+              "elapsedMs": 11162,
+              "tools": [
+                "ask_user"
+              ],
+              "usage": {
+                "promptTokens": 11120,
+                "completionTokens": 293,
+                "reasoningTokens": 168,
+                "cachedTokens": 0
+              },
+              "finishReason": "tool_calls"
+            }
+          ],
+          "usage": {
+            "promptTokens": 11120,
+            "completionTokens": 293,
+            "reasoningTokens": 168,
+            "cachedTokens": 0
+          },
+          "issues": []
+        },
+        {
+          "user": "直接出",
+          "status": "ok",
+          "text": "",
+          "question": null,
+          "plan": {
+            "schemaVersion": 1,
+            "id": "plan-1792721921455-3",
+            "source": "ai",
+            "title": "练托马斯前放松",
+            "summary": "15 分钟居家放松流程：先温和活动髋与胸椎，再重点放松髋屈肌、内收肌、臀部，最后收尾。为明天练托马斯做准备，不练力量。",
+            "goal": "relax",
+            "scene": "home",
+            "equipment": [
+              "mat",
+              "wall",
+              "chair",
+              "block"
+            ],
+            "level": 1,
+            "targetMinutes": 15,
+            "blocks": [
+              {
+                "id": "warmup",
+                "name": "活动开髋与胸椎",
+                "type": "warmup",
+                "rounds": 1,
+                "restBetweenRoundsSeconds": 0,
+                "items": [
+                  {
+                    "exerciseId": "h-catcow-quad",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 40,
+                    "perSide": false,
+                    "restSeconds": 10,
+                    "note": "跟着呼吸，一节一节动脊柱"
+                  },
+                  {
+                    "exerciseId": "n-pelvis-circle",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": false,
+                    "restSeconds": 10,
+                    "note": "小幅画圈，找髋的转动感"
+                  },
+                  {
+                    "exerciseId": "h-wall-angel",
+                    "mode": "reps",
+                    "sets": 2,
+                    "reps": 10,
+                    "perSide": false,
+                    "restSeconds": 10,
+                    "note": "后脑、上背贴墙，手臂慢上慢下"
+                  }
+                ]
+              },
+              {
+                "id": "main",
+                "name": "重点放松紧的部位",
+                "type": "main",
+                "rounds": 1,
+                "restBetweenRoundsSeconds": 0,
+                "items": [
+                  {
+                    "exerciseId": "s-kneel-hipflex",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": true,
+                    "restSeconds": 10,
+                    "note": "尾骨微收再向前送髋，别用腰顶"
+                  },
+                  {
+                    "exerciseId": "s-figure4",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": true,
+                    "restSeconds": 10,
+                    "note": "臀外侧到臀深部有拉伸就停"
+                  },
+                  {
+                    "exerciseId": "s-butterfly",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 40,
+                    "perSide": false,
+                    "restSeconds": 10,
+                    "note": "大腿内侧放松，膝不硬压"
+                  },
+                  {
+                    "exerciseId": "n-straddle-fold",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 40,
+                    "perSide": false,
+                    "restSeconds": 10,
+                    "note": "从髋折，背保持长"
+                  },
+                  {
+                    "exerciseId": "h-chair-tspine",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": false,
+                    "restSeconds": 10,
+                    "note": "久坐含胸的补偿，胸口往下沉"
+                  },
+                  {
+                    "exerciseId": "s-9090",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 40,
+                    "perSide": true,
+                    "restSeconds": 10,
+                    "note": "托马斯的核心活动度，慢换髋"
+                  }
+                ]
+              },
+              {
+                "id": "cooldown",
+                "name": "收尾放松",
+                "type": "cooldown",
+                "rounds": 1,
+                "restBetweenRoundsSeconds": 0,
+                "items": [
+                  {
+                    "exerciseId": "o-seated-ham",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": true,
+                    "restSeconds": 10,
+                    "note": "腿后侧延展，背不弓"
+                  },
+                  {
+                    "exerciseId": "h-supine-twist",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 40,
+                    "perSide": true,
+                    "restSeconds": 10,
+                    "note": "呼气放松腰背，肩不抬离地面"
+                  }
+                ]
+              }
+            ],
+            "notes": [
+              "你只说“直接出”，没说明最紧的部位，这里按久坐最常见也比较贴合托马斯的几处来安排：髋屈肌、内收肌、臀部、胸椎。",
+              "按默认条件排：居家、15 分钟、入门强度；只用垫子、墙、椅子和瑜伽砖。",
+              "今天的重点是拉开活动度，不做力量或爆发，明天的托马斯才有力气。"
+            ],
+            "safetyNotes": [
+              "拉伸到有牵扯感就够，不要追疼痛；出现刺痛、麻木或关节痛立刻停下。",
+              "久坐后腰容易代偿，前屈类动作保持背部延展，不塌腰硬压。"
+            ]
+          },
+          "steps": 1,
+          "reads": [],
+          "questionsAsked": 0,
+          "events": [
+            {
+              "kind": "thinking",
+              "step": 1
+            },
+            {
+              "kind": "done",
+              "step": 1
+            }
+          ],
+          "calls": [
+            {
+              "at": "2026-10-23T02:18:20.443877Z",
+              "model": "deepseek-flash",
+              "elapsedMs": 21011,
+              "tools": [
+                "show_plan"
+              ],
+              "usage": {
+                "promptTokens": 11450,
+                "completionTokens": 3326,
+                "reasoningTokens": 2208,
+                "cachedTokens": 10880
+              },
+              "finishReason": "tool_calls"
+            }
+          ],
+          "usage": {
+            "promptTokens": 11450,
+            "completionTokens": 3326,
+            "reasoningTokens": 2208,
+            "cachedTokens": 10880
+          },
+          "issues": []
+        }
+      ],
+      "appliedAnswerExpectations": {
+        "goals": [
+          "relax",
+          "warmup",
+          "mobility"
+        ],
+        "minQuestions": 1,
+        "maxQuestions": 1,
+        "assumptions": true
+      },
+      "sourceSha256": "a60798545e73ec1dea2ccf994be6241331582905ebd0486ef2854b9d38ef3160",
+      "sourceUnchangedDuringCase": true
+    },
+    {
+      "id": "question_budget",
+      "title": "回答仍含糊：至多三问后使用默认值交付",
+      "passed": true,
+      "failures": [],
+      "questions": 1,
+      "enableUserMemory": false,
+      "budgetExhausted": false,
+      "choiceAnswers": 0,
+      "elapsedMs": 26336,
+      "turns": [
+        {
+          "user": "我明天打算去练托马斯。我是一个 bboy，也是个程序员。我日常久坐，引起了肌肉相关的比较紧张，所以我在练习之前需要进行放松。你给我出一个放松的方案计划。",
+          "status": "ok",
+          "text": "久坐后你觉得哪一块最紧、最想先松开？",
+          "question": {
+            "question": "久坐后你觉得哪一块最紧、最想先松开？",
+            "mode": "choice",
+            "options": [
+              "髋屈肌/大腿前侧",
+              "大腿内侧",
+              "臀部",
+              "腰背",
+              "肩颈",
+              "小腿/脚踝"
+            ],
+            "multiple": true
+          },
+          "plan": null,
+          "steps": 1,
+          "reads": [],
+          "questionsAsked": 1,
+          "events": [
+            {
+              "kind": "thinking",
+              "step": 1
+            },
+            {
+              "kind": "askUser",
+              "step": 1,
+              "question": {
+                "question": "久坐后你觉得哪一块最紧、最想先松开？",
+                "mode": "choice",
+                "options": [
+                  "髋屈肌/大腿前侧",
+                  "大腿内侧",
+                  "臀部",
+                  "腰背",
+                  "肩颈",
+                  "小腿/脚踝"
+                ],
+                "multiple": true
+              }
+            },
+            {
+              "kind": "done",
+              "step": 1
+            }
+          ],
+          "calls": [
+            {
+              "at": "2026-10-23T02:18:41.497067Z",
+              "model": "deepseek-flash",
+              "elapsedMs": 5568,
+              "tools": [
+                "ask_user"
+              ],
+              "usage": {
+                "promptTokens": 11120,
+                "completionTokens": 268,
+                "reasoningTokens": 140,
+                "cachedTokens": 10880
+              },
+              "finishReason": "tool_calls"
+            }
+          ],
+          "usage": {
+            "promptTokens": 11120,
+            "completionTokens": 268,
+            "reasoningTokens": 140,
+            "cachedTokens": 10880
+          },
+          "issues": []
+        },
+        {
+          "user": "这点我还不确定。",
+          "status": "ok",
+          "text": "你只说了“不确定哪里紧”，那我按久坐最常见、也最影响托马斯发力的情况来排：髋前侧、大腿内侧、臀部这三块最容易被久坐限制，加上手腕和胸椎、脚踝，都是托马斯需要灵活发力的地方。",
+          "question": null,
+          "plan": {
+            "schemaVersion": 1,
+            "id": "plan-1792721947823-3",
+            "source": "ai",
+            "title": "托马斯前髋部放松",
+            "summary": "15 分钟居家序列：先活动脊柱和手腕，再打开髋前侧、大腿内侧和臀部，最后做胸椎与踝部收尾，练托马斯前把关节活动开。",
+            "goal": "mobility",
+            "scene": "home",
+            "equipment": [
+              "mat",
+              "chair",
+              "wall"
+            ],
+            "level": 1,
+            "targetMinutes": 15,
+            "blocks": [
+              {
+                "id": "warmup",
+                "name": "唤醒脊柱与手腕",
+                "type": "warmup",
+                "rounds": 1,
+                "restBetweenRoundsSeconds": 0,
+                "items": [
+                  {
+                    "exerciseId": "h-catcow-quad",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 40,
+                    "perSide": false,
+                    "restSeconds": 10
+                  },
+                  {
+                    "exerciseId": "n-pelvis-circle",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": false,
+                    "restSeconds": 10
+                  },
+                  {
+                    "exerciseId": "forearms-A",
+                    "mode": "reps",
+                    "sets": 2,
+                    "reps": 10,
+                    "perSide": false,
+                    "restSeconds": 15
+                  }
+                ]
+              },
+              {
+                "id": "main",
+                "name": "髋前侧 · 内侧 · 臀部",
+                "type": "main",
+                "rounds": 1,
+                "restBetweenRoundsSeconds": 0,
+                "items": [
+                  {
+                    "exerciseId": "s-kneel-hipflex",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": true,
+                    "restSeconds": 10,
+                    "note": "骨盆微后倾，别塌腰"
+                  },
+                  {
+                    "exerciseId": "o-stand-lunge",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": true,
+                    "restSeconds": 10,
+                    "note": "扶椅保持平衡，髋往前送"
+                  },
+                  {
+                    "exerciseId": "h-wall-straddle",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 45,
+                    "perSide": false,
+                    "restSeconds": 10,
+                    "note": "大腿内侧有拉伸感即可，不硬压"
+                  },
+                  {
+                    "exerciseId": "s-butterfly",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 40,
+                    "perSide": false,
+                    "restSeconds": 10
+                  },
+                  {
+                    "exerciseId": "s-9090",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 40,
+                    "perSide": true,
+                    "restSeconds": 10,
+                    "note": "换髋为主，手撑地别塌腰"
+                  },
+                  {
+                    "exerciseId": "s-figure4",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": true,
+                    "restSeconds": 10
+                  }
+                ]
+              },
+              {
+                "id": "cooldown",
+                "name": "胸椎 · 肩 · 踝收尾",
+                "type": "cooldown",
+                "rounds": 1,
+                "restBetweenRoundsSeconds": 0,
+                "items": [
+                  {
+                    "exerciseId": "h-supine-twist",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 40,
+                    "perSide": true,
+                    "restSeconds": 10
+                  },
+                  {
+                    "exerciseId": "h-wall-angel",
+                    "mode": "reps",
+                    "sets": 2,
+                    "reps": 10,
+                    "perSide": false,
+                    "restSeconds": 10,
+                    "note": "腰贴墙，手臂慢慢上滑"
+                  },
+                  {
+                    "exerciseId": "h-wall-calf",
+                    "mode": "time",
+                    "sets": 1,
+                    "workSeconds": 30,
+                    "perSide": true,
+                    "restSeconds": 10
+                  }
+                ]
+              }
+            ],
+            "notes": [
+              "你没定时间和场地，我按居家 15 分钟、入门难度排，强度偏轻，正好适合练前开关节。",
+              "托马斯大量靠手撑地支撑和换手，所以开头先做手腕多方向摇摆，练前手腕发紧也算正常，不要急着压到痛。",
+              "如果明天在舞房，椅子可以用练功凳或墙面替代。",
+              "这套是练前放松，不是练力量；做完感觉身体变松就可以直接进托马斯练习。"
+            ],
+            "safetyNotes": [
+              "拉伸以轻微牵拉感为准，出现刺痛、麻木或放射感立刻停下。",
+              "久坐后腰或膝若有不适，拉伸幅度减半，别在疼痛里停留。"
+            ]
+          },
+          "steps": 1,
+          "reads": [],
+          "questionsAsked": 0,
+          "events": [
+            {
+              "kind": "thinking",
+              "step": 1
+            },
+            {
+              "kind": "done",
+              "step": 1
+            }
+          ],
+          "calls": [
+            {
+              "at": "2026-10-23T02:18:47.070167Z",
+              "model": "deepseek-flash",
+              "elapsedMs": 20752,
+              "tools": [
+                "show_plan"
+              ],
+              "usage": {
+                "promptTokens": 11432,
+                "completionTokens": 3154,
+                "reasoningTokens": 2015,
+                "cachedTokens": 10880
+              },
+              "finishReason": "tool_calls"
+            }
+          ],
+          "usage": {
+            "promptTokens": 11432,
+            "completionTokens": 3154,
+            "reasoningTokens": 2015,
+            "cachedTokens": 10880
+          },
+          "issues": []
+        }
+      ],
+      "appliedAnswerExpectations": {
+        "goals": [
+          "relax",
+          "warmup",
+          "mobility"
+        ],
+        "minQuestions": 1,
+        "maxQuestions": 3,
+        "assumptionsAtCap": true
+      },
+      "sourceSha256": "a60798545e73ec1dea2ccf994be6241331582905ebd0486ef2854b9d38ef3160",
+      "sourceUnchangedDuringCase": true
+    }
+  ],
+  "limitations": [
+    "每例单次运行，不代表稳定成功率或延迟保证。",
+    "SDK 真实模型路径；未经过 App UI 或 App 额外计划校验。",
+    "三问上限的恶意重复调用另由离线门禁测试验证；本评测记录模型实际是否耗尽预算。"
+  ]
+}

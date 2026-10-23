@@ -1,7 +1,7 @@
 /// Agent 版会话（0.3 推荐入口）：渐进式披露 + Pi 式工具循环。
 ///
 /// 每轮：调模型 → 执行全部工具调用（read / ls / check_plan / remember / forget），结果追加 → 再调 →
-/// 直到纯文字或 show_actions / show_plan 通过门禁。show_* 不过门禁就把错误作为工具结果回给模型重交
+/// 直到纯文字或 ask_user / show_actions / show_plan 通过门禁。最终工具不过门禁就把错误作为工具结果回给模型重交
 /// （最多 [CoachAgent.maxResubmits] 次）。步数超过 [CoachAgent.maxSteps]、请求重试用尽 / 不可重试、整轮超时、
 /// 空转、暗号泄露 → 回落 App 模板。单步请求失败只重试那一步（指数退避 + 抖动，可被取消 / reset 打断）；
 /// 上下文超预算时把较早的 read / ls 结果压成一行摘要。见 docs/agent-plan.md「步数、上下文预算与失败重试」。
@@ -27,6 +27,7 @@ import '../plan/plan_issue.dart';
 import '../plan/plan_validator.dart';
 import '../plan/training_plan.dart';
 import '../profile/coach_profile.dart';
+import '../tools/ask_user.dart';
 import '../tools/coach_session.dart';
 import '../tools/tool_gate.dart';
 import '../usage/usage.dart';
@@ -54,6 +55,9 @@ enum AgentEventKind {
   /// remember / forget（[AgentEvent.path] = kind）。
   memory,
 
+  /// 已通过门禁的澄清问题：[AgentEvent.question]。本轮随即结束，回答通过下一次 send。
+  askUser,
+
   /// 本轮结束（[AgentEvent.status]）。
   done,
 
@@ -77,12 +81,14 @@ class AgentEvent {
     this.maxAttempts = 0,
     this.reason,
     this.delay,
+    this.question,
   });
   final String turnId;
   final AgentEventKind kind;
   final int step;
   final String? path;
   final TurnStatus? status;
+  final AskUserQuestion? question;
 
   /// retrying：第几次重试（从 1 起）/ 最多几次。
   final int attempt;
@@ -109,6 +115,9 @@ class AgentStepLimitExceeded implements Exception {
 }
 
 class CoachAgent {
+  /// 一次任务（到成功交付计划/动作卡为止）最多向用户提问三次。
+  static const maxQuestionsPerTask = 3;
+
   CoachAgent({
     required this.client,
     required Catalog Function() catalog,
@@ -184,7 +193,7 @@ class CoachAgent {
   /// 连续几次完全相同的工具调用、或连续几步没有新信息算空转：先提示，再犯回落。
   final int maxStallSteps;
 
-  /// show_* 门禁不过时允许重交的次数。
+  /// show_* / ask_user 门禁不过时允许重交的次数。
   final int maxResubmits;
   final int maxInputChars;
   final int maxTurns;
@@ -215,6 +224,7 @@ class CoachAgent {
   // 只追踪曾看过用户记忆的响应；记忆从未开启的工具推理必须完整回传。
   final Set<LlmMessage> _memoryReasoning = {};
   int _turns = 0;
+  int _questionsAsked = 0;
   int _generation = 0;
   int? _busyGen;
 
@@ -229,6 +239,9 @@ class CoachAgent {
 
   List<LlmMessage> get history => List.unmodifiable(_history);
   int get turnCount => _turns;
+
+  /// 本次任务已成功交付的澄清问题数；跨 send 保留，成功交付计划/动作卡或 reset 时清零。
+  int get questionsAsked => _questionsAsked;
   int get historyChars => _history.fold(0, (n, m) => n + _chars(m));
   bool get isBusy => _busyGen == _generation;
   bool get isFull =>
@@ -240,6 +253,7 @@ class CoachAgent {
     _history.clear();
     _memoryReasoning.clear();
     _turns = 0;
+    _questionsAsked = 0;
     _resetSig.complete();
     _resetSig = Completer<void>();
   }
@@ -408,6 +422,7 @@ class CoachAgent {
       int maxAttempts = 0,
       RequestErrorClass? reason,
       Duration? delay,
+      AskUserQuestion? question,
     }) {
       if (!dead() && !_events.isClosed) {
         _events.add(
@@ -421,6 +436,7 @@ class CoachAgent {
             maxAttempts: maxAttempts,
             reason: reason,
             delay: delay,
+            question: question,
           ),
         );
       }
@@ -448,6 +464,7 @@ class CoachAgent {
         memory: memoryOn,
         memorySummary: summary,
         userText: text,
+        questionsAsked: _questionsAsked,
       );
     }
 
@@ -537,6 +554,7 @@ class CoachAgent {
       String text = '',
       ValidatedPlan? plan,
       ValidatedActions? actions,
+      AskUserQuestion? question,
       List<PlanIssue> warnings = const [],
       void Function()? commit,
     }) async {
@@ -549,6 +567,7 @@ class CoachAgent {
         text: text,
         plan: plan,
         actions: actions,
+        question: question,
         warnings: warnings,
         issues: status == TurnStatus.ok ? const [] : lastErrors,
         reason: reason,
@@ -559,6 +578,10 @@ class CoachAgent {
         reads: reads,
         dead: dead,
         commit: commit,
+        beforeCommit: question == null
+            ? null
+            : () =>
+                  emit(AgentEventKind.askUser, step: step, question: question),
       );
       emit(AgentEventKind.done, step: step, status: r.status);
       return r;
@@ -875,6 +898,103 @@ class CoachAgent {
         break;
       }
 
+      // ask_user 是终止工具：先整批预检，不能执行旁边的 read / 记忆等工具再发问题。
+      // 非法参数和互斥错误仍作为每个 tool_call 的结果回给模型自行修正。
+      final asks = res.toolCalls
+          .where((t) => t.name == AgentTools.askUser)
+          .toList();
+      if (asks.isNotEmpty) {
+        submissions++;
+        final issues = <PlanIssue>[];
+        if (res.toolCalls.length != 1) {
+          issues.add(
+            const PlanIssue(
+              IssueCodes.multipleTools,
+              'ask_user 每轮只能问一次，且不能与 show_plan / show_actions 或其他工具一起调用',
+              path: 'tool_calls',
+              expected: '仅一个 ask_user，或移除 ask_user 后交付方案',
+              actual: '同批多个工具',
+              fix: '本轮只保留一个 ask_user；询问轮不要读动作库或执行其他工具。',
+            ),
+          );
+        }
+        if (_questionsAsked >= maxQuestionsPerTask) {
+          issues.add(
+            const PlanIssue(
+              'ask_limit',
+              '本次任务已问满 3 次，必须直接出方案',
+              path: 'tool_calls',
+              expected: 'show_plan，使用已有回答和合理默认值',
+              actual: 'ask_user',
+              fix: '不要再调 ask_user；直接 show_plan，并用一句话说明缺失条件的合理假设。',
+            ),
+          );
+        }
+        final checked = AskUserGate.check(asks.first.arguments);
+        issues.addAll(checked.errors);
+        if (issues.isEmpty) {
+          final question = checked.question!;
+          calls.add(
+            _Call.ok(
+              step,
+              res,
+              rejected == 0 ? CallOutcome.passed : CallOutcome.rewritten,
+              retry: tag,
+            ),
+          );
+          return done(
+            TurnStatus.ok,
+            rejected == 0 ? TurnOutcome.model : TurnOutcome.rewritten,
+            step,
+            text: question.question,
+            question: question,
+            commit: () {
+              _questionsAsked++;
+              _turns++;
+              _history
+                ..add(userMsg)
+                ..add(
+                  assistant(
+                    response,
+                    content: question.question,
+                    history: true,
+                  ),
+                )
+                ..add(
+                  LlmMessage.tool(
+                    asks.single.id,
+                    jsonEncode({
+                      'ok': true,
+                      'asked': true,
+                      'awaitingUser': true,
+                    }),
+                  ),
+                );
+            },
+          );
+        }
+        calls.add(
+          _Call.ok(
+            step,
+            res,
+            CallOutcome.rejected,
+            retry: tag,
+            codes: [for (final issue in issues) issue.code],
+          ),
+        );
+        lastErrors = issues;
+        if (++rejected > maxResubmits) break;
+        final feedback = _feedback(
+          issues,
+          remaining: 1 + maxResubmits - rejected,
+        );
+        turnMsgs.add(assistant(res));
+        for (final call in res.toolCalls) {
+          turnMsgs.add(LlmMessage.tool(call.id, feedback));
+        }
+        continue;
+      }
+
       // 先执行中间工具，再判最终 show_*。
       final results = <String, String>{};
       final pendingCompress = <String, CompressibleResult>{};
@@ -1069,6 +1189,7 @@ class CoachAgent {
           actions: g.actions,
           warnings: g.warnings,
           commit: () {
+            _questionsAsked = 0;
             _turns++;
             _history
               ..add(userMsg)
@@ -1141,6 +1262,7 @@ class CoachAgent {
         text: r.text,
         plan: plan,
         commit: () {
+          if (plan != null) _questionsAsked = 0;
           _turns++;
           _history
             ..add(userMsg)
@@ -1403,6 +1525,7 @@ class CoachAgent {
     String text = '',
     ValidatedPlan? plan,
     ValidatedActions? actions,
+    AskUserQuestion? question,
     List<PlanIssue> warnings = const [],
     List<PlanIssue> issues = const [],
     FallbackReason? reason,
@@ -1413,9 +1536,11 @@ class CoachAgent {
     List<String> reads = const [],
     required bool Function() dead,
     void Function()? commit,
+    void Function()? beforeCommit,
   }) async {
     final records = await _record(turnId, meta, calls, outcome);
     // 记账是最后一个异步边界：其间 reset / 取消则本轮作废，不写历史 / 轮数 / 记忆。
+    if (!dead()) beforeCommit?.call();
     if (dead()) {
       return CoachTurnResult(
         turnId: turnId,
@@ -1433,6 +1558,7 @@ class CoachAgent {
       text: text,
       plan: plan,
       actions: actions,
+      question: question,
       warnings: warnings,
       issues: issues,
       submissions: submissions,

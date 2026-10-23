@@ -23,6 +23,7 @@ import '../profile/coach_profile.dart';
 import '../prompt/tool_prompt.dart';
 import '../usage/usage.dart';
 import '../util/clock.dart';
+import 'ask_user.dart';
 import 'tool_gate.dart';
 
 enum TurnStatus {
@@ -82,6 +83,7 @@ class CoachTurnResult {
     this.text = '',
     this.plan,
     this.actions,
+    this.question,
     this.warnings = const [],
     this.issues = const [],
     this.submissions = 0,
@@ -102,6 +104,9 @@ class CoachTurnResult {
   /// 只有通过门禁的计划 / 动作卡。
   final ValidatedPlan? plan;
   final ValidatedActions? actions;
+
+  /// Agent question, validated before delivery; mutually exclusive with plan/actions.
+  final AskUserQuestion? question;
   final List<PlanIssue> warnings;
 
   /// 回落时：最后一次提交的错误。

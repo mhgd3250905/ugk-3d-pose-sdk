@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 — 2026-10-23
+
+- Agent 新增终止工具 `ask_user`：一次只问一个问题，支持 text、choice 的单选/多选，choice 为 2–6 个短选项、每项不超过 12 个 Unicode 码点。`AskUserQuestion` 为通过校验的不可变结果；`AgentEventKind.askUser` 和 `CoachTurnResult.question` 向 App 交付同一问题。回答通过同一 Agent 的下一次 `send()` 以文字进入会话，SDK 不在工具循环内等待。
+- 提问与 `show_plan` / `show_actions` 互斥，一次回复只允许单个 `ask_user`；混合工具整批在执行前拒绝，避免先读取文件或写记忆。参数错误沿用工具反馈和重交上限；取消/reset 及异步记账期间作废的轮次不提交问题历史或计数。
+- SDK 记录本次任务已交付的问题数，跨消息保留；最多 3 次，第四次调用拒绝并要求用已有回答和合理默认值交付方案。`questionsAsked` 供宿主查看；成功交付计划/动作卡（包括有效的回落计划）或 `reset()` 后清零，普通文字回复不清零。
+- 排课技能改为只补会改变方案的缺口，一次一件事、choice 优先、不重问已知条件；信息足够（如“在家 20 分钟练核心”）、到上限或用户说“直接出”时直接排课，使用默认值时一句话说明。询问轮只发问题、不读动作库、不先长篇编排；稳定事实在用户回答后、交付前再按记忆规则保存。
+- App 接口、气泡去重及回答示例见 [ask_user 接入说明](docs/ask-user.md)；真实多轮评测和离线验证见 [0.4.0 评测记录](docs/coach-040-ask-user-eval-2026-10-23.md)。`CoachSession` 降级入口及 `ugk_trainer` 0.1.7 行为保留。
+
 ## ugk_trainer 0.1.7 — 2026-10-23
 
 - 归档 [PR #6](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/6) 的沉浸式舞台与玻璃控件 UI，含自主计次目标持续展示、系统大字号适配、Tab / Enter / Space 操作及焦点环。合入 main 的提交为 `eb29c749a52c1b226841726a3fba8e9f62e9e6be`，复审 head 为 `b84881f58c035b1fce2ff929cdb207e465821c92`。

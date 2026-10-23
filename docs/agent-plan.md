@@ -1,12 +1,12 @@
-# 0.3 Agent 版：紧凑索引与按需详情
+# 0.4 Agent 版：先问再排、紧凑索引与按需详情
 
-入口 `CoachAgent`（`lib/src/agent/`）。0.2 的 `CoachSession` 保留作降级，门禁、回落、记账口径不变。
+入口 `CoachAgent`（`lib/src/agent/`）。0.4.0 新增终止本轮的 `ask_user`：先补会改变方案的关键缺口，用户下一条消息继续同一任务。0.2 的 `CoachSession` 保留作降级，不提供此工具；原计划门禁、回落和逐次模型调用记账继续生效。App 字段、事件顺序、计数与 Dart 接入代码见 [ask-user.md](ask-user.md)。
 
 ## 三层披露
 
 | 层 | 内容 | 何时进上下文 |
 |---|---|---|
-| 1 系统提示词 `prompts/agent_kernel.md` | 身份、安全、回答风格、三条内置技能快路径、按 profile.scope 生成的紧凑动作索引、其他 skill 列表、App 规则、可选记忆摘要 | 每次调用；明确动作要领问句另可预载少量匹配详情，工具 schema 不枚举 id |
+| 1 系统提示词 `prompts/agent_kernel.md` | 身份、安全、回答风格、三条内置技能快路径、按 profile.scope 生成的紧凑动作索引、其他 skill 列表、App 规则、任务询问计数、可选记忆摘要 | 每次调用；明确动作要领问句另可预载少量匹配详情，工具 schema 不枚举 id |
 | 2 `<skill>/SKILL.md` | 完整技能、记忆规则或 App 专属能力 | 按需 `read`；内置训练快路径来自同一份模板，无需重复读 |
 | 3 SKILL.md 指向的文件 | 维度索引、动作详情 | 按需 `read`；明确匹配详情已预载时直接回答 |
 
@@ -18,7 +18,7 @@ action-library/compact.md                 id｜中文名｜部位｜器械｜难
 action-library/index/<维度>/<取值>.md       id｜名称（中英）｜关键标签｜用途｜默认剂量
     维度：scene / equipment（none=徒手）/ muscle / category / level / caution / position / unilateral
 action-library/details/<动作id>.md          用途、要领、注意、禁忌、替代、剂量与范围、单侧、器械、场所、体位
-plan-training/SKILL.md                     排课原则 + 参数硬规则；直接 show_plan，明确自检/门禁拒绝后按工具列表 check_plan
+plan-training/SKILL.md                     询问条件 + 排课原则 + 参数硬规则；信息足够直接 show_plan，否则先 ask_user
 action-coaching/SKILL.md                   讲动作、纠错、show_actions
 user-memory/SKILL.md                       仅记忆开关开时存在
 <profile.skills[].name>/SKILL.md (+files)  App 专属 skill（本次不写内容）
@@ -35,6 +35,7 @@ user-memory/SKILL.md                       仅记忆开关开时存在
 | `read(path)` | 读文件；同一轮重复读返回「已读过，见前文」；路径是目录时返回列表 |
 | `ls(dir)` | 列目录 |
 | `check_plan` | 参数同 show_plan（也接受 `{"plan": {...}}`）；复用 ToolGate 校验 + `PlanDuration` 估算，返回 `ok / errors / warnings / estimatedMinutes / targetMinutes / diffMinutes` |
+| `ask_user` | 交付一个 text / choice 澄清问题并结束本轮；每任务最多 3 次，不能与其他工具同响应调用；回答通过下一次 `send` 传文字 |
 | `show_actions` / `show_plan` | 最终交付，走原门禁，只产出 `ValidatedActions` / `ValidatedPlan`；id 不放 enum，门禁照判白名单 |
 | `remember` / `forget` | 仅记忆开关开时出现 |
 
@@ -42,17 +43,22 @@ user-memory/SKILL.md                       仅记忆开关开时存在
 
 ## 循环
 
-调模型 → 顺序执行本次全部工具调用（记忆工具等待持久化，结果按调用顺序追加）→ 再调，直到：
+调模型 → 先预检响应。若有 `ask_user`，整批必须只含一个该工具，参数及任务次数通过门禁后立即结束本轮；同批含其他工具时整批拒绝，不执行读取或记忆副作用。其余响应顺序执行中间工具（记忆工具等待持久化，结果按调用顺序追加）→ 再调，直到：
 
 - 纯文字（非空、无暗号）→ `ok`；
+- ask_user 过门禁 → `ok`，`question` 携带问题，`text` 为问题文字，发出 `askUser` 事件，不等待用户；参数不合格或满 3 次则回传错误让模型修正，达到上限要求出方案；
 - show_* 过门禁 → `ok`（重交过为 `rewritten`）；不过 → 错误作为工具结果回给模型（改法换成 Agent 口径），最多重交 `maxResubmits`（默认 2）次；
 - 步数超 `maxSteps`（默认 100，error = `AgentStepLimitExceeded`）、请求最终失败、整轮超时、空转、暗号泄露、重交用尽 → 回落 App 模板（同 0.2 `SessionFallback`）。详见下节。
 
-历史只保留每轮的用户消息 + 最终交付（show_* 调用与结果，或纯文字），中间读文件不进历史。`send / reset / CancelToken / busy / limitReached / inputTooLong` 与 0.2 同；reset 或取消后不写历史、轮数，不再发事件。记忆按工具逐条确认，已确认保存的操作保留，未确认保存的迟到结果不会回写缓存或会话，详见下方用户记忆。结果仍是 `CoachTurnResult`，新增 `steps`、`reads`。记账每次模型调用一条，中间步 `CallOutcome.toolStep`，promptVersion 为 `agent-v1-<内核哈希>-<skills哈希>@<app>-<版本>`。
+历史只保留每轮的用户消息 + 最终交付（show_* / ask_user 调用与结果，或纯文字），中间读文件不进历史。问题与后续文字回答都保留在同一 Agent 历史中，最终方案沿用先前回答。`send / reset / CancelToken / busy / limitReached / inputTooLong` 与 0.2 同；reset 或取消后不写本轮历史、轮数或询问计数，不再发后续事件。记忆按工具逐条确认，已确认保存的操作保留，未确认保存的迟到结果不会回写缓存或会话，详见下方用户记忆。结果仍是 `CoachTurnResult`，有 `steps`、`reads`，0.4.0 新增 `question`。记账每次模型调用一条，中间步 `CallOutcome.toolStep`，promptVersion 为 `agent-v<修订号>-<内核哈希>-<skills哈希>@<app>-<版本>`。
+
+`agent.questionsAsked` 跨 `send` 记录本任务成功交付的问题数；`CoachAgent.maxQuestionsPerTask` 为 3。成功交付合法计划、动作卡或合法模板计划后清零，`reset()` 也清零；普通文字回复不清零。达到上限后拒绝继续询问。信息足够（如“在家 20 分钟练核心”）直接出方案；用户说“直接出”或用满次数就采用合理默认值并用一句话说明假设。提问轮不先 read 动作库、编排或长篇思考。
 
 ## 事件
 
-`agent.events`（broadcast）：`AgentEvent(turnId, kind, step, path, status)`，kind = `thinking`（第 n 次调模型）/ `reading`（path）/ `listing` / `checking` / `memory`（path = kind）/ `done`（status）/ `retrying`（attempt、maxAttempts、reason、delay）/ `slow`。
+`agent.events`（同步 broadcast）：`AgentEvent(turnId, kind, step, path, status, question)`，kind = `thinking`（第 n 次调模型）/ `reading`（path）/ `listing` / `checking` / `memory`（path = kind）/ `askUser`（question）/ `done`（status）/ `retrying`（attempt、maxAttempts、reason、delay）/ `slow`。
+
+问题参数通过门禁且最后的记账完成后发出 `askUser`，随后提交历史/计数并发 `done`。事件和 `CoachTurnResult.question` 使用同一个 `turnId`，App 据此更新同一个气泡；`text` 是同一个问题，不重复展示。事件回调尚在发送过程中，等 `send` 返回后再启用回答。监听器若取消/reset，本轮问题不提交，App 以 cancelled 结果撤回临时气泡。详情见 [ask-user.md](ask-user.md)。
 
 ## 步数、上下文预算与失败重试（0.3.2）
 
@@ -78,6 +84,7 @@ user-memory/SKILL.md                       仅记忆开关开时存在
 ## 用户记忆
 
 - `enableUserMemory`（默认 true，运行时可切）。关闭时 remember/forget 工具、user-memory skill、记忆摘要都不出现。
+- 需要澄清的训练请求先快速 `ask_user`，新稳定事实留在会话，答复后交付方案前再按记忆规则读 skill / 保存；仅陈述长期事实的消息仍沿用先读、保存成功再确认的流程。
 - `UserMemoryStore`（`load` / `save` 整表，App 实现）；内置 `InMemoryUserMemoryStore`。
 - `MemoryKind`：injury / goal / level / equipment / scene / schedule / body / preference / other。
 - SDK 去重（同类相同或互相包含视为同一条，用新说法替换）、每类条数（默认 5）、单条（60 字）与总长度（800 字）上限。
@@ -97,12 +104,12 @@ user-memory/SKILL.md                       仅记忆开关开时存在
 1. `CoachSession(...)` → `CoachAgent(...)`，参数相同，另可传 `maxSteps`、`enableUserMemory`、`memoryStore`。
 2. 实现 `UserMemoryStore`（本地持久化），设置页加「AI 记忆」开关（`enableUserMemory`）和「清除」（`clearMemory()`）。
 3. 订阅 `agent.events` 显示进度（如 reading → 「正在查动作库」，checking → 「正在核对计划」，retrying → 「网络不稳，正在重试（2/4）…」，slow → 「还在想…」）。
-4. 结果处理不变（`r.plan` / `r.actions` / `r.text` / `r.status`）；Agent 一轮多次调模型，等待时间与 token 比 0.2 长，超时设置留余量。
-5. 可选：profile 加 `skills` 写 App 专属 skill。
+4. 优先处理 `r.question`，把 text / choice 问题交给 App UI；以 `turnId` 对事件/结果去重，回答用下一次普通 `send(answer, context: currentContext)`，保留原筛查条件和同一个 Agent，不 reset。其余结果继续使用 `r.plan` / `r.actions` / `r.text` / `r.status`。完整 Dart 代码见 [ask-user.md](ask-user.md)。
+5. Agent 一轮可多次调模型，超时设置留余量；可选在 profile 加 `skills` 写 App 专属 skill。
 
 ### 思考模型的工具协议
 
-`CoachAgent` / `CoachSession` 将响应的 `reasoning_content` 保存在 `LlmMessage.reasoning`，用于中间工具、重交和最终历史的后续模型请求。该字段是传输协议数据，不是可渲染正文；App 仍只使用 `CoachTurnResult.text` 和门禁卡片。记忆关闭时推理字段同步脱敏，避免记忆摘要经推理回传。
+`CoachAgent` / `CoachSession` 将响应的 `reasoning_content` 保存在 `LlmMessage.reasoning`，用于中间工具、重交和最终历史的后续模型请求。该字段是传输协议数据，不是可渲染正文；App 只使用 `CoachTurnResult.question`、`text` 和门禁卡片。记忆关闭时推理字段同步脱敏，避免记忆摘要经推理回传。
 
 每条 assistant 消息在 wire 序列化时都带 `reasoning_content`：已有推理按协议回传，Worker 上游不返回、返回 null，或手写 `LlmMessage.assistant(...)` 未指定 `reasoning` 时使用空字符串；预设回落历史也相同。system / user / tool 消息不增加此字段，不生成或补造推理正文。隐私过滤将记忆相关推理替换为空串，仍保留协议字段；单步重试同样执行过滤。
 

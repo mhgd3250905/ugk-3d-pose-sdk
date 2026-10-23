@@ -37,6 +37,7 @@ export 'src/prompt/default_prompts.dart';
 export 'src/prompt/prompt_builder.dart';
 export 'src/prompt/prompt_template.dart';
 export 'src/prompt/tool_prompt.dart';
+export 'src/tools/ask_user.dart';
 export 'src/tools/coach_session.dart';
 export 'src/tools/coach_tools.dart';
 export 'src/tools/tool_gate.dart';

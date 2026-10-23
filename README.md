@@ -8,15 +8,16 @@
 
 - 纯 Dart，不依赖 Flutter（Web 也能用）；`dart:io` 的部分（文件缓存、JSONL 记账）单独在 `package:ugk_coach/ugk_coach_io.dart`。
 - 一个动作 id = 定义 + 封面 + 示范视频 + 建模源（Pose-Hub spec）+ 语音：`assistant.resolve(id)` 带出整套素材。
-- 当前版本为 **0.3.3**，已获开哥批准合入 main，包含验收提交 `a931a04`。377 项 SDK 测试、分析 0 问题及 SmartFit 最终真实六条通过：计划均 1 步、28.6–36.3 秒，要领问答 1 步、25.4 秒，无回落、编造 id 为 0、记忆隔离通过。Agent 内联作用域内的紧凑索引和三条技能快路径，常规计划直接提交门禁；见[基线拆解](docs/coach-033-baseline-analysis-2026-10-21.md)、[前后对比与验收状态](docs/coach-033-speed-2026-10-21.md)及[项目维护台账](docs/project-ledger.md)。
+- 当前版本为 **0.4.0**，Agent 新增 `ask_user`：一次一个 text / choice 问题，事件交给 App，用户下一条消息继续；SDK 限制同任务最多问 3 次，信息足够时直接排课。字段、事件顺序和可审阅的 Dart 接入代码见 [ask_user 接口说明](docs/ask-user.md)。本仓库提供 SDK 接口，气泡和选项 UI 由各 App 接入。
+- **0.3.3 历史验收**：已获开哥批准合入 main，包含验收提交 `a931a04`。377 项 SDK 测试、分析 0 问题及 SmartFit 最终真实六条通过：计划均 1 步、28.6–36.3 秒，要领问答 1 步、25.4 秒，无回落、编造 id 为 0、记忆隔离通过。Agent 内联作用域内的紧凑索引和三条技能快路径，常规计划直接提交门禁；见[基线拆解](docs/coach-033-baseline-analysis-2026-10-21.md)、[前后对比与验收状态](docs/coach-033-speed-2026-10-21.md)及[项目维护台账](docs/project-ledger.md)。这些数据保留为 0.3.3 的历史结果。
 
 ## 维护与事实来源
 
-[项目维护台账](docs/project-ledger.md)是当前维护状态、PR 合并、验证证据和未决事项的统一记录入口。两个包独立管理版本：根包 `ugk_coach` 以 [pubspec.yaml](pubspec.yaml) 为准，当前为 0.3.3；`ugk_trainer` 以[训练包 pubspec.yaml](packages/ugk_trainer/pubspec.yaml) 为准，当前为 0.1.7。版本历史见[根 CHANGELOG](CHANGELOG.md)和[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)，训练接口与接入约定见[训练包 README](packages/ugk_trainer/README.md)。两个包均为 `publish_to: none`，合入和版本归档不表示已发布到 pub.dev。当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)；[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
+[项目维护台账](docs/project-ledger.md)是当前维护状态、PR 合并、验证证据和未决事项的统一记录入口。两个包独立管理版本：根包 `ugk_coach` 以 [pubspec.yaml](pubspec.yaml) 为准，当前为 0.4.0；`ugk_trainer` 以[训练包 pubspec.yaml](packages/ugk_trainer/pubspec.yaml) 为准，当前为 0.1.7。版本历史见[根 CHANGELOG](CHANGELOG.md)和[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)，训练接口与接入约定见[训练包 README](packages/ugk_trainer/README.md)。两个包均为 `publish_to: none`，合入和版本归档不表示已发布到 pub.dev。当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)；[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
 
 ## 架构（0.1 旧接口）
 
-下图与目录说明保留 0.1 `CoachAssistant` 的结构；当前推荐入口是下文的 0.3 `CoachAgent`。
+下图与目录说明保留 0.1 `CoachAssistant` 的结构；当前推荐入口是下文的 0.4 `CoachAgent`。
 
 ```
                          ┌────────────── App（Flutter）──────────────┐
@@ -60,9 +61,9 @@ eval/          评测（原 ai-coach-eval，subtree 并入）：tools/validate.p
 test/fixtures/ pose-hub-catalog.json（目录快照）golden/（提示词金样）parity.json（校验对照）packs/
 ```
 
-## 0.3 Agent 版接入（推荐）
+## 0.4 Agent 版接入（推荐）
 
-`CoachAgent` 与 `CoachSession` 用法相同（构造参数、`send` / `reset`、`CoachTurnResult`）。系统提示词内含按 profile 筛选的紧凑动作索引与排课、讲要领、展示三条技能快路径；动作详情按需读取，常规计划直接 `show_plan`，`check_plan` 留作可选自检，最终门禁始终执行。明确点名的要领问答可自动预载少量详情，省去模型请求文件的一次往返。设计、文件地图、事件与记忆见 [docs/agent-plan.md](docs/agent-plan.md)。
+`CoachAgent` 沿用 `CoachSession` 的构造参数、`send` / `reset` 和结果类型，另有过程事件及 `result.question`。系统提示词内含按 profile 筛选的紧凑动作索引与排课、讲要领、展示三条技能快路径；会实质改变方案的缺口先 `ask_user`，信息足够就直接 `show_plan`，`check_plan` 留作可选自检，最终门禁始终执行。明确点名的要领问答可自动预载少量详情，省去模型请求文件的一次往返。设计、文件地图、事件与记忆见 [docs/agent-plan.md](docs/agent-plan.md)。
 
 ```dart
 final agent = CoachAgent(
@@ -72,11 +73,24 @@ final agent = CoachAgent(
   fallback: (r) => SessionFallbackReply('先按模板给你排一套', plan: myTemplateFor(r.context)),
   memoryStore: myMemoryStore,   // App 实现 UserMemoryStore；enableUserMemory 可随时切
 );
-agent.events.listen((e) => showProgress(e));   // reading / checking / done …
-final r = await agent.send(userText, context: CoachContext(scene: 'home'));
+agent.events.listen((e) {
+  if (e.kind != AgentEventKind.askUser) showProgress(e);
+});
+final currentContext = CoachContext(scene: 'home', avoid: {'膝'});
+final r = await agent.send(userText, context: currentContext);
+if (r.question != null) {
+  showQuestionBubble(r.turnId, r.question!); // 此时 send 已返回，可以回答。
+} else {
+  showResult(r); // 原有文字、计划/动作卡和状态处理。
+}
+// 点选后：await agent.send(selected.join('、'), context: currentContext);
+// 自由文字：await agent.send(answerText, context: currentContext);
+// 回答期间保持同一个 agent，不 reset。
 ```
 
-默认整轮时限为 360s，单步请求时限为 60s，30s 发出 `slow` 事件；60k 上下文估算不计推理协议字段，只压缩较早的 read / ls 工具结果。0.3.3 沿用这些参数；单步失败保留已有工具进度后重试，记忆关闭时重试也过滤记忆相关推理。`badResponse` 提供结构、长度及 SHA-256 诊断，供区分 SSE、空正文、结构错误等情况，不记录响应正文或推理原文。
+上例只从结果渲染问题。若同时使用 `askUser` 事件和结果，按 `turnId` 更新同一个气泡，等待 `send` 返回后再启用回答；`r.text` 与问题文字相同，不重复追加。完整事件绑定、取消处理、text / choice 字段及任务计数见 [ask_user 接口说明](docs/ask-user.md)。
+
+默认整轮时限为 360s，单步请求时限为 60s，30s 发出 `slow` 事件；60k 上下文估算不计推理协议字段，只压缩较早的 read / ls 工具结果。0.4.0 沿用这些参数；单步失败保留已有工具进度后重试，记忆关闭时重试也过滤记忆相关推理。`badResponse` 提供结构、长度及 SHA-256 诊断，供区分 SSE、空正文、结构错误等情况，不记录响应正文或推理原文。
 
 普通排课首请求只提供直接交付路径，门禁拒绝后才开放 `check_plan`；用户明确要求检查/自检或 profile 配置了 App 专属技能时可从首请求使用。`AgentTools.build(includeCheckPlan:)` 默认 true，直接构造工具的调用方行为兼容。
 

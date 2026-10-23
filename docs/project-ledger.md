@@ -9,6 +9,7 @@
 | 项目 | 已核对状态 |
 |---|---|
 | 主线代码核验快照 | PR #6 已合入 main `eb29c749a52c1b226841726a3fba8e9f62e9e6be`，整树与复审 head `b84881f58c035b1fce2ff929cdb207e465821c92` 一致；保留 coach 0.3.3 源码及验收提交 a931a04。后续版本/文档提交不改变该运行时代码快照 |
+| 0.4.0 候选 | 分支 `codex/coach-0.4.0-ask-user`，基于 main `f577f5724812585fffdd1cd2d0a62dac3f74cdf2` 增加 ask_user、跨消息三问计数与先问再排策略；426 项根包测试、分析无问题、6 例真实多轮评测通过，详见 [0.4.0 记录](coach-040-ask-user-eval-2026-10-23.md)。待开哥审阅同意后才合入 main、推送；尚无本次升级的 main commit |
 | 0.3.3 合入状态 | 基于原 main `b26e4fd`，分支 `codex/coach-033-speed`；已获开哥批准，main 快进包含验收提交 a931a04。377 项 SDK 测试、分析 0 问题，SmartFit 最终六条正确性/性能全通过：计划均 1 步、28.6–36.3 秒，要领 1 步、25.4 秒，无回落 |
 | 0.3.2 集成分支 / 来源（历史） | `codex/coach-agent-032-integration`；按指定源 `9bc392c42222d61d8c57e8dc00373ee165e56e06` 在 main `517fdbef6d9e611eff3f68bc2138f8e00e35c82e` 上 rebase 后补齐 0.3.2，已获批准合入 main；原修复分支保留，后续额外评审文档未作为集成源 |
 | 最初文档对齐 baseline（历史） | `1f8be6edf9c0c57575d963448af379e8fdf8df2a`；来自原文档会话 Cockpit init 记录，已核对为当时 main 且是当前 HEAD 的祖先 |
@@ -16,7 +17,7 @@
 | 根包 | main 为 `ugk_coach` 0.3.3；`publish_to: none`，已合入主线不表示已发布到 pub.dev |
 | 推荐入口 | `CoachAgent`；`CoachSession` 保留作 0.2 降级，`CoachAssistant` 为 deprecated 旧接口 |
 | 训练执行 | `ugk_trainer` 当前版本归档为 0.1.7：PR #6 舞台 UI 与 r9 审核修复；沿用 0.1.5 媒体缓存和 0.1.6 internal 预览门禁。完整复审 170 项 Flutter 测试、分析 0 问题，证据绑定 b84881f；旧 126 项为历史 source 的结果 |
-| 版本管理 | 根 `pubspec.yaml` 管理 coach 0.3.3，训练包自己的 `pubspec.yaml` 管理 trainer 0.1.7；两包独立版本且均为 `publish_to: none`。PR 合并、包版本归档、Git 预览 tag 与对外发布是不同状态 |
+| 版本管理 | main 的 coach 为 0.3.3，0.4.0 候选分支的根 `pubspec.yaml` 已升级至 0.4.0；训练包自己的 `pubspec.yaml` 仍管理 trainer 0.1.7。两包独立版本且均为 `publish_to: none`。PR 合并、包版本归档、Git 预览 tag 与对外发布是不同状态 |
 | 验收边界 | Coach 0.3.3 的历史离线 377 项、定向 App 56 项及最终真实六条保持原 source 语境；PR #6 复审另执行根包 377 项与 trainer 170 项，trainer 分析 0 问题。真机帧率、原生媒体播放和宿主完整训练未验收 |
 | Cockpit | 原文档会话已接入 working（历史记录）；文档更新不自动结束会话或生成交接 |
 

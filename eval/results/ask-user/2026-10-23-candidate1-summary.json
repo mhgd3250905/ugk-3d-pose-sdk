@@ -1,0 +1,318 @@
+{
+  "schemaVersion": 1,
+  "mode": "real-CoachAgent-six-case-aggregate",
+  "requestedModel": "deepseek-v4-flash-0731",
+  "endpoint": "https://api.uuugk.win/v1",
+  "sourceHashes": [
+    "a60798545e73ec1dea2ccf994be6241331582905ebd0486ef2854b9d38ef3160"
+  ],
+  "allSourceUnchanged": true,
+  "passed": true,
+  "caseCount": 6,
+  "modelRequests": 12.0,
+  "totalTokens": 163499.0,
+  "elapsedMs": 216911.0,
+  "runs": [
+    {
+      "path": "eval/results/ask-user/2026-10-23-candidate1-critical/summary.json",
+      "sha256": "bf0ac5bca1fa4a07eeebd0c6b9b49e10db7a672009380a299a7d70ae73d0e6ea"
+    },
+    {
+      "path": "eval/results/ask-user/2026-10-23-candidate1-remainder/summary.json",
+      "sha256": "e9550ca456d8c6533fc2e21f8731ce8e1ef140ea0339882e3c56c09e2e69cf0a"
+    }
+  ],
+  "agentOverrides": {
+    "enableUserMemoryByCase": {
+      "bboy_choice": true,
+      "core_ready": false,
+      "bboy_free_text": false,
+      "known_context": false,
+      "direct_after_question": false,
+      "question_budget": false
+    },
+    "maxHistoryChars": 200000,
+    "maxTurns": 20
+  },
+  "results": [
+    {
+      "id": "bboy_choice",
+      "passed": true,
+      "questions": 1,
+      "modelRequests": 4,
+      "promptTokens": 53996.0,
+      "completionTokens": 4505.0,
+      "totalTokens": 58501.0,
+      "elapsedMs": 62810,
+      "enableUserMemory": true,
+      "budgetExhausted": false,
+      "sourceSha256": "a60798545e73ec1dea2ccf994be6241331582905ebd0486ef2854b9d38ef3160",
+      "sourceUnchangedDuringCase": true,
+      "failures": [],
+      "questionsDetail": [
+        {
+          "question": "久坐之后，你哪里觉得最紧？可以多选",
+          "mode": "choice",
+          "multiple": true,
+          "latencyMs": 26794.0,
+          "steps": 1,
+          "reads": [],
+          "calls": 1,
+          "reasoningTokens": 124
+        }
+      ],
+      "finalPlan": [
+        {
+          "title": "托马斯前髋肩放松",
+          "scene": "home",
+          "minutes": 15,
+          "level": 1,
+          "avoid": null,
+          "actions": [
+            "n-pelvis-circle",
+            "h-hip-gate",
+            "n-leg-circles",
+            "h-catcow-quad",
+            "s-9090",
+            "s-kneel-hipflex",
+            "o-stand-quad",
+            "h-chair-tspine",
+            "h-wall-angel",
+            "h-supine-twist",
+            "o-stand-sidebend"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "core_ready",
+      "passed": true,
+      "questions": 0,
+      "modelRequests": 1,
+      "promptTokens": 11089.0,
+      "completionTokens": 2536.0,
+      "totalTokens": 13625.0,
+      "elapsedMs": 35016,
+      "enableUserMemory": false,
+      "budgetExhausted": false,
+      "sourceSha256": "a60798545e73ec1dea2ccf994be6241331582905ebd0486ef2854b9d38ef3160",
+      "sourceUnchangedDuringCase": true,
+      "failures": [],
+      "questionsDetail": [],
+      "finalPlan": [
+        {
+          "title": "居家20分钟核心",
+          "scene": "home",
+          "minutes": 20,
+          "level": 1,
+          "avoid": null,
+          "actions": [
+            "n-pelvis-circle",
+            "h-catcow-quad",
+            "h-hip-gate",
+            "w-dead-bug",
+            "h-forearm-plank",
+            "abs-A",
+            "w-bird-dog",
+            "h-supine-twist",
+            "h-knee-hug"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bboy_free_text",
+      "passed": true,
+      "questions": 1,
+      "modelRequests": 2,
+      "promptTokens": 22613.0,
+      "completionTokens": 3206.0,
+      "totalTokens": 25819.0,
+      "elapsedMs": 27719,
+      "enableUserMemory": false,
+      "budgetExhausted": false,
+      "sourceSha256": "a60798545e73ec1dea2ccf994be6241331582905ebd0486ef2854b9d38ef3160",
+      "sourceUnchangedDuringCase": true,
+      "failures": [],
+      "questionsDetail": [
+        {
+          "question": "久坐之后，你觉得最紧的主要是哪一块？",
+          "mode": "choice",
+          "multiple": true,
+          "latencyMs": 8302.0,
+          "steps": 1,
+          "reads": [],
+          "calls": 1,
+          "reasoningTokens": 169
+        }
+      ],
+      "finalPlan": [
+        {
+          "title": "托马斯前髋肩放松",
+          "scene": "home",
+          "minutes": 12,
+          "level": 1,
+          "avoid": null,
+          "actions": [
+            "h-catcow-quad",
+            "n-pelvis-circle",
+            "n-thomas-test",
+            "s-kneel-hipflex",
+            "h-seated-reachback",
+            "scapular-A",
+            "h-cobra",
+            "h-supine-twist"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "known_context",
+      "passed": true,
+      "questions": 0,
+      "modelRequests": 1,
+      "promptTokens": 11155.0,
+      "completionTokens": 2236.0,
+      "totalTokens": 13391.0,
+      "elapsedMs": 32840,
+      "enableUserMemory": false,
+      "budgetExhausted": false,
+      "sourceSha256": "a60798545e73ec1dea2ccf994be6241331582905ebd0486ef2854b9d38ef3160",
+      "sourceUnchangedDuringCase": true,
+      "failures": [],
+      "questionsDetail": [],
+      "finalPlan": [
+        {
+          "title": "托马斯前放松",
+          "scene": "home",
+          "minutes": 12,
+          "level": 1,
+          "avoid": [
+            "膝"
+          ],
+          "actions": [
+            "n-pelvis-circle",
+            "h-wall-angel",
+            "o-stand-sidebend",
+            "o-stand-lunge",
+            "n-thomas-test",
+            "s-figure4",
+            "h-chair-lat",
+            "h-supine-twist",
+            "h-banana"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "direct_after_question",
+      "passed": true,
+      "questions": 1,
+      "modelRequests": 2,
+      "promptTokens": 22570.0,
+      "completionTokens": 3619.0,
+      "totalTokens": 26189.0,
+      "elapsedMs": 32190,
+      "enableUserMemory": false,
+      "budgetExhausted": false,
+      "sourceSha256": "a60798545e73ec1dea2ccf994be6241331582905ebd0486ef2854b9d38ef3160",
+      "sourceUnchangedDuringCase": true,
+      "failures": [],
+      "questionsDetail": [
+        {
+          "question": "久坐之后，你觉得哪几个部位最紧？",
+          "mode": "choice",
+          "multiple": true,
+          "latencyMs": 11162.0,
+          "steps": 1,
+          "reads": [],
+          "calls": 1,
+          "reasoningTokens": 168
+        }
+      ],
+      "finalPlan": [
+        {
+          "title": "练托马斯前放松",
+          "scene": "home",
+          "minutes": 15,
+          "level": 1,
+          "avoid": null,
+          "actions": [
+            "h-catcow-quad",
+            "n-pelvis-circle",
+            "h-wall-angel",
+            "s-kneel-hipflex",
+            "s-figure4",
+            "s-butterfly",
+            "n-straddle-fold",
+            "h-chair-tspine",
+            "s-9090",
+            "o-seated-ham",
+            "h-supine-twist"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "question_budget",
+      "passed": true,
+      "questions": 1,
+      "modelRequests": 2,
+      "promptTokens": 22552.0,
+      "completionTokens": 3422.0,
+      "totalTokens": 25974.0,
+      "elapsedMs": 26336,
+      "enableUserMemory": false,
+      "budgetExhausted": false,
+      "sourceSha256": "a60798545e73ec1dea2ccf994be6241331582905ebd0486ef2854b9d38ef3160",
+      "sourceUnchangedDuringCase": true,
+      "failures": [],
+      "questionsDetail": [
+        {
+          "question": "久坐后你觉得哪一块最紧、最想先松开？",
+          "mode": "choice",
+          "multiple": true,
+          "latencyMs": 5568.0,
+          "steps": 1,
+          "reads": [],
+          "calls": 1,
+          "reasoningTokens": 140
+        }
+      ],
+      "finalPlan": [
+        {
+          "title": "托马斯前髋部放松",
+          "scene": "home",
+          "minutes": 15,
+          "level": 1,
+          "avoid": null,
+          "actions": [
+            "h-catcow-quad",
+            "n-pelvis-circle",
+            "forearms-A",
+            "s-kneel-hipflex",
+            "o-stand-lunge",
+            "h-wall-straddle",
+            "s-butterfly",
+            "s-9090",
+            "s-figure4",
+            "h-supine-twist",
+            "h-wall-angel",
+            "h-wall-calf"
+          ]
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Single sample per case, not a stable success-rate or latency guarantee.",
+    "question_budget completed after one question; SDK hard fourth-question rejection is verified by offline tests.",
+    "SDK runtime path, not App UI or App additional plan validators.",
+    "Observed client records response.model when available, otherwise requested model; recordedModelLabels are not guaranteed raw response fields."
+  ],
+  "failedAttempts": [],
+  "recordedModelLabels": [
+    "deepseek-flash",
+    "deepseek-v4-flash-0731"
+  ]
+}

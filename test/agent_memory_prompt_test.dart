@@ -19,8 +19,8 @@ class _RecordingStore extends InMemoryUserMemoryStore {
 void main() {
   final catalog = loadCatalog();
   final builder = AgentPromptBuilder();
-  // Parameter-contract snapshots exclude tool descriptions, which deliberately
-  // change with the fast-path instructions. Memory isolation is semantic below.
+  // Existing parameter-contract snapshots exclude descriptions and the additive
+  // 0.4 ask_user tool; its schema is covered separately. Memory isolation is below.
   const fingerprints = <String, String>{
     'flarelab':
         '8783e526cfcd5cb2f8ae1d65c95cae9f405c0a098b233fa6a1dae377c9628a01',
@@ -42,7 +42,8 @@ void main() {
         );
         final tools = jsonEncode([
           for (final tool in AgentTools.build(profile, catalog, memory: false))
-            {'name': tool.name, 'parameters': tool.parameters},
+            if (tool.name != AgentTools.askUser)
+              {'name': tool.name, 'parameters': tool.parameters},
         ]);
         expect(sha256.convert(utf8.encode(tools)).toString(), entry.value);
         expect(system, isNot(contains('必须先用 read 读 user-memory')));
@@ -73,7 +74,8 @@ void main() {
       expect(system, contains('只有记忆工具返回 ok=true 后才能确认'));
       expect(system, contains('未要求找动作/排计划，且对话中没有待完成的训练请求'));
       expect(system, contains('本轮不调用 show_actions / show_plan'));
-      expect(system, contains('若用户同时明确要求训练，先记下稳定事实，再继续该训练任务'));
+      expect(system, contains('若用户同时明确要求训练，需要澄清则先 ask_user'));
+      expect(system, contains('回答后交付方案前再保存，避免延迟首问'));
       expect(system, contains('不要从一次训练请求推断长期习惯'));
       expect(system, contains('长期提升力量'));
     },

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "description": "CoachAgent 0.4.0 真实模型多轮评测；每例独立 Agent，用户回答始终经同一个 send() 会话进入。",
+  "cases": [
+    {
+      "id": "bboy_choice",
+      "title": "bboy 程序员训练前放松：先问、点击选项、使用回答",
+      "profile": "smartfit",
+      "enableUserMemory": true,
+      "message": "我明天打算去练托马斯。我是一个 bboy，也是个程序员。我日常久坐，引起了肌肉相关的比较紧张，所以我在练习之前需要进行放松。你给我出一个放松的方案计划。",
+      "first": "question",
+      "response": "choice",
+      "expect": {"goals": ["relax", "warmup", "mobility"], "minQuestions": 1, "maxQuestions": 3, "requireChoiceAnswer": true}
+    },
+    {
+      "id": "bboy_free_text",
+      "title": "不点选项直接打字：下一条消息补齐条件",
+      "profile": "smartfit",
+      "message": "我明天打算去练托马斯。我是一个 bboy，也是个程序员。我日常久坐，引起了肌肉相关的比较紧张，所以我在练习之前需要进行放松。你给我出一个放松的方案计划。",
+      "first": "question",
+      "response": "text",
+      "answer": "在家，只有垫子，12 分钟。重点放松肩颈和髋屈肌，没有疼痛，我是入门水平。",
+      "answerFacts": {"scene": "home", "minutes": [12, 12], "level": 1, "focus": ["shoulder", "hip-flexor"], "equipmentAllowed": ["none", "mat"]},
+      "expect": {"goals": ["relax", "warmup", "mobility"], "minQuestions": 1, "maxQuestions": 1}
+    },
+    {
+      "id": "core_ready",
+      "title": "条件已够：在家 20 分钟练核心直接出方案",
+      "profile": "smartfit",
+      "message": "在家 20 分钟练核心",
+      "first": "plan",
+      "response": "text",
+      "expect": {"scene": "home", "minutes": [20, 20], "goals": ["core"], "focus": ["core"], "minQuestions": 0, "maxQuestions": 0}
+    },
+    {
+      "id": "known_context",
+      "title": "筛查和 App 上下文已有条件不再问",
+      "profile": "smartfit",
+      "message": "我明天练托马斯之前需要放松，给我排个方案。",
+      "context": {"scene": "home", "equipment": ["mat"], "minutes": 12, "level": 1, "goal": "relax", "avoid": ["膝"], "notes": ["用户筛查已完成：没有红旗症状；膝盖偶有不适需保护，肩颈和髋屈肌紧绷。"]},
+      "first": "plan",
+      "response": "text",
+      "expect": {"scene": "home", "minutes": [12, 12], "level": 1, "focus": ["shoulder", "hip-flexor"], "avoid": ["膝"], "goals": ["relax", "warmup", "mobility"], "minQuestions": 0, "maxQuestions": 0}
+    },
+    {
+      "id": "direct_after_question",
+      "title": "用户说直接出：停止询问并说明默认假设",
+      "profile": "smartfit",
+      "message": "我明天打算去练托马斯。我是一个 bboy，也是个程序员。我日常久坐，引起了肌肉相关的比较紧张，所以我在练习之前需要进行放松。你给我出一个放松的方案计划。",
+      "first": "question",
+      "response": "text",
+      "answer": "直接出",
+      "expect": {"goals": ["relax", "warmup", "mobility"], "minQuestions": 1, "maxQuestions": 1, "assumptions": true}
+    },
+    {
+      "id": "question_budget",
+      "title": "回答仍含糊：至多三问后使用默认值交付",
+      "profile": "smartfit",
+      "message": "我明天打算去练托马斯。我是一个 bboy，也是个程序员。我日常久坐，引起了肌肉相关的比较紧张，所以我在练习之前需要进行放松。你给我出一个放松的方案计划。",
+      "first": "question",
+      "response": "text",
+      "answer": "这点我还不确定。",
+      "expect": {"goals": ["relax", "warmup", "mobility"], "minQuestions": 1, "maxQuestions": 3, "assumptionsAtCap": true}
+    }
+  ]
+}

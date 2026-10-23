@@ -1,6 +1,6 @@
 # ugk_trainer 0.2.0 接入契约
 
-2026-10-23，分支 `codex/trainer-shared-player`，基于 SDK main `b8f5b82bcf6f4075480fa6fb2382acea4c44b9c0`。当前为待开哥批准的分支版本；批准后才合入 main、推送。根包配套 `ugk_coach 0.4.1`（分段数据模型），训练包 `ugk_trainer 0.2.0`。本次没有发布目录、语音素材或 pub.dev 包。
+2026-10-23，分支 `codex/trainer-shared-player`，基于 SDK main `b8f5b82bcf6f4075480fa6fb2382acea4c44b9c0`。开哥已批准验收提交 `64a54874307449c8685577f8eeb913296b207a7c`，现已快进合入 main；后续收束仅更新批准状态文档。根包配套 `ugk_coach 0.4.1`（分段数据模型），训练包 `ugk_trainer 0.2.0`。本次没有发布目录、语音素材或 pub.dev 包。
 
 依据开哥转交的 FlareLab `sdk-shared-player-audit-2026-10-23.md`：SDK 负责训练计数与语音节奏，App 提供目录、素材、语言、主题和结果存储。计数代表按计划引导的进度，不是动作识别结果。
 

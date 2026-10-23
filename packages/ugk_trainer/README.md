@@ -1,6 +1,6 @@
 # ugk_trainer 0.2.0
 
-0.2.0 分支待开哥批准：修复组/侧/分段统计与浮点推进，补充无节奏动作自动报数、`PlanItem.segments` 和 App 可选操作。新行为、语音清单、后台/中断策略与 SmartFit 回归边界见 [0.2.0 接入契约](../../docs/trainer-020-integration.md)及[验证记录](../../docs/trainer-020-verification-2026-10-23.md)。
+0.2.0 已获开哥批准合入 main（验收提交 `64a5487`）：修复组/侧/分段统计与浮点推进，补充无节奏动作自动报数、`PlanItem.segments` 和 App 可选操作。新行为、语音清单、后台/中断策略与 SmartFit 回归边界见 [0.2.0 接入契约](../../docs/trainer-020-integration.md)及[验证记录](../../docs/trainer-020-verification-2026-10-23.md)。
 
 三 App（托马斯 3D-Body / 开胯 HipLab / SmartFit）共用的跟练模块。方案见仓库根目录 `docs/trainer-plan.md`。
 

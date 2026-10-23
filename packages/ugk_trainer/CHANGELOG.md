@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 — 2026-10-23（分支待批准）
+## 0.2.0 — 2026-10-23（已批准合入 main）
 
 - Count unique sets only after all required sides and segments finish. Replayed visits accumulate time without replacing an unfinished set. Item and session completion share the original phase requirements; phase-end comparison absorbs floating-point error.
 - Missing reps rhythms now use public `RhythmDefaults` (3 seconds per rep, per-category overrides, hold duration when provided), with automatic counts and group completion. Explicit catalog `self_paced` and existing App-authored self-paced rhythms remain supported. Video loop duration is never a rep duration.

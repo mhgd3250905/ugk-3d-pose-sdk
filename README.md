@@ -2,7 +2,7 @@
 
 仓库 `mhgd3250905/ugk-3d-pose-sdk`，根目录是纯 Dart 包 **`ugk_coach`**，`packages/ugk_trainer` 是 Flutter 训练执行包（PR #1 已合入）。
 
-**当前开发分支：trainer 0.2.0 / coach 0.4.1，待开哥批准合入。** 补齐 FlareLab 审计提出的统计修复、缺省自动计次、一组多段和可选操作；[新接入契约](docs/trainer-020-integration.md)及[验证记录](docs/trainer-020-verification-2026-10-23.md)。下方 0.4.0 / 0.1.7 是已合入 main 的历史基线。0.4.0 新增 `AgentEventKind.askUser` 对旧穷举 switch 是破坏性源码变更，升级必须补分支，见 [ask_user 升级提示](docs/ask-user.md)。
+**当前 main：trainer 0.2.0 / coach 0.4.1，已获开哥批准合入验收提交 `64a54874307449c8685577f8eeb913296b207a7c`。** 补齐 FlareLab 审计提出的统计修复、缺省自动计次、一组多段和可选操作；[新接入契约](docs/trainer-020-integration.md)及[验证记录](docs/trainer-020-verification-2026-10-23.md)。下方 0.4.0 / 0.1.7 是已合入 main 的历史基线。0.4.0 新增 `AgentEventKind.askUser` 对旧穷举 switch 是破坏性源码变更，升级必须补分支，见 [ask_user 升级提示](docs/ask-user.md)。
 
 `ugk_trainer 0.1.7` 已合入 PR #6 的沉浸式舞台播放器：玻璃控件、持续可见的自主计次目标、系统大字号适配及键盘操作。沿用 0.1.5 / 0.1.6 的 `TrainingMediaRepository`、版本化缓存、SHA-256 校验、Wi-Fi 策略和独立 internal flavor 预览门禁。接入、验证边界及按需素材见[训练包文档](packages/ugk_trainer/README.md)。
 
@@ -15,7 +15,7 @@
 
 ## 维护与事实来源
 
-[项目维护台账](docs/project-ledger.md)是当前维护状态、PR 合并、验证证据和未决事项的统一记录入口。两个包独立管理版本：根包 `ugk_coach` 以 [pubspec.yaml](pubspec.yaml) 为准，本分支为 0.4.1（main 基线 0.4.0）；`ugk_trainer` 以[训练包 pubspec.yaml](packages/ugk_trainer/pubspec.yaml) 为准，本分支为 0.2.0（main 基线 0.1.7）。版本历史见[根 CHANGELOG](CHANGELOG.md)和[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)，训练接口与接入约定见[训练包 README](packages/ugk_trainer/README.md)。两个包均为 `publish_to: none`，合入和版本归档不表示已发布到 pub.dev。当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)；[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
+[项目维护台账](docs/project-ledger.md)是当前维护状态、PR 合并、验证证据和未决事项的统一记录入口。两个包独立管理版本：根包 `ugk_coach` 以 [pubspec.yaml](pubspec.yaml) 为准，当前为 0.4.1；`ugk_trainer` 以[训练包 pubspec.yaml](packages/ugk_trainer/pubspec.yaml) 为准，当前为 0.2.0。版本历史见[根 CHANGELOG](CHANGELOG.md)和[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)，训练接口与接入约定见[训练包 README](packages/ugk_trainer/README.md)。两个包均为 `publish_to: none`，合入和版本归档不表示已发布到 pub.dev。当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)；[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
 
 ## 架构（0.1 旧接口）
 

@@ -1,6 +1,6 @@
 # trainer 0.2.0 分支验证
 
-基线 main：`b8f5b82bcf6f4075480fa6fb2382acea4c44b9c0`。开发分支：`codex/trainer-shared-player`。2026-10-23，版本 trainer 0.2.0 / coach 0.4.1，等待开哥批准后才合入 main 并推送。
+基线 main：`b8f5b82bcf6f4075480fa6fb2382acea4c44b9c0`。开发分支：`codex/trainer-shared-player`。2026-10-23，版本 trainer 0.2.0 / coach 0.4.1，开哥已批准验收提交 `64a54874307449c8685577f8eeb913296b207a7c` 并快进合入 main；后续批准状态提交只改文档，测试证据仍绑定该验收源码。
 
 ## 结果
 
@@ -12,7 +12,7 @@
 | 正式 JSON Schema / Codec | Python jsonschema 4.26.0 与 Dart 共用 12 个合法/非法分段案例，结果一致；`python tool/check_plan_segment_schema.py` 通过 |
 | SmartFit 原 App 临时副本 | 41 项定向测试通过；只在临时副本补既有 askUser switch 分支，并将一项旧“缺节奏等点击”断言更新为新自动完成要求 |
 | FlareLab 固定目录 | 51 项可自动引导：41 项 SDK 缺省、2 项目录节奏、8 项计时；无 parser problem；[机器结果](trainer-020-catalog-guidance-2026-10-23.json) |
-| Git diff / 文档 | whitespace 检查、相对链接检查通过；尚未合并或推送 |
+| Git diff / 文档 | whitespace 检查、相对链接检查通过；已批准快进合入，最终远端 SHA 由推送后核对 |
 
 无设备安装、无 App 业务源码修改、无 Pose-Hub 发布、无新增语音素材。后台/锁屏、实际来电、原生媒体与整节真机训练尚未验收，不能从这些测试推断通过。
 
@@ -53,4 +53,4 @@ flutter test --no-pub test/trainer_integration_test.dart test/trainer_storage_te
 
 代码并行实现后独立复查，补齐父剂量省略的Codec往返、分段替换身份、缺省节奏下hold优先、长段名不吞首个报数、弹窗期间音频中断不得自动继续。新控件默认关闭，旧无segments计划不输出多余字段；复用既有 RhythmSource.dose，未给该枚举增加新值，避免再产生穷举switch兼容障碍。
 
-接口、语音素材格式、selfPaced待确认类别与平台策略见[接入契约](trainer-020-integration.md)。本记录随验收分支提交保存，批准前 main 保持原基线。
+接口、语音素材格式、selfPaced待确认类别与平台策略见[接入契约](trainer-020-integration.md)。本记录随 main 保留。FlareLab 按最终 main 提交固定依赖后做锁屏、来电中断、原生播放真机验收；若发现 SDK 问题，再出补丁版本。SmartFit、HipLab 暂不升级。

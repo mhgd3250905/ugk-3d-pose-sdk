@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.2.0 — 2026-10-23（已批准合入 main）
+## 0.2.0 — 2026-10-23（已合入并推送 main）
+
+- Documentation closeout on 2026-10-24: verified remote main at `8b60032c2f43fd8e91f8802c8f054a8ecb7cc110`, containing accepted source `64a54874307449c8685577f8eeb913296b207a7c`. No package version increment. FlareLab will pin the delivered main commit and perform device acceptance; SmartFit/HipLab upgrades remain deferred.
 
 - Count unique sets only after all required sides and segments finish. Replayed visits accumulate time without replacing an unfinished set. Item and session completion share the original phase requirements; phase-end comparison absorbs floating-point error.
 - Missing reps rhythms now use public `RhythmDefaults` (3 seconds per rep, per-category overrides, hold duration when provided), with automatic counts and group completion. Explicit catalog `self_paced` and existing App-authored self-paced rhythms remain supported. Video loop duration is never a rep duration.

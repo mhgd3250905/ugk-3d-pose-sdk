@@ -12,7 +12,7 @@
 | 正式 JSON Schema / Codec | Python jsonschema 4.26.0 与 Dart 共用 12 个合法/非法分段案例，结果一致；`python tool/check_plan_segment_schema.py` 通过 |
 | SmartFit 原 App 临时副本 | 41 项定向测试通过；只在临时副本补既有 askUser switch 分支，并将一项旧“缺节奏等点击”断言更新为新自动完成要求 |
 | FlareLab 固定目录 | 51 项可自动引导：41 项 SDK 缺省、2 项目录节奏、8 项计时；无 parser problem；[机器结果](trainer-020-catalog-guidance-2026-10-23.json) |
-| Git diff / 文档 | whitespace 检查、相对链接检查通过；已批准快进合入，最终远端 SHA 由推送后核对 |
+| Git diff / 文档 | whitespace 检查、相对链接检查通过；已批准快进合入。2026-10-24 再次以 `git ls-remote origin refs/heads/main` 核对远端为 `8b60032c2f43fd8e91f8802c8f054a8ecb7cc110`，与本地 main 一致；后续文档收束 SHA 见最终交付回执 |
 
 无设备安装、无 App 业务源码修改、无 Pose-Hub 发布、无新增语音素材。后台/锁屏、实际来电、原生媒体与整节真机训练尚未验收，不能从这些测试推断通过。
 

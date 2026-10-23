@@ -4,6 +4,8 @@
 
 依据开哥转交的 FlareLab `sdk-shared-player-audit-2026-10-23.md`：SDK 负责训练计数与语音节奏，App 提供目录、素材、语言、主题和结果存储。计数代表按计划引导的进度，不是动作识别结果。
 
+2026-10-24 已核对远端 main 为 `8b60032c2f43fd8e91f8802c8f054a8ecb7cc110`，包含上述验收源码。本次文档收束会推进 main；FlareLab 应使用最终交付回执中的完整 SHA 作为两个包的同一 Git ref，而不是浮动 `main`。SmartFit、HipLab 暂不升级。
+
 ## 旧接入与升级
 
 旧 `PlanItem`、无 segments 的 TrainingPlan v1 JSON、`TrainerPlayer` 构造、SmartFit repSeconds、HipLab action-kit 和结果 JSON 保持支持。新增播放器按钮默认隐藏，App 不开开关时仍用原控件布局。**行为调整：无节奏的次数动作现在自动报数并完成；不会默认等待“完成本组”。** 原有显式 `Rhythm.selfPacedReps` API 为已有接入保留；新目录应仅对技术尝试明确写 `rhythm.kind: self_paced`，不要把缺资料等同自主计次。

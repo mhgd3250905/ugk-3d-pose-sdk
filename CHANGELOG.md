@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.4.1 / ugk_trainer 0.2.0 — 2026-10-23（已批准合入 main）
+## 0.4.1 / ugk_trainer 0.2.0 — 2026-10-23（已合入并推送 main）
+
+- 2026-10-24 文档收束：验收源码 `64a54874307449c8685577f8eeb913296b207a7c` 已合入；批准状态文档 `8b60032c2f43fd8e91f8802c8f054a8ecb7cc110` 已核对远端一致。版本保持 0.4.1 / 0.2.0，当前快照与后续安排见[台账](docs/project-ledger.md)。FlareLab 接入后做真机验收，SmartFit/HipLab 暂不升级。
 
 - `PlanItem.segments` / `PlanSegment` 扩展 TrainingPlan v1：按段保存剂量、素材动作 ID、节奏；旧无分段计划编码不变，新分段严格校验，防止漏段后错误记为完成。
 - trainer 修复唯一组 × 必需侧 × 分段统计及浮点结束边界，提供公开缺省自动节奏、休息延长、计时段提前完成、声音开关；详见[接入说明](docs/trainer-020-integration.md)。

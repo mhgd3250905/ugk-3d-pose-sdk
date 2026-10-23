@@ -2,6 +2,8 @@
 
 0.2.0 已获开哥批准合入 main（验收提交 `64a5487`）：修复组/侧/分段统计与浮点推进，补充无节奏动作自动报数、`PlanItem.segments` 和 App 可选操作。新行为、语音清单、后台/中断策略与 SmartFit 回归边界见 [0.2.0 接入契约](../../docs/trainer-020-integration.md)及[验证记录](../../docs/trainer-020-verification-2026-10-23.md)。
 
+FlareLab 使用交付回执的 main 完整 SHA 固定依赖；接入后做锁屏、来电中断和原生播放真机验收，发现 SDK 问题再出补丁。SmartFit、HipLab 暂不升级；临时副本回归不能替代原 App 升级验收。
+
 三 App（托马斯 3D-Body / 开胯 HipLab / SmartFit）共用的跟练模块。方案见仓库根目录 `docs/trainer-plan.md`。
 
 当前包版本以 [pubspec.yaml](pubspec.yaml) 为准，版本历史见 [CHANGELOG.md](CHANGELOG.md)，合并与验证记录见[项目维护台账](../../docs/project-ledger.md)。本包与根包 `ugk_coach` 0.4.1 独立管理版本；`publish_to: none`，版本归档不表示 pub.dev 发布。
@@ -129,7 +131,9 @@ await media.clearCache();
 
 ## 测试
 
-最近完整复审的 `flutter test --no-pub` 为 170 项通过，`flutter analyze --no-pub` 为 0 问题，source 为 `b84881f58c035b1fce2ff929cdb207e465821c92`；其与合入提交 `eb29c749a52c1b226841726a3fba8e9f62e9e6be` 整树一致。0.1.7 收束仅调整版本与文档，验证命令和适用性见[维护台账](../../docs/project-ledger.md)。
+当前 0.2.0 验收源码 `64a54874307449c8685577f8eeb913296b207a7c` 的 `flutter test --no-pub --reporter expanded` 为 207 项通过，静态分析无问题；根包 456 项、共享 Schema 样例 12 个通过，SmartFit 临时副本 41 项定向回归通过。完整命令与边界见[0.2.0 验证记录](../../docs/trainer-020-verification-2026-10-23.md)。后续批准状态与本次收束仅改文档，复用已验源码证据。
+
+**0.1.7 历史复审：** `flutter test --no-pub` 为 170 项通过，`flutter analyze --no-pub` 为 0 问题，source 为 `b84881f58c035b1fce2ff929cdb207e465821c92`；其与合入提交 `eb29c749a52c1b226841726a3fba8e9f62e9e6be` 整树一致。0.1.7 收束仅调整版本与文档，验证命令和适用性见[维护台账](../../docs/project-ledger.md)。
 
 覆盖引擎、自主计次与换边、节奏与语音队列、保活、结果幂等保存、App 插槽、完成页音频释放及再练、媒体仓库下载/缓存/策略故障注入，以及舞台切换稳定性。`stage_r9_test.dart` 的 17 项回归覆盖剂量持续显示、宿主剂量文案、大字号横竖屏和键盘操作。夹具在 `test/fixtures`；真机帧率和宿主完整训练不在这 170 项离线测试的证明范围内。
 

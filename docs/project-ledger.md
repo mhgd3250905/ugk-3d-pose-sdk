@@ -1,27 +1,26 @@
 # 项目维护台账
 
-更新日期：2026-10-23。仓库：[mhgd3250905/ugk-3d-pose-sdk](https://github.com/mhgd3250905/ugk-3d-pose-sdk)。
+更新日期：2026-10-24。仓库：[mhgd3250905/ugk-3d-pose-sdk](https://github.com/mhgd3250905/ugk-3d-pose-sdk)。
 
 本台账统一记录维护状态、已合并成果、验证证据和待办。包版本、接口行为仍以对应清单和实现为准；发布历史保留在 CHANGELOG。表内 SHA 是核验快照，后续文档提交会推进 main，不能把快照当成永远最新的分支指针。
 
 ## 当前快照
 
-2026-10-23：开哥已批准 `codex/trainer-shared-player` 的 trainer 0.2.0 / coach 0.4.1，main 已快进包含验收提交 `64a54874307449c8685577f8eeb913296b207a7c`。接口见 [trainer 0.2.0](trainer-020-integration.md)，证据见[验证记录](trainer-020-verification-2026-10-23.md)。下表记录此前已合入版本的历史核验快照；当前两个 pubspec 版本为 coach 0.4.1 / trainer 0.2.0，后续收束只更新批准状态文档。FlareLab 接入后做真机验收；SmartFit、HipLab 暂不升级。SmartFit 原 App 保持不动，既有 askUser switch 障碍只在临时副本补齐以验证 trainer。
+2026-10-24 核验：开哥已批准 `codex/trainer-shared-player` 的 trainer 0.2.0 / coach 0.4.1。main 与远端 `refs/heads/main` 均为 `8b60032c2f43fd8e91f8802c8f054a8ecb7cc110`，包含验收提交 `64a54874307449c8685577f8eeb913296b207a7c`。这是本次文档收束前的 Git 快照；收束提交会推进 main，最终 SHA 以交付回执为准。
 
 | 项目 | 已核对状态 |
 |---|---|
-| 主线代码核验快照 | main 已快进包含 coach 0.4.0 验收提交 `8ba0cde60d4fcfb10ff46c65c1558e992c82bac3`，基于 `f577f5724812585fffdd1cd2d0a62dac3f74cdf2`；trainer 仍为 PR #6 的 0.1.7，运行代码未改。后续批准状态文档不改变已验运行源码 |
-| 0.4.0 合入状态 | 分支 `codex/coach-0.4.0-ask-user` 增加 ask_user、跨消息三问计数与先问再排策略；426 项根包测试、分析无问题、6 例真实多轮评测通过。2026-10-23 已获开哥明确批准，main 快进包含验收提交 `8ba0cde`；完整证据与适用范围见 [0.4.0 记录](coach-040-ask-user-eval-2026-10-23.md) |
-| 0.3.3 合入状态 | 基于原 main `b26e4fd`，分支 `codex/coach-033-speed`；已获开哥批准，main 快进包含验收提交 a931a04。377 项 SDK 测试、分析 0 问题，SmartFit 最终六条正确性/性能全通过：计划均 1 步、28.6–36.3 秒，要领 1 步、25.4 秒，无回落 |
-| 0.3.2 集成分支 / 来源（历史） | `codex/coach-agent-032-integration`；按指定源 `9bc392c42222d61d8c57e8dc00373ee165e56e06` 在 main `517fdbef6d9e611eff3f68bc2138f8e00e35c82e` 上 rebase 后补齐 0.3.2，已获批准合入 main；原修复分支保留，后续额外评审文档未作为集成源 |
-| 最初文档对齐 baseline（历史） | `1f8be6edf9c0c57575d963448af379e8fdf8df2a`；来自原文档会话 Cockpit init 记录，已核对为当时 main 且是当前 HEAD 的祖先 |
-| 最初对齐前的 stage delta（历史） | baseline..HEAD 为 0 提交、0 路径；完整工作区 tracked 0、untracked 0；不代表修复分支当前成果 |
-| 根包 | main 为 `ugk_coach` 0.4.0；`publish_to: none`，已合入主线不表示已发布到 pub.dev |
+| 主线代码 | 已批准快进合入并推送；验收源码 `64a54874307449c8685577f8eeb913296b207a7c`，后续 `8b60032c2f43fd8e91f8802c8f054a8ecb7cc110` 只改批准状态文档 |
+| 根包 | `ugk_coach` 0.4.1；新增 PlanSegment 模型、Codec、Validator 和时长支持；本阶段未改 Agent 工具/提示词 |
+| 训练执行 | `ugk_trainer` 0.2.0；唯一组 × 必需侧 × 分段统计、缺省自动计次、一组多段及可选播放器操作，见[接入契约](trainer-020-integration.md) |
 | 推荐入口 | `CoachAgent`；`CoachSession` 保留作 0.2 降级，`CoachAssistant` 为 deprecated 旧接口 |
-| 训练执行 | `ugk_trainer` 当前版本归档为 0.1.7：PR #6 舞台 UI 与 r9 审核修复；沿用 0.1.5 媒体缓存和 0.1.6 internal 预览门禁。完整复审 170 项 Flutter 测试、分析 0 问题，证据绑定 b84881f；旧 126 项为历史 source 的结果 |
-| 版本管理 | main 根 `pubspec.yaml` 管理 coach 0.4.0；训练包自己的 `pubspec.yaml` 仍管理 trainer 0.1.7。两包独立版本且均为 `publish_to: none`。PR 合并、包版本归档、Git 预览 tag 与对外发布是不同状态 |
-| 验收边界 | Coach 0.4.0 的 426 项测试及真实多轮六例绑定验收提交 8ba0cde；历史 0.3.3 的 377 项、定向 App 56 项及真实六条保持原 source 语境。PR #6 的根包 377 项与 trainer 170 项为历史复审证据。App 气泡 UI、真机帧率、原生媒体播放和宿主完整训练未验收 |
-| Cockpit | 原文档会话已接入 working（历史记录）；文档更新不自动结束会话或生成交接 |
+| 版本管理 | 两包各自以 pubspec.yaml 管理版本；均为 `publish_to: none`。本次只对齐已批准版本的记录，没有增加补丁版本、tag 或对外 release |
+| 离线验证 | 验收源码根包 456 项、trainer 207 项、正式 Schema/Codec 12 个共享样例通过，静态分析无问题；详见[验证记录](trainer-020-verification-2026-10-23.md) |
+| SmartFit 回归边界 | 原 App 未改；仅临时副本补既有 askUser 穷举分支并更新自动计次预期后，41 项定向测试通过。不代表整 App 无修改升级或真机验收通过 |
+| App 升级安排 | FlareLab 固定交付的 SDK main 提交接入；SmartFit、HipLab 暂不升级。coach 0.4.0 起的 `AgentEventKind.askUser` 仍要求旧穷举 switch 补分支 |
+| 真机与目录待办 | FlareLab 接入后验收锁屏、来电中断、原生播放；发现 SDK 问题再出补丁。Pose-Hub 的 41 项 rhythm 补齐及目录发布另行安排 |
+| 历史证据 | coach 0.4.0 的 426 项/真实六例、0.3.3 的 377 项及 trainer 0.1.7 的 170 项保留原 source 语境，不作为当前整 App 或真机验收证明 |
+| Cockpit | 当前绑定会话 active；本次保存后只登记一次非终态检查点，不结束会话或生成交接 |
 
 ## 事实来源与文档分工
 
@@ -30,18 +29,21 @@
 | 路径 | 类别 | current / archive-history | 用途与核对结果 |
 |---|---|---|---|
 | [README.md](../README.md) | 项目入口 | current | 当前接入方式与文档入口；区分 Agent、工具版和 JSON 信封旧接口 |
-| [pubspec.yaml](../pubspec.yaml) | 包配置 | current | 根包名 `ugk_coach`、main 0.4.0、禁止 pub.dev 发布 |
+| [pubspec.yaml](../pubspec.yaml) | 包配置 | current | 根包名 `ugk_coach`、main 0.4.1、禁止 pub.dev 发布 |
 | [docs/agent-plan.md](agent-plan.md) | Agent 设计 | current | 0.4 先问再排、工具循环、技能披露、用户记忆和事件；不充当真实服务验收记录 |
-| [CHANGELOG.md](../CHANGELOG.md) | 仓库版本变更记录 | current / history；按包名区分 | 根包 0.4.0，训练包 0.1.7 独立列出；历史测试数和待定项保留原时间语境 |
-| [packages/ugk_trainer/pubspec.yaml](../packages/ugk_trainer/pubspec.yaml) | 训练包配置 | current | trainer 0.1.7，依赖和 `publish_to: none` 保留 |
-| [packages/ugk_trainer/README.md](../packages/ugk_trainer/README.md) | 训练接口与接入约定 | current | 0.1.7 舞台 UI、剂量/字号/键盘行为及媒体接入；明确离线与真机边界 |
-| [packages/ugk_trainer/CHANGELOG.md](../packages/ugk_trainer/CHANGELOG.md) | 训练包版本记录 | current / history | 0.1.7 为最终归档；r1–r9 是历史开发迭代，0.1.5 / 0.1.6 原记录保留 |
-| [0.3.3 提速记录](coach-033-speed-2026-10-21.md) | 实测与合入状态 | current | 记录最终六条前后对比，保留先前性能未达标候选与余额不足尝试，不混用源码版本 |
+| [CHANGELOG.md](../CHANGELOG.md) | 仓库版本变更记录 | current / history；按包名区分 | 根包 0.4.1 / 训练包 0.2.0 为当前记录；历史测试数和待定项保留原时间语境 |
+| [packages/ugk_trainer/pubspec.yaml](../packages/ugk_trainer/pubspec.yaml) | 训练包配置 | current | trainer 0.2.0，依赖和 `publish_to: none` 保留 |
+| [packages/ugk_trainer/README.md](../packages/ugk_trainer/README.md) | 训练接口与接入约定 | current | 0.2.0 统计、自动节奏、分段及播放器接入；明确兼容性与真机边界 |
+| [packages/ugk_trainer/CHANGELOG.md](../packages/ugk_trainer/CHANGELOG.md) | 训练包版本记录 | current / history | 0.2.0 为当前版本；0.1.7 及 r1–r9、0.1.5 / 0.1.6 保留为历史 |
+| [0.2.0 接入契约](trainer-020-integration.md) | 当前接入约定 | current | 统计、自动计次、segments、操作开关、语音素材与平台策略 |
+| [0.2.0 验证记录](trainer-020-verification-2026-10-23.md) | 验收证据 | current | 绑定 64a5487；含 SmartFit 临时副本边界、目录审计和真机待验 |
+| [ask_user](ask-user.md) | Agent 接口 | current | 事件/回答接入及 0.4.0 新枚举对穷举 switch 的破坏性变更 |
+| [0.3.3 提速记录](coach-033-speed-2026-10-21.md) | 实测与合入状态 | archive/history | 记录 0.3.3 最终六条前后对比，保留先前性能未达标候选与余额不足尝试，不混用源码版本 |
 | [docs/design.md](design.md) | 早期设计决策 | archive/history | 标题明确为 ugk_coach 0.1.2，不用它覆盖 0.3 行为或判定外部 PR 的当前状态 |
 | [docs/smoke-2026-10-20.md](smoke-2026-10-20.md) | 历史真实调用 | archive/history | 0.1 / OpenCSG 的一次真实冒烟，不能证明 0.3 Worker 多步链路通过 |
 | [docs/project-ledger.md](project-ledger.md) | 维护与验收台账 | current | 本文；承接当前合并状态、验证适用范围、未决事项和维护规则 |
 
-最初文档对齐没有修改 profile、目录、提示词或依赖。原修复新增推理协议回传及记忆开启指令，本次 0.3.2 在指定源上集成，并补齐请求时限、推理预算口径及逐工具记忆持久化；具体变更见 CHANGELOG。源分支原 Unreleased 的必要事实已归入 0.3.2，原真实验证保留在下方历史小节。
+最初文档对齐没有修改 profile、目录、提示词或依赖。原修复新增推理协议回传及记忆开启指令，历史 0.3.2 在指定源上集成，并补齐请求时限、推理预算口径及逐工具记忆持久化；具体变更见 CHANGELOG。源分支原 Unreleased 的必要事实已归入 0.3.2，原真实验证保留在下方历史小节。
 
 ## 合并记录
 
@@ -61,7 +63,21 @@ PR #4 的复审 head 为 `48417e03f5ff05d4434dc2e15cc36237464153d2`。合并提�
 
 PR #6 在开哥明确同意后合并，两个父提交为原 main `f684e02f38e652633c23fa8946a53d02b6aa3ea2` 与复审 head `b84881f58c035b1fce2ff929cdb207e465821c92`。合并树与复审树一致；后续 0.1.7 版本及文档收束不改运行时代码。0.1.5 / 0.1.6 的媒体功能已在合并前的 main 中，本次不将其冒记为 PR #6 新增。
 
+trainer 0.2.0 / coach 0.4.1 于 2026-10-23 获开哥批准后通过 Git 快进合入 main，验收提交 `64a54874307449c8685577f8eeb913296b207a7c`；批准状态文档提交为 `8b60032c2f43fd8e91f8802c8f054a8ecb7cc110`，2026-10-24 再次核对远端一致。本阶段没有新建 PR。
+
 ## 验证证据与适用范围
+
+### trainer 0.2.0 / coach 0.4.1：版本与文档收束（2026-10-24）
+
+开发基线 `b8f5b82bcf6f4075480fa6fb2382acea4c44b9c0` 来自已保存的分支验证记录，已核对存在且为收束前 HEAD `8b60032c2f43fd8e91f8802c8f054a8ecb7cc110` 的祖先。baseline..HEAD 为 2 个提交、42 个路径：运行代码 12、测试/样例 14、工具 2、schema 1、包清单 2、文档/证据 11。完整 `git status --porcelain=v1 --untracked-files=all` 无输出，tracked/staged/unstaged/deleted/renamed/untracked 均为 0；阶段成果均属于已批准的 SDK 开发。
+
+本次从根 README 的直接声明核对当前事实来源，修正台账仍把 0.4.0 / 0.1.7 写作当前版本的问题，补齐远端快照、App 升级安排与真机待验。两份 pubspec 已是 0.4.1 / 0.2.0；本次保持不变，仅更新文档记录。旧版本记录保留历史语境。
+
+2026-10-23 的验证绑定验收源码 `64a54874307449c8685577f8eeb913296b207a7c`：根目录 `dart test --reporter expanded` 456 项；trainer 目录 `flutter test --no-pub --reporter expanded` 207 项；`dart analyze` / `flutter analyze --no-pub` 无问题；`python tool/check_plan_segment_schema.py` 的 12 个共享案例通过。SmartFit 临时副本定向测试为 41 项，补丁和原 App 未改的边界见[验证记录](trainer-020-verification-2026-10-23.md)。
+
+本次只读 `git diff --name-status 64a54874307449c8685577f8eeb913296b207a7c 8b60032c2f43fd8e91f8802c8f054a8ecb7cc110` 确认差异仅 8 个 Markdown 文件；因此复用已验源码的测试证据，不声称重新执行全套测试。收束只检查文档差异、相对链接、版本一致性、完整工作区与 Git 远端。真机和整 App 验收仍按 SDK-003 / SDK-004 单独安排。
+
+本次文档检查：`git diff --check` 通过；只读 Python stdin 校验确认 72 个本地链接目标存在，两包清单版本一致且未修改，验收源码到当前工作树仍只有 8 个 Markdown 路径差异。保存前完整状态为本次 Agent 修改的 7 个 tracked Markdown 文件、untracked 0；不包含业务代码、测试、依赖或素材变更。
 
 ### ugk_trainer 0.1.7：PR #6 已合并，版本与文档收束（2026-10-23）
 
@@ -147,8 +163,9 @@ SDK 377 项测试与 analyze 0 问题通过；SmartFit 定向 56 项通过（仅
 |---|---|---|---|
 | SDK-001 | 原 source 已验证；0.3.2 真实服务待验 | 0.3 `CoachAgent` 真实 Worker 多步链路 | 上文六类分组验证绑定 `712cb7b` / `43dfef6`；本次 0.3.2 的行为与默认时限已变化，历史记录不能证明新代码树已通过真实 Worker 验收 |
 | SDK-002 | 已知非阻塞 P3 | `_withoutMemory` 的跨消息 ID 过滤：不同步骤复用工具调用 ID 时，后续普通调用和回复可能被误过滤 | 修正按消息配对或缺失 ID 的回退策略后，验证唯一 ID 正常路径及跨步骤复用 ID 场景；当前没有证据证明实际 Worker 会缺失或复用 ID |
-| SDK-003 | SDK 已获批合入；App 待安排 | SDK 0.3.2 / SmartFit 主线集成 | SDK 代码集成提交为 `31fb6f8`；确认 App 固定 ref 为包含修复的 SDK main 具体提交，再独立安排 App main；历史报告随 App 修复分支保存 |
-| SDK-004 | trainer 0.1.7 已合入；宿主真机待验 | 舞台 UI 真机帧率、原生媒体播放及完整训练 | 按宿主支持的设备、主题和训练链路实测；170 项离线测试与 Web 预览不能替代该验收 |
+| SDK-003 | 暂不升级；待 App 后续安排 | SmartFit / HipLab SDK 升级 | 开哥明确暂不升级；SmartFit 聊天流畅度修复与 coach ask_user 气泡后续统一接入，升级时补穷举分支。历史 0.3.2 集成记录不代表 App 当前依赖已更新 |
+| SDK-004 | trainer 0.2.0 已合入；FlareLab 接入后真机验收 | 锁屏计时/播报、来电暂停及手动恢复、原生播放和完整训练 | FlareLab 固定交付 main SHA 后验收；207 项离线测试不能替代真机验证。发现 SDK 问题再出补丁版本 |
+| SDK-005 | Pose-Hub 待安排 | 41 项缺 rhythm 动作补齐并发布目录新版本 | 当前 SDK 缺省节奏可用；固定 51 项目录中未发现需标 selfPaced 的现有动作。未来技术尝试类候选须开哥确认，不能编造动作 ID |
 
 SDK-001 的真实验证只覆盖历史 source；SDK 0.3.2 主线集成已获批准，SDK-003 剩余 App 主线工作待独立安排。SDK-002 未在本次集成中处理，其条件与不阻塞合并的判断见上述 PR #4 复审评论。
 

@@ -4,6 +4,8 @@
 
 **当前 main：trainer 0.2.0 / coach 0.4.1，已获开哥批准合入验收提交 `64a54874307449c8685577f8eeb913296b207a7c`。** 补齐 FlareLab 审计提出的统计修复、缺省自动计次、一组多段和可选操作；[新接入契约](docs/trainer-020-integration.md)及[验证记录](docs/trainer-020-verification-2026-10-23.md)。下方 0.4.0 / 0.1.7 是已合入 main 的历史基线。0.4.0 新增 `AgentEventKind.askUser` 对旧穷举 switch 是破坏性源码变更，升级必须补分支，见 [ask_user 升级提示](docs/ask-user.md)。
 
+FlareLab 按交付回执中的 main 完整提交号固定依赖，并在接入后验收真机锁屏、来电中断和原生播放；发现 SDK 问题再出补丁版本。SmartFit、HipLab 暂不升级。当前版本、远端核验快照与历史证据统一见[项目维护台账](docs/project-ledger.md)。
+
 `ugk_trainer 0.1.7` 已合入 PR #6 的沉浸式舞台播放器：玻璃控件、持续可见的自主计次目标、系统大字号适配及键盘操作。沿用 0.1.5 / 0.1.6 的 `TrainingMediaRepository`、版本化缓存、SHA-256 校验、Wi-Fi 策略和独立 internal flavor 预览门禁。接入、验证边界及按需素材见[训练包文档](packages/ugk_trainer/README.md)。
 
 给 **FlareLab（托马斯训练助手）/ HipLab（开胯训练助手）/ SmartFit（智能健身助手）** 用的同一套助理内核：AI 只从 Pose-Hub 动作目录里挑动作，输出统一的 **TrainingPlan v1**，SDK 负责校验，不合格时回传错误重交，达到对应入口上限后回落到 App 自己的模板；每次模型调用都记账。各 App 只需提供 **profile（侧重/范围）+ 自己的 UI**。

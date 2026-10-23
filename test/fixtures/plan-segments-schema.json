@@ -1,0 +1,14 @@
+[
+  {"name":"legacy timed dose","valid":true,"patch":{"workSeconds":20}},
+  {"name":"legacy missing dose","valid":false,"patch":{}},
+  {"name":"empty segments still need parent dose","valid":false,"patch":{"segments":[]}},
+  {"name":"timed parent with segments only","valid":true,"patch":{"segments":[{"id":"y","exerciseId":"s-butterfly","mode":"time","workSeconds":20}]}},
+  {"name":"reps parent with mixed segments only","valid":true,"patch":{"mode":"reps","segments":[{"id":"y","exerciseId":"s-butterfly","mode":"time","workSeconds":20},{"id":"t","exerciseId":"n-windshield","mode":"reps","reps":4,"holdSeconds":2,"label":"T","rhythm":{"kind":"rep_hold","leadSeconds":0,"phases":[{"id":"go","seconds":1,"cue":["w.up"]},{"id":"hold","seconds":2,"cueAt":0.5}]}}]}},
+  {"name":"bad segment collection","valid":false,"patch":{"segments":{}}},
+  {"name":"missing segment dose","valid":false,"patch":{"segments":[{"id":"y","exerciseId":"s-butterfly","mode":"time"}]}},
+  {"name":"segment owns side","valid":false,"patch":{"segments":[{"id":"y","exerciseId":"s-butterfly","mode":"time","workSeconds":20,"perSide":true}]}},
+  {"name":"segment wrong dose","valid":false,"patch":{"segments":[{"id":"y","exerciseId":"s-butterfly","mode":"time","workSeconds":20,"reps":3}]}},
+  {"name":"segment self paced forbidden","valid":false,"patch":{"segments":[{"id":"y","exerciseId":"n-windshield","mode":"reps","reps":3,"rhythm":{"kind":"self_paced"}}]}},
+  {"name":"segment fractional dose","valid":false,"patch":{"segments":[{"id":"y","exerciseId":"s-butterfly","mode":"time","workSeconds":2.5}]}},
+  {"name":"segment invalid phase","valid":false,"patch":{"segments":[{"id":"y","exerciseId":"n-windshield","mode":"reps","reps":3,"rhythm":{"kind":"rep_updown","phases":[{"id":"go","seconds":0}]}}]}}
+]

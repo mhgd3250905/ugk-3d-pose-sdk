@@ -19,6 +19,7 @@ void main() {
     TrainingPlan plan, {
     Future<void> Function(SessionResult r)? save,
     List<SessionResult>? popped,
+    Map<String, Rhythm> rhythms = const {},
   }) async {
     final saved = <SessionResult>[];
     await tester.pumpWidget(
@@ -31,6 +32,7 @@ void main() {
                   MaterialPageRoute(
                     builder: (_) => TrainerPlayer(
                       plan: plan,
+                      rhythms: rhythms,
                       drillOf: drillOf,
                       strings: TrainerStrings.en(),
                       keepAlive: false,
@@ -187,7 +189,11 @@ void main() {
   });
 
   testWidgets('a self-paced set waits for 完成本组', (tester) async {
-    final saved = await pump(tester, planOf([reps('a', 12)]));
+    final saved = await pump(
+      tester,
+      planOf([reps('a', 12)]),
+      rhythms: {'a': Rhythm.selfPacedReps},
+    );
     await advance(tester, 60);
     expect(find.byKey(const ValueKey('complete-set-button')), findsOneWidget);
     expect(saved, isEmpty);
@@ -271,6 +277,7 @@ void main() {
           MaterialApp(
             home: TrainerPlayer(
               plan: planOf([reps('a', 8), timed('b', 30)]),
+              rhythms: {'a': Rhythm.selfPacedReps},
               drillOf: drillOf,
               strings: TrainerStrings.zh(),
               theme: dark ? TrainerTheme.dark : TrainerTheme.light,

@@ -44,6 +44,8 @@ class SessionPhase {
     this.nextExerciseId,
     this.nextItem,
     this.doneExerciseId,
+    this.segmentId,
+    this.segment,
   });
 
   final PhaseKind kind;
@@ -56,6 +58,36 @@ class SessionPhase {
   /// prep / rest.
   final String? exerciseId;
   final PlanItem? item;
+
+  /// Stable segment identity within [item]; null for legacy single-part items.
+  final String? segmentId;
+  final PlanSegment? segment;
+
+  SessionPhase withSeconds(double value) => SessionPhase(
+    kind: kind,
+    seconds: value,
+    exerciseId: exerciseId,
+    item: item,
+    itemIndex: itemIndex,
+    blockIndex: blockIndex,
+    itemInBlock: itemInBlock,
+    set: set,
+    sets: sets,
+    round: round,
+    rounds: rounds,
+    side: side,
+    blockName: blockName,
+    reps: reps,
+    repSeconds: repSeconds,
+    rhythm: rhythm,
+    selfPaced: selfPaced,
+    holdSeconds: holdSeconds,
+    nextExerciseId: nextExerciseId,
+    nextItem: nextItem,
+    doneExerciseId: doneExerciseId,
+    segmentId: segmentId,
+    segment: segment,
+  );
 
   /// Index of the exercise occurrence in play order (for progress / skip).
   final int itemIndex;
@@ -155,6 +187,7 @@ class SessionBuilder {
     this.transitionSeconds = 15,
     this.selfPacedRepEstimate = 3.0,
     this.switchSecondsFor,
+    this.rhythmDefaults = const RhythmDefaults(),
   });
 
   /// Rhythm by exercise id; missing ids fall back to [Rhythm.forDose].
@@ -170,11 +203,36 @@ class SessionBuilder {
   final int transitionSeconds;
   final double selfPacedRepEstimate;
   final SwitchSeconds? switchSecondsFor;
+  final RhythmDefaults rhythmDefaults;
 
   Rhythm rhythmOf(PlanItem item) =>
-      (rhythms[item.exerciseId] ?? Rhythm.forDose(item.mode)).effectiveFor(
-        item,
-      );
+      (rhythms[item.exerciseId] ??
+              Rhythm.forDose(item.mode, defaults: rhythmDefaults))
+          .effectiveFor(item, defaults: rhythmDefaults);
+
+  Rhythm _segmentRhythm(PlanSegment segment, PlanItem dose) {
+    var rhythm = segment.rhythm != null
+        ? Rhythm.fromJson(segment.rhythm!)
+        : rhythms[dose.exerciseId] ??
+              Rhythm.forDose(
+                dose.mode,
+                defaults: rhythmDefaults,
+                holdSeconds: segment.holdSeconds?.toDouble(),
+              );
+    final hold = segment.holdSeconds;
+    if (hold != null) {
+      // A derived go-only fallback has no hold phase for withHold to alter.
+      // An explicit segment hold supplies rep duration until authored phases exist.
+      rhythm = rhythm.derived && !rhythm.phases.any((p) => p.id == 'hold')
+          ? Rhythm.forDose(
+              dose.mode,
+              defaults: rhythmDefaults,
+              holdSeconds: hold.toDouble(),
+            ).withHold(hold)
+          : rhythm.withHold(hold);
+    }
+    return rhythm.effectiveFor(dose, defaults: rhythmDefaults);
+  }
 
   /// Seconds of one side of one set of [item].
   double workSeconds(PlanItem item, [Rhythm? rhythm]) {
@@ -195,7 +253,25 @@ class SessionBuilder {
       final rounds = circuit ? b.rounds : 1;
       for (var r = 1; r <= rounds; r++) {
         for (final (ii, item) in b.items.indexed) {
-          if (known != null && !known!(item.exerciseId)) continue;
+          final segmentIds = <String>{};
+          for (final segment in item.segments) {
+            if (segment.id.trim().isEmpty || !segmentIds.add(segment.id)) {
+              throw ArgumentError(
+                'Segment ids must be nonempty and unique within an item',
+              );
+            }
+            if (segment.rhythm?['kind'] == 'self_paced') {
+              throw ArgumentError(
+                'self_paced must be supplied by the exercise catalog, not a plan segment',
+              );
+            }
+          }
+          if (known != null &&
+              (item.segments.isEmpty
+                  ? !known!(item.exerciseId)
+                  : item.segments.any((s) => !known!(s.exerciseId)))) {
+            continue;
+          }
           out.add(
             _Occurrence(
               b,
@@ -224,7 +300,10 @@ class SessionBuilder {
       SessionPhase(
         kind: PhaseKind.prep,
         seconds: prepSeconds.toDouble(),
-        exerciseId: f.item.exerciseId,
+        exerciseId:
+            f.item.segments.firstOrNull?.exerciseId ?? f.item.exerciseId,
+        segment: f.item.segments.firstOrNull,
+        segmentId: f.item.segments.firstOrNull?.id,
         item: f.item,
         itemIndex: 0,
         blockIndex: f.blockIndex,
@@ -239,61 +318,72 @@ class SessionBuilder {
     for (var i = 0; i < occ.length; i++) {
       final o = occ[i];
       final item = o.item;
-      final rhythm = rhythmOf(item);
-      final work = workSeconds(item, rhythm);
-      final counted = rhythm.counted;
-      final reps = rhythm.selfPaced
-          ? item.reps
-          : counted
-          ? (item.mode == DoseMode.reps ? item.reps : (rhythm.defaultReps ?? 1))
-          : null;
-      SessionPhase at(PhaseKind kind, double seconds, int s, Side? side) =>
-          SessionPhase(
-            kind: kind,
-            seconds: seconds,
-            exerciseId: item.exerciseId,
-            item: item,
-            itemIndex: i,
-            blockIndex: o.blockIndex,
-            itemInBlock: o.itemInBlock,
-            set: s,
-            sets: o.sets,
-            round: o.round,
-            rounds: o.rounds,
-            side: side,
-            blockName: o.block.name,
-            reps: kind == PhaseKind.work ? reps : null,
-            repSeconds: kind == PhaseKind.work && counted
-                ? rhythm.cycleFor()
-                : null,
-            rhythm: kind == PhaseKind.rest ? null : rhythm,
-            selfPaced: kind == PhaseKind.work && rhythm.selfPaced,
-            holdSeconds: kind == PhaseKind.work ? rhythm.holdSeconds : null,
-          );
       for (var s = 1; s <= o.sets; s++) {
-        final sides = item.perSide ? [Side.right, Side.left] : [null];
-        for (var k = 0; k < sides.length; k++) {
-          if (k > 0) {
-            final side = sides[k]!;
-            final base = switchSideSeconds.toDouble();
-            final widened = switchSecondsFor?.call(item, rhythm, side) ?? base;
-            out.add(
-              at(
-                PhaseKind.switchSide,
-                widened > base ? widened : base,
-                s,
-                side,
-              ),
-            );
+        final segments = item.segments.isEmpty
+            ? <PlanSegment?>[null]
+            : item.segments;
+        for (final segment in segments) {
+          final dose = segment?.toPlanItem(item) ?? item;
+          final rhythm = segment == null
+              ? rhythmOf(item)
+              : _segmentRhythm(segment, dose);
+          final work = workSeconds(dose, rhythm);
+          final counted = rhythm.counted;
+          final reps = rhythm.selfPaced
+              ? dose.reps
+              : counted
+              ? (dose.mode == DoseMode.reps
+                    ? dose.reps
+                    : (rhythm.defaultReps ?? 1))
+              : null;
+          SessionPhase at(PhaseKind kind, double seconds, Side? side) =>
+              SessionPhase(
+                kind: kind,
+                seconds: seconds,
+                exerciseId: dose.exerciseId,
+                item: item,
+                segmentId: segment?.id,
+                segment: segment,
+                itemIndex: i,
+                blockIndex: o.blockIndex,
+                itemInBlock: o.itemInBlock,
+                set: s,
+                sets: o.sets,
+                round: o.round,
+                rounds: o.rounds,
+                side: side,
+                blockName: o.block.name,
+                reps: kind == PhaseKind.work ? reps : null,
+                repSeconds: kind == PhaseKind.work && counted
+                    ? rhythm.cycleFor()
+                    : null,
+                rhythm: rhythm,
+                selfPaced: kind == PhaseKind.work && rhythm.selfPaced,
+                holdSeconds: kind == PhaseKind.work ? rhythm.holdSeconds : null,
+              );
+          final sides = item.perSide ? [Side.right, Side.left] : [null];
+          for (var k = 0; k < sides.length; k++) {
+            if (k > 0) {
+              final side = sides[k]!;
+              final base = switchSideSeconds.toDouble();
+              final widened =
+                  switchSecondsFor?.call(dose, rhythm, side) ?? base;
+              out.add(
+                at(PhaseKind.switchSide, widened > base ? widened : base, side),
+              );
+            }
+            out.add(at(PhaseKind.work, work, sides[k]));
           }
-          out.add(at(PhaseKind.work, work, s, sides[k]));
         }
         if (s < o.sets) {
           out.add(
             SessionPhase(
               kind: PhaseKind.rest,
               seconds: item.restSeconds.toDouble(),
-              exerciseId: item.exerciseId,
+              exerciseId:
+                  item.segments.firstOrNull?.exerciseId ?? item.exerciseId,
+              segment: item.segments.firstOrNull,
+              segmentId: item.segments.firstOrNull?.id,
               item: item,
               itemIndex: i,
               blockIndex: o.blockIndex,
@@ -320,7 +410,10 @@ class SessionBuilder {
           SessionPhase(
             kind: roundBoundary ? PhaseKind.roundRest : PhaseKind.rest,
             seconds: restLen.toDouble(),
-            exerciseId: n.item.exerciseId,
+            exerciseId:
+                n.item.segments.firstOrNull?.exerciseId ?? n.item.exerciseId,
+            segment: n.item.segments.firstOrNull,
+            segmentId: n.item.segments.firstOrNull?.id,
             item: n.item,
             itemIndex: i + 1,
             blockIndex: n.blockIndex,
@@ -357,7 +450,7 @@ enum PhaseExit {
   /// Its time ran out.
   natural,
 
-  /// 完成本组 on a self-paced set.
+  /// User completion of a self-paced set or a timed work phase.
   completed,
 
   /// 跳过.
@@ -387,6 +480,8 @@ class PhaseVisit {
 /// phase, so dropped frames, a throttled timer or a stretch in the
 /// background never drift the count.
 class SessionEngine {
+  /// Only absorbs floating-point arithmetic error, never a visible timer tick.
+  static const phaseEndTolerance = 1e-9;
   SessionEngine(List<SessionPhase> phases)
     : _phases = List.unmodifiable(phases),
       initialWorkPhases = List.unmodifiable(phases.where((p) => p.isWork)) {
@@ -394,6 +489,7 @@ class SessionEngine {
       _requiredWork.putIfAbsent(phase.itemIndex, () => {}).add((
         phase.set,
         phase.side,
+        phase.segmentId,
       ));
     }
   }
@@ -407,7 +503,7 @@ class SessionEngine {
   bool _enteredBySkip = false;
   int? _completedOnEarlyEnd;
   final List<PhaseVisit> _visits = [];
-  final Map<int, Set<(int, Side?)>> _requiredWork = {};
+  final Map<int, Set<(int, Side?, String?)>> _requiredWork = {};
 
   /// Bumped every time the phase changes (for listeners).
   int generation = 0;
@@ -442,16 +538,17 @@ class SessionEngine {
   int get completedExercises =>
       _completedOnEarlyEnd ?? phase.itemIndex.clamp(0, 1 << 30);
 
-  /// Exercises whose originally required sets/sides actually finished.
+  /// Exercises whose originally required sets/sides/segments actually finished.
   /// [completedExercises] is a navigation position and includes skipped items.
   int get fullyCompletedExercises {
-    final finished = <int, Set<(int, Side?)>>{};
+    final finished = <int, Set<(int, Side?, String?)>>{};
     for (final v in _visits) {
       if (v.phase.isWork &&
           (v.exit == PhaseExit.natural || v.exit == PhaseExit.completed)) {
         finished.putIfAbsent(v.phase.itemIndex, () => {}).add((
           v.phase.set,
           v.phase.side,
+          v.phase.segmentId,
         ));
       }
     }
@@ -471,7 +568,9 @@ class SessionEngine {
   /// self-paced set holds the clock until [completeSet].
   bool update(double t) {
     var changed = false;
-    while (!done && !phase.selfPaced && t - _phaseStart >= phase.seconds) {
+    while (!done &&
+        !phase.selfPaced &&
+        t + phaseEndTolerance >= _phaseStart + phase.seconds) {
       final end = _phaseStart + phase.seconds;
       _leave(end, PhaseExit.natural);
       _phaseStart = end;
@@ -492,6 +591,62 @@ class SessionEngine {
     _phaseStart = t;
     _enteredBySkip = false;
     generation++;
+    return true;
+  }
+
+  /// Finish the current timed work phase early. Counted reps and explicit
+  /// self-paced work keep their own completion rules.
+  bool completeTimedPhase(double t) {
+    // A click arriving at the boundary belongs to the phase just shown;
+    // never complete the newly entered work phase as well.
+    if (update(t)) return false;
+    if (!phase.isWork || phase.selfPaced || phase.countedOnClock) return false;
+    _leave(t, PhaseExit.completed);
+    _index++;
+    _phaseStart = t;
+    _enteredBySkip = false;
+    generation++;
+    return true;
+  }
+
+  /// Add active seconds to the current rest without restarting its clock.
+  bool extendRest(double t, {double seconds = 15}) {
+    if (!seconds.isFinite || seconds <= 0) {
+      throw ArgumentError.value(
+        seconds,
+        'seconds',
+        'must be finite and positive',
+      );
+    }
+    if (update(t)) return false;
+    if (phase.kind != PhaseKind.rest && phase.kind != PhaseKind.roundRest) {
+      return false;
+    }
+    final updated = _phases.toList();
+    updated[_index] = phase.withSeconds(phase.seconds + seconds);
+    _phases = List.unmodifiable(updated);
+    generation++;
+    return true;
+  }
+
+  /// Skip the remaining sides of this segment, retaining the other segments
+  /// and sets. A legacy item without segments is unaffected.
+  bool skipSegment(double t) {
+    if (update(t)) return false;
+    if (done ||
+        phase.segmentId == null ||
+        (!phase.isWork && phase.kind != PhaseKind.switchSide)) {
+      return false;
+    }
+    final current = phase;
+    var target = _index + 1;
+    while (target < _phases.length - 1 &&
+        _phases[target].itemIndex == current.itemIndex &&
+        _phases[target].set == current.set &&
+        _phases[target].segmentId == current.segmentId) {
+      target++;
+    }
+    _jump(target, t, PhaseExit.skipped);
     return true;
   }
 

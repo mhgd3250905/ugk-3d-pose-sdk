@@ -1,0 +1,17 @@
+--- original/lib/chat/chat_controller.dart
++++ temporary-probe/lib/chat/chat_controller.dart
+@@ -76,0 +77 @@
++        coach.AgentEventKind.askUser => null,
+--- original/test/trainer_integration_test.dart
++++ temporary-probe/test/trainer_integration_test.dart
+@@ -131 +131 @@
+-    'missing repSeconds waits in the actual App player until completed',
++    'missing repSeconds automatically completes in the actual App player',
+@@ -150,6 +150 @@
+-      expect(find.byKey(const ValueKey('complete-set-button')), findsOneWidget);
+-      expect(find.text('训练完成！'), findsNothing);
+-      expect(s.store.sessionResults, isEmpty);
+-      expect(s.store.history, isEmpty);
+-      await tester.tap(find.byKey(const ValueKey('complete-set-button')));
+-      await _advance(tester, 2);
++      expect(find.byKey(const ValueKey('complete-set-button')), findsNothing);

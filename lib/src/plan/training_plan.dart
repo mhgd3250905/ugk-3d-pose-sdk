@@ -20,6 +20,54 @@ enum BlockType {
   static BlockType? tryParse(Object? s) => values.where((v) => v.name == s).firstOrNull;
 }
 
+/// One ordered part of a set. Group count, sides and rest belong to its
+/// parent item; [exerciseId] resolves this part's media and voice material.
+class PlanSegment {
+  const PlanSegment({
+    required this.id,
+    required this.exerciseId,
+    required this.mode,
+    this.reps,
+    this.workSeconds,
+    this.holdSeconds,
+    this.label,
+    this.rhythm,
+  });
+
+  final String id;
+  final String exerciseId;
+  final DoseMode mode;
+  final int? reps;
+  final int? workSeconds;
+  final int? holdSeconds;
+  final String? label;
+
+  /// Catalog-compatible rhythm data, interpreted by the trainer package.
+  final Map<String, dynamic>? rhythm;
+
+  PlanItem toPlanItem(PlanItem parent) => PlanItem(
+    exerciseId: exerciseId,
+    mode: mode,
+    sets: parent.sets,
+    reps: reps,
+    workSeconds: workSeconds,
+    perSide: parent.perSide,
+    restSeconds: parent.restSeconds,
+    note: parent.note,
+  );
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'exerciseId': exerciseId,
+    'mode': mode.name,
+    'reps': ?reps,
+    'workSeconds': ?workSeconds,
+    'holdSeconds': ?holdSeconds,
+    'label': ?label,
+    'rhythm': ?rhythm,
+  };
+}
+
 class PlanItem {
   const PlanItem({
     required this.exerciseId,
@@ -31,6 +79,7 @@ class PlanItem {
     required this.restSeconds,
     this.note,
     this.replacedFrom,
+    this.segments = const [],
   });
 
   final String exerciseId;
@@ -51,18 +100,30 @@ class PlanItem {
   final String? note;
   final String? replacedFrom;
 
-  PlanItem copyWith({int? sets, int? reps, int? workSeconds, bool? perSide, int? restSeconds, String? exerciseId}) =>
-      PlanItem(
-        exerciseId: exerciseId ?? this.exerciseId,
-        mode: mode,
-        sets: sets ?? this.sets,
-        reps: reps ?? this.reps,
-        workSeconds: workSeconds ?? this.workSeconds,
-        perSide: perSide ?? this.perSide,
-        restSeconds: restSeconds ?? this.restSeconds,
-        note: note,
-        replacedFrom: replacedFrom,
-      );
+  /// If present, these ordered parts replace the parent work dose in every
+  /// set. The item remains a single displayed/statistical exercise.
+  final List<PlanSegment> segments;
+
+  PlanItem copyWith({
+    int? sets,
+    int? reps,
+    int? workSeconds,
+    bool? perSide,
+    int? restSeconds,
+    String? exerciseId,
+    List<PlanSegment>? segments,
+  }) => PlanItem(
+    exerciseId: exerciseId ?? this.exerciseId,
+    mode: mode,
+    sets: sets ?? this.sets,
+    reps: reps ?? this.reps,
+    workSeconds: workSeconds ?? this.workSeconds,
+    perSide: perSide ?? this.perSide,
+    restSeconds: restSeconds ?? this.restSeconds,
+    note: note,
+    replacedFrom: replacedFrom,
+    segments: segments ?? this.segments,
+  );
 
   Map<String, Object?> toJson() => {
     'exerciseId': exerciseId,
@@ -74,6 +135,7 @@ class PlanItem {
     'restSeconds': restSeconds,
     'note': ?note,
     'replacedFrom': ?replacedFrom,
+    if (segments.isNotEmpty) 'segments': [for (final s in segments) s.toJson()],
   };
 }
 
@@ -146,7 +208,9 @@ class TrainingPlan {
   final List<String> safetyNotes;
 
   Iterable<PlanItem> get items => blocks.expand((b) => b.items);
-  Set<String> get exerciseIds => {for (final i in items) i.exerciseId};
+  Set<String> get exerciseIds => {
+    for (final i in items) ...[i.exerciseId, for (final s in i.segments) s.exerciseId],
+  };
 
   TrainingPlan copyWith({
     String? id,
@@ -228,8 +292,12 @@ class PlanDuration {
           if (!first) total += transitionSeconds;
           first = false;
           final sides = i.perSide ? 2 : 1;
-          final work = i.mode == DoseMode.reps ? (i.reps ?? 10) * repSeconds(d) : (i.workSeconds ?? 30).toDouble();
-          total += i.sets * (work * sides + (sides == 2 ? switchSideSeconds : 0)) + (i.sets - 1) * i.restSeconds;
+          final work = i.segments.isEmpty
+              ? (i.mode == DoseMode.reps ? (i.reps ?? 10) * repSeconds(d) : (i.workSeconds ?? 30).toDouble())
+              : i.segments.fold(0.0, (sum, s) => sum + _segmentSeconds(s, c));
+          final switches = i.segments.isEmpty ? 1 : i.segments.length;
+          total +=
+              i.sets * (work * sides + (sides == 2 ? switchSideSeconds * switches : 0)) + (i.sets - 1) * i.restSeconds;
         }
         if (r < b.rounds - 1) {
           total += b.restBetweenRoundsSeconds > transitionSeconds ? b.restBetweenRoundsSeconds : transitionSeconds;
@@ -237,5 +305,30 @@ class PlanDuration {
       }
     }
     return total;
+  }
+
+  double _segmentSeconds(PlanSegment s, Catalog c) {
+    if (s.mode == DoseMode.time) return (s.workSeconds ?? 30).toDouble();
+    final rhythm = s.rhythm ?? c[s.exerciseId]?.raw['rhythm'];
+    if (rhythm is Map && rhythm['phases'] is List) {
+      final phases = rhythm['phases'] as List;
+      final derived = rhythm['source'] == 'repSeconds' || rhythm['source'] == 'dose';
+      if (s.holdSeconds != null && derived && !phases.any((p) => p is Map && p['id'] == 'hold')) {
+        return (s.reps ?? 10) * s.holdSeconds!.toDouble();
+      }
+      var cycle = 0.0;
+      for (final phase in phases) {
+        if (phase is! Map) continue;
+        final hold = s.holdSeconds ?? rhythm['holdSeconds'];
+        final seconds = phase['id'] == 'hold' && hold is num ? hold : phase['seconds'];
+        if (seconds is num) cycle += seconds.toDouble();
+      }
+      if (cycle > 0) {
+        final lead = rhythm['leadSeconds'];
+        return (lead is num ? lead.toDouble() : 1) + (s.reps ?? 10) * cycle;
+      }
+    }
+    final d = c[s.exerciseId];
+    return (s.reps ?? 10) * (s.holdSeconds?.toDouble() ?? (d == null ? defaultRepSeconds : repSeconds(d)));
   }
 }

@@ -1,8 +1,10 @@
-# ugk_trainer 0.1.7
+# ugk_trainer 0.2.0
+
+0.2.0 分支待开哥批准：修复组/侧/分段统计与浮点推进，补充无节奏动作自动报数、`PlanItem.segments` 和 App 可选操作。新行为、语音清单、后台/中断策略与 SmartFit 回归边界见 [0.2.0 接入契约](../../docs/trainer-020-integration.md)及[验证记录](../../docs/trainer-020-verification-2026-10-23.md)。
 
 三 App（托马斯 3D-Body / 开胯 HipLab / SmartFit）共用的跟练模块。方案见仓库根目录 `docs/trainer-plan.md`。
 
-当前包版本以 [pubspec.yaml](pubspec.yaml) 为准，版本历史见 [CHANGELOG.md](CHANGELOG.md)，合并与验证记录见[项目维护台账](../../docs/project-ledger.md)。本包与根包 `ugk_coach` 0.3.3 独立管理版本；`publish_to: none`，版本归档不表示 pub.dev 发布。
+当前包版本以 [pubspec.yaml](pubspec.yaml) 为准，版本历史见 [CHANGELOG.md](CHANGELOG.md)，合并与验证记录见[项目维护台账](../../docs/project-ledger.md)。本包与根包 `ugk_coach` 0.4.1 独立管理版本；`publish_to: none`，版本归档不表示 pub.dev 发布。
 
 | 层 | 内容 | 来源 |
 |---|---|---|
@@ -62,7 +64,7 @@ final result = await Navigator.of(context).push<SessionResult>(
    - SmartFit：`DrillPackVoiceSource.load(rootBundle.loadString)`，读 `assets/packs/index.json` + 各包 `pack.json`。
    - 托马斯：复用其中一种（中/英）；`VoiceSettings.language` 填语音语言代码。素材里没有该语言时（其余 10 种）自动降级为只有提示音 + 屏幕倒数，不会说半句话（决定 B）。
    - 输出用一个 App 级 `JustAudioVoiceOutput()`（App 退出时 `dispose()`）。iOS 锁屏保活靠它循环本包的静音片段，Info.plist 需有 `UIBackgroundModes: audio`。
-2. **动作节奏 Rhythm**（决定 C）：`rhythmsFromCatalog(catalog, overrides: …)`。优先级：目录 `rhythm` 字段（Pose-Hub 目录 0.3.0，另做）> HipLab action kit（`Rhythm.fromActionKitJson`，作 overrides 传入）> 视频 `repSeconds`（SmartFit，按拍尾计数）> 按剂量缺省（time → 计时保持，reps → 自主计次，用户点「完成本组」，决定 A）。rep_hold 的停留秒数用 `rhythm.withHold(n)`。
+2. **动作节奏 Rhythm**：`rhythmsFromCatalog(catalog, overrides: …, defaults: …)`。优先级为 App overrides（含 HipLab action kit）> 目录 rhythm > defaultDose.holdSeconds > 明确的 repSeconds > `RhythmDefaults`。无节奏 reps 默认自动按 3 秒/次报数、完成；time 仍计时。自主完成仅显式 self_paced；视频循环长度不作为单次时长。rep_hold 的停留秒数用 `rhythm.withHold(n)`，详细覆盖规则见 0.2.0 接入契约。
 3. **TrainerStrings**：播放页全部文案（含安卓常驻通知文字）。`TrainerStrings.zh()` / `.en()` 是 SmartFit 文案的起点，托马斯 12 语言自己传。
 4. **TrainerTheme**：颜色/字体 token；`TrainerTheme.dark` / `.light` 为 SmartFit 值。
 5. **drillOf**：动作名（App 语言）、休息时显示的要点、示范 `DrillMedia`（`videoAsset` / `posterAsset` 为 App 资源键，可带浅色版）。返回 null 的动作不进训练。

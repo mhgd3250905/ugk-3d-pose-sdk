@@ -357,8 +357,10 @@ void main() {
       ).finish(engine, activeSeconds: 15);
       expect(result.items.single.plannedSideSets, {'right': 3, 'left': 2});
       expect(result.items.single.completedSideSets, {'right': 3, 'left': 2});
-      expect(result.items.single.plannedSets, 2);
-      expect(result.items.single.completedSets, 2);
+      // Two bilateral sets plus one required right-only set in the actual
+      // initial arrangement. Replaying them does not create more sets.
+      expect(result.items.single.plannedSets, 3);
+      expect(result.items.single.completedSets, 3);
       expect(result.completedExercises, 1);
       final decoded = SessionResult.fromJson(result.toJson());
       expect(decoded.items.single.completedSideSets, {'right': 3, 'left': 2});

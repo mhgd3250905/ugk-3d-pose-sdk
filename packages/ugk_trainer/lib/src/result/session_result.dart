@@ -98,7 +98,7 @@ class ItemResult {
   final int blockIndex;
   final int itemInBlock;
 
-  /// sets × rounds.
+  /// Unique required sets in the initial arrangement (normally sets × rounds).
   final int plannedSets;
   final int completedSets;
 
@@ -273,8 +273,8 @@ class SessionRecorder {
     );
   }
 
-  /// Per-item stats from the engine's visit log: a set counts when its last
-  /// side's work ran out or was completed (完成本组).
+  /// Unique sets complete only after every originally required side and
+  /// segment completes. Repeated visits add time, never extra completed sets.
   static List<ItemResult> itemsOf(TrainingPlan plan, SessionEngine engine) {
     final out = <ItemResult>[];
     for (final (bi, b) in plan.blocks.indexed) {
@@ -285,74 +285,83 @@ class SessionRecorder {
           (v) => v.phase.blockIndex == bi && v.phase.itemInBlock == ii,
         );
         final work = mine.where((v) => v.phase.isWork).toList();
-        final sideRequirements = <(int, Side), int>{};
+        final requirements = <(int, int), Set<(Side?, String?)>>{};
         for (final phase in engine.initialWorkPhases) {
-          if (phase.blockIndex != bi ||
-              phase.itemInBlock != ii ||
-              phase.side == null) {
-            continue;
-          }
-          final key = (phase.itemIndex, phase.side!);
-          final n = phase.sets > 0 ? phase.sets : 1;
-          if (n > (sideRequirements[key] ?? 0)) sideRequirements[key] = n;
-        }
-        final sideCompleted = <Side, Set<(int, int)>>{};
-        for (final visit in work) {
-          final phase = visit.phase;
-          if (phase.side == null ||
-              (visit.exit != PhaseExit.natural &&
-                  visit.exit != PhaseExit.completed)) {
-            continue;
-          }
-          sideCompleted.putIfAbsent(phase.side!, () => {}).add((
-            phase.itemIndex,
-            phase.set,
+          if (phase.blockIndex != bi || phase.itemInBlock != ii) continue;
+          requirements.putIfAbsent((phase.itemIndex, phase.set), () => {}).add((
+            phase.side,
+            phase.segmentId,
           ));
         }
-        var completed = 0;
-        for (final v in work) {
-          final lastSide = !item.perSide || v.phase.side == Side.left;
-          if (lastSide &&
-              (v.exit == PhaseExit.natural || v.exit == PhaseExit.completed)) {
-            completed++;
+        final finished = <(int, int), Set<(Side?, String?)>>{};
+        for (final visit in work) {
+          if (visit.exit != PhaseExit.natural &&
+              visit.exit != PhaseExit.completed) {
+            continue;
+          }
+          final phase = visit.phase;
+          finished.putIfAbsent((phase.itemIndex, phase.set), () => {}).add((
+            phase.side,
+            phase.segmentId,
+          ));
+        }
+        final completed = requirements.entries
+            .where((e) => finished[e.key]?.containsAll(e.value) ?? false)
+            .length;
+        final sideRequirements = <Side, Set<(int, int)>>{};
+        final sideCompleted = <Side, Set<(int, int)>>{};
+        for (final entry in requirements.entries) {
+          for (final side in Side.values) {
+            final required = entry.value.where((v) => v.$1 == side).toSet();
+            if (required.isEmpty) continue;
+            sideRequirements.putIfAbsent(side, () => {}).add(entry.key);
+            if (finished[entry.key]?.containsAll(required) ?? false) {
+              sideCompleted.putIfAbsent(side, () => {}).add(entry.key);
+            }
           }
         }
-        if (completed > planned) completed = planned;
         final skipped = mine.any(
           (v) =>
               (v.phase.isWork || v.phase.kind == PhaseKind.switchSide) &&
               v.exit == PhaseExit.skipped,
         );
-        final status = completed >= planned
+        final requiredSets = requirements.isEmpty
+            ? planned
+            : requirements.length;
+        final status = completed >= requiredSets
             ? ItemStatus.completed
-            : skipped
+            : skipped &&
+                  item.segments.isEmpty &&
+                  !work.any((v) => v.phase.segmentId != null)
             ? ItemStatus.skipped
             : work.isEmpty
             ? ItemStatus.notReached
             : ItemStatus.partial;
-        final ids = work.map((v) => v.phase.exerciseId).whereType<String>();
+        final ids = work
+            .map(
+              (v) => v.phase.segmentId != null
+                  ? v.phase.item?.exerciseId ?? v.phase.exerciseId
+                  : v.phase.exerciseId,
+            )
+            .whereType<String>();
         final actual = ids.isEmpty ? item.exerciseId : ids.last;
         out.add(
           ItemResult(
             exerciseId: actual,
             blockIndex: bi,
             itemInBlock: ii,
-            plannedSets: planned,
+            plannedSets: requiredSets,
             completedSets: completed,
             activeSeconds: work.fold(0.0, (s, v) => s + v.seconds),
             status: status,
             replacedFrom: actual != item.exerciseId ? item.exerciseId : null,
             plannedSideSets: {
-              for (final side in Side.values)
-                if (sideRequirements.keys.any((key) => key.$2 == side))
-                  side.name: sideRequirements.entries
-                      .where((e) => e.key.$2 == side)
-                      .fold(0, (sum, e) => sum + e.value),
+              for (final e in sideRequirements.entries)
+                e.key.name: e.value.length,
             },
             completedSideSets: {
-              for (final side in Side.values)
-                if (sideRequirements.keys.any((key) => key.$2 == side))
-                  side.name: sideCompleted[side]?.length ?? 0,
+              for (final side in sideRequirements.keys)
+                side.name: sideCompleted[side]?.length ?? 0,
             },
           ),
         );

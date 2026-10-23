@@ -197,7 +197,9 @@ class SessionScript {
       case PhaseKind.work:
         return _work(p);
       case PhaseKind.switchSide:
-        final item = p.item;
+        final item = p.item == null
+            ? null
+            : p.segment?.toPlanItem(p.item!) ?? p.item;
         final clips = item == null
             ? _strip([
                 'chime.end',
@@ -253,7 +255,14 @@ class SessionScript {
     ], CuePriority.info);
     final id = p.exerciseId;
     if (id != null && p.item != null) {
-      t.place(_preview(VoiceCall.first, id, p.item!), CuePriority.info);
+      t.place(
+        _preview(
+          VoiceCall.first,
+          id,
+          p.segment?.toPlanItem(p.item!) ?? p.item!,
+        ),
+        CuePriority.info,
+      );
       final c = cueKeys(id);
       if (c.isNotEmpty) {
         t.place([
@@ -307,7 +316,7 @@ class SessionScript {
       final previews = _preview(
         VoiceCall.next,
         id,
-        p.item!,
+        p.segment?.toPlanItem(p.item!) ?? p.item!,
         withSets: p.rounds == 0,
       );
       final cues = cueKeys(id);
@@ -370,12 +379,19 @@ class SessionScript {
     final rhythm = p.rhythm ?? Rhythm.timedHold;
     final v = kit(id);
     final firstSide = p.side == Side.right;
-    final goKey = v != null && _has(v.go)
-        ? v.go
-        : call(firstSide ? VoiceCall.goRight : VoiceCall.go) ??
-              call(VoiceCall.go);
+    final segmentName = p.segment == null || id == null
+        ? null
+        : own(id, DrillLine.name);
+    final goKey =
+        segmentName ??
+        (v != null && _has(v.go)
+            ? v.go
+            : call(firstSide ? VoiceCall.goRight : VoiceCall.go) ??
+                  call(VoiceCall.go));
     if (p.selfPaced) return _selfPaced(p, id, goKey);
-    if (rhythm.counted && !rhythm.derived) return _rhythmCues(p, rhythm, v);
+    if (rhythm.counted && !rhythm.derived) {
+      return _rhythmCues(p, rhythm, v, startClip: segmentName);
+    }
     if (rhythm.counted) return _derivedCues(p, id, goKey);
     return _hold(p, id, goKey, v);
   }
@@ -404,16 +420,29 @@ class SessionScript {
     final w = p.seconds;
     final reps = p.reps ?? 0;
     final rep = p.repSeconds ?? 3;
+    final defaults = p.rhythm?.source == RhythmSource.dose;
+    // The clock owns every default-paced rep. A long App segment name or
+    // start phrase must yield to the first count, never suppress it.
+    if (defaults && go != null && len([go]) + .3 > rep - .45) {
+      go = null;
+    }
     final t = _Timeline(this, limit: w)
       ..fix(VoiceCue(0, ['chime.start', ?go], CuePriority.call));
     final goLen = go == null ? 0.0 : len([go]);
-    if (rep >= 1.6) {
+    if (rep >= 1.6 || defaults) {
       for (var k = 1; k <= reps; k++) {
         final n = source.number(k);
-        if (!whole(n)) continue;
-        final at = (k * rep - .45).clamp(0.0, w - len(n) - .05);
-        if (at < goLen + .3 || at >= w) continue;
-        t.fix(VoiceCue(at, n, CuePriority.count));
+        final clips = whole(n) && (!defaults || len(n) + .05 <= rep)
+            ? n
+            : _strip(['chime.tick']);
+        if (clips.isEmpty) continue;
+        final end = (w - len(clips) - .05).clamp(0.0, w);
+        final at = (k * rep - (defaults ? .45.clamp(0.0, rep / 2) : .45)).clamp(
+          0.0,
+          end,
+        );
+        if ((!defaults || go != null) && at < goLen + .3 || at >= w) continue;
+        t.fix(VoiceCue(at, clips, CuePriority.count));
       }
     } else if (reps >= 6) {
       final slow = call(VoiceCall.slow);
@@ -451,7 +480,12 @@ class SessionScript {
   /// count with the go word ("一，起"), the back word at the return
   /// ("落"), 3-2-1 inside holds of 6 s or more; rep k starts on a fixed
   /// beat and the last rep ends exactly when the phase ends.
-  List<VoiceCue> _rhythmCues(SessionPhase p, Rhythm rhythm, KitVoice? v) {
+  List<VoiceCue> _rhythmCues(
+    SessionPhase p,
+    Rhythm rhythm,
+    KitVoice? v, {
+    String? startClip,
+  }) {
     final plan = rhythm.repPlan(
       reps: p.reps,
       hold: p.holdSeconds,
@@ -471,7 +505,10 @@ class SessionScript {
     }
 
     final raw = <VoiceCue>[
-      VoiceCue(0, ['chime.start', ?go], CuePriority.call),
+      VoiceCue(0, [
+        'chime.start',
+        if (startClip == null) ?go,
+      ], CuePriority.call),
     ];
     for (var k = 1; k <= plan.reps; k++) {
       var t = plan.repStart(0, k);
@@ -481,7 +518,13 @@ class SessionScript {
         if (i == 0) {
           raw.add(
             VoiceCue(t, [
+              // A segment name and its first count are one utterance, so
+              // the count cannot preempt the name at the same timestamp.
+              if (k == 1) ?startClip,
               ?(last ? lastRep : count(k)),
+              if ((last ? lastRep : count(k)) == null &&
+                  (word == null || !_has(word)))
+                'chime.tick',
               ?word,
             ], CuePriority.count),
           );

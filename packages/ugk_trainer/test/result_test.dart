@@ -89,7 +89,9 @@ void main() {
 
   test('self-paced sets count when completed', () {
     final p = planOf([reps('thomas-curl', 12, sets: 2)]);
-    final e = SessionEngine(SessionBuilder().phases(p));
+    final e = SessionEngine(
+      SessionBuilder(rhythms: {'thomas-curl': Rhythm.selfPacedReps}).phases(p),
+    );
     e.update(10.5);
     e.completeSet(30);
     e.update(30 + 20 + .1);

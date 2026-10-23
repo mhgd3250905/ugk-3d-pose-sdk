@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 — 2026-10-23（分支待批准）
+
+- Count unique sets only after all required sides and segments finish. Replayed visits accumulate time without replacing an unfinished set. Item and session completion share the original phase requirements; phase-end comparison absorbs floating-point error.
+- Missing reps rhythms now use public `RhythmDefaults` (3 seconds per rep, per-category overrides, hold duration when provided), with automatic counts and group completion. Explicit catalog `self_paced` and existing App-authored self-paced rhythms remain supported. Video loop duration is never a rep duration.
+- Support `PlanItem.segments` from ugk_coach 0.4.1: ordered media/rhythm/dose per segment, one parent item in UI and results, skipped segments are partial. Existing plans and constructor calls remain supported.
+- Optional player controls: extend rest by 15 seconds, complete a timed work phase early, toggle sound, and skip a segment. Interruptions pause until the user resumes; unsupported voice languages fall back to App-provided chimes.
+- Full contract, platform setup, compatibility limits and verification evidence: [0.2.0 integration](../../docs/trainer-020-integration.md). Root 0.4.0's previously added `AgentEventKind.askUser` requires old exhaustive switches to add a branch; this trainer change does not repair App chat code automatically.
+
 ## 0.1.7 — 2026-10-23
 
 - Integrate the immersive trainer stage and liquid-glass controls from [PR #6](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/6). The reviewed head is `b84881f58c035b1fce2ff929cdb207e465821c92`; main merge `eb29c749a52c1b226841726a3fba8e9f62e9e6be` has the same tree.

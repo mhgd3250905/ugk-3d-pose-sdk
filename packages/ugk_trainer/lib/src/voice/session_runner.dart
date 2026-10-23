@@ -87,6 +87,30 @@ class SessionRunner {
     _load();
   }
 
+  bool skipSegment(double t) {
+    if (!engine.skipSegment(t)) return false;
+    _load();
+    return true;
+  }
+
+  bool completeTimedPhase(double t) {
+    if (!engine.completeTimedPhase(t)) return false;
+    _load();
+    return true;
+  }
+
+  /// Move the remaining countdown without replaying the rest introduction
+  /// or a countdown tick already passed at the moment of extension.
+  bool extendRest(double t, {double seconds = 15}) {
+    if (!engine.extendRest(t, seconds: seconds)) return false;
+    _load();
+    final local = t - engine.phaseStart;
+    for (var i = 0; i < _cues.length; i++) {
+      if (_cues[i].at <= local + 1e-9) _fired.add(i);
+    }
+    return true;
+  }
+
   void finish(double t) {
     engine.finish(t);
     _load();

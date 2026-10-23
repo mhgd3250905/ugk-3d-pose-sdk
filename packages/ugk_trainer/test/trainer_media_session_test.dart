@@ -175,6 +175,28 @@ void main() {
     await output.events.close();
   });
 
+  testWidgets(
+    'ending a call during a discomfort dialog still needs manual resume',
+    (tester) async {
+      final output = _InterruptibleOutput();
+      final answer = Completer<DiscomfortDecision?>();
+      await open(tester, output, discomfort: () => answer.future);
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('discomfort')));
+      await tester.pump();
+      output.events.add(AudioInterruption.began);
+      output.events.add(AudioInterruption.ended);
+      answer.complete(null);
+      await tester.pump();
+      expect(args(states().last)['paused'], isTrue);
+      await tester.tap(find.byKey(const ValueKey('pause')));
+      await tester.pump();
+      expect(args(states().last)['paused'], isFalse);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await output.events.close();
+    },
+  );
+
   testWidgets('pending old pause reply cannot alter a quick replay owner', (
     tester,
   ) async {

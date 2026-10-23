@@ -3,11 +3,8 @@
 // HipLab@99fcc83 lib/hip/domain/action_kit.dart (ActionKit), unchanged.
 // Pure Dart.
 //
-// Where a rhythm comes from (decision C, 2026-10-20), in this order:
-//   1. Pose-Hub catalog field `rhythm` (catalog 0.3.0, [Rhythm.fromJson]);
-//   2. a HipLab action kit file ([Rhythm.fromActionKitJson]);
-//   3. a clip's `repSeconds` ([Rhythm.fromRepSeconds], SmartFit);
-//   4. the dose: time → timed hold, reps → self-paced ([Rhythm.forDose]).
+// Resolution: App overrides (including action kits), catalog rhythm,
+// defaultDose.holdSeconds, explicit clip repSeconds, then public defaults.
 import 'dart:math' as math;
 
 import 'package:ugk_coach/ugk_coach.dart';
@@ -15,6 +12,37 @@ import 'package:ugk_coach/ugk_coach.dart';
 import 'action_kind.dart';
 
 enum RhythmSource { catalog, actionKit, repSeconds, dose }
+
+/// Fallback pacing until an authored catalog rhythm is available. Video
+/// loop duration is deliberately never used as a repetition duration.
+class RhythmDefaults {
+  const RhythmDefaults({
+    this.defaultRepSeconds = 3.0,
+    this.categoryRepSeconds = const {
+      'strength': 3.0,
+      'core': 3.0,
+      'cardio': 3.0,
+      'mobility': 3.0,
+      'stretch': 3.0,
+    },
+  });
+
+  final double defaultRepSeconds;
+  final Map<String, double> categoryRepSeconds;
+
+  double secondsFor({String? category, double? holdSeconds}) {
+    final seconds =
+        holdSeconds ?? categoryRepSeconds[category] ?? defaultRepSeconds;
+    if (!seconds.isFinite || seconds <= 0) {
+      throw ArgumentError.value(
+        seconds,
+        'repSeconds',
+        'must be finite and positive',
+      );
+    }
+    return seconds;
+  }
+}
 
 class Rhythm {
   const Rhythm({
@@ -42,7 +70,7 @@ class Rhythm {
   final int? defaultReps;
 
   /// Reps the user counts on their own: no timer, the set ends when they
-  /// tap 完成本组 (decision A, 3D-Body).
+  /// tap 完成本组. Requires an explicit catalog or App rhythm marker.
   final bool selfPaced;
   final RhythmSource source;
 
@@ -60,8 +88,25 @@ class Rhythm {
   );
 
   /// Default by dose when nothing else is known.
-  static Rhythm forDose(DoseMode mode) =>
-      mode == DoseMode.reps ? selfPacedReps : timedHold;
+  static Rhythm forDose(
+    DoseMode mode, {
+    RhythmDefaults defaults = const RhythmDefaults(),
+    String? category,
+    double? holdSeconds,
+  }) => mode == DoseMode.time
+      ? timedHold
+      : Rhythm(
+          kind: holdSeconds == null ? ActionKind.repUpdown : ActionKind.repHold,
+          lead: 0,
+          phases: [
+            KitPhase(
+              holdSeconds == null ? 'go' : 'hold',
+              defaults.secondsFor(category: category, holdSeconds: holdSeconds),
+              const [],
+            ),
+          ],
+          source: RhythmSource.dose,
+        );
 
   /// A counted rep of [repSeconds] (SmartFit clips). Counts are said on the
   /// beat end, as SmartFit always did.
@@ -87,9 +132,11 @@ class Rhythm {
       ],
       holdSeconds: (j['holdSeconds'] as num?)?.toInt(),
       defaultReps: (j['reps'] as num?)?.toInt(),
-      source: j['source'] == 'repSeconds'
-          ? RhythmSource.repSeconds
-          : RhythmSource.catalog,
+      source: switch (j['source']) {
+        'repSeconds' => RhythmSource.repSeconds,
+        'dose' => RhythmSource.dose,
+        _ => RhythmSource.catalog,
+      },
     );
   }
 
@@ -122,13 +169,16 @@ class Rhythm {
           if (phases.isNotEmpty) 'phases': [for (final p in phases) p.toJson()],
           'holdSeconds': ?holdSeconds,
           'reps': ?defaultReps,
+          if (derived) 'source': source.name,
         };
 
   /// Counted on a clock (not a hold, not self-paced).
   bool get counted => !selfPaced && kind.counted && phases.isNotEmpty;
 
   /// Derived from a clip's repSeconds: counts on the beat end, no words.
-  bool get derived => source == RhythmSource.repSeconds;
+  bool get derived =>
+      source == RhythmSource.repSeconds ||
+      (source == RhythmSource.dose && counted);
 
   Rhythm withHold(int seconds) => Rhythm(
     kind: kind,
@@ -142,13 +192,23 @@ class Rhythm {
 
   /// What this action does for [item]: a time dose on a derived or
   /// self-paced rhythm is a timed hold (SmartFit, 3D-Body), a reps dose on
-  /// a hold kit is counted by the user.
-  Rhythm effectiveFor(PlanItem item) {
+  /// a hold kit uses the automatic dose defaults unless explicitly self-paced.
+  Rhythm effectiveFor(
+    PlanItem item, {
+    RhythmDefaults defaults = const RhythmDefaults(),
+  }) {
     if (item.mode == DoseMode.time) {
       if (selfPaced || derived || !counted) return timedHold;
       return this;
     }
-    if (!counted) return selfPacedReps;
+    if (selfPaced) return this;
+    if (!counted) {
+      return forDose(
+        item.mode,
+        defaults: defaults,
+        holdSeconds: holdSeconds?.toDouble(),
+      );
+    }
     return this;
   }
 
@@ -243,36 +303,57 @@ class Rhythm {
 
 /// Rhythms for every drill of [catalog] that has one: the catalog's own
 /// `rhythm` field (Pose-Hub 0.3.0, read from the raw drill JSON) or the
-/// first clip `repSeconds`. Drills with neither are left out and fall back
-/// to [Rhythm.forDose] when played. [overrides] (e.g. HipLab action kits)
+/// first clip `repSeconds`. Drills with neither use [defaults], including
+/// their category and defaultDose.holdSeconds. [overrides] (e.g. HipLab action kits)
 /// win over both.
 Map<String, Rhythm> rhythmsFromCatalog(
   Catalog catalog, {
   Map<String, Rhythm> overrides = const {},
+  RhythmDefaults defaults = const RhythmDefaults(),
 }) {
   final out = <String, Rhythm>{};
   final raw = catalog.raw['drills'];
   final byId = <String, Map<String, dynamic>>{};
   if (raw is List) {
     for (final d in raw) {
-      if (d is Map && d['id'] is String && d['rhythm'] is Map) {
-        byId[d['id'] as String] = Map<String, dynamic>.from(d['rhythm'] as Map);
+      if (d is Map && d['id'] is String) {
+        byId[d['id'] as String] = Map<String, dynamic>.from(d);
       }
     }
   }
   for (final d in catalog.drills) {
-    final j = byId[d.id];
-    if (j != null) {
-      out[d.id] = Rhythm.fromJson(j);
+    final rawDrill = byId[d.id];
+    final j = rawDrill?['rhythm'];
+    if (j is Map) {
+      out[d.id] = Rhythm.fromJson(Map<String, dynamic>.from(j));
+      continue;
+    }
+    final dose = rawDrill?['defaultDose'];
+    final hold = dose is Map ? dose['holdSeconds'] : null;
+    if (hold is num && hold.isFinite && hold > 0) {
+      out[d.id] = Rhythm.forDose(
+        d.defaultDose.mode,
+        defaults: defaults,
+        category: d.category,
+        holdSeconds: hold.toDouble(),
+      );
       continue;
     }
     for (final v in d.assets.videos) {
       final r = v.repSeconds;
-      if (r != null && r > 0) {
+      if (r != null && r.isFinite && r > 0) {
         out[d.id] = Rhythm.fromRepSeconds(r);
         break;
       }
     }
+    out.putIfAbsent(
+      d.id,
+      () => Rhythm.forDose(
+        d.defaultDose.mode,
+        defaults: defaults,
+        category: d.category,
+      ),
+    );
   }
   out.addAll(overrides);
   return out;

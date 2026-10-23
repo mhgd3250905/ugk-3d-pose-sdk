@@ -1,5 +1,7 @@
 # ask_user：App 接口（ugk_coach 0.4.0）
 
+**升级兼容性：** 0.4.0 新增 `AgentEventKind.askUser`，对旧穷举 `switch` 是源码破坏性变更：没有此分支会编译失败。升级时补 `case AgentEventKind.askUser`（switch expression 则补 `AgentEventKind.askUser => ...`）；进度标签可返回 null，问题事件交由气泡处理。明确的 default / `_` 兜底也可解决穷举编译，但不会自动完成问题 UI 接入。
+
 `CoachAgent` 可以先交付一个澄清问题，再用用户下一条消息继续排课。本次提供 SDK 的工具、事件、结果和门禁；问题气泡、选项按钮及输入框由 App 实现，`ugk_trainer` 版本仍为 0.1.7。`CoachSession` 降级入口不提供 `ask_user`。
 
 ## 问题结构

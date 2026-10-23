@@ -50,6 +50,11 @@ class TrainerStrings {
     required this.notificationChannelDescription,
     required this.notificationTitle,
     required this.notificationText,
+    this.extendRest = '+15 s rest',
+    this.completeTimedPhase = 'Finish timer',
+    this.soundOn = 'Sound on',
+    this.soundOff = 'Sound off',
+    this.skipSegment = 'Skip segment',
   });
 
   /// Top label during prep ("准备 · 第一个动作").
@@ -121,6 +126,11 @@ class TrainerStrings {
   final String notificationChannelDescription;
   final String notificationTitle;
   final String notificationText;
+  final String extendRest;
+  final String completeTimedPhase;
+  final String soundOn;
+  final String soundOff;
+  final String skipSegment;
 
   static String _zhDose({
     required bool reps,
@@ -135,6 +145,11 @@ class TrainerStrings {
   }) => '$amount ${reps ? 'reps' : 's'}${perSide ? ' each side' : ''}';
 
   factory TrainerStrings.zh() => TrainerStrings(
+    extendRest: '休息 +15 秒',
+    completeTimedPhase: '提前完成',
+    soundOn: '开启声音',
+    soundOff: '关闭声音',
+    skipSegment: '跳过分段',
     prepFirst: '准备 · 第一个动作',
     restNext: '休息 · 下一个动作',
     restBetweenSets: '组间休息',

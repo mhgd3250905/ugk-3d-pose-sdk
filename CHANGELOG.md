@@ -1,6 +1,14 @@
 # Changelog
 
+## 0.4.1 / ugk_trainer 0.2.0 — 2026-10-23（分支待批准）
+
+- `PlanItem.segments` / `PlanSegment` 扩展 TrainingPlan v1：按段保存剂量、素材动作 ID、节奏；旧无分段计划编码不变，新分段严格校验，防止漏段后错误记为完成。
+- trainer 修复唯一组 × 必需侧 × 分段统计及浮点结束边界，提供公开缺省自动节奏、休息延长、计时段提前完成、声音开关；详见[接入说明](docs/trainer-020-integration.md)。
+- 根包只新增计划模型支持；本轮没有改 Agent 工具/提示词。SmartFit 接入回归中的既有 `askUser` 穷举编译障碍按下方 0.4.0 升级提示处理。
+
 ## 0.4.0 — 2026-10-23
+
+- **源码兼容性提示（破坏性变更）**：新增 `AgentEventKind.askUser` 会使宿主对 `AgentEventKind` 的旧穷举 `switch` 编译失败。升级到 0.4.0 或更高版本时必须补 `askUser` 分支（或明确的兜底），并按 [ask_user 接口说明](docs/ask-user.md)接入问题气泡。仅升级依赖不保证旧穷举代码可编译。
 
 - Agent 新增终止工具 `ask_user`：一次只问一个问题，支持 text、choice 的单选/多选，choice 为 2–6 个短选项、每项不超过 12 个 Unicode 码点。`AskUserQuestion` 为通过校验的不可变结果；`AgentEventKind.askUser` 和 `CoachTurnResult.question` 向 App 交付同一问题。回答通过同一 Agent 的下一次 `send()` 以文字进入会话，SDK 不在工具循环内等待。
 - 提问与 `show_plan` / `show_actions` 互斥，一次回复只允许单个 `ask_user`；混合工具整批在执行前拒绝，避免先读取文件或写记忆。参数错误沿用工具反馈和重交上限；取消/reset 及异步记账期间作废的轮次不提交问题历史或计数。

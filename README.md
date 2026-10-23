@@ -2,18 +2,20 @@
 
 仓库 `mhgd3250905/ugk-3d-pose-sdk`，根目录是纯 Dart 包 **`ugk_coach`**，`packages/ugk_trainer` 是 Flutter 训练执行包（PR #1 已合入）。
 
+**当前开发分支：trainer 0.2.0 / coach 0.4.1，待开哥批准合入。** 补齐 FlareLab 审计提出的统计修复、缺省自动计次、一组多段和可选操作；[新接入契约](docs/trainer-020-integration.md)及[验证记录](docs/trainer-020-verification-2026-10-23.md)。下方 0.4.0 / 0.1.7 是已合入 main 的历史基线。0.4.0 新增 `AgentEventKind.askUser` 对旧穷举 switch 是破坏性源码变更，升级必须补分支，见 [ask_user 升级提示](docs/ask-user.md)。
+
 `ugk_trainer 0.1.7` 已合入 PR #6 的沉浸式舞台播放器：玻璃控件、持续可见的自主计次目标、系统大字号适配及键盘操作。沿用 0.1.5 / 0.1.6 的 `TrainingMediaRepository`、版本化缓存、SHA-256 校验、Wi-Fi 策略和独立 internal flavor 预览门禁。接入、验证边界及按需素材见[训练包文档](packages/ugk_trainer/README.md)。
 
 给 **FlareLab（托马斯训练助手）/ HipLab（开胯训练助手）/ SmartFit（智能健身助手）** 用的同一套助理内核：AI 只从 Pose-Hub 动作目录里挑动作，输出统一的 **TrainingPlan v1**，SDK 负责校验，不合格时回传错误重交，达到对应入口上限后回落到 App 自己的模板；每次模型调用都记账。各 App 只需提供 **profile（侧重/范围）+ 自己的 UI**。
 
 - 纯 Dart，不依赖 Flutter（Web 也能用）；`dart:io` 的部分（文件缓存、JSONL 记账）单独在 `package:ugk_coach/ugk_coach_io.dart`。
 - 一个动作 id = 定义 + 封面 + 示范视频 + 建模源（Pose-Hub spec）+ 语音：`assistant.resolve(id)` 带出整套素材。
-- 当前版本为 **0.4.0**，已获开哥批准合入 main，包含验收提交 `8ba0cde`。Agent 新增 `ask_user`：一次一个 text / choice 问题，事件交给 App，用户下一条消息继续；SDK 限制同任务最多问 3 次，信息足够时直接排课。426 项测试、分析无问题及 6 例真实多轮评测通过，见 [0.4.0 评测记录](docs/coach-040-ask-user-eval-2026-10-23.md)。字段、事件顺序和可审阅的 Dart 接入代码见 [ask_user 接口说明](docs/ask-user.md)。本仓库提供 SDK 接口，气泡和选项 UI 由各 App 接入。
+- **main 的 0.4.0 基线**已获开哥批准合入，包含验收提交 `8ba0cde`。Agent 新增 `ask_user`：一次一个 text / choice 问题，事件交给 App，用户下一条消息继续；SDK 限制同任务最多问 3 次，信息足够时直接排课。426 项测试、分析无问题及 6 例真实多轮评测通过，见 [0.4.0 评测记录](docs/coach-040-ask-user-eval-2026-10-23.md)。字段、事件顺序和可审阅的 Dart 接入代码见 [ask_user 接口说明](docs/ask-user.md)。本仓库提供 SDK 接口，气泡和选项 UI 由各 App 接入。
 - **0.3.3 历史验收**：已获开哥批准合入 main，包含验收提交 `a931a04`。377 项 SDK 测试、分析 0 问题及 SmartFit 最终真实六条通过：计划均 1 步、28.6–36.3 秒，要领问答 1 步、25.4 秒，无回落、编造 id 为 0、记忆隔离通过。Agent 内联作用域内的紧凑索引和三条技能快路径，常规计划直接提交门禁；见[基线拆解](docs/coach-033-baseline-analysis-2026-10-21.md)、[前后对比与验收状态](docs/coach-033-speed-2026-10-21.md)及[项目维护台账](docs/project-ledger.md)。这些数据保留为 0.3.3 的历史结果。
 
 ## 维护与事实来源
 
-[项目维护台账](docs/project-ledger.md)是当前维护状态、PR 合并、验证证据和未决事项的统一记录入口。两个包独立管理版本：根包 `ugk_coach` 以 [pubspec.yaml](pubspec.yaml) 为准，当前为 0.4.0；`ugk_trainer` 以[训练包 pubspec.yaml](packages/ugk_trainer/pubspec.yaml) 为准，当前为 0.1.7。版本历史见[根 CHANGELOG](CHANGELOG.md)和[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)，训练接口与接入约定见[训练包 README](packages/ugk_trainer/README.md)。两个包均为 `publish_to: none`，合入和版本归档不表示已发布到 pub.dev。当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)；[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
+[项目维护台账](docs/project-ledger.md)是当前维护状态、PR 合并、验证证据和未决事项的统一记录入口。两个包独立管理版本：根包 `ugk_coach` 以 [pubspec.yaml](pubspec.yaml) 为准，本分支为 0.4.1（main 基线 0.4.0）；`ugk_trainer` 以[训练包 pubspec.yaml](packages/ugk_trainer/pubspec.yaml) 为准，本分支为 0.2.0（main 基线 0.1.7）。版本历史见[根 CHANGELOG](CHANGELOG.md)和[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)，训练接口与接入约定见[训练包 README](packages/ugk_trainer/README.md)。两个包均为 `publish_to: none`，合入和版本归档不表示已发布到 pub.dev。当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)；[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
 
 ## 架构（0.1 旧接口）
 

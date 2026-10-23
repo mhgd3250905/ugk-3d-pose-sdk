@@ -24,6 +24,11 @@ Widget _player(
   ),
   home: TrainerPlayer(
     plan: plan,
+    rhythms: {
+      for (final block in plan.blocks)
+        for (final item in block.items)
+          if (item.mode == DoseMode.reps) item.exerciseId: Rhythm.selfPacedReps,
+    },
     drillOf: (id) => TrainerDrill(id: id, name: 'name-$id', cue: 'cue-$id'),
     strings: strings ?? TrainerStrings.zh(),
     keepAlive: false,

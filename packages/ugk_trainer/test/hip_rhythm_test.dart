@@ -50,14 +50,14 @@ void main() {
       expect(r.kind, ActionKind.repUpdown);
       expect(r.derived, isTrue);
       expect(r.cycleFor(), 4);
-      expect(Rhythm.forDose(DoseMode.reps).selfPaced, isTrue);
+      expect(Rhythm.forDose(DoseMode.reps).counted, isTrue);
       expect(Rhythm.forDose(DoseMode.time).kind, ActionKind.hold);
       // A time dose on a derived rhythm is a timed hold (SmartFit).
       expect(r.effectiveFor(timed('x', 30)).counted, isFalse);
-      // A reps dose on a hold kit is counted by the user.
+      // A reps dose without a counted kit uses the public automatic default.
       expect(
         kits['h-couch-stretch']!.effectiveFor(reps('x', 8)).selfPaced,
-        isTrue,
+        isFalse,
       );
     });
 

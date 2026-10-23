@@ -134,6 +134,7 @@ void main() {
         MaterialApp(
           home: TrainerPlayer(
             plan: planOf([reps('a', 8, rest: 3), reps('b', 8)]),
+            rhythms: {'a': Rhythm.selfPacedReps, 'b': Rhythm.selfPacedReps},
             drillOf: (id) =>
                 TrainerDrill(id: id, name: 'name-$id', cue: 'cue-$id'),
             strings: TrainerStrings.zh(),

@@ -6,6 +6,8 @@
 
 ## 当前快照
 
+2026-10-23 新任务：`codex/trainer-shared-player` 开发 trainer 0.2.0 / coach 0.4.1，尚未批准合入。接口见 [trainer 0.2.0](trainer-020-integration.md)，证据见[验证记录](trainer-020-verification-2026-10-23.md)。下表记录已合入 main 的基线；不得把分支版本写作已发布。SmartFit 原 App 保持不动，既有 askUser switch 障碍只在临时副本补齐以验证 trainer。
+
 | 项目 | 已核对状态 |
 |---|---|
 | 主线代码核验快照 | main 已快进包含 coach 0.4.0 验收提交 `8ba0cde60d4fcfb10ff46c65c1558e992c82bac3`，基于 `f577f5724812585fffdd1cd2d0a62dac3f74cdf2`；trainer 仍为 PR #6 的 0.1.7，运行代码未改。后续批准状态文档不改变已验运行源码 |

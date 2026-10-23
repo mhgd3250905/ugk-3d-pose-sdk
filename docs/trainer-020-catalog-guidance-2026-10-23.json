@@ -1,0 +1,623 @@
+{
+  "catalogVersion": "0.3.0",
+  "catalogSha256": "a6b4699883abb9769ad68aab3d54c3fbeef686cd15bee8bd1cb054c454ea4614",
+  "parserProblems": [],
+  "total": 51,
+  "automatic": 51,
+  "fallbackReps": 41,
+  "explicitSelfPaced": [],
+  "drills": [
+    {
+      "id": "abs-A",
+      "name": {
+        "zh": "空心体支撑",
+        "en": "Hollow Body Hold"
+      },
+      "category": "core",
+      "mode": "time",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": null
+    },
+    {
+      "id": "abs-B",
+      "name": {
+        "zh": "平行杆团身 L 撑",
+        "en": "Parallette Tuck L-Sit"
+      },
+      "category": "core",
+      "mode": "time",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": null
+    },
+    {
+      "id": "abs-C",
+      "name": {
+        "zh": "双杠直臂支撑举腿",
+        "en": "Dip-Bar Support Leg Raise"
+      },
+      "category": "core",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "adductors-A",
+      "name": {
+        "zh": "哥萨克蹲",
+        "en": "Cossack Squat"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "adductors-B",
+      "name": {
+        "zh": "屈膝哥本哈根侧撑",
+        "en": "Short-Lever Copenhagen Plank"
+      },
+      "category": "strength",
+      "mode": "time",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": null
+    },
+    {
+      "id": "adductors-C",
+      "name": {
+        "zh": "绳索站姿髋内收",
+        "en": "Cable Standing Hip Adduction"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "chest-A",
+      "name": {
+        "zh": "俯卧撑转侧撑",
+        "en": "Push-Up to Side Plank Rotation"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "chest-B",
+      "name": {
+        "zh": "平行杆深幅俯卧撑",
+        "en": "Parallette Deficit Push-Up"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "chest-C",
+      "name": {
+        "zh": "绳索单臂站姿推胸",
+        "en": "Single-Arm Standing Cable Press"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "deltoids-A",
+      "name": {
+        "zh": "直臂侧平板支撑",
+        "en": "Straight-Arm Side Plank"
+      },
+      "category": "strength",
+      "mode": "time",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": null
+    },
+    {
+      "id": "deltoids-B",
+      "name": {
+        "zh": "哑铃半程土耳其起立（至高桥）",
+        "en": "Dumbbell Half Turkish Get-Up (to High Bridge)"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "deltoids-C",
+      "name": {
+        "zh": "地雷杆半跪单臂推举",
+        "en": "Half-Kneeling Landmine Press"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "erectors-A",
+      "name": {
+        "zh": "反向平板（后撑抬髋）",
+        "en": "Reverse Plank"
+      },
+      "category": "core",
+      "mode": "time",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": null
+    },
+    {
+      "id": "erectors-B",
+      "name": {
+        "zh": "瑞士球背伸",
+        "en": "Stability Ball Back Extension"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "erectors-C",
+      "name": {
+        "zh": "45° 罗马椅背伸",
+        "en": "45° Hyperextension"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "forearms-A",
+      "name": {
+        "zh": "跪姿多方向腕部摇摆",
+        "en": "Quadruped Wrist Rocks"
+      },
+      "category": "mobility",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "forearms-B",
+      "name": {
+        "zh": "哑铃腕屈 + 腕伸",
+        "en": "Dumbbell Wrist Curl & Reverse Curl"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "forearms-C",
+      "name": {
+        "zh": "壶铃倒握行走",
+        "en": "Bottoms-Up Kettlebell Carry"
+      },
+      "category": "strength",
+      "mode": "time",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": null
+    },
+    {
+      "id": "glute-max-A",
+      "name": {
+        "zh": "单腿臀桥",
+        "en": "Single-Leg Glute Bridge"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "catalog",
+      "automatic": true,
+      "repSeconds": 4.0
+    },
+    {
+      "id": "glute-max-B",
+      "name": {
+        "zh": "弹力带四足直腿后踢",
+        "en": "Banded Straight-Leg Kickback"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "glute-max-C",
+      "name": {
+        "zh": "反向背伸机",
+        "en": "Reverse Hyperextension"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "hamstrings-A",
+      "name": {
+        "zh": "徒手单腿罗马尼亚硬拉",
+        "en": "Bodyweight Single-Leg RDL"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "hamstrings-B",
+      "name": {
+        "zh": "滑盘腿弯举",
+        "en": "Slider Hamstring Curl"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "hamstrings-C",
+      "name": {
+        "zh": "GHD 北欧离心",
+        "en": "GHD Nordic Eccentric"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "hip-abductors-A",
+      "name": {
+        "zh": "侧平板抬腿",
+        "en": "Side Plank Hip Abduction"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "hip-abductors-B",
+      "name": {
+        "zh": "仰卧弹力带 V 字开腿",
+        "en": "Banded Supine Straddle Opens"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "hip-abductors-C",
+      "name": {
+        "zh": "器械髋外展",
+        "en": "Hip Abduction Machine"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "hip-flexors-A",
+      "name": {
+        "zh": "坐姿直腿抬腿（压缩）",
+        "en": "Seated Pike Leg Lifts"
+      },
+      "category": "core",
+      "mode": "reps",
+      "source": "catalog",
+      "automatic": true,
+      "repSeconds": 4.0
+    },
+    {
+      "id": "hip-flexors-B",
+      "name": {
+        "zh": "弹力带站姿高抬膝",
+        "en": "Banded Standing Knee Drive"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "hip-flexors-C",
+      "name": {
+        "zh": "绳索站姿直腿前抬",
+        "en": "Cable Straight-Leg Raise"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "lats-A",
+      "name": {
+        "zh": "坐姿撑地抬臀",
+        "en": "Floor Support Lift (Seated Dip Shrug)"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "lats-B",
+      "name": {
+        "zh": "弹力带直臂下拉",
+        "en": "Band Straight-Arm Pulldown"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "lats-C",
+      "name": {
+        "zh": "双杠支撑耸肩下压",
+        "en": "Dip-Bar Scapular Depression"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "obliques-A",
+      "name": {
+        "zh": "熊爬穿腿",
+        "en": "Kick-Through (Beast Flow)"
+      },
+      "category": "core",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "obliques-B",
+      "name": {
+        "zh": "弹力带抗旋转推",
+        "en": "Band Pallof Press"
+      },
+      "category": "core",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "obliques-C",
+      "name": {
+        "zh": "绳索高位伐木",
+        "en": "Cable High-to-Low Woodchop"
+      },
+      "category": "core",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "quadriceps-A",
+      "name": {
+        "zh": "跪姿反向北欧",
+        "en": "Reverse Nordic"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "quadriceps-B",
+      "name": {
+        "zh": "弹力带终末伸膝",
+        "en": "Banded Terminal Knee Extension"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "quadriceps-C",
+      "name": {
+        "zh": "器械腿屈伸（顶端锁直）",
+        "en": "Leg Extension with Lockout Hold"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "rotator-cuff-A",
+      "name": {
+        "zh": "俯撑交替触肩",
+        "en": "Plank Shoulder Taps"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "rotator-cuff-B",
+      "name": {
+        "zh": "弹力带肘贴体侧外旋",
+        "en": "Band External Rotation"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "rotator-cuff-C",
+      "name": {
+        "zh": "绳索 90/90 外旋",
+        "en": "Cable 90/90 External Rotation"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "scapular-A",
+      "name": {
+        "zh": "俯卧 Y-T-W 举",
+        "en": "Prone Y-T-W Raise"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "scapular-B",
+      "name": {
+        "zh": "单杠肩胛引体",
+        "en": "Scapular Pull-Up"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "scapular-C",
+      "name": {
+        "zh": "吊环直臂支撑",
+        "en": "Ring Support Hold"
+      },
+      "category": "strength",
+      "mode": "time",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": null
+    },
+    {
+      "id": "serratus-A",
+      "name": {
+        "zh": "俯撑肩胛前伸",
+        "en": "Push-Up Plus"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "serratus-B",
+      "name": {
+        "zh": "泡沫轴墙面上滑",
+        "en": "Foam Roller Wall Slide"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "serratus-C",
+      "name": {
+        "zh": "吊环俯卧撑加前伸",
+        "en": "Ring Push-Up Plus"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "triceps-A",
+      "name": {
+        "zh": "窄距俯卧撑（锁肘停顿）",
+        "en": "Close-Grip Push-Up with Lockout"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    },
+    {
+      "id": "triceps-B",
+      "name": {
+        "zh": "平行杆直臂支撑",
+        "en": "Parallette Support Hold"
+      },
+      "category": "strength",
+      "mode": "time",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": null
+    },
+    {
+      "id": "triceps-C",
+      "name": {
+        "zh": "双杠臂屈伸",
+        "en": "Parallel Bar Dips"
+      },
+      "category": "strength",
+      "mode": "reps",
+      "source": "dose",
+      "automatic": true,
+      "repSeconds": 3.0
+    }
+  ]
+}

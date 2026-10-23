@@ -13,6 +13,49 @@
   },
   "allOf": [{"if": {"properties": {"kind": {"const": "plan"}}}, "then": {"required": ["plan"]}}],
   "$defs": {
+    "segmentRhythm": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {"enum": ["rep_updown", "rep_cycle", "rep_alternate", "rep_hold", "rep_breath", "hold"]},
+        "leadSeconds": {"type": "number", "minimum": 0},
+        "holdSeconds": {"type": "integer", "minimum": 1},
+        "reps": {"type": "integer", "minimum": 1},
+        "phases": {
+          "type": ["array", "null"],
+          "items": {
+            "type": "object",
+            "required": ["id", "seconds"],
+            "properties": {
+              "id": {"type": "string", "pattern": "\\S"},
+              "seconds": {"type": "number", "exclusiveMinimum": 0},
+              "cueAt": {"type": "number", "minimum": 0},
+              "cue": {"oneOf": [{"type": "string"}, {"type": "null"}, {"type": "array", "items": {"type": "string"}}]}
+            }
+          }
+        }
+      },
+      "description": "App/目录作者提供的内联节奏；self_paced 仅允许目录标记。阶段 id 唯一和 cueAt 不超过该阶段秒数由 PlanCodec/PlanValidator 检查。"
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "exerciseId", "mode"],
+      "properties": {
+        "id": {"type": "string", "pattern": "\\S", "description": "本计划项内唯一，由 PlanCodec/PlanValidator 检查"},
+        "exerciseId": {"type": "string", "pattern": "\\S"},
+        "mode": {"enum": ["reps", "time"]},
+        "reps": {"type": "integer", "minimum": 1},
+        "workSeconds": {"type": "integer", "minimum": 1},
+        "holdSeconds": {"type": "integer", "minimum": 1},
+        "label": {"type": "string", "pattern": "\\S"},
+        "rhythm": {"$ref": "#/$defs/segmentRhythm"}
+      },
+      "allOf": [
+        {"if": {"properties": {"mode": {"const": "reps"}}}, "then": {"required": ["reps"], "not": {"required": ["workSeconds"]}}},
+        {"if": {"properties": {"mode": {"const": "time"}}}, "then": {"required": ["workSeconds"], "not": {"required": ["reps"]}}}
+      ]
+    },
     "item": {
       "type": "object",
       "required": ["exerciseId", "mode", "sets", "perSide", "restSeconds"],
@@ -25,11 +68,14 @@
         "perSide": {"type": "boolean"},
         "restSeconds": {"type": "integer", "minimum": 0, "maximum": 180},
         "note": {"type": "string"},
-        "replacedFrom": {"type": "string"}
+        "replacedFrom": {"type": "string"},
+        "segments": {"type": "array", "items": {"$ref": "#/$defs/segment"}, "description": "由 App/目录作者提供；非空时按顺序替代父工作剂量，继承父组数、侧别和休息；本次不扩展 Agent 工具生成约定。"}
       },
       "allOf": [
-        {"if": {"properties": {"mode": {"const": "reps"}}}, "then": {"required": ["reps"]}},
-        {"if": {"properties": {"mode": {"const": "time"}}}, "then": {"required": ["workSeconds"]}}
+        {"if": {"not": {"required": ["segments"], "properties": {"segments": {"minItems": 1}}}}, "then": {"allOf": [
+          {"if": {"properties": {"mode": {"const": "reps"}}}, "then": {"required": ["reps"]}},
+          {"if": {"properties": {"mode": {"const": "time"}}}, "then": {"required": ["workSeconds"]}}
+        ]}}
       ]
     },
     "block": {

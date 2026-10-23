@@ -144,7 +144,9 @@ class DiscomfortDecision {
   final DiscomfortAction action;
 
   /// [DiscomfortAction.substitute]: the exercise to do instead (same
-  /// dose; its `unilateral` must match the item's perSide).
+  /// dose; its `unilateral` must match the item's perSide). In a segmented
+  /// item this replaces only the current segment's exercise, retaining the
+  /// parent item, segment identity and other segments.
   final String? substituteId;
 
   /// Recorded with the event (HipLab: the pain level).
@@ -227,6 +229,11 @@ class TrainerPlayer extends StatefulWidget {
     required this.strings,
     required this.onFinished,
     this.rhythms = const {},
+    this.rhythmDefaults = const RhythmDefaults(),
+    this.showExtendRest = false,
+    this.showCompleteTimedPhase = false,
+    this.showSoundToggle = false,
+    this.showSkipSegment = false,
     this.theme = TrainerTheme.dark,
     this.voice,
     this.onDiscomfort,
@@ -258,6 +265,13 @@ class TrainerPlayer extends StatefulWidget {
 
   /// Rhythm by exercise id ([rhythmsFromCatalog]); missing: by dose.
   final Map<String, Rhythm> rhythms;
+  final RhythmDefaults rhythmDefaults;
+
+  /// Optional shared controls; existing App layouts retain their defaults.
+  final bool showExtendRest;
+  final bool showCompleteTimedPhase;
+  final bool showSoundToggle;
+  final bool showSkipSegment;
   final TrainerTheme theme;
 
   /// Null: silent (no voice, no chimes).
@@ -331,6 +345,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   bool _saveFailed = false;
   bool _closing = false;
   bool _disposed = false;
+  bool _soundEnabled = true;
+  bool _interruptionActive = false;
+  int _interruptionRevision = 0;
 
   String _shownKey = '';
   int _hapticSecond = -1;
@@ -345,12 +362,17 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   SessionPhase get _phase => _engine.phase;
   TrainerTheme get _th => widget.theme;
   TrainerStrings get _s => widget.strings;
+  VoiceSettings get _soundSettings => _voice.settings.copyWith(
+    voice: _soundEnabled && (_voice.settings.voice || !_voice.settings.chimes),
+    chimes: _soundEnabled && (_voice.settings.chimes || !_voice.settings.voice),
+  );
 
   @override
   void initState() {
     super.initState();
     _plan = widget.plan;
     _voice = widget.voice ?? TrainerVoice.silent;
+    _soundEnabled = _voice.settings.voice || _voice.settings.chimes;
     _script =
         _voice.scriptBuilder?.call(_voice.source, _voice.settings.language) ??
         SessionScript(source: _voice.source, lang: _voice.settings.language);
@@ -358,6 +380,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         widget.sessionBuilder ??
         SessionBuilder(
           rhythms: widget.rhythms,
+          rhythmDefaults: widget.rhythmDefaults,
           known: (id) => widget.drillOf(id) != null,
           prepSeconds: widget.prepSeconds,
           transitionSeconds: widget.transitionSeconds,
@@ -375,7 +398,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _queue = VoiceQueue(
       output: _voice.output,
       lib: _voice.source,
-      settings: _voice.settings,
+      settings: _soundSettings,
     );
     if (_voice.settings.voice || _voice.settings.chimes) {
       unawaited(_voice.output.begin());
@@ -531,7 +554,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _queue = VoiceQueue(
       output: _voice.output,
       lib: _voice.source,
-      settings: _voice.settings,
+      settings: _soundSettings,
     );
     _endedAt = null;
     _subtitle = null;
@@ -597,9 +620,13 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _onInterruption(AudioInterruption e) {
-    if (!mounted || _engine.done || e == AudioInterruption.ended || _paused) {
+    if (!mounted || _engine.done) return;
+    if (e == AudioInterruption.ended) {
+      _interruptionActive = false;
       return;
     }
+    _interruptionRevision++;
+    _interruptionActive = e == AudioInterruption.began;
     _queue.cancelAll(_t);
     _clock.stop();
     _hold?.setPlaybackState(paused: true);
@@ -607,7 +634,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _togglePause({bool announce = true}) {
-    if (_engine.done || _audioRestarting) return;
+    if (_engine.done || _audioRestarting || (_paused && _interruptionActive)) {
+      return;
+    }
     if (_paused) {
       if (_voice.output case final InterruptibleVoiceOutput out) {
         unawaited(out.reactivate());
@@ -653,6 +682,32 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   void _skip() => _after(() => _runner.skip(_t));
   void _previous() => _after(() => _runner.previous(_t));
 
+  void _extendRest() {
+    if (_runner.extendRest(_t)) {
+      _queue.cancelAll(_t);
+      final remaining =
+          _engine.phases
+              .skip(_engine.index)
+              .fold(0.0, (total, phase) => total + phase.seconds) -
+          _engine.elapsedIn(_t);
+      _hold?.renew(Duration(seconds: remaining.clamp(0, 1e6).ceil()));
+      _syncProgress(_t);
+      setState(() {});
+    }
+  }
+
+  void _completeTimedPhase() => _after(() => _runner.completeTimedPhase(_t));
+  void _skipSegment() => _after(() => _runner.skipSegment(_t));
+
+  void _toggleSound() {
+    _queue.cancelAll(_t);
+    _soundEnabled = !_soundEnabled;
+    _queue.settings = _soundSettings;
+    _voice.output.volume = _soundEnabled ? _voice.settings.volume : 0;
+    if (_soundEnabled) unawaited(_voice.output.begin());
+    setState(() {});
+  }
+
   void _completeSet() {
     if (_paused || !_engine.awaitingCompletion) return;
     unawaited(HapticFeedback.lightImpact());
@@ -689,7 +744,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                     ii != p.itemInBlock
                         ? i
                         : PlanItem(
-                            exerciseId: id,
+                            exerciseId: i.segments.isEmpty ? id : i.exerciseId,
                             mode: i.mode,
                             sets: i.sets,
                             reps: i.reps,
@@ -697,7 +752,23 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                             perSide: i.perSide,
                             restSeconds: i.restSeconds,
                             note: i.note,
-                            replacedFrom: i.exerciseId,
+                            replacedFrom: i.segments.isEmpty
+                                ? i.exerciseId
+                                : i.replacedFrom,
+                            segments: [
+                              for (final segment in i.segments)
+                                segment.id != p.segmentId
+                                    ? segment
+                                    : PlanSegment(
+                                        id: segment.id,
+                                        exerciseId: id,
+                                        mode: segment.mode,
+                                        reps: segment.reps,
+                                        workSeconds: segment.workSeconds,
+                                        holdSeconds: segment.holdSeconds,
+                                        label: segment.label,
+                                      ),
+                            ],
                           ),
                 ],
               ),
@@ -709,6 +780,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   Future<void> _discomfort({SessionPhase? completedPhase}) async {
     if (_engine.done) return;
     final wasRunning = !_paused;
+    final interruptionRevision = _interruptionRevision;
     if (wasRunning) _togglePause(announce: widget.announceDiscomfortPause);
     final at = DiscomfortContext(
       phase: completedPhase ?? _phase,
@@ -721,6 +793,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     final handler = widget.onDiscomfort ?? _defaultDiscomfort;
     final d = await handler(context, at);
     if (!mounted) return;
+    final mayResume =
+        wasRunning && interruptionRevision == _interruptionRevision;
     final p = completedPhase ?? _phase;
     if (d != null) {
       _recorder.discomfort(
@@ -738,7 +812,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       );
     }
     if (d?.replacementPhases case final phases?) {
-      if (wasRunning) _togglePause(announce: widget.announceDiscomfortPause);
+      if (mayResume) _togglePause(announce: widget.announceDiscomfortPause);
       _after(
         () => _runner.restartWith(
           phases,
@@ -752,15 +826,15 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     }
     switch (d?.action) {
       case DiscomfortAction.skip:
-        if (wasRunning) _togglePause(announce: widget.announceDiscomfortPause);
+        if (mayResume) _togglePause(announce: widget.announceDiscomfortPause);
         _skip();
       case DiscomfortAction.end:
         _endEarly();
       case DiscomfortAction.substitute when d!.substituteId != null:
-        if (wasRunning) _togglePause(announce: widget.announceDiscomfortPause);
+        if (mayResume) _togglePause(announce: widget.announceDiscomfortPause);
         _substitute(d.substituteId!);
       default:
-        if (wasRunning) _togglePause(announce: widget.announceDiscomfortPause);
+        if (mayResume) _togglePause(announce: widget.announceDiscomfortPause);
     }
     if (d != null) _decisionVoice(d);
   }
@@ -769,7 +843,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (decision.subtitle != null) {
       setState(() => _subtitle = decision.subtitle);
     }
-    if (decision.voiceClips.isEmpty) return;
+    if (decision.voiceClips.isEmpty || _interruptionActive) return;
     _queue.cancelAll(_t);
     _queue.submit(VoiceCue(0, decision.voiceClips, CuePriority.call), _t);
     _queue.tick(_t);
@@ -1324,7 +1398,16 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     required bool still,
   }) {
     final total = _occurrences < 1 ? 1 : _occurrences;
-    final line = _subline(p, label);
+    final segment = p.segment;
+    final segmentName = segment?.label ?? d?.name;
+    final line = [
+      if (segment != null && segmentName != null) segmentName,
+      _subline(p, label),
+    ].where((part) => part.isNotEmpty).join(' · ');
+    final parentDrill = p.item == null
+        ? null
+        : widget.drillOf(p.item!.exerciseId);
+    final displayDrill = segment == null ? d : parentDrill ?? d;
     final lineColor = p.kind == PhaseKind.switchSide
         ? _th.caution
         : label.isEmpty
@@ -1381,8 +1464,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                                   children: [
                                     _fade(
                                       Text(
-                                        d?.name ?? '',
-                                        key: ValueKey('name-${d?.id}'),
+                                        displayDrill?.name ?? '',
+                                        key: ValueKey(
+                                          'name-${displayDrill?.id}',
+                                        ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: _th.title.copyWith(
@@ -1630,6 +1715,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (_hasOptionalControls) _optionalControls(p),
         SizedBox(
           height: _digitsH,
           // Scale down rather than clip if a host theme's numerals run
@@ -1775,7 +1861,59 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   /// The transport (number slot + row) without the bottom inset.
   double get _transportH =>
-      TrainerSpace.x3 + _digitsH + _digitsGap + _ringD + TrainerSpace.x5;
+      TrainerSpace.x3 +
+      _digitsH +
+      _digitsGap +
+      _ringD +
+      TrainerSpace.x5 +
+      (_hasOptionalControls ? 44 : 0);
+
+  bool get _hasOptionalControls =>
+      widget.showExtendRest ||
+      widget.showCompleteTimedPhase ||
+      widget.showSoundToggle ||
+      widget.showSkipSegment;
+
+  Widget _optionalControls(SessionPhase p) => SizedBox(
+    height: 44,
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (widget.showExtendRest &&
+            (p.kind == PhaseKind.rest || p.kind == PhaseKind.roundRest))
+          IconButton(
+            key: const ValueKey('extend-rest'),
+            tooltip: _s.extendRest,
+            icon: const Icon(Icons.more_time),
+            onPressed: _extendRest,
+          ),
+        if (widget.showCompleteTimedPhase &&
+            p.isWork &&
+            !p.selfPaced &&
+            !p.countedOnClock)
+          IconButton(
+            key: const ValueKey('complete-timed-phase'),
+            tooltip: _s.completeTimedPhase,
+            icon: const Icon(Icons.check_circle_outline),
+            onPressed: _paused ? null : _completeTimedPhase,
+          ),
+        if (widget.showSkipSegment && p.isWork && p.segmentId != null)
+          IconButton(
+            key: const ValueKey('skip-segment'),
+            tooltip: _s.skipSegment,
+            icon: const Icon(Icons.playlist_play),
+            onPressed: _skipSegment,
+          ),
+        if (widget.showSoundToggle)
+          IconButton(
+            key: const ValueKey('sound-toggle'),
+            tooltip: _soundEnabled ? _s.soundOff : _s.soundOn,
+            icon: Icon(_soundEnabled ? Icons.volume_up : Icons.volume_off),
+            onPressed: _toggleSound,
+          ),
+      ],
+    ),
+  );
 
   Widget? _restFeedback(SessionPhase phase) {
     final build = widget.restFeedbackBuilder;
@@ -1807,6 +1945,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   String _dose(PlanItem item, {SessionPhase? phase}) {
     final label = phase == null ? null : widget.doseLabel?.call(phase);
     if (label != null) return label;
+    item = phase?.segment?.toPlanItem(item) ?? item;
     final reps = item.mode == DoseMode.reps;
     return _s.dose(
       reps: reps,
@@ -1862,7 +2001,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       final q = phases[i];
       if (q.kind == PhaseKind.work &&
           q.exerciseId != null &&
-          q.exerciseId != p.exerciseId) {
+          q.itemIndex != p.itemIndex) {
         next = q;
         break;
       }

@@ -486,6 +486,8 @@ class JustAudioVoiceOutput
   set volume(double v) {
     _volume = v.clamp(0, 1);
     _lines.volume = _volume;
+    // Also silence a chime that was already playing when the App muted.
+    unawaited(_step(() => _chime.setVolume(_volume * .9)));
   }
 
   Future<void> dispose() {

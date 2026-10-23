@@ -203,15 +203,20 @@ void main() {
     });
   });
 
-  group('self-paced sets (decision A)', () {
-    // No rhythm for the id → reps dose → self-paced.
+  group('explicit self-paced sets', () {
+    // Only explicitly marked technique attempts are self-paced.
     final plan = planOf([
       reps('thomas-curl', 12, sets: 2, rest: 20),
       timed('thomas-plank', 30),
     ]);
 
-    test('reps without a rhythm are self-paced, time doses are timed', () {
-      final ph = SessionBuilder().phases(plan);
+    test('explicit self-paced reps wait, time doses are timed', () {
+      final ph = SessionBuilder(
+        rhythms: {
+          'thomas-curl': Rhythm.selfPacedReps,
+          'h-squat': Rhythm.selfPacedReps,
+        },
+      ).phases(plan);
       final work = ph.where((p) => p.isWork).toList();
       expect(work.map((p) => p.selfPaced), [true, true, false]);
       expect(work.first.reps, 12);
@@ -220,7 +225,14 @@ void main() {
     });
 
     test('the clock never ends a self-paced set; 完成本组 does', () {
-      final e = SessionEngine(SessionBuilder().phases(plan));
+      final e = SessionEngine(
+        SessionBuilder(
+          rhythms: {
+            'thomas-curl': Rhythm.selfPacedReps,
+            'h-squat': Rhythm.selfPacedReps,
+          },
+        ).phases(plan),
+      );
       e.update(10.1);
       expect(e.awaitingCompletion, isTrue);
       e.update(10000);
@@ -246,8 +258,13 @@ void main() {
 
     test('a self-paced set only says its start, no count, no countdown', () {
       final script = SessionScript(source: smartSource());
-      final ph = SessionBuilder().phases(planOf([reps('h-squat', 12)]));
-      // h-squat without its rhythm: self-paced.
+      final ph = SessionBuilder(
+        rhythms: {
+          'thomas-curl': Rhythm.selfPacedReps,
+          'h-squat': Rhythm.selfPacedReps,
+        },
+      ).phases(planOf([reps('h-squat', 12)]));
+      // Explicit catalog self-paced marker preserves manual completion.
       final cues = script.cues(ph[1], planSeconds: 60);
       expect(cues.first.clips, ['chime.start', 'p.go']);
       expect(cues.where((c) => c.priority == CuePriority.count), isEmpty);
@@ -255,7 +272,14 @@ void main() {
 
     test('the runner speaks the next phase right after 完成本组', () {
       final r = SessionRunner(
-        SessionEngine(SessionBuilder().phases(plan)),
+        SessionEngine(
+          SessionBuilder(
+            rhythms: {
+              'thomas-curl': Rhythm.selfPacedReps,
+              'h-squat': Rhythm.selfPacedReps,
+            },
+          ).phases(plan),
+        ),
         SessionScript(source: smartSource()),
       );
       r.update(10.5);

@@ -2,6 +2,8 @@
 
 仓库 `mhgd3250905/ugk-3d-pose-sdk`，根目录是纯 Dart 包 **`ugk_coach`**，`packages/ugk_trainer` 是 Flutter 训练执行包（PR #1 已合入）。
 
+2026-10-24 待审核分支新增独立 Flutter 展示包 [`ugk_coach_ui 0.1.0`](packages/ugk_coach_ui/README.md)：聊天列表、消息/澄清气泡、套路卡及原有展开动画。主题、字体、文案、素材与交互由宿主注入；无网络、密钥、App 代码依赖。`ugk_trainer 0.2.1` 仅将 coach 的相对依赖改锁 `ugk_coach-v0.4.1`，解决宿主分别锁两个 tag 的 Pub 来源冲突，运行代码保持 0.2.0。新 tag 尚未发布，需开哥批准后合入 main 并发布。
+
 **当前 main：trainer 0.2.0 / coach 0.4.1，已获开哥批准合入验收提交 `64a54874307449c8685577f8eeb913296b207a7c`。** 补齐 FlareLab 审计提出的统计修复、缺省自动计次、一组多段和可选操作；[新接入契约](docs/trainer-020-integration.md)及[验证记录](docs/trainer-020-verification-2026-10-23.md)。下方 0.4.0 / 0.1.7 是已合入 main 的历史基线。0.4.0 新增 `AgentEventKind.askUser` 对旧穷举 switch 是破坏性源码变更，升级必须补分支，见 [ask_user 升级提示](docs/ask-user.md)。
 
 FlareLab 按交付回执中的 main 完整提交号固定依赖，并在接入后验收真机锁屏、来电中断和原生播放；发现 SDK 问题再出补丁版本。SmartFit、HipLab 暂不升级。当前版本、远端核验快照与历史证据统一见[项目维护台账](docs/project-ledger.md)。

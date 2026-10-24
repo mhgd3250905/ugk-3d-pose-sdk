@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 — 2026-10-24（待审核）
+
+- Pin the coach dependency to `ugk_coach-v0.4.1`. A relative dependency from a Git subpackage resolves to a commit ref and conflicts with a host that explicitly pins the coach release tag, even when both refs identify the same commit. Hosts can now pin coach and trainer release tags together without dependency overrides.
+- No trainer runtime changes from 0.2.0.
+
 ## 0.2.0 — 2026-10-23（已合入并推送 main）
 
 - Documentation closeout on 2026-10-24: verified remote main at `8b60032c2f43fd8e91f8802c8f054a8ecb7cc110`, containing accepted source `64a54874307449c8685577f8eeb913296b207a7c`. No package version increment. FlareLab will pin the delivered main commit and perform device acceptance; SmartFit/HipLab upgrades remain deferred.

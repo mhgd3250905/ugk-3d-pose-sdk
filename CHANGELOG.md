@@ -1,5 +1,11 @@
 # Changelog
 
+## ugk_coach_ui 0.1.0 / ugk_trainer 0.2.1 — 2026-10-24（待审核）
+
+- Extract the established SmartFit conversation list, message bubbles, clarification UI and animated routine card into a Flutter-only presentation package. Hosts inject theme, typography, copy, trusted media and callbacks; transport, credentials, gate admission, storage and navigation remain host-owned. See the [integration API](packages/ugk_coach_ui/README.md).
+- Trainer pins the coach release tag instead of a relative package path, so hosts can pin the coach and trainer tags together. No trainer runtime or coach changes; coach remains 0.4.1.
+- Pending approval: `ugk_coach_ui-v0.1.0` and `ugk_trainer-v0.2.1`. No main merge or tag publication has occurred for this branch.
+
 ## 0.4.1 / ugk_trainer 0.2.0 — 2026-10-23（已合入并推送 main）
 
 - 2026-10-24 文档收束：验收源码 `64a54874307449c8685577f8eeb913296b207a7c` 已合入；批准状态文档 `8b60032c2f43fd8e91f8802c8f054a8ecb7cc110` 已核对远端一致。版本保持 0.4.1 / 0.2.0，当前快照与后续安排见[台账](docs/project-ledger.md)。FlareLab 接入后做真机验收，SmartFit/HipLab 暂不升级。

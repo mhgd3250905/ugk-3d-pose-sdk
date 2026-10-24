@@ -1,0 +1,166 @@
+import 'package:flutter/material.dart';
+import 'models.dart';
+import 'theme.dart';
+import 'message_widgets.dart';
+import 'primitives.dart';
+
+/// One validated ask_user question. It never invokes an agent or transport.
+/// Answers stay disabled until the host has awaited its agent's send result.
+class CoachQuestionBubble extends StatefulWidget {
+  const CoachQuestionBubble({
+    super.key,
+    required this.question,
+    required this.enabled,
+    required this.onTextAnswer,
+    required this.onChoiceAnswer,
+  });
+  final CoachQuestionData question;
+  final bool enabled;
+  final Future<void> Function(String) onTextAnswer;
+  final Future<void> Function(List<String>) onChoiceAnswer;
+  @override
+  State<CoachQuestionBubble> createState() => _CoachQuestionBubbleState();
+}
+
+class _CoachQuestionBubbleState extends State<CoachQuestionBubble> {
+  final _text = TextEditingController();
+  final _selected = <String>{};
+  bool _submitting = false;
+  bool get _active =>
+      widget.enabled && !widget.question.answered && !_submitting;
+  @override
+  void didUpdateWidget(CoachQuestionBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.question.id != widget.question.id) {
+      _text.clear();
+      _selected.clear();
+      _submitting = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit(Future<void> Function() answer) async {
+    if (!_active) return;
+    setState(() => _submitting = true);
+    try {
+      await answer();
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _sendText() async {
+    final text = _text.text.trim();
+    if (text.isEmpty) return;
+    await _submit(() => widget.onTextAnswer(text));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final q = widget.question;
+    final style = CoachUiTheme.of(context);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * .86,
+        ),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: style.colors.assistantBubble,
+            borderRadius: bubbleRadius(user: false),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 11),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(q.question, style: style.typography.body),
+                const SizedBox(height: 12),
+                if (q.mode == CoachQuestionMode.text && !q.answered) ...[
+                  TextField(
+                    key: ValueKey('question-input-${q.id}'),
+                    controller: _text,
+                    enabled: _active,
+                    minLines: 1,
+                    maxLines: 4,
+                    textInputAction: TextInputAction.send,
+                    style: style.typography.body,
+                    decoration: InputDecoration(
+                      hintText: style.strings.answerHint,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                    onSubmitted: (_) => _sendText(),
+                  ),
+                  CoachTextAction(
+                    key: ValueKey('question-submit-${q.id}'),
+                    label: style.strings.submitAnswer,
+                    onPressed: _active && _text.text.trim().isNotEmpty
+                        ? _sendText
+                        : null,
+                  ),
+                ],
+                if (q.mode == CoachQuestionMode.choice) ...[
+                  if (q.multiple && !q.answered)
+                    Text(
+                      style.strings.multipleHint,
+                      style: style.typography.caption,
+                    ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (var i = 0; i < q.options.length; i++)
+                        CoachOptionPill(
+                          key: ValueKey('question-option-${q.id}-$i'),
+                          label: q.options[i],
+                          enabled: _active,
+                          chosen: q.answered
+                              ? q.answeredChoices.contains(q.options[i])
+                              : _selected.contains(q.options[i]),
+                          dimmed:
+                              q.answered &&
+                              !q.answeredChoices.contains(q.options[i]),
+                          onTap: () {
+                            if (!_active) return;
+                            final option = q.options[i];
+                            if (!q.multiple) {
+                              _submit(() => widget.onChoiceAnswer([option]));
+                            } else {
+                              setState(() {
+                                if (!_selected.add(option)) {
+                                  _selected.remove(option);
+                                }
+                              });
+                            }
+                          },
+                        ),
+                    ],
+                  ),
+                  if (q.multiple && !q.answered)
+                    CoachTextAction(
+                      key: ValueKey('question-submit-${q.id}'),
+                      label: style.strings.submitAnswer,
+                      onPressed: _active && _selected.isNotEmpty
+                          ? () => _submit(
+                              () => widget.onChoiceAnswer(
+                                q.options.where(_selected.contains).toList(),
+                              ),
+                            )
+                          : null,
+                    ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

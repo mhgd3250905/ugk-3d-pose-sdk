@@ -21,6 +21,7 @@ class DrillMediaView extends StatefulWidget {
     this.radius = 16,
     this.stage = const Color(0xFF101013),
     this.errorLabel,
+    this.unavailableLabel,
     this.errorColor = const Color(0xB8FFFFFF),
     this.repository,
   });
@@ -40,6 +41,10 @@ class DrillMediaView extends StatefulWidget {
 
   /// Shown when the clip cannot load.
   final String? errorLabel;
+
+  /// Optional host copy for a move that has only a still illustration.
+  /// This is separate from a failure loading a declared video.
+  final String? unavailableLabel;
   final Color errorColor;
   final TrainingMediaRepository? repository;
 
@@ -55,6 +60,7 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   int _request = 0;
   int _cacheRevision = 0;
   bool _resolving = false;
+  bool _initialized = false;
 
   /// Theme the running clip was started for: a switch reloads the
   /// light/dark render (the poster covers the hand-over).
@@ -66,30 +72,25 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final repository = widget.repository ?? TrainingMediaScope.maybeOf(context);
-    if (_repository != repository) {
+    final brightness = Theme.of(context).brightness;
+    final assetThemeChanged =
+        _initialized &&
+        brightness != _brightness &&
+        repository == null &&
+        widget.media.lightVideoAsset != null;
+    // Resolve inherited inputs before creating a controller. Starting in
+    // initState briefly created an extra controller before the scope was known.
+    _brightness = brightness;
+    if (!_initialized || _repository != repository) {
+      _initialized = true;
       _repository?.removeListener(_repositoryChanged);
       _repository = repository;
       _cacheRevision = repository?.cacheRevision ?? 0;
       _repository?.addListener(_repositoryChanged);
       _reload();
+    } else if (assetThemeChanged) {
+      _reload();
     }
-    final b = Theme.of(context).brightness;
-    if (_brightness != null &&
-        b != _brightness &&
-        _repository == null &&
-        widget.media.lightVideoAsset != null &&
-        _controller != null) {
-      _brightness = b;
-      _stop();
-      _start();
-    }
-    _brightness = b;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.playing) _start();
   }
 
   @override
@@ -99,6 +100,9 @@ class _DrillMediaViewState extends State<DrillMediaView> {
         old.media.actionId != widget.media.actionId ||
         old.media.skin != widget.media.skin ||
         old.media.theme != widget.media.theme ||
+        old.media.videoAvailable != widget.media.videoAvailable ||
+        old.media.videoAsset != widget.media.videoAsset ||
+        old.media.lightVideoAsset != widget.media.lightVideoAsset ||
         old.repository != widget.repository ||
         old.playing != widget.playing) {
       if (old.repository != widget.repository) {
@@ -124,7 +128,8 @@ class _DrillMediaViewState extends State<DrillMediaView> {
     _resource = null;
     _downloadError = null;
     _resolving = false;
-    if (!widget.playing) return;
+    _cacheRevision = _repository?.cacheRevision ?? 0;
+    if (!widget.playing || !widget.media.videoAvailable) return;
     if (_repository == null) {
       _start();
     } else {
@@ -158,6 +163,10 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   void _repositoryChanged() {
     if (!mounted) return;
     final repository = _repository!;
+    if (!widget.playing || !widget.media.videoAvailable) {
+      _cacheRevision = repository.cacheRevision;
+      return;
+    }
     final id = widget.media.actionId ?? widget.media.id;
     if (_cacheRevision != repository.cacheRevision) {
       _cacheRevision = repository.cacheRevision;
@@ -192,8 +201,11 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   }
 
   void _start() {
-    final c = DrillMediaController()..addListener(_changed);
+    if (!widget.playing || !widget.media.videoAvailable) return;
+    _stop();
+    final c = DrillMediaController();
     if (!widget.paused) c.toggle(); // play as soon as the page is ready
+    c.addListener(_changed);
     _controller = c;
   }
 
@@ -242,7 +254,11 @@ class _DrillMediaViewState extends State<DrillMediaView> {
             errorBuilder: (_, _, _) => ColoredBox(
               color: widget.stage,
               child: Center(
-                child: widget.errorLabel == null || _repository != null
+                child:
+                    !widget.playing ||
+                        !m.videoAvailable ||
+                        widget.errorLabel == null ||
+                        _repository != null
                     ? null
                     : Text(
                         widget.errorLabel!,
@@ -255,6 +271,7 @@ class _DrillMediaViewState extends State<DrillMediaView> {
             ),
           ),
         if (_repository != null &&
+            m.videoAvailable &&
             widget.playing &&
             (_resource == null || c?.failed == true))
           Positioned(
@@ -281,6 +298,17 @@ class _DrillMediaViewState extends State<DrillMediaView> {
                   ),
                 ],
               ),
+            ),
+          ),
+        if (!m.videoAvailable && widget.unavailableLabel != null)
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 12,
+            child: Text(
+              widget.unavailableLabel!,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: widget.errorColor),
             ),
           ),
       ],

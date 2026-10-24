@@ -12,6 +12,7 @@ class DrillMedia {
     this.posterTime = 0,
     this.lightVideoAsset,
     this.lightPosterAsset,
+    this.videoAvailable = true,
     this.actionId,
     this.skin = 'realistic',
     this.theme = 'dark',
@@ -33,6 +34,10 @@ class DrillMedia {
   /// Same clip baked on a light stage, for light themes.
   final String? lightVideoAsset;
   final String? lightPosterAsset;
+
+  /// False when the host's media index explicitly has no clip for this move.
+  /// A missing/broken clip that was declared available remains a real error.
+  final bool videoAvailable;
 
   String videoFor({required bool light}) =>
       light ? (lightVideoAsset ?? videoAsset) : videoAsset;

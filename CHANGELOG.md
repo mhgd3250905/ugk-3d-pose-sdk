@@ -1,5 +1,11 @@
 # Changelog
 
+## trainer 0.2.4 — 2026-10-24（分支修复，待 SmartFit 真机确认后合 main）
+
+- Add `DrillMedia.videoAvailable` and host-localized `DrillMediaView.unavailableLabel`. Intentional still-only actions do not create a player, resolve a resource, or display a download failure.
+- Resolve inherited repository and theme before starting playback. Theme/path/availability/selection changes release the previous controller and frame before loading the replacement.
+- Trainer 213/213 and coach 471/471 tests pass; trainer analysis reports no issues. Six new cases cover still-only actions, controller handoff, theme transitions, true failures, and bundled offline dark/light resources. Coach remains 0.5.0 and coach_ui 0.1.1.
+
 ## coach 0.5.0 / trainer 0.2.3 — 2026-10-24（待审，未发布）
 
 - Add the pure Dart `CoachConversationController` with immutable observable conversation state, one retained agent, send/cancel/new-conversation/dispose, and display-only history restoration.

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_trainer/src/media/asset_server.dart';
+import 'package:ugk_trainer/src/media/media_view.dart';
 import 'package:ugk_trainer/ugk_trainer.dart';
 
 class _Bundle extends CachingAssetBundle {
@@ -121,6 +122,32 @@ void main() {
 
   Uri base(HttpServer server) =>
       Uri.parse('http://127.0.0.1:${server.port}/v0.3.0-app/');
+
+  Future<void> showMedia(
+    WidgetTester tester,
+    TrainingMediaRepository repository, {
+    required DrillMedia media,
+    bool playing = true,
+    Brightness brightness = Brightness.dark,
+  }) => tester.pumpWidget(
+    MaterialApp(
+      theme: ThemeData(brightness: brightness),
+      themeAnimationDuration: Duration.zero,
+      home: TrainingMediaScope(
+        repository: repository,
+        child: SizedBox(
+          width: 200,
+          height: 200,
+          child: DrillMediaView(
+            playing: playing,
+            media: media,
+            unavailableLabel: 'Still illustration',
+            errorLabel: 'Playback failed',
+          ),
+        ),
+      ),
+    ),
+  );
   Future<void> respond(HttpRequest r, _Fixture fixture) async {
     final bytes = fixture.remote[r.uri.path];
     if (bytes == null) {
@@ -148,6 +175,36 @@ void main() {
       expect(repository.readyActionIds, isEmpty);
     },
   );
+
+  test('bundled dark extras and light videos resolve offline', () async {
+    final fixture = _Fixture();
+    final light = utf8.encode('light-extra-video');
+    fixture.packages['realistic-light'] = fixture._package(
+      'realistic-light',
+      [fixture._file('../v0.3.0/realistic/light/extra.mp4', light)],
+      ['extra'],
+    );
+    fixture.assets['assets/training_media/v0.3.0/realistic/dark/extra.mp4'] =
+        fixture.extraVideo;
+    fixture.assets['assets/training_media/v0.3.0/realistic/light/extra.mp4'] =
+        light;
+    fixture.refreshMain();
+    final repository = await fixture.create(
+      temp,
+      probe: () async => TrainingMediaNetwork.offline,
+    );
+    repositories.add(repository);
+    expect(repository.baseUrls, isEmpty);
+    expect(
+      (await repository.ensureVideo('extra')).assetKey,
+      'assets/training_media/v0.3.0/realistic/dark/extra.mp4',
+    );
+    expect(
+      (await repository.ensureVideo('extra', theme: 'light')).assetKey,
+      'assets/training_media/v0.3.0/realistic/light/extra.mp4',
+    );
+    expect(await repository.cacheBytes(), 0);
+  });
 
   test('main and bundled submanifest hash mismatch fail closed', () async {
     final fixture = _Fixture();
@@ -640,6 +697,244 @@ void main() {
       }
     },
   );
+
+  testWidgets(
+    'declared still-only media never resolves and keeps separate host copy',
+    (tester) async {
+      late TrainingMediaRepository repository;
+      var probes = 0;
+      await tester.runAsync(() async {
+        repository = await _Fixture().create(
+          temp,
+          probe: () async {
+            probes++;
+            return TrainingMediaNetwork.wifi;
+          },
+        );
+        repositories.add(repository);
+      });
+      final before = probes;
+      for (final playing in [true, false]) {
+        await showMedia(
+          tester,
+          repository,
+          playing: playing,
+          media: const DrillMedia(
+            id: 'extra',
+            videoAsset: 'unused.mp4',
+            posterAsset: 'cover.webp',
+            duration: 5,
+            videoAvailable: false,
+          ),
+        );
+        await tester.pump();
+        expect(find.text('Still illustration'), findsOneWidget);
+        expect(find.text('Playback failed'), findsNothing);
+        expect(find.text('正在加载动作视频'), findsNothing);
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.byType(DrillMediaPlatformView), findsNothing);
+        expect(find.byType(Image), findsOneWidget);
+        expect(repository.stateFor('extra').phase, TrainingMediaPhase.idle);
+        expect(probes, before);
+      }
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets('availability changes for one move create and dispose playback', (
+    tester,
+  ) async {
+    late TrainingMediaRepository repository;
+    await tester.runAsync(() async {
+      repository = await _Fixture().create(temp);
+      repositories.add(repository);
+    });
+    Future<void> pump(bool available) => showMedia(
+      tester,
+      repository,
+      media: DrillMedia(
+        id: 'builtin',
+        videoAsset: 'unused.mp4',
+        posterAsset: 'cover.webp',
+        duration: 5,
+        videoAvailable: available,
+      ),
+    );
+    await pump(false);
+    expect(find.byType(DrillMediaPlatformView), findsNothing);
+    await pump(true);
+    await tester.pump();
+    final playback = tester.widget<DrillMediaPlatformView>(
+      find.byType(DrillMediaPlatformView),
+    );
+    // The desktop test platform reports unsupported playback after mounting;
+    // the view still owns exactly one controller until availability changes.
+    await pump(false);
+    expect(playback.controller.wantsPlay, isFalse);
+    expect(find.byType(DrillMediaPlatformView), findsNothing);
+    expect(find.text('Still illustration'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets(
+    'explicit theme handover drops the old frame while the next video resolves',
+    (tester) async {
+      final fixture = _Fixture();
+      final light = utf8.encode('light-extra-video');
+      fixture.packages['realistic-light'] = fixture._package(
+        'realistic-light',
+        [fixture._file('../v0.3.0/realistic/light/extra.mp4', light)],
+        ['extra'],
+      );
+      fixture.assets['assets/training_media/v0.3.0/realistic/dark/extra.mp4'] =
+          fixture.extraVideo;
+      fixture.remote['/v0.3.0/realistic/light/extra.mp4'] = light;
+      fixture.refreshMain();
+      final responseGate = Completer<void>();
+      final requested = <String>[];
+      late TrainingMediaRepository repository;
+      await tester.runAsync(() async {
+        final server = await serve((request) async {
+          requested.add(request.uri.path);
+          await responseGate.future;
+          await respond(request, fixture);
+        });
+        repository = await fixture.create(temp, mirrors: [base(server)]);
+        repositories.add(repository);
+      });
+      Future<void> pump(String theme) => showMedia(
+        tester,
+        repository,
+        brightness: theme == 'light' ? Brightness.light : Brightness.dark,
+        media: DrillMedia(
+          id: 'extra',
+          theme: theme,
+          videoAsset: 'dark.mp4',
+          lightVideoAsset: 'light.mp4',
+          posterAsset: 'dark.webp',
+          lightPosterAsset: 'light.webp',
+          duration: 5,
+        ),
+      );
+      await pump('dark');
+      await tester.pump();
+      final dark = tester.widget<DrillMediaPlatformView>(
+        find.byType(DrillMediaPlatformView),
+      );
+      expect(dark.resource!.assetKey, contains('/dark/extra.mp4'));
+      dark.controller.failed = false;
+      dark.controller.receive({'source': 'drill-media', 'type': 'first-frame'});
+      await tester.pump();
+      expect(find.byType(Image), findsNothing);
+      await pump('light');
+      expect(dark.controller.wantsPlay, isFalse);
+      expect(find.byType(DrillMediaPlatformView), findsNothing);
+      expect(find.byType(Image), findsOneWidget);
+      expect(
+        (tester.widget<Image>(find.byType(Image)).image as AssetImage)
+            .assetName,
+        'light.webp',
+      );
+      for (var attempt = 0; attempt < 20 && requested.isEmpty; attempt++) {
+        await tester.runAsync(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        });
+        await tester.pump();
+      }
+      expect(requested, ['/v0.3.0/realistic/light/extra.mp4']);
+      responseGate.complete();
+      for (
+        var attempt = 0;
+        attempt < 20 && find.byType(DrillMediaPlatformView).evaluate().isEmpty;
+        attempt++
+      ) {
+        await tester.runAsync(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        });
+        await tester.pump();
+      }
+      final current = tester.widget<DrillMediaPlatformView>(
+        find.byType(DrillMediaPlatformView),
+      );
+      expect(current.controller, isNot(same(dark.controller)));
+      expect(current.media.theme, 'light');
+      expect(current.videoAsset, 'light.mp4');
+      expect(current.resource!.cachePath, isNotNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets('playing selection keeps only the chosen card controller alive', (
+    tester,
+  ) async {
+    Future<void> pump(int selected) => tester.pumpWidget(
+      MaterialApp(
+        home: Column(
+          children: [
+            for (var index = 0; index < 2; index++)
+              SizedBox(
+                width: 150,
+                height: 150,
+                child: DrillMediaView(
+                  key: ValueKey(index),
+                  playing: selected == index,
+                  media: DrillMedia(
+                    id: 'card-$index',
+                    videoAsset: 'video-$index.mp4',
+                    posterAsset: 'cover-$index.webp',
+                    duration: 5,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    await pump(0);
+    final first = tester.widget<DrillMediaPlatformView>(
+      find.byType(DrillMediaPlatformView),
+    );
+    expect(first.media.id, 'card-0');
+    await pump(1);
+    final second = tester.widget<DrillMediaPlatformView>(
+      find.byType(DrillMediaPlatformView),
+    );
+    expect(second.media.id, 'card-1');
+    expect(first.controller.wantsPlay, isFalse);
+    await pump(-1);
+    expect(find.byType(DrillMediaPlatformView), findsNothing);
+    expect(second.controller.wantsPlay, isFalse);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('declared video failures are not presented as missing media', (
+    tester,
+  ) async {
+    late TrainingMediaRepository repository;
+    await tester.runAsync(() async {
+      repository = await _Fixture().create(temp);
+      repositories.add(repository);
+    });
+    await showMedia(
+      tester,
+      repository,
+      media: const DrillMedia(
+        id: 'extra',
+        videoAsset: 'unused.mp4',
+        posterAsset: 'cover.webp',
+        duration: 5,
+      ),
+    );
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+    });
+    await tester.pump();
+    expect(repository.stateFor('extra').phase, TrainingMediaPhase.failed);
+    expect(find.text('Playback failed'), findsOneWidget);
+    expect(find.text('Still illustration'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets(
     'the current cover view follows Wi-Fi retry and cache clear invalidation',

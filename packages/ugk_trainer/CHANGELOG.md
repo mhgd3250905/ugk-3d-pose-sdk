@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.4 — 2026-10-24（分支修复，待真机确认后合 main）
+
+- Add `DrillMedia.videoAvailable` (default true) and `DrillMediaView.unavailableLabel` for intentional still-only demonstrations. Missing videos do not start downloads or players; real transport and decode failures remain errors.
+- Retire the previous player and frame when selection, explicit theme, asset path or availability changes. Start only after inherited repository/theme inputs are known.
+- Full trainer tests: 213/213; analysis: no issues. Existing dark/light manifest resources are verified offline without remote mirrors. No coach or coach_ui runtime changes.
+
 ## 0.2.3 — 2026-10-24（待审，未发布）
 
 - Align the coach version constraint to `^0.5.0` and the Git dependency to the proposed `ugk_coach-v0.5.0` tag, so hosts can adopt `CoachConversationController` without incompatible transitive package sources.

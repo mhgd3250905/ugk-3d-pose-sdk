@@ -93,6 +93,14 @@ final result = await Navigator.of(context).push<SessionResult>(
 - HipLab 切换时删掉 App 自己的 `TrainingSessionService.kt`、MainActivity 里的 `hiplab/training_session` 通道和 manifest 里的 service 声明，避免两份服务。
 - 通知小图标用 `notificationIcon`（`mipmap/…` 或 `drawable/…`），不填用应用图标。
 
+## 静帧、主题与播放选择（0.2.4）
+
+宿主按实际素材清单设置 `DrillMedia.videoAvailable`。设为 `false` 时，`DrillMediaView` 保留主题匹配的 poster，并可显示宿主传入的 `unavailableLabel`；不会创建播放器、下载资源或显示网络故障提示。已有视频请求失败仍使用 `errorLabel`，两种情况分别处理。
+
+使用 repository 时，宿主把当前主题明确传给 `DrillMedia.theme`（`light` / `dark`），同时提供对应的 poster 与视频路径；不要用深色素材代替缺失的浅色素材。纯 assets 模式仍支持原有 `lightVideoAsset` / `lightPosterAsset`。主题与资源更换时先清掉旧 frame，再展示新主题静帧并加载视频。
+
+卡片流由宿主统一选择一个 `playing: true`，其余传 `false`，SDK 会释放非活跃播放器。进入训练前应先关闭详情预览并等待一帧，避免旧路由退场时与新训练同时播放。SmartFit 当前把已有浅深视频随包带上以支持离线；内置读取仍先于缓存和网络，SDK 不要求所有宿主都采用同一种打包策略。
+
 ## 内置精简与按需素材
 
 `TrainingMediaRepository` 位于共用 trainer 包，三个 App 可接入同一套清单、下载、缓存与播放器。宿主选择动作及保存 Wi-Fi/开发开关偏好，仓库负责素材完整性与网络策略。原来的 `DrillMedia` / `DrillMediaView` 不传仓库时继续读取宿主 assets。

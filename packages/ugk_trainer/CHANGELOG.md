@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.2.2 — 2026-10-24（待审核）
+## 0.2.2 — 2026-10-24（已批准合入并发布 tag）
+
+- `ugk_trainer-v0.2.2` is fixed at `3302d6235a39e2c2b4b51fa196cc32b37c31b54c`.
 
 - Use an ASCII-only package manifest so Windows Pub can read Git metadata with the system encoding. Pin the equally corrected `ugk_coach-v0.4.2` manifest. No trainer runtime changes from 0.2.1.
 

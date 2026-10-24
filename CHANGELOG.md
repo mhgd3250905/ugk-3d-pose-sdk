@@ -1,10 +1,10 @@
 # Changelog
 
-## coach_ui 0.1.1 / coach 0.4.2 / trainer 0.2.2 — 2026-10-24（待审核）
+## coach_ui 0.1.1 / coach 0.4.2 / trainer 0.2.2 — 2026-10-24（已批准合入并发布 tag）
 
 - Fix expanded routine dose wrapping at narrow widths and large text sizes without shrinking or truncating the dose. Shared row measurement drives row layout, cumulative media slots, flyer destinations and text collision bands during expansion and collapse.
 - Keep all package manifests ASCII. This prevents Windows system decoding of Git metadata from swallowing the version after a non-ASCII description. Coach/trainer runtime code is unchanged; trainer now pins `ugk_coach-v0.4.2` so it does not transitively load the old non-ASCII manifest.
-- Planned tags: `ugk_coach_ui-v0.1.1`, `ugk_coach-v0.4.2`, `ugk_trainer-v0.2.2`. Existing tags are immutable. The branch is not merged or published yet.
+- Published tags: `ugk_coach_ui-v0.1.1`, `ugk_coach-v0.4.2`, `ugk_trainer-v0.2.2`, all fixed at `3302d6235a39e2c2b4b51fa196cc32b37c31b54c`. The exact 320px/2x/light-and-dark/expanded/long-Chinese-dose regression exists and passed before publication. SmartFit source `9d2ff7d` was merged only after a fresh GitHub cache passed native Pub strict-lock validation with the reviewed Flutter 3.44.7 toolchain. Old tags are unchanged; later status-only documentation does not move these tags.
 
 ## ugk_coach_ui 0.1.0 / ugk_trainer 0.2.1 — 2026-10-24（已批准合入并发布 tag）
 

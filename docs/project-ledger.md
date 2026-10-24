@@ -4,7 +4,13 @@
 
 本台账统一记录维护状态、已合并成果、验证证据和待办。包版本、接口行为仍以对应清单和实现为准；发布历史保留在 CHANGELOG。表内 SHA 是核验快照，后续文档提交会推进 main，不能把快照当成永远最新的分支指针。
 
-## 当前快照：共享聊天 UI 与 tag 发布（2026-10-24）
+## 当前快照：coach_ui 0.1.1 与 ASCII 清单（2026-10-24）
+
+已按开哥批准先核对「320px + 2 倍字体 + 浅/深主题 + 展开套路卡 + 中文长剂量」用例存在且通过，再合入并推送 SDK `3302d6235a39e2c2b4b51fa196cc32b37c31b54c`。`ugk_coach_ui-v0.1.1`、`ugk_coach-v0.4.2`、`ugk_trainer-v0.2.2` 均已发布并固定该提交；旧 16 个 tag 未移动。
+
+SDK UI 21 项、ASCII 清单 1 项测试通过，SmartFit 454 通过 / 13 条件跳过、分析无问题，常规深浅布局 golden 一致。SmartFit 从正式 GitHub 远端用全新 Git 缓存、原生 git/Pub 无转码包装器验证严格锁文件后，已合入并推送功能源码 `9d2ff7db6f598fe6cf629de02ed3c56ade660f9e`。验收工具链为 Flutter 3.44.7；机器全局已独立更新至 3.47.8，本次用隔离的原验收工具链保持已测锁文件，不混入另外 5 项依赖升级。后续只更新发布状态 Markdown，tag 和运行代码保持固定。
+
+## 已发布基线：共享聊天 UI 0.1.0（2026-10-24）
 
 开哥已批准 SDK `f0ea0647586913b205fc6dbb75fc9f97cedc55ce` 合入并推送 main，`ugk_coach_ui-v0.1.0`、`ugk_trainer-v0.2.1` 均已发布且固定该 SHA。coach 继续锁 `ugk_coach-v0.4.1`（`88da65ab4e7d6753ab548d779f4168f023dbf9f8`）。后续收束只改发布状态文档，不能把 tag SHA 写成永远最新的 main 指针。
 
@@ -37,13 +43,13 @@ trainer 0.2.1 仅将相对 coach 依赖改锁正式 tag，解决宿主分别锁�
 | 路径 | 类别 | current / archive-history | 用途与核对结果 |
 |---|---|---|---|
 | [README.md](../README.md) | 项目入口 | current | 当前接入方式与文档入口；区分 Agent、工具版和 JSON 信封旧接口 |
-| [pubspec.yaml](../pubspec.yaml) | 包配置 | current | 根包名 `ugk_coach`、main 0.4.1、禁止 pub.dev 发布 |
+| [pubspec.yaml](../pubspec.yaml) | 包配置 | current | 根包名 `ugk_coach`、main 0.4.2、ASCII 清单、禁止 pub.dev 发布 |
 | [docs/agent-plan.md](agent-plan.md) | Agent 设计 | current | 0.4 先问再排、工具循环、技能披露、用户记忆和事件；不充当真实服务验收记录 |
-| [CHANGELOG.md](../CHANGELOG.md) | 仓库版本变更记录 | current / history；按包名区分 | coach 0.4.1 / trainer 0.2.1 / coach_ui 0.1.0 为当前记录；历史测试数和待定项保留原时间语境 |
-| [packages/ugk_trainer/pubspec.yaml](../packages/ugk_trainer/pubspec.yaml) | 训练包配置 | current | trainer 0.2.1，coach 依赖固定正式 tag；`publish_to: none` 保留 |
-| [packages/ugk_coach_ui/README.md](../packages/ugk_coach_ui/README.md) | 共享聊天 UI 接入 | current | coach_ui 0.1.0 正式 tag、公开 API、主题和回调、可编译示例及宿主职责边界 |
+| [CHANGELOG.md](../CHANGELOG.md) | 仓库版本变更记录 | current / history；按包名区分 | coach 0.4.2 / trainer 0.2.2 / coach_ui 0.1.1 为当前记录；历史证据保留原语境 |
+| [packages/ugk_trainer/pubspec.yaml](../packages/ugk_trainer/pubspec.yaml) | 训练包配置 | current | trainer 0.2.2，ASCII 清单，coach 依赖固定 `ugk_coach-v0.4.2`；`publish_to: none` 保留 |
+| [packages/ugk_coach_ui/README.md](../packages/ugk_coach_ui/README.md) | 共享聊天 UI 接入 | current | coach_ui 0.1.1 正式 tag、溢出修复、公开 API、主题/回调和宿主职责边界 |
 | [packages/ugk_trainer/README.md](../packages/ugk_trainer/README.md) | 训练接口与接入约定 | current | 0.2.0 统计、自动节奏、分段及播放器接入；明确兼容性与真机边界 |
-| [packages/ugk_trainer/CHANGELOG.md](../packages/ugk_trainer/CHANGELOG.md) | 训练包版本记录 | current / history | 0.2.1 当前仅修依赖声明；0.2.0 运行行为与更早版本证据保留原语境 |
+| [packages/ugk_trainer/CHANGELOG.md](../packages/ugk_trainer/CHANGELOG.md) | 训练包版本记录 | current / history | 0.2.2 当前仅修 ASCII 清单和依赖 tag；0.2.0 运行行为与更早证据保留原语境 |
 | [0.2.0 接入契约](trainer-020-integration.md) | 当前接入约定 | current | 统计、自动计次、segments、操作开关、语音素材与平台策略 |
 | [0.2.0 验证记录](trainer-020-verification-2026-10-23.md) | 验收证据 | current | 绑定 64a5487；含 SmartFit 临时副本边界、目录审计和真机待验 |
 | [ask_user](ask-user.md) | Agent 接口 | current | 事件/回答接入及 0.4.0 新枚举对穷举 switch 的破坏性变更 |

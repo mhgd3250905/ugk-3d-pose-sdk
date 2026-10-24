@@ -2,11 +2,11 @@
 
 仓库 `mhgd3250905/ugk-3d-pose-sdk`，根目录是纯 Dart 包 **`ugk_coach`**，`packages/ugk_trainer` 是 Flutter 训练执行包（PR #1 已合入）。
 
-2026-10-24 待审核补丁：`ugk_coach_ui 0.1.1` 修复窄屏大字体展开卡片的长剂量溢出，剂量完整换行并与行高、飞行落点和动画保护区共享布局测量；`ugk_coach 0.4.2` / `ugk_trainer 0.2.2` 仅将包清单改为 ASCII 并同步正式依赖 tag，避免中文 Windows Pub 把版本解析成 0.0.0。旧 tag 保持原状，新 tag 需开哥批准后合入并发布；当前正式版本仍见下方记录。
+2026-10-24 已批准合入并发布补丁：`ugk_coach_ui-v0.1.1`、`ugk_coach-v0.4.2`、`ugk_trainer-v0.2.2` 均固定 `3302d6235a39e2c2b4b51fa196cc32b37c31b54c`。已核对 SDK 的「320px / 2 倍字体 / 浅深主题 / 展开套路卡 / 中文长剂量」用例通过，包含在 UI 21 项通过记录中。剂量完整换行，行高、飞行落点和动画保护区共享测量；coach/trainer 仅修 ASCII 清单和依赖 tag，运行代码不变。SmartFit 在正式 GitHub 远端原生 Pub 严格锁文件验证通过后，已将功能源码 `9d2ff7d` 合入并推送 main。旧 tag 未移动，后续发布状态文档不会移动新 tag。
 
 2026-10-24 已经开哥批准合入并推送 `f0ea0647586913b205fc6dbb75fc9f97cedc55ce`，发布 `ugk_coach_ui-v0.1.0`、`ugk_trainer-v0.2.1`，两个 tag 均固定该提交。[`ugk_coach_ui` 接入文档](packages/ugk_coach_ui/README.md)包含聊天列表、消息/澄清气泡、套路卡及原有展开动画；主题、字体、文案、素材与交互由宿主注入，无网络、密钥或 App 代码依赖。trainer 0.2.1 仅修正 coach tag 的依赖来源，运行代码保持 0.2.0；coach 仍为 `ugk_coach-v0.4.1`（`88da65a`）。UI 8 项、trainer 207 项测试通过，SmartFit 452 项通过 / 13 条件跳过；App 从正式 GitHub 远端重新验证 tag 锁文件后已合入 main，功能源码为 `7f3458d`。后续文档状态提交不改变已发布 tag。
 
-**当前 main：coach_ui 0.1.0 / trainer 0.2.1 / coach 0.4.1。** trainer 的运行行为沿用已批准验收提交 `64a54874307449c8685577f8eeb913296b207a7c`：统计修复、缺省自动计次、一组多段和可选操作见[接入契约](docs/trainer-020-integration.md)及[验证记录](docs/trainer-020-verification-2026-10-23.md)。下方 0.4.0 / 0.1.7 是历史基线。0.4.0 新增 `AgentEventKind.askUser` 对旧穷举 switch 是破坏性源码变更，升级必须补分支，见 [ask_user 升级提示](docs/ask-user.md)。
+**当前 main：coach_ui 0.1.1 / trainer 0.2.2 / coach 0.4.2。** trainer 的运行行为沿用已批准验收提交 `64a54874307449c8685577f8eeb913296b207a7c`：统计修复、缺省自动计次、一组多段和可选操作见[接入契约](docs/trainer-020-integration.md)及[验证记录](docs/trainer-020-verification-2026-10-23.md)。下方版本为历史基线。0.4.0 新增 `AgentEventKind.askUser` 对旧穷举 switch 是破坏性源码变更，升级必须补分支，见 [ask_user 升级提示](docs/ask-user.md)。
 
 HipLab / Flare 可按 UI 包 README 的固定 tag 接入，并各自验收真机锁屏、来电中断和原生播放；本轮不替其它 App 自动升级。当前版本、远端核验快照与历史证据统一见[项目维护台账](docs/project-ledger.md)。
 

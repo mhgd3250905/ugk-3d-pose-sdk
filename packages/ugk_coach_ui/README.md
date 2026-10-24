@@ -1,6 +1,6 @@
-# ugk_coach_ui 0.1.0
+# ugk_coach_ui 0.1.1
 
-待审核 `0.1.1`：修复展开套路卡在 320px / 2 倍字体时的长中文剂量、循环与分段剂量溢出。剂量不缩字、不截断，行高与媒体/飞行动画的测量同步调整。配套 coach 0.4.2、trainer 0.2.2 仅修 ASCII 包清单与依赖 tag；尚未发布，以下表格仍是已有正式 tag。公开接口兼容 0.1.0，Flutter 最低版本为 3.44.0，以匹配真实文字排版的无障碍行距/字距覆盖；当前 SmartFit 的 3.44.7 满足此约束。
+`0.1.1` 已批准发布：修复展开套路卡在 320px / 2 倍字体时的长中文剂量、循环与分段剂量溢出。该指定回归在浅深主题均通过，包含在 UI 21 项通过记录中；剂量不缩字、不截断，行高与媒体/飞行动画共享测量。配套 coach 0.4.2、trainer 0.2.2 仅修 ASCII 包清单与依赖 tag。公开接口兼容 0.1.0，Flutter 最低版本为 3.44.0；本轮验收和 SmartFit 正式远端锁文件验证使用 Flutter 3.44.7。
 
 给 HipLab / Flare / SmartFit 共用的 Flutter 聊天呈现包。聊天列表的进入动画、消息气泡、询问气泡，以及单动作/多动作套路卡的展开布局与动画由本包实现；产品颜色、字体、文案、素材和操作由 App 注入。
 
@@ -12,9 +12,9 @@
 
 | 包 | 固定 tag | 完整 SHA |
 | --- | --- | --- |
-| coach_ui | `ugk_coach_ui-v0.1.0` | `f0ea0647586913b205fc6dbb75fc9f97cedc55ce` |
-| trainer | `ugk_trainer-v0.2.1` | `f0ea0647586913b205fc6dbb75fc9f97cedc55ce` |
-| coach | `ugk_coach-v0.4.1` | `88da65ab4e7d6753ab548d779f4168f023dbf9f8` |
+| coach_ui | `ugk_coach_ui-v0.1.1` | `3302d6235a39e2c2b4b51fa196cc32b37c31b54c` |
+| trainer | `ugk_trainer-v0.2.2` | `3302d6235a39e2c2b4b51fa196cc32b37c31b54c` |
+| coach | `ugk_coach-v0.4.2` | `3302d6235a39e2c2b4b51fa196cc32b37c31b54c` |
 
 App 使用：
 
@@ -23,7 +23,7 @@ ugk_coach_ui:
   git:
     url: https://github.com/mhgd3250905/ugk-3d-pose-sdk.git
     path: packages/ugk_coach_ui
-    ref: ugk_coach_ui-v0.1.0
+    ref: ugk_coach_ui-v0.1.1
 ```
 
 ```dart

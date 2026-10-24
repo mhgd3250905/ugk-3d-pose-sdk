@@ -234,15 +234,33 @@ class TrainerRingPainter extends CustomPainter {
         center +
         Offset(math.cos(start + sweep), math.sin(start + sweep)) * radius;
     if (glow && glowOpacity > 0) {
+      // A small radial halo needs no mask-filter render target each time the
+      // progress head moves. Match the blurred dot's spread and peak energy.
+      final dotRadius = stroke * .95;
+      final sigma = math.max(glowBlur ?? stroke * .6, .01);
+      final haloRadius = dotRadius + sigma * 3;
+      final peak = 1 - math.exp(-dotRadius * dotRadius / (2 * sigma * sigma));
+      final variance = sigma * sigma + dotRadius * dotRadius / 4;
+      final alpha = color.a * .4 * glowOpacity * peak;
+      const stops = [0.0, .25, .5, .75, 1.0];
       canvas.drawCircle(
         head,
-        stroke * .95,
+        haloRadius,
         Paint()
-          ..color = color.withValues(alpha: color.a * .4 * glowOpacity)
-          ..maskFilter = MaskFilter.blur(
-            BlurStyle.normal,
-            glowBlur ?? stroke * .6,
-          ),
+          ..shader = RadialGradient(
+            stops: stops,
+            colors: [
+              for (final stop in stops)
+                color.withValues(
+                  alpha: stop == 1
+                      ? 0
+                      : alpha *
+                            math.exp(
+                              -math.pow(haloRadius * stop, 2) / (2 * variance),
+                            ),
+                ),
+            ],
+          ).createShader(Rect.fromCircle(center: head, radius: haloRadius)),
       );
     }
     canvas.drawCircle(head, stroke * .5, Paint()..color = color);

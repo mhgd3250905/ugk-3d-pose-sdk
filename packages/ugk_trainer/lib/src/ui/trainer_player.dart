@@ -1055,6 +1055,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     icon: Icon(icon),
     tooltip: tooltip,
     size: size,
+    overMedia: true,
     onPressed: () {
       unawaited(HapticFeedback.selectionClick());
       onPressed();
@@ -1446,6 +1447,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
             child: TrainerGlass(
               key: const ValueKey('info-card'),
               theme: _th,
+              overMedia: true,
               radius: 24,
               height: _cardH,
               padding: const EdgeInsets.fromLTRB(
@@ -1733,23 +1735,27 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
               // Scale down rather than clip if a host theme's numerals run
               // taller than the slot (sdk-stage-r9).
               child: Center(
-                child: FittedBox(fit: BoxFit.scaleDown, child: _digits(p, t)),
+                child: RepaintBoundary(
+                  child: FittedBox(fit: BoxFit.scaleDown, child: _digits(p, t)),
+                ),
               ),
             ),
             const SizedBox(height: _digitsGap),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                TrainerHover(
-                  theme: _th,
-                  lift: 8,
-                  inset: .2,
-                  child: _circle(
-                    key: const ValueKey('prev'),
-                    icon: Icons.skip_previous_rounded,
-                    tooltip: _s.previous,
-                    size: 56,
-                    onPressed: _previous,
+                RepaintBoundary(
+                  child: TrainerHover(
+                    theme: _th,
+                    lift: 8,
+                    inset: .2,
+                    child: _circle(
+                      key: const ValueKey('prev'),
+                      icon: Icons.skip_previous_rounded,
+                      tooltip: _s.previous,
+                      size: 56,
+                      onPressed: _previous,
+                    ),
                   ),
                 ),
                 UgkPlayPauseButton(
@@ -1768,16 +1774,18 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                   knobColor: _th.isDark ? const Color(0xFFFFFFFF) : _th.surface,
                   ringSize: _ringD,
                 ),
-                TrainerHover(
-                  theme: _th,
-                  lift: 8,
-                  inset: .2,
-                  child: _circle(
-                    key: const ValueKey('skip'),
-                    icon: Icons.skip_next_rounded,
-                    tooltip: _s.skip,
-                    size: 56,
-                    onPressed: _skip,
+                RepaintBoundary(
+                  child: TrainerHover(
+                    theme: _th,
+                    lift: 8,
+                    inset: .2,
+                    child: _circle(
+                      key: const ValueKey('skip'),
+                      icon: Icons.skip_next_rounded,
+                      tooltip: _s.skip,
+                      size: 56,
+                      onPressed: _skip,
+                    ),
                   ),
                 ),
               ],

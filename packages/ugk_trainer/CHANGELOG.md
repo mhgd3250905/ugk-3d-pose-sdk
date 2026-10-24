@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.8 — 2026-10-25（性能候选，待完整 trace 定位与真机验收）
+
+- Use the existing theme-driven `overMedia` fill for the training information card and close/previous/next controls, removing their live backdrop blur. Give the countdown and neighbouring controls independent repaint boundaries.
+- Replace the progress-head mask blur with a radial-gradient halo. Preserve the public API, theme colours, dimensions, play/pause animation state machine, media and training clock behaviour.
+- Targeted tests: 22/22; scoped analysis: no issues. Paint probes confirm that paused breathing no longer repaints previous/next controls, and media/progress paints remain isolated. No full-suite rerun for this patch.
+- Current lower-interference candidate measurements: first-entry maximum 14.559ms (original baseline 77.271ms); steady raster P99/max 6.295/8.652ms with no frames above 16.67ms; button 9.479/24.895ms with one above; switching 10.616/26.862ms with three above. Button zero-slow-frame acceptance is not yet met; full trace attribution is pending. Timeline retrieval now occurs after each measurement window because the original twice-per-second VM polling introduced UI spikes; those instrumentation effects must not be reported as code optimisation gains.
+
 ## 0.2.7 — 2026-10-25（分支修复，待真机确认后合 main）
 
 - Add the theme-driven UgkPlayPauseButton and use it in TrainerPlayer: continuous two-polygon icon morph, interrupted colour waves, release spring and touch-only ripple/haptics.

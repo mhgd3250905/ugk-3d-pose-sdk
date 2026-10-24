@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3 — 2026-10-24（待审，未发布）
+
+- Align the coach version constraint to `^0.5.0` and the Git dependency to the proposed `ugk_coach-v0.5.0` tag, so hosts can adopt `CoachConversationController` without incompatible transitive package sources.
+- No trainer runtime changes. Publish `ugk_trainer-v0.2.3` only after approval, together with the coach release; existing tags remain unchanged.
+
 ## 0.2.2 — 2026-10-24（已批准合入并发布 tag）
 
 - `ugk_trainer-v0.2.2` is fixed at `3302d6235a39e2c2b4b51fa196cc32b37c31b54c`.

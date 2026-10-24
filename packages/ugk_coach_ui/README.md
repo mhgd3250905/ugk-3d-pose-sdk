@@ -50,13 +50,81 @@ import 'package:ugk_coach_ui/ugk_coach_ui.dart';
 
 ## 接入 ask_user
 
-1. App 订阅 agent 进度，但仅在 `await agent.send(...)` 返回后，把通过门禁的 `result.question` 映射成 `CoachQuestionData` 并启用回答。
-2. `result.text` 与问题正文相同。渲染问题气泡时跳过普通正文，防止重复两条问题。
-3. `text` 使用 `onTextAnswer`；`choice` 使用 `onChoiceAnswer` 的原选项字符串列表。单选回传一项；多选回传按原选项顺序排列的已选项。
-4. App 立即关闭旧问题的回答状态、保存用户气泡，然后把答案作为同一个 agent 的下一条消息发送。不要为一次回答重建 agent，才能继续多轮澄清并生成套路。
-5. 新问题/套路到来、取消、新对话、销毁或恢复历史后，由 App 决定哪些问题仍有效。持久化历史不自动恢复 agent 的待答任务；过期问题传 `enabled: false`。等待异步回答回调期间，本包也会临时禁止重复提交。
+新接入推荐使用 `ugk_coach` 的纯 Dart [`CoachConversationController`](../../docs/coach-conversation-controller.md)。该入口随拟发布的 `ugk_coach-v0.5.0` 提供，目前仍待审，尚未发布；本 UI 包的运行代码、依赖和版本不变。上方安装表保留已发布的 0.1.1 配套快照，勿把拟发布 tag 当成现有 tag。
 
-App 仍负责：AI Key 有无的入口开关、HTTP client/endpoint/Key、coach 事件和多轮会话、模型输出门禁、回答校验、储存、导航、训练启动与失败提示。网络调用通过呈现数据和回答回调对接，不向本包传入接口地址或密钥。
+App 把构造好的一个 agent 交给 controller，并监听 `state`。controller 负责等 `send` 返回后才启用已过门禁的问题、单选/多选校验与排序、同步锁定提交、旧问题失效、取消与新对话；App 不再另存一套“当前可答问题”的状态。agent 进度事件仅用于显示进度，不直接启用询问气泡。
+
+Flutter `State` 中的监听片段如下，`widget.conversation` 由 App 注入；下面以 App 创建并拥有本页面会话的生命周期为例：
+
+```dart
+// imports: dart:async, package:ugk_coach/ugk_coach.dart as coach
+late final coach.CoachConversationController conversation;
+
+@override
+void initState() {
+  super.initState();
+  conversation = widget.conversation;
+  conversation.addListener(_changed);
+}
+
+void _changed() {
+  if (mounted) setState(() {});
+}
+
+@override
+void dispose() {
+  conversation.removeListener(_changed);
+  unawaited(conversation.dispose());
+  super.dispose();
+}
+```
+
+若会话由更长生命周期的 App 服务持有，页面只解除自己的监听，由服务最终销毁 controller。不要在每次 build 或每次回答时重建 agent/controller。
+
+将 `conversation.state.messages` 中的消息映射为 `CoachChatEntry`；一条消息的正文与问题分别处理：
+
+```dart
+// m: coach.CoachConversationMessage
+final question = m.question;
+final content = Column(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    if (m.text.isNotEmpty)
+      CoachMessageBubble(
+        message: CoachBubbleData(id: m.id, text: m.text, isUser: m.isUser),
+        optionsActive: false,
+        onOption: (_) {},
+      ),
+    if (question != null)
+      CoachQuestionBubble(
+        key: ValueKey('question-${m.id}'),
+        question: CoachQuestionData(
+          id: m.id,
+          question: question.question,
+          mode: question.mode == coach.AskUserMode.text
+              ? CoachQuestionMode.text
+              : CoachQuestionMode.choice,
+          options: question.options,
+          multiple: question.multiple,
+          answered: m.questionAnswered,
+          answeredChoices: m.answeredChoices,
+        ),
+        enabled: conversation.canAnswer(m.id),
+        onTextAnswer: (text) async {
+          await conversation.answerText(m.id, text, context: appContext);
+        },
+        onChoiceAnswer: (selected) async {
+          await conversation.answerChoices(m.id, selected, context: appContext);
+        },
+      ),
+    // m.plan 由 App 映射为 CoachRoutine 后添加 CoachPlanCard。
+  ],
+);
+```
+
+controller 在问题正文与 `result.text` 相同时把普通 `text` 留空，正文不同时保留两者。不要用 `else` 把合法普通文字隐藏。`conversation.state.isWaiting` 可用于输入栏、发送按钮和 typing 气泡；`cancel()`、`newConversation()`、`restoreHistory(...)` 会使旧问题失效，恢复的历史不会复活 agent 待答任务。
+
+App 仍负责 AI Key 有无的入口开关、HTTP client/endpoint/Key、动作目录与 profile、进度和失败提示、存储、导航、训练启动，以及 `TrainingPlan` 到 `CoachRoutine` 的映射。本包只收呈现数据与回答回调，未增加 coach、controller、网络或密钥依赖。继续使用 coach 0.4.x 的宿主可以保留旧的 App 会话控制，待自行升级 0.5.0 后再迁移。
 
 ## 可编译示例与验证
 

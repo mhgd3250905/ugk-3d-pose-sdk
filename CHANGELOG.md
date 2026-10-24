@@ -1,5 +1,12 @@
 # Changelog
 
+## coach 0.5.0 / trainer 0.2.3 — 2026-10-24（待审，未发布）
+
+- Add the pure Dart `CoachConversationController` with immutable observable conversation state, one retained agent, send/cancel/new-conversation/dispose, and display-only history restoration.
+- Admit questions only after agent send completes. Centralize question expiry, duplicate-submission protection, text/single-choice/multi-choice answers, original-option ordering, and duplicate question text suppression. Plan-to-UI mapping remains host-owned.
+- SmartFit integrates first. Hosts continue to own transport, endpoint, credentials, catalog/profile, storage, navigation and training startup. See the [controller integration guide](docs/coach-conversation-controller.md).
+- Trainer 0.2.3 only aligns its coach constraint and Git tag to the proposed 0.5.0 release. UI runtime stays at 0.1.1; its README documents the new optional controller integration. No new tags have been published for this entry.
+
 ## coach_ui 0.1.1 / coach 0.4.2 / trainer 0.2.2 — 2026-10-24（已批准合入并发布 tag）
 
 - Fix expanded routine dose wrapping at narrow widths and large text sizes without shrinking or truncating the dose. Shared row measurement drives row layout, cumulative media slots, flyer destinations and text collision bands during expansion and collapse.

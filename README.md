@@ -2,6 +2,8 @@
 
 仓库 `mhgd3250905/ugk-3d-pose-sdk`，根目录是纯 Dart 包 **`ugk_coach`**，`packages/ugk_trainer` 是 Flutter 训练执行包（PR #1 已合入）。
 
+2026-10-24 待审分支新增纯 Dart `CoachConversationController`：把同 agent 多轮发送、待答问题有效期、答案整理、取消/新对话与可监听状态收束到 coach。SmartFit 先接入，HipLab / Flare 本轮仅只读参考。拟发布 `ugk_coach-v0.5.0`、依赖兼容补丁 `ugk_trainer-v0.2.3`；UI 运行代码保持 `ugk_coach_ui-v0.1.1`。尚未批准合并或发布，接入方式与接口清单见[会话控制器说明](docs/coach-conversation-controller.md)。
+
 2026-10-24 已批准合入并发布补丁：`ugk_coach_ui-v0.1.1`、`ugk_coach-v0.4.2`、`ugk_trainer-v0.2.2` 均固定 `3302d6235a39e2c2b4b51fa196cc32b37c31b54c`。已核对 SDK 的「320px / 2 倍字体 / 浅深主题 / 展开套路卡 / 中文长剂量」用例通过，包含在 UI 21 项通过记录中。剂量完整换行，行高、飞行落点和动画保护区共享测量；coach/trainer 仅修 ASCII 清单和依赖 tag，运行代码不变。SmartFit 在正式 GitHub 远端原生 Pub 严格锁文件验证通过后，已将功能源码 `9d2ff7d` 合入并推送 main。旧 tag 未移动，后续发布状态文档不会移动新 tag。
 
 2026-10-24 已经开哥批准合入并推送 `f0ea0647586913b205fc6dbb75fc9f97cedc55ce`，发布 `ugk_coach_ui-v0.1.0`、`ugk_trainer-v0.2.1`，两个 tag 均固定该提交。[`ugk_coach_ui` 接入文档](packages/ugk_coach_ui/README.md)包含聊天列表、消息/澄清气泡、套路卡及原有展开动画；主题、字体、文案、素材与交互由宿主注入，无网络、密钥或 App 代码依赖。trainer 0.2.1 仅修正 coach tag 的依赖来源，运行代码保持 0.2.0；coach 仍为 `ugk_coach-v0.4.1`（`88da65a`）。UI 8 项、trainer 207 项测试通过，SmartFit 452 项通过 / 13 条件跳过；App 从正式 GitHub 远端重新验证 tag 锁文件后已合入 main，功能源码为 `7f3458d`。后续文档状态提交不改变已发布 tag。
@@ -21,11 +23,11 @@ HipLab / Flare 可按 UI 包 README 的固定 tag 接入，并各自验收真机
 
 ## 维护与事实来源
 
-[项目维护台账](docs/project-ledger.md)是当前维护状态、PR 合并、验证证据和未决事项的统一记录入口。两个包独立管理版本：根包 `ugk_coach` 以 [pubspec.yaml](pubspec.yaml) 为准，当前为 0.4.1；`ugk_trainer` 以[训练包 pubspec.yaml](packages/ugk_trainer/pubspec.yaml) 为准，当前为 0.2.0。版本历史见[根 CHANGELOG](CHANGELOG.md)和[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)，训练接口与接入约定见[训练包 README](packages/ugk_trainer/README.md)。两个包均为 `publish_to: none`，合入和版本归档不表示已发布到 pub.dev。当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)；[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
+[项目维护台账](docs/project-ledger.md)是维护状态、PR 合并、验证证据和未决事项的记录入口。三个包独立管理版本：根包 `ugk_coach` 以 [pubspec.yaml](pubspec.yaml) 为准，trainer 和 UI 分别以[训练包清单](packages/ugk_trainer/pubspec.yaml)和[UI 包清单](packages/ugk_coach_ui/pubspec.yaml)为准。清单版本可以先存在于待审分支，正式发布以已推送的固定 tag 为准。版本历史见[根 CHANGELOG](CHANGELOG.md)、[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)和[UI CHANGELOG](packages/ugk_coach_ui/CHANGELOG.md)；三个包均为 `publish_to: none`，不表示已发布到 pub.dev。当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)；[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
 
 ## 架构（0.1 旧接口）
 
-下图与目录说明保留 0.1 `CoachAssistant` 的结构；当前推荐入口是下文的 0.4 `CoachAgent`。
+下图与目录说明保留 0.1 `CoachAssistant` 的结构；本轮 0.5 会话入口见下文 `CoachConversationController`，其底层仍为同一个 `CoachAgent`。
 
 ```
                          ┌────────────── App（Flutter）──────────────┐
@@ -69,7 +71,25 @@ eval/          评测（原 ai-coach-eval，subtree 并入）：tools/validate.p
 test/fixtures/ pose-hub-catalog.json（目录快照）golden/（提示词金样）parity.json（校验对照）packs/
 ```
 
-## 0.4 Agent 版接入（推荐）
+## 0.5 对话控制器接入（待审）
+
+需要多轮询问、消息列表和取消/新对话的 App，使用 `CoachConversationController` 统一管理同一个 agent。App 构造 agent 并注入 client、catalog 和 profile；controller 接手 send/reset/dispose，App 仍负责存储、导航、训练启动与计划到 UI 的映射。
+
+```dart
+final conversation = CoachConversationController(agent: agent);
+conversation.addListener(() => renderConversation(conversation.state));
+await conversation.send(userText, context: currentContext);
+final pending = conversation.state.pendingQuestion;
+if (pending != null && conversation.canAnswer(pending.id)) {
+  await conversation.answerText(pending.id, answerText, context: currentContext);
+}
+// 选项：await conversation.answerChoices(pending.id, selectedOptions);
+// 新对话：conversation.newConversation(); 结束所有权：await conversation.dispose();
+```
+
+以上为拟发布 `ugk_coach-v0.5.0` 的接口，当前尚未发布。完整状态字段、重复提交保护、问题失效与历史恢复见[控制器接入说明](docs/coach-conversation-controller.md)。UI 层继续使用 [`ugk_coach_ui`](packages/ugk_coach_ui/README.md#接入-ask_user) 的 DTO 和回调，不需要在 UI 包增加 coach 依赖。
+
+## 0.4 底层 Agent 接入
 
 `CoachAgent` 沿用 `CoachSession` 的构造参数、`send` / `reset` 和结果类型，另有过程事件及 `result.question`。系统提示词内含按 profile 筛选的紧凑动作索引与排课、讲要领、展示三条技能快路径；会实质改变方案的缺口先 `ask_user`，信息足够就直接 `show_plan`，`check_plan` 留作可选自检，最终门禁始终执行。明确点名的要领问答可自动预载少量详情，省去模型请求文件的一次往返。设计、文件地图、事件与记忆见 [docs/agent-plan.md](docs/agent-plan.md)。
 

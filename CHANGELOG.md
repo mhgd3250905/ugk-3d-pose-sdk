@@ -1,5 +1,11 @@
 # Changelog
 
+## coach_ui 0.1.1 / coach 0.4.2 / trainer 0.2.2 — 2026-10-24（待审核）
+
+- Fix expanded routine dose wrapping at narrow widths and large text sizes without shrinking or truncating the dose. Shared row measurement drives row layout, cumulative media slots, flyer destinations and text collision bands during expansion and collapse.
+- Keep all package manifests ASCII. This prevents Windows system decoding of Git metadata from swallowing the version after a non-ASCII description. Coach/trainer runtime code is unchanged; trainer now pins `ugk_coach-v0.4.2` so it does not transitively load the old non-ASCII manifest.
+- Planned tags: `ugk_coach_ui-v0.1.1`, `ugk_coach-v0.4.2`, `ugk_trainer-v0.2.2`. Existing tags are immutable. The branch is not merged or published yet.
+
 ## ugk_coach_ui 0.1.0 / ugk_trainer 0.2.1 — 2026-10-24（已批准合入并发布 tag）
 
 - Extract the established SmartFit conversation list, message bubbles, clarification UI and animated routine card into a Flutter-only presentation package. Hosts inject theme, typography, copy, trusted media and callbacks; transport, credentials, gate admission, storage and navigation remain host-owned. See the [integration API](packages/ugk_coach_ui/README.md).

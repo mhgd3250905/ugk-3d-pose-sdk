@@ -114,13 +114,13 @@ class _Timeline {
     _textMs = [
       for (var i = 0; i < rows; i++)
         math.min(
-          expandMs - 150.0,
+          expandMs.toDouble(),
           math.max(own[i], rowText == null ? 0 : clearAfter(rowText(i))),
         ),
     ];
     _headerMs = headerBand == null
         ? 0
-        : math.min(expandMs - 150.0, clearAfter([headerBand]));
+        : math.min(expandMs.toDouble(), clearAfter([headerBand]));
   }
 
   final int flyers;
@@ -199,17 +199,20 @@ class _Timeline {
   /// The unfolded header (title + meta).
   double header(double t, bool back) => back
       ? 1 - _in(_bk(t), 0, _holdMs, Curves.easeIn)
-      : _in(_fwd(t), _headerMs, 180, Curves.easeOut);
+      : _appearAfter(_fwd(t), _headerMs, 180);
 
   /// Row [i]'s number, name and dose.
   double text(int i, double t, bool back) => back
       ? 1 - _in(_bk(t), 0, _holdMs, Curves.easeIn)
-      : _in(
-          _fwd(t),
-          _textMs[i],
-          math.min(_textFadeMs, expandMs - _textMs[i]),
-          Curves.easeOut,
-        );
+      : _appearAfter(_fwd(t), _textMs[i], _textFadeMs);
+
+  /// A taller row can keep media in its text band later than the old fixed
+  /// layout. Do not reveal text before that band is clear just to reserve a
+  /// fixed fade duration. At the endpoint flyers are replaced by row media.
+  static double _appearAfter(double ms, double start, double duration) {
+    if (start >= expandMs) return ms >= expandMs ? 1 : 0;
+    return _in(ms, start, math.min(duration, expandMs - start), Curves.easeOut);
+  }
 }
 
 /// An animatable from a plain function of t (read at evaluation time).
@@ -400,7 +403,22 @@ class _PlanCardState extends State<CoachPlanCard>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final preferredWidth = (MediaQuery.sizeOf(context).width - 32).clamp(
+        280.0,
+        400.0,
+      );
+      // All measurements and painted media paths use the width the parent
+      // actually grants, including hosts that embed the card in a narrow pane.
+      final width = constraints.hasBoundedWidth
+          ? math.min(preferredWidth, constraints.maxWidth)
+          : preferredWidth;
+      return _buildCard(context, width);
+    },
+  );
+
+  Widget _buildCard(BuildContext context, double width) {
     final p = widget.plan;
     final lib = widget.library;
     final items = p.items.toList();
@@ -420,7 +438,6 @@ class _PlanCardState extends State<CoachPlanCard>
     final height = single
         ? CoachPlanCard.exerciseHeight * textScale
         : CoachPlanCard.setHeight;
-    final width = (MediaQuery.sizeOf(context).width - 32).clamp(280.0, 400.0);
     final reduced = CoachMotion.reduced(context);
     final compactH = height - _inset * 2;
     final innerW = width - _inset * 2;
@@ -444,20 +461,48 @@ class _PlanCardState extends State<CoachPlanCard>
     final headerH = math.max(_Header.minHeight, textScale * 40 + 16);
     final meta = p.metaLabel;
 
+    // Resolve text exactly as the rows paint it. The same row measurements
+    // determine natural height, thumbnail destinations and no-crossing bands.
+    final rowType = _MoveRowTypography.of(context);
+    var indexWidth = _MoveRow.indexWidth;
+    for (var i = 0; i < items.length; i++) {
+      indexWidth = math.max(
+        indexWidth,
+        rowType.measure('${i + 1}', rowType.index).width.ceilToDouble() + 4,
+      );
+    }
+    final rowLayouts = [
+      for (var i = 0; i < items.length; i++)
+        _MoveRowLayout.measure(
+          type: rowType,
+          index: '${i + 1}',
+          name: lib.tryGet(items[i].exerciseId)?.name ?? items[i].exerciseId,
+          dose: items[i].detailDose,
+          width: innerW - _Details.pad * 2,
+          indexWidth: indexWidth,
+        ),
+    ];
+    final rowTops = <double>[];
+    var nextRowTop = headerH;
+    for (final row in rowLayouts) {
+      rowTops.add(nextRowTop);
+      nextRowTop += row.height;
+    }
+
     // Flyers: strip slot → row thumbnail, in card-content coords; each one
     // is a fixed-size row thumbnail moved only by a transform (no layout).
     Offset stripSlot(int k) => Offset(
-      CoachSpace.x1 + k * (_SetBody.thumb + _SetBody.gap),
+      rowType.direction == TextDirection.ltr
+          ? CoachSpace.x1 + k * (_SetBody.thumb + _SetBody.gap)
+          : innerW - _SetBody.thumb - k * (_SetBody.thumb + _SetBody.gap),
       compactH -
           _SetBody.stripHeight +
           _SetBody.stripTop +
           (_SetBody.stripHeight - _SetBody.stripTop - _SetBody.thumb) / 2,
     );
     Offset rowSlot(int i) => Offset(
-      _Details.pad + _MoveRow.indexWidth,
-      headerH +
-          _MoveRow.height * i +
-          (_MoveRow.height - _MoveRow.thumbSize) / 2,
+      _Details.pad + rowLayouts[i].thumbLeft,
+      rowTops[i] + rowLayouts[i].thumbTop,
     );
     // The hero's folded frame (the cutout's box, or the boxed cover) and
     // its landing slot, row 1's thumbnail.
@@ -488,24 +533,9 @@ class _PlanCardState extends State<CoachPlanCard>
             rows: items.length,
             flyerRect: flyerRect,
             rowText: (i) {
-              final top = headerH + _MoveRow.height * i;
-              return [
-                Rect.fromLTWH(
-                  _Details.pad,
-                  top,
-                  _MoveRow.indexWidth,
-                  _MoveRow.height,
-                ),
-                Rect.fromLTRB(
-                  _Details.pad +
-                      _MoveRow.indexWidth +
-                      _MoveRow.thumbSize +
-                      CoachSpace.x3,
-                  top,
-                  innerW - _Details.pad,
-                  top + _MoveRow.height,
-                ),
-              ];
+              final row = rowLayouts[i];
+              final offset = Offset(_Details.pad, rowTops[i]);
+              return [row.indexBand.shift(offset), row.textBand.shift(offset)];
             },
             headerBand: Rect.fromLTWH(0, 0, innerW, headerH - 2),
           );
@@ -586,6 +616,7 @@ class _PlanCardState extends State<CoachPlanCard>
             _MoveRow(
               key: ValueKey('plan-row-$i'),
               index: i + 1,
+              layout: rowLayouts[i],
               item: CoachRoutineItem(
                 exerciseId: items[i].exerciseId,
                 dose: items[i].detailDose,
@@ -1823,10 +1854,197 @@ class _Thumb extends StatelessWidget {
   );
 }
 
+/// The effective typography used by both paragraph measurement and Text.
+/// Keep accessibility spacing, inherited font metrics and nonlinear scaling
+/// identical so changing the host theme cannot invalidate the media paths.
+class _MoveRowTypography {
+  _MoveRowTypography._({
+    required this.name,
+    required this.dose,
+    required this.index,
+    required this.scaler,
+    required this.direction,
+    required this.locale,
+    required this.heightBehavior,
+    required this.widthBasis,
+    required this.align,
+  });
+
+  factory _MoveRowTypography.of(BuildContext context) {
+    final theme = CoachUiTheme.of(context);
+    final defaults = DefaultTextStyle.of(context);
+    TextStyle effective(TextStyle style) {
+      var result = style.inherit ? defaults.style.merge(style) : style;
+      if (MediaQuery.boldTextOf(context)) {
+        result = result.copyWith(fontWeight: FontWeight.bold);
+      }
+      return result
+          .merge(
+            TextStyle(
+              height: MediaQuery.maybeLineHeightScaleFactorOverrideOf(context),
+              letterSpacing: MediaQuery.maybeLetterSpacingOverrideOf(context),
+              wordSpacing: MediaQuery.maybeWordSpacingOverrideOf(context),
+            ),
+          )
+          .copyWith(inherit: false);
+    }
+
+    final label = effective(
+      theme.typography.label.copyWith(fontFeatures: CoachUiTypography.tabular),
+    );
+    return _MoveRowTypography._(
+      name: effective(theme.typography.callout),
+      dose: label,
+      index: label.copyWith(color: theme.colors.muted),
+      scaler: MediaQuery.textScalerOf(context),
+      direction: Directionality.of(context),
+      locale: Localizations.maybeLocaleOf(context),
+      heightBehavior:
+          defaults.textHeightBehavior ??
+          DefaultTextHeightBehavior.maybeOf(context),
+      widthBasis: defaults.textWidthBasis,
+      align: defaults.textAlign ?? TextAlign.start,
+    );
+  }
+
+  final TextStyle name, dose, index;
+  final TextScaler scaler;
+  final TextDirection direction;
+  final Locale? locale;
+  final TextHeightBehavior? heightBehavior;
+  final TextWidthBasis widthBasis;
+  final TextAlign align;
+
+  Size measure(
+    String value,
+    TextStyle style, {
+    double width = double.infinity,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(text: value, style: style),
+      textDirection: direction,
+      textAlign: align,
+      textScaler: scaler,
+      locale: locale,
+      textHeightBehavior: heightBehavior,
+      textWidthBasis: widthBasis,
+    )..layout(maxWidth: width);
+    final size = painter.size;
+    painter.dispose();
+    return size;
+  }
+
+  Text text(String value, TextStyle style, {Key? key, int? maxLines}) => Text(
+    value,
+    key: key,
+    style: style,
+    textScaler: scaler,
+    textDirection: direction,
+    textAlign: align,
+    locale: locale,
+    textHeightBehavior: heightBehavior,
+    textWidthBasis: widthBasis,
+    maxLines: maxLines,
+    softWrap: true,
+    overflow: TextOverflow.visible,
+  );
+}
+
+/// One immutable layout decision feeds the actual row and every animation
+/// calculation. Short doses retain the original single-line 48 px row; when
+/// two complete labels do not fit side by side, the dose gets the full text
+/// column below the name and wraps without a line limit.
+class _MoveRowLayout {
+  const _MoveRowLayout._({
+    required this.type,
+    required this.width,
+    required this.indexWidth,
+    required this.textWidth,
+    required this.doseWidth,
+    required this.bodyHeight,
+    required this.indexSize,
+    required this.height,
+    required this.stacked,
+  });
+
+  factory _MoveRowLayout.measure({
+    required _MoveRowTypography type,
+    required String index,
+    required String name,
+    required String dose,
+    required double width,
+    required double indexWidth,
+  }) {
+    final textWidth = math.max(
+      1.0,
+      width - indexWidth - _MoveRow.thumbSize - CoachSpace.x3,
+    );
+    final naturalName = type.measure(name, type.name);
+    final naturalDose = type.measure(dose, type.dose);
+    final doseWidth = naturalDose.width.ceilToDouble();
+    final stacked = naturalName.width + CoachSpace.x2 + doseWidth > textWidth;
+    final nameSize = type.measure(
+      name,
+      type.name,
+      width: stacked ? textWidth : textWidth - doseWidth - CoachSpace.x2,
+    );
+    final doseSize = type.measure(
+      dose,
+      type.dose,
+      width: stacked ? textWidth : doseWidth,
+    );
+    final bodyHeight = stacked
+        ? nameSize.height + CoachSpace.x1 + doseSize.height
+        : math.max(nameSize.height, doseSize.height);
+    final indexSize = type.measure(index, type.index, width: indexWidth);
+    final contentHeight = math.max(
+      _MoveRow.thumbSize,
+      math.max(bodyHeight, indexSize.height),
+    );
+    return _MoveRowLayout._(
+      type: type,
+      width: width,
+      indexWidth: indexWidth,
+      textWidth: textWidth,
+      doseWidth: doseWidth,
+      bodyHeight: bodyHeight,
+      indexSize: indexSize,
+      height: math.max(_MoveRow.minHeight, contentHeight + 8).ceilToDouble(),
+      stacked: stacked,
+    );
+  }
+
+  final _MoveRowTypography type;
+  final double width, indexWidth, textWidth, doseWidth, bodyHeight, height;
+  final Size indexSize;
+  final bool stacked;
+  double get thumbTop => (height - _MoveRow.thumbSize) / 2;
+  double get thumbLeft => type.direction == TextDirection.ltr
+      ? indexWidth
+      : width - indexWidth - _MoveRow.thumbSize;
+
+  /// Include the full 8 px entrance translation while text is fading in.
+  Rect get textBand => Rect.fromLTWH(
+    type.direction == TextDirection.ltr
+        ? indexWidth + _MoveRow.thumbSize + CoachSpace.x3
+        : 0,
+    (height - bodyHeight) / 2,
+    textWidth,
+    bodyHeight + 8,
+  );
+  Rect get indexBand => Rect.fromLTWH(
+    type.direction == TextDirection.ltr ? 0 : width - indexSize.width,
+    (height - indexSize.height) / 2,
+    indexSize.width,
+    indexSize.height + 8,
+  );
+}
+
 class _MoveRow extends StatelessWidget {
   const _MoveRow({
     super.key,
     required this.index,
+    required this.layout,
     required this.item,
     required this.exercise,
     required this.text,
@@ -1834,6 +2052,7 @@ class _MoveRow extends StatelessWidget {
     required this.reduced,
   });
   final int index;
+  final _MoveRowLayout layout;
   final CoachRoutineItem item;
   final CoachExercise? exercise;
 
@@ -1844,13 +2063,14 @@ class _MoveRow extends StatelessWidget {
   final Animation<double> thumb;
   final bool reduced;
 
-  static const height = 48.0;
+  static const minHeight = 48.0;
   static const indexWidth = 20.0;
   static const thumbSize = 40.0;
   static const radius = (CoachRadius.xs + 2) * thumbSize / _SetBody.thumb;
 
   /// The row's thumbnail (also what flies in from the strip / the hero).
-  static Widget thumbFor(CoachExercise? e) => ClipRRect(
+  static Widget thumbFor(CoachExercise? e, {Key? key}) => ClipRRect(
+    key: key,
     borderRadius: BorderRadius.circular(radius),
     child: SizedBox.square(
       dimension: thumbSize,
@@ -1859,53 +2079,73 @@ class _MoveRow extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: height,
-    child: Row(
-      children: [
-        _rowIn(
-          anim: text,
-          reduced: reduced,
-          child: SizedBox(
-            width: indexWidth,
-            child: Text(
-              '$index',
-              style: CoachUiTheme.of(context).typography.label.copyWith(
-                color: CoachUiTheme.of(context).colors.muted,
-                fontFeatures: CoachUiTypography.tabular,
+  Widget build(BuildContext context) {
+    final type = layout.type;
+    final name = type.text(
+      exercise?.name ?? item.exerciseId,
+      type.name,
+      key: ValueKey('plan-name-$index'),
+    );
+    final dose = type.text(
+      item.doseText(),
+      type.dose,
+      key: ValueKey('plan-dose-$index'),
+    );
+    final body = layout.stacked
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              name,
+              const SizedBox(height: CoachSpace.x1),
+              dose,
+            ],
+          )
+        : Row(
+            children: [
+              Expanded(child: name),
+              const SizedBox(width: CoachSpace.x2),
+              SizedBox(width: layout.doseWidth, child: dose),
+            ],
+          );
+    return SizedBox(
+      height: layout.height,
+      child: DefaultTextStyle(
+        // The dose must remain unlimited even inside a host's single-line
+        // text scope. Its resolved styles and metrics come from [layout].
+        style: DefaultTextStyle.of(context).style,
+        softWrap: true,
+        overflow: TextOverflow.visible,
+        child: Row(
+          children: [
+            _rowIn(
+              anim: text,
+              reduced: reduced,
+              child: SizedBox(
+                width: layout.indexWidth,
+                child: Align(
+                  heightFactor: 1,
+                  alignment: AlignmentDirectional.centerStart,
+                  child: type.text('$index', type.index, maxLines: 1),
+                ),
               ),
             ),
-          ),
-        ),
-        FadeTransition(opacity: thumb, child: thumbFor(exercise)),
-        const SizedBox(width: CoachSpace.x3),
-        Expanded(
-          child: _rowIn(
-            key: const ValueKey('row-text'),
-            anim: text,
-            reduced: reduced,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    exercise?.name ?? item.exerciseId,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CoachUiTheme.of(context).typography.callout,
-                  ),
-                ),
-                const SizedBox(width: CoachSpace.x2),
-                Text(
-                  item.doseText(),
-                  style: CoachUiTheme.of(context).typography.label.copyWith(
-                    fontFeatures: CoachUiTypography.tabular,
-                  ),
-                ),
-              ],
+            FadeTransition(
+              opacity: thumb,
+              child: thumbFor(exercise, key: ValueKey('plan-row-thumb-$index')),
             ),
-          ),
+            const SizedBox(width: CoachSpace.x3),
+            Expanded(
+              child: _rowIn(
+                key: const ValueKey('row-text'),
+                anim: text,
+                reduced: reduced,
+                child: body,
+              ),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }

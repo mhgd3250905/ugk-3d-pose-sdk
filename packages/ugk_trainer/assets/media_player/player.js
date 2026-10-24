@@ -1,5 +1,6 @@
 const params = new URLSearchParams(location.search);
 const id = params.get('id');
+const session = params.get('session');
 const requestedPosterTime = Number(params.get('posterTime') || 0);
 const video = document.querySelector('#video');
 let active = params.get('active') !== 'false';
@@ -20,10 +21,12 @@ let hostWantsPlay = false;
 // iOS WebKit: autoplay without a gesture needs the *property* muted too.
 video.muted = true;
 video.defaultMuted = true;
-const emit = type => {
+video.controls = false;
+video.removeAttribute('controls');
+const emit = (type, extra = {}) => {
   if (disposed) return;
-  const event = {source:'drill-media', type, id, playing:!video.paused,
-    time:video.currentTime, duration:Number.isFinite(video.duration)?video.duration:0};
+  const event = {source:'drill-media', type, id, session, playing:!video.paused,
+    time:video.currentTime, duration:Number.isFinite(video.duration)?video.duration:0, ...extra};
   if (window.DrillMediaHost) window.DrillMediaHost.postMessage(JSON.stringify(event));
   else parent.postMessage(event, location.origin);
 };
@@ -68,6 +71,17 @@ function fallbackFirstFrame() {
   });
 }
 function stop() { ++playGeneration; pendingPlay=false; cancelFirstFrame(); video.pause(); }
+function captureCurrentFrame() {
+  if (!hasFrame || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return null;
+  try {
+    const canvas = document.createElement('canvas');
+    const scale = Math.min(1, 480 / Math.max(video.videoWidth, video.videoHeight));
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', .75).split(',')[1] || null;
+  } catch { return null; }
+}
 async function begin() {
   if (!active || disposed || document.hidden) return;
   if (!mediaReady) { pendingPlay=true; return; }
@@ -117,6 +131,13 @@ window.drillMediaCommand = command => {
   if (command.type === 'active') {
     active = command.value === true;
     if (!active) { hostWantsPlay=false; stop(); }
+  }
+  if (command.type === 'capture-and-pause') {
+    // Capture this instant's decoded frame, not the clip's initial frame.
+    const frame = captureCurrentFrame();
+    hostWantsPlay=false;
+    stop();
+    emit('frame', {captureId:command.captureId, frame});
   }
   if (command.type === 'dispose') {
     hostWantsPlay=false; stop(); disposed=true; video.removeAttribute('src'); video.load();

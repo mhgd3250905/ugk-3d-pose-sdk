@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.6 — 2026-10-25（分支修复，待真机确认后合 main）
+
+- Replace retained live media cross-fades with an 150ms final-target handoff and a first-composited-frame-gated 120ms reveal over the target poster. Keep the pre-frame surface compositing at a nonzero alpha; disable native video controls.
+- When a target has no poster, pause and capture the previous video's current decoded frame with a bounded request/reply before disposing that player. Never reuse dark snapshots as light frames; preserve mirrored orientation.
+- Bind native/Web callbacks and command sinks to their controller generation. Recreate iframe elements and validate page sessions so retired pages cannot ready or reveal the next target.
+- Coalesce navigation voice cues without pausing the training clock. Standalone/manual demonstrations keep immediate play/pause behaviour. Custom training media builders must use stable keys; see README.
+- Targeted media/player/navigation regressions: 63/63, including 13 new handoff tests. Player protocol tests: 8/8. Scoped analysis: no issues. Per the latest user instruction, this patch does not rerun the full suite.
+
 ## 0.2.5 — 2026-10-24（分支修复，待真机确认后合 main）
 
 - Move the next-exercise preview below the information bar at the top left, alongside the safety control. Constrain and wrap its text without shrinking the font; preserve the preview while paused.

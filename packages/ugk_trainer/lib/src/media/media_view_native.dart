@@ -49,29 +49,56 @@ class DrillMediaPlatformView extends StatefulWidget {
 class _MediaNativeState extends State<DrillMediaPlatformView> {
   AssetServer? _server;
   WebViewController? _webView;
-  late final MediaCommandSink _sink;
+  MediaCommandSink? _sink;
+  DrillMediaController? _owner;
+  int _generation = 0;
   @override
   void initState() {
     super.initState();
-    _sink = _send;
-    widget.controller.attach(_sink);
-    if (!Platform.isAndroid && !Platform.isIOS) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) widget.controller.reportError();
-      });
-    } else {
-      unawaited(_initialize());
+    _bind();
+  }
+
+  @override
+  void didUpdateWidget(DrillMediaPlatformView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller ||
+        oldWidget.videoAsset != widget.videoAsset ||
+        oldWidget.resource != widget.resource) {
+      _retire();
+      _bind();
     }
   }
 
-  Future<void> _initialize() async {
+  void _bind() {
+    final generation = ++_generation;
+    final owner = widget.controller;
+    _owner = owner;
+    _sink = (command) {
+      if (_current(generation, owner)) _send(command);
+    };
+    owner.attach(_sink!);
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_current(generation, owner)) owner.reportError();
+      });
+    } else {
+      unawaited(_initialize(generation, owner, widget));
+    }
+  }
+
+  bool _current(int generation, DrillMediaController owner) =>
+      mounted && generation == _generation && identical(owner, _owner);
+
+  Future<void> _initialize(
+    int generation,
+    DrillMediaController owner,
+    DrillMediaPlatformView config,
+  ) async {
     AssetServer? server;
+    WebViewController? view;
     try {
-      server = await AssetServer.start(resource: widget.resource);
-      if (!mounted) {
-        await server.close();
-        return;
-      }
+      server = await AssetServer.start(resource: config.resource);
+      if (!_current(generation, owner)) return;
       _server = server;
       final params = Platform.isIOS
           ? WebKitWebViewControllerCreationParams(
@@ -79,12 +106,12 @@ class _MediaNativeState extends State<DrillMediaPlatformView> {
               mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
             )
           : const PlatformWebViewControllerCreationParams();
-      final view = WebViewController.fromPlatformCreationParams(
+      view = WebViewController.fromPlatformCreationParams(
         params,
         onPermissionRequest: (request) => unawaited(request.deny()),
       );
       await view.setJavaScriptMode(JavaScriptMode.unrestricted);
-      if (!mounted) return;
+      if (!_current(generation, owner)) return;
       final platform = view.platform;
       if (platform is AndroidWebViewController) {
         await platform.setMediaPlaybackRequiresUserGesture(false);
@@ -95,16 +122,16 @@ class _MediaNativeState extends State<DrillMediaPlatformView> {
         await platform.setAllowsBackForwardNavigationGestures(false);
         await platform.setInspectable(kDebugMode);
       }
-      if (!mounted) return;
+      if (!_current(generation, owner)) return;
       await view.setBackgroundColor(const Color(0x00000000));
       await view.enableZoom(false);
       await view.addJavaScriptChannel(
         'DrillMediaHost',
         onMessageReceived: (message) {
-          if (!mounted) return;
+          if (!_current(generation, owner)) return;
           try {
             final value = jsonDecode(message.message);
-            if (value is Map) widget.controller.receive(value);
+            if (value is Map) owner.receive(value);
           } on FormatException {
             /* Ignore malformed platform events. */
           }
@@ -114,41 +141,52 @@ class _MediaNativeState extends State<DrillMediaPlatformView> {
         NavigationDelegate(
           onNavigationRequest: (request) {
             final uri = Uri.tryParse(request.url);
-            return mounted && uri != null && server!.permitsNavigation(uri)
+            return _current(generation, owner) &&
+                    uri != null &&
+                    server!.permitsNavigation(uri)
                 ? NavigationDecision.navigate
                 : NavigationDecision.prevent;
           },
           onWebResourceError: (error) {
-            if (mounted && error.isForMainFrame == true) {
-              widget.controller.reportError();
+            if (_current(generation, owner) && error.isForMainFrame == true) {
+              owner.reportError();
             }
           },
         ),
       );
-      if (!mounted) return;
+      if (!_current(generation, owner)) return;
       setState(() => _webView = view);
       await view.loadRequest(
         server.origin
             .resolve('/${AssetRouter.playerPrefix}player.html')
             .replace(
               queryParameters: {
-                'id': widget.media.id,
-                'posterTime': widget.media.posterTime.toString(),
-                'labels': jsonEncode(widget.labels),
-                'active': widget.controller.active.toString(),
-                'fit': widget.fit,
+                'id': config.media.id,
+                'posterTime': config.media.posterTime.toString(),
+                'labels': jsonEncode(config.labels),
+                'active': owner.active.toString(),
+                'fit': config.fit,
                 'pos':
-                    '${((widget.align.x + 1) * 50).round()}% '
-                    '${((widget.align.y + 1) * 50).round()}%',
-                'src': widget.resource?.cachePath != null
+                    '${((config.align.x + 1) * 50).round()}% '
+                    '${((config.align.y + 1) * 50).round()}%',
+                'src': config.resource?.cachePath != null
                     ? AssetServer.verifiedMediaPath
-                    : '/${widget.videoAsset}',
+                    : '/${config.videoAsset}',
               },
             ),
       );
     } catch (_) {
-      if (mounted) widget.controller.reportError();
+      if (_current(generation, owner)) owner.reportError();
       if (server != null) await server.close();
+    } finally {
+      if (!_current(generation, owner)) {
+        if (view != null) {
+          await view
+              .removeJavaScriptChannel('DrillMediaHost')
+              .catchError((_) {});
+        }
+        if (server != null) await server.close();
+      }
     }
   }
 
@@ -172,10 +210,12 @@ class _MediaNativeState extends State<DrillMediaPlatformView> {
     return WebViewWidget(controller: view);
   }
 
-  @override
-  void dispose() {
+  void _retire() {
     _send({'type': 'dispose'});
-    widget.controller.detach(_sink);
+    ++_generation;
+    if (_sink case final sink?) _owner?.detach(sink);
+    _owner = null;
+    _sink = null;
     final view = _webView;
     if (view != null) {
       unawaited(
@@ -184,6 +224,13 @@ class _MediaNativeState extends State<DrillMediaPlatformView> {
     }
     final server = _server;
     if (server != null) unawaited(server.close());
+    _webView = null;
+    _server = null;
+  }
+
+  @override
+  void dispose() {
+    _retire();
     super.dispose();
   }
 }

@@ -1,4 +1,8 @@
-# ugk_trainer 0.2.5
+# ugk_trainer 0.2.6
+
+0.2.6 修复训练中快速上一项/下一项切换时的播放器闪现。`TrainerPlayer` 内自动使用 `DrillMediaHandoff`：目标静帧立即显示，连续切换默认合并 150ms 后只加载最后目标；WebView/iframe 到首个已合成视频帧才短淡入。目标没有静帧时，切换前暂停旧视频并抓取当前解码帧，截图回复等待最多 60ms，图片预解码最多 40ms，随后销毁旧播放器；浅深主题的截图不混用。播放器始终关闭原生 controls，页面自己的手动播放按钮由宿主负责。
+
+使用默认 `TrainerPlayer` 媒体构建器无需额外配置。自定义 `mediaBuilder` 返回 `DrillMediaView` 或其包装 Widget 时，请给这层使用稳定 key（例如 `const ValueKey('trainer-media')`），不要按 `drill.id` 更换 key，才能保留切换边界并抓取当前画面。独立的 `DrillMediaView` 默认仍立即响应手动播放；需要同样合并时可显式包 `DrillMediaHandoff(child: ..., settleDelay: const Duration(milliseconds: 150))`。媒体加载和导航语音合并只影响呈现，训练引擎和计时继续运行；150ms 内的中间目标不会起播或播报开头。
 
 0.2.5 为 SmartFit 真机反馈的分支修复，待真机确认后合 main：训练中的“下一个动作”位于顶部信息条下面的左侧，与右侧“不舒服”按钮共用一行，动作名在有限宽度内换行。暂停后保留下一动作预告，去掉重复的“已暂停”标签；中央继续按钮以暂停态颜色表达状态，继续后恢复运行色，计时、语音和安全操作逻辑不变。
 

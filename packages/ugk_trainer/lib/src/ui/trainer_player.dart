@@ -334,6 +334,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   TrainingHold? _hold;
   Timer? _timer;
   Timer? _terminalAudio;
+  Timer? _navigationVoice;
+  final _mediaHost = GlobalKey();
   Future<void>? _audioEnding;
   bool _audioEnded = false;
   bool _audioRestarting = false;
@@ -432,6 +434,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _terminalAudio?.cancel();
     _terminalAudio = null;
     _timer?.cancel();
+    _navigationVoice?.cancel();
     _progress.dispose();
     unawaited(_interruptions?.cancel());
     ScreenAwake.release();
@@ -460,8 +463,14 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   void _tick() {
     if (_disposed || !mounted || (_paused && !_engine.done)) return;
     final t = _t;
-    _submit(_runner.update(t), t);
-    _queue.tick(t);
+    if (_navigationVoice != null) {
+      // Navigation settles only presentation and speech, never the clock.
+      // Do not mark intermediate runner cues fired before the final target.
+      _engine.update(t);
+    } else {
+      _submit(_runner.update(t), t);
+      _queue.tick(t);
+    }
     if (_engine.generation != _shownGen && _phase.kind != PhaseKind.work) {
       _subtitle = null;
     }
@@ -536,6 +545,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     final owner = ++_audioOwner;
     _terminalAudio?.cancel();
     _terminalAudio = null;
+    _navigationVoice?.cancel();
+    _navigationVoice = null;
     // End the previous owner's delayed close before acquiring a new one.
     // The shared output stays open; no old route can end the new session.
     _hold?.release();
@@ -670,17 +681,28 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         : (_engine.elapsedIn(t) / p.seconds).clamp(0.0, 1.0);
   }
 
-  void _after(void Function() change) {
+  void _after(void Function() change, {bool settleVoice = false}) {
+    _navigationVoice?.cancel();
+    _navigationVoice = null;
     _queue.cancelAll(_t);
     change();
+    if (settleVoice && !_engine.done) {
+      _navigationVoice = Timer(DrillMediaHandoff.defaultSettleDelay, () {
+        _navigationVoice = null;
+        if (_disposed || !mounted || _paused) return;
+        // The engine may naturally cross a zero-length rest while settling.
+        // The latest timer owns navigation; speak the phase that is current.
+        _tick();
+      });
+    }
     _subtitle = null;
     _syncProgress(_t);
     _tick();
     setState(() {});
   }
 
-  void _skip() => _after(() => _runner.skip(_t));
-  void _previous() => _after(() => _runner.previous(_t));
+  void _skip() => _after(() => _runner.skip(_t), settleVoice: true);
+  void _previous() => _after(() => _runner.previous(_t), settleVoice: true);
 
   void _extendRest() {
     if (_runner.extendRest(_t)) {
@@ -1149,7 +1171,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       return ColoredBox(color: _th.mediaStage);
     }
     return DrillMediaView(
-      key: ValueKey('player-${d.id}'),
+      key: const ValueKey('player-media'),
       media: m,
       paused: _paused,
       mirrored: p.side == Side.left,
@@ -1225,25 +1247,13 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                 top: top,
                 width: v,
                 height: v,
-                child: AnimatedSwitcher(
-                  duration: TrainerMotion.calm,
-                  switchInCurve: const Interval(
-                    .3,
-                    1,
-                    curve: TrainerMotion.calmCurve,
-                  ),
-                  switchOutCurve: const Interval(
-                    .7,
-                    1,
-                    curve: TrainerMotion.calmCurve,
-                  ),
-                  layoutBuilder: (current, previous) => Stack(
-                    fit: StackFit.expand,
-                    children: [...previous, ?current],
-                  ),
+                child: DrillMediaHandoff(
                   child: KeyedSubtree(
                     key: ValueKey('media-${d.id}'),
-                    child: RepaintBoundary(child: _media(p, d, mediaRadius)),
+                    child: RepaintBoundary(
+                      key: _mediaHost,
+                      child: _media(p, d, mediaRadius),
+                    ),
                   ),
                 ),
               ),

@@ -3,6 +3,7 @@
 // HipLab hand-over, no black flash). Changes: takes a [DrillMedia] instead
 // of a SmartFit Exercise; colours come from the caller.
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -10,6 +11,87 @@ import 'drill_media.dart';
 import 'media_controller.dart';
 import 'media_view.dart';
 import 'training_media_repository.dart';
+
+/// Presentation-only handover for training: settle rapid target changes before
+/// resolving a clip, and retain one captured still if its successor lacks a
+/// poster. Standalone/manual demonstration views remain immediate by default.
+class DrillMediaHandoff extends StatefulWidget {
+  const DrillMediaHandoff({
+    super.key,
+    required this.child,
+    this.settleDelay = defaultSettleDelay,
+  });
+  static const defaultSettleDelay = Duration(milliseconds: 150);
+  final Widget child;
+  final Duration settleDelay;
+  @override
+  State<DrillMediaHandoff> createState() => _DrillMediaHandoffState();
+}
+
+class _DrillMediaHandoffState extends State<DrillMediaHandoff> {
+  final _frames = _CapturedFrame();
+  @override
+  Widget build(BuildContext context) => _MediaHandoffScope(
+    frames: _frames,
+    delay: widget.settleDelay,
+    child: widget.child,
+  );
+}
+
+class _CapturedFrame {
+  Uint8List? bytes;
+  Brightness? brightness;
+  bool mirrored = false;
+  void remember(Uint8List value, Brightness theme, bool flipped) {
+    bytes = value;
+    brightness = theme;
+    mirrored = flipped;
+  }
+}
+
+class _MediaSurface {
+  const _MediaSurface({
+    required this.controller,
+    required this.media,
+    required this.video,
+    required this.resource,
+    required this.cacheRevision,
+    required this.brightness,
+    required this.mirrored,
+  });
+  final DrillMediaController controller;
+  final DrillMedia media;
+  final String video;
+  final TrainingMediaResource? resource;
+  final int cacheRevision;
+  final Brightness brightness;
+  final bool mirrored;
+
+  _MediaSurface withMirror(bool value) => _MediaSurface(
+    controller: controller,
+    media: media,
+    video: video,
+    resource: resource,
+    cacheRevision: cacheRevision,
+    brightness: brightness,
+    mirrored: value,
+  );
+}
+
+class _MediaHandoffScope extends InheritedWidget {
+  const _MediaHandoffScope({
+    required this.frames,
+    required this.delay,
+    required super.child,
+  });
+  final _CapturedFrame frames;
+  final Duration delay;
+  static _MediaHandoffScope? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_MediaHandoffScope>();
+  @override
+  bool updateShouldNotify(_MediaHandoffScope oldWidget) =>
+      delay != oldWidget.delay;
+}
 
 class DrillMediaView extends StatefulWidget {
   const DrillMediaView({
@@ -61,6 +143,11 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   int _cacheRevision = 0;
   bool _resolving = false;
   bool _initialized = false;
+  Timer? _loadTimer;
+  _MediaHandoffScope? _handoff;
+  final _lastFrame = _CapturedFrame();
+  _MediaSurface? _surface;
+  _MediaSurface? _retiring;
 
   /// Theme the running clip was started for: a switch reloads the
   /// light/dark render (the poster covers the hand-over).
@@ -72,6 +159,7 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final repository = widget.repository ?? TrainingMediaScope.maybeOf(context);
+    _handoff = _MediaHandoffScope.of(context);
     final brightness = Theme.of(context).brightness;
     final assetThemeChanged =
         _initialized &&
@@ -120,20 +208,39 @@ class _DrillMediaViewState extends State<DrillMediaView> {
         c.toggle();
       }
     }
+    if (old.mirrored != widget.mirrored) {
+      _surface = _surface?.withMirror(widget.mirrored);
+    }
   }
 
   void _reload() {
     _request++;
-    _stop();
+    _loadTimer?.cancel();
+    _loadTimer = null;
+    _retireCurrent();
     _resource = null;
     _downloadError = null;
     _resolving = false;
     _cacheRevision = _repository?.cacheRevision ?? 0;
     if (!widget.playing || !widget.media.videoAvailable) return;
+    final request = _request;
+    final delay = _handoff?.delay ?? Duration.zero;
+    if (delay > Duration.zero) {
+      _loadTimer = Timer(delay, () {
+        _loadTimer = null;
+        if (!mounted || request != _request) return;
+        setState(() => _load(request));
+      });
+    } else {
+      _load(request);
+    }
+  }
+
+  void _load(int request) {
     if (_repository == null) {
       _start();
     } else {
-      unawaited(_resolve(_request));
+      unawaited(_resolve(request));
     }
   }
 
@@ -186,7 +293,10 @@ class _DrillMediaViewState extends State<DrillMediaView> {
       _stop();
       _resource = null;
       _downloadError = StateError('Action is not release eligible');
-    } else if (widget.playing && _resource == null && !_resolving) {
+    } else if (widget.playing &&
+        _resource == null &&
+        !_resolving &&
+        _loadTimer == null) {
       final phase = repository.stateFor(id).phase;
       if ([
         TrainingMediaPhase.queued,
@@ -207,23 +317,128 @@ class _DrillMediaViewState extends State<DrillMediaView> {
     if (!widget.paused) c.toggle(); // play as soon as the page is ready
     c.addListener(_changed);
     _controller = c;
+    _surface = _MediaSurface(
+      controller: c,
+      media: widget.media,
+      video: _resource?.assetKey ?? widget.media.videoFor(light: _light),
+      resource: _resource,
+      cacheRevision: _cacheRevision,
+      brightness: _brightness!,
+      mirrored: widget.mirrored,
+    );
   }
 
   void _stop() {
     _controller?.removeListener(_changed);
     _controller?.dispose();
     _controller = null;
+    _surface = null;
   }
 
   void _changed() {
     if (mounted) setState(() {});
   }
 
+  void _retireCurrent() {
+    final surface = _surface;
+    if (surface == null || !surface.controller.hasFrame || _handoff == null) {
+      _stop();
+      return;
+    }
+    // Keep at most one bounded, immediately paused surface solely to capture
+    // its current frame. It is never a live cross-fading previous video.
+    _retiring?.controller.dispose();
+    _retiring = surface;
+    _controller?.removeListener(_changed);
+    _controller = null;
+    _surface = null;
+    unawaited(_captureAndRetire(surface));
+  }
+
+  Future<void> _captureAndRetire(_MediaSurface surface) async {
+    final bytes = await surface.controller.captureFrameAndPause();
+    if (mounted && identical(_retiring, surface) && bytes != null) {
+      await precacheImage(
+        MemoryImage(bytes),
+        context,
+        onError: (_, _) {},
+      ).timeout(const Duration(milliseconds: 40), onTimeout: () {});
+      if (mounted && identical(_retiring, surface)) {
+        _lastFrame.remember(bytes, surface.brightness, surface.mirrored);
+        _handoff?.frames.remember(bytes, surface.brightness, surface.mirrored);
+      }
+    }
+    if (mounted && identical(_retiring, surface)) {
+      setState(() => _retiring = null);
+    }
+    surface.controller.dispose();
+  }
+
+  Widget _fallback() {
+    final local =
+        _lastFrame.brightness == _brightness && _lastFrame.bytes != null
+        ? _lastFrame
+        : null;
+    final shared = _handoff?.frames;
+    final frame = local ?? (shared?.brightness == _brightness ? shared : null);
+    final bytes = frame?.bytes;
+    if (bytes == null) return ColoredBox(color: widget.stage);
+    return Transform.flip(
+      flipX: frame!.mirrored != widget.mirrored,
+      child: Image.memory(
+        bytes,
+        key: const ValueKey('drill-static-frame'),
+        fit: BoxFit.contain,
+        gaplessPlayback: true,
+        errorBuilder: (_, _, _) => ColoredBox(color: widget.stage),
+      ),
+    );
+  }
+
+  Widget _platformSurface(_MediaSurface surface, {bool retiring = false}) {
+    final hasFrame = surface.controller.hasFrame && !surface.controller.failed;
+    final keepFrozen =
+        retiring &&
+        widget.media.posterFor(light: _light).isEmpty &&
+        surface.brightness == _brightness;
+    return IgnorePointer(
+      key: ValueKey(('drill-surface', surface.controller)),
+      child: AnimatedOpacity(
+        key: ValueKey(('drill-video-reveal', surface.controller)),
+        // One alpha step keeps the native surface compositing until rVFC while
+        // the target poster remains visible beneath it.
+        opacity: retiring ? (keepFrozen ? 1 : 0) : (hasFrame ? 1 : 1 / 255),
+        duration:
+            retiring || (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
+            ? Duration.zero
+            : const Duration(milliseconds: 120),
+        child: Transform.flip(
+          flipX: retiring && surface.mirrored != widget.mirrored,
+          child: DrillMediaPlatformView(
+            key: ValueKey((
+              surface.controller,
+              surface.video,
+              surface.resource?.cachePath,
+              surface.cacheRevision,
+            )),
+            media: surface.media,
+            controller: surface.controller,
+            videoAsset: surface.video,
+            resource: surface.resource,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _request++;
+    _loadTimer?.cancel();
     _repository?.removeListener(_repositoryChanged);
     _stop();
+    _retiring?.controller.dispose();
+    _retiring = null;
     super.dispose();
   }
 
@@ -231,45 +446,25 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   Widget build(BuildContext context) {
     final m = widget.media;
     final c = _controller;
-    final video = _resource?.assetKey ?? m.videoFor(light: _light);
     final poster = m.posterFor(light: _light);
     Widget content = Stack(
       fit: StackFit.expand,
       children: [
-        if (c != null && (_repository == null || _resource != null))
-          DrillMediaPlatformView(
-            key: ValueKey(
-              '${m.id}/$video/${_resource?.cachePath}/$_cacheRevision',
-            ),
-            media: m,
-            controller: c,
-            videoAsset: video,
-            resource: _resource,
-          ),
-        if (c == null || !c.hasFrame)
+        if (poster.isEmpty)
+          _fallback()
+        else
           Image.asset(
             poster,
+            key: ValueKey('drill-poster-$poster'),
             fit: BoxFit.contain,
-            gaplessPlayback: true,
-            errorBuilder: (_, _, _) => ColoredBox(
-              color: widget.stage,
-              child: Center(
-                child:
-                    !widget.playing ||
-                        !m.videoAvailable ||
-                        widget.errorLabel == null ||
-                        _repository != null
-                    ? null
-                    : Text(
-                        widget.errorLabel!,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: widget.errorColor,
-                        ),
-                      ),
-              ),
-            ),
+            gaplessPlayback: false,
+            frameBuilder: (_, child, frame, wasSync) =>
+                frame != null || wasSync ? child : _fallback(),
+            errorBuilder: (_, _, _) => _fallback(),
           ),
+        if (_retiring case final previous?)
+          _platformSurface(previous, retiring: true),
+        if (_surface case final current?) _platformSurface(current),
         if (_repository != null &&
             m.videoAvailable &&
             widget.playing &&
@@ -313,9 +508,9 @@ class _DrillMediaViewState extends State<DrillMediaView> {
           ),
       ],
     );
-    if (widget.mirrored) {
-      content = Transform.flip(flipX: true, child: content);
-    }
+    // Keep the subtree shape stable when changing sides. Inserting/removing
+    // this transform would recreate the native view behind the same owner.
+    content = Transform.flip(flipX: widget.mirrored, child: content);
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: ColoredBox(

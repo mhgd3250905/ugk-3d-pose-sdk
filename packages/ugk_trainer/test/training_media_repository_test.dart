@@ -825,7 +825,8 @@ void main() {
       dark.controller.failed = false;
       dark.controller.receive({'source': 'drill-media', 'type': 'first-frame'});
       await tester.pump();
-      expect(find.byType(Image), findsNothing);
+      // The target poster stays underneath the first-frame-gated surface.
+      expect(find.byType(Image), findsOneWidget);
       await pump('light');
       expect(dark.controller.wantsPlay, isFalse);
       expect(find.byType(DrillMediaPlatformView), findsNothing);

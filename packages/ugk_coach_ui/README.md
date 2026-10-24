@@ -1,4 +1,6 @@
-# ugk_coach_ui 0.1.1
+# ugk_coach_ui 0.1.2
+
+`0.1.2` 新增聊天列表的宿主可选参数 `topInset` 与 `fadeTop`，供透明系统状态栏下的真实内容滚动使用。本轮在分支验证后发布新 tag；旧 `ugk_coach_ui-v0.1.1` 不移动。两参数默认值保持既有宿主的列表几何与顶部渐隐。
 
 `0.1.1` 已批准发布：修复展开套路卡在 320px / 2 倍字体时的长中文剂量、循环与分段剂量溢出。该指定回归在浅深主题均通过，包含在 UI 21 项通过记录中；剂量不缩字、不截断，行高与媒体/飞行动画共享测量。配套 coach 0.4.2、trainer 0.2.2 仅修 ASCII 包清单与依赖 tag。公开接口兼容 0.1.0，Flutter 最低版本为 3.44.0；本轮验收和 SmartFit 正式远端锁文件验证使用 Flutter 3.44.7。
 
@@ -8,7 +10,7 @@
 
 ## 安装
 
-2026-10-24 已经开哥批准合入并推送 main，正式 tag 如下。后续仅更新发布状态的文档提交不会移动 tag。
+下表保留 2026-10-24 已发布的 0.1.1 配套快照。使用新增系统栏参数时须固定本轮 `ugk_coach_ui-v0.1.2`，不要移动旧 tag。
 
 | 包 | 固定 tag | 完整 SHA |
 | --- | --- | --- |
@@ -23,7 +25,7 @@ ugk_coach_ui:
   git:
     url: https://github.com/mhgd3250905/ugk-3d-pose-sdk.git
     path: packages/ugk_coach_ui
-    ref: ugk_coach_ui-v0.1.1
+    ref: ugk_coach_ui-v0.1.2
 ```
 
 ```dart
@@ -34,7 +36,7 @@ import 'package:ugk_coach_ui/ugk_coach_ui.dart';
 
 | 接口 | 输入与用途 |
 | --- | --- |
-| `CoachChatList` / `CoachChatEntry` | 输入按时间正序的行快照及内容 widget；内部反向列表保证最新消息在底部。接收 App 所有的 `ScrollController`、时间标签 builder、顶部渐隐颜色、输入栏占高、typing widget 和初始已读 ID 集合。 |
+| `CoachChatList` / `CoachChatEntry` | 输入按时间正序的行快照及内容 widget；内部反向列表保证最新消息在底部。接收 App 所有的 `ScrollController`、时间标签 builder、顶部渐隐颜色、输入栏占高、typing widget 和初始已读 ID 集合。`topInset`（默认 0）仅增加列表内容顶部留白，`fadeTop`（默认 true）控制原有顶部渐隐。 |
 | `CoachMessageBubble` / `CoachBubbleData` | 文字、用户/助理角色、可选标题、选项与已选索引；`optionsActive` 控制可答状态，`onOption` 回传索引。可替换 `optionBuilder`。 |
 | `CoachQuestionBubble` / `CoachQuestionData` / `CoachQuestionMode` | 一个澄清问题，`text` 或 `choice`；支持单选立即回答，多选先切换再确认。接收 `enabled`、`onTextAnswer`、`onChoiceAnswer`。`answered`、`answeredChoices` 用于历史展示。 |
 | `CoachPlanCard` | 接收 `CoachRoutine`、`CoachExerciseLibrary`、`saved`、`landing`；`onStart(CoachOriginRect)`、`onSave()`、`onOpen()` 全由 App 执行。紧凑单动作 130px，多动作 240px；保留展开/收起与减弱动态效果。 |
@@ -47,6 +49,23 @@ import 'package:ugk_coach_ui/ugk_coach_ui.dart';
 | `CoachOptionPill` / `CoachAppear` | 可复用的选项和进入动画；减弱动态效果遵循 `MediaQuery.disableAnimations`。 |
 
 `CoachOriginRect` 为 `Rect? Function()`：App 可在进入与退出播放器时读取卡片的实时屏幕位置。`coachRectOf` 提供已布局 widget 的安全矩形读取。
+
+## 内容滚入透明系统状态栏
+
+宿主负责全屏布局、透明系统栏和图标明暗。让聊天列表 viewport 从页面顶端开始，把顶部安全留白放进列表内容，而不是用外层 `SafeArea` 缩小列表；固定导航按钮和输入栏仍由 App 各自保护。
+
+```dart
+CoachChatList(
+  entries: admittedEntries,
+  controller: scrollController,
+  timeMarkBuilder: buildTimeMark,
+  topColor: themeBackground,
+  topInset: MediaQuery.paddingOf(context).top,
+  fadeTop: false,
+);
+```
+
+内部顶部 padding 为 `48 + topInset`，viewport 的位置和高度不变，因此初始内容有安全留白，滚动后气泡可以进入系统栏背后。`fadeTop: false` 完全不构建顶部 `IgnorePointer` 渐变，避免不透明起始色盖住滚入内容。默认 `topInset: 0, fadeTop: true` 仍使用旧版 48 px 内容留白和 48 px 顶部渐隐；SDK 不自行读取或推断 App 的安全区、系统栏或路由配置。
 
 ## 接入 ask_user
 

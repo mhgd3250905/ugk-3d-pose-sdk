@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.5 — 2026-10-24（分支修复，待真机确认后合 main）
+
+- Move the next-exercise preview below the information bar at the top left, alongside the safety control. Constrain and wrap its text without shrinking the font; preserve the preview while paused.
+- Remove the redundant paused HUD tag. Add optional host-supplied `TrainerTheme.pausedColor` / `onPaused` tokens for the central resume button; resuming restores the existing accent colours and accessible button labels.
+- Preserve timer, voice, interruption, discomfort and training completion behaviour. No engine or media changes in this patch.
+- Full trainer tests: 216/216; analysis: no issues. Added light/dark 320px / 1.5x HUD, pause-colour, resume-colour and accessible-label regressions.
+
 ## 0.2.4 — 2026-10-24（分支修复，待真机确认后合 main）
 
 - Add `DrillMedia.videoAvailable` (default true) and `DrillMediaView.unavailableLabel` for intentional still-only demonstrations. Missing videos do not start downloads or players; real transport and decode failures remain errors.

@@ -1202,11 +1202,21 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         final top = midTop + math.max(0.0, room - v) * .35;
         final tagTop = midTop + TrainerSpace.x1;
         final mediaRadius = _th.copyWith(radius: 0);
-        final bottomPendant =
-            // 完成本组 is not a pendant any more (sdk-stage-r8): it sits in
-            // the transport, in the number slot right above the pause
-            // button, below the clip.
-            _restFeedback(p) ?? (rest ? null : _nextUp(p));
+        final bottomPendant = _restFeedback(p);
+        final topPendant = p.kind == PhaseKind.switchSide
+            ? _tag(
+                _s.switchTo(p.side ?? Side.left),
+                key: const ValueKey('tag-side'),
+                icon: Icons.swap_horiz,
+                color: _mediaCaution,
+              )
+            : rest && p.nextExerciseId != null
+            ? _tag(_s.next, key: const ValueKey('tag-next'))
+            : _nextUp(p);
+        final showDiscomfort =
+            widget.restFeedbackBuilder == null ||
+            p.isWork ||
+            p.kind == PhaseKind.switchSide;
         return Stack(
           children: [
             if (d != null)
@@ -1314,49 +1324,45 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
             if (d != null)
               Positioned(
                 left: TrainerSpace.x3,
-                // Level with the 不舒服 chip inside its 44 px touch target.
-                top: tagTop + 6,
-                child: _fade(
-                  _paused
-                      ? _tag(_s.paused, key: const ValueKey('tag-paused'))
-                      : p.kind == PhaseKind.switchSide
-                      ? _tag(
-                          _s.switchTo(p.side ?? Side.left),
-                          key: const ValueKey('tag-side'),
-                          icon: Icons.swap_horiz,
-                          color: _mediaCaution,
-                        )
-                      : rest && p.nextExerciseId != null
-                      ? _tag(_s.next, key: const ValueKey('tag-next'))
-                      : const SizedBox.shrink(key: ValueKey('tag-none')),
-                ),
-              ),
-            if (d != null &&
-                (widget.restFeedbackBuilder == null ||
-                    p.isWork ||
-                    p.kind == PhaseKind.switchSide))
-              Positioned(
                 right: TrainerSpace.x3,
                 top: tagTop,
-                child: Semantics(
-                  excludeSemantics: true,
-                  button: true,
-                  label: _s.discomfort,
-                  onTap: _discomfort,
-                  child: GestureDetector(
-                    key: const ValueKey('discomfort'),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _discomfort,
-                    child: Padding(
-                      // 32 px chip, 44 px touch target.
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: _tag(
-                        _s.discomfort,
-                        icon: Icons.healing,
-                        color: _mediaCaution,
+                child: Row(
+                  key: const ValueKey('top-hud'),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: _fade(
+                          topPendant ??
+                              const SizedBox.shrink(key: ValueKey('tag-none')),
+                        ),
                       ),
                     ),
-                  ),
+                    if (showDiscomfort) ...[
+                      const SizedBox(width: TrainerSpace.x2),
+                      Semantics(
+                        excludeSemantics: true,
+                        button: true,
+                        label: _s.discomfort,
+                        onTap: _discomfort,
+                        child: GestureDetector(
+                          key: const ValueKey('discomfort'),
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _discomfort,
+                          child: Padding(
+                            // 32 px chip, 44 px touch target.
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: _tag(
+                              _s.discomfort,
+                              icon: Icons.healing,
+                              color: _mediaCaution,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             Positioned(
@@ -1774,7 +1780,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                     inset: .18,
                     child: TrainerGlassButton(
                       key: const ValueKey('pause'),
-                      theme: _th,
+                      theme: _paused
+                          ? _th.copyWith(
+                              accent: _th.pausedColor,
+                              onAccent: _th.onPaused,
+                            )
+                          : _th,
                       primary: true,
                       size: 76,
                       tooltip: _paused ? _s.resume : _s.pause,
@@ -1800,7 +1811,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                               : Icons.pause_rounded,
                           key: ValueKey(_paused),
                           size: 38,
-                          color: _th.onAccent,
+                          color: _paused ? _th.onPaused : _th.onAccent,
                         ),
                       ),
                     ),
@@ -1845,8 +1856,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   /// How far the square clip may run past the screen's width.
   static const _clipOverscan = 1.15;
 
-  /// Height reserved above the subtitle chip for the bottom pendant: the
-  /// built-in next-up chip (36 px). 完成本组 lives in the transport.
+  /// Height reserved above the subtitle chip for host rest feedback.
+  /// Next-up lives under the top card; 完成本组 lives in the transport.
   static const double _pendantSlot = 36;
 
   /// Height reserved for the subtitle chip: two 13 px lines at 1.4 plus
@@ -1992,8 +2003,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     );
   }
 
-  /// While working: the move after this one, as a small glass chip in the
-  /// bottom-left corner of the stage.
+  /// While working or paused: the move after this one, beneath the info card
+  /// on the left. Its text wraps within the room left by the safety control.
   Widget? _nextUp(SessionPhase p) {
     final phases = _engine.phases;
     SessionPhase? next;
@@ -2019,43 +2030,51 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       alignment: Alignment.centerLeft,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 240),
-        child: TrainerGlass(
-          theme: _th,
-          overMedia: true,
-          height: 36,
-          padding: const EdgeInsets.fromLTRB(4, 4, TrainerSpace.x3, 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ClipOval(
-                child: SizedBox.square(
-                  dimension: 28,
-                  child: ColoredBox(
-                    color: _th.mediaStage,
-                    child: poster == null
-                        ? null
-                        : Image.asset(
-                            poster,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 36),
+          child: TrainerGlass(
+            theme: _th,
+            overMedia: true,
+            padding: const EdgeInsets.fromLTRB(4, 4, TrainerSpace.x3, 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipOval(
+                  child: SizedBox.square(
+                    dimension: 28,
+                    child: ColoredBox(
+                      color: _th.mediaStage,
+                      child: poster == null
+                          ? null
+                          : Image.asset(
+                              poster,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) =>
+                                  const SizedBox.shrink(),
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: TrainerSpace.x2),
+                Flexible(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: '${_s.nextUp} · '),
+                        TextSpan(
+                          text: d.name,
+                          style: small.copyWith(
+                            color: _mediaInk,
+                            fontWeight: FontWeight.w600,
                           ),
+                        ),
+                      ],
+                    ),
+                    style: small,
                   ),
                 ),
-              ),
-              const SizedBox(width: TrainerSpace.x2),
-              Text('${_s.nextUp} · ', style: small),
-              Flexible(
-                child: Text(
-                  d.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: small.copyWith(
-                    color: _mediaInk,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

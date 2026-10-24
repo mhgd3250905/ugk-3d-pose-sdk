@@ -27,7 +27,10 @@ class TrainerTheme {
     this.fontFamily,
     this.radius = 22,
     this.glassStyle,
-  });
+    Color? pausedColor,
+    Color? onPaused,
+  }) : pausedColor = pausedColor ?? danger,
+       onPaused = onPaused ?? onAccent;
 
   final Brightness brightness;
 
@@ -43,10 +46,15 @@ class TrainerTheme {
   /// Ring / progress tracks.
   final Color track;
 
-  /// The one accent: the working ring and the pause disc.
+  /// The working ring and the running pause disc.
   final Color accent;
   final Color accentText;
   final Color onAccent;
+
+  /// The resume disc while paused. Hosts may inject a state colour distinct
+  /// from their running accent; existing themes default to [danger].
+  final Color pausedColor;
+  final Color onPaused;
   final Color text;
   final Color muted;
   final Color faint;
@@ -58,7 +66,7 @@ class TrainerTheme {
   /// Behind a drill clip.
   final Color mediaStage;
 
-  /// Labels floating on media (已暂停, 不舒服).
+  /// Labels floating on media (next move, discomfort).
   final Color scrim;
   final String? fontFamily;
 
@@ -82,6 +90,8 @@ class TrainerTheme {
     Color? accent,
     Color? accentText,
     Color? onAccent,
+    Color? pausedColor,
+    Color? onPaused,
     Color? text,
     Color? muted,
     String? fontFamily,
@@ -96,6 +106,8 @@ class TrainerTheme {
     accent: accent ?? this.accent,
     accentText: accentText ?? this.accentText,
     onAccent: onAccent ?? this.onAccent,
+    pausedColor: pausedColor ?? this.pausedColor,
+    onPaused: onPaused ?? this.onPaused,
     text: text ?? this.text,
     muted: muted ?? this.muted,
     faint: faint,

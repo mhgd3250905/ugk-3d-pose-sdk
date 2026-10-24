@@ -28,6 +28,8 @@ class CoachChatList extends StatefulWidget {
     required this.timeMarkBuilder,
     required this.topColor,
     this.dockHeight = 112,
+    this.topInset = 0,
+    this.fadeTop = true,
     this.typing,
     this.initiallySeen = const {},
   });
@@ -36,6 +38,14 @@ class CoachChatList extends StatefulWidget {
   final Widget Function(DateTime at, DateTime now) timeMarkBuilder;
   final Color topColor;
   final double dockHeight;
+
+  /// Host-supplied safe inset added inside the scrollable content. The viewport
+  /// stays full height so rows can scroll behind transparent system chrome.
+  final double topInset;
+
+  /// Keep the established 48 px top fade, or let content paint unobscured to
+  /// the viewport edge. The host owns system-bar styling and safe-area policy.
+  final bool fadeTop;
   final Widget? typing;
   final Set<String> initiallySeen;
   @override
@@ -121,7 +131,7 @@ class _CoachChatListState extends State<CoachChatList> {
             reverse: true,
             padding: EdgeInsets.fromLTRB(
               CoachSpace.x4,
-              48,
+              48 + widget.topInset,
               CoachSpace.x4,
               widget.dockHeight + CoachSpace.x3,
             ),
@@ -133,24 +143,25 @@ class _CoachChatListState extends State<CoachChatList> {
             },
           ),
         ),
-        IgnorePointer(
-          child: SizedBox(
-            height: 48,
-            width: double.infinity,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    widget.topColor,
-                    widget.topColor.withValues(alpha: 0),
-                  ],
+        if (widget.fadeTop)
+          IgnorePointer(
+            child: SizedBox(
+              height: 48,
+              width: double.infinity,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      widget.topColor,
+                      widget.topColor.withValues(alpha: 0),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
       ],
     );
   }

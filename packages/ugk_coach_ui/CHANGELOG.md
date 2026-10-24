@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 - 2026-10-24
+
+- Add host-controlled `CoachChatList.topInset` and `fadeTop` for content scrolling beneath transparent system bars. The inset is part of list content; it does not shrink or offset the viewport. Turning the fade off removes its overlay entirely.
+- Preserve the default 48 px content padding and top fade for existing hosts. Safe-area and system-bar decisions remain with the host.
+- Cover default compatibility, a 32 px content inset, and actual painted message pixels entering the top 32 px after scrolling.
+
 ## 0.1.1 - 2026-10-24
 
 - Approved and published as `ugk_coach_ui-v0.1.1` at `3302d6235a39e2c2b4b51fa196cc32b37c31b54c`.

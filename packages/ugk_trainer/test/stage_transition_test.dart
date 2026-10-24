@@ -81,15 +81,13 @@ void main() {
       ),
     );
 
-    // Work (next-up pendant), then rest: the chip appears while the old
-    // pendant is still fading out and the next clip is still "loading".
+    // Work (next-up below the info card), then rest: the subtitle keeps its
+    // bottom slot while the top preview changes and the new clip loads.
     await until(tester, find.byKey(const ValueKey('next-b')));
-    final pendantSlot = tester.getRect(
-      find.byKey(const ValueKey('pendant-slot')),
-    );
+    final card = tester.getRect(find.byKey(const ValueKey('info-card')));
     expect(
-      tester.getBottomLeft(find.byKey(const ValueKey('next-b'))).dy,
-      lessThanOrEqualTo(pendantSlot.bottom),
+      tester.getTopLeft(find.byKey(const ValueKey('next-b'))).dy,
+      greaterThan(card.bottom),
     );
     final restChip = find.byKey(const ValueKey('sub-cue-b'));
     await until(tester, restChip);
@@ -154,9 +152,13 @@ void main() {
       expect(first.top, greaterThanOrEqualTo(clip.bottom));
       expect(first.bottom, lessThan(pause.top));
       expect(first.height, greaterThanOrEqualTo(44));
-      // The next-up chip stays in its slot, also under the figure's middle.
+      // The next-up chip now shares the row beneath the info card with safety.
       final next = tester.getRect(find.byKey(const ValueKey('next-b')));
-      expect(next.top, greaterThan(clip.center.dy));
+      final card = tester.getRect(find.byKey(const ValueKey('info-card')));
+      final safety = tester.getRect(find.byKey(const ValueKey('discomfort')));
+      expect(next.top, greaterThan(card.bottom));
+      expect(next.top, lessThan(clip.center.dy));
+      expect(next.right, lessThanOrEqualTo(safety.left - 4));
 
       await tester.tap(done);
       await tester.pump(const Duration(milliseconds: 100));

@@ -1,4 +1,8 @@
-# ugk_trainer 0.2.0
+# ugk_trainer 0.2.5
+
+0.2.5 为 SmartFit 真机反馈的分支修复，待真机确认后合 main：训练中的“下一个动作”位于顶部信息条下面的左侧，与右侧“不舒服”按钮共用一行，动作名在有限宽度内换行。暂停后保留下一动作预告，去掉重复的“已暂停”标签；中央继续按钮以暂停态颜色表达状态，继续后恢复运行色，计时、语音和安全操作逻辑不变。
+
+宿主可在 `TrainerTheme` 构造或 `copyWith` 中传入 `pausedColor` 与 `onPaused`，分别控制暂停时继续按钮的底色和图标色。省略时沿用该主题的 `danger` 和 `onAccent`，不依赖某个 App 的品牌颜色。按钮无障碍标签仍使用宿主的 `TrainerStrings.pause` / `resume`。
 
 0.2.0 已获开哥批准合入 main（验收提交 `64a5487`）：修复组/侧/分段统计与浮点推进，补充无节奏动作自动报数、`PlanItem.segments` 和 App 可选操作。新行为、语音清单、后台/中断策略与 SmartFit 回归边界见 [0.2.0 接入契约](../../docs/trainer-020-integration.md)及[验证记录](../../docs/trainer-020-verification-2026-10-23.md)。
 
@@ -6,7 +10,7 @@ FlareLab 使用交付回执的 main 完整 SHA 固定依赖；接入后做锁屏
 
 三 App（托马斯 3D-Body / 开胯 HipLab / SmartFit）共用的跟练模块。方案见仓库根目录 `docs/trainer-plan.md`。
 
-当前包版本以 [pubspec.yaml](pubspec.yaml) 为准，版本历史见 [CHANGELOG.md](CHANGELOG.md)，合并与验证记录见[项目维护台账](../../docs/project-ledger.md)。本包与根包 `ugk_coach` 0.4.1 独立管理版本；`publish_to: none`，版本归档不表示 pub.dev 发布。
+当前包版本以 [pubspec.yaml](pubspec.yaml) 为准，版本历史见 [CHANGELOG.md](CHANGELOG.md)，合并与验证记录见[项目维护台账](../../docs/project-ledger.md)。本包与根包 `ugk_coach` 0.5.0 独立管理版本；`publish_to: none`，版本归档不表示 pub.dev 发布。
 
 | 层 | 内容 | 来源 |
 |---|---|---|

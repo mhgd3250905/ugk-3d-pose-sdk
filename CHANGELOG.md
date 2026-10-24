@@ -1,5 +1,11 @@
 # Changelog
 
+## trainer 0.2.5 / coach_ui 0.1.2 — 2026-10-24（修复分支，待真机确认后合 main）
+
+- Trainer moves the next-action preview below the info header at the upper left. It removes the paused badge and lets hosts inject `pausedColor` / `onPaused` for the resume button, keeping timer, voice and safety callbacks unchanged.
+- Coach UI exposes `CoachChatList.topInset` and `fadeTop`. Hosts can retain initial safe clearance inside the list while allowing scrolling content to paint behind a transparent system bar. Defaults preserve existing hosts.
+- Full validation: trainer 216 tests, coach_ui 23 tests, coach 471 tests; package analysis passes. Painting tests verify actual content pixels inside the status-bar area.
+
 ## trainer 0.2.4 — 2026-10-24（分支修复，待 SmartFit 真机确认后合 main）
 
 - Add `DrillMedia.videoAvailable` and host-localized `DrillMediaView.unavailableLabel`. Intentional still-only actions do not create a player, resolve a resource, or display a download failure.

@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.2.1 — 2026-10-24（待审核）
+## 0.2.1 — 2026-10-24（已批准合入并发布 tag）
+
+- `ugk_trainer-v0.2.1` is published at `f0ea0647586913b205fc6dbb75fc9f97cedc55ce`.
 
 - Pin the coach dependency to `ugk_coach-v0.4.1`. A relative dependency from a Git subpackage resolves to a commit ref and conflicts with a host that explicitly pins the coach release tag, even when both refs identify the same commit. Hosts can now pin coach and trainer release tags together without dependency overrides.
 - No trainer runtime changes from 0.2.0.

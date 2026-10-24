@@ -6,7 +6,15 @@
 
 ## 安装
 
-SDK 经批准合入并发布 `ugk_coach_ui-v0.1.0` 后，App 使用：
+2026-10-24 已经开哥批准合入并推送 main，正式 tag 如下。后续仅更新发布状态的文档提交不会移动 tag。
+
+| 包 | 固定 tag | 完整 SHA |
+| --- | --- | --- |
+| coach_ui | `ugk_coach_ui-v0.1.0` | `f0ea0647586913b205fc6dbb75fc9f97cedc55ce` |
+| trainer | `ugk_trainer-v0.2.1` | `f0ea0647586913b205fc6dbb75fc9f97cedc55ce` |
+| coach | `ugk_coach-v0.4.1` | `88da65ab4e7d6753ab548d779f4168f023dbf9f8` |
+
+App 使用：
 
 ```yaml
 ugk_coach_ui:

@@ -73,9 +73,10 @@ void main() {
         expect(nextRect.left, closeTo(12, .5));
         expect(nextRect.bottom, lessThan(tester.getRect(pause).top));
         expect(find.byKey(const ValueKey('tag-paused')), findsNothing);
-        final running = tester.widget<TrainerGlassButton>(pause);
+        final running = tester.widget<UgkPlayPauseButton>(pause);
         expect(running.theme.accent, theme.accent);
-        expect(running.tooltip, strings.pause);
+        expect(running.isPlaying, isTrue);
+        expect(running.strings.pause, strings.pause);
 
         await tester.tap(pause);
         await tester.pump(const Duration(milliseconds: 600));
@@ -83,25 +84,20 @@ void main() {
         expect(find.text(strings.paused), findsNothing);
         expect(next, findsOneWidget);
         expect(tester.getRect(next), nextRect);
-        final paused = tester.widget<TrainerGlassButton>(pause);
-        expect(paused.theme.accent, theme.pausedColor);
-        expect(paused.theme.onAccent, theme.onPaused);
-        expect(paused.tooltip, strings.resume);
-        final glyph = tester.widget<Icon>(
-          find.descendant(
-            of: pause,
-            matching: find.byIcon(Icons.play_arrow_rounded),
-          ),
-        );
-        expect(glyph.color, theme.onPaused);
+        final paused = tester.widget<UgkPlayPauseButton>(pause);
+        expect(paused.isPlaying, isFalse);
+        expect(paused.theme.pausedColor, theme.pausedColor);
+        expect(paused.theme.onPaused, theme.onPaused);
+        expect(paused.strings.resume, strings.resume);
         expect(tester.takeException(), isNull);
 
         await tester.tap(pause);
         await tester.pump(const Duration(milliseconds: 600));
-        final resumed = tester.widget<TrainerGlassButton>(pause);
+        final resumed = tester.widget<UgkPlayPauseButton>(pause);
         expect(resumed.theme.accent, theme.accent);
         expect(resumed.theme.onAccent, theme.onAccent);
-        expect(resumed.tooltip, strings.pause);
+        expect(resumed.isPlaying, isTrue);
+        expect(resumed.strings.pause, strings.pause);
         expect(tester.getRect(next), nextRect);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());

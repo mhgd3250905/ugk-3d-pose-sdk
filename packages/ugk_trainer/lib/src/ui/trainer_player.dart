@@ -45,6 +45,7 @@ import 'trainer_glass.dart';
 import 'trainer_stage.dart';
 import 'trainer_strings.dart';
 import 'trainer_theme.dart';
+import 'ugk_play_pause_button.dart';
 
 /// What the player needs to show one exercise.
 class TrainerDrill {
@@ -1329,7 +1330,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
               left: 0,
               right: 0,
               bottom: 0,
-              child: _transport(p, t, rest, still, mq.padding.bottom),
+              child: _transport(p, t, rest, mq.padding.bottom),
             ),
             if (d != null)
               Positioned(
@@ -1715,137 +1716,75 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   /// countdown is a thin ring around the emerald button, and its number sits
   /// just above the button on the same axis: read at a glance from the mat,
   /// while the button keeps its one job (pause / resume).
-  Widget _transport(
-    SessionPhase p,
-    double t,
-    bool rest,
-    bool still,
-    double bottomInset,
-  ) => Padding(
-    padding: EdgeInsets.fromLTRB(
-      40,
-      TrainerSpace.x3,
-      40,
-      TrainerSpace.x5 + bottomInset,
-    ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (_hasOptionalControls) _optionalControls(p),
-        SizedBox(
-          height: _digitsH,
-          // Scale down rather than clip if a host theme's numerals run
-          // taller than the slot (sdk-stage-r9).
-          child: Center(
-            child: FittedBox(fit: BoxFit.scaleDown, child: _digits(p, t)),
-          ),
+  Widget _transport(SessionPhase p, double t, bool rest, double bottomInset) =>
+      Padding(
+        padding: EdgeInsets.fromLTRB(
+          40,
+          TrainerSpace.x3,
+          40,
+          TrainerSpace.x5 + bottomInset,
         ),
-        const SizedBox(height: _digitsGap),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            TrainerHover(
-              theme: _th,
-              lift: 8,
-              inset: .2,
-              child: _circle(
-                key: const ValueKey('prev'),
-                icon: Icons.skip_previous_rounded,
-                tooltip: _s.previous,
-                size: 56,
-                onPressed: _previous,
+            if (_hasOptionalControls) _optionalControls(p),
+            SizedBox(
+              height: _digitsH,
+              // Scale down rather than clip if a host theme's numerals run
+              // taller than the slot (sdk-stage-r9).
+              child: Center(
+                child: FittedBox(fit: BoxFit.scaleDown, child: _digits(p, t)),
               ),
             ),
-            SizedBox.square(
-              dimension: _ringD,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Positioned.fill(
-                    child: AnimatedOpacity(
-                      opacity: _paused ? .45 : 1,
-                      duration: TrainerMotion.medium,
-                      child: CustomPaint(
-                        key: const ValueKey('ring'),
-                        painter: TrainerRingPainter(
-                          _progress,
-                          thickness: .032,
-                          track: _th.isDark
-                              ? Colors.white.withValues(alpha: .14)
-                              : _th.track,
-                          color: rest || p.kind == PhaseKind.switchSide
-                              ? _th.text.withValues(alpha: .5)
-                              : _th.accent,
-                          knob: _th.isDark
-                              ? const Color(0xFFFFFFFF)
-                              : _th.surface,
-                          glow: _th.isDark,
-                        ),
-                      ),
-                    ),
+            const SizedBox(height: _digitsGap),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TrainerHover(
+                  theme: _th,
+                  lift: 8,
+                  inset: .2,
+                  child: _circle(
+                    key: const ValueKey('prev'),
+                    icon: Icons.skip_previous_rounded,
+                    tooltip: _s.previous,
+                    size: 56,
+                    onPressed: _previous,
                   ),
-                  TrainerHover(
-                    theme: _th,
-                    lift: 10,
-                    inset: .18,
-                    child: TrainerGlassButton(
-                      key: const ValueKey('pause'),
-                      theme: _paused
-                          ? _th.copyWith(
-                              accent: _th.pausedColor,
-                              onAccent: _th.onPaused,
-                            )
-                          : _th,
-                      primary: true,
-                      size: 76,
-                      tooltip: _paused ? _s.resume : _s.pause,
-                      onPressed: () {
-                        unawaited(HapticFeedback.lightImpact());
-                        _togglePause();
-                      },
-                      icon: AnimatedSwitcher(
-                        duration: TrainerMotion.medium,
-                        switchInCurve: TrainerMotion.calmCurve,
-                        transitionBuilder: (child, a) => still
-                            ? FadeTransition(opacity: a, child: child)
-                            : FadeTransition(
-                                opacity: a,
-                                child: ScaleTransition(
-                                  scale: a.drive(Tween(begin: .7, end: 1)),
-                                  child: child,
-                                ),
-                              ),
-                        child: Icon(
-                          _paused
-                              ? Icons.play_arrow_rounded
-                              : Icons.pause_rounded,
-                          key: ValueKey(_paused),
-                          size: 38,
-                          color: _paused ? _th.onPaused : _th.onAccent,
-                        ),
-                      ),
-                    ),
+                ),
+                UgkPlayPauseButton(
+                  key: const ValueKey('pause'),
+                  isPlaying: !_paused,
+                  progress: _progress,
+                  onTap: _togglePause,
+                  theme: _th,
+                  strings: _s,
+                  trackColor: _th.isDark
+                      ? Colors.white.withValues(alpha: .14)
+                      : _th.track,
+                  progressColor: rest || p.kind == PhaseKind.switchSide
+                      ? _th.text.withValues(alpha: .5)
+                      : _th.accent,
+                  knobColor: _th.isDark ? const Color(0xFFFFFFFF) : _th.surface,
+                  ringSize: _ringD,
+                ),
+                TrainerHover(
+                  theme: _th,
+                  lift: 8,
+                  inset: .2,
+                  child: _circle(
+                    key: const ValueKey('skip'),
+                    icon: Icons.skip_next_rounded,
+                    tooltip: _s.skip,
+                    size: 56,
+                    onPressed: _skip,
                   ),
-                ],
-              ),
-            ),
-            TrainerHover(
-              theme: _th,
-              lift: 8,
-              inset: .2,
-              child: _circle(
-                key: const ValueKey('skip'),
-                icon: Icons.skip_next_rounded,
-                tooltip: _s.skip,
-                size: 56,
-                onPressed: _skip,
-              ),
+                ),
+              ],
             ),
           ],
         ),
-      ],
-    ),
-  );
+      );
 
   /// Fixed slots follow the system text size (sdk-stage-r9): each is at
   /// least its 1× size and grows with [MediaQuery.textScalerOf], so large

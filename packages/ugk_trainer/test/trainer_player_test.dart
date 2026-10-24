@@ -243,7 +243,8 @@ void main() {
       ),
     );
     await tester.pump(const Duration(seconds: 1));
-    expect(find.byType(TrainerGlassButton), findsNWidgets(4));
+    expect(find.byType(TrainerGlassButton), findsNWidgets(3));
+    expect(find.byType(UgkPlayPauseButton), findsOneWidget);
     final pause = find.semantics.byLabel('暂停训练');
     expect(pause, findsOneWidget);
     expect(
@@ -326,7 +327,14 @@ void main() {
         final ring = tester.getRect(find.byKey(const ValueKey('ring')));
         expect(ring.center.dx, closeTo(pause.center.dx, .5));
         expect(ring.center.dy, closeTo(pause.center.dy, .5));
-        expect(ring.width, greaterThan(pause.width));
+        expect(
+          ring.width,
+          greaterThan(
+            tester
+                .widget<UgkPlayPauseButton>(find.byKey(const ValueKey('pause')))
+                .size,
+          ),
+        );
         expect(done.bottom, lessThanOrEqualTo(ring.top));
         expect(done.center.dx, closeTo(pause.center.dx, 1));
         final index = tester.getRect(find.byKey(const ValueKey('index')));

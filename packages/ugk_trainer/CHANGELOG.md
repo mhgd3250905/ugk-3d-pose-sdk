@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.7 — 2026-10-25（分支修复，待真机确认后合 main）
+
+- Add the theme-driven UgkPlayPauseButton and use it in TrainerPlayer: continuous two-polygon icon morph, interrupted colour waves, release spring and touch-only ripple/haptics.
+- Preserve the 76/96px disc/ring geometry and progress source; pause breath and ring opacity transition without repainting the video.
+- Reconcile optimistic taps with real playback state, preserve keyboard/localized semantics, and support the 150ms reduced-motion branch.
+
 ## 0.2.6 — 2026-10-25（分支修复，待真机确认后合 main）
 
 - Replace retained live media cross-fades with an 150ms final-target handoff and a first-composited-frame-gated 120ms reveal over the target poster. Keep the pre-frame surface compositing at a nonzero alpha; disable native video controls.

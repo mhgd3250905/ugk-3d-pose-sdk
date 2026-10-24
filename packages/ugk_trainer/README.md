@@ -1,4 +1,20 @@
-# ugk_trainer 0.2.6
+# ugk_trainer 0.2.7
+
+0.2.7 把训练页中央播放/暂停按钮封装为 `UgkPlayPauseButton`。保持 76px 按钮、96px 进度环与主题配色：用 CustomPainter 将三角两块逐点形变成双条；颜色从中心漫开，按压松手弹回，暂停时缓慢呼吸，播放时亮起环头柔光。快速反向保留当前动画进度；真实播放状态始终负责确认或纠正本地点击。
+
+`TrainerPlayer` 已自动接入，无需宿主重复管理动画。需要单独使用时：
+
+```dart
+UgkPlayPauseButton(
+  isPlaying: isPlaying,          // App/player authoritative state
+  progress: progressNotifier,   // ValueListenable<double>, 0..1
+  onTap: togglePlayback,
+  theme: trainerTheme,          // accent/onAccent, pausedColor/onPaused
+  strings: trainerStrings,      // localized pause/resume semantics
+)
+```
+
+可选 `progressColor`、`trackColor`、`knobColor`，以及 `size`（默认 76，至少 48）、`ringSize`（96）、`iconSize`（38）。进度仍直接驱动原环 painter，不触发页面重建。外部状态变化只切图标/颜色与状态氛围，按压、波纹和触感仅来自用户激活；系统减少动态时只保留 150ms 图标交叉淡入和颜色过渡。组件提供键盘、Semantics 与独立重绘边界。
 
 0.2.6 修复训练中快速上一项/下一项切换时的播放器闪现。`TrainerPlayer` 内自动使用 `DrillMediaHandoff`：目标静帧立即显示，连续切换默认合并 150ms 后只加载最后目标；WebView/iframe 到首个已合成视频帧才短淡入。目标没有静帧时，切换前暂停旧视频并抓取当前解码帧，截图回复等待最多 60ms，图片预解码最多 40ms，随后销毁旧播放器；浅深主题的截图不混用。播放器始终关闭原生 controls，页面自己的手动播放按钮由宿主负责。
 

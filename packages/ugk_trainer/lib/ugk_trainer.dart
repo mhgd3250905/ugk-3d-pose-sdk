@@ -18,4 +18,5 @@ export 'src/ui/trainer_player.dart';
 export 'src/ui/trainer_stage.dart';
 export 'src/ui/trainer_strings.dart';
 export 'src/ui/trainer_theme.dart';
+export 'src/ui/ugk_play_pause_button.dart';
 export 'src/voice/just_audio_output.dart';

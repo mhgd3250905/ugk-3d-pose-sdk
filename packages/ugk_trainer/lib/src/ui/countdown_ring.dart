@@ -175,6 +175,8 @@ class TrainerRingPainter extends CustomPainter {
     required this.color,
     required this.knob,
     this.glow = true,
+    this.glowOpacity = 1,
+    this.glowBlur,
     this.thickness = .05,
   }) : super(repaint: progress);
   final ValueListenable<double> progress;
@@ -182,6 +184,8 @@ class TrainerRingPainter extends CustomPainter {
   final Color color;
   final Color knob;
   final bool glow;
+  final double glowOpacity;
+  final double? glowBlur;
 
   /// Arc stroke as a fraction of the diameter (track is 42 % of it).
   final double thickness;
@@ -229,13 +233,16 @@ class TrainerRingPainter extends CustomPainter {
     final head =
         center +
         Offset(math.cos(start + sweep), math.sin(start + sweep)) * radius;
-    if (glow) {
+    if (glow && glowOpacity > 0) {
       canvas.drawCircle(
         head,
         stroke * .95,
         Paint()
-          ..color = color.withValues(alpha: color.a * .4)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, stroke * .6),
+          ..color = color.withValues(alpha: color.a * .4 * glowOpacity)
+          ..maskFilter = MaskFilter.blur(
+            BlurStyle.normal,
+            glowBlur ?? stroke * .6,
+          ),
       );
     }
     canvas.drawCircle(head, stroke * .5, Paint()..color = color);
@@ -253,6 +260,8 @@ class TrainerRingPainter extends CustomPainter {
       old.color != color ||
       old.knob != knob ||
       old.glow != glow ||
+      old.glowOpacity != glowOpacity ||
+      old.glowBlur != glowBlur ||
       old.thickness != thickness;
 }
 

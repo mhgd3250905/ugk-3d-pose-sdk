@@ -1,11 +1,13 @@
 # Changelog
 
-## 0.2.8 — 2026-10-25（性能候选，待完整 trace 定位与真机验收）
+## 0.2.8 — 2026-10-25（分支性能修复，待开哥最终 release 复测后合 main）
 
 - Use the existing theme-driven `overMedia` fill for the training information card and close/previous/next controls, removing their live backdrop blur. Give the countdown and neighbouring controls independent repaint boundaries.
 - Replace the progress-head mask blur with a radial-gradient halo. Preserve the public API, theme colours, dimensions, play/pause animation state machine, media and training clock behaviour.
-- Targeted tests: 22/22; scoped analysis: no issues. Paint probes confirm that paused breathing no longer repaints previous/next controls, and media/progress paints remain isolated. No full-suite rerun for this patch.
-- Current lower-interference candidate measurements: first-entry maximum 14.559ms (original baseline 77.271ms); steady raster P99/max 6.295/8.652ms with no frames above 16.67ms; button 9.479/24.895ms with one above; switching 10.616/26.862ms with three above. Button zero-slow-frame acceptance is not yet met; full trace attribution is pending. Timeline retrieval now occurs after each measurement window because the original twice-per-second VM polling introduced UI spikes; those instrumentation effects must not be reported as code optimisation gains.
+- Targeted SDK tests: 22/22; SmartFit integration tests: 9/9; scoped analysis: no issues. Paint probes confirm that paused breathing no longer repaints previous/next controls, and media/progress paints remain isolated. No full-suite rerun for this patch.
+- Reconnected-device `candidateResumeFull` profile: entry 187 valid frames over three seconds, UI maximum 13.246ms and raster maximum 21.407ms (within the 33ms entry limit); steady 907 frames, raster P99/max 9.054/10.258ms and zero above 16.67ms; button 1231 frames, 6.965/10.200ms and zero above; switching 988 frames, 8.286/19.573ms and one above. These samples meet the requested P99 limits. All 20 single/rapid-tap conservative `tap + 600ms` windows have zero raster frames above 16.67ms; the zero-overrun requirement applies to button animation, not every switching frame.
+- The temporary ripple/glow-off control has 1248 frames, raster P99/max 7.297/14.185ms and zero above 16.67ms, showing no clear benefit over the complete button effects; keep those effects. The earlier 24.895ms button sample remains in the original report, so these results do not promise perpetual zero slow frames or hardware presentation at a fixed 60fps.
+- Native frames were reviewed in the original VM full trace; DevTools UI import/review is still pending. Timeline retrieval now occurs after each measurement window because the original twice-per-second VM polling introduced UI spikes; those instrumentation effects must not be reported as code optimisation gains. Keep this work on its branch until the final release-device retest is confirmed.
 
 ## 0.2.7 — 2026-10-25（分支修复，待真机确认后合 main）
 

@@ -256,7 +256,7 @@ void main() {
       expect(
         find.descendant(
           of: pause,
-          matching: find.byKey(const ValueKey('glass-button-focus')),
+          matching: find.byKey(const ValueKey('play-pause-focus')),
         ),
         findsOneWidget,
       );

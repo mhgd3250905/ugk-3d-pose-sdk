@@ -1,0 +1,44 @@
+{
+  "base_tag": "ugk_trainer-v0.2.9",
+  "base_commit": "953be22414f23128af879dc62686db200db34265",
+  "renderer": "Flutter test software renderer; NOT Android/iOS/device evidence",
+  "flutter": "3.47.8",
+  "dart": "3.13.7",
+  "viewport": [
+    430,
+    932
+  ],
+  "player_crop": [
+    430,
+    883
+  ],
+  "pixel_ratio": 2,
+  "capture_time_ms": 1000,
+  "font": "Microsoft YaHei (local only, not redistributed)",
+  "debugDisableShadows": false,
+  "candidate_source_sha256": {
+    "lib/src/ui/trainer_player.dart": "2e84a4751ab649b2b8ab7aac36f8e2c07acdbc7642fb44d69c07f7b9769b6b92",
+    "lib/src/ui/trainer_theme.dart": "d12f937375d13e7ebde6e232f6bf95b0d4890c72e3b8352a48b5b7cff5d418d8",
+    "lib/src/ui/trainer_glass.dart": "c552a06690fb381fb0fd559765d5350d105eb83529fb4912f05433d5fb585b9f",
+    "lib/src/ui/trainer_stage.dart": "9c2b808e66677592771a612742df10b9178412ad45bb40cdd7697ce52e80ef0b",
+    "lib/src/ui/trainer_result_surface.dart": "deaad448d59dddf9a07134d9081dedb1830b48be0edf720a899518d56e505989"
+  },
+  "images_sha256": {
+    "after-rest-dark.png": "9c1c605eda0347e6867e9573d51de14791284583d262c0014eee5299fd752fdb",
+    "after-rest-light.png": "208f9a6bf936caeba6ec03c5eb77871352fc06c8edfd990b2fb7991138ebd2f1",
+    "after-result-dark.png": "2c39f0e1d8f324fc769168fed3546ef7b0382d75f36571a9e0d2eba96dee99b0",
+    "after-result-light.png": "257b91c8acca3fcfdda42323d1140d39273df894480a11ab2e0756b7557d25a5",
+    "after-training-dark.png": "bf3d079e0a45d2f6e76d4d503a819377d6438d8f057f3f4029bd80ae8d0fea2b",
+    "after-training-light.png": "53841142df2f05f35918574a6518afa15d22513b6d53932b08184860289fd440",
+    "after-transition-dark.png": "95a0b428e1b60fb60975fc5cd1ddf9f2a9a57f29bb66c0f7d6df3eec6403fdfb",
+    "after-transition-light.png": "660ae5881e634507a6d5494cd58d1b12cdadf4357ae9c8f01dd513d0fc41172f",
+    "before-rest-dark.png": "596e280cbf5da0b416b7e5671ab2d15535cc949e4117caebb1f878229cf03491",
+    "before-rest-light.png": "7db136c663dcc9b01ac2a228cc8867b2987d408bd6a9989fa07fa4149542fa0e",
+    "before-result-dark.png": "d6dc35abd1b13ba8e5adb4948174b012b7e6b0cf58fc98443ac695efd4e490f5",
+    "before-result-light.png": "c46d272b62f05678074e21c9e49fb951e5207c606ae2d13239717acb4d53e1ea",
+    "before-training-dark.png": "cb16af93a9935b2aa6ec06b6566217c759605fc2f4a91600499c24cacdeb4bf3",
+    "before-training-light.png": "9f18a3c66cd533eb62c6a923d42e2e6f4840b8bca6d1e349bbe17d3e3d1fcc74",
+    "before-transition-dark.png": "999da5fe6a51c9db6b670caebee7f2cbd6ae3feb5ff856e722828a2fffe61fc6",
+    "before-transition-light.png": "bffa385ee19572262617efea849e3d72c0fd63ad53d4fe0894b2196365380358"
+  }
+}

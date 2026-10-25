@@ -1,0 +1,29 @@
+name: ugk_trainer_showcase
+description: Offline visual acceptance showcase for the shared UGK training player.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+  flutter: '>=3.44.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  ugk_trainer:
+    path: ../
+  ugk_coach:
+    path: ../../..
+
+dependency_overrides:
+  ugk_coach:
+    path: ../../..
+
+dev_dependencies:
+  clock: ^1.1.2
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

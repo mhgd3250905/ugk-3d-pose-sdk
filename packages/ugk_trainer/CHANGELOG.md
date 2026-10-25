@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — training UI review candidate
+
+- Refine light/dark HUD, countdown hierarchy, previous/skip labels, rest controls and result summary. Place the studio behind transparent media; retain repaint boundaries and the radial progress halo.
+- Keep media and changing controls free of backdrop sampling. Use the Flutter-only `liquid_glass_easy` 5.0.0 lens on the static result surface, with cached Skia capture and no host initialization or API changes.
+- Add an offline Android/iOS/Web acceptance example and paired before/after evidence in `docs/visual-review.md`. No version bump or tag; native video and device performance await acceptance.
+
 ## 0.2.9 — 2026-10-25（测试分支，未合 main）
 
 - Add opt-in RGB-over-alpha MP4 assets and a matching transparent frame-zero poster to `DrillMedia`. Render the full-height packed texture with an Android MediaPlayer/SurfaceProducer and GPU `ImageFilter.shader` composition, then apply output-height scaling; no new video-player dependency or per-frame Dart pixel readback.

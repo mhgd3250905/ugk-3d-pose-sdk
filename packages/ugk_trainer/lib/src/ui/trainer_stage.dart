@@ -1,8 +1,7 @@
-// The immersive "3D stage" behind the player (sdk-stage-r1): the square
-// demo clip sits edge-to-edge at the top and its own flat backdrop
-// (TrainerTheme.mediaStage, the colour the clips are baked on) continues
-// down the screen as a floor — a pool of light under the figure, a faint
-// receding grid and a soft vignette. Static, one CustomPainter, no blur.
+// Quiet studio lighting and floor behind training media. TrainerPlayer
+// supplies the opaque mediaStage base; this exported painter stays
+// translucent for hosts that place it above existing content.
+// Static, one CustomPainter, no live blur.
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -10,8 +9,10 @@ import 'package:flutter/material.dart';
 
 import 'trainer_theme.dart';
 
-/// Paints the floor and depth fog for a clip of [clipSize] whose top-left
-/// corner is at ([clipLeft], 0). Ignores pointers.
+/// Paints translucent lighting and floor for a clip of [clipSize] whose
+/// top-left corner is at ([clipLeft], [clipTop]). The player places it
+/// behind media over an opaque [TrainerTheme.mediaStage] base so alpha
+/// video reveals the studio without tinting the figure. Ignores pointers.
 class TrainerStageFloor extends StatelessWidget {
   const TrainerStageFloor({
     super.key,
@@ -71,6 +72,7 @@ class _FloorPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
     final w = size.width, h = size.height, v = clipSize;
     final cx = clipLeft + v / 2;
     // The clips' feet stand at ~0.9 of the frame; the horizon sits above.
@@ -78,6 +80,25 @@ class _FloorPainter extends CustomPainter {
     final feet = y0 + v * .9;
     final horizon = y0 + v * .78;
     final ink = dark ? Colors.white : const Color(0xFF1B2420);
+
+    // The player supplies the opaque base; retain this exported surface's
+    // translucent composition for existing overlay callers. Lighting
+    // changes spatially, not every frame.
+    final rect = Offset.zero & size;
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = ui.Gradient.radial(
+          Offset(cx, y0 + v * .42),
+          math.max(w, h) * .65,
+          [
+            Colors.white.withValues(alpha: dark ? .075 : .60),
+            Colors.white.withValues(alpha: dark ? .025 : .18),
+            Colors.white.withValues(alpha: 0),
+          ],
+          const [0, .48, 1],
+        ),
+    );
 
     if (fadeClipEdge && v > 0) {
       final top = y0 + v * .9;
@@ -113,13 +134,13 @@ class _FloorPainter extends CustomPainter {
         Offset(cx, feet + v * .06),
         reach,
         [
-          ink.withValues(alpha: dark ? .10 : .085),
-          ink.withValues(alpha: dark ? .045 : .035),
+          ink.withValues(alpha: dark ? .055 : .048),
+          ink.withValues(alpha: dark ? .022 : .018),
           ink.withValues(alpha: 0),
         ],
         const [0, .45, 1],
       );
-    final depth = h - horizon;
+    final depth = math.max(1.0, h - horizon);
     for (var k = -9; k <= 9; k++) {
       // Rays meet at the vanishing point on the horizon.
       final bx = cx + k * v * .34;
@@ -153,13 +174,13 @@ class _FloorPainter extends CustomPainter {
       .22,
       dark
           ? [
-              accent.withValues(alpha: .16),
-              Colors.white.withValues(alpha: .05),
+              accent.withValues(alpha: .12),
+              Colors.white.withValues(alpha: .035),
               Colors.white.withValues(alpha: 0),
             ]
           : [
-              const Color(0xFF1B2420).withValues(alpha: .10),
-              accent.withValues(alpha: .06),
+              const Color(0xFF1B2420).withValues(alpha: .09),
+              accent.withValues(alpha: .025),
               accent.withValues(alpha: 0),
             ],
       const [0, .45, 1],
@@ -176,15 +197,13 @@ class _FloorPainter extends CustomPainter {
           [
             Colors.black.withValues(alpha: 0),
             Colors.black.withValues(alpha: 0),
-            Colors.black.withValues(alpha: dark ? .38 : .07),
+            Colors.black.withValues(alpha: dark ? .22 : .035),
           ],
           const [0, .45, 1],
         ),
     );
-    // Ambient light (sdk-stage-r5): low-saturation tinted pools at the
-    // corners, under the top card and the transport, so the glass has
-    // colour to refract. Painted over clip and floor alike, so the clip's
-    // backdrop edge stays seamless; the figure in the middle is untouched.
+    // A single muted accent bounce separates the floating controls from
+    // the neutral floor. No animated lights or coloured corner wallpaper.
     void blob(double x, double y, double r, Color c, double a) {
       final o = Offset(w * x, h * y);
       final rad = math.max(w, 320.0) * r;
@@ -205,15 +224,7 @@ class _FloorPainter extends CustomPainter {
       );
     }
 
-    if (dark) {
-      blob(.08, .06, .55, accent, .07);
-      blob(.95, .96, .55, const Color(0xFF6E8BFF), .05);
-    } else {
-      blob(.04, .07, .62, accent, .20);
-      blob(.98, .03, .55, const Color(0xFF7DB8F2), .20);
-      blob(.96, .95, .62, const Color(0xFFFFB98E), .20);
-      blob(.04, .92, .55, const Color(0xFF6FD6B6), .16);
-    }
+    blob(.16, .88, .9, accent, dark ? .035 : .045);
   }
 
   @override
@@ -267,10 +278,10 @@ class TrainerHover extends StatelessWidget {
                     boxShadow: [
                       BoxShadow(
                         color: theme.isDark
-                            ? const Color(0x99000000)
-                            : const Color(0x2E1B2420),
-                        blurRadius: 16,
-                        spreadRadius: 1,
+                            ? const Color(0x55000000)
+                            : const Color(0x171B2420),
+                        blurRadius: 14,
+                        spreadRadius: 0,
                       ),
                     ],
                   ),

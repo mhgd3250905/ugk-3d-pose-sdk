@@ -1,5 +1,9 @@
 # ugk_trainer 0.2.9
 
+## 训练 UI 待审候选
+
+本分支提供浅深主题的 HUD、倒计时、休息和结果页改造，以及独立可运行的 [验收展示](example/README.md)。查看 [四状态前后对照](docs/visual-review.md) 与 [材质及性能取舍](docs/liquid-glass-design.md)。训练视频和高频控制保留无采样材质，仅静止结果页使用真实玻璃；公开调用方式不变。包版本保持 0.2.9，待评审后再决定合并及发 tag。
+
 ## 0.2.9：拼接 alpha 视频（测试分支）
 
 推荐通过 `DrillMediaView` 接入，资源审核与测试构建开关由 App 管理：

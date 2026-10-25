@@ -1,0 +1,35 @@
+{
+    "name": "UGK 训练展示",
+    "short_name": "UGK 展示",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#F1F5F4",
+    "theme_color": "#198A71",
+    "description": "训练播放页浅深主题与四状态验收展示。",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

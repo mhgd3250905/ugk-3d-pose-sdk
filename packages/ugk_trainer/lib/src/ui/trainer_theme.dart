@@ -1,7 +1,6 @@
-// Colour / type / spacing tokens of the player, after SmartFit@e8981ee
-// lib/ui/theme/tokens.dart (SfPalette dark / light, SfType, SfSpace,
-// SfRadius, SfMotion). The app passes its own [TrainerTheme]; the presets
-// are SmartFit's values.
+// Player-scoped colour, type and spacing tokens. Hosts can continue to
+// supply their own TrainerTheme; the presets give the SDK's light and
+// dark studio surfaces, with one restrained accent for the main action.
 import 'package:flutter/material.dart';
 
 import 'trainer_glass.dart';
@@ -73,10 +72,11 @@ class TrainerTheme {
   /// Media / panel corner radius.
   final double radius;
 
-  /// The app's own glass material; null: SmartFit's clear glass preset.
+  /// The app's own glass material; null: the matching SDK preset.
   final TrainerGlassStyle? glassStyle;
 
-  /// Clear liquid glass for controls and HUD pills (SmartFit, 2026-10-21).
+  /// Painted translucent glass for controls and HUD pills, without live
+  /// backdrop sampling. Suitable for both native video and alpha media.
   TrainerGlassStyle get glass =>
       glassStyle ?? (isDark ? TrainerGlassStyle.dark : TrainerGlassStyle.light);
 
@@ -122,37 +122,37 @@ class TrainerTheme {
 
   static const dark = TrainerTheme(
     brightness: Brightness.dark,
-    background: Color(0xFF0E0F11), // neutral sky (SmartFit round 4)
-    surface: Color(0xFF15171C),
-    surfaceHigh: Color(0xFF1F2228),
-    track: Color(0x1FFFFFFF),
-    accent: Color(0xFF3CCFA4),
-    accentText: Color(0xFF3CCFA4),
-    onAccent: Color(0xFF07261D),
-    text: Color(0xFFF2F3F5),
-    muted: Color(0xFF8D9199),
-    faint: Color(0xFF5C6068),
+    background: Color(0xFF11171B),
+    surface: Color(0xFF1B242A),
+    surfaceHigh: Color(0xFF283239),
+    track: Color(0x24FFFFFF),
+    accent: Color(0xFF5BD6AF),
+    accentText: Color(0xFF7BE2C1),
+    onAccent: Color(0xFF072E23),
+    text: Color(0xFFF3F6F7),
+    muted: Color(0xFFA8B3BB),
+    faint: Color(0xFF76848E),
     caution: Color(0xFFF3A443),
     danger: Color(0xFFEF6A6A),
-    mediaStage: Color(0xFF101013),
+    mediaStage: Color(0xFF151D22),
     scrim: Color(0xA6000000),
   );
 
   static const light = TrainerTheme(
     brightness: Brightness.light,
-    background: Color(0xFFF4F5F3),
+    background: Color(0xFFF2F5F5),
     surface: Color(0xFFFFFFFF),
-    surfaceHigh: Color(0xFFEEF0EE),
-    track: Color(0x14000000),
-    accent: Color(0xFF14A37B),
-    accentText: Color(0xFF0D6E53),
+    surfaceHigh: Color(0xFFE7EEED),
+    track: Color(0x1C18362C),
+    accent: Color(0xFF098563),
+    accentText: Color(0xFF08614B),
     onAccent: Color(0xFFFFFFFF),
-    text: Color(0xFF121614),
-    muted: Color(0xFF5D6661),
-    faint: Color(0xFF9AA29E),
+    text: Color(0xFF162A2D),
+    muted: Color(0xFF52676D),
+    faint: Color(0xFF72858B),
     caution: Color(0xFFB8650F),
     danger: Color(0xFFD43F3F),
-    mediaStage: Color(0xFFEFEFEF),
+    mediaStage: Color(0xFFEDF2F2),
     scrim: Color(0x8C000000),
   );
 
@@ -164,8 +164,8 @@ class TrainerTheme {
     color: c,
   );
 
-  TextStyle get display => _t(30, 1.2, FontWeight.w800, text);
-  TextStyle get title => _t(20, 1.3, FontWeight.w700, text);
+  TextStyle get display => _t(30, 1.2, FontWeight.w600, text);
+  TextStyle get title => _t(20, 1.3, FontWeight.w600, text);
   TextStyle get body => _t(16, 1.6, FontWeight.w400, text);
   TextStyle get callout => _t(15, 1.4, FontWeight.w500, text);
   TextStyle get label => _t(13, 1.4, FontWeight.w400, muted);

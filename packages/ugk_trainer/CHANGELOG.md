@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased — training UI review candidate
+## 0.2.10 — 2026-10-25（已批准版本提交并推进 main）
 
-- Refine light/dark button materials, HUD tint and typography while preserving v0.2.9 control positions, sizes, interactions and result layout. Place the studio behind transparent media; retain repaint boundaries and the radial progress halo.
-- Keep media and changing controls free of backdrop sampling. Use `liquid_glass_widgets` 1.15.0 clear surfaces only on the static result panels, with no host initialization or API changes. Its iOS helper plugin requires iOS 15; unsupported shader renderers retain the library's lightweight fallback.
-- Add an offline Android/iOS/Web acceptance example and paired before/after evidence in `docs/visual-review.md`. No version bump or tag; native video and device performance await acceptance.
+- Use the tuned Liquid Glass skill recipes for light/dark HUD and hints (thickness 30 / blur 2 / lightIntensity 0.18) and secondary controls (24 / 3 / 0.2), with `liquid_glass_widgets` 1.15.0 premium / clear and its brightness-aware tint. Nested controls share their platter's vibrancy; explicit host `glassStyle` retains its painted path. Preserve v0.2.9 positions, sizes, interactions, repaint boundaries and radial progress halo.
+- Unify Cupertino symbols and hint typography, and show a next-action symbol when the 28px preview has no poster. Keep training, counting, voice, state-machine and public call contracts unchanged.
+- Include the existing 0.2.4–0.2.9 still-only, media handoff, packed-alpha video and play/pause fixes when advancing main. Their historical branch/device records below do not establish performance for the new sampling material.
+- Provide an offline Android/iOS/Web example and paired software layout evidence. The iOS helper requires iOS 15+; Web and unsupported renderers use the library fallback and do not preview native refraction. No host-wide initialization is required.
+- Runtime source is unchanged from reviewed `4a843a7`: 253 trainer tests, 4 example tests, both analyses and Android debug build passed; 106 measured control frames match v0.2.9 with 0dp maximum offset. Integration/version checks are recorded in `docs/visual-review.md`. Native R4 appearance, transparent-video composition, device performance and iOS builds remain unverified. This version commit does not publish a new tag.
 
 ## 0.2.9 — 2026-10-25（测试分支，未合 main）
 

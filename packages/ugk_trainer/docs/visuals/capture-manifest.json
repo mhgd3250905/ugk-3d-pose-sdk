@@ -91,5 +91,25 @@
     ],
     "tint": "library brightness-aware light/dark defaults",
     "nested_controls": "library vibrancy, shared platter"
+  },
+  "captured_source_commit": "4a843a75e496b6d8c0a91a11e37c59f837b0148e",
+  "version_integration": {
+    "date": "2026-10-25 Asia/Shanghai",
+    "trainer_version": "0.2.10",
+    "runtime_source_commit": "4a843a75e496b6d8c0a91a11e37c59f837b0148e",
+    "runtime_source_unchanged": true,
+    "metadata_source_sha256": {
+      "pubspec.yaml": "1388dbcc24eefa7a3b853cfe2bc300932913248d820f5167467ca6c601710adb",
+      "example/pubspec.lock": "39b79c4a9e992910f43c8945ec8343eb8d60879a7690bc3eb3cb23f0b7e7a282"
+    },
+    "checks": {
+      "example_strict_lockfile": "passed",
+      "example_tests": 4,
+      "coach_ui_tests": 23,
+      "coach_ui_analysis": "passed",
+      "player_protocol_tests": 8,
+      "runtime_diff_against_reviewed_commit": "empty"
+    },
+    "new_tag_published": false
   }
 }

@@ -1,14 +1,18 @@
 # ugk_coach · 三 App 共用的 AI 训练助理 SDK
 
+> **2026-10-25 合入版本快照：** `ugk_coach 0.5.0`、`ugk_coach_ui 0.1.2`、`ugk_trainer 0.2.10` 已获批准快进 main，最终 SHA 见交付回执。本轮不发布新 tag，既有 tag 保持固定；清单版本归档不等于新增正式发布。
+>
+> 本次包含 trainer 0.2.4–0.2.9 的既有修复、透明媒体与播放控制，以及 R4 浅深 Liquid Glass 配方和展示入口；候选祖先中的 coach_ui 0.1.2 `topInset` / `fadeTop` 一并合入。训练布局软件检查与功能测试已有证据，R4 原生通透效果、媒体合成和设备性能仍待验。详情见[维护台账](docs/project-ledger.md)及[训练包记录](packages/ugk_trainer/docs/visual-review.md)。
+
 仓库 `mhgd3250905/ugk-3d-pose-sdk`，根目录是纯 Dart 包 **`ugk_coach`**，`packages/ugk_trainer` 是 Flutter 训练执行包（PR #1 已合入）。
 
-2026-10-24 待审分支新增纯 Dart `CoachConversationController`：把同 agent 多轮发送、待答问题有效期、答案整理、取消/新对话与可监听状态收束到 coach。SmartFit 先接入，HipLab / Flare 本轮仅只读参考。拟发布 `ugk_coach-v0.5.0`、依赖兼容补丁 `ugk_trainer-v0.2.3`；UI 运行代码保持 `ugk_coach_ui-v0.1.1`。尚未批准合并或发布，接入方式与接口清单见[会话控制器说明](docs/coach-conversation-controller.md)。
+2026-10-24 已合入的纯 Dart `CoachConversationController` 将同 agent 多轮发送、待答问题有效期、答案整理、取消/新对话与可监听状态收束到 coach。`ugk_coach-v0.5.0` 和依赖兼容补丁 `ugk_trainer-v0.2.3` 已有固定 tag；该轮 UI 源码对应 `ugk_coach_ui-v0.1.1`。这部分是既有基线，本次不改根包运行代码。接入方式与接口清单见[会话控制器说明](docs/coach-conversation-controller.md)。
 
 2026-10-24 已批准合入并发布补丁：`ugk_coach_ui-v0.1.1`、`ugk_coach-v0.4.2`、`ugk_trainer-v0.2.2` 均固定 `3302d6235a39e2c2b4b51fa196cc32b37c31b54c`。已核对 SDK 的「320px / 2 倍字体 / 浅深主题 / 展开套路卡 / 中文长剂量」用例通过，包含在 UI 21 项通过记录中。剂量完整换行，行高、飞行落点和动画保护区共享测量；coach/trainer 仅修 ASCII 清单和依赖 tag，运行代码不变。SmartFit 在正式 GitHub 远端原生 Pub 严格锁文件验证通过后，已将功能源码 `9d2ff7d` 合入并推送 main。旧 tag 未移动，后续发布状态文档不会移动新 tag。
 
 2026-10-24 已经开哥批准合入并推送 `f0ea0647586913b205fc6dbb75fc9f97cedc55ce`，发布 `ugk_coach_ui-v0.1.0`、`ugk_trainer-v0.2.1`，两个 tag 均固定该提交。[`ugk_coach_ui` 接入文档](packages/ugk_coach_ui/README.md)包含聊天列表、消息/澄清气泡、套路卡及原有展开动画；主题、字体、文案、素材与交互由宿主注入，无网络、密钥或 App 代码依赖。trainer 0.2.1 仅修正 coach tag 的依赖来源，运行代码保持 0.2.0；coach 仍为 `ugk_coach-v0.4.1`（`88da65a`）。UI 8 项、trainer 207 项测试通过，SmartFit 452 项通过 / 13 条件跳过；App 从正式 GitHub 远端重新验证 tag 锁文件后已合入 main，功能源码为 `7f3458d`。后续文档状态提交不改变已发布 tag。
 
-**当前 main：coach_ui 0.1.1 / trainer 0.2.2 / coach 0.4.2。** trainer 的运行行为沿用已批准验收提交 `64a54874307449c8685577f8eeb913296b207a7c`：统计修复、缺省自动计次、一组多段和可选操作见[接入契约](docs/trainer-020-integration.md)及[验证记录](docs/trainer-020-verification-2026-10-23.md)。下方版本为历史基线。0.4.0 新增 `AgentEventKind.askUser` 对旧穷举 switch 是破坏性源码变更，升级必须补分支，见 [ask_user 升级提示](docs/ask-user.md)。
+**历史 main 快照（2026-10-24）：coach_ui 0.1.1 / trainer 0.2.2 / coach 0.4.2。** trainer 的运行行为沿用已批准验收提交 `64a54874307449c8685577f8eeb913296b207a7c`：统计修复、缺省自动计次、一组多段和可选操作见[接入契约](docs/trainer-020-integration.md)及[验证记录](docs/trainer-020-verification-2026-10-23.md)。下方版本为历史基线。0.4.0 新增 `AgentEventKind.askUser` 对旧穷举 switch 是破坏性源码变更，升级必须补分支，见 [ask_user 升级提示](docs/ask-user.md)。
 
 HipLab / Flare 可按 UI 包 README 的固定 tag 接入，并各自验收真机锁屏、来电中断和原生播放；本轮不替其它 App 自动升级。当前版本、远端核验快照与历史证据统一见[项目维护台账](docs/project-ledger.md)。
 
@@ -71,7 +75,7 @@ eval/          评测（原 ai-coach-eval，subtree 并入）：tools/validate.p
 test/fixtures/ pose-hub-catalog.json（目录快照）golden/（提示词金样）parity.json（校验对照）packs/
 ```
 
-## 0.5 对话控制器接入（待审）
+## 0.5 对话控制器接入
 
 需要多轮询问、消息列表和取消/新对话的 App，使用 `CoachConversationController` 统一管理同一个 agent。App 构造 agent 并注入 client、catalog 和 profile；controller 接手 send/reset/dispose，App 仍负责存储、导航、训练启动与计划到 UI 的映射。
 
@@ -87,7 +91,7 @@ if (pending != null && conversation.canAnswer(pending.id)) {
 // 新对话：conversation.newConversation(); 结束所有权：await conversation.dispose();
 ```
 
-以上为拟发布 `ugk_coach-v0.5.0` 的接口，当前尚未发布。完整状态字段、重复提交保护、问题失效与历史恢复见[控制器接入说明](docs/coach-conversation-controller.md)。UI 层继续使用 [`ugk_coach_ui`](packages/ugk_coach_ui/README.md#接入-ask_user) 的 DTO 和回调，不需要在 UI 包增加 coach 依赖。
+以上接口已随固定 tag `ugk_coach-v0.5.0` 发布。完整状态字段、重复提交保护、问题失效与历史恢复见[控制器接入说明](docs/coach-conversation-controller.md)。UI 层继续使用 [`ugk_coach_ui`](packages/ugk_coach_ui/README.md#接入-ask_user) 的 DTO 和回调，不需要在 UI 包增加 coach 依赖。
 
 ## 0.4 底层 Agent 接入
 

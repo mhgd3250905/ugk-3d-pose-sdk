@@ -1,5 +1,12 @@
 # Changelog
 
+## trainer 0.2.10 / coach_ui 0.1.2 — 2026-10-25（已批准快进 main）
+
+- Archive trainer 0.2.10 and advance the reviewed candidate to main, including the existing 0.2.4–0.2.9 media, handoff, transparent-video and playback-control changes plus the R4 UI revision. Final integration SHA is recorded in the delivery receipt; this version commit does not create or move tags.
+- Apply the Liquid Glass skill's tuned light/dark accessory and control recipes to the trainer's existing layout; unify Cupertino symbols and retain custom host material hooks. The offline Android/iOS/Web showcase preserves the training state machine. The Web/software path is a layout fallback, not proof of native refraction.
+- Include the existing coach_ui 0.1.2 `CoachChatList.topInset` / `fadeTop` changes from candidate ancestor `ee83dc3`, preserving default host behaviour. Root coach remains 0.5.0 with no runtime changes in this integration.
+- Reuse verified R4 source `4a843a7`: 253 trainer tests, 4 showcase tests and 106 layout bounds with maximum offset 0dp. Coach UI integration validation: 23 项测试与静态分析通过；媒体播放协议 8/8 通过，示例依赖严格锁文件校验通过. R4 native visual, media-composition and device-performance acceptance remains pending; earlier 0.2.8/0.2.9 profile samples do not validate R4.
+
 ## trainer 0.2.5 / coach_ui 0.1.2 — 2026-10-24（修复分支，待真机确认后合 main）
 
 - Trainer moves the next-action preview below the info header at the upper left. It removes the paused badge and lets hosts inject `pausedColor` / `onPaused` for the resume button, keeping timer, voice and safety callbacks unchanged.

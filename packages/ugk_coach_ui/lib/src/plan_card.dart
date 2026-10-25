@@ -41,12 +41,21 @@ class CoachPlanCard extends StatefulWidget {
     required this.onSave,
     required this.onOpen,
     this.landing = false,
-  });
+    this.cutoutTopInset,
+  }) : assert(
+         cutoutTopInset == null ||
+             (cutoutTopInset >= 0 && cutoutTopInset < double.infinity),
+       );
 
   final CoachRoutine plan;
 
   /// A card that just arrived: its cover settles from 1.04 to 1 (M7).
   final bool landing;
+
+  /// Optional cutout image top in outer-card coordinates. Null preserves the
+  /// original placement. Zero allows a host-cropped figure to reach the card's
+  /// top through its existing padding, without moving text or controls.
+  final double? cutoutTopInset;
   final CoachExerciseLibrary library;
   final bool saved;
 
@@ -234,24 +243,32 @@ class _AboveZero extends Animatable<double> {
 /// lerp([from], natural, [k]) itself, clipping the rest: the set card's
 /// single animated size/clip (the child is not rebuilt per frame).
 class _LerpHeight extends SingleChildRenderObjectWidget {
-  const _LerpHeight({required this.from, required this.k, super.child});
+  const _LerpHeight({
+    required this.from,
+    required this.k,
+    this.topOverflow = 0,
+    super.child,
+  });
   final double from;
   final double k;
+  final double topOverflow;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
-      _RenderLerpHeight(from, k);
+      _RenderLerpHeight(from, k, topOverflow);
 
   @override
   void updateRenderObject(BuildContext context, _RenderLerpHeight r) => r
     ..from = from
-    ..k = k;
+    ..k = k
+    ..topOverflow = topOverflow;
 }
 
 class _RenderLerpHeight extends RenderProxyBox {
-  _RenderLerpHeight(this._from, this._k);
+  _RenderLerpHeight(this._from, this._k, this._topOverflow);
   double _from;
   double _k;
+  double _topOverflow;
   set from(double v) {
     if (v == _from) return;
     _from = v;
@@ -262,6 +279,12 @@ class _RenderLerpHeight extends RenderProxyBox {
     if (v == _k) return;
     _k = v;
     markNeedsLayout();
+  }
+
+  set topOverflow(double value) {
+    if (_topOverflow == value) return;
+    _topOverflow = value;
+    markNeedsPaint();
   }
 
   final _clip = LayerHandle<ClipRectLayer>();
@@ -300,7 +323,7 @@ class _RenderLerpHeight extends RenderProxyBox {
       _clip.layer = context.pushClipRect(
         needsCompositing,
         offset,
-        Offset.zero & size,
+        Rect.fromLTRB(0, -_topOverflow, size.width, size.height),
         super.paint,
         oldLayer: _clip.layer,
       );
@@ -507,7 +530,7 @@ class _PlanCardState extends State<CoachPlanCard>
     // The hero's folded frame (the cutout's box, or the boxed cover) and
     // its landing slot, row 1's thumbnail.
     final heroH = compactH - _SetBody.stripHeight;
-    final heroFrom = fused
+    var heroFrom = fused
         ? Rect.fromLTWH(
             CoachSpace.x4,
             CoachSpace.x1,
@@ -515,6 +538,17 @@ class _PlanCardState extends State<CoachPlanCard>
             heroH - CoachSpace.x1 - _SetBody.fusedTitleRoom,
           )
         : Rect.fromLTWH(0, 0, innerW, heroH);
+    final cutoutTop = widget.cutoutTopInset == null
+        ? null
+        : widget.cutoutTopInset! - _inset;
+    if (fused && cutoutTop != null) {
+      heroFrom = Rect.fromLTRB(
+        heroFrom.left,
+        math.min(cutoutTop, heroFrom.bottom),
+        heroFrom.right,
+        heroFrom.bottom,
+      );
+    }
     final heroTo = rowSlot(0) & const Size.square(_MoveRow.thumbSize);
     Rect flyerRect(int k, double e) {
       if (k == 0) return Rect.lerp(heroFrom, heroTo, e)!;
@@ -573,6 +607,7 @@ class _PlanCardState extends State<CoachPlanCard>
             ],
             landing: widget.landing,
             still: _moving,
+            cutoutTop: cutoutTop,
           )
         : _SetBody(
             cover: cover,
@@ -583,6 +618,7 @@ class _PlanCardState extends State<CoachPlanCard>
             more: more,
             landing: widget.landing,
             still: _moving,
+            cutoutBounds: fused && cutoutTop != null ? heroFrom : null,
             thumbs: stripThumbs,
             // The hero leaves its place at once: a flyer carries it into
             // row 1 (reduced motion: it fades with the rest of the body).
@@ -726,6 +762,9 @@ class _PlanCardState extends State<CoachPlanCard>
     final Widget content;
     if (single) {
       content = Stack(
+        clipBehavior: cutoutTop != null && moves.firstOrNull?.cutout != null
+            ? Clip.none
+            : Clip.hardEdge,
         children: [
           Column(
             mainAxisSize: MainAxisSize.min,
@@ -738,6 +777,10 @@ class _PlanCardState extends State<CoachPlanCard>
                 height: compactH,
                 child: Stack(
                   fit: StackFit.expand,
+                  clipBehavior:
+                      cutoutTop != null && moves.firstOrNull?.cutout != null
+                      ? Clip.none
+                      : Clip.hardEdge,
                   children: [
                     Positioned.fill(child: compact),
                     Positioned(right: 0, top: 0, child: toggle),
@@ -840,8 +883,12 @@ class _PlanCardState extends State<CoachPlanCard>
       final k = reduced ? _expand.drive(const _AboveZero()) : _height;
       content = AnimatedBuilder(
         animation: k,
-        builder: (context, child) =>
-            _LerpHeight(from: compactH, k: k.value, child: child),
+        builder: (context, child) => _LerpHeight(
+          from: compactH,
+          k: k.value,
+          topOverflow: fused && cutoutTop != null ? math.max(0, -cutoutTop) : 0,
+          child: child,
+        ),
         child: Stack(
           fit: StackFit.passthrough,
           clipBehavior: Clip.none,
@@ -919,6 +966,31 @@ class _PlanCardState extends State<CoachPlanCard>
       card = Stack(
         children: [
           card,
+          // The figure can paint in the original padding. Keep that visible
+          // strip tappable without covering controls, whose top is _inset.
+          if (cutoutTop != null &&
+              cutoutTop < 0 &&
+              (fused || (single && moves.firstOrNull?.cutout != null)))
+            AnimatedBuilder(
+              animation: _expand,
+              builder: (context, _) => _expand.value != 0
+                  ? const SizedBox.shrink()
+                  : Positioned(
+                      left: single ? _inset : _inset + heroFrom.left,
+                      right: single
+                          ? width - _inset - (CoachPlanCard.exerciseHeight - 12)
+                          : width - _inset - heroFrom.right,
+                      top: widget.cutoutTopInset!,
+                      height: -cutoutTop,
+                      child: GestureDetector(
+                        key: const ValueKey('plan-cutout-padding-hit'),
+                        behavior: HitTestBehavior.translucent,
+                        excludeFromSemantics: true,
+                        onTap: widget.onOpen,
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+            ),
           if (widget.landing && !reduced)
             Positioned.fill(
               child: IgnorePointer(
@@ -998,11 +1070,19 @@ class _PlanCardState extends State<CoachPlanCard>
               if (fused && poster < 1 && cover != null)
                 Opacity(
                   opacity: 1 - poster,
-                  child: Image.asset(
-                    cover.stillCutout ?? cover.cutout!,
-                    fit: BoxFit.contain,
-                    gaplessPlayback: true,
-                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  child: _mediaImage(
+                    context,
+                    CoachMediaRequest(
+                      exercise: cover,
+                      asset: cover.stillCutout ?? cover.cutout!,
+                      cutout: true,
+                      still: true,
+                      landing: false,
+                      fit: BoxFit.contain,
+                      alignment: widget.cutoutTopInset == null
+                          ? Alignment.center
+                          : Alignment.topCenter,
+                    ),
                   ),
                 ),
               if (!fused && scrim > 0)
@@ -1440,6 +1520,7 @@ class _Media extends StatelessWidget {
     this.landing = false,
     this.cutout = false,
     this.still = false,
+    this.cutoutAlignment = Alignment.center,
   });
   final CoachExercise? exercise;
   final bool landing;
@@ -1450,6 +1531,7 @@ class _Media extends StatelessWidget {
   /// The keyed figure straight on the glass (no stage box), when [exercise]
   /// has one (the supplied cutout); otherwise the boxed cover as before.
   final bool cutout;
+  final Alignment cutoutAlignment;
 
   @override
   Widget build(BuildContext context) {
@@ -1460,14 +1542,23 @@ class _Media extends StatelessWidget {
         tween: Tween(begin: landing && !reduced ? 1.04 : 1, end: 1),
         duration: const Duration(milliseconds: 600),
         curve: CoachMotion.standard,
-        builder: (_, k, img) =>
-            k == 1 ? img! : Transform.scale(scale: k, child: img),
-        child: Image.asset(
-          (reduced || still) ? (e.stillCutout ?? e.cutout!) : e.cutout!,
-          fit: BoxFit.contain,
-          gaplessPlayback: true,
-          semanticLabel: e.name,
-          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        builder: (_, k, img) => k == 1
+            ? img!
+            : Transform.scale(scale: k, alignment: cutoutAlignment, child: img),
+        child: _mediaImage(
+          context,
+          CoachMediaRequest(
+            exercise: e,
+            asset: (reduced || still)
+                ? (e.stillCutout ?? e.cutout!)
+                : e.cutout!,
+            cutout: true,
+            still: reduced || still,
+            landing: landing,
+            fit: BoxFit.contain,
+            alignment: cutoutAlignment,
+            semanticLabel: e.name,
+          ),
         ),
       );
     }
@@ -1488,17 +1579,34 @@ class _Media extends StatelessWidget {
             curve: CoachMotion.standard,
             builder: (_, k, img) =>
                 k == 1 ? img! : Transform.scale(scale: k, child: img),
-            child: Image.asset(
-              e.poster,
-              fit: BoxFit.cover,
-              alignment: const Alignment(0, -.15),
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            child: _mediaImage(
+              context,
+              CoachMediaRequest(
+                exercise: e,
+                asset: e.poster,
+                cutout: false,
+                still: true,
+                landing: landing,
+                fit: BoxFit.cover,
+                alignment: const Alignment(0, -.15),
+              ),
             ),
           ),
       ],
     );
   }
 }
+
+Widget _mediaImage(BuildContext context, CoachMediaRequest request) =>
+    CoachUiTheme.of(context).builders.media?.call(context, request) ??
+    Image.asset(
+      request.asset,
+      fit: request.fit,
+      alignment: request.alignment,
+      gaplessPlayback: request.cutout,
+      semanticLabel: request.semanticLabel,
+      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+    );
 
 /// One move: square preview left; name, dose, one cue right, tags on the
 /// bottom line beside start training.
@@ -1511,6 +1619,7 @@ class _ExerciseBody extends StatelessWidget {
     required this.tags,
     this.landing = false,
     this.still = false,
+    this.cutoutTop,
   });
   final bool still;
   final CoachExercise? exercise;
@@ -1519,6 +1628,7 @@ class _ExerciseBody extends StatelessWidget {
   final String duration;
   final List<String> tags;
   final bool landing;
+  final double? cutoutTop;
 
   @override
   Widget build(BuildContext context) {
@@ -1529,22 +1639,49 @@ class _ExerciseBody extends StatelessWidget {
       children: [
         SizedBox(
           width: CoachPlanCard.exerciseHeight - 12,
-          child: Center(
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: (e?.cutout != null)
-                  ? _Media(
-                      exercise: e,
-                      landing: landing,
-                      cutout: true,
-                      still: still,
-                    )
-                  : ClipRRect(
-                      borderRadius: BorderRadius.circular(CoachRadius.lg - 6),
-                      child: _Media(exercise: e, landing: landing),
-                    ),
-            ),
-          ),
+          child: e?.cutout != null && cutoutTop != null
+              ? LayoutBuilder(
+                  builder: (context, constraints) {
+                    const side = CoachPlanCard.exerciseHeight - 12;
+                    final bottom = (constraints.maxHeight + side) / 2;
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned(
+                          left: 0,
+                          width: side,
+                          top: math.min(cutoutTop!, bottom),
+                          height: math.max(0, bottom - cutoutTop!),
+                          child: _Media(
+                            exercise: e,
+                            landing: landing,
+                            cutout: true,
+                            still: still,
+                            cutoutAlignment: Alignment.topCenter,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                )
+              : Center(
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: (e?.cutout != null)
+                        ? _Media(
+                            exercise: e,
+                            landing: landing,
+                            cutout: true,
+                            still: still,
+                          )
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                              CoachRadius.lg - 6,
+                            ),
+                            child: _Media(exercise: e, landing: landing),
+                          ),
+                  ),
+                ),
         ),
         const SizedBox(width: CoachSpace.x3),
         Expanded(
@@ -1666,6 +1803,7 @@ class _SetBody extends StatelessWidget {
     required this.chip,
     this.landing = false,
     this.still = false,
+    this.cutoutBounds,
   });
   final bool still;
   final CoachExercise? cover;
@@ -1675,6 +1813,7 @@ class _SetBody extends StatelessWidget {
   final Animation<double> hero;
   final Animation<double> chip;
   final bool landing;
+  final Rect? cutoutBounds;
 
   static const stripHeight = 52.0;
   static const stripTop = 6.0;
@@ -1706,20 +1845,37 @@ class _SetBody extends StatelessWidget {
             key: const ValueKey('plan-hero'),
             opacity: hero,
             child: fused
-                ? Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      CoachSpace.x4,
-                      CoachSpace.x1,
-                      CoachSpace.x4,
-                      fusedTitleRoom,
-                    ),
-                    child: _Media(
-                      exercise: cover,
-                      landing: landing,
-                      cutout: true,
-                      still: still,
-                    ),
-                  )
+                ? cutoutBounds != null
+                      ? Stack(
+                          fit: StackFit.expand,
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned.fromRect(
+                              rect: cutoutBounds!,
+                              child: _Media(
+                                exercise: cover,
+                                landing: landing,
+                                cutout: true,
+                                still: still,
+                                cutoutAlignment: Alignment.topCenter,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            CoachSpace.x4,
+                            CoachSpace.x1,
+                            CoachSpace.x4,
+                            fusedTitleRoom,
+                          ),
+                          child: _Media(
+                            exercise: cover,
+                            landing: landing,
+                            cutout: true,
+                            still: still,
+                          ),
+                        )
                 : ClipRRect(
                     borderRadius: BorderRadius.circular(CoachRadius.lg - 6),
                     child: Stack(

@@ -1,4 +1,6 @@
-# ugk_coach_ui 0.1.2
+# ugk_coach_ui 0.1.3
+
+`0.1.3` 新增可选 `CoachUiBuilders.media` 和 `CoachPlanCard.cutoutTopInset`，让宿主绘制带透明边界裁剪的素材，紧凑封面与展开飞行动画共用同一渲染入口。默认值保持旧素材与卡片几何。测试分支发布 tag 为 `ugk_coach_ui-v0.1.3`，旧 tag 不移动。
 
 `0.1.2` 新增聊天列表的宿主可选参数 `topInset` 与 `fadeTop`，供透明系统状态栏下的真实内容滚动使用。本轮在分支验证后发布新 tag；旧 `ugk_coach_ui-v0.1.1` 不移动。两参数默认值保持既有宿主的列表几何与顶部渐隐。
 
@@ -39,16 +41,41 @@ import 'package:ugk_coach_ui/ugk_coach_ui.dart';
 | `CoachChatList` / `CoachChatEntry` | 输入按时间正序的行快照及内容 widget；内部反向列表保证最新消息在底部。接收 App 所有的 `ScrollController`、时间标签 builder、顶部渐隐颜色、输入栏占高、typing widget 和初始已读 ID 集合。`topInset`（默认 0）仅增加列表内容顶部留白，`fadeTop`（默认 true）控制原有顶部渐隐。 |
 | `CoachMessageBubble` / `CoachBubbleData` | 文字、用户/助理角色、可选标题、选项与已选索引；`optionsActive` 控制可答状态，`onOption` 回传索引。可替换 `optionBuilder`。 |
 | `CoachQuestionBubble` / `CoachQuestionData` / `CoachQuestionMode` | 一个澄清问题，`text` 或 `choice`；支持单选立即回答，多选先切换再确认。接收 `enabled`、`onTextAnswer`、`onChoiceAnswer`。`answered`、`answeredChoices` 用于历史展示。 |
-| `CoachPlanCard` | 接收 `CoachRoutine`、`CoachExerciseLibrary`、`saved`、`landing`；`onStart(CoachOriginRect)`、`onSave()`、`onOpen()` 全由 App 执行。紧凑单动作 130px，多动作 240px；保留展开/收起与减弱动态效果。 |
+| `CoachPlanCard` | 接收 `CoachRoutine`、`CoachExerciseLibrary`、`saved`、`landing`；可选 `cutoutTopInset` 指定 cutout 在外卡坐标中的顶部位置，默认 null 保持旧位置。`onStart(CoachOriginRect)`、`onSave()`、`onOpen()` 全由 App 执行。紧凑单动作 130px，多动作 240px；保留展开/收起与减弱动态效果。 |
 | `CoachRoutine` / `CoachRoutineItem` | 预先本地化的标题、总时长、器械/水平/元信息、调整说明和剂量；`detailDose` 可表达循环内单组或一组多段摘要。无网络/训练引擎依赖。 |
 | `CoachExerciseLibrary` / `CoachExercise` / `CoachMediaPalette` | App 可信动作目录的 ID、名称、分类、提示词、主题匹配的 asset 路径、可选动态/静态 cutout 与媒体底色/文字色。路径由 App 解析，勿直接采用模型提供的路径。 |
 | `CoachUiTheme` / `CoachUiStyle` | 按 widget 子树注入 `colors`、`typography`、`strings`、`builders`；各 App 或并列聊天视图可使用不同主题，无全局可变配色。未注入时使用 Flutter Material Theme。 |
 | `CoachUiColors` / `CoachUiTypography` / `CoachUiStrings` | 语义颜色、文字样式、所有固定文案及时间/详情标签函数。`CoachUiTheme` 也把字体样式传给内部文字，App 无需采用任何固定品牌字体。 |
-| `CoachUiBuilders` | 可注入 `pressable`、`controlFace`、`textAction`、`surface`、`icon`、`startButton`，保留现有玻璃/图标/触感体系；列表、气泡、卡片核心布局仍在 SDK。回调参数分别为同名 `Coach*` 控件，包含其数据、事件及 `child`。 |
+| `CoachUiBuilders` | 可注入 `pressable`、`controlFace`、`textAction`、`surface`、`icon`、`startButton`，保留现有玻璃/图标/触感体系；可选 `media(context, CoachMediaRequest)` 返回 Widget 或 null（使用默认 Image.asset）。列表、气泡、卡片核心布局仍在 SDK。 |
+| `CoachMediaRequest` | 可信目录中的 `exercise` 与所选 `asset`，以及 `cutout`、`still`、`landing`、`fit`、`alignment`、可选 `semanticLabel`。封面、静态飞行图和缩略图均经过同一 builder。 |
 | `CoachGreetingBlock` / `CoachTimeMark` / `CoachTypingBubble` | 问候、时间及等待气泡。typing 可注入进度标签和取消回调。 |
 | `CoachOptionPill` / `CoachAppear` | 可复用的选项和进入动画；减弱动态效果遵循 `MediaQuery.disableAnimations`。 |
 
 `CoachOriginRect` 为 `Rect? Function()`：App 可在进入与退出播放器时读取卡片的实时屏幕位置。`coachRectOf` 提供已布局 widget 的安全矩形读取。
+
+## 透明素材与封面突出卡片
+
+宿主可根据本地可信清单中的 alpha 边界绘制素材；SDK 不扫描像素、不裁改源文件、不下载素材。`media` 返回 null 时使用原来的 asset 图，适合缺少边界或校验不匹配时回退。宿主应尊重请求中的 `fit`、`alignment`、`semanticLabel`，并对同一资源在封面和飞行图中使用一致的裁剪；SDK 继续控制淡入、落地与展开动画。
+
+```dart
+final builders = CoachUiBuilders(
+  media: (context, request) {
+    final bounds = verifiedBounds[request.asset];
+    if (bounds == null) return null;
+    return buildBoundedAsset(
+      request.asset,
+      bounds: bounds,
+      fit: request.fit,
+      alignment: request.alignment,
+      semanticLabel: request.semanticLabel,
+    );
+  },
+  // surface 可将背景面向下留 14dp；保留传入 padding 和 child 几何。
+);
+// CoachPlanCard(..., cutoutTopInset: 0);
+```
+
+`buildBoundedAsset` 与 `verifiedBounds` 属于宿主实现，以上为组合示意。`cutoutTopInset: 0` 让人物触及外卡顶部，仅允许图像进入既有内边距；不会增加卡片总高度、移动按钮或让图像越出外卡。把宿主背景面下移 12–16dp 后，人物可露出背景面上沿。扩展命中区域仅覆盖既有顶部内边距，并调用 `onOpen`；展开/开始按钮仍维持原坐标和优先级。非 cutout 卡不受该参数影响。负值、NaN 和无穷值不受支持。
 
 ## 内容滚入透明系统状态栏
 

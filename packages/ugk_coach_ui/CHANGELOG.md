@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 - 2026-10-25
+
+- Add optional host media rendering via `CoachUiBuilders.media` and `CoachMediaRequest`. Use the same renderer for folded covers, still cutout flyers and thumbnails; null falls back to the original asset image.
+- Add opt-in `CoachPlanCard.cutoutTopInset` in outer-card coordinates. Cutouts can paint into the existing top padding without changing card height, controls or row measurements. Folded cover and flyer share the same start rectangle.
+- Keep default placement, expansion timing, reduced motion and host-owned navigation. No asset processing, networking or application dependencies are added.
+
 ## 0.1.2 - 2026-10-24
 
 - Add host-controlled `CoachChatList.topInset` and `fadeTop` for content scrolling beneath transparent system bars. The inset is part of list content; it does not shrink or offset the viewport. Turning the fade off removes its overlay entirely.

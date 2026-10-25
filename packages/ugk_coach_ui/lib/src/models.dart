@@ -35,6 +35,28 @@ class CoachExercise {
   final String? stillCutout;
 }
 
+/// Trusted host media selected by the card, including its still during flight.
+/// Returning null from the host builder keeps the SDK's existing asset image.
+@immutable
+class CoachMediaRequest {
+  const CoachMediaRequest({
+    required this.exercise,
+    required this.asset,
+    required this.cutout,
+    required this.still,
+    required this.landing,
+    required this.fit,
+    required this.alignment,
+    this.semanticLabel,
+  });
+  final CoachExercise exercise;
+  final String asset;
+  final bool cutout, still, landing;
+  final BoxFit fit;
+  final Alignment alignment;
+  final String? semanticLabel;
+}
+
 /// Resolves trusted App catalog entries, never model supplied asset paths.
 class CoachExerciseLibrary {
   CoachExerciseLibrary(Iterable<CoachExercise> exercises)

@@ -121,6 +121,7 @@ class CoachUiBuilders {
     this.surface,
     this.icon,
     this.startButton,
+    this.media,
   });
   final Widget Function(BuildContext, CoachPressable)? pressable;
   final Widget Function(BuildContext, CoachControlFace)? controlFace;
@@ -128,6 +129,11 @@ class CoachUiBuilders {
   final Widget Function(BuildContext, CoachCardSurface)? surface;
   final Widget Function(BuildContext, CoachIcon)? icon;
   final Widget Function(BuildContext, CoachStartButton)? startButton;
+
+  /// Optional asset rendering (for example a verified alpha sourceRect).
+  /// SDK timing, layout and interactions remain owned by the card. A null
+  /// result uses the standard asset image. No networking is performed here.
+  final Widget? Function(BuildContext, CoachMediaRequest)? media;
 }
 
 @immutable

@@ -13,7 +13,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # True optical material on static result surfaces only.
+  cupertino_icons: 1.0.8
+  # Optical controls and surfaces using the Liquid Glass skill recipes.
   liquid_glass_widgets: 1.15.0
   ugk_coach:
     version: ^0.5.0

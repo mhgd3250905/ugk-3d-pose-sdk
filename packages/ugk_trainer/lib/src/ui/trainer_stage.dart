@@ -262,39 +262,41 @@ class TrainerHover extends StatelessWidget {
   final double inset;
 
   @override
-  Widget build(BuildContext context) => Stack(
-    clipBehavior: Clip.none,
-    fit: StackFit.passthrough,
-    children: [
-      Positioned.fill(
-        child: IgnorePointer(
-          child: LayoutBuilder(
-            builder: (_, box) => Align(
-              alignment: Alignment.bottomCenter,
-              child: Transform.translate(
-                offset: Offset(0, lift),
-                child: Container(
-                  width: box.maxWidth * (1 - 2 * inset),
-                  height: 10,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: theme.isDark
-                            ? const Color(0x26000000)
-                            : const Color(0x0A1B2420),
-                        blurRadius: 14,
-                        spreadRadius: 0,
+  Widget build(BuildContext context) => theme.glassStyle == null
+      ? child
+      : Stack(
+          clipBehavior: Clip.none,
+          fit: StackFit.passthrough,
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: LayoutBuilder(
+                  builder: (_, box) => Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Transform.translate(
+                      offset: Offset(0, lift),
+                      child: Container(
+                        width: box.maxWidth * (1 - 2 * inset),
+                        height: 10,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: theme.isDark
+                                  ? const Color(0x26000000)
+                                  : const Color(0x0A1B2420),
+                              blurRadius: 14,
+                              spreadRadius: 0,
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-      child,
-    ],
-  );
+            child,
+          ],
+        );
 }

@@ -17,26 +17,29 @@
   "font": "Microsoft YaHei (local only, not redistributed)",
   "debugDisableShadows": false,
   "candidate_source_sha256": {
-    "lib/src/ui/trainer_player.dart": "2e30b92d112685daf007fcc7e4468b00c13f86a5170ef4a4a960ac39c08c7900",
+    "lib/src/ui/trainer_player.dart": "47c88a557904ad10d9408f79a1c384e48afd026b65ce72356dc79f59325ea34a",
     "lib/src/ui/trainer_theme.dart": "3c367c8e04e9da54dbc43c38b8c80acb2ff8283cf6cd1bb2e976f5a64f805e45",
-    "lib/src/ui/trainer_glass.dart": "535e61223c769036bfa5bdec66c76213656570093d64ab8d6c446764cc4a33cd",
-    "lib/src/ui/trainer_stage.dart": "bb3fba52a1e4f42ae50c4330776f3f272ba97b5ee1f736fb37a417629bedc229",
+    "lib/src/ui/trainer_glass.dart": "f22af2753d2b030591bf5ac6694a91e3764b371ba41cff08ceb28364d20e25ce",
+    "lib/src/ui/trainer_stage.dart": "bd2e156d7082e5fb5e7f70375ac4d92d7a7ff88333b0027df08bc71642eb10ae",
     "lib/src/ui/trainer_result_surface.dart": "7308c2472f775b1e1c6a1402db762e4e692e84c7f9aa239a00a2d2656f96cd31",
     "lib/src/ui/ugk_play_pause_button.dart": "3659c4738fe8288a6f4ae29a79afdd08853063417245f2bb066d2bb81a1cf4cd",
-    "pubspec.yaml": "5a8d1e61a978c40d5a470ddbd1372f3db0fc17cbc2a6a4cf9f44a09f9c477335",
-    "example/pubspec.lock": "13a478c88725c197e00bec72bb35765299a79ae8292a85f60deeead5948ec138",
-    "example/lib/main.dart": "0d9aaee889e80dbde10534f815b7888871d31ced05539d99bd67c6d0898c33ed",
-    "example/test/showcase_test.dart": "908ef75c76bdf9b8ff8814abeced46f16cc07fb6b287901c1338146f17c135cd"
+    "pubspec.yaml": "9cc9b69daea95c519586afec8e00c66d5d68b2cc2871f7a52edf28dcdda84841",
+    "example/pubspec.lock": "04c077c946912c2d37e1a727e445f2374966893950a8d182dbeb8db1f2936541",
+    "example/lib/main.dart": "d46b9066a264e0c8d8bd62845295e7e6b595abb163a4ed628f0968fba07e6f65",
+    "example/test/showcase_test.dart": "9f592dbd3e02f1ce639d056b86828d4a254cdc02d6f52acec0985fe72de560f6",
+    "lib/src/ui/trainer_header_surface.dart": "2f28c76cee026f80d945590b1d0e7c791fcb65c80d12895cfdd8268e5bc43f67",
+    "lib/src/ui/trainer_control_surface.dart": "43b211809b2c3eb7cbfe87864830469f5a5075534820216e06103129f79e938a",
+    "test/player_repaint_isolation_test.dart": "53c680e4710e8a224605c3ac6ca66f302c07699c68d4a2adf2cab1132ab0df38"
   },
   "images_sha256": {
-    "after-rest-dark.png": "46092554bea48b4e8ba89f5541c36ce182fbdf551bc695951cee7a604b8a7be8",
-    "after-rest-light.png": "63227ceefc0218e9d0f769d2dd845ddcc13822f3f7e4bbdbcdc1f7e3fc9aab8e",
-    "after-result-dark.png": "dba39772ac451072a36b795e0be82350afa7dc960f05ee3332ac54602f6ca487",
-    "after-result-light.png": "ffefd759de9073253fef22c4a84055a4479d6efb7604c590934f2d5efcb0da5f",
-    "after-training-dark.png": "909e1d194bf7d712bb44f9c2e5163c7cbb08a58f505c8831b3336081e4055faa",
-    "after-training-light.png": "11c9430763ce9bd3c0b38a0f59343b3ddde4d048c3d9565f1322f6a4e267e02c",
-    "after-transition-dark.png": "64da667223e671a1fba6dd135d458b671d5bc605a9bb8b535173be51e7283f0d",
-    "after-transition-light.png": "a8335b1ded231fd1934dcb5b47ae2cdb5e357e3f7b4978c901cf0b820b8bdb0b",
+    "after-rest-dark.png": "bf70feaf6116cec42e64e7d387460ec1a39bb35050f36978fbf0f12dead6d534",
+    "after-rest-light.png": "00590bf7cdf71b14f367574d3f55a1dbb2a854163409db0e781ea60d04b55a12",
+    "after-result-dark.png": "5ab227730bd31c36463f97afbb0759a98c1086d1471102372498b90f7a52a2c4",
+    "after-result-light.png": "2aced800a58a0e34d5f7faba0c7f3c9307d45f587c2c5de5a560c6515feaaec7",
+    "after-training-dark.png": "8c2f06e81c872f1e8172e43d8d67e11e04eb104b0526d6eba010ef993a8275a0",
+    "after-training-light.png": "ddd1a6b4f2fd9992d79e150b7c21e8207d8c42ca3465387ccd6ed4d16c3f2519",
+    "after-transition-dark.png": "5f875e70c1f495cac356465a2f8dc41865fd39b5a38a65e4f77190187008c8ad",
+    "after-transition-light.png": "a04991782a8bd3b93e9ceb5fa12df21036522a03e0ba06635cc4cc4a74d8f1fb",
     "before-rest-dark.png": "596e280cbf5da0b416b7e5671ab2d15535cc949e4117caebb1f878229cf03491",
     "before-rest-light.png": "7db136c663dcc9b01ac2a228cc8867b2987d408bd6a9989fa07fa4149542fa0e",
     "before-result-dark.png": "d6dc35abd1b13ba8e5adb4948174b012b7e6b0cf58fc98443ac695efd4e490f5",
@@ -46,7 +49,7 @@
     "before-transition-dark.png": "999da5fe6a51c9db6b670caebee7f2cbd6ae3feb5ff856e722828a2fffe61fc6",
     "before-transition-light.png": "bffa385ee19572262617efea849e3d72c0fd63ad53d4fe0894b2196365380358"
   },
-  "revision": "R2: original geometry, material and typography only",
+  "revision": "R4: tuned UGK Water accessory 30/2/0.18 and control 24/3/0.2 premium clear recipes; native visual validation pending",
   "result_material_renderer": "liquid_glass_widgets 1.15.0 lightweight software fallback; NOT premium/native proof",
   "layout_comparison": {
     "passed": true,
@@ -57,5 +60,36 @@
     "max_delta_dp": 0.0,
     "differences": []
   },
-  "apk_sha256": "F3BC89ACBC53A8C36B6502692C8F0EF1DA40484040EFC7C49C7DF4395DAC4FA1"
+  "apk_sha256": "E92ADB0453505E23EB2DC542A24457031E822C98F5FA652D9BC1DFFAEB322DE4",
+  "apk_bytes": 191833191,
+  "control_material_renderer": "premium requested on supported native Impeller; test and Web fallback are NOT optical previews",
+  "icon_font": "CupertinoIcons 1.0.8 (explicitly loaded by capture harness)",
+  "verification": {
+    "high_contrast_without_sampling": "passed in software tests",
+    "local_sampling_bounds": "passed in software tests; native unverified",
+    "apk_build": "debug, passed, Gradle 17.6 seconds",
+    "showcase_tests": 4,
+    "software_repaint_isolation": "passed",
+    "native_performance": "not run",
+    "sdk_tests": 253,
+    "example_analysis": "passed",
+    "package_analysis": "passed",
+    "sdk_test_concurrency": 2,
+    "native_visual": "not run; simulator prohibited by user and stopped"
+  },
+  "material_recipes": {
+    "body": "clear",
+    "control": [
+      24,
+      3,
+      0.2
+    ],
+    "accessory": [
+      30,
+      2,
+      0.18
+    ],
+    "tint": "library brightness-aware light/dark defaults",
+    "nested_controls": "library vibrancy, shared platter"
+  }
 }

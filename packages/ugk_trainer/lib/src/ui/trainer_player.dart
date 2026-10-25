@@ -13,7 +13,7 @@
 //   [SessionResult], a failed save can be retried with the same result;
 // * Android keep-alive (TrainingHold, from HipLab) while the session runs;
 // * SmartFit's star sky, custom glyphs and finish animations are not
-//   carried over (Material icons);
+//   carried over (standard Cupertino symbols);
 // * liquid-glass UI after SmartFit@63c8720 (feat/ui-polish): clear glass
 //   round controls and HUD pills ([TrainerGlass]), an emerald primary disc,
 //   calm 500 ms phase changes that never overlap mid-flight;
@@ -24,6 +24,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ugk_coach/ugk_coach.dart';
@@ -42,6 +43,7 @@ import '../voice/voice_queue.dart';
 import '../voice/voice_source.dart';
 import 'countdown_ring.dart';
 import 'trainer_glass.dart';
+import 'trainer_header_surface.dart';
 import 'trainer_result_surface.dart';
 import 'trainer_stage.dart';
 import 'trainer_strings.dart';
@@ -911,19 +913,19 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
               const SizedBox(height: TrainerSpace.x4),
               for (final (icon, label, action, color) in [
                 (
-                  Icons.compress,
+                  CupertinoIcons.arrow_down_right_arrow_up_left,
                   _s.discomfortContinue,
                   DiscomfortAction.continueEasier,
                   _th.text,
                 ),
                 (
-                  Icons.skip_next,
+                  CupertinoIcons.forward_end_fill,
                   _s.discomfortSkip,
                   DiscomfortAction.skip,
                   _th.text,
                 ),
                 (
-                  Icons.stop,
+                  CupertinoIcons.stop_fill,
                   _s.discomfortEnd,
                   DiscomfortAction.end,
                   _th.danger,
@@ -1108,7 +1110,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
               style: TextStyle(
                 fontFamily: _th.fontFamily,
                 fontSize: 13,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w500,
                 color: color ?? _mediaInk,
               ),
             ),
@@ -1217,7 +1219,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
             ? _tag(
                 _s.switchTo(p.side ?? Side.left),
                 key: const ValueKey('tag-side'),
-                icon: Icons.swap_horiz,
+                icon: CupertinoIcons.arrow_left_right,
                 color: _mediaCaution,
               )
             : rest && p.nextExerciseId != null
@@ -1356,7 +1358,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                             padding: const EdgeInsets.symmetric(vertical: 6),
                             child: _tag(
                               _s.discomfort,
-                              icon: Icons.healing,
+                              icon: CupertinoIcons.waveform_path_ecg,
                               color: _mediaCaution,
                             ),
                           ),
@@ -1430,97 +1432,89 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
             TrainerSpace.x3,
             0,
           ),
-          child: TrainerHover(
+          child: TrainerHeaderSurface(
+            key: const ValueKey('info-card'),
             theme: _th,
-            lift: 8,
-            child: TrainerGlass(
-              key: const ValueKey('info-card'),
-              theme: _th,
-              overMedia: true,
-              radius: 24,
-              height: _cardH,
-              padding: const EdgeInsets.fromLTRB(
-                TrainerSpace.x3,
-                _cardPadV,
-                TrainerSpace.x4,
-                _cardPadV,
-              ),
-              // Close is centred on the card's full height; name, muted
-              // line and the segmented progress share one left edge, and
-              // the progress ends under the index's right edge.
-              child: Row(
-                children: [
-                  _circle(
-                    key: const ValueKey('close'),
-                    icon: Icons.close,
-                    tooltip: _s.close,
-                    size: 34,
-                    onPressed: _close,
-                  ),
-                  const SizedBox(width: TrainerSpace.x3),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    _fade(
-                                      Text(
-                                        displayDrill?.name ?? '',
-                                        key: ValueKey(
-                                          'name-${displayDrill?.id}',
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: _th.title.copyWith(
-                                          fontSize: 17,
-                                          height: 1.2,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: -.2,
-                                        ),
+            height: _cardH,
+            padding: const EdgeInsets.fromLTRB(
+              TrainerSpace.x3,
+              _cardPadV,
+              TrainerSpace.x4,
+              _cardPadV,
+            ),
+            // Close is centred on the card's full height; name, muted
+            // line and the segmented progress share one left edge, and
+            // the progress ends under the index's right edge.
+            child: Row(
+              children: [
+                _circle(
+                  key: const ValueKey('close'),
+                  icon: CupertinoIcons.xmark,
+                  tooltip: _s.close,
+                  size: 34,
+                  onPressed: _close,
+                ),
+                const SizedBox(width: TrainerSpace.x3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _fade(
+                                    Text(
+                                      displayDrill?.name ?? '',
+                                      key: ValueKey('name-${displayDrill?.id}'),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: _th.title.copyWith(
+                                        fontSize: 17,
+                                        height: 1.2,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: -.2,
                                       ),
                                     ),
-                                    const SizedBox(height: 3),
-                                    _fade(
-                                      Text(
-                                        line,
-                                        key: ValueKey('label-$line'),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: _th.label.copyWith(
-                                          fontSize: 12.5,
-                                          height: 1.25,
-                                          fontWeight: FontWeight.w500,
-                                          color: lineColor,
-                                        ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  _fade(
+                                    Text(
+                                      line,
+                                      key: ValueKey('label-$line'),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: _th.label.copyWith(
+                                        fontSize: 12.5,
+                                        height: 1.25,
+                                        fontWeight: FontWeight.w500,
+                                        color: lineColor,
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: TrainerSpace.x3),
-                              _index(current, total),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(width: TrainerSpace.x3),
+                            _index(current, total),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        _track(
-                          done: done,
-                          current: current,
-                          still: still,
-                          compact: true,
-                        ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 8),
+                      _track(
+                        done: done,
+                        current: current,
+                        still: still,
+                        compact: true,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -1696,7 +1690,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                   fontFamily: _th.fontFamily,
                   fontSize: 13,
                   height: 1.4,
-                  color: _mediaInk.withValues(alpha: .92),
+                  fontWeight: FontWeight.w400,
+                  color: _mediaInk,
                 ),
               ),
             ),
@@ -1740,7 +1735,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                     inset: .2,
                     child: _circle(
                       key: const ValueKey('prev'),
-                      icon: Icons.skip_previous_rounded,
+                      icon: CupertinoIcons.backward_end_fill,
                       tooltip: _s.previous,
                       size: 56,
                       onPressed: _previous,
@@ -1770,7 +1765,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                     inset: .2,
                     child: _circle(
                       key: const ValueKey('skip'),
-                      icon: Icons.skip_next_rounded,
+                      icon: CupertinoIcons.forward_end_fill,
                       tooltip: _s.skip,
                       size: 56,
                       onPressed: _skip,
@@ -1841,7 +1836,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
           IconButton(
             key: const ValueKey('extend-rest'),
             tooltip: _s.extendRest,
-            icon: const Icon(Icons.more_time),
+            icon: const Icon(CupertinoIcons.timer),
             onPressed: _extendRest,
           ),
         if (widget.showCompleteTimedPhase &&
@@ -1851,21 +1846,25 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
           IconButton(
             key: const ValueKey('complete-timed-phase'),
             tooltip: _s.completeTimedPhase,
-            icon: const Icon(Icons.check_circle_outline),
+            icon: const Icon(CupertinoIcons.check_mark_circled),
             onPressed: _paused ? null : _completeTimedPhase,
           ),
         if (widget.showSkipSegment && p.isWork && p.segmentId != null)
           IconButton(
             key: const ValueKey('skip-segment'),
             tooltip: _s.skipSegment,
-            icon: const Icon(Icons.playlist_play),
+            icon: const Icon(CupertinoIcons.list_bullet),
             onPressed: _skipSegment,
           ),
         if (widget.showSoundToggle)
           IconButton(
             key: const ValueKey('sound-toggle'),
             tooltip: _soundEnabled ? _s.soundOff : _s.soundOn,
-            icon: Icon(_soundEnabled ? Icons.volume_up : Icons.volume_off),
+            icon: Icon(
+              _soundEnabled
+                  ? CupertinoIcons.speaker_2
+                  : CupertinoIcons.speaker_slash,
+            ),
             onPressed: _toggleSound,
           ),
       ],
@@ -1934,7 +1933,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
               shape: const StadiumBorder(),
             ),
             onPressed: _paused ? null : _completeSet,
-            icon: const Icon(Icons.check_rounded, size: 20),
+            icon: const Icon(CupertinoIcons.check_mark, size: 20),
             label: Text(
               _s.completeSet,
               style: _th.callout.copyWith(
@@ -1966,6 +1965,13 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     final d = next == null ? null : widget.drillOf(next.exerciseId!);
     if (next == null || d == null) return null;
     final poster = d.media?.posterFor(light: !_th.isDark);
+    // Keep the thumbnail slot useful when a drill has no poster or a host's
+    // asset is unavailable, rather than leaving an opaque empty circle.
+    final placeholder = Icon(
+      CupertinoIcons.forward_end_fill,
+      size: 14,
+      color: _mediaInk.withValues(alpha: .7),
+    );
     final small = TextStyle(
       fontFamily: _th.fontFamily,
       fontSize: 13,
@@ -1989,14 +1995,13 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                   child: SizedBox.square(
                     dimension: 28,
                     child: ColoredBox(
-                      color: _th.mediaStage,
+                      color: _mediaInk.withValues(alpha: .06),
                       child: poster == null
-                          ? null
+                          ? placeholder
                           : Image.asset(
                               poster,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) =>
-                                  const SizedBox.shrink(),
+                              errorBuilder: (_, _, _) => placeholder,
                             ),
                     ),
                   ),
@@ -2125,7 +2130,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                             width: 56,
                             height: 56,
                             child: Icon(
-                              full ? Icons.check_rounded : Icons.flag_rounded,
+                              full
+                                  ? CupertinoIcons.check_mark
+                                  : CupertinoIcons.flag,
                               size: 30,
                               color: _th.accent,
                             ),

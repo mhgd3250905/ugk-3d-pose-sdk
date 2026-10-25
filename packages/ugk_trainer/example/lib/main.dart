@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 import 'package:ugk_trainer/ugk_trainer.dart';
@@ -150,7 +151,7 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      'UI 展示 · 模拟人物',
+                      kIsWeb ? '布局预览 · 原生材质请用 APK' : 'UI 展示 · 模拟人物',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.label.copyWith(fontSize: 12),

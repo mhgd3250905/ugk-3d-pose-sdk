@@ -61,7 +61,108 @@ Future<void> _frames(WidgetTester tester) async {
   }
 }
 
+void _expectNoBackdropSampling(WidgetTester tester) {
+  expect(find.byType(BackdropFilter), findsNothing);
+  // A renderer can push a filter layer directly without a BackdropFilter
+  // widget. Inspect the composited output as well as the widget tree.
+  expect(tester.layers.whereType<BackdropFilterLayer>(), isEmpty);
+}
+
+void _expectLocalBackdropBounds(WidgetTester tester) {
+  final viewport = tester.getSize(find.byType(Scaffold).first);
+  // Native premium and software fallback may use different sampling paths.
+  // Constrain whichever path is actually present; this does not assert that
+  // the test renderer proves native refraction.
+  for (final filter in find.byType(BackdropFilter).evaluate()) {
+    final size = filter.size!;
+    expect(size.width, lessThanOrEqualTo(viewport.width));
+    expect(size.height, lessThan(viewport.height / 2));
+  }
+  for (final layer in tester.layers.whereType<BackdropFilterLayer>()) {
+    Layer? ancestor = layer.parent;
+    Rect? clip;
+    while (ancestor != null && clip == null) {
+      clip = ancestor.describeClipBounds();
+      ancestor = ancestor.parent;
+    }
+    expect(clip, isNotNull, reason: 'A live glass pass needs a local clip.');
+    expect(clip!.width, lessThanOrEqualTo(viewport.width));
+    expect(clip.height, lessThan(viewport.height / 2));
+  }
+  for (final name in ['info-card', 'prev', 'skip']) {
+    final size = tester.getSize(find.byKey(ValueKey(name)));
+    expect(size.width, greaterThan(0));
+    expect(size.width, lessThan(viewport.width));
+    expect(size.height, lessThan(viewport.height / 2));
+  }
+}
+
 void main() {
+  for (final theme in [TrainerTheme.light, TrainerTheme.dark]) {
+    for (final highContrast in [false, true]) {
+      testWidgets(
+        highContrast
+            ? 'high-contrast HUD has no backdrop sampling: '
+                  '${theme.brightness.name}'
+            : 'live glass sampling stays within local controls: '
+                  '${theme.brightness.name}',
+        (tester) async {
+          tester.view.physicalSize = const Size(390, 844);
+          tester.view.devicePixelRatio = 1;
+          try {
+            await tester.pumpWidget(
+              MaterialApp(
+                theme: ThemeData(brightness: theme.brightness),
+                builder: (context, child) => MediaQuery(
+                  data: MediaQuery.of(
+                    context,
+                  ).copyWith(highContrast: highContrast),
+                  child: child!,
+                ),
+                home: TrainerPlayer(
+                  plan: planOf([timed('a', 60)]),
+                  drillOf: (id) => TrainerDrill(
+                    id: id,
+                    name: 'Standing stretch',
+                    cue: 'Keep breathing',
+                  ),
+                  theme: theme,
+                  strings: TrainerStrings.en(),
+                  prepSeconds: 0,
+                  keepAlive: false,
+                  tick: const Duration(seconds: 10),
+                  mediaBuilder: (_, _) => const ColoredBox(color: Colors.grey),
+                  onFinished: (_) async {},
+                ),
+              ),
+            );
+            await tester.pump();
+            await tester.pump(const Duration(milliseconds: 600));
+            expect(find.byKey(const ValueKey('info-card')), findsOneWidget);
+            if (highContrast) {
+              _expectNoBackdropSampling(tester);
+            } else {
+              _expectLocalBackdropBounds(tester);
+            }
+
+            await tester.tap(find.byKey(const ValueKey('pause')));
+            await tester.pump();
+            await tester.pump(const Duration(milliseconds: 600));
+            if (highContrast) {
+              _expectNoBackdropSampling(tester);
+            } else {
+              _expectLocalBackdropBounds(tester);
+            }
+            expect(tester.takeException(), isNull);
+          } finally {
+            await tester.pumpWidget(const SizedBox.shrink());
+            tester.view.reset();
+          }
+        },
+      );
+    }
+  }
+
   testWidgets('player isolates button, media and progress paints at 390px', (
     tester,
   ) async {
@@ -94,7 +195,7 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
-      expect(find.byType(BackdropFilter), findsNothing);
+      _expectLocalBackdropBounds(tester);
 
       for (final entry in {
         'buttonDisc': 'button-color',
@@ -124,7 +225,9 @@ void main() {
           tester,
           find.descendant(
             of: find.byKey(ValueKey(name)),
-            matching: find.byType(CustomPaint),
+            // Observe the icon's paragraph, independent of whether its
+            // surrounding material uses a painter or a library renderer.
+            matching: find.byType(RichText),
           ),
           name,
         );

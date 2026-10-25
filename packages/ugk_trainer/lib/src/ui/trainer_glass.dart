@@ -1,12 +1,11 @@
-// Video-safe painted glass: translucent gradients, a directional rim,
-// inner shading and an outside-only contact shadow. Controls and media
-// overlays never sample the backdrop. Hosts can retain the legacy blur
-// option for a passive panel on a genuinely static background.
+// Local optical library surfaces. Hosts with an explicit glassStyle
+// retain their painted material and static-panel blur option.
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import 'trainer_control_surface.dart';
 import 'trainer_result_surface.dart';
 import 'trainer_theme.dart';
 
@@ -150,9 +149,8 @@ class TrainerGlassStyle {
 }
 
 /// One glass platter behind [child]: a circle / capsule when [radius] is
-/// null, otherwise a rounded superellipse. It only paints; the child keeps
-/// its own semantics and taps. Media and control surfaces only paint;
-/// a host's non-zero blur is used solely on passive non-media panels.
+/// null, otherwise a rounded superellipse. Default surfaces use the library's
+/// optical renderer; explicit host styles retain their paint path.
 class TrainerGlass extends StatelessWidget {
   const TrainerGlass({
     super.key,
@@ -187,8 +185,7 @@ class TrainerGlass extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Real optical glass is confined to a completed session's static stage.
-    // Video HUD and animated controls retain the unsampled paint path.
+    // The result scope prevents nested optical surfaces inside result panels.
     if (!overMedia &&
         !control &&
         theme.glassStyle == null &&
@@ -199,6 +196,17 @@ class TrainerGlass extends StatelessWidget {
         padding: padding,
         width: width,
         height: height,
+        child: child,
+      );
+    }
+    if (theme.glassStyle == null) {
+      return TrainerControlSurface(
+        theme: theme,
+        radius: radius,
+        padding: padding,
+        width: width,
+        height: height,
+        control: control,
         child: child,
       );
     }

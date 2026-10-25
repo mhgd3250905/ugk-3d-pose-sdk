@@ -20,6 +20,11 @@ void main() {
     final icons = FontLoader('MaterialIcons')
       ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
     await icons.load();
+    final cupertinoIcons = FontLoader('packages/cupertino_icons/CupertinoIcons')
+      ..addFont(
+        rootBundle.load('packages/cupertino_icons/assets/CupertinoIcons.ttf'),
+      );
+    await cupertinoIcons.load();
     final path = Platform.environment['SHOWCASE_FONT'];
     if (path != null && path.isNotEmpty) {
       final bytes = await File(path).readAsBytes();

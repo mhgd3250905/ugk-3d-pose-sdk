@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -10,6 +11,7 @@ import 'package:ugk_trainer/ugk_trainer.dart';
 import 'package:ugk_trainer_showcase/main.dart';
 
 // Optional local-only capture: SHOWCASE_CAPTURE_DIR and SHOWCASE_FONT (TTF/TTC).
+// SHOWCASE_LAYOUT_ONLY=1 exports widget geometry without replacing any PNGs.
 // No system font is copied into the source tree or distributed.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -55,6 +57,103 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     tester.view.reset();
+  }
+
+  Map<String, Object?> layoutOf(
+    WidgetTester tester,
+    ShowcaseState state,
+    ThemeMode mode,
+  ) {
+    final player = find.byKey(const ValueKey('showcase-player-capture'));
+    final origin = tester.getTopLeft(player);
+    final anchors = <String, Object?>{};
+    void record(String name, Finder finder) {
+      final count = finder.evaluate().length;
+      expect(
+        count,
+        lessThanOrEqualTo(1),
+        reason: 'Ambiguous layout anchor $name',
+      );
+      if (count == 0) {
+        anchors[name] = null;
+        return;
+      }
+      final rect = tester.getRect(finder).shift(-origin);
+      anchors[name] = [rect.left, rect.top, rect.width, rect.height];
+    }
+
+    record('player', player);
+    for (final key in const [
+      'info-card',
+      'close',
+      'index',
+      'progress',
+      'top-hud',
+      'discomfort',
+      'pendant-slot',
+      'subtitle-slot',
+      'prev',
+      'pause',
+      'skip',
+      'extend-rest',
+      'complete-timed-phase',
+      'sound-toggle',
+      'done-card',
+      'finish',
+    ]) {
+      record(key, find.byKey(ValueKey(key)));
+    }
+    record('figure', find.byType(DemoFigure));
+
+    // Compare the countdown's allotted slot, not glyph metrics. A font weight
+    // can legitimately change text width without moving the control's frame.
+    final counter = find.byKey(const ValueKey('counter'));
+    Finder counterSlot = find.byKey(const ValueKey('absent-counter-slot'));
+    if (counter.evaluate().isNotEmpty) {
+      Element? slot;
+      counter.evaluate().single.visitAncestorElements((element) {
+        final widget = element.widget;
+        if (widget is SizedBox &&
+            widget.height != null &&
+            widget.child is Center) {
+          slot = element;
+          return false;
+        }
+        return true;
+      });
+      expect(
+        slot,
+        isNotNull,
+        reason: 'Countdown layout slot must remain measurable',
+      );
+      counterSlot = find.byElementPredicate(
+        (element) => identical(element, slot),
+      );
+    }
+    record('counter-slot', counterSlot);
+
+    for (final entry in const {
+      'stat-minutes': '分钟',
+      'stat-exercises': '完成动作',
+    }.entries) {
+      final label = find.descendant(
+        of: player,
+        matching: find.text(entry.value),
+      );
+      record(
+        entry.key,
+        find.ancestor(of: label, matching: find.byType(TrainerGlass)),
+      );
+    }
+    return {
+      'state': state.name,
+      'theme': mode.name,
+      'viewport': [430, 932],
+      'capture_time_ms': 1000,
+      'coordinate_space': 'logical pixels relative to player viewport',
+      'rect_order': ['left', 'top', 'width', 'height'],
+      'anchors': anchors,
+    };
   }
 
   testWidgets('four fixtures use real player and result callback', (
@@ -168,15 +267,22 @@ void main() {
             reason: '${state.name}/${mode.name}',
           );
           if (output != null && output.isNotEmpty) {
+            final layout = layoutOf(tester, state, mode);
             final boundary = tester.renderObject<RenderRepaintBoundary>(
               find.byKey(const ValueKey('showcase-player-capture')),
             );
             await tester.runAsync(() async {
+              await Directory(output).create(recursive: true);
+              await File(
+                '$output/layout-${state.name}-${mode.name}.json',
+              ).writeAsString(
+                const JsonEncoder.withIndent('  ').convert(layout),
+              );
+              if (Platform.environment['SHOWCASE_LAYOUT_ONLY'] == '1') return;
               final image = await boundary.toImage(pixelRatio: 2);
               final bytes = await image.toByteData(
                 format: ui.ImageByteFormat.png,
               );
-              await Directory(output).create(recursive: true);
               await File(
                 '$output/${state.name}-${mode.name}.png',
               ).writeAsBytes(bytes!.buffer.asUint8List());

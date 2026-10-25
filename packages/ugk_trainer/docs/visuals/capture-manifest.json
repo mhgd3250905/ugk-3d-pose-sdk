@@ -17,21 +17,26 @@
   "font": "Microsoft YaHei (local only, not redistributed)",
   "debugDisableShadows": false,
   "candidate_source_sha256": {
-    "lib/src/ui/trainer_player.dart": "2e84a4751ab649b2b8ab7aac36f8e2c07acdbc7642fb44d69c07f7b9769b6b92",
-    "lib/src/ui/trainer_theme.dart": "d12f937375d13e7ebde6e232f6bf95b0d4890c72e3b8352a48b5b7cff5d418d8",
-    "lib/src/ui/trainer_glass.dart": "c552a06690fb381fb0fd559765d5350d105eb83529fb4912f05433d5fb585b9f",
-    "lib/src/ui/trainer_stage.dart": "9c2b808e66677592771a612742df10b9178412ad45bb40cdd7697ce52e80ef0b",
-    "lib/src/ui/trainer_result_surface.dart": "deaad448d59dddf9a07134d9081dedb1830b48be0edf720a899518d56e505989"
+    "lib/src/ui/trainer_player.dart": "2e30b92d112685daf007fcc7e4468b00c13f86a5170ef4a4a960ac39c08c7900",
+    "lib/src/ui/trainer_theme.dart": "3c367c8e04e9da54dbc43c38b8c80acb2ff8283cf6cd1bb2e976f5a64f805e45",
+    "lib/src/ui/trainer_glass.dart": "535e61223c769036bfa5bdec66c76213656570093d64ab8d6c446764cc4a33cd",
+    "lib/src/ui/trainer_stage.dart": "bb3fba52a1e4f42ae50c4330776f3f272ba97b5ee1f736fb37a417629bedc229",
+    "lib/src/ui/trainer_result_surface.dart": "7308c2472f775b1e1c6a1402db762e4e692e84c7f9aa239a00a2d2656f96cd31",
+    "lib/src/ui/ugk_play_pause_button.dart": "3659c4738fe8288a6f4ae29a79afdd08853063417245f2bb066d2bb81a1cf4cd",
+    "pubspec.yaml": "5a8d1e61a978c40d5a470ddbd1372f3db0fc17cbc2a6a4cf9f44a09f9c477335",
+    "example/pubspec.lock": "13a478c88725c197e00bec72bb35765299a79ae8292a85f60deeead5948ec138",
+    "example/lib/main.dart": "0d9aaee889e80dbde10534f815b7888871d31ced05539d99bd67c6d0898c33ed",
+    "example/test/showcase_test.dart": "908ef75c76bdf9b8ff8814abeced46f16cc07fb6b287901c1338146f17c135cd"
   },
   "images_sha256": {
-    "after-rest-dark.png": "9c1c605eda0347e6867e9573d51de14791284583d262c0014eee5299fd752fdb",
-    "after-rest-light.png": "208f9a6bf936caeba6ec03c5eb77871352fc06c8edfd990b2fb7991138ebd2f1",
-    "after-result-dark.png": "2c39f0e1d8f324fc769168fed3546ef7b0382d75f36571a9e0d2eba96dee99b0",
-    "after-result-light.png": "257b91c8acca3fcfdda42323d1140d39273df894480a11ab2e0756b7557d25a5",
-    "after-training-dark.png": "bf3d079e0a45d2f6e76d4d503a819377d6438d8f057f3f4029bd80ae8d0fea2b",
-    "after-training-light.png": "53841142df2f05f35918574a6518afa15d22513b6d53932b08184860289fd440",
-    "after-transition-dark.png": "95a0b428e1b60fb60975fc5cd1ddf9f2a9a57f29bb66c0f7d6df3eec6403fdfb",
-    "after-transition-light.png": "660ae5881e634507a6d5494cd58d1b12cdadf4357ae9c8f01dd513d0fc41172f",
+    "after-rest-dark.png": "46092554bea48b4e8ba89f5541c36ce182fbdf551bc695951cee7a604b8a7be8",
+    "after-rest-light.png": "63227ceefc0218e9d0f769d2dd845ddcc13822f3f7e4bbdbcdc1f7e3fc9aab8e",
+    "after-result-dark.png": "dba39772ac451072a36b795e0be82350afa7dc960f05ee3332ac54602f6ca487",
+    "after-result-light.png": "ffefd759de9073253fef22c4a84055a4479d6efb7604c590934f2d5efcb0da5f",
+    "after-training-dark.png": "909e1d194bf7d712bb44f9c2e5163c7cbb08a58f505c8831b3336081e4055faa",
+    "after-training-light.png": "11c9430763ce9bd3c0b38a0f59343b3ddde4d048c3d9565f1322f6a4e267e02c",
+    "after-transition-dark.png": "64da667223e671a1fba6dd135d458b671d5bc605a9bb8b535173be51e7283f0d",
+    "after-transition-light.png": "a8335b1ded231fd1934dcb5b47ae2cdb5e357e3f7b4978c901cf0b820b8bdb0b",
     "before-rest-dark.png": "596e280cbf5da0b416b7e5671ab2d15535cc949e4117caebb1f878229cf03491",
     "before-rest-light.png": "7db136c663dcc9b01ac2a228cc8867b2987d408bd6a9989fa07fa4149542fa0e",
     "before-result-dark.png": "d6dc35abd1b13ba8e5adb4948174b012b7e6b0cf58fc98443ac695efd4e490f5",
@@ -40,5 +45,17 @@
     "before-training-light.png": "9f18a3c66cd533eb62c6a923d42e2e6f4840b8bca6d1e349bbe17d3e3d1fcc74",
     "before-transition-dark.png": "999da5fe6a51c9db6b670caebee7f2cbd6ae3feb5ff856e722828a2fffe61fc6",
     "before-transition-light.png": "bffa385ee19572262617efea849e3d72c0fd63ad53d4fe0894b2196365380358"
-  }
+  },
+  "revision": "R2: original geometry, material and typography only",
+  "result_material_renderer": "liquid_glass_widgets 1.15.0 lightweight software fallback; NOT premium/native proof",
+  "layout_comparison": {
+    "passed": true,
+    "state_theme_pairs": 8,
+    "tolerance_dp": 0.01,
+    "matched_rects": 106,
+    "matched_absent": 62,
+    "max_delta_dp": 0.0,
+    "differences": []
+  },
+  "apk_sha256": "F3BC89ACBC53A8C36B6502692C8F0EF1DA40484040EFC7C49C7DF4395DAC4FA1"
 }

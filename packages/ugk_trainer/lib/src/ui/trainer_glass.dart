@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import 'trainer_result_surface.dart';
 import 'trainer_theme.dart';
 
 /// The glass material. [TrainerTheme.glass] gives the preset for its
@@ -75,11 +76,9 @@ class TrainerGlassStyle {
   final Color contactShadow;
   final Color ambientShadow;
 
-  /// The fixed body of pills on media (sdk-stage-r6): HUD chips on the clip
-  /// take no backdrop sample, so their colour never depends on what is
-  /// behind them (poster, stage, loading or playing video, a cross-fade).
-  /// Dark: a deep smoke with white text. Light (sdk-stage-r7): a white
-  /// frost with ink text, so light mode never shows dark slabs.
+  /// Translucent body of unsampled media pills. The tint is stable while
+  /// the media beneath remains visible. Hosts may choose a stronger fill
+  /// for full-bleed footage with unpredictable contrast.
   final Color overMediaFill;
 
   /// Whether [overMediaFill] is a light body (ink text and icons on top)
@@ -94,37 +93,37 @@ class TrainerGlassStyle {
       .5;
 
   static const dark = TrainerGlassStyle(
-    tint: Color(0x60222D34),
-    rimLight: Color(0x72FFFFFF),
-    rimShade: Color(0x26D9EBF1),
-    specular: Color(0x18FFFFFF),
-    hairline: Color(0x16D6E4E9),
-    controlRim: Color(0x28FFFFFF),
-    controlFillTop: Color(0x25DFEFF5),
-    controlFill: Color(0x0AFFFFFF),
+    tint: Color(0x16141C22),
+    rimLight: Color(0x9EEDF8FF),
+    rimShade: Color(0x382C3D49),
+    specular: Color(0x3CFFFFFF),
+    hairline: Color(0x12FFFFFF),
+    controlRim: Color(0x1AFFFFFF),
+    controlFillTop: Color(0x13FFFFFF),
+    controlFill: Color(0x02FFFFFF),
     overMediaTint: Color(0x66000000),
     blur: 0,
-    innerShade: Color(0x30050C11),
-    contactShadow: Color(0x50000000),
-    ambientShadow: Color(0x33000000),
-    overMediaFill: Color(0xC7212B32),
+    innerShade: Color(0x2403070A),
+    contactShadow: Color(0x30000000),
+    ambientShadow: Color(0x18000000),
+    overMediaFill: Color(0x30202930),
   );
 
   static const light = TrainerGlassStyle(
-    tint: Color(0x59FAFDFE),
+    tint: Color(0x18FFFFFF),
     rimLight: Color(0xFFFFFFFF),
-    rimShade: Color(0x88FFFFFF),
-    specular: Color(0x66FFFFFF),
-    hairline: Color(0x202B4655),
-    controlRim: Color(0x242B4655),
-    controlFillTop: Color(0x73FFFFFF),
-    controlFill: Color(0x16FFFFFF),
+    rimShade: Color(0x30243F4D),
+    specular: Color(0x70FFFFFF),
+    hairline: Color(0x10243F4D),
+    controlRim: Color(0x10243F4D),
+    controlFillTop: Color(0x20FFFFFF),
+    controlFill: Color(0x08FFFFFF),
     overMediaTint: Color(0x59000000),
     blur: 0,
-    innerShade: Color(0x15283D48),
-    contactShadow: Color(0x1F223D49),
-    ambientShadow: Color(0x12223D49),
-    overMediaFill: Color(0xD9F8FCFE),
+    innerShade: Color(0x12283D48),
+    contactShadow: Color(0x19223D49),
+    ambientShadow: Color(0x0C223D49),
+    overMediaFill: Color(0x30FFFFFF),
   );
 
   /// Blur + colour boost in one image filter.
@@ -177,9 +176,8 @@ class TrainerGlass extends StatelessWidget {
   /// A tappable control: visibly glassy when idle.
   final bool control;
 
-  /// Floats on media: a fixed, unsampled body ([TrainerGlassStyle.overMediaFill]
-  /// of the theme's glass) — dark with white text in dark mode, white frost
-  /// with ink text in light mode.
+  /// Floats on media: an unsampled translucent body with white text in
+  /// dark mode and ink text in light mode.
   final bool overMedia;
   final bool pressed;
 
@@ -189,6 +187,21 @@ class TrainerGlass extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Real optical glass is confined to a completed session's static stage.
+    // Video HUD and animated controls retain the unsampled paint path.
+    if (!overMedia &&
+        !control &&
+        theme.glassStyle == null &&
+        TrainerResultStage.contains(context)) {
+      return TrainerResultSurface(
+        theme: theme,
+        radius: radius,
+        padding: padding,
+        width: width,
+        height: height,
+        child: child,
+      );
+    }
     // On media the theme's own material, with its fixed media body.
     final g = theme.glass;
     final dir = Directionality.maybeOf(context) ?? TextDirection.ltr;
@@ -225,8 +238,7 @@ class TrainerGlass extends StatelessWidget {
                 ),
               ),
             ),
-          // Pills on media are a stable fill, never a backdrop sample: a
-          // loading / cross-fading clip behind them must not shift their tone.
+          // No live backdrop read for video overlays or active controls.
           if (g.blur > 0 && !overMedia && !control)
             Positioned.fill(
               child: ClipPath(
@@ -325,7 +337,7 @@ class _GlassPainter extends CustomPainter {
           end: Alignment.bottomRight,
           colors: [
             Color.alphaBlend(
-              style.specular.withValues(alpha: style.specular.a * .45),
+              style.specular.withValues(alpha: style.specular.a * .10),
               fill,
             ),
             fill,
@@ -355,8 +367,8 @@ class _GlassPainter extends CustomPainter {
     // Inner sheen under the top edge, and a faint shade along the bottom
     // for thickness — both within a fixed depth so pills and cards match.
     final h = size.height;
-    final sheenDepth = math.min(h * .25, 16.0);
-    final shadeDepth = math.min(h * .3, 18.0);
+    final sheenDepth = math.min(h * .12, 5.0);
+    final shadeDepth = math.min(h * .16, 8.0);
     canvas.save();
     canvas.clipPath(path);
     canvas.drawRect(
@@ -410,9 +422,9 @@ class _GlassPainter extends CustomPainter {
           end: Alignment.bottomCenter,
           colors: [
             style.rimLight,
-            Color.lerp(style.rimLight, style.rimShade, .6)!,
+            style.rimShade,
             style.rimShade.withValues(alpha: style.rimShade.a * .35),
-            style.rimShade.withValues(alpha: style.rimShade.a * .8),
+            style.rimLight.withValues(alpha: style.rimLight.a * .65),
           ],
           stops: [0, top.clamp(.08, .5), .7, 1],
         ).createShader(rect),

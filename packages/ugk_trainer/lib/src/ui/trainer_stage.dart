@@ -92,8 +92,8 @@ class _FloorPainter extends CustomPainter {
           Offset(cx, y0 + v * .42),
           math.max(w, h) * .65,
           [
-            Colors.white.withValues(alpha: dark ? .075 : .60),
-            Colors.white.withValues(alpha: dark ? .025 : .18),
+            Colors.white.withValues(alpha: dark ? .045 : .42),
+            Colors.white.withValues(alpha: dark ? .015 : .12),
             Colors.white.withValues(alpha: 0),
           ],
           const [0, .48, 1],
@@ -202,8 +202,8 @@ class _FloorPainter extends CustomPainter {
           const [0, .45, 1],
         ),
     );
-    // A single muted accent bounce separates the floating controls from
-    // the neutral floor. No animated lights or coloured corner wallpaper.
+    // Static environmental light gives clear controls a surface to reveal.
+    // Keep the centre neutral so transparent training media retains its colour.
     void blob(double x, double y, double r, Color c, double a) {
       final o = Offset(w * x, h * y);
       final rad = math.max(w, 320.0) * r;
@@ -224,7 +224,10 @@ class _FloorPainter extends CustomPainter {
       );
     }
 
-    blob(.16, .88, .9, accent, dark ? .035 : .045);
+    blob(-.10, .05, 1.0, const Color(0xFF62C6B1), dark ? .13 : .26);
+    blob(1.12, .12, .95, const Color(0xFF91B5D6), dark ? .10 : .20);
+    blob(.08, .96, .88, accent, dark ? .11 : .13);
+    blob(1.05, .92, .8, const Color(0xFFD2BDAE), dark ? .045 : .18);
   }
 
   @override
@@ -278,8 +281,8 @@ class TrainerHover extends StatelessWidget {
                     boxShadow: [
                       BoxShadow(
                         color: theme.isDark
-                            ? const Color(0x55000000)
-                            : const Color(0x171B2420),
+                            ? const Color(0x26000000)
+                            : const Color(0x0A1B2420),
                         blurRadius: 14,
                         spreadRadius: 0,
                       ),

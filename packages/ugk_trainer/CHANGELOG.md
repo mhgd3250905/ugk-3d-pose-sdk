@@ -2,8 +2,8 @@
 
 ## Unreleased — training UI review candidate
 
-- Refine light/dark HUD, countdown hierarchy, previous/skip labels, rest controls and result summary. Place the studio behind transparent media; retain repaint boundaries and the radial progress halo.
-- Keep media and changing controls free of backdrop sampling. Use the Flutter-only `liquid_glass_easy` 5.0.0 lens on the static result surface, with cached Skia capture and no host initialization or API changes.
+- Refine light/dark button materials, HUD tint and typography while preserving v0.2.9 control positions, sizes, interactions and result layout. Place the studio behind transparent media; retain repaint boundaries and the radial progress halo.
+- Keep media and changing controls free of backdrop sampling. Use `liquid_glass_widgets` 1.15.0 clear surfaces only on the static result panels, with no host initialization or API changes. Its iOS helper plugin requires iOS 15; unsupported shader renderers retain the library's lightweight fallback.
 - Add an offline Android/iOS/Web acceptance example and paired before/after evidence in `docs/visual-review.md`. No version bump or tag; native video and device performance await acceptance.
 
 ## 0.2.9 — 2026-10-25（测试分支，未合 main）

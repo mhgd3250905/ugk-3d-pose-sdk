@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "state_theme_pairs": 8,
+  "tolerance_dp": 0.01,
+  "matched_rects": 106,
+  "matched_absent": 62,
+  "max_delta_dp": 0.0,
+  "differences": []
+}

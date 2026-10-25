@@ -256,14 +256,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "6.1.0"
-  liquid_glass_easy:
+  liquid_glass_widgets:
     dependency: transitive
     description:
-      name: liquid_glass_easy
-      sha256: e867c5592ce9511aa8e3a9f7d755449d59a7f07044bf44b996b905138c84da1c
+      name: liquid_glass_widgets
+      sha256: "1fd7c1593f19d33fb166179c20b6a5158f67c2cb15ad2087ab3908a5b395a9ea"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "5.0.0"
+    version: "1.15.0"
   logging:
     dependency: transitive
     description:

@@ -1,16 +1,14 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import 'trainer_stage.dart';
 import 'trainer_theme.dart';
 
-/// Internal result-only optics. Never wrap a live training/media subtree in
-/// this view: Skia captures its static background once, Impeller samples it.
-/// The package lazily loads its shaders; hosts need no initialization call.
-class TrainerResultStage extends StatefulWidget {
+/// Result-only material scope. Live training and media never enter this stage.
+/// Each library surface loads its own renderer lazily; hosts need no setup.
+class TrainerResultStage extends StatelessWidget {
   const TrainerResultStage({
     super.key,
     required this.theme,
@@ -20,101 +18,111 @@ class TrainerResultStage extends StatefulWidget {
   final TrainerTheme theme;
   final Widget child;
 
-  @override
-  State<TrainerResultStage> createState() => _TrainerResultStageState();
-}
-
-class _TrainerResultStageState extends State<TrainerResultStage> {
-  final _capture = LiquidGlassViewController();
-  Size? _size;
-  TrainerTheme? _theme;
+  /// Only the outer result surfaces use optics; their descendants keep paint.
+  static bool contains(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<_ResultMaterialScope>()
+          ?.enabled ??
+      false;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, box) {
-      final size = box.biggest;
-      if (_size != size || _theme != widget.theme) {
-        _size = size;
-        _theme = widget.theme;
-        // Refresh the cached Skia background on resize/theme changes only.
-        // The result content keeps the same State and scroll position.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) unawaited(_capture.captureOnce());
-        });
-      }
-      final v = math.min(size.width, size.height * .5);
-      return LiquidGlassView(
-        controller: _capture,
-        realTimeCapture: false,
-        batch: false,
-        backgroundWidget: ColoredBox(
-          color: widget.theme.mediaStage,
-          child: TrainerStageFloor(
-            theme: widget.theme,
-            clipSize: v,
-            clipLeft: (size.width - v) / 2,
-            clipTop: size.height * .08,
-            fadeClipEdge: false,
-          ),
-        ),
-        child: ScrollConfiguration(
-          // Android stretch puts backdrop filters in an isolated layer.
-          // Disable that decoration only; normal scrolling is unchanged.
-          behavior: const MaterialScrollBehavior().copyWith(overscroll: false),
-          child: widget.child,
-        ),
-      );
-    },
+  Widget build(BuildContext context) => GlassTheme(
+    data: GlassThemeData(
+      brightness: theme.isDark ? Brightness.dark : Brightness.light,
+    ),
+    child: _ResultMaterialScope(
+      enabled: true,
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final size = box.biggest;
+          final v = math.min(size.width, size.height * .5);
+          return Stack(
+            fit: StackFit.expand,
+            clipBehavior: Clip.none,
+            children: [
+              ColoredBox(
+                color: theme.mediaStage,
+                child: TrainerStageFloor(
+                  theme: theme,
+                  clipSize: v,
+                  clipLeft: (size.width - v) / 2,
+                  clipTop: (size.height - v) / 2,
+                  fadeClipEdge: false,
+                ),
+              ),
+              ScrollConfiguration(
+                // Android stretch isolates the backdrop in a compositing layer.
+                // Keep ordinary scrolling without the stretch decoration.
+                behavior: const MaterialScrollBehavior().copyWith(
+                  overscroll: false,
+                ),
+                child: child,
+              ),
+            ],
+          );
+        },
+      ),
+    ),
   );
 }
 
-/// A single clear result sheet, with ordinary content inside (no glass nesting).
+class _ResultMaterialScope extends InheritedWidget {
+  const _ResultMaterialScope({required this.enabled, required super.child});
+
+  final bool enabled;
+
+  @override
+  bool updateShouldNotify(_ResultMaterialScope oldWidget) =>
+      enabled != oldWidget.enabled;
+}
+
+/// Optical material for an existing result panel, preserving its layout.
+/// Impeller uses the premium renderer. Web/Skia retain the library's lighter
+/// frosted path; that fallback is not evidence of native optical rendering.
 class TrainerResultSurface extends StatelessWidget {
   const TrainerResultSurface({
     super.key,
     required this.theme,
     required this.child,
-    this.padding = const EdgeInsets.all(24),
+    this.radius,
+    this.padding,
+    this.width,
+    this.height,
   });
 
   final TrainerTheme theme;
   final Widget child;
-  final EdgeInsetsGeometry padding;
+  final double? radius;
+  final EdgeInsetsGeometry? padding;
+  final double? width;
+  final double? height;
 
   @override
   Widget build(BuildContext context) {
-    final content = Padding(padding: padding, child: child);
-    if (MediaQuery.highContrastOf(context)) {
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.surface,
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: theme.muted),
-        ),
-        child: content,
-      );
-    }
-    return LiquidGlassLens(
-      style: LiquidGlassStyle(
-        shape: const LiquidGlassShape.continuousRoundedRectangle(
-          cornerRadius: 32,
-        ),
-        specular: LiquidGlassLight.specular(
-          thickness: 3,
-          intensity: theme.isDark ? .55 : .8,
-        ),
-        refractionIndex: 1.02,
-        refractionWidth: 24,
-        shadow: LiquidGlassShadow(
-          cornerRadius: 32,
-          blur: 6,
-          opacity: theme.isDark ? .18 : .09,
-          offset: const Offset(0, 3),
-          insideGlass: false,
-        ),
-        color: theme.isDark ? const Color(0x161B252C) : const Color(0x26FFFFFF),
-      ),
-      child: content,
+    final variant = theme.isDark
+        ? GlassThemeVariant.dark
+        : GlassThemeVariant.light;
+    final defaults = variant.settings!.applyTo(const LiquidGlassSettings());
+    final highContrast = MediaQuery.highContrastOf(context);
+    final settings = defaults.copyWith(
+      bodyMode: GlassBodyMode.clear,
+      thickness: 30,
+      blur: highContrast ? 0 : 2,
+      lightIntensity: .18,
+      glassColor: highContrast ? theme.surface : defaults.glassColor,
+    );
+
+    return GlassContainer(
+      useOwnLayer: true,
+      quality: highContrast ? GlassQuality.minimal : GlassQuality.premium,
+      settings: settings,
+      shape: radius == null
+          ? const LiquidRoundedRectangle(borderRadius: double.infinity)
+          : LiquidRoundedSuperellipse(borderRadius: radius!),
+      padding: padding,
+      width: width,
+      height: height,
+      child: _ResultMaterialScope(enabled: false, child: child),
     );
   }
 }

@@ -532,6 +532,19 @@ class _DiscPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
+    const materialAlpha = .72;
+    // Colour waves must compose before applying the material's opacity.
+    // Otherwise translucent waves accumulate opacity, then visibly jump
+    // when the State settles them into one base colour. This bounded layer
+    // exists only during colour changes; stable/breathing frames paint
+    // directly. No video sample, image filter, or halo change is involved.
+    final compositingColor = layers.isNotEmpty || newColor != null;
+    if (compositingColor) {
+      canvas.saveLayer(
+        rect,
+        Paint()..color = Colors.white.withValues(alpha: materialAlpha),
+      );
+    }
     void disc(Color color, double amount, bool fade) {
       if (amount <= 0) return;
       canvas.save();
@@ -545,7 +558,8 @@ class _DiscPainter extends CustomPainter {
           ),
         );
       }
-      final alpha = fade ? amount : 1.0;
+      final alpha =
+          (fade ? amount : 1.0) * (compositingColor ? 1 : materialAlpha);
       canvas.drawOval(
         rect,
         Paint()
@@ -556,10 +570,20 @@ class _DiscPainter extends CustomPainter {
               Color.lerp(
                 color,
                 Colors.white,
-                .14,
+                .38,
               )!.withValues(alpha: color.a * alpha),
-              color.withValues(alpha: color.a * alpha),
+              Color.lerp(
+                color,
+                Colors.white,
+                .04,
+              )!.withValues(alpha: color.a * alpha),
+              Color.lerp(
+                color,
+                Colors.white,
+                .12,
+              )!.withValues(alpha: color.a * alpha),
             ],
+            stops: const [0, .52, 1],
           ).createShader(rect),
       );
       canvas.restore();
@@ -570,12 +594,48 @@ class _DiscPainter extends CustomPainter {
       disc(layer.color, layer.progress, layer.crossFade);
     }
     if (newColor case final color?) disc(color, progress, reduced);
+    if (compositingColor) canvas.restore();
+
+    // A soft directional reflection and a fine inner edge provide depth
+    // while leaving the middle translucent and the foreground glyph clear.
+    canvas.drawOval(
+      rect.deflate(1.5),
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(-.35, -.85),
+          radius: 1.1,
+          colors: [Color(0x42FFFFFF), Color(0x08FFFFFF), Color(0x00FFFFFF)],
+          stops: [0, .48, 1],
+        ).createShader(rect),
+    );
     canvas.drawOval(
       rect.deflate(.5),
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1
-        ..color = const Color(0x33FFFFFF),
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xD9FFFFFF),
+            Color(0x35FFFFFF),
+            Color(0x180D4937),
+            Color(0x70FFFFFF),
+          ],
+          stops: [0, .35, .7, 1],
+        ).createShader(rect),
+    );
+    canvas.drawOval(
+      rect.deflate(2),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = .65
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x42FFFFFF), Color(0x00FFFFFF), Color(0x19032C23)],
+          stops: [0, .45, 1],
+        ).createShader(rect),
     );
   }
 

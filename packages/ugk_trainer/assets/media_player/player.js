@@ -139,6 +139,10 @@ window.drillMediaCommand = command => {
     stop();
     emit('frame', {captureId:command.captureId, frame});
   }
+  if (command.type === 'position') {
+    emit('position', {requestId:command.requestId,
+      time:mediaReady && hasFrame && Number.isFinite(video.currentTime) ? video.currentTime : null});
+  }
   if (command.type === 'dispose') {
     hostWantsPlay=false; stop(); disposed=true; video.removeAttribute('src'); video.load();
   }

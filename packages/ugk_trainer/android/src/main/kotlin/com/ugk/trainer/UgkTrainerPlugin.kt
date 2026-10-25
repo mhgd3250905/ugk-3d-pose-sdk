@@ -11,8 +11,10 @@ import io.flutter.plugin.common.MethodChannel
 class UgkTrainerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private var channel: MethodChannel? = null
     private var context: Context? = null
+    private var packedAlpha: PackedAlphaVideoHost? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        packedAlpha = PackedAlphaVideoHost(binding)
         context = binding.applicationContext
         channel = MethodChannel(binding.binaryMessenger, "ugk_trainer/training_session").also {
             it.setMethodCallHandler(this)
@@ -20,6 +22,8 @@ class UgkTrainerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        packedAlpha?.dispose()
+        packedAlpha = null
         channel?.setMethodCallHandler(null)
         channel = null
         context = null

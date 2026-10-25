@@ -16,6 +16,9 @@ class DrillMedia {
     this.actionId,
     this.skin = 'realistic',
     this.theme = 'dark',
+    this.packedAlphaVideoAsset,
+    this.packedAlphaPosterAsset,
+    this.bundledOnly = false,
   });
 
   final String id;
@@ -24,6 +27,20 @@ class DrillMedia {
   final String? actionId;
   final String skin;
   final String theme;
+
+  /// Optional H.264 frame with RGB above a same-size grayscale alpha plane.
+  /// The waiting image must be frame zero of this exact clip, not its cover.
+  /// Existing opaque assets remain the fallback on unsupported/error backends.
+  final String? packedAlphaVideoAsset;
+  final String? packedAlphaPosterAsset;
+
+  /// The host has verified and bundled these assets; do not resolve/download
+  /// them through an inherited repository for an unrelated catalog version.
+  final bool bundledOnly;
+
+  bool get hasPackedAlpha =>
+      packedAlphaVideoAsset?.isNotEmpty == true &&
+      packedAlphaPosterAsset?.isNotEmpty == true;
 
   /// Flutter asset keys (`assets/packs/h-squat/demo.mp4`).
   final String videoAsset;

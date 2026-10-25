@@ -2,7 +2,7 @@ name: ugk_trainer
 description: >-
   Shared training player for FlareLab, HipLab and SmartFit: plan execution,
   exercise rhythms, voice scheduling, media, background playback and results.
-version: 0.2.8
+version: 0.2.9
 repository: https://github.com/mhgd3250905/ugk-3d-pose-sdk
 publish_to: none
 
@@ -37,6 +37,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
+  shaders:
+    - shaders/packed_alpha.frag
   plugin:
     platforms:
       android:

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.9 — 2026-10-25（测试分支，未合 main）
+
+- Add opt-in RGB-over-alpha MP4 assets and a matching transparent frame-zero poster to `DrillMedia`. Render the full-height packed texture with an Android MediaPlayer/SurfaceProducer and GPU `ImageFilter.shader` composition, then apply output-height scaling; no new video-player dependency or per-frame Dart pixel readback.
+- Gate the transparent path on Android/Impeller support and actual native rendering-start, retaining the existing ordinary-MP4/still fallback, 150ms final-target handoff and 120ms first-frame/poster transition. Document asset layout, theme fallbacks and stable builder keys.
+- Add `bundledOnly` to keep App-verified local packed and fallback media out of an unrelated inherited repository. Do not show repository download UI for those local paths.
+- Add `DrillMediaPlaybackHandle.capture()` and a one-shot decoder position protocol for App-owned issue reporting. Preserve the captured media identity across quick switches; missing or failed queries return null without failing playback or substituting the training clock.
+- Buffer native ready/first-frame/state/error events until the EventChannel listener arrives, release textures on initialization failure and discard stale owners. Scope integration tests cover the loaded local path, failure fallback and absence of repository resolution/download UI. Preserve an alpha still when an unsupported backend has no ordinary MP4/poster.
+- Android Impeller Vulkan profile validation: steady/switch Raster P99 was 8.427/8.312ms in light and 8.059/7.086ms in dark. The four measured windows had no Raster frame above 16.67ms; these are raster-thread timings, not hardware presentation-FPS claims.
+
 ## 0.2.8 — 2026-10-25（分支性能修复，待开哥最终 release 复测后合 main）
 
 - Use the existing theme-driven `overMedia` fill for the training information card and close/previous/next controls, removing their live backdrop blur. Give the countdown and neighbouring controls independent repaint boundaries.

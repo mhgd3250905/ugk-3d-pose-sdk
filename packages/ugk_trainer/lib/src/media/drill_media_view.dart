@@ -9,7 +9,9 @@ import 'package:flutter/material.dart';
 
 import 'drill_media.dart';
 import 'media_controller.dart';
+import 'media_playback_handle.dart';
 import 'media_view.dart';
+import 'packed_alpha_video.dart';
 import 'training_media_repository.dart';
 
 /// Presentation-only handover for training: settle rapid target changes before
@@ -58,6 +60,7 @@ class _MediaSurface {
     required this.cacheRevision,
     required this.brightness,
     required this.mirrored,
+    this.packedAlpha = false,
   });
   final DrillMediaController controller;
   final DrillMedia media;
@@ -66,6 +69,7 @@ class _MediaSurface {
   final int cacheRevision;
   final Brightness brightness;
   final bool mirrored;
+  final bool packedAlpha;
 
   _MediaSurface withMirror(bool value) => _MediaSurface(
     controller: controller,
@@ -75,6 +79,7 @@ class _MediaSurface {
     cacheRevision: cacheRevision,
     brightness: brightness,
     mirrored: value,
+    packedAlpha: packedAlpha,
   );
 }
 
@@ -106,6 +111,7 @@ class DrillMediaView extends StatefulWidget {
     this.unavailableLabel,
     this.errorColor = const Color(0xB8FFFFFF),
     this.repository,
+    this.playbackHandle,
   });
 
   final DrillMedia media;
@@ -129,6 +135,7 @@ class DrillMediaView extends StatefulWidget {
   final String? unavailableLabel;
   final Color errorColor;
   final TrainingMediaRepository? repository;
+  final DrillMediaPlaybackHandle? playbackHandle;
 
   @override
   State<DrillMediaView> createState() => _DrillMediaViewState();
@@ -148,12 +155,35 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   final _lastFrame = _CapturedFrame();
   _MediaSurface? _surface;
   _MediaSurface? _retiring;
+  String? _failedPackedAsset;
 
   /// Theme the running clip was started for: a switch reloads the
   /// light/dark render (the poster covers the hand-over).
   Brightness? _brightness;
 
   bool get _light => _brightness == Brightness.light;
+
+  bool get _prefersPacked =>
+      widget.media.hasPackedAlpha &&
+      _failedPackedAsset != widget.media.packedAlphaVideoAsset &&
+      UgkPackedAlphaVideo.isSupported;
+
+  bool get _usesAlphaPoster =>
+      _prefersPacked ||
+      (widget.media.posterFor(light: _light).isEmpty &&
+          widget.media.packedAlphaPosterAsset?.isNotEmpty == true);
+
+  String get _poster => _usesAlphaPoster
+      ? widget.media.packedAlphaPosterAsset!
+      : widget.media.posterFor(light: _light);
+
+  Color get _stageColor => _usesAlphaPoster ? Colors.transparent : widget.stage;
+
+  void _bindPlaybackHandle() => widget.playbackHandle?.bind(
+    owner: this,
+    mediaId: widget.media.id,
+    controller: _controller,
+  );
 
   @override
   void didChangeDependencies() {
@@ -169,6 +199,7 @@ class _DrillMediaViewState extends State<DrillMediaView> {
     // Resolve inherited inputs before creating a controller. Starting in
     // initState briefly created an extra controller before the scope was known.
     _brightness = brightness;
+    _bindPlaybackHandle();
     if (!_initialized || _repository != repository) {
       _initialized = true;
       _repository?.removeListener(_repositoryChanged);
@@ -184,6 +215,10 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   @override
   void didUpdateWidget(DrillMediaView old) {
     super.didUpdateWidget(old);
+    if (old.playbackHandle != widget.playbackHandle) {
+      old.playbackHandle?.unbind(this);
+      _bindPlaybackHandle();
+    }
     if (old.media.id != widget.media.id ||
         old.media.actionId != widget.media.actionId ||
         old.media.skin != widget.media.skin ||
@@ -191,6 +226,10 @@ class _DrillMediaViewState extends State<DrillMediaView> {
         old.media.videoAvailable != widget.media.videoAvailable ||
         old.media.videoAsset != widget.media.videoAsset ||
         old.media.lightVideoAsset != widget.media.lightVideoAsset ||
+        old.media.packedAlphaVideoAsset != widget.media.packedAlphaVideoAsset ||
+        old.media.packedAlphaPosterAsset !=
+            widget.media.packedAlphaPosterAsset ||
+        old.media.bundledOnly != widget.media.bundledOnly ||
         old.repository != widget.repository ||
         old.playing != widget.playing) {
       if (old.repository != widget.repository) {
@@ -218,6 +257,7 @@ class _DrillMediaViewState extends State<DrillMediaView> {
     _loadTimer?.cancel();
     _loadTimer = null;
     _retireCurrent();
+    _bindPlaybackHandle();
     _resource = null;
     _downloadError = null;
     _resolving = false;
@@ -237,7 +277,7 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   }
 
   void _load(int request) {
-    if (_repository == null) {
+    if (_prefersPacked || widget.media.bundledOnly || _repository == null) {
       _start();
     } else {
       unawaited(_resolve(request));
@@ -269,6 +309,7 @@ class _DrillMediaViewState extends State<DrillMediaView> {
 
   void _repositoryChanged() {
     if (!mounted) return;
+    if (_prefersPacked || widget.media.bundledOnly) return;
     final repository = _repository!;
     if (!widget.playing || !widget.media.videoAvailable) {
       _cacheRevision = repository.cacheRevision;
@@ -313,6 +354,13 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   void _start() {
     if (!widget.playing || !widget.media.videoAvailable) return;
     _stop();
+    final packed = _prefersPacked;
+    final video = packed
+        ? widget.media.packedAlphaVideoAsset!
+        : (_resource?.assetKey ?? widget.media.videoFor(light: _light));
+    // A test catalog can contain a packed clip without an older opaque clip.
+    // Unsupported backends retain the still instead of opening an empty URL.
+    if (video.isEmpty && _resource == null) return;
     final c = DrillMediaController();
     if (!widget.paused) c.toggle(); // play as soon as the page is ready
     c.addListener(_changed);
@@ -320,12 +368,14 @@ class _DrillMediaViewState extends State<DrillMediaView> {
     _surface = _MediaSurface(
       controller: c,
       media: widget.media,
-      video: _resource?.assetKey ?? widget.media.videoFor(light: _light),
+      video: video,
       resource: _resource,
       cacheRevision: _cacheRevision,
       brightness: _brightness!,
       mirrored: widget.mirrored,
+      packedAlpha: packed,
     );
+    _bindPlaybackHandle();
   }
 
   void _stop() {
@@ -333,14 +383,36 @@ class _DrillMediaViewState extends State<DrillMediaView> {
     _controller?.dispose();
     _controller = null;
     _surface = null;
+    _bindPlaybackHandle();
   }
 
   void _changed() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final current = _surface;
+    if (current != null && current.packedAlpha && current.controller.failed) {
+      // Failure belongs to this immutable packed asset only. Reuse the normal
+      // opaque path; a later action can still use its own transparent clip.
+      scheduleMicrotask(() {
+        if (!mounted || !identical(_surface, current)) return;
+        setState(() {
+          _failedPackedAsset = current.video;
+          _stop();
+          _load(_request);
+        });
+      });
+      return;
+    }
+    setState(() {});
   }
 
   void _retireCurrent() {
     final surface = _surface;
+    if (surface?.packedAlpha == true && _poster.isNotEmpty) {
+      // The verified target frame is already available; no boundary capture
+      // or CPU readback is needed for normal packed-alpha transitions.
+      _stop();
+      return;
+    }
     if (surface == null || !surface.controller.hasFrame || _handoff == null) {
       _stop();
       return;
@@ -382,7 +454,7 @@ class _DrillMediaViewState extends State<DrillMediaView> {
     final shared = _handoff?.frames;
     final frame = local ?? (shared?.brightness == _brightness ? shared : null);
     final bytes = frame?.bytes;
-    if (bytes == null) return ColoredBox(color: widget.stage);
+    if (bytes == null) return ColoredBox(color: _stageColor);
     return Transform.flip(
       flipX: frame!.mirrored != widget.mirrored,
       child: Image.memory(
@@ -390,7 +462,7 @@ class _DrillMediaViewState extends State<DrillMediaView> {
         key: const ValueKey('drill-static-frame'),
         fit: BoxFit.contain,
         gaplessPlayback: true,
-        errorBuilder: (_, _, _) => ColoredBox(color: widget.stage),
+        errorBuilder: (_, _, _) => ColoredBox(color: _stageColor),
       ),
     );
   }
@@ -398,9 +470,7 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   Widget _platformSurface(_MediaSurface surface, {bool retiring = false}) {
     final hasFrame = surface.controller.hasFrame && !surface.controller.failed;
     final keepFrozen =
-        retiring &&
-        widget.media.posterFor(light: _light).isEmpty &&
-        surface.brightness == _brightness;
+        retiring && _poster.isEmpty && surface.brightness == _brightness;
     return IgnorePointer(
       key: ValueKey(('drill-surface', surface.controller)),
       child: AnimatedOpacity(
@@ -414,18 +484,24 @@ class _DrillMediaViewState extends State<DrillMediaView> {
             : const Duration(milliseconds: 120),
         child: Transform.flip(
           flipX: retiring && surface.mirrored != widget.mirrored,
-          child: DrillMediaPlatformView(
-            key: ValueKey((
-              surface.controller,
-              surface.video,
-              surface.resource?.cachePath,
-              surface.cacheRevision,
-            )),
-            media: surface.media,
-            controller: surface.controller,
-            videoAsset: surface.video,
-            resource: surface.resource,
-          ),
+          child: surface.packedAlpha
+              ? UgkPackedAlphaVideo(
+                  key: ValueKey((surface.controller, surface.video)),
+                  asset: surface.video,
+                  controller: surface.controller,
+                )
+              : DrillMediaPlatformView(
+                  key: ValueKey((
+                    surface.controller,
+                    surface.video,
+                    surface.resource?.cachePath,
+                    surface.cacheRevision,
+                  )),
+                  media: surface.media,
+                  controller: surface.controller,
+                  videoAsset: surface.video,
+                  resource: surface.resource,
+                ),
         ),
       ),
     );
@@ -439,6 +515,7 @@ class _DrillMediaViewState extends State<DrillMediaView> {
     _stop();
     _retiring?.controller.dispose();
     _retiring = null;
+    widget.playbackHandle?.unbind(this);
     super.dispose();
   }
 
@@ -446,14 +523,10 @@ class _DrillMediaViewState extends State<DrillMediaView> {
   Widget build(BuildContext context) {
     final m = widget.media;
     final c = _controller;
-    final poster = m.posterFor(light: _light);
-    Widget content = Stack(
-      fit: StackFit.expand,
-      children: [
-        if (poster.isEmpty)
-          _fallback()
-        else
-          Image.asset(
+    final poster = _poster;
+    Widget waiting = poster.isEmpty
+        ? _fallback()
+        : Image.asset(
             poster,
             key: ValueKey('drill-poster-$poster'),
             fit: BoxFit.contain,
@@ -461,11 +534,30 @@ class _DrillMediaViewState extends State<DrillMediaView> {
             frameBuilder: (_, child, frame, wasSync) =>
                 frame != null || wasSync ? child : _fallback(),
             errorBuilder: (_, _, _) => _fallback(),
-          ),
+          );
+    if (_prefersPacked) {
+      // An opaque movie hides a waiting poster by itself; an alpha movie does
+      // not. Remove the old silhouette while revealing the first live frame,
+      // otherwise the initial pose remains visible through transparent pixels.
+      waiting = AnimatedOpacity(
+        key: const ValueKey('drill-alpha-poster-reveal'),
+        opacity: c?.hasFrame == true && c?.failed != true ? 0 : 1,
+        duration: MediaQuery.maybeDisableAnimationsOf(context) ?? false
+            ? Duration.zero
+            : const Duration(milliseconds: 120),
+        child: waiting,
+      );
+    }
+    Widget content = Stack(
+      fit: StackFit.expand,
+      children: [
+        waiting,
         if (_retiring case final previous?)
           _platformSurface(previous, retiring: true),
         if (_surface case final current?) _platformSurface(current),
         if (_repository != null &&
+            !_prefersPacked &&
+            !m.bundledOnly &&
             m.videoAvailable &&
             widget.playing &&
             (_resource == null || c?.failed == true))
@@ -514,7 +606,7 @@ class _DrillMediaViewState extends State<DrillMediaView> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: ColoredBox(
-        color: widget.stage,
+        color: _stageColor,
         child: AspectRatio(aspectRatio: 1, child: content),
       ),
     );

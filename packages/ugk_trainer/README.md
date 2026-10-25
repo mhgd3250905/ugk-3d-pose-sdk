@@ -1,4 +1,48 @@
-# ugk_trainer 0.2.8
+# ugk_trainer 0.2.9
+
+## 0.2.9：拼接 alpha 视频（测试分支）
+
+推荐通过 `DrillMediaView` 接入，资源审核与测试构建开关由 App 管理：
+
+```dart
+// Owned by the App's State; dispose it when that State is disposed.
+final playback = DrillMediaPlaybackHandle();
+
+DrillMediaView(
+  media: const DrillMedia(
+    id: 'example-action',
+    videoAsset: 'assets/example/opaque.mp4',       // ordinary MP4 fallback
+    posterAsset: 'assets/example/opaque-frame0.webp',
+    duration: 4,
+    packedAlphaVideoAsset: 'assets/example/packed.mp4',
+    packedAlphaPosterAsset: 'assets/example/alpha-frame0.webp',
+    bundledOnly: true,                           // App-verified local assets
+  ),
+  playing: previewStarted,
+  paused: paused,
+  playbackHandle: playback,
+)
+```
+
+拼接视频为 720×1440 H.264：上半为完整 720×720 RGB，下半为同帧、同尺寸的灰度 alpha，黑色透明、白色不透明。`packedAlphaPosterAsset` **必须是该视频第 0 帧的透明 PNG/WebP**，不能换成挑选姿态的 cover；cover/thumbnail 可供列表单独使用。两项 packed asset 都存在才尝试透明路径；`bundledOnly: true` 表示这些资源及回退资源已由 App 验证并打包，不从继承的其他版本媒体 repository 解析或下载，也不显示下载中的提示。
+
+当前透明路径限定 Android＋Impeller，运行时可检查 `UgkPackedAlphaVideo.isSupported`；本轮实机环境为 Impeller Vulkan。iOS、Web、Skia、不支持的后端或 packed 解码/着色失败会使用既有普通 MP4 路径；没有普通视频时保留静帧。App 应提供适配主题的普通 `videoAsset/posterAsset`，必要时同时提供 `lightVideoAsset/lightPosterAsset`。SDK 不会通过 CSS 混合把普通 MP4 伪装成透明视频。
+
+底层 `UgkPackedAlphaVideo(asset: ..., controller: ...)` 使用 MediaPlayer＋SurfaceProducer，并以 `MEDIA_INFO_VIDEO_RENDERING_START` 区分真实首帧与初始化元数据；直接使用底层组件时，调用方需处理 controller 的失败状态及回退。完整 2h Texture 先经过 `ImageFilter.shader` 合成，再由外层 matrix image filter 压到 h，避免先压缩 packed 输入而丢失一半垂直细节。没有逐帧 Dart `toImage`、像素回读或 canvas capture；只有缺目标 poster 的既有切换协议可显式请求一次快照。参见 [GPU 路径与来源说明](lib/src/media/packed_alpha_sources.md)。
+
+`playing: false` 仅展示静帧、不创建解码器；`playing: true, paused: true` 暂停已有解码器并保留画面。`TrainerPlayer` 中既有 150ms 最后目标合并、首帧门禁和 120ms 视频/透明首帧封面交接继续生效；自定义 media builder 仍须使用稳定 key。
+
+点击问题标记时可按需读取真实视频时间：
+
+```dart
+final snapshot = await playback.capture();
+// snapshot?.mediaId, videoSeconds (nullable), ready, capturedAt (UTC)
+// Join the App-owned asset revision and issue metadata in the App.
+```
+
+`capture()` 是只读元数据快照，不是截图；它只在调用时查询一次解码器位置，不创建周期计时器、不改变播放或训练时钟。等待中、静帧、已销毁或查询失败时 `videoSeconds` 可以为 null，不能用训练经过时间或猜测的 0 秒替代。快速切换时保留调用瞬间的媒体 ID，不把旧视频时间配到新动作。动作审核/可见性、资源 revision、问题存储与导航继续由 App 负责。
+
+2026-10-25，同一 Android 真机 Impeller Vulkan 的 Profile 复测：浅色稳态/切换 Raster P99 为 **8.427/8.312ms**，深色为 **8.059/7.086ms**，四个窗口均无 Raster 超过 16.67ms 的帧。稳态各 20 秒，切换各 14 秒（上一/下一各 5 次）；只复测受影响场景，没有跑全量测试。数据来自引擎 FrameTiming，不等同于硬件呈现帧率。
 
 0.2.8 为分支性能修复：训练页信息卡与关闭、上一项、下一项控件改用主题现有 `overMedia` 半透明底，取消实时背景模糊；倒计时与相邻控件各自隔离重绘，环头柔光改用径向渐变。对外 API、按钮颜色/尺寸/动画状态逻辑、媒体和训练计时行为保持不变。SDK 相关定向测试 22/22、SmartFit 相关测试 9/9，局部分析无问题；尚未合入 main，等待开哥最终 release 复测。
 

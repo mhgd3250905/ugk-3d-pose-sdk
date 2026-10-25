@@ -20,6 +20,8 @@ class DrillMediaController extends ChangeNotifier {
   Uint8List? _frameBytes;
   Completer<Uint8List?>? _capturePending;
   int _captureId = 0;
+  Completer<double?>? _positionPending;
+  int _positionId = 0;
 
   /// A bounded static capture from a decoded video frame, never a live player.
   Uint8List? get frameBytes => _frameBytes;
@@ -74,6 +76,16 @@ class DrillMediaController extends ChangeNotifier {
       case 'state':
         playing = value['playing'] == true;
         _wantsPlay = playing;
+      case 'position':
+        if (value['requestId'] != _positionId) return;
+        final pending = _positionPending;
+        if (pending == null || pending.isCompleted) return;
+        final time = value['time'];
+        pending.complete(
+          time is num && time.isFinite && time >= 0 ? time.toDouble() : null,
+        );
+        // A one-shot inspection must not repaint the player or alter playback.
+        return;
       default:
         return;
     }
@@ -82,8 +94,33 @@ class DrillMediaController extends ChangeNotifier {
 
   void reportError() => receive({'source': 'drill-media', 'type': 'error'});
 
+  /// Query the decoder's current time only on demand, never on a frame timer.
+  /// An unavailable/stale backend reports null rather than a guessed zero.
+  Future<double?> readPosition() async {
+    if (_disposed || !ready || !hasFrame || failed || _sink == null) {
+      return null;
+    }
+    final existing = _positionPending;
+    if (existing != null) return existing.future;
+    final pending = Completer<double?>();
+    _positionPending = pending;
+    final request = ++_positionId;
+    _sink?.call({'type': 'position', 'requestId': request});
+    try {
+      return await pending.future.timeout(
+        const Duration(milliseconds: 500),
+        onTimeout: () {
+          if (!pending.isCompleted) pending.complete(null);
+          return null;
+        },
+      );
+    } finally {
+      if (identical(_positionPending, pending)) _positionPending = null;
+    }
+  }
+
   Uint8List? _capture(Object? value) {
-    // A 480px JPEG is normally only a few KiB. Ignore malformed or oversized
+    // A bounded 480px JPEG/alpha PNG is normally small. Ignore oversized
     // platform messages without turning a successful video into a failure.
     if (value is! String || value.length > 350000) return null;
     try {
@@ -134,6 +171,9 @@ class DrillMediaController extends ChangeNotifier {
     final capture = _capturePending;
     if (capture != null && !capture.isCompleted) capture.complete(null);
     _capturePending = null;
+    final position = _positionPending;
+    if (position != null && !position.isCompleted) position.complete(null);
+    _positionPending = null;
     _disposed = true;
     _sink = null;
     super.dispose();

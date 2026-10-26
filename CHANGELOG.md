@@ -1,5 +1,12 @@
 # Changelog
 
+## coach 0.6.2 / trainer 0.4.2 — 2026-10-26
+
+- Publish compressed R1 media v3 as 657 Cloudflare R2 objects under `https://media.uuugk.win/pack/r1-v3/`; the GitHub Release retains only `catalog.json` and a complete ZIP backup. Media shrinks from 587,456,377 to 163,351,529 bytes; local paths, 219 action IDs and all 211-complete / 8-pending semantics remain unchanged. Update every media receipt and expose its stable per-file download URI.
+- Replace fixed v2 catalogue SHA/fingerprint admission with schema, declared version and self-consistent media-manifest validation. Complete actions can form a self-contained AI catalogue; supplied canonical bytes/definitions remain checked against the catalogue's own references. Future-version regression cases pass without changing SDK hashes.
+- Add optional host-owned `PoseHubMediaPreparer.prepareAction()` progress/ready/failure streams. Browsing does not prepare; single practice cannot start its clock until ready. Show theme-driven progress, safe failure reason and retry. Uninjected local playback and existing training/Morph Pulse behaviour are preserved; SDK owns no downloader or cache.
+- Keep the old whole-pack `downloadUri` as a legacy v2 URL; use `catalogDownloadUri` and each `PoseHubPackFile.downloadUri` for v3. Coach UI remains 0.2.1. See [v3 integration](docs/posehub-app-test-pack-r1-v3.md).
+
 ## coach 0.6.1 / trainer 0.4.1 — 2026-10-26
 
 - Adopt the reviewed R1 semantic catalogue with exact SHA256 `a1655e5c64055c14af35850b5468390d9d11161e53a87a0cbe7780ec7ed25dc0`: 211 complete definitions, 8 pending, all 219 action IDs retained. `toAiCatalog()` projects the approved 69 additional definitions without generating defaults; the original 142 canonical definitions remain unchanged.

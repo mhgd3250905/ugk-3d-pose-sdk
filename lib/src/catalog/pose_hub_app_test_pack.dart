@@ -21,6 +21,14 @@ final class PoseHubPackFile {
         _integer(raw[dimension], 'file.$dimension', minimum: 1);
       }
     }
+    if (raw['downloadUrl'] != null) {
+      _httpsUri(raw['downloadUrl'], 'file.downloadUrl');
+    }
+    if (raw['assetName'] != null &&
+        _assetName(raw['assetName'], 'file.assetName') !=
+            path.split('/').last) {
+      throw const FormatException('File assetName differs from its basename');
+    }
   }
 
   factory PoseHubPackFile.fromJson(Object? json) =>
@@ -30,6 +38,15 @@ final class PoseHubPackFile {
   final int bytes;
   final String sha256;
   final Map<String, Object?> raw;
+
+  /// Optional public download location. Legacy catalogues do not declare one.
+  /// Hosts verify [bytes] and [sha256], then store the file at its original
+  /// [path]; [resolve] continues to address the installed or same-origin file.
+  Uri? get downloadUri {
+    final value = raw['downloadUrl'];
+    if (value == null) return null;
+    return _httpsUri(value, 'file.downloadUrl');
+  }
 
   /// Resolves only beneath a directory base. Media bytes are not fetched here.
   /// HTTP(S), local file and relative asset-directory bases are supported.
@@ -57,7 +74,7 @@ final class PoseHubPackFile {
 
 /// All source semantics, including null/unknown values, are preserved in [raw].
 final class PoseHubPackAction {
-  PoseHubPackAction._(this.raw, {bool approvedSemanticRevision = false})
+  PoseHubPackAction._(this.raw)
     : id = _id(raw['id'], 'action.id'),
       nameZh = _text(raw['nameZh'], 'action.nameZh'),
       trainingDefinitionComplete = _boolean(
@@ -102,14 +119,10 @@ final class PoseHubPackAction {
       semantics['missingRequiredFields'],
       '$id.missingRequiredFields',
     );
-    final unknown = _list(semantics['unknownFields'], '$id.unknownFields');
+    _list(semantics['unknownFields'], '$id.unknownFields');
     if (declared != trainingDefinitionComplete ||
-        (!approvedSemanticRevision &&
-            availableForTraining != trainingDefinitionComplete) ||
         (availableForTraining && !availableForApp) ||
-        (trainingDefinitionComplete &&
-            (missing.isNotEmpty ||
-                (!approvedSemanticRevision && unknown.isNotEmpty))) ||
+        (trainingDefinitionComplete && missing.isNotEmpty) ||
         (!trainingDefinitionComplete && missing.isEmpty)) {
       throw FormatException(
         '$id has contradictory training-completeness flags',
@@ -158,17 +171,15 @@ final class PoseHubPackAction {
 
 /// Strict pack index for all actions, plus an explicit complete-only AI view.
 final class PoseHubAppTestCatalog {
-  PoseHubAppTestCatalog._(this.raw, this._semanticCatalog)
-    : _approvedSemanticRevision =
-          _jsonFingerprint(raw) == _approvedSemanticCatalogFingerprint {
+  PoseHubAppTestCatalog._(this.raw, this._semanticCatalog) {
     if (raw['format'] != format) {
       throw const FormatException('Unsupported app-test catalog format');
     }
     id = _id(raw['id'], 'catalog.id');
     _reviewFlags(raw, 'catalog');
     final summary = _map(raw['trainingSemantics'], 'catalog.trainingSemantics');
-    if (summary.containsKey('semanticRevision') && !_approvedSemanticRevision) {
-      throw const FormatException('Unrecognized training semantic revision');
+    if (summary.containsKey('semanticRevision')) {
+      _text(summary['semanticRevision'], 'trainingSemantics.semanticRevision');
     }
     semanticCatalogFile = PoseHubPackFile.fromJson(raw['semanticCatalog']);
     final semanticReference = _map(raw['semanticCatalog'], 'semanticCatalog');
@@ -180,10 +191,7 @@ final class PoseHubAppTestCatalog {
     final byId = <String, PoseHubPackAction>{};
     final paths = <String>{};
     for (final entry in _list(raw['actions'], 'catalog.actions')) {
-      final action = PoseHubPackAction._(
-        _map(entry, 'action'),
-        approvedSemanticRevision: _approvedSemanticRevision,
-      );
+      final action = PoseHubPackAction._(_map(entry, 'action'));
       if (byId.containsKey(action.id)) {
         throw FormatException('Duplicate action id: ${action.id}');
       }
@@ -233,6 +241,18 @@ final class PoseHubAppTestCatalog {
         'Training-completeness summary disagrees with actions',
       );
     }
+    if (raw.containsKey('mediaDistribution')) {
+      _validateMediaDistribution();
+    } else if (allActions.any(
+      (action) => action.files.values.any(
+        (file) =>
+            file.raw['downloadUrl'] != null || file.raw['assetName'] != null,
+      ),
+    )) {
+      throw const FormatException(
+        'Per-file download receipts require a media distribution manifest',
+      );
+    }
     if (_semanticCatalog != null) {
       _validateSemanticCatalog(_semanticCatalog);
     }
@@ -273,7 +293,6 @@ final class PoseHubAppTestCatalog {
   static const format = 'pose-hub-app-test-catalog@1';
   final Map<String, Object?> raw;
   final Catalog? _semanticCatalog;
-  final bool _approvedSemanticRevision;
   late final String id;
   late final String semanticCatalogVersion;
   late final PoseHubPackFile semanticCatalogFile;
@@ -283,34 +302,40 @@ final class PoseHubAppTestCatalog {
   late final Map<String, PoseHubPackAction> _byId;
   PoseHubPackAction? tryGet(String id) => _byId[id];
 
-  /// Exact-ID canonical definitions, plus the pinned semantic revision's own
-  /// complete definitions. The original canonical catalog is always required.
-  /// This is not approval of upstream media, nor a replacement for PlanValidator.
+  /// Complete definitions from this catalogue, retaining matching canonical
+  /// definitions when a canonical is supplied. No training dose is inferred.
+  /// This is not approval of upstream media or a replacement for PlanValidator.
   Catalog toAiCatalog({Catalog? semanticCatalog}) {
     final canonical = semanticCatalog == null
         ? (_semanticCatalog == null
               ? null
               : Catalog.fromJson(_semanticCatalog.raw))
         : _canonical(semanticCatalog);
-    if (canonical == null) {
-      throw StateError(
-        'An explicit original canonical training catalog is required for AI',
-      );
+    if (canonical != null) {
+      _validateSemanticCatalog(canonical);
     }
-    _validateSemanticCatalog(canonical);
     final drills = [
       for (final action in semanticCompleteActions)
-        canonical[action.id] ?? _approvedDefinition(action),
+        canonical?[action.id] ?? _definition(action),
     ];
+    final version = canonical?.version ?? semanticCatalogVersion;
+    final formatVersion =
+        canonical?.formatVersion ?? supportedCatalogFormatVersion;
+    final taxonomy = canonical?.taxonomy ?? Taxonomy.fromJson(raw['taxonomy']);
     return Catalog(
-      version: canonical.version,
+      version: version,
       drills: drills,
-      formatVersion: canonical.formatVersion,
-      generatedAt: canonical.generatedAt,
-      sourceCommit: canonical.sourceCommit,
-      taxonomy: canonical.taxonomy,
+      formatVersion: formatVersion,
+      generatedAt: canonical?.generatedAt,
+      sourceCommit: canonical?.sourceCommit,
+      taxonomy: taxonomy,
       raw: Map.unmodifiable({
-        ...canonical.raw,
+        if (canonical != null) ...canonical.raw,
+        if (canonical == null && raw.containsKey('taxonomy'))
+          'taxonomy': raw['taxonomy'],
+        'format': catalogFormat,
+        'formatVersion': formatVersion,
+        'version': version,
         'drills': List.unmodifiable(drills.map((d) => d.raw)),
       }),
     );
@@ -323,15 +348,13 @@ final class PoseHubAppTestCatalog {
         'Canonical catalog has parse problems or a different version',
       );
     }
-    if (_approvedSemanticRevision &&
-        _jsonFingerprint(canonical.raw) != _originalCanonicalFingerprint) {
-      throw const FormatException('Original canonical catalog differs');
-    }
     for (final action in semanticCompleteActions) {
       final drill = canonical[action.id];
       if (drill == null) {
-        if (_approvedSemanticRevision) continue;
-        throw FormatException('Canonical definition missing: ${action.id}');
+        if (_declaresCanonical(action)) {
+          throw FormatException('Canonical definition missing: ${action.id}');
+        }
+        continue;
       }
       if (drill.name.of('zh') != action.nameZh) {
         throw FormatException('Canonical name differs for ${action.id}');
@@ -345,9 +368,91 @@ final class PoseHubAppTestCatalog {
     }
   }
 
-  Drill _approvedDefinition(PoseHubPackAction action) {
-    if (!_approvedSemanticRevision || !action.trainingDefinitionComplete) {
-      throw FormatException('Unapproved training definition: ${action.id}');
+  bool _declaresCanonical(PoseHubPackAction action) {
+    final evidence = action.rawTrainingSemantics['evidence'];
+    return evidence is List<Object?> &&
+        evidence.any(
+          (row) =>
+              row is Map<String, Object?> &&
+              row['path'] == semanticCatalogFile.path &&
+              row['actionId'] == action.id,
+        );
+  }
+
+  void _validateMediaDistribution() {
+    final distribution = _map(raw['mediaDistribution'], 'mediaDistribution');
+    final version = _text(distribution['version'], 'mediaDistribution.version');
+    if (!RegExp(r'^[a-zA-Z0-9][a-zA-Z0-9._+-]*$').hasMatch(version)) {
+      throw const FormatException('Invalid media distribution version');
+    }
+    final base = _httpsUri(
+      distribution['baseUrl'],
+      'mediaDistribution.baseUrl',
+    );
+    final kind = _text(distribution['kind'], 'mediaDistribution.kind');
+    switch (kind) {
+      case 'github-release-assets@1':
+        if (distribution['assetNameRule'] != 'basename(path)' ||
+            !base.path.endsWith('/$version/')) {
+          throw const FormatException(
+            'GitHub media URL or basename rule differs from its manifest',
+          );
+        }
+      case 'r2-objects@1':
+        final prefix = _text(
+          distribution['objectKeyPrefix'],
+          'mediaDistribution.objectKeyPrefix',
+        );
+        if (distribution['pathRule'] != 'relative-path' ||
+            !prefix.endsWith('/') ||
+            base.path != '/$prefix') {
+          throw const FormatException('R2 media prefix or path rule differs');
+        }
+        _path(
+          prefix.substring(0, prefix.length - 1),
+          'mediaDistribution.objectKeyPrefix',
+        );
+      default:
+        throw const FormatException('Unsupported media distribution protocol');
+    }
+    if (distribution.containsKey('sourceCatalogSha256')) {
+      _hash(
+        distribution['sourceCatalogSha256'],
+        'mediaDistribution.sourceCatalogSha256',
+      );
+    }
+    final assets = <String>{};
+    var mediaFiles = 0;
+    var mediaBytes = 0;
+    for (final action in allActions) {
+      for (final file in action.files.values) {
+        final location = kind == 'github-release-assets@1'
+            ? _assetName(file.raw['assetName'], 'file.assetName')
+            : file.path;
+        final identity = kind == 'github-release-assets@1'
+            ? location.toLowerCase()
+            : location;
+        if (!assets.add(identity) ||
+            file.downloadUri != base.resolve(location)) {
+          throw FormatException('Invalid media download receipt: ${file.path}');
+        }
+        mediaFiles++;
+        mediaBytes = _integer(mediaBytes + file.bytes, 'media byte total');
+      }
+    }
+    if (_integer(distribution['mediaFiles'], 'mediaFiles', minimum: 1) !=
+            mediaFiles ||
+        _integer(distribution['mediaBytes'], 'mediaBytes', minimum: 1) !=
+            mediaBytes) {
+      throw const FormatException(
+        'Media distribution totals differ from files',
+      );
+    }
+  }
+
+  Drill _definition(PoseHubPackAction action) {
+    if (!action.trainingDefinitionComplete) {
+      throw FormatException('Incomplete training definition: ${action.id}');
     }
     final problems = <String>[];
     final drill = Drill.tryParse(
@@ -358,33 +463,10 @@ final class PoseHubAppTestCatalog {
       problems,
     );
     if (drill == null || problems.isNotEmpty) {
-      throw FormatException('Invalid approved definition: ${action.id}');
+      throw FormatException('Invalid complete definition: ${action.id}');
     }
     return drill;
   }
-}
-
-// Full JSON snapshots, recursively sorted by object key and encoded by Dart's
-// jsonEncode. The approved source catalog's original byte SHA-256 is
-// a1655e5c64055c14af35850b5468390d9d11161e53a87a0cbe7780ec7ed25dc0.
-// Sorting accepts harmless object-key/whitespace changes in fromJson, while any
-// value, list order, ID, flag, provenance or definition change fails closed.
-const _approvedSemanticCatalogFingerprint =
-    '0679d53f6ccee58ac2c145f0da23d30f49e8ceada309d162a5263a6247d46b18';
-const _originalCanonicalFingerprint =
-    'e1ed9042aaf62273bee1fb376e1e07f5ebc9176704dce5f79f048eb902b4bfbe';
-
-String _jsonFingerprint(Object? value) => crypto.sha256
-    .convert(utf8.encode(jsonEncode(_sortedJson(value))))
-    .toString();
-
-Object? _sortedJson(Object? value) {
-  if (value is Map<String, Object?>) {
-    final keys = value.keys.toList()..sort();
-    return {for (final key in keys) key: _sortedJson(value[key])};
-  }
-  if (value is List<Object?>) return value.map(_sortedJson).toList();
-  return value;
 }
 
 const _mediaKinds = {'video', 'cover', 'thumbnail'};
@@ -509,6 +591,32 @@ String _text(Object? value, String field) {
     throw FormatException('$field must be a nonempty string');
   }
   return value;
+}
+
+Uri _httpsUri(Object? value, String field) {
+  final uri = Uri.tryParse(_text(value, field));
+  if (uri == null ||
+      !uri.isAbsolute ||
+      uri.scheme != 'https' ||
+      !uri.hasAuthority ||
+      uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty ||
+      uri.hasQuery ||
+      uri.hasFragment) {
+    throw FormatException(
+      '$field must be an absolute HTTPS URL without credentials, '
+      'query or fragment',
+    );
+  }
+  return uri;
+}
+
+String _assetName(Object? value, String field) {
+  final name = _path(value, field);
+  if (name.contains('/')) {
+    throw FormatException('$field must be a single basename');
+  }
+  return name;
 }
 
 String _id(Object? value, String field) {

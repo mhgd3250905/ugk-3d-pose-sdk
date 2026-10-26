@@ -3,6 +3,7 @@ import 'package:ugk_coach/ugk_coach.dart';
 
 import '../media/media_controller.dart';
 import '../ui/trainer_theme.dart';
+import 'pose_hub_media_preparation.dart';
 import 'pose_hub_pack_image.dart';
 import 'pose_hub_pack_surface.dart';
 
@@ -27,12 +28,14 @@ class PoseHubPackMedia extends StatefulWidget {
     this.paused = false,
     this.theme = TrainerTheme.light,
     this.onStatus,
+    this.mediaPreparer,
   });
   final PoseHubPackAction action;
   final Uri baseUri;
   final bool playing, paused;
   final TrainerTheme theme;
   final ValueChanged<PoseHubPackPlaybackStatus>? onStatus;
+  final PoseHubMediaPreparer? mediaPreparer;
   static bool get supportsPlayback => supportsPoseHubPackPlayback;
 
   @override
@@ -42,9 +45,24 @@ class PoseHubPackMedia extends StatefulWidget {
 class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
   late DrillMediaController _controller;
   PoseHubPackPlaybackStatus? _lastStatus;
+  final _preparation = PoseHubMediaPreparationController();
+
+  bool get _prepared =>
+      widget.mediaPreparer == null ||
+      _preparation.state.status == PoseHubMediaPreparationStatus.ready;
+  bool get _preparationFailed =>
+      widget.mediaPreparer != null &&
+      _preparation.state.status == PoseHubMediaPreparationStatus.failed;
+  Uri get _mediaBase => widget.mediaPreparer == null
+      ? widget.baseUri
+      : _preparation.state.mediaBaseUri ?? widget.baseUri;
 
   PoseHubPackPlaybackStatus get _status => !widget.playing
       ? PoseHubPackPlaybackStatus.cover
+      : _preparationFailed
+      ? PoseHubPackPlaybackStatus.error
+      : !_prepared
+      ? PoseHubPackPlaybackStatus.loading
       : !supportsPoseHubPackPlayback
       ? PoseHubPackPlaybackStatus.unsupported
       : _controller.failed
@@ -58,7 +76,26 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
   @override
   void initState() {
     super.initState();
+    _preparation.addListener(_preparationChanged);
     _bind();
+    _ensurePreparation();
+  }
+
+  void _ensurePreparation() {
+    final preparer = widget.mediaPreparer;
+    if (widget.playing &&
+        preparer != null &&
+        _preparation.state.status != PoseHubMediaPreparationStatus.preparing &&
+        _preparation.state.status != PoseHubMediaPreparationStatus.ready) {
+      _preparation.start(preparer, widget.action);
+    }
+  }
+
+  void _preparationChanged() {
+    if (!mounted) return;
+    _sync();
+    setState(() {});
+    _report();
   }
 
   void _bind() {
@@ -68,7 +105,7 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
   }
 
   void _sync() {
-    if (!widget.playing || widget.paused) {
+    if (!widget.playing || widget.paused || !_prepared) {
       _controller.pause();
     } else if (!_controller.wantsPlay) {
       _controller.toggle();
@@ -93,10 +130,25 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
   @override
   void didUpdateWidget(PoseHubPackMedia oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.action.id != widget.action.id ||
-        oldWidget.action.video.path != widget.action.video.path ||
+    final sourceChanged =
+        oldWidget.action.id != widget.action.id ||
+        oldWidget.action.files.entries.any(
+          (entry) =>
+              entry.value.sha256 != widget.action.files[entry.key]?.sha256 ||
+              entry.value.bytes != widget.action.files[entry.key]?.bytes ||
+              entry.value.path != widget.action.files[entry.key]?.path,
+        ) ||
         oldWidget.baseUri != widget.baseUri ||
-        oldWidget.playing != widget.playing) {
+        oldWidget.mediaPreparer != widget.mediaPreparer;
+    if ((sourceChanged &&
+            (oldWidget.mediaPreparer != null ||
+                widget.mediaPreparer != null)) ||
+        (!widget.playing &&
+            _preparation.state.status ==
+                PoseHubMediaPreparationStatus.preparing)) {
+      _preparation.cancel();
+    }
+    if (sourceChanged || oldWidget.playing != widget.playing) {
       _controller.removeListener(_changed);
       _controller.dispose();
       _lastStatus = null;
@@ -105,12 +157,17 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
       _sync();
       _report();
     }
+    if (sourceChanged || (!oldWidget.playing && widget.playing)) {
+      _ensurePreparation();
+    }
   }
 
   @override
   void dispose() {
     _controller.removeListener(_changed);
     _controller.dispose();
+    _preparation.removeListener(_preparationChanged);
+    _preparation.dispose();
     super.dispose();
   }
 
@@ -124,24 +181,37 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (widget.playing && supportsPoseHubPackPlayback)
+            if (widget.playing && _prepared && supportsPoseHubPackPlayback)
               PoseHubPackSurface(
-                sourceUri: widget.action.video.resolve(widget.baseUri),
+                sourceUri: widget.action.video.resolve(_mediaBase),
                 controller: _controller,
               ),
-            if (!widget.playing || !hasFrame)
+            if (!widget.playing || !hasFrame || !_prepared)
               ColoredBox(
                 key: const ValueKey('pose-hub-pack-cover'),
                 color: widget.theme.mediaStage,
                 child: PoseHubPackImage(
                   file: widget.action.cover,
-                  baseUri: widget.baseUri,
+                  baseUri: _mediaBase,
                   theme: widget.theme,
                   semanticLabel: '${widget.action.nameZh}封面（非固定帧零）',
                 ),
               ),
+            if (widget.playing && widget.mediaPreparer != null && !_prepared)
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: PoseHubMediaPreparationPanel(
+                    state: _preparation.state,
+                    theme: widget.theme,
+                    onRetry: _ensurePreparation,
+                  ),
+                ),
+              ),
             if (_status == PoseHubPackPlaybackStatus.unsupported ||
-                _status == PoseHubPackPlaybackStatus.error)
+                (_status == PoseHubPackPlaybackStatus.error &&
+                    !_preparationFailed))
               Align(
                 alignment: Alignment.bottomCenter,
                 child: ColoredBox(

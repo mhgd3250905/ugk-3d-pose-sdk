@@ -2,7 +2,7 @@ name: ugk_coach
 description: >-
   Shared AI training coach for FlareLab, HipLab and SmartFit: exercise catalogs,
   TrainingPlan validation, prompts, model clients, usage tracking and fallbacks.
-version: 0.6.1
+version: 0.6.2
 repository: https://github.com/mhgd3250905/ugk-3d-pose-sdk
 publish_to: none
 

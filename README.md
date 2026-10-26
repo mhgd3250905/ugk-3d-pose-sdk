@@ -2,7 +2,7 @@
 
 > **2026-10-26：** 开哥已确认扁平版真机流畅，`c6e261e`（trainer 0.3.1 / coach_ui 0.2.1）已合入并推送 main。微拟物暂存保持不动。
 >
-> coach 0.6.1 / trainer 0.4.1 接入开哥审核通过的 R1 语义修订：全部 219 动作可浏览，`toAiCatalog()` 返回 211 个完整定义，仍 8 个待补。657 个媒体文件（587,456,377 bytes）原样分发；新素材包版本为 `posehub-app-test-pack-r1-v2`，v1 Release 保留。[语义修订接入与校验](docs/posehub-app-test-pack-r1-semantics-v2.md)。训练页布局、播放、防闪和 Morph Pulse 未改；coach_ui 仍为 0.2.1。
+> coach 0.6.2 / trainer 0.4.2 提供压缩媒体 v3：657 个独立文件从 587.46 MB 降至 163.35 MB，219 / 211 完整 / 8 待补语义保持。新增宿主注入 `mediaPreparer` 的进度、失败重试和单练计时门禁；SDK 不做下载缓存。目录按自身版本和清单校验，支持后续版本。v1/v2 Release 保留。[v3 接口、逐文件 URL 与校验](docs/posehub-app-test-pack-r1-v3.md)。训练页实色布局、防闪和 Morph Pulse 保持；coach_ui 仍为 0.2.1。
 
 仓库 `mhgd3250905/ugk-3d-pose-sdk`，根目录是纯 Dart 包 **`ugk_coach`**，`packages/ugk_trainer` 是 Flutter 训练执行包（PR #1 已合入）。
 

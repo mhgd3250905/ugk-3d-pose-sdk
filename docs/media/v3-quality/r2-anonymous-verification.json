@@ -1,0 +1,62 @@
+[
+  {
+    "id": "abs-A",
+    "role": "video",
+    "url": "https://media.uuugk.win/pack/r1-v3/media/abs-A/abs-A-r2-alpha-r2/abs-A.rgb-alpha.mp4",
+    "bytes": 709155,
+    "sha256": "91650488ecfd8ac9cdf1a47f08ddfe5e7e92858487e64673245fe91000e436b6",
+    "contentType": "video/mp4",
+    "cacheControl": "public, max-age=31536000, immutable",
+    "cors": "*",
+    "anonymous": true,
+    "status": 200
+  },
+  {
+    "id": "chest-B",
+    "role": "cover",
+    "url": "https://media.uuugk.win/pack/r1-v3/media/chest-B/chest-B-r2-alpha-r2/chest-B.cover.alpha.webp",
+    "bytes": 39640,
+    "sha256": "9d7d297c3c80ea4d4d4348904862622dd275bbb71d026d6557e4c60d01c78600",
+    "contentType": "image/webp",
+    "cacheControl": "public, max-age=31536000, immutable",
+    "cors": "*",
+    "anonymous": true,
+    "status": 200
+  },
+  {
+    "id": "forearms-C",
+    "role": "thumbnail",
+    "url": "https://media.uuugk.win/pack/r1-v3/media/forearms-C/forearms-C-complete-alpha-r2/forearms-C.thumbnail.alpha.webp",
+    "bytes": 4502,
+    "sha256": "92f6b773805c584524642b88573a7ee00c5e0acb6b8e39cb255017fd772bc941",
+    "contentType": "image/webp",
+    "cacheControl": "public, max-age=31536000, immutable",
+    "cors": "*",
+    "anonymous": true,
+    "status": 200
+  },
+  {
+    "id": "h-lateral-step-lunge",
+    "role": "video",
+    "url": "https://media.uuugk.win/pack/r1-v3/media/h-lateral-step-lunge/h-lateral-step-lunge.rgb-alpha.mp4",
+    "bytes": 1967927,
+    "sha256": "a36f7b44ad75aeb024a5fd4731377b1c88edb22fcfc7a7395df827e178358119",
+    "contentType": "video/mp4",
+    "cacheControl": "public, max-age=31536000, immutable",
+    "cors": "*",
+    "anonymous": true,
+    "status": 200
+  },
+  {
+    "id": "h-towel-isometric-curl",
+    "role": "video",
+    "url": "https://media.uuugk.win/pack/r1-v3/media/h-towel-isometric-curl/h-towel-isometric-curl.rgb-alpha.mp4",
+    "bytes": 44752,
+    "sha256": "0cf4714068b9ba9b8752a37d85492635388164d6612e73a7f5c42b409b391eb5",
+    "contentType": "video/mp4",
+    "cacheControl": "public, max-age=31536000, immutable",
+    "cors": "*",
+    "anonymous": true,
+    "status": 200
+  }
+]

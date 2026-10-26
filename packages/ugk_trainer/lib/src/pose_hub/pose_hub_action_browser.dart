@@ -6,6 +6,7 @@ import 'package:ugk_coach/ugk_coach.dart';
 
 import '../ui/trainer_surface.dart';
 import '../ui/trainer_theme.dart';
+import 'pose_hub_media_preparation.dart';
 import 'pose_hub_pack_image.dart';
 import 'pose_hub_pack_media.dart';
 
@@ -20,11 +21,13 @@ class PoseHubActionBrowser extends StatefulWidget {
     required this.mediaBaseUri,
     this.theme,
     this.onPracticeFinished,
+    this.mediaPreparer,
   });
   final PoseHubAppTestCatalog catalog;
   final Uri mediaBaseUri;
   final TrainerTheme? theme;
   final ValueChanged<PoseHubPracticeResult>? onPracticeFinished;
+  final PoseHubMediaPreparer? mediaPreparer;
 
   @override
   State<PoseHubActionBrowser> createState() => _PoseHubActionBrowserState();
@@ -148,6 +151,7 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
                             mediaBaseUri: widget.mediaBaseUri,
                             theme: theme,
                             onPracticeFinished: widget.onPracticeFinished,
+                            mediaPreparer: widget.mediaPreparer,
                           ),
                         ),
                       ),
@@ -212,11 +216,13 @@ class PoseHubActionDetail extends StatelessWidget {
     required this.mediaBaseUri,
     this.theme,
     this.onPracticeFinished,
+    this.mediaPreparer,
   });
   final PoseHubPackAction action;
   final Uri mediaBaseUri;
   final TrainerTheme? theme;
   final ValueChanged<PoseHubPracticeResult>? onPracticeFinished;
+  final PoseHubMediaPreparer? mediaPreparer;
 
   @override
   Widget build(BuildContext context) {
@@ -273,6 +279,7 @@ class PoseHubActionDetail extends StatelessWidget {
                     mediaBaseUri: mediaBaseUri,
                     theme: th,
                     onFinished: onPracticeFinished,
+                    mediaPreparer: mediaPreparer,
                   ),
                 ),
               ),
@@ -305,11 +312,13 @@ class PoseHubSinglePracticePage extends StatefulWidget {
     required this.mediaBaseUri,
     this.theme,
     this.onFinished,
+    this.mediaPreparer,
   });
   final PoseHubPackAction action;
   final Uri mediaBaseUri;
   final TrainerTheme? theme;
   final ValueChanged<PoseHubPracticeResult>? onFinished;
+  final PoseHubMediaPreparer? mediaPreparer;
   @override
   State<PoseHubSinglePracticePage> createState() => _PoseHubPracticeState();
 }
@@ -321,18 +330,57 @@ class _PoseHubPracticeState extends State<PoseHubSinglePracticePage>
   bool _started = false;
   bool _finished = false;
   bool _paused = false;
+  final _preparation = PoseHubMediaPreparationController();
+
+  bool get _canStart =>
+      widget.mediaPreparer == null ||
+      _preparation.state.status == PoseHubMediaPreparationStatus.ready;
+  Uri get _mediaBase => widget.mediaPreparer == null
+      ? widget.mediaBaseUri
+      : _preparation.state.mediaBaseUri ?? widget.mediaBaseUri;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _preparation.addListener(_preparationChanged);
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && _clock.isRunning) setState(() {});
     });
+    _prepare();
+  }
+
+  void _prepare() {
+    final preparer = widget.mediaPreparer;
+    if (preparer != null) _preparation.start(preparer, widget.action);
+  }
+
+  void _preparationChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didUpdateWidget(PoseHubSinglePracticePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.action.id != widget.action.id ||
+        oldWidget.action.files.entries.any(
+          (entry) =>
+              entry.value.sha256 != widget.action.files[entry.key]?.sha256 ||
+              entry.value.bytes != widget.action.files[entry.key]?.bytes ||
+              entry.value.path != widget.action.files[entry.key]?.path,
+        ) ||
+        oldWidget.mediaPreparer != widget.mediaPreparer ||
+        oldWidget.mediaBaseUri != widget.mediaBaseUri) {
+      _clock.stop();
+      _clock.reset();
+      _started = _finished = _paused = false;
+      _preparation.cancel();
+      _prepare();
+    }
   }
 
   void _toggle() {
-    if (_finished) return;
+    if (_finished || !_canStart) return;
     setState(() {
       _started = true;
       _paused = _clock.isRunning;
@@ -373,6 +421,8 @@ class _PoseHubPracticeState extends State<PoseHubSinglePracticePage>
     WidgetsBinding.instance.removeObserver(this);
     _ticker?.cancel();
     _clock.stop();
+    _preparation.removeListener(_preparationChanged);
+    _preparation.dispose();
     super.dispose();
   }
 
@@ -400,12 +450,19 @@ class _PoseHubPracticeState extends State<PoseHubSinglePracticePage>
                     : th.caution,
               ),
             ),
+            if (widget.mediaPreparer != null)
+              PoseHubMediaPreparationPanel(
+                state: _preparation.state,
+                theme: th,
+                onRetry: _prepare,
+                readyLabel: _started ? '动作资源已就绪' : '资源已就绪，点击开始单练',
+              ),
             AspectRatio(
               aspectRatio: 1,
               child: PoseHubPackMedia(
                 key: ValueKey('posehub-practice-media-${widget.action.id}'),
                 action: widget.action,
-                baseUri: widget.mediaBaseUri,
+                baseUri: _mediaBase,
                 playing: _started && !_finished,
                 paused: _paused,
                 theme: th,
@@ -429,8 +486,10 @@ class _PoseHubPracticeState extends State<PoseHubSinglePracticePage>
                   backgroundColor: th.accent,
                   foregroundColor: th.onAccent,
                   minimumSize: const Size(80, 52),
+                  disabledBackgroundColor: th.surfaceHigh,
+                  disabledForegroundColor: th.muted,
                 ),
-                onPressed: _toggle,
+                onPressed: _canStart ? _toggle : null,
                 child: Text(
                   !_started
                       ? '开始单练'

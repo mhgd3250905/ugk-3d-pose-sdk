@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.2 — 2026-10-26
+
+- Bundle the compressed v3 catalogue and require coach 0.6.2. Its 657 R2 media objects total 163,351,529 bytes, served from `https://media.uuugk.win/pack/r1-v3/` with original relative paths; GitHub retains the catalogue and full ZIP backup. 219 actions and 211/8 semantics are unchanged. Catalogue parsing no longer uses a fixed v2 hash gate.
+- Add optional `mediaPreparer` to browsing/navigation, single practice and media playback. The host emits `PoseHubMediaProgress`, `PoseHubMediaReady(mediaBaseUri:)` or `PoseHubMediaFailed(reason:)`; it owns downloads, caching and integrity verification. Ready is required before starting single-practice time; failure offers a reason and retry. Plain browsing never invokes preparation.
+- Keep local `mediaBaseUri` behaviour when no preparer is supplied. Use opaque light/dark theme surfaces for new states, preserving existing training layout, no-flash controls and Morph Pulse. New v3 URLs and event/cancellation contracts: repository `docs/posehub-app-test-pack-r1-v3.md`.
+
 ## 0.4.1 — 2026-10-26
 
 - Load the reviewed R1 semantic revision: 211 complete / 8 pending / 219 total. Update the pinned catalogue checksum and whole-pack download to `posehub-app-test-pack-r1-v2`; v1 remains available unchanged.

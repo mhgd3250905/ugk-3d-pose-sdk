@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:test/test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
@@ -16,6 +17,15 @@ Map<String, Object?> _action(Map<String, Object?> catalog, [int index = 0]) =>
 
 Map<String, Object?> _files(Map<String, Object?> action) =>
     action['files']! as Map<String, Object?>;
+
+Iterable<Map<String, Object?>> _mediaFiles(Map<String, Object?> catalog) sync* {
+  for (final value in catalog['actions']! as List<Object?>) {
+    final action = value! as Map<String, Object?>;
+    for (final file in _files(action).values) {
+      yield file! as Map<String, Object?>;
+    }
+  }
+}
 
 Map<String, Object?> _actionById(Map<String, Object?> catalog, String id) =>
     (catalog['actions']! as List<Object?>)
@@ -34,8 +44,79 @@ void main() {
 
   Map<String, Object?> fresh() => _read('$_pack/catalog.json');
 
-  // Exercise the existing generic parser without the v2 snapshot gate. The
-  // original 142 definitions are unchanged by the approved semantic revision.
+  Map<String, Object?> downloadFile([Object? url]) => {
+    'path': 'media/demo-A/demo-A.rgb-alpha.mp4',
+    'bytes': 123,
+    'sha256': 'a' * 64,
+    'downloadUrl': ?url,
+  };
+
+  test('legacy file records retain null download locations', () {
+    final raw = downloadFile();
+    final file = PoseHubPackFile.fromJson(raw);
+    expect(file.downloadUri, isNull);
+    expect(file.path, raw['path']);
+    expect(file.bytes, 123);
+    expect(file.sha256, 'a' * 64);
+    expect(
+      PoseHubPackFile.fromJson({...raw, 'downloadUrl': null}).downloadUri,
+      isNull,
+    );
+  });
+
+  test(
+    'per-file HTTPS download leaves installed-path resolution unchanged',
+    () {
+      const url =
+          'https://github.com/mhgd3250905/ugk-3d-pose-sdk/releases/download/'
+          'posehub-app-test-pack-r1-v3/demo-A.rgb-alpha.mp4';
+      final raw = downloadFile(url);
+      final file = PoseHubPackFile.fromJson(raw);
+      expect(file.downloadUri, Uri.parse(url));
+      raw['downloadUrl'] = 'https://changed.example.test/other.mp4';
+      expect(file.downloadUri, Uri.parse(url));
+      expect(
+        file.resolve(Uri.parse('https://app.example.test/installed/v3/')),
+        Uri.parse(
+          'https://app.example.test/installed/v3/'
+          'media/demo-A/demo-A.rgb-alpha.mp4',
+        ),
+      );
+      expect(
+        file.resolve(Uri.parse('file:///verified/v3/')),
+        Uri.parse('file:///verified/v3/media/demo-A/demo-A.rgb-alpha.mp4'),
+      );
+    },
+  );
+
+  test('download locations reject non-HTTPS and credential-bearing URLs', () {
+    for (final url in <Object?>[
+      '',
+      42,
+      '/media/demo-A.mp4',
+      '//cdn.example.test/demo-A.mp4',
+      'http://cdn.example.test/demo-A.mp4',
+      'file:///verified/demo-A.mp4',
+      'data:video/mp4,test',
+      'javascript:alert(1)',
+      'https:/demo-A.mp4',
+      'https://user:secret@example.test/demo-A.mp4',
+      'https://example.test/demo-A.mp4?token=secret',
+      'https://example.test/demo-A.mp4?',
+      'https://example.test/demo-A.mp4#frame',
+      'https://example.test/demo-A.mp4#',
+      'https://[invalid/demo-A.mp4',
+    ]) {
+      expect(
+        () => PoseHubPackFile.fromJson(downloadFile(url)),
+        throwsFormatException,
+        reason: '$url',
+      );
+    }
+  });
+
+  // Exercise the original canonical subset without assuming a fixed count
+  // in the parser. The supplied source still has 142 original definitions.
   Map<String, Object?> legacyFixture() {
     final legacy = fresh();
     final baseIds = (canonical['drills']! as List<Object?>)
@@ -56,7 +137,54 @@ void main() {
       for (final action in actions) action['id'],
     ];
     summary['incompleteActionIds'] = <Object?>[];
+    legacy.remove('mediaDistribution');
+    for (final file in _mediaFiles(legacy)) {
+      file.remove('assetName');
+      file.remove('downloadUrl');
+    }
     return legacy;
+  }
+
+  Map<String, Object?> releaseFixture(String version) {
+    final data = fresh();
+    final base =
+        'https://github.com/mhgd3250905/ugk-3d-pose-sdk/releases/download/'
+        '$version/';
+    var count = 0;
+    var bytes = 0;
+    for (final file in _mediaFiles(data)) {
+      final name = (file['path']! as String).split('/').last;
+      file['assetName'] = name;
+      file['downloadUrl'] = '$base$name';
+      count++;
+      bytes += file['bytes']! as int;
+    }
+    data['mediaDistribution'] = {
+      'version': version,
+      'kind': 'github-release-assets@1',
+      'baseUrl': base,
+      'assetNameRule': 'basename(path)',
+      'sourceCatalogSha256': 'b' * 64,
+      'mediaFiles': count,
+      'mediaBytes': bytes,
+    };
+    return data;
+  }
+
+  Map<String, Object?> objectFixture(String version, String prefix) {
+    final data = releaseFixture(version);
+    final base = 'https://objects.example.test/$prefix';
+    final distribution = data['mediaDistribution']! as Map<String, Object?>;
+    distribution
+      ..remove('assetNameRule')
+      ..['kind'] = 'r2-objects@1'
+      ..['baseUrl'] = base
+      ..['pathRule'] = 'relative-path'
+      ..['objectKeyPrefix'] = prefix;
+    for (final file in _mediaFiles(data)) {
+      file['downloadUrl'] = '$base${file['path']}';
+    }
+    return data;
   }
 
   test(
@@ -74,7 +202,12 @@ void main() {
       ];
       expect(allFiles, hasLength(657));
       expect(allFiles.map((f) => f.path).toSet(), hasLength(657));
-      expect(allFiles.fold<int>(0, (sum, f) => sum + f.bytes), 587456377);
+      expect(
+        allFiles.fold<int>(0, (sum, f) => sum + f.bytes),
+        _mediaFiles(
+          original,
+        ).fold<int>(0, (sum, file) => sum + (file['bytes']! as int)),
+      );
       expect(pack.tryGet('abs-A'), same(pack.allActions.first));
       expect(
         pack.tryGet('abs-a'),
@@ -165,10 +298,16 @@ void main() {
     },
   );
 
-  test('AI view requires explicit canonical and excludes every pending ID', () {
+  test('AI view is self-contained and excludes every pending ID', () {
     final browsingOnly = PoseHubAppTestCatalog.fromJson(original);
     expect(browsingOnly.allActions, hasLength(219));
-    expect(browsingOnly.toAiCatalog, throwsStateError);
+    final standalone = browsingOnly.toAiCatalog();
+    expect(standalone.length, 211);
+    expect(standalone.ids, pack.semanticCompleteActions.map((a) => a.id));
+    expect(
+      standalone['abs-A']!.defaultDose.toJson(),
+      pack.tryGet('abs-A')!.raw['defaultDose'],
+    );
     final ai = pack.toAiCatalog();
     expect(ai.length, 211);
     expect(ai.problems, isEmpty);
@@ -180,6 +319,7 @@ void main() {
     expect(whitelist, hasLength(211));
     for (final action in pack.pendingActions) {
       expect(ai.contains(action.id), isFalse);
+      expect(standalone.contains(action.id), isFalse);
       expect(profile.scope(ai).any((d) => d.id == action.id), isFalse);
       expect(whitelist, isNot(contains(action.id)));
     }
@@ -268,92 +408,320 @@ void main() {
     },
   );
 
-  test('the pinned revision rejects value, flag and provenance tampering', () {
+  test(
+    'future releases accept self-consistent files and complete definitions',
+    () {
+      for (final version in [
+        'posehub-app-test-pack-r1-v3',
+        'posehub-app-test-pack-r1-v4',
+        'release-2028.1',
+      ]) {
+        final data = releaseFixture(version);
+        final firstFile = _mediaFiles(data).first;
+        firstFile['bytes'] = (firstFile['bytes']! as int) + 7;
+        firstFile['sha256'] = 'c' * 64;
+        final distribution = data['mediaDistribution']! as Map<String, Object?>;
+        distribution['mediaBytes'] = (distribution['mediaBytes']! as int) + 7;
+        final semantics = data['trainingSemantics']! as Map<String, Object?>;
+        semantics['semanticRevision'] = '$version-definitions';
+        semantics['revisionSha256'] = 'd' * 64;
+        final action = _actionById(data, 'g-cable-hip-abduction');
+        (action['defaultDose']! as Map<String, Object?>)['restSeconds'] = 31;
+        (action['doseRange']! as Map<String, Object?>)['restSeconds'] = [
+          31,
+          31,
+        ];
+        final future = PoseHubAppTestCatalog.fromJson(data);
+        expect(future.allActions, hasLength(219));
+        expect(future.semanticCompleteActions, hasLength(211));
+        expect(future.pendingActions, hasLength(8));
+        expect(future.toAiCatalog().length, 211);
+        expect(
+          future
+              .toAiCatalog()['g-cable-hip-abduction']!
+              .defaultDose
+              .restSeconds,
+          31,
+        );
+        expect(
+          future
+              .toAiCatalog(semanticCatalog: Catalog.fromJson(canonical))
+              .length,
+          211,
+        );
+        expect(
+          future.allActions.first.video.downloadUri,
+          Uri.parse(firstFile['downloadUrl']! as String),
+        );
+      }
+    },
+  );
+
+  test(
+    'complete declarations require actual values rather than dose defaults',
+    () {
+      for (final mutation in <void Function(Map<String, Object?>)>[
+        (data) =>
+            (_actionById(data, 'g-cable-hip-abduction')['defaultDose']!
+                    as Map<String, Object?>)['restSeconds'] =
+                null,
+        (data) =>
+            (_actionById(data, 'g-cable-hip-abduction')['defaultDose']!
+                    as Map<String, Object?>)['sets'] =
+                null,
+        (data) =>
+            (_actionById(data, 'g-cable-hip-abduction')['defaultDose']!
+                    as Map<String, Object?>)['reps'] =
+                null,
+        (data) =>
+            (_action(data)['defaultDose']! as Map<String, Object?>)['seconds'] =
+                null,
+        (data) => _actionById(data, 'g-cable-hip-abduction')['level'] = null,
+        (data) =>
+            _actionById(data, 'g-cable-hip-abduction')['scenes'] = <Object?>[],
+        (data) =>
+            (_actionById(data, 'g-cable-hip-abduction')['cues']!
+                    as Map<String, Object?>)['zh'] =
+                <Object?>[],
+        (data) =>
+            (_actionById(data, 'g-cable-hip-abduction')['trainingSemantics']!
+                as Map<String, Object?>)['missingRequiredFields'] = [
+              'level',
+            ],
+        (data) =>
+            (_actionById(data, 'g-cable-hip-abduction')['trainingSemantics']!
+                    as Map<String, Object?>)['definitionComplete'] =
+                false,
+        (data) => _action(data)['availableForApp'] = false,
+      ]) {
+        final data = fresh();
+        mutation(data);
+        expect(
+          () => PoseHubAppTestCatalog.fromJson(data),
+          throwsFormatException,
+        );
+      }
+      final updatedPartial = fresh();
+      _actionById(updatedPartial, 'h-towel-isometric-curl')['level'] = 1;
+      final partial = PoseHubAppTestCatalog.fromJson(updatedPartial);
+      expect(partial.pendingActions, hasLength(8));
+      expect(partial.toAiCatalog().contains('h-towel-isometric-curl'), isFalse);
+    },
+  );
+
+  test(
+    'object distributions preserve relative paths across future versions',
+    () {
+      for (final (version, prefix) in [
+        ('posehub-app-test-pack-r1-v3', 'pack/r1-v3/'),
+        ('posehub-app-test-pack-r1-v4', 'pack/r1-v4/'),
+        ('future-release', 'archive/next-generation/'),
+      ]) {
+        final data = objectFixture(version, prefix);
+        final objects = PoseHubAppTestCatalog.fromJson(data);
+        expect(objects.allActions, hasLength(219));
+        expect(objects.semanticCompleteActions, hasLength(211));
+        expect(objects.pendingActions, hasLength(8));
+        expect(objects.toAiCatalog().length, 211);
+        for (final action in objects.allActions) {
+          for (final file in action.files.values) {
+            expect(
+              file.downloadUri,
+              Uri.parse('https://objects.example.test/$prefix${file.path}'),
+            );
+          }
+        }
+      }
+    },
+  );
+
+  test(
+    'object manifests reject unsafe prefixes and mismatched download paths',
+    () {
+      for (final mutation in <void Function(Map<String, Object?>)>[
+        (data) =>
+            (data['mediaDistribution']! as Map<String, Object?>)['pathRule'] =
+                'basename(path)',
+        (data) =>
+            (data['mediaDistribution']!
+                    as Map<String, Object?>)['objectKeyPrefix'] =
+                '../',
+        (data) =>
+            (data['mediaDistribution']!
+                    as Map<String, Object?>)['objectKeyPrefix'] =
+                '/pack/r1-v4/',
+        (data) =>
+            (data['mediaDistribution']!
+                    as Map<String, Object?>)['objectKeyPrefix'] =
+                'pack/r1-v4',
+        (data) =>
+            (data['mediaDistribution']!
+                    as Map<String, Object?>)['objectKeyPrefix'] =
+                'pack/other/',
+        (data) =>
+            (data['mediaDistribution']! as Map<String, Object?>)['baseUrl'] =
+                'https://objects.example.test/another/',
+        (data) => _mediaFiles(data).first['downloadUrl'] =
+            'https://objects.example.test/pack/r1-v4/abs-A.rgb-alpha.mp4',
+        (data) => _mediaFiles(data).first.remove('downloadUrl'),
+        (data) =>
+            (data['mediaDistribution']! as Map<String, Object?>)['mediaFiles'] =
+                656,
+        (data) =>
+            (data['mediaDistribution']! as Map<String, Object?>)['mediaBytes'] =
+                1,
+      ]) {
+        final data = objectFixture(
+          'posehub-app-test-pack-r1-v4',
+          'pack/r1-v4/',
+        );
+        mutation(data);
+        expect(
+          () => PoseHubAppTestCatalog.fromJson(data),
+          throwsFormatException,
+        );
+      }
+    },
+  );
+
+  test(
+    'object keys may reuse basenames while optional asset names stay descriptive',
+    () {
+      final data = objectFixture('posehub-app-test-pack-r1-v4', 'pack/r1-v4/');
+      final first = _files(_action(data))['video']! as Map<String, Object?>;
+      final second = _files(_action(data, 1))['video']! as Map<String, Object?>;
+      second['path'] =
+          'media/${_action(data, 1)['id']}/copy/${first['assetName']}';
+      second['assetName'] = first['assetName'];
+      second['downloadUrl'] =
+          'https://objects.example.test/pack/r1-v4/${second['path']}';
+      expect(PoseHubAppTestCatalog.fromJson(data).toAiCatalog().length, 211);
+      for (final file in _mediaFiles(data)) {
+        file.remove('assetName');
+      }
+      expect(PoseHubAppTestCatalog.fromJson(data).toAiCatalog().length, 211);
+    },
+  );
+
+  test('media manifests reject inconsistent totals, versions and receipts', () {
     for (final mutation in <void Function(Map<String, Object?>)>[
+      (data) => data.remove('mediaDistribution'),
       (data) =>
-          (_actionById(data, 'g-cable-hip-abduction')['defaultDose']!
-                  as Map<String, Object?>)['restSeconds'] =
-              null,
+          (data['mediaDistribution']! as Map<String, Object?>)['mediaFiles'] =
+              656,
       (data) =>
-          _actionById(data, 'g-cable-hip-abduction')['availableForTraining'] =
-              true,
+          (data['mediaDistribution']! as Map<String, Object?>)['mediaBytes'] =
+              1,
       (data) =>
-          (data['trainingSemantics']!
-                  as Map<String, Object?>)['revisionSha256'] =
-              '0' * 64,
-      (data) => _actionById(data, 'h-towel-isometric-curl')['level'] = 1,
+          (data['mediaDistribution']! as Map<String, Object?>)['version'] = '',
+      (data) =>
+          (data['mediaDistribution']! as Map<String, Object?>)['version'] =
+              '../v4',
+      (data) =>
+          (data['mediaDistribution']! as Map<String, Object?>)['version'] =
+              'v5',
+      (data) => (data['mediaDistribution']! as Map<String, Object?>)['kind'] =
+          'unknown@1',
+      (data) =>
+          (data['mediaDistribution']!
+                  as Map<String, Object?>)['assetNameRule'] =
+              'path',
+      (data) =>
+          (data['mediaDistribution']! as Map<String, Object?>)['baseUrl'] =
+              'http://example.test/v4/',
+      (data) =>
+          (data['mediaDistribution']!
+                  as Map<String, Object?>)['sourceCatalogSha256'] =
+              'bad',
+      (data) => _mediaFiles(data).first['assetName'] = '../outside.mp4',
+      (data) => _mediaFiles(data).first['assetName'] = 'wrong-name.mp4',
+      (data) => _mediaFiles(data).first.remove('assetName'),
+      (data) => _mediaFiles(data).first['downloadUrl'] =
+          'https://elsewhere.test/abs-A.rgb-alpha.mp4',
+      (data) => _mediaFiles(data).first['downloadUrl'] = null,
+      (data) => _mediaFiles(data).first['downloadUrl'] =
+          'https://example.test/file.mp4?token=secret',
+      (data) => _mediaFiles(data).first['sha256'] = 'not-a-sha256',
+      (data) => _mediaFiles(data).first['bytes'] = 0,
+      (data) => _mediaFiles(data).first['bytes'] =
+          (_mediaFiles(data).first['bytes']! as int) + 1,
     ]) {
-      final data = fresh();
+      final data = releaseFixture('posehub-app-test-pack-r1-v4');
       mutation(data);
+      expect(() => PoseHubAppTestCatalog.fromJson(data), throwsFormatException);
+    }
+  });
+
+  test('release asset basenames must remain unique across original paths', () {
+    final data = releaseFixture('posehub-app-test-pack-r1-v4');
+    final first = _files(_action(data))['video']! as Map<String, Object?>;
+    final second = _files(_action(data, 1))['video']! as Map<String, Object?>;
+    second['path'] =
+        'media/${_action(data, 1)['id']}/copy/${first['assetName']}';
+    second['assetName'] = first['assetName'];
+    second['downloadUrl'] = first['downloadUrl'];
+    expect(() => PoseHubAppTestCatalog.fromJson(data), throwsFormatException);
+  });
+
+  test(
+    'canonical byte integrity follows each catalogue reference, not a fixed hash',
+    () {
+      final changed = deepCopy(canonical)..['unrecognizedMetadata'] = 'future';
+      final bytes = utf8.encode(jsonEncode(changed));
+      final data = releaseFixture('posehub-app-test-pack-r1-v4');
+      final reference = data['semanticCatalog']! as Map<String, Object?>;
+      reference['bytes'] = bytes.length;
+      reference['sha256'] = crypto.sha256.convert(bytes).toString();
       expect(
-        () => PoseHubAppTestCatalog.fromJson(data, semanticCatalog: canonical),
-        throwsFormatException,
+        PoseHubAppTestCatalog.fromJson(
+          data,
+          semanticCatalog: changed,
+        ).toAiCatalog().length,
+        211,
+      );
+      expect(
+        PoseHubAppTestCatalog.fromBytes(
+          utf8.encode(jsonEncode(data)),
+          semanticCatalogBytes: bytes,
+        ).toAiCatalog().length,
+        211,
       );
       expect(
         () => PoseHubAppTestCatalog.fromBytes(
           utf8.encode(jsonEncode(data)),
-          semanticCatalogBytes: File(
-            '$_pack/catalog/catalog.json',
-          ).readAsBytesSync(),
+          semanticCatalogBytes: [...bytes, 32],
         ),
         throwsFormatException,
-      );
-    }
-    final disguised = fresh();
-    (disguised['trainingSemantics']! as Map<String, Object?>).remove(
-      'semanticRevision',
-    );
-    for (final raw
-        in (disguised['actions']! as List<Object?>)
-            .cast<Map<String, Object?>>()) {
-      if (raw['trainingDefinitionComplete'] != true) continue;
-      raw['availableForTraining'] = true;
-      (raw['trainingSemantics']! as Map<String, Object?>)['unknownFields'] =
-          <Object?>[];
-    }
-    final browsing = PoseHubAppTestCatalog.fromJson(disguised);
-    expect(browsing.allActions, hasLength(219));
-    expect(browsing.semanticCompleteActions, hasLength(211));
-    expect(browsing.toAiCatalog, throwsStateError);
-    expect(
-      () => browsing.toAiCatalog(semanticCatalog: Catalog.fromJson(canonical)),
-      throwsFormatException,
-      reason: 'Removing the revision label cannot add definitions to canonical',
-    );
-    expect(
-      () =>
-          PoseHubAppTestCatalog.fromJson(disguised, semanticCatalog: canonical),
-      throwsFormatException,
-    );
-  });
-
-  test(
-    'object-key order is harmless, but the original canonical is pinned',
-    () {
-      final reordered = Map<String, Object?>.fromEntries(
-        original.entries.toList().reversed,
-      );
-      expect(
-        PoseHubAppTestCatalog.fromJson(
-          reordered,
-          semanticCatalog: canonical,
-        ).toAiCatalog().length,
-        211,
-      );
-      final changed = deepCopy(canonical)..['unrecognizedMetadata'] = 'changed';
-      expect(
-        () =>
-            PoseHubAppTestCatalog.fromJson(original, semanticCatalog: changed),
-        throwsFormatException,
-        reason: 'Even non-definition edits break the fixed canonical snapshot',
       );
     },
   );
 
   test(
-    'legacy 142 definitions retain strict flags and unknown-field checks',
+    'object-key order and extra canonical metadata do not gate versions',
+    () {
+      final reordered = Map<String, Object?>.fromEntries(
+        original.entries.toList().reversed,
+      );
+      final changed = deepCopy(canonical)..['unrecognizedMetadata'] = 'changed';
+      expect(
+        PoseHubAppTestCatalog.fromJson(
+          reordered,
+          semanticCatalog: changed,
+        ).toAiCatalog().length,
+        211,
+      );
+    },
+  );
+
+  test(
+    'legacy availability and optional unknowns are separate from completeness',
     () {
       final legacy = legacyFixture();
+      _action(legacy)['availableForTraining'] = false;
+      (_action(legacy)['trainingSemantics']!
+          as Map<String, Object?>)['unknownFields'] = [
+        {'field': 'contraindications', 'reason': 'optional and retained'},
+      ];
       expect(
         PoseHubAppTestCatalog.fromJson(
           legacy,
@@ -361,19 +729,12 @@ void main() {
         ).toAiCatalog().length,
         142,
       );
-      final changedFlag = deepCopy(legacy);
-      _action(changedFlag)['availableForTraining'] = false;
-      expect(
-        () => PoseHubAppTestCatalog.fromJson(changedFlag),
-        throwsFormatException,
-      );
-      final changedUnknown = deepCopy(legacy);
-      (_action(changedUnknown)['trainingSemantics']!
-          as Map<String, Object?>)['unknownFields'] = [
-        {'field': 'contraindications', 'reason': 'legacy cannot waive this'},
+      (_action(legacy)['trainingSemantics']!
+          as Map<String, Object?>)['missingRequiredFields'] = [
+        'level',
       ];
       expect(
-        () => PoseHubAppTestCatalog.fromJson(changedUnknown),
+        () => PoseHubAppTestCatalog.fromJson(legacy),
         throwsFormatException,
       );
     },
@@ -384,6 +745,11 @@ void main() {
     () {
       final legacy = legacyFixture();
       final added = deepCopy(_actionById(original, 'g-cable-hip-abduction'));
+      for (final value in _files(added).values) {
+        final file = value! as Map<String, Object?>;
+        file.remove('assetName');
+        file.remove('downloadUrl');
+      }
       added['availableForTraining'] = true;
       (added['trainingSemantics']! as Map<String, Object?>)['unknownFields'] =
           <Object?>[];
@@ -402,7 +768,7 @@ void main() {
 
       final browsing = PoseHubAppTestCatalog.fromJson(legacy);
       expect(browsing.allActions, hasLength(143));
-      expect(browsing.toAiCatalog, throwsStateError);
+      expect(browsing.toAiCatalog().length, 143);
       final ai = browsing.toAiCatalog(
         semanticCatalog: Catalog.fromJson(expandedCanonical),
       );
@@ -426,9 +792,20 @@ void main() {
     () {
       final first = pack.toAiCatalog();
       first['abs-A']!.scenes.clear();
+      first['g-cable-hip-abduction']!.cues['zh']!.clear();
       final next = pack.toAiCatalog();
       expect(next['abs-A']!.scenes, pack.tryGet('abs-A')!.raw['scenes']);
       expect(next['abs-A']!.scenes, isNotEmpty);
+      final sourceCues =
+          pack.tryGet('g-cable-hip-abduction')!.raw['cues']!
+              as Map<String, Object?>;
+      expect(next['g-cable-hip-abduction']!.cues['zh'], sourceCues['zh']);
+      final standalone = PoseHubAppTestCatalog.fromJson(original);
+      standalone.toAiCatalog()['g-cable-hip-abduction']!.scenes.clear();
+      expect(
+        standalone.toAiCatalog()['g-cable-hip-abduction']!.scenes,
+        isNotEmpty,
+      );
     },
   );
 
@@ -542,7 +919,7 @@ void main() {
                 'bad',
         (data) => _files(_action(data)).remove('cover'),
         (data) => data['totalCount'] = 218,
-        (data) => _action(data)['availableForTraining'] = false,
+        (data) => _action(data)['availableForApp'] = false,
         (data) => _action(data)['trainingDefinitionComplete'] = false,
         (data) => _action(data)['releaseEligible'] = true,
         (data) =>

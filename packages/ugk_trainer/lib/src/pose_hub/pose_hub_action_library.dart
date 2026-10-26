@@ -1,14 +1,25 @@
-import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
-/// R1 semantic revision v2 metadata ships with the SDK; the full media pack is installed
-/// separately. No video or image is embedded in the Git package.
+/// Compressed R1 v3 metadata ships with the SDK. Hosts download and verify
+/// individual media objects separately; no video or image is embedded in Git.
 abstract final class PoseHubActionLibrary {
   static const assetRoot =
       'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/';
+
+  /// Audit digest of this SDK's bundled catalogue, not an acceptance gate for
+  /// other internally consistent catalogue versions.
   static const catalogSha256 =
-      'a1655e5c64055c14af35850b5468390d9d11161e53a87a0cbe7780ec7ed25dc0';
+      '75881cf91621c967f80732f0219f23e85b35e8bde5d1a51ee75dec5f7c5edd36';
+
+  /// Public v3 metadata. Media download URLs are declared on each file record.
+  static const catalogDownloadUri =
+      'https://github.com/mhgd3250905/ugk-3d-pose-sdk/releases/download/'
+      'posehub-app-test-pack-r1-v3/catalog.json';
+  static const mediaReleaseBaseUri = 'https://media.uuugk.win/pack/r1-v3/';
+
+  /// Legacy v2 whole-pack ZIP, retained for existing hosts. V3 hosts use
+  /// [catalogDownloadUri] and each file's individual download location.
   static const downloadUri =
       'https://github.com/mhgd3250905/ugk-3d-pose-sdk/releases/download/'
       'posehub-app-test-pack-r1-v2/posehub-app-test-pack-r1-v2.zip';
@@ -23,10 +34,10 @@ abstract final class PoseHubActionLibrary {
       raw.offsetInBytes,
       raw.lengthInBytes,
     );
-    if (sha256.convert(catalog).toString() != catalogSha256) {
-      throw const FormatException('Pose-Hub R1 catalog checksum mismatch');
-    }
-    final semantics = await bundle.load('${assetRoot}catalog/catalog.json');
+    final index = PoseHubAppTestCatalog.fromBytes(catalog);
+    final semantics = await bundle.load(
+      '$assetRoot${index.semanticCatalogFile.path}',
+    );
     return PoseHubAppTestCatalog.fromBytes(
       catalog,
       semanticCatalogBytes: semantics.buffer.asUint8List(

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 - 2026-10-26
+
+- **Breaking:** replace decorative material configuration with opaque semantic surfaces. `CoachUiColors.thumb` is removed in favour of `surfaceRaised`; `mediaScrim` is removed in favour of the opaque `mediaLabelSurface`; `landingHighlight` is removed without a compatibility field. Add `background`, `outline`, `shadow`, complete `copyWith`, and `light` / `dark` defaults.
+- **Breaking:** remove `CoachChatList.topColor` and the example adapter's matching argument. The established optional top-edge fade now reads `CoachUiColors.background`; `topInset`, `fadeTop`, viewport geometry and system-bar ownership stay unchanged.
+- Use three opaque levels, a quiet 1 px edge and a shallow fixed shadow for default content and controls. Remove the landing highlight and the hero's translucent gradient; retain a local opaque title backer and normal media cross-fades. No glass switch, compatibility alias, backdrop group, filter or shader path remains.
+- Preserve routine expansion/collapse measurements, media flight/source rectangles, cutout builder requests, original control slots, haptics and callbacks. Custom builders still own their widgets and must preserve these layout and interaction contracts.
+- Add light/dark and injected-palette checks for opaque pixels, borders, unchanged control geometry and taps. Update the existing system-inset tests to take their fade colour from the injected theme. Verification results are reported with the final candidate; this entry does not assert device validation or publication.
+
 ## 0.1.3 - 2026-10-25
 
 - Add optional host media rendering via `CoachUiBuilders.media` and `CoachMediaRequest`. Use the same renderer for folded covers, still cutout flyers and thumbnails; null falls back to the original asset image.

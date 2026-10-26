@@ -22,10 +22,8 @@ BorderRadius bubbleRadius({required bool user}) => BorderRadius.only(
   bottomRight: Radius.circular(user ? CoachRadius.tail : CoachRadius.lg),
 );
 
-/// A plain text bubble is content, not a control: flat at z = 0 — a solid
-/// fill, no glass, no shadow, no rim. The user's line is mint-tinted, the
-/// assistant's teal-tinted; only interactive parts (cards, chips, the
-/// input bar) are raised liquid glass.
+/// An opaque content bubble. Speaker colours and its quiet edge come from the
+/// injected palette; elevated controls use the separate raised surface.
 class _Bubble extends StatelessWidget {
   const _Bubble({required this.user, required this.child, this.padding});
   final bool user;
@@ -35,10 +33,20 @@ class _Bubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
-      color: user
-          ? CoachUiTheme.of(context).colors.userBubble
-          : CoachUiTheme.of(context).colors.assistantBubble,
+      color:
+          (user
+                  ? CoachUiTheme.of(context).colors.userBubble
+                  : CoachUiTheme.of(context).colors.assistantBubble)
+              .withValues(alpha: 1),
       borderRadius: bubbleRadius(user: user),
+      border: Border.all(color: CoachUiTheme.of(context).colors.outline),
+      boxShadow: [
+        BoxShadow(
+          color: CoachUiTheme.of(context).colors.shadow,
+          blurRadius: 4,
+          offset: const Offset(0, 2),
+        ),
+      ],
     ),
     child: Padding(
       padding:
@@ -85,7 +93,12 @@ class CoachMessageBubble extends StatelessWidget {
             const SizedBox(height: 2),
           ],
           if (message.text.isNotEmpty)
-            Text(message.text, style: CoachUiTheme.of(context).typography.body),
+            Text(
+              message.text,
+              style: CoachUiTheme.of(context).typography.body.copyWith(
+                color: CoachUiTheme.of(context).colors.text,
+              ),
+            ),
           if (message.options.isNotEmpty) ...[
             const SizedBox(height: CoachSpace.x3),
             Wrap(
@@ -155,9 +168,9 @@ class CoachOptionPill extends StatelessWidget {
     final bg = chosen
         ? CoachUiTheme.of(context).colors.accentSoft
         : CoachUiTheme.of(context).colors.isDark
-        ? CoachUiTheme.of(context).colors.thumb
+        ? CoachUiTheme.of(context).colors.surfaceRaised
         : CoachUiTheme.of(context).colors.surface;
-    // Dark (round 5): an open choice reads as a button — glass fill + rim.
+    // Preserve the established roomy dark control and compact answered rows.
     final idle =
         CoachUiTheme.of(context).colors.isDark && enabled && !chosen && !dimmed;
     return CoachPressable(
@@ -177,13 +190,24 @@ class CoachOptionPill extends StatelessWidget {
                 ),
               ),
             )
-          : AnimatedContainer(
-              duration: CoachMotion.medium,
+          : Container(
               constraints: const BoxConstraints(minHeight: 36),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: ShapeDecoration(
-                color: bg,
-                shape: const StadiumBorder(),
+                color: bg.withValues(alpha: 1),
+                shadows: [
+                  BoxShadow(
+                    color: CoachUiTheme.of(context).colors.shadow,
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                shape: StadiumBorder(
+                  side: BorderSide(
+                    color: CoachUiTheme.of(context).colors.outline,
+                    strokeAlign: BorderSide.strokeAlignOutside,
+                  ),
+                ),
               ),
               child: Text(
                 label,
@@ -222,7 +246,12 @@ class CoachGreetingBlock extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(head, style: CoachUiTheme.of(context).typography.greeting),
+          Text(
+            head,
+            style: CoachUiTheme.of(context).typography.greeting.copyWith(
+              color: CoachUiTheme.of(context).colors.text,
+            ),
+          ),
           if (rest.isNotEmpty) ...[
             const SizedBox(height: CoachSpace.x1),
             Text(
@@ -252,9 +281,10 @@ class CoachTimeMark extends StatelessWidget {
       child: Center(
         child: Text(
           label,
-          style: CoachUiTheme.of(
-            context,
-          ).typography.caption.copyWith(letterSpacing: .4),
+          style: CoachUiTheme.of(context).typography.caption.copyWith(
+            color: CoachUiTheme.of(context).colors.muted,
+            letterSpacing: .4,
+          ),
         ),
       ),
     );
@@ -333,12 +363,16 @@ class _CoachTypingBubbleState extends State<CoachTypingBubble>
             Text(
               widget.progressLabel ??
                   CoachUiTheme.of(context).strings.preparing,
-              style: CoachUiTheme.of(context).typography.body,
+              style: CoachUiTheme.of(context).typography.body.copyWith(
+                color: CoachUiTheme.of(context).colors.text,
+              ),
             ),
             const SizedBox(height: CoachSpace.x1),
             Text(
               CoachUiTheme.of(context).strings.progressHint,
-              style: CoachUiTheme.of(context).typography.caption,
+              style: CoachUiTheme.of(context).typography.caption.copyWith(
+                color: CoachUiTheme.of(context).colors.muted,
+              ),
             ),
             CoachTextAction(
               key: const ValueKey('chat-cancel'),

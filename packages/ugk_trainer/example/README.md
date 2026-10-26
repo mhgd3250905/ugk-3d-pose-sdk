@@ -1,8 +1,8 @@
-# 训练播放 UI 验收展示
+# 训练播放 UI 0.3.0 实色分层展示
 
 本入口直接运行 `TrainerPlayer`，通过公开的 `sessionBuilder`、`mediaBuilder` 和主题参数提供假数据。训练中、休息、换侧、结果均使用 SDK 的真实界面。右上角可选择浅色、深色或跟随系统；切换主题保留当前计时、暂停状态和结果。重播按钮重新开始所选状态。
 
-R4 将默认 HUD、提示及次级按钮接到技能已经调过的 premium 光学配置，并使用 Cupertino 图标；旧版控件位置和操作保留。静态图片见[布局对照（软件降级，非通透效果预览）](../docs/visual-review.html)。Web 与软件测试只用于布局、文字、图标和一般交互检查，不能预览原生透镜效果；后续视觉评审应使用本轮原生 APK。
+`ugk_trainer 0.3.0` 使用不透明分层表面、1px 低对比描边和轻固定阴影，提示与控件统一使用 Cupertino 图标；配色来自 `TrainerTheme` 的浅深语义 token。原有控件位置、尺寸及操作保留。Web 可以直接展示当前实色 UI 和一般交互，静态前后对照见[视觉评审记录](../docs/visual-review.html)。
 
 模拟人物由本示例原创矢量绘制，背景透明，不下载动作素材。结果页由三段短训练通过真实状态机完成后生成，统计时长较短是刻意的测试数据。保存仅在内存进行，没有账号、网络请求、持久化或外部 App 数据操作。语音使用 `TrainerVoice.silent`，后台保活关闭。
 
@@ -19,9 +19,7 @@ flutter run -d <设备ID>
 
 Android 应用 ID 与 iOS bundle ID 均为 `com.ugk.trainer.showcase`，与宿主 App 分开。原生视觉可在验收者后续有条件时使用指定设备与本轮 APK 检查；本轮遵照用户指令不启动模拟器。iOS 需在 macOS 上使用 Xcode 配置该独立示例的开发签名后运行；Windows 上的测试不证明 iOS 构建通过。示例仅配置调试运行，未将 release 构建偷偷改为 debug 签名。
 
-`liquid_glass_widgets 1.15.0` 的原生辅助插件要求 iOS 15+；接入仍支持 iOS 13/14 的宿主前，需要先裁决其最低系统版本。
-
-浏览器布局演示（库的降级路径，非通透效果预览）：
+浏览器实色 UI 展示：
 
 ```powershell
 flutter run -d chrome
@@ -39,7 +37,7 @@ flutter build apk --debug
 
 在同一设备依次选择训练中、休息、换侧、结果，分别切浅深主题。观察透明人物与背景、顶部信息层次、数字/环形进度、上一项/跳过、休息加时及结果统计。训练中可暂停后切主题，确认暂停未丢失；休息可点 `+15 秒`；点下一项观察真实阶段变化。选“跟随系统”后改变系统亮度，检查同一页面随之更新。
 
-本轮还需检查下一个动作的占位符、不舒服提示与选项、指导语的可读性、静音图标切换和加时回调。默认 accessory 采用 30 / 2 / 0.18，control 采用 24 / 3 / 0.2（thickness / blur / lightIntensity），均请求 premium / clear 与库对应浅深 tint；高对比采用 minimal / blur 0。原生主体透出、边缘折射、媒体合成与性能需要对应平台运行，不能由参数或 Web 降级推定通过。
+本轮还需检查下一个动作的占位符、不舒服提示与选项、指导语的可读性、静音图标切换和加时回调。分别观察浅深模式下页面、卡片和控件的层级、文字对比、描边及按压反馈；切换主题不应重建当前训练。真实媒体合成与设备性能仍需对应平台运行检查。
 
 示例覆盖 UI 与交互，不替代真实透明视频、语音、后台、来电或原生媒体性能验收。
 
@@ -50,7 +48,7 @@ flutter analyze --no-pub
 flutter test test/showcase_test.dart
 ```
 
-截图 harness 使用 Flutter test renderer，在同一 430×932 逻辑视口、同一时间点采集四状态浅深共 8 张 PNG；不包含展示工具栏。它们只作布局对照，软件降级的磨砂表现不能作为真实玻璃交付效果，也不能标作 Android/iOS 真机截图或 GPU/折射性能证据。
+截图 harness 使用 Flutter test renderer，在同一 430×932 逻辑视口、同一时间点采集四状态浅深共 8 张 PNG；不包含展示工具栏。这些图片用于检查当前实色 UI 的构图、配色、文字和图标，属于软件测试渲染，不能标作 Android/iOS 真机截图或设备性能证据。
 
 harness 显式加载 Flutter Material Icons 与依赖包的 Cupertino Icons 字体。新增图标后须先运行 `flutter pub get`；仅引入 `CupertinoIcons` 而没有字体资产会造成截图缺字形。中文字体仍通过下面的本机参数加载。
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'primitives.dart';
+import 'theme.dart';
 
 /// An immutable row description; the host provides admitted content widgets.
 @immutable
@@ -26,7 +27,6 @@ class CoachChatList extends StatefulWidget {
     required this.entries,
     required this.controller,
     required this.timeMarkBuilder,
-    required this.topColor,
     this.dockHeight = 112,
     this.topInset = 0,
     this.fadeTop = true,
@@ -36,7 +36,6 @@ class CoachChatList extends StatefulWidget {
   final List<CoachChatEntry> entries;
   final ScrollController controller;
   final Widget Function(DateTime at, DateTime now) timeMarkBuilder;
-  final Color topColor;
   final double dockHeight;
 
   /// Host-supplied safe inset added inside the scrollable content. The viewport
@@ -125,23 +124,21 @@ class _CoachChatListState extends State<CoachChatList> {
     });
     return Stack(
       children: [
-        BackdropGroup(
-          child: ListView.builder(
-            controller: widget.controller,
-            reverse: true,
-            padding: EdgeInsets.fromLTRB(
-              CoachSpace.x4,
-              48 + widget.topInset,
-              CoachSpace.x4,
-              widget.dockHeight + CoachSpace.x3,
-            ),
-            itemCount: reversed.length,
-            itemBuilder: (_, i) => reversed[i],
-            findChildIndexCallback: (key) {
-              final i = reversed.indexWhere((w) => w.key == key);
-              return i < 0 ? null : i;
-            },
+        ListView.builder(
+          controller: widget.controller,
+          reverse: true,
+          padding: EdgeInsets.fromLTRB(
+            CoachSpace.x4,
+            48 + widget.topInset,
+            CoachSpace.x4,
+            widget.dockHeight + CoachSpace.x3,
           ),
+          itemCount: reversed.length,
+          itemBuilder: (_, i) => reversed[i],
+          findChildIndexCallback: (key) {
+            final i = reversed.indexWhere((w) => w.key == key);
+            return i < 0 ? null : i;
+          },
         ),
         if (widget.fadeTop)
           IgnorePointer(
@@ -154,8 +151,10 @@ class _CoachChatListState extends State<CoachChatList> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      widget.topColor,
-                      widget.topColor.withValues(alpha: 0),
+                      CoachUiTheme.of(context).colors.background,
+                      CoachUiTheme.of(
+                        context,
+                      ).colors.background.withValues(alpha: 0),
                     ],
                   ),
                 ),

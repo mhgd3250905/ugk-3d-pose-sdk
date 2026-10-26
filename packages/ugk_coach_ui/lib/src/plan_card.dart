@@ -9,7 +9,7 @@ import 'theme.dart';
 import 'primitives.dart';
 
 /// The assistant's plan reply: a compact, fixed-height card (like a link
-/// share in a messenger), raised on a static glass-like face;
+/// share in a messenger), raised on an opaque content surface;
 /// the media inside stays opaque and rounded.
 ///
 /// * one move → [_ExerciseBody], 130 px at default text size: a square preview on the left,
@@ -581,7 +581,7 @@ class _PlanCardState extends State<CoachPlanCard>
             CurvedAnimation(parent: _expand, curve: const Interval(0, .45)),
           )
         : _expand.drive(const _AtStart());
-    // Over the hero only while the card rests folded (its scrim pill);
+    // Over the hero only while the card rests folded (its solid label face);
     // the plain pill once the hero has started to fly.
     final toggleOnMedia = !single && !fused;
     final toggle = AnimatedBuilder(
@@ -959,9 +959,7 @@ class _PlanCardState extends State<CoachPlanCard>
       child: content,
     );
 
-    // Landing: the glass rim's highlight settles as the card arrives.
-    // (The Stack is always there so the glass subtree keeps its identity
-    // when the landing flag clears.)
+    // The stable wrapper preserves the card and its padding hit region.
     {
       card = Stack(
         children: [
@@ -990,34 +988,6 @@ class _PlanCardState extends State<CoachPlanCard>
                         child: const SizedBox.expand(),
                       ),
                     ),
-            ),
-          if (widget.landing && !reduced)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 1, end: 0),
-                  duration: const Duration(milliseconds: 700),
-                  curve: CoachMotion.standard,
-                  builder: (_, k, _) => k == 0
-                      ? const SizedBox.shrink()
-                      : DecoratedBox(
-                          decoration: ShapeDecoration(
-                            shape: RoundedSuperellipseBorder(
-                              borderRadius: BorderRadius.circular(
-                                CoachRadius.lg,
-                              ),
-                              side: BorderSide(
-                                color: CoachUiTheme.of(context)
-                                    .colors
-                                    .landingHighlight
-                                    .withValues(alpha: .45 * k),
-                                width: 1.2,
-                              ),
-                            ),
-                          ),
-                        ),
-                ),
-              ),
             ),
         ],
       );
@@ -1086,7 +1056,10 @@ class _PlanCardState extends State<CoachPlanCard>
                   ),
                 ),
               if (!fused && scrim > 0)
-                Opacity(opacity: scrim, child: _heroScrim(stage)),
+                Opacity(
+                  opacity: scrim,
+                  child: _heroLabelSurface(context, stage),
+                ),
             ],
           ),
         ),
@@ -1181,7 +1154,9 @@ class _Details extends StatelessWidget {
                 padding: const EdgeInsets.only(top: CoachSpace.x1),
                 child: Text(
                   note!,
-                  style: CoachUiTheme.of(context).typography.caption,
+                  style: CoachUiTheme.of(context).typography.caption.copyWith(
+                    color: CoachUiTheme.of(context).colors.muted,
+                  ),
                 ),
               ),
             ),
@@ -1196,9 +1171,7 @@ class _Details extends StatelessWidget {
               decoration: BoxDecoration(
                 border: Border(
                   top: BorderSide(
-                    color: CoachUiTheme.of(
-                      context,
-                    ).colors.text.withValues(alpha: .08),
+                    color: CoachUiTheme.of(context).colors.outline,
                   ),
                 ),
               ),
@@ -1346,8 +1319,8 @@ class _Header extends StatelessWidget {
   );
 }
 
-/// expand / collapse: a small disclosure pill; the chevron turns over as the card
-/// opens. Exposes expanded / collapsed to TalkBack.
+/// Expand / collapse: a small disclosure pill. Static up/down symbols cross-fade
+/// while the card opens. Exposes expanded / collapsed to TalkBack.
 class _ExpandToggle extends StatelessWidget {
   const _ExpandToggle({
     super.key,
@@ -1363,10 +1336,10 @@ class _ExpandToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glass = CoachUiTheme.of(context).colors.isDark && !onMedia;
+    final roomy = CoachUiTheme.of(context).colors.isDark && !onMedia;
     final fg = onMedia
         ? CoachUiTheme.of(context).colors.onMedia
-        : glass
+        : roomy
         ? CoachUiTheme.of(context).colors.text
         : CoachUiTheme.of(context).colors.muted;
     final label = expanded
@@ -1384,10 +1357,9 @@ class _ExpandToggle extends StatelessWidget {
         child: Center(
           child: _toggleFace(
             context: context,
-            glass: glass,
             onMedia: onMedia,
             child: Padding(
-              padding: glass
+              padding: roomy
                   ? const EdgeInsets.fromLTRB(12, 9, 9, 9)
                   : const EdgeInsets.fromLTRB(10, 5, 7, 5),
               child: Row(
@@ -1406,10 +1378,16 @@ class _ExpandToggle extends StatelessWidget {
                   // Down when closed, up when open.
                   AnimatedBuilder(
                     animation: turns,
-                    builder: (_, child) => Transform.rotate(
-                      angle: math.pi * (.5 - turns.value),
-                      child: child,
-                    ),
+                    builder: (_, child) {
+                      final t = turns.value.clamp(0.0, 1.0);
+                      return Opacity(
+                        opacity: (2 * t - 1).abs(),
+                        child: RotatedBox(
+                          quarterTurns: t < .5 ? 1 : 3,
+                          child: child,
+                        ),
+                      );
+                    },
                     child: CoachIcon(
                       CoachGlyph.chevronRight,
                       size: 14,
@@ -1427,26 +1405,29 @@ class _ExpandToggle extends StatelessWidget {
   }
 }
 
-/// Dark on the glass card: the idle control face; otherwise the quiet tonal
-/// pill (light) or the scrim pill over media.
+/// An opaque disclosure face, including when it sits over media.
 Widget _toggleFace({
   required BuildContext context,
-  required bool glass,
   required bool onMedia,
   required Widget child,
-}) => glass
-    ? CoachControlFace(padding: EdgeInsets.zero, minHeight: 0, child: child)
-    : DecoratedBox(
-        decoration: ShapeDecoration(
-          color: onMedia
-              ? CoachUiTheme.of(context).colors.mediaScrim
-              : CoachUiTheme.of(context).colors.text.withValues(
-                  alpha: CoachUiTheme.of(context).colors.isDark ? .10 : .06,
-                ),
-          shape: const StadiumBorder(),
-        ),
-        child: child,
-      );
+}) => DecoratedBox(
+  decoration: ShapeDecoration(
+    color: onMedia
+        ? CoachUiTheme.of(context).colors.mediaLabelSurface.withValues(alpha: 1)
+        : CoachUiTheme.of(context).colors.surfaceRaised.withValues(alpha: 1),
+    shape: StadiumBorder(
+      side: BorderSide(color: CoachUiTheme.of(context).colors.outline),
+    ),
+    shadows: [
+      BoxShadow(
+        color: CoachUiTheme.of(context).colors.shadow,
+        blurRadius: 4,
+        offset: const Offset(0, 2),
+      ),
+    ],
+  ),
+  child: child,
+);
 
 class _CueRow extends StatelessWidget {
   const _CueRow({
@@ -1482,7 +1463,9 @@ class _CueRow extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: CoachUiTheme.of(context).typography.callout,
+              style: CoachUiTheme.of(context).typography.callout.copyWith(
+                color: CoachUiTheme.of(context).colors.text,
+              ),
             ),
           ),
         ],
@@ -1528,7 +1511,7 @@ class _Media extends StatelessWidget {
   /// Show the cutout's still cover (while the card unfolds / folds).
   final bool still;
 
-  /// The keyed figure straight on the glass (no stage box), when [exercise]
+  /// The keyed figure straight on the card (no stage box), when [exercise]
   /// has one (the supplied cutout); otherwise the boxed cover as before.
   final bool cutout;
   final Alignment cutoutAlignment;
@@ -1566,7 +1549,8 @@ class _Media extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         ColoredBox(
-          color: (e?.stage ?? CoachUiTheme.of(context).colors.stage).mediaStage,
+          color: (e?.stage ?? CoachUiTheme.of(context).colors.stage).mediaStage
+              .withValues(alpha: 1),
         ),
         if (e != null)
           TweenAnimationBuilder<double>(
@@ -1702,6 +1686,7 @@ class _ExerciseBody extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: CoachUiTheme.of(context).typography.callout.copyWith(
+                      color: CoachUiTheme.of(context).colors.text,
                       fontWeight: FontWeight.w700,
                       fontSize: 16,
                     ),
@@ -1713,6 +1698,7 @@ class _ExerciseBody extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: CoachUiTheme.of(context).typography.label.copyWith(
+                    color: CoachUiTheme.of(context).colors.muted,
                     fontFeatures: CoachUiTypography.tabular,
                   ),
                 ),
@@ -1765,10 +1751,14 @@ class _Tags extends StatelessWidget {
           for (final t in tags)
             DecoratedBox(
               decoration: ShapeDecoration(
-                color: CoachUiTheme.of(context).colors.text.withValues(
-                  alpha: CoachUiTheme.of(context).colors.isDark ? .10 : .06,
+                color: CoachUiTheme.of(
+                  context,
+                ).colors.surfaceRaised.withValues(alpha: 1),
+                shape: StadiumBorder(
+                  side: BorderSide(
+                    color: CoachUiTheme.of(context).colors.outline,
+                  ),
                 ),
-                shape: const StadiumBorder(),
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -1834,7 +1824,7 @@ class _SetBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cover = this.cover;
-    // A keyed figure stands straight on the glass: no stage box, no scrim,
+    // A keyed figure stands straight on the card: no stage box or label backer,
     // the title in the page's own ink under it.
     final fused = (cover?.cutout != null);
     return Column(
@@ -1882,7 +1872,8 @@ class _SetBody extends StatelessWidget {
                       fit: StackFit.expand,
                       children: [
                         _Media(exercise: cover, landing: landing),
-                        _heroScrim(
+                        _heroLabelSurface(
+                          context,
                           cover?.stage ?? CoachUiTheme.of(context).colors.stage,
                         ),
                       ],
@@ -1912,16 +1903,15 @@ class _SetBody extends StatelessWidget {
                     child: _Thumb(
                       size: thumb,
                       child: ColoredBox(
-                        color: CoachUiTheme.of(context).colors.text.withValues(
-                          alpha: CoachUiTheme.of(context).colors.isDark
-                              ? .12
-                              : .07,
-                        ),
+                        color: CoachUiTheme.of(
+                          context,
+                        ).colors.surfaceRaised.withValues(alpha: 1),
                         child: Center(
                           child: Text(
                             '+$more',
                             style: CoachUiTheme.of(context).typography.label
                                 .copyWith(
+                                  color: CoachUiTheme.of(context).colors.text,
                                   fontWeight: FontWeight.w600,
                                   fontFeatures: CoachUiTypography.tabular,
                                 ),
@@ -1939,20 +1929,26 @@ class _SetBody extends StatelessWidget {
   }
 }
 
-/// Lower scrim over a boxed hero: transparent → stage, under the title.
-Widget _heroScrim(CoachMediaPalette stage) => DecoratedBox(
-  decoration: BoxDecoration(
-    gradient: LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      stops: const [.35, 1],
-      colors: [
-        stage.mediaStage.withValues(alpha: 0),
-        stage.mediaStage.withValues(alpha: .92),
-      ],
-    ),
-  ),
-);
+/// A solid, local title backer. The media frame and flyer stay unchanged.
+Widget _heroLabelSurface(BuildContext context, CoachMediaPalette stage) =>
+    LayoutBuilder(
+      builder: (context, box) {
+        final scaler = MediaQuery.textScalerOf(context);
+        final height =
+            scaler.scale(19) * 1.25 +
+            scaler.scale(13) * 1.35 +
+            2 +
+            CoachSpace.x3 * 2;
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: SizedBox(
+            width: double.infinity,
+            height: math.min(box.maxHeight, height),
+            child: ColoredBox(color: stage.mediaStage.withValues(alpha: 1)),
+          ),
+        );
+      },
+    );
 
 class _HeroTitle extends StatelessWidget {
   const _HeroTitle({
@@ -2046,10 +2042,15 @@ class _MoveRowTypography {
     }
 
     final label = effective(
-      theme.typography.label.copyWith(fontFeatures: CoachUiTypography.tabular),
+      theme.typography.label.copyWith(
+        color: theme.colors.muted,
+        fontFeatures: CoachUiTypography.tabular,
+      ),
     );
     return _MoveRowTypography._(
-      name: effective(theme.typography.callout),
+      name: effective(
+        theme.typography.callout.copyWith(color: theme.colors.text),
+      ),
       dose: label,
       index: label.copyWith(color: theme.colors.muted),
       scaler: MediaQuery.textScalerOf(context),

@@ -3,7 +3,7 @@
 //   next set; host doseLabel respected);
 // - large system text never overflows the top card or clips the countdown
 //   number (1 / 1.5 / 2×, portrait and landscape);
-// - glass buttons are reachable with Tab and activate with Enter / Space.
+// - solid buttons are reachable with Tab and activate with Enter / Space.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -162,20 +162,20 @@ void main() {
   });
 
   group('keyboard', () {
-    testWidgets('glass button: Tab focuses it, Enter / Space activate, focus '
+    testWidgets('solid button: Tab focuses it, Enter / Space activate, focus '
         'ring shows', (tester) async {
-      var glass = 0;
+      var activated = 0;
       var other = 0;
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: Column(
               children: [
-                TrainerGlassButton(
+                TrainerIconButton(
                   theme: TrainerTheme.light,
                   icon: const Icon(Icons.close),
                   tooltip: 'close',
-                  onPressed: () => glass++,
+                  onPressed: () => activated++,
                 ),
                 TextButton(onPressed: () => other++, child: const Text('x')),
               ],
@@ -185,30 +185,33 @@ void main() {
       );
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
-      expect(find.byKey(const ValueKey('glass-button-focus')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('surface-button-focus')),
+        findsOneWidget,
+      );
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pump();
-      expect((glass, other), (1, 0));
+      expect((activated, other), (1, 0));
       await tester.sendKeyEvent(LogicalKeyboardKey.space);
       await tester.pump();
-      expect((glass, other), (2, 0));
+      expect((activated, other), (2, 0));
       // Tab moves on to the next control.
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
-      expect(find.byKey(const ValueKey('glass-button-focus')), findsNothing);
+      expect(find.byKey(const ValueKey('surface-button-focus')), findsNothing);
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pump();
-      expect((glass, other), (2, 1));
+      expect((activated, other), (2, 1));
     });
 
-    testWidgets('disabled glass button is skipped by Tab', (tester) async {
+    testWidgets('disabled solid button is skipped by Tab', (tester) async {
       var other = 0;
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: Column(
               children: [
-                TrainerGlassButton(
+                TrainerIconButton(
                   theme: TrainerTheme.light,
                   icon: const Icon(Icons.close),
                   tooltip: 'close',

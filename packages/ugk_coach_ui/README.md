@@ -1,10 +1,8 @@
-# ugk_coach_ui 0.1.3
+# ugk_coach_ui 0.2.0
 
-`0.1.3` 新增可选 `CoachUiBuilders.media` 和 `CoachPlanCard.cutoutTopInset`，让宿主绘制带透明边界裁剪的素材，紧凑封面与展开飞行动画共用同一渲染入口。默认值保持旧素材与卡片几何。测试分支发布 tag 为 `ugk_coach_ui-v0.1.3`，旧 tag 不移动。
+`0.2.0` 将默认 UI 改为不透明分层表面：页面、内容卡片、抬升控件三个层级，1px 低对比描边和轻固定阴影。颜色仅从注入的 `CoachUiColors` / `CoachMediaPalette` 获取；提供浅深默认值与完整 `copyWith`，没有玻璃开关、光学参数或旧材质兼容别名。本版本为接口不兼容的候选，尚未发布 tag。
 
-`0.1.2` 新增聊天列表的宿主可选参数 `topInset` 与 `fadeTop`，供透明系统状态栏下的真实内容滚动使用。本轮在分支验证后发布新 tag；旧 `ugk_coach_ui-v0.1.1` 不移动。两参数默认值保持既有宿主的列表几何与顶部渐隐。
-
-`0.1.1` 已批准发布：修复展开套路卡在 320px / 2 倍字体时的长中文剂量、循环与分段剂量溢出。该指定回归在浅深主题均通过，包含在 UI 21 项通过记录中；剂量不缩字、不截断，行高与媒体/飞行动画共享测量。配套 coach 0.4.2、trainer 0.2.2 仅修 ASCII 包清单与依赖 tag。公开接口兼容 0.1.0，Flutter 最低版本为 3.44.0；本轮验收和 SmartFit 正式远端锁文件验证使用 Flutter 3.44.7。
+聊天/套路卡的既有位置、进入动画、展开测量与媒体飞行保留。`CoachUiBuilders.media`、`cutoutTopInset`、透明素材边界及原回调继续使用；透明的是人物素材及普通淡入动画，内容承载面保持不透明。列表的 `topInset` / `fadeTop` 保留，顶部滚动边缘遮罩不属于材质表面。
 
 给 HipLab / Flare / SmartFit 共用的 Flutter 聊天呈现包。聊天列表的进入动画、消息气泡、询问气泡，以及单动作/多动作套路卡的展开布局与动画由本包实现；产品颜色、字体、文案、素材和操作由 App 注入。
 
@@ -12,22 +10,11 @@
 
 ## 安装
 
-下表保留 2026-10-24 已发布的 0.1.1 配套快照。使用新增系统栏参数时须固定本轮 `ugk_coach_ui-v0.1.2`，不要移动旧 tag。
-
-| 包 | 固定 tag | 完整 SHA |
-| --- | --- | --- |
-| coach_ui | `ugk_coach_ui-v0.1.1` | `3302d6235a39e2c2b4b51fa196cc32b37c31b54c` |
-| trainer | `ugk_trainer-v0.2.2` | `3302d6235a39e2c2b4b51fa196cc32b37c31b54c` |
-| coach | `ugk_coach-v0.4.2` | `3302d6235a39e2c2b4b51fa196cc32b37c31b54c` |
-
-App 使用：
+本轮 `0.2.0` 尚未发布，不使用一个尚不存在的 tag。仓库内验证可用本地 path 依赖；对外接入应在候选获审并发布后固定已核实的提交或新 tag，旧 tag 不移动。
 
 ```yaml
 ugk_coach_ui:
-  git:
-    url: https://github.com/mhgd3250905/ugk-3d-pose-sdk.git
-    path: packages/ugk_coach_ui
-    ref: ugk_coach_ui-v0.1.2
+  path: path/to/ugk-3d-pose-sdk/packages/ugk_coach_ui
 ```
 
 ```dart
@@ -36,17 +23,28 @@ import 'package:ugk_coach_ui/ugk_coach_ui.dart';
 
 ## 对外接口
 
+### 从 0.1.x 迁移
+
+| 已删除的接口 | 0.2.0 接法 |
+| --- | --- |
+| `CoachUiColors.thumb` | 使用 `surfaceRaised` 控件层颜色 |
+| `CoachUiColors.mediaScrim` | 使用不透明的 `mediaLabelSurface` |
+| `CoachUiColors.landingHighlight` | 删除赋值；落地装饰描边已移除，无替代参数 |
+| `CoachChatList.topColor`、示例 `HostConversation.topColor` | 删除参数，改为注入 `CoachUiColors.background` |
+
+直接构造 `CoachUiColors` 时还须提供 `background`、`outline`、`shadow`；也可从 `CoachUiColors.light` / `.dark` 或 `fromTheme(...)` 起步再 `copyWith(...)`。`surface` 为内容卡片层，`surfaceRaised` 为控件层；所有承载面在绘制时强制不透明，阴影颜色可使用低 alpha。没有保留旧参数开关或兼容壳。
+
 | 接口 | 输入与用途 |
 | --- | --- |
-| `CoachChatList` / `CoachChatEntry` | 输入按时间正序的行快照及内容 widget；内部反向列表保证最新消息在底部。接收 App 所有的 `ScrollController`、时间标签 builder、顶部渐隐颜色、输入栏占高、typing widget 和初始已读 ID 集合。`topInset`（默认 0）仅增加列表内容顶部留白，`fadeTop`（默认 true）控制原有顶部渐隐。 |
+| `CoachChatList` / `CoachChatEntry` | 输入按时间正序的行快照及内容 widget；内部反向列表保证最新消息在底部。接收 App 所有的 `ScrollController`、时间标签 builder、输入栏占高、typing widget 和初始已读 ID 集合。顶部渐隐取自主题 `background`；`topInset`（默认 0）仅增加列表内容顶部留白，`fadeTop`（默认 true）控制原有顶部渐隐。 |
 | `CoachMessageBubble` / `CoachBubbleData` | 文字、用户/助理角色、可选标题、选项与已选索引；`optionsActive` 控制可答状态，`onOption` 回传索引。可替换 `optionBuilder`。 |
 | `CoachQuestionBubble` / `CoachQuestionData` / `CoachQuestionMode` | 一个澄清问题，`text` 或 `choice`；支持单选立即回答，多选先切换再确认。接收 `enabled`、`onTextAnswer`、`onChoiceAnswer`。`answered`、`answeredChoices` 用于历史展示。 |
 | `CoachPlanCard` | 接收 `CoachRoutine`、`CoachExerciseLibrary`、`saved`、`landing`；可选 `cutoutTopInset` 指定 cutout 在外卡坐标中的顶部位置，默认 null 保持旧位置。`onStart(CoachOriginRect)`、`onSave()`、`onOpen()` 全由 App 执行。紧凑单动作 130px，多动作 240px；保留展开/收起与减弱动态效果。 |
 | `CoachRoutine` / `CoachRoutineItem` | 预先本地化的标题、总时长、器械/水平/元信息、调整说明和剂量；`detailDose` 可表达循环内单组或一组多段摘要。无网络/训练引擎依赖。 |
 | `CoachExerciseLibrary` / `CoachExercise` / `CoachMediaPalette` | App 可信动作目录的 ID、名称、分类、提示词、主题匹配的 asset 路径、可选动态/静态 cutout 与媒体底色/文字色。路径由 App 解析，勿直接采用模型提供的路径。 |
 | `CoachUiTheme` / `CoachUiStyle` | 按 widget 子树注入 `colors`、`typography`、`strings`、`builders`；各 App 或并列聊天视图可使用不同主题，无全局可变配色。未注入时使用 Flutter Material Theme。 |
-| `CoachUiColors` / `CoachUiTypography` / `CoachUiStrings` | 语义颜色、文字样式、所有固定文案及时间/详情标签函数。`CoachUiTheme` 也把字体样式传给内部文字，App 无需采用任何固定品牌字体。 |
-| `CoachUiBuilders` | 可注入 `pressable`、`controlFace`、`textAction`、`surface`、`icon`、`startButton`，保留现有玻璃/图标/触感体系；可选 `media(context, CoachMediaRequest)` 返回 Widget 或 null（使用默认 Image.asset）。列表、气泡、卡片核心布局仍在 SDK。 |
+| `CoachUiColors` / `CoachUiTypography` / `CoachUiStrings` | 三层表面、前景/状态色、描边/阴影、文字样式、所有固定文案及时间/详情标签函数。提供浅深默认颜色及完整 `copyWith`，默认从 Material Theme 映射。App 无需采用固定品牌或字体。 |
+| `CoachUiBuilders` | 可注入 `pressable`、`controlFace`、`textAction`、`surface`、`icon`、`startButton`，保留宿主图标/触感与表面实现；应遵守不透明分层、原 padding/child 几何与触控语义。可选 `media(context, CoachMediaRequest)` 返回 Widget 或 null（使用默认 Image.asset）。列表、气泡、卡片核心布局仍在 SDK。 |
 | `CoachMediaRequest` | 可信目录中的 `exercise` 与所选 `asset`，以及 `cutout`、`still`、`landing`、`fit`、`alignment`、可选 `semanticLabel`。封面、静态飞行图和缩略图均经过同一 builder。 |
 | `CoachGreetingBlock` / `CoachTimeMark` / `CoachTypingBubble` | 问候、时间及等待气泡。typing 可注入进度标签和取消回调。 |
 | `CoachOptionPill` / `CoachAppear` | 可复用的选项和进入动画；减弱动态效果遵循 `MediaQuery.disableAnimations`。 |
@@ -86,17 +84,16 @@ CoachChatList(
   entries: admittedEntries,
   controller: scrollController,
   timeMarkBuilder: buildTimeMark,
-  topColor: themeBackground,
   topInset: MediaQuery.paddingOf(context).top,
   fadeTop: false,
 );
 ```
 
-内部顶部 padding 为 `48 + topInset`，viewport 的位置和高度不变，因此初始内容有安全留白，滚动后气泡可以进入系统栏背后。`fadeTop: false` 完全不构建顶部 `IgnorePointer` 渐变，避免不透明起始色盖住滚入内容。默认 `topInset: 0, fadeTop: true` 仍使用旧版 48 px 内容留白和 48 px 顶部渐隐；SDK 不自行读取或推断 App 的安全区、系统栏或路由配置。
+内部顶部 padding 为 `48 + topInset`，viewport 的位置和高度不变，因此初始内容有安全留白，滚动后气泡可以进入系统栏背后。`fadeTop: false` 完全不构建顶部 `IgnorePointer` 渐变，避免不透明起始色盖住滚入内容。默认 `topInset: 0, fadeTop: true` 仍使用旧版 48 px 内容留白和 48 px 顶部渐隐，渐隐颜色取 `CoachUiColors.background`。此遮罩仅管理滚动边缘，不提供模糊、折射或材质高光；SDK 不自行读取或推断 App 的安全区、系统栏或路由配置。
 
 ## 接入 ask_user
 
-新接入推荐使用 `ugk_coach` 的纯 Dart [`CoachConversationController`](../../docs/coach-conversation-controller.md)。该入口随拟发布的 `ugk_coach-v0.5.0` 提供，目前仍待审，尚未发布；本 UI 包的运行代码、依赖和版本不变。上方安装表保留已发布的 0.1.1 配套快照，勿把拟发布 tag 当成现有 tag。
+会话状态可使用 `ugk_coach` 的纯 Dart [`CoachConversationController`](../../docs/coach-conversation-controller.md)。本包不依赖 coach/controller；宿主应按自己的已核实版本独立接入，不从 UI 版本推断另一个包的发布状态。
 
 App 把构造好的一个 agent 交给 controller，并监听 `state`。controller 负责等 `send` 返回后才启用已过门禁的问题、单选/多选校验与排序、同步锁定提交、旧问题失效、取消与新对话；App 不再另存一套“当前可答问题”的状态。agent 进度事件仅用于显示进度，不直接启用询问气泡。
 
@@ -191,4 +188,4 @@ final style = CoachUiStyle(
 // CoachUiTheme(style: style, child: HostConversation(...));
 ```
 
-包目录执行 `flutter analyze`、`flutter test`。覆盖文字/单选/多选交互、异步重复提交保护、历史禁用、独立主题和文案、套路展开与操作回调、列表追加，以及公开接入示例。
+包目录执行 `flutter analyze`、`flutter test`。覆盖文字/单选/多选交互、异步重复提交保护、历史禁用、独立主题和文案、套路展开与操作回调、列表追加，以及公开接入示例。`solid_surfaces_test.dart` 还检查浅深默认层级、注入色的实际不透明像素、1px 边线、原控件尺寸和点击；系统栏测试保留真实内容滚入边缘的像素验证。候选的执行结果随集成报告提供，不以测试存在代替通过。

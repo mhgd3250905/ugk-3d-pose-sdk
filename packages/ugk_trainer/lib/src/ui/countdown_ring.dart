@@ -62,7 +62,7 @@ class TrainerCountdownRing extends StatelessWidget {
           progress,
           track: theme.isDark ? theme.surfaceHigh : theme.track,
           color: c,
-          knob: theme.isDark ? const Color(0xFFFFFFFF) : theme.surface,
+          knob: theme.ringKnob,
           glow: theme.isDark,
         ),
         child: Center(

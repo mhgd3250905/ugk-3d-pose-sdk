@@ -218,23 +218,25 @@ void main() {
     expect(r.items.last.status, ItemStatus.notReached);
   });
 
-  testWidgets('glass controls keep button semantics; theme hook keeps glass', (
+  testWidgets('solid controls keep semantics and the injected theme', (
     tester,
   ) async {
     final semantics = tester.ensureSemantics();
     final custom = TrainerTheme.light.copyWith(
-      glassStyle: TrainerGlassStyle.dark,
+      surface: const Color(0xFF243447),
+      surfaceHigh: const Color(0xFF3B4A5E),
+      border: const Color(0xFF52677E),
+      text: const Color(0xFFF8F5EE),
+      shadow: const Color(0x18112233),
+      muted: const Color(0xFFB1A19A),
     );
-    expect(custom.glass, TrainerGlassStyle.dark);
-    expect(TrainerTheme.dark.glass, TrainerGlassStyle.dark);
-    expect(TrainerTheme.light.glass, TrainerGlassStyle.light);
     await tester.pumpWidget(
       MaterialApp(
         home: TrainerPlayer(
           plan: planOf([timed('a', 30)]),
           drillOf: drillOf,
           strings: TrainerStrings.zh(),
-          theme: TrainerTheme.light,
+          theme: custom,
           prepSeconds: 0,
           keepAlive: false,
           mediaBuilder: (_, _) => const SizedBox(height: 100),
@@ -243,8 +245,13 @@ void main() {
       ),
     );
     await tester.pump(const Duration(seconds: 1));
-    expect(find.byType(TrainerGlassButton), findsNWidgets(3));
+    expect(find.byType(TrainerIconButton), findsNWidgets(3));
     expect(find.byType(UgkPlayPauseButton), findsOneWidget);
+    for (final surface in tester.widgetList<TrainerSurface>(
+      find.byType(TrainerSurface),
+    )) {
+      expect(surface.theme, same(custom));
+    }
     final pause = find.semantics.byLabel('暂停训练');
     expect(pause, findsOneWidget);
     expect(
@@ -263,6 +270,61 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('pause')));
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.semantics.byLabel('继续训练'), findsOneWidget);
+
+    final tooltip = tester.widget<Tooltip>(
+      find.descendant(
+        of: find.byKey(const ValueKey('close')),
+        matching: find.byType(Tooltip),
+      ),
+    );
+    expect((tooltip.decoration! as ShapeDecoration).color, custom.surfaceHigh);
+    expect(tooltip.textStyle!.color, custom.text);
+
+    await tester.tap(find.byKey(const ValueKey('discomfort')));
+    await advance(tester, 1);
+    final sheet = find.byType(BottomSheet);
+    final sheetTheme = Theme.of(tester.element(sheet)).bottomSheetTheme;
+    expect(sheetTheme.dragHandleColor, custom.muted);
+    expect(sheetTheme.shadowColor, custom.shadow);
+    final sheetMaterial = tester.widget<Material>(
+      find.descendant(of: sheet, matching: find.byType(Material)),
+    );
+    expect(sheetMaterial.color, custom.surface);
+    expect(
+      ModalRoute.of(tester.element(sheet))!.barrierColor,
+      custom.shadow.withValues(alpha: .32),
+    );
+    await tester.tap(find.byKey(const ValueKey('discomfort-continueEasier')));
+    await advance(tester, 1);
+
+    await tester.tap(find.byKey(const ValueKey('close')));
+    await advance(tester, 1);
+    final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
+    expect(dialog.backgroundColor, custom.surface);
+    expect(dialog.shadowColor, custom.shadow);
+    expect(dialog.surfaceTintColor, custom.surface);
+    final action = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byType(FilledButton),
+    );
+    final button = tester.widget<FilledButton>(action);
+    expect(
+      (button.style!.shape!.resolve({})! as StadiumBorder).side,
+      BorderSide(color: custom.border),
+    );
+    final buttonTheme = FilledButtonTheme.of(tester.element(action)).style!;
+    for (final states in [
+      <WidgetState>{},
+      {WidgetState.pressed},
+      {WidgetState.disabled},
+    ]) {
+      expect(buttonTheme.elevation!.resolve(states), 1);
+      expect(buttonTheme.shadowColor!.resolve(states), custom.shadow);
+    }
+    expect(
+      buttonTheme.overlayColor!.resolve({WidgetState.pressed}),
+      custom.onAccent.withValues(alpha: .1),
+    );
     await tester.pumpWidget(const SizedBox.shrink());
     semantics.dispose();
   });

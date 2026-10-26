@@ -68,27 +68,9 @@ void _expectNoBackdropSampling(WidgetTester tester) {
   expect(tester.layers.whereType<BackdropFilterLayer>(), isEmpty);
 }
 
-void _expectLocalBackdropBounds(WidgetTester tester) {
+void _expectControlBounds(WidgetTester tester) {
   final viewport = tester.getSize(find.byType(Scaffold).first);
-  // Native premium and software fallback may use different sampling paths.
-  // Constrain whichever path is actually present; this does not assert that
-  // the test renderer proves native refraction.
-  for (final filter in find.byType(BackdropFilter).evaluate()) {
-    final size = filter.size!;
-    expect(size.width, lessThanOrEqualTo(viewport.width));
-    expect(size.height, lessThan(viewport.height / 2));
-  }
-  for (final layer in tester.layers.whereType<BackdropFilterLayer>()) {
-    Layer? ancestor = layer.parent;
-    Rect? clip;
-    while (ancestor != null && clip == null) {
-      clip = ancestor.describeClipBounds();
-      ancestor = ancestor.parent;
-    }
-    expect(clip, isNotNull, reason: 'A live glass pass needs a local clip.');
-    expect(clip!.width, lessThanOrEqualTo(viewport.width));
-    expect(clip.height, lessThan(viewport.height / 2));
-  }
+  _expectNoBackdropSampling(tester);
   for (final name in ['info-card', 'prev', 'skip']) {
     final size = tester.getSize(find.byKey(ValueKey(name)));
     expect(size.width, greaterThan(0));
@@ -104,7 +86,7 @@ void main() {
         highContrast
             ? 'high-contrast HUD has no backdrop sampling: '
                   '${theme.brightness.name}'
-            : 'live glass sampling stays within local controls: '
+            : 'solid HUD and controls have no backdrop sampling: '
                   '${theme.brightness.name}',
         (tester) async {
           tester.view.physicalSize = const Size(390, 844);
@@ -142,7 +124,7 @@ void main() {
             if (highContrast) {
               _expectNoBackdropSampling(tester);
             } else {
-              _expectLocalBackdropBounds(tester);
+              _expectControlBounds(tester);
             }
 
             await tester.tap(find.byKey(const ValueKey('pause')));
@@ -151,7 +133,7 @@ void main() {
             if (highContrast) {
               _expectNoBackdropSampling(tester);
             } else {
-              _expectLocalBackdropBounds(tester);
+              _expectControlBounds(tester);
             }
             expect(tester.takeException(), isNull);
           } finally {
@@ -195,7 +177,7 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
-      _expectLocalBackdropBounds(tester);
+      _expectControlBounds(tester);
 
       for (final entry in {
         'buttonDisc': 'button-color',
@@ -226,7 +208,7 @@ void main() {
           find.descendant(
             of: find.byKey(ValueKey(name)),
             // Observe the icon's paragraph, independent of whether its
-            // surrounding material uses a painter or a library renderer.
+            // surrounding solid surface decoration.
             matching: find.byType(RichText),
           ),
           name,

@@ -36,14 +36,19 @@ Widget _host(
         key: _capture,
         child: ColoredBox(
           color: _background,
-          child: CoachChatList(
-            entries: entries,
-            initiallySeen: {for (final entry in entries) entry.id},
-            controller: controller,
-            timeMarkBuilder: (_, _) => const SizedBox.shrink(),
-            topColor: _fade,
-            topInset: topInset,
-            fadeTop: fadeTop,
+          child: CoachUiTheme(
+            style: CoachUiStyle(
+              colors: CoachUiColors.light.copyWith(background: _fade),
+              typography: CoachUiTypography.fromTheme(ThemeData.light()),
+            ),
+            child: CoachChatList(
+              entries: entries,
+              initiallySeen: {for (final entry in entries) entry.id},
+              controller: controller,
+              timeMarkBuilder: (_, _) => const SizedBox.shrink(),
+              topInset: topInset,
+              fadeTop: fadeTop,
+            ),
           ),
         ),
       ),

@@ -264,14 +264,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "6.1.0"
-  liquid_glass_widgets:
-    dependency: transitive
-    description:
-      name: liquid_glass_widgets
-      sha256: "1fd7c1593f19d33fb166179c20b6a5158f67c2cb15ad2087ab3908a5b395a9ea"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.15.0"
   logging:
     dependency: transitive
     description:
@@ -530,7 +522,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.2.10"
+    version: "0.3.0"
   uuid:
     dependency: transitive
     description:

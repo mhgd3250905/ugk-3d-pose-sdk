@@ -147,7 +147,7 @@ void main() {
       );
       record(
         entry.key,
-        find.ancestor(of: label, matching: find.byType(TrainerGlass)),
+        find.ancestor(of: label, matching: find.byType(TrainerSurface)),
       );
     }
     return {

@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 import 'package:ugk_trainer/ugk_trainer.dart';
@@ -35,15 +34,35 @@ class ShowcaseApp extends StatefulWidget {
 
 class _ShowcaseAppState extends State<ShowcaseApp> {
   late ThemeMode _mode = widget.initialTheme;
-  ThemeData _theme(Brightness brightness) => ThemeData(
-    useMaterial3: true,
-    brightness: brightness,
-    fontFamily: widget.fontFamily,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: const Color(0xFF198A71),
+  ThemeData _theme(Brightness brightness) {
+    final palette = brightness == Brightness.dark
+        ? TrainerTheme.dark
+        : TrainerTheme.light;
+    return ThemeData(
+      useMaterial3: true,
       brightness: brightness,
-    ),
-  );
+      fontFamily: widget.fontFamily,
+      scaffoldBackgroundColor: palette.background,
+      colorScheme:
+          ColorScheme.fromSeed(
+            seedColor: palette.accent,
+            brightness: brightness,
+          ).copyWith(
+            surface: palette.background,
+            surfaceContainerLow: palette.surface,
+            surfaceContainerHigh: palette.surfaceHigh,
+            surfaceContainerHighest: palette.surfaceHigh,
+            onSurface: palette.text,
+            onSurfaceVariant: palette.muted,
+            primary: palette.accent,
+            onPrimary: palette.onAccent,
+            outline: palette.border,
+            outlineVariant: palette.border,
+            shadow: palette.shadow,
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
@@ -151,7 +170,7 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      kIsWeb ? '布局预览 · 原生材质请用 APK' : 'UI 展示 · 模拟人物',
+                      'SDK 实色分层 · 模拟人物',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.label.copyWith(fontSize: 12),

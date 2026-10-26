@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 — 2026-10-26
+
+- **Breaking:** remove `liquid_glass_widgets` and every optical/painted glass implementation. Delete `TrainerGlassStyle`, `TrainerGlass`, `TrainerGlassButton`, `TrainerGlassField` and `TrainerHover`, including all material flags and compatibility paths. Use `TrainerSurface` / `TrainerIconButton` and the `background`, `panel`, `control` surface levels instead; no aliases or glass toggle remain.
+- **Breaking:** remove `TrainerTheme.glassStyle`, its constructor/copyWith argument and `glass` getter, plus the unused `scrim` token. Custom themes must provide `border`, `shadow`, `ringKnob` and `accentSubtle`; every token now supports `copyWith`. Remove the stage-only `fadeClipEdge` parameter. Imports of the deleted private optical surface files must be removed.
+- Use three opaque theme-driven surface levels, a low-contrast 1px border and shallow fixed shadow. Remove background sampling, optical shaders, translucent surface stacks, specular gradients and decorative environment lights. Light/dark defaults are supplied; no app-global theme changes or new runtime dependencies are required.
+- Keep the training page's control rectangles and media layout, the interruptible Morph Pulse glyph/colour waves/breath/ripple, gesture/state reconciliation and no-flash colour handover. The disc's base is now opaque; it no longer needs a material-opacity saveLayer. Keep the existing radial progress halo and the non-glass packed-alpha media shader.
+- Refresh the SDK-only acceptance showcase and its evidence for solid surfaces. Full audit and API migration: `docs/solid-layered-audit.md`; checks and current captures: `docs/visual-review.md`. Tags are produced only after the scoped suites pass; main integration requires separate user approval.
+
 ## 0.2.10 — 2026-10-25（已批准版本提交并推进 main）
 
 - Use the tuned Liquid Glass skill recipes for light/dark HUD and hints (thickness 30 / blur 2 / lightIntensity 0.18) and secondary controls (24 / 3 / 0.2), with `liquid_glass_widgets` 1.15.0 premium / clear and its brightness-aware tint. Nested controls share their platter's vibrancy; explicit host `glassStyle` retains its painted path. Preserve v0.2.9 positions, sizes, interactions, repaint boundaries and radial progress halo.

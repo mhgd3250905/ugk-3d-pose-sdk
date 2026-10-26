@@ -32,7 +32,6 @@ class HostConversation extends StatelessWidget {
     required this.onSave,
     required this.onOpen,
     required this.isSaved,
-    required this.topColor,
     this.awaitingQuestionId,
     this.busy = false,
     this.style,
@@ -42,7 +41,6 @@ class HostConversation extends StatelessWidget {
   final CoachExerciseLibrary catalog;
   final String? awaitingQuestionId;
   final bool busy;
-  final Color topColor;
   final CoachUiStyle? style;
   final Future<void> Function(String messageId, String answer) onAnswer;
   final void Function(CoachRoutine, CoachOriginRect) onStart;
@@ -53,7 +51,6 @@ class HostConversation extends StatelessWidget {
   Widget build(BuildContext context) {
     final view = CoachChatList(
       controller: controller,
-      topColor: topColor,
       timeMarkBuilder: (at, now) => CoachTimeMark(at, now: now),
       typing: busy ? const CoachTypingBubble() : null,
       entries: [

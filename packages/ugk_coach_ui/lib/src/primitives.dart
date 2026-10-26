@@ -45,7 +45,8 @@ class CoachPressable extends StatelessWidget {
   final bool? expanded;
   @override
   Widget build(BuildContext context) {
-    final custom = CoachUiTheme.of(context).builders.pressable;
+    final style = CoachUiTheme.of(context);
+    final custom = style.builders.pressable;
     if (custom != null) return custom(context, this);
     Widget result = Semantics(
       button: true,
@@ -69,6 +70,10 @@ class CoachPressable extends StatelessWidget {
                 onTap!();
               },
         style: TextButton.styleFrom(
+          foregroundColor: style.colors.text,
+          disabledForegroundColor: style.colors.faint,
+          overlayColor: style.colors.surfaceRaised,
+          splashFactory: NoSplash.splashFactory,
           padding: EdgeInsets.zero,
           minimumSize: Size.zero,
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -97,14 +102,22 @@ class CoachControlFace extends StatelessWidget {
     if (style.builders.controlFace case final builder?) {
       return builder(context, this);
     }
-    return Container(
-      padding: padding,
+    return ConstrainedBox(
       constraints: BoxConstraints(minHeight: minHeight),
-      decoration: ShapeDecoration(
-        color: style.colors.thumb,
-        shape: const StadiumBorder(),
+      child: DecoratedBox(
+        decoration: ShapeDecoration(
+          color: style.colors.surfaceRaised.withValues(alpha: 1),
+          shape: StadiumBorder(side: BorderSide(color: style.colors.outline)),
+          shadows: [
+            BoxShadow(
+              color: style.colors.shadow,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(padding: padding, child: child),
       ),
-      child: child,
     );
   }
 }
@@ -132,11 +145,25 @@ class CoachTextAction extends StatelessWidget {
     }
     return TextButton(
       onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: color ?? style.colors.accentText,
+        disabledForegroundColor: style.colors.faint,
+        overlayColor: style.colors.surfaceRaised,
+        splashFactory: NoSplash.splashFactory,
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) CoachIcon(icon!, color: color),
-          Text(label, style: style.typography.callout.copyWith(color: color)),
+          if (icon != null)
+            CoachIcon(icon!, color: color ?? style.colors.accentText),
+          Text(
+            label,
+            style: style.typography.callout.copyWith(
+              color: onPressed == null
+                  ? style.colors.faint
+                  : color ?? style.colors.accentText,
+            ),
+          ),
         ],
       ),
     );
@@ -161,14 +188,23 @@ class CoachCardSurface extends StatelessWidget {
     if (style.builders.surface case final builder?) {
       return builder(context, this);
     }
-    return Container(
+    return SizedBox(
       width: width,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: style.colors.surface,
-        borderRadius: BorderRadius.circular(radius),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: style.colors.surface.withValues(alpha: 1),
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(color: style.colors.outline),
+          boxShadow: [
+            BoxShadow(
+              color: style.colors.shadow,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
       ),
-      child: child,
     );
   }
 }
@@ -198,7 +234,7 @@ class CoachIcon extends StatelessWidget {
         CoachGlyph.stop => Icons.stop,
       },
       size: size,
-      color: color,
+      color: color ?? style.colors.text,
     );
   }
 }
@@ -219,17 +255,27 @@ class CoachStartButton extends StatelessWidget {
       tooltip: style.strings.start,
       onTap: onTap,
       haptic: CoachHaptic.medium,
-      child: Container(
+      child: SizedBox(
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: style.colors.emphasis,
-        ),
-        child: CoachIcon(
-          CoachGlyph.play,
-          filled: true,
-          color: style.colors.onEmphasis,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: style.colors.emphasis.withValues(alpha: 1),
+            border: Border.all(color: style.colors.outline),
+            boxShadow: [
+              BoxShadow(
+                color: style.colors.shadow,
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: CoachIcon(
+            CoachGlyph.play,
+            filled: true,
+            color: style.colors.onEmphasis,
+          ),
         ),
       ),
     );

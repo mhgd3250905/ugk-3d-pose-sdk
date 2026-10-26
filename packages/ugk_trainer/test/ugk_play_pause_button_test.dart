@@ -151,6 +151,58 @@ void main() {
     messenger.setMockMethodCallHandler(SystemChannels.platform, null);
   });
 
+  for (final reduced in [false, true]) {
+    testWidgets(
+      'solid disc stays opaque across interrupted waves, reduced=$reduced',
+      (tester) async {
+        final theme = TrainerTheme.light.copyWith(
+          accent: const Color(0xFF306AC7),
+          pausedColor: const Color(0xFFBC493A),
+        );
+        await _mount(tester, theme: theme, reduced: reduced);
+        Future<void> checkDisc({Color? expected}) async {
+          final pixels = await _paintPixels(
+            tester,
+            _painter(tester, 'button-color'),
+            76,
+          );
+          const width = 76 * 4;
+          for (final point in const [
+            Offset(38, 12),
+            Offset(12, 38),
+            Offset(38, 38),
+            Offset(64, 38),
+          ]) {
+            final at =
+                ((point.dy.toInt() * 4) * width + point.dx.toInt() * 4) * 4;
+            expect(pixels[at + 3], 255, reason: 'Disc must hide the stage');
+            if (expected != null) {
+              final argb = expected.toARGB32();
+              expect(pixels.sublist(at, at + 3), [
+                (argb >> 16) & 255,
+                (argb >> 8) & 255,
+                argb & 255,
+              ]);
+            }
+          }
+        }
+
+        await checkDisc(expected: theme.pausedColor);
+        await tester.tap(_button);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 70));
+        await checkDisc();
+        await tester.tap(_button);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 40));
+        await checkDisc();
+        await tester.pump(const Duration(milliseconds: 600));
+        await checkDisc(expected: theme.pausedColor);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('rapid reversals keep the current morph and colour composite', (
     tester,
   ) async {

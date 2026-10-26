@@ -1,14 +1,26 @@
-# ugk_trainer 0.2.10
+# ugk_trainer 0.3.0
 
-## 0.2.10：Liquid Glass 与主线推进
+## 实色分层与不兼容迁移
 
-用户已批准本轮版本提交并推进 main。浅深 HUD、提示与次级按钮采用技能中已调过的 premium / clear 光学配方：accessory 30 / 2 / 0.18，control 24 / 3 / 0.2，保留旧版位置、尺寸、回调与重绘边界；公开调用方式不变。Cupertino 图标、下一动作占位符及指导语一并统一，显式 `glassStyle` 保留宿主材质。独立 [展示入口](example/README.md)、[布局与检查记录](docs/visual-review.md)及[材质说明](docs/liquid-glass-design.md)随版本保存。
+默认界面统一为三个不透明层级：`TrainerTheme.background` 页面、`surface` 内容面、`surfaceHigh` 抬升控件；配合主题 `border` 的 1px 低对比描边与 `shadow` 的轻固定阴影。浅深默认值及完整 `copyWith` 可直接使用，颜色只来自传入的主题 token。`TrainerSurface`、`TrainerIconButton` 取代旧材质组件，没有背景模糊、玻璃 shader、仿玻璃半透明面或兼容开关。
 
-`liquid_glass_widgets 1.15.0` 的原生辅助插件要求 iOS 15+。Web 和软件图仅供布局、文字与交互检查，不代表原生折射；R4 原生视觉、真实透明视频与设备性能尚未实测。用户禁止启动模拟器，本轮不再启动。此次只推进 main，不发布新 tag。
+| 删除的 API | 0.3.0 迁移 |
+| --- | --- |
+| `TrainerGlassStyle`、`TrainerTheme.glassStyle` / `.glass` | 删除材质对象与赋值；向 `TrainerTheme` 注入实色角色 |
+| `TrainerGlass` 及 `overMedia` / `control` / `pressed` | 使用 `TrainerSurface(level: TrainerSurfaceLevel.background/panel/control)` |
+| `TrainerGlassButton` / `overMedia` | 使用 `TrainerIconButton`，原 callback/tooltip/size 保留 |
+| `TrainerGlassField`、`TrainerHover` | 删除旧环境光或悬浮材质包装 |
+| `TrainerTheme.scrim`、`TrainerStageFloor.fadeClipEdge` | 删除旧参数 |
+
+直接构造主题还需提供 `border`、`shadow`、`ringKnob`、`accentSubtle`。从 `TrainerTheme.light` / `.dark` 的 `copyWith(...)` 起步可减少迁移代码；表面填色强制不透明，阴影允许低 alpha。
+
+训练页现有位置、尺寸、交互和媒体布局保持。防闪颜色交接、Morph Pulse 形变/时序/呼吸/ripple 和径向进度 halo 保留；普通进入/退出与按压反馈使用位移、缩放、淡入。`packed_alpha.frag` 是透明视频合成，不属于玻璃，继续保留。更完整的删除清单与保留理由见[实色分层审计](docs/solid-layered-audit.md)。
+
+仓内[验收展示](example/README.md)支持四训练状态、浅/深/跟随系统；[当前图与检查](docs/visual-review.md)绑定本轮源文件。Web 可检查新的实色界面与交互，原生媒体、设备性能和 iOS 构建仍需对应验证。本轮不启动模拟器。版本在候选分支完成并发新 tag 后，main 合入与推送另等用户批准。
 
 ## 0.2.9：拼接 alpha 视频（随 0.2.10 纳入主线）
 
-下方设备数据保留为 0.2.8 / 0.2.9 当时渲染路径的历史证据，不作为 0.2.10 光学采样材质的性能保证。
+下方设备数据保留为 0.2.8 / 0.2.9 当时渲染路径的历史证据，不作为当前 0.3.0 实色版本的设备性能证明。
 
 推荐通过 `DrillMediaView` 接入，资源审核与测试构建开关由 App 管理：
 
@@ -52,7 +64,7 @@ final snapshot = await playback.capture();
 
 2026-10-25，同一 Android 真机 Impeller Vulkan 的 Profile 复测：浅色稳态/切换 Raster P99 为 **8.427/8.312ms**，深色为 **8.059/7.086ms**，四个窗口均无 Raster 超过 16.67ms 的帧。稳态各 20 秒，切换各 14 秒（上一/下一各 5 次）；只复测受影响场景，没有跑全量测试。数据来自引擎 FrameTiming，不等同于硬件呈现帧率。
 
-0.2.8 当时的分支性能修复将信息卡和相邻按钮改为无采样绘制，并隔离倒计时/按钮重绘、将环头柔光改为径向渐变。0.2.10 继续保留重绘边界与 halo，材质已按用户最新要求改为局部光学采样。原定向 SDK 22/22、SmartFit 9/9 及以下设备记录属于旧版本，不代替新材质的 release 复测。
+0.2.8 当时的分支性能修复将信息卡和相邻按钮改为无采样绘制，并隔离倒计时/按钮重绘、将环头柔光改为径向渐变。0.2.10 当时保留重绘边界与 halo，并采用局部光学采样；当前 0.3.0 已删除该材质。原定向 SDK 22/22、SmartFit 9/9 及以下设备记录属于旧版本，不代替新材质的 release 复测。
 
 重连真机后的 `candidateResumeFull` profile 五场景记录如下。首次进入取有效 3 秒，UI 最慢帧为 13.246ms、Raster 最慢帧为 21.407ms，满足入口不超过 33ms 的本轮门槛。
 

@@ -100,24 +100,35 @@ void main() {
     expect(settled, prep);
   });
 
-  test('media chips: light frost in light mode, dark smoke in dark', () {
-    expect(TrainerGlassStyle.light.overMediaIsLight, isTrue);
-    expect(TrainerGlassStyle.dark.overMediaIsLight, isFalse);
-    expect(TrainerTheme.light.glass.overMediaIsLight, isTrue);
-    expect(TrainerTheme.dark.glass.overMediaIsLight, isFalse);
+  test('both default themes have three opaque surface levels', () {
+    for (final theme in [TrainerTheme.light, TrainerTheme.dark]) {
+      final surfaces = [theme.background, theme.surface, theme.surfaceHigh];
+      expect(surfaces.map((color) => color.a), everyElement(1));
+      expect(surfaces.toSet(), hasLength(3));
+      expect(theme.track.a, 1);
+    }
   });
 
-  testWidgets('HUD chips on the clip take no backdrop sample', (tester) async {
+  testWidgets('HUD surfaces remain opaque without backdrop sampling', (
+    tester,
+  ) async {
     await pump(tester);
     await until(tester, find.byKey(const ValueKey('discomfort')));
-    final onMedia = find.byWidgetPredicate(
-      (w) => w is TrainerGlass && w.overMedia,
-    );
-    expect(onMedia, findsWidgets);
+    final surfaces = find.byType(TrainerSurface);
+    expect(surfaces, findsWidgets);
     expect(
-      find.descendant(of: onMedia, matching: find.byType(BackdropFilter)),
+      find.descendant(of: surfaces, matching: find.byType(BackdropFilter)),
       findsNothing,
     );
+    for (final widget in tester.widgetList<DecoratedBox>(
+      find.descendant(of: surfaces, matching: find.byType(DecoratedBox)),
+    )) {
+      final decoration = widget.decoration;
+      if (decoration is ShapeDecoration) {
+        expect(decoration.color?.a, 1);
+        expect(decoration.gradient, isNull);
+      }
+    }
   });
 
   // sdk-stage-r8: 完成本组 sits in the transport, below the clip's bottom

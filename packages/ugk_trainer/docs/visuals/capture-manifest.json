@@ -1,6 +1,10 @@
 {
-  "base_tag": "ugk_trainer-v0.2.9",
-  "base_commit": "953be22414f23128af879dc62686db200db34265",
+  "base_commit": "e6dd32d90d0533aecf595f17f002701c0bec7d7a",
+  "candidate_branch": "codex/solid-layered-ui",
+  "versions": {
+    "ugk_trainer": "0.3.0",
+    "ugk_coach_ui": "0.2.0"
+  },
   "renderer": "Flutter test software renderer; NOT Android/iOS/device evidence",
   "flutter": "3.47.8",
   "dart": "3.13.7",
@@ -14,44 +18,18 @@
   ],
   "pixel_ratio": 2,
   "capture_time_ms": 1000,
-  "font": "Microsoft YaHei (local only, not redistributed)",
   "debugDisableShadows": false,
-  "candidate_source_sha256": {
-    "lib/src/ui/trainer_player.dart": "47c88a557904ad10d9408f79a1c384e48afd026b65ce72356dc79f59325ea34a",
-    "lib/src/ui/trainer_theme.dart": "3c367c8e04e9da54dbc43c38b8c80acb2ff8283cf6cd1bb2e976f5a64f805e45",
-    "lib/src/ui/trainer_glass.dart": "f22af2753d2b030591bf5ac6694a91e3764b371ba41cff08ceb28364d20e25ce",
-    "lib/src/ui/trainer_stage.dart": "bd2e156d7082e5fb5e7f70375ac4d92d7a7ff88333b0027df08bc71642eb10ae",
-    "lib/src/ui/trainer_result_surface.dart": "7308c2472f775b1e1c6a1402db762e4e692e84c7f9aa239a00a2d2656f96cd31",
-    "lib/src/ui/ugk_play_pause_button.dart": "3659c4738fe8288a6f4ae29a79afdd08853063417245f2bb066d2bb81a1cf4cd",
-    "pubspec.yaml": "9cc9b69daea95c519586afec8e00c66d5d68b2cc2871f7a52edf28dcdda84841",
-    "example/pubspec.lock": "04c077c946912c2d37e1a727e445f2374966893950a8d182dbeb8db1f2936541",
-    "example/lib/main.dart": "d46b9066a264e0c8d8bd62845295e7e6b595abb163a4ed628f0968fba07e6f65",
-    "example/test/showcase_test.dart": "9f592dbd3e02f1ce639d056b86828d4a254cdc02d6f52acec0985fe72de560f6",
-    "lib/src/ui/trainer_header_surface.dart": "2f28c76cee026f80d945590b1d0e7c791fcb65c80d12895cfdd8268e5bc43f67",
-    "lib/src/ui/trainer_control_surface.dart": "43b211809b2c3eb7cbfe87864830469f5a5075534820216e06103129f79e938a",
-    "test/player_repaint_isolation_test.dart": "53c680e4710e8a224605c3ac6ca66f302c07699c68d4a2adf2cab1132ab0df38"
+  "font": "Microsoft YaHei (local only, not redistributed)",
+  "checks": {
+    "trainer_tests": 257,
+    "coach_ui_tests": 33,
+    "showcase_tests": 4,
+    "protocol_tests": 8,
+    "analyses": "3 passed",
+    "web_release": "passed",
+    "android_debug": "passed"
   },
-  "images_sha256": {
-    "after-rest-dark.png": "bf70feaf6116cec42e64e7d387460ec1a39bb35050f36978fbf0f12dead6d534",
-    "after-rest-light.png": "00590bf7cdf71b14f367574d3f55a1dbb2a854163409db0e781ea60d04b55a12",
-    "after-result-dark.png": "5ab227730bd31c36463f97afbb0759a98c1086d1471102372498b90f7a52a2c4",
-    "after-result-light.png": "2aced800a58a0e34d5f7faba0c7f3c9307d45f587c2c5de5a560c6515feaaec7",
-    "after-training-dark.png": "8c2f06e81c872f1e8172e43d8d67e11e04eb104b0526d6eba010ef993a8275a0",
-    "after-training-light.png": "ddd1a6b4f2fd9992d79e150b7c21e8207d8c42ca3465387ccd6ed4d16c3f2519",
-    "after-transition-dark.png": "5f875e70c1f495cac356465a2f8dc41865fd39b5a38a65e4f77190187008c8ad",
-    "after-transition-light.png": "a04991782a8bd3b93e9ceb5fa12df21036522a03e0ba06635cc4cc4a74d8f1fb",
-    "before-rest-dark.png": "596e280cbf5da0b416b7e5671ab2d15535cc949e4117caebb1f878229cf03491",
-    "before-rest-light.png": "7db136c663dcc9b01ac2a228cc8867b2987d408bd6a9989fa07fa4149542fa0e",
-    "before-result-dark.png": "d6dc35abd1b13ba8e5adb4948174b012b7e6b0cf58fc98443ac695efd4e490f5",
-    "before-result-light.png": "c46d272b62f05678074e21c9e49fb951e5207c606ae2d13239717acb4d53e1ea",
-    "before-training-dark.png": "cb16af93a9935b2aa6ec06b6566217c759605fc2f4a91600499c24cacdeb4bf3",
-    "before-training-light.png": "9f18a3c66cd533eb62c6a923d42e2e6f4840b8bca6d1e349bbe17d3e3d1fcc74",
-    "before-transition-dark.png": "999da5fe6a51c9db6b670caebee7f2cbd6ae3feb5ff856e722828a2fffe61fc6",
-    "before-transition-light.png": "bffa385ee19572262617efea849e3d72c0fd63ad53d4fe0894b2196365380358"
-  },
-  "revision": "R4: tuned UGK Water accessory 30/2/0.18 and control 24/3/0.2 premium clear recipes; native visual validation pending",
-  "result_material_renderer": "liquid_glass_widgets 1.15.0 lightweight software fallback; NOT premium/native proof",
-  "layout_comparison": {
+  "layout": {
     "passed": true,
     "state_theme_pairs": 8,
     "tolerance_dp": 0.01,
@@ -60,56 +38,93 @@
     "max_delta_dp": 0.0,
     "differences": []
   },
-  "apk_sha256": "E92ADB0453505E23EB2DC542A24457031E822C98F5FA652D9BC1DFFAEB322DE4",
-  "apk_bytes": 191833191,
-  "control_material_renderer": "premium requested on supported native Impeller; test and Web fallback are NOT optical previews",
-  "icon_font": "CupertinoIcons 1.0.8 (explicitly loaded by capture harness)",
-  "verification": {
-    "high_contrast_without_sampling": "passed in software tests",
-    "local_sampling_bounds": "passed in software tests; native unverified",
-    "apk_build": "debug, passed, Gradle 17.6 seconds",
-    "showcase_tests": 4,
-    "software_repaint_isolation": "passed",
-    "native_performance": "not run",
-    "sdk_tests": 253,
-    "example_analysis": "passed",
-    "package_analysis": "passed",
-    "sdk_test_concurrency": 2,
-    "native_visual": "not run; simulator prohibited by user and stopped"
+  "preserved_logic": {
+    "morph_state_and_no_flash_handover_unchanged": true,
+    "glyph_and_ripple_painters_unchanged": true,
+    "color_layer_data_unchanged": true
   },
-  "material_recipes": {
-    "body": "clear",
-    "control": [
-      24,
-      3,
-      0.2
-    ],
-    "accessory": [
-      30,
-      2,
-      0.18
-    ],
-    "tint": "library brightness-aware light/dark defaults",
-    "nested_controls": "library vibrancy, shared platter"
+  "dependency_checks": {
+    "resolved_packages_have_no_glass": true,
+    "plugin_graph_has_no_glass": true,
+    "apk_has_no_glass_assets": true,
+    "apk_preserves_packed_alpha_shader": true,
+    "web_has_no_glass_assets": true
   },
-  "captured_source_commit": "4a843a75e496b6d8c0a91a11e37c59f837b0148e",
-  "version_integration": {
-    "date": "2026-10-25 Asia/Shanghai",
-    "trainer_version": "0.2.10",
-    "runtime_source_commit": "4a843a75e496b6d8c0a91a11e37c59f837b0148e",
-    "runtime_source_unchanged": true,
-    "metadata_source_sha256": {
-      "pubspec.yaml": "1388dbcc24eefa7a3b853cfe2bc300932913248d820f5167467ca6c601710adb",
-      "example/pubspec.lock": "39b79c4a9e992910f43c8945ec8343eb8d60879a7690bc3eb3cb23f0b7e7a282"
-    },
-    "checks": {
-      "example_strict_lockfile": "passed",
-      "example_tests": 4,
-      "coach_ui_tests": 23,
-      "coach_ui_analysis": "passed",
-      "player_protocol_tests": 8,
-      "runtime_diff_against_reviewed_commit": "empty"
-    },
-    "new_tag_published": false
-  }
+  "candidate_source_sha256": {
+    "packages/ugk_trainer/lib/engine.dart": "da89a6463497c4612725ade67cc097a2f7b5510524076dcccb6025c8f493fc99",
+    "packages/ugk_trainer/lib/src/engine/session.dart": "b625b666b34ae4864aedc13e32613ef41a5c407df67ef54b55904daee47ff9d5",
+    "packages/ugk_trainer/lib/src/media/asset_router.dart": "d6ac82a0c7ce9db0926fd4c2a383f5375928589b8f59363fbbdfa19105058c2c",
+    "packages/ugk_trainer/lib/src/media/asset_server.dart": "cbe6211a69b6710e73011f49643f31eacf81ca806a96f52af2fafa57ee148731",
+    "packages/ugk_trainer/lib/src/media/drill_media.dart": "28c8555c459b84a8850957a2e703ba1786a177e2390d6cfdd59c102465c0cca6",
+    "packages/ugk_trainer/lib/src/media/drill_media_view.dart": "ac213d4cedb04120d98ef2b93f1cd2e2f750e897f5b0d7d44aeaeb865bdffb57",
+    "packages/ugk_trainer/lib/src/media/media_controller.dart": "4bc51b8766d58027488479ec952e3b9c97c1f7772e0b5bb5cb97b92403dc0651",
+    "packages/ugk_trainer/lib/src/media/media_playback_handle.dart": "1c93d98ca412a6bf93dc16cfcf8650afac2c101672acea2b6c004c2d05a32bba",
+    "packages/ugk_trainer/lib/src/media/media_view.dart": "ff74e2cbad02053d8d5afccfb4e9d66b9a5a8e823daad4c2dd1ac9a20d0e4d42",
+    "packages/ugk_trainer/lib/src/media/media_view_native.dart": "6a80f817b8f5ccea6923730ac350bdd59127f52ecfac0e4ded868146ea6b0984",
+    "packages/ugk_trainer/lib/src/media/media_view_stub.dart": "168b07b12e30e0eb85e91326dbc6c5c143920f978e6583805d27ee3964e9fb91",
+    "packages/ugk_trainer/lib/src/media/media_view_web.dart": "b46f5780b16fd60b240b7f292e7734a092b41a0d1e0908f72d8ddda5c5a4dacd",
+    "packages/ugk_trainer/lib/src/media/packed_alpha_platform.dart": "48a5e01f315ed8c6b56dcb7cf46a19419a6df061c10ff5267a873e1cd2ce54d2",
+    "packages/ugk_trainer/lib/src/media/packed_alpha_video.dart": "323483804d979e2931f79af38b774616ac2bc6092585d1ab97d46e4271729d25",
+    "packages/ugk_trainer/lib/src/media/training_media_models.dart": "997a5fc71c7b8454647a9b78bc369d929806bf691553adae1a1eac08a566d3bd",
+    "packages/ugk_trainer/lib/src/media/training_media_preview_policy.dart": "0346e3f713ec474137a13dd81c6b4d3d64e52e24991ee4e45ddbd023fa1cf5da",
+    "packages/ugk_trainer/lib/src/media/training_media_repository.dart": "9d70d309b820253102ead6163645af143ecd2543abd6e7daf016b9e81b2508e9",
+    "packages/ugk_trainer/lib/src/media/training_media_storage.dart": "69d6c03d37de35e7c38d10c1cd507a7e20ca96a81c5094ca1e853e90252538c7",
+    "packages/ugk_trainer/lib/src/media/training_media_storage_native.dart": "2871ad0ceda041a154b4c049141563fc137af23756fcdff6b2fe54c50593fc76",
+    "packages/ugk_trainer/lib/src/media/training_media_storage_stub.dart": "cb03109e9e66464d7a8d107ee48a290155bbc77ec09b534e4573d9f2f74692dc",
+    "packages/ugk_trainer/lib/src/platform/screen_awake.dart": "96719bae5e815a95d324c55bf67c97dddecb90444596abc9bd3e6d0d9cfc89b8",
+    "packages/ugk_trainer/lib/src/platform/training_keep_alive.dart": "a1292696b063b1ba5d24cc851c84d7d34e2546e4373d09f76ae5d9080f092bd9",
+    "packages/ugk_trainer/lib/src/result/session_result.dart": "3245e1d604ba8cc93eb296704614fc90517ffaf69ccb4f088a571593a3f8edf3",
+    "packages/ugk_trainer/lib/src/rhythm/action_kind.dart": "6d1a075f924d7d51c7006d81cc4b9338ff8cc168fe055f9d797e4d6030542ece",
+    "packages/ugk_trainer/lib/src/rhythm/rhythm.dart": "b76c308228a91bde92944be1d54b4a02b2c57030229e449af53b1746d83e23a8",
+    "packages/ugk_trainer/lib/src/ui/countdown_ring.dart": "eb5f85a8039a7bc4e951ca20c108b46895e7e743716d2f997cbb0b7e06bae7fa",
+    "packages/ugk_trainer/lib/src/ui/trainer_player.dart": "654dee192e2321900564d98b2715352c04adfbb399b15dc420b268f72785beb2",
+    "packages/ugk_trainer/lib/src/ui/trainer_stage.dart": "fd693fdbe5b1ed6822887c1645d9fbd1496eee3550ad03e4d036ca1f087c7db0",
+    "packages/ugk_trainer/lib/src/ui/trainer_strings.dart": "a31e7695bf2bb9b82477ffa61470d64383af34cc5d22046007cc3453478ff929",
+    "packages/ugk_trainer/lib/src/ui/trainer_surface.dart": "ecd7723a065b9e94e901b3cce59ea7043bc505df23ce9fe774049ec9f22a23bb",
+    "packages/ugk_trainer/lib/src/ui/trainer_theme.dart": "2460a1aa504bc0129e16fc2c427c4151d56917a0dffcada8bdf44acbac08ad96",
+    "packages/ugk_trainer/lib/src/ui/ugk_play_pause_button.dart": "d39fc35e719f8978ebeb1d6764b02f596dde2af9a55ab414916e35c0f4c317aa",
+    "packages/ugk_trainer/lib/src/voice/drill_pack_voice_source.dart": "d0e1a6cd2a34de71a15a1a563f3dfcad80f98369ce52af80c5b7936bb8c92ce0",
+    "packages/ugk_trainer/lib/src/voice/just_audio_output.dart": "9bfb942121071641da9920ad37a0afca904c2020ccb12576784f992a1cce71f2",
+    "packages/ugk_trainer/lib/src/voice/manifest_voice_source.dart": "de1cb50fe988bbcb0643d96bf96ab9ab846845fbab880e93871ae0a3797ef293",
+    "packages/ugk_trainer/lib/src/voice/session_runner.dart": "8f7048d9fdb1756c1dae4a33e82428ddd579dd7566e2e39bc1ac80fd2bca00cf",
+    "packages/ugk_trainer/lib/src/voice/session_script.dart": "220467338f748f05c28dcc76e4b1a9a7e173ce0608dcd5afabd26a9e01807f7a",
+    "packages/ugk_trainer/lib/src/voice/voice_cue.dart": "51658bdef56a9c8a11a031615e1fc23bcbb1392793fe9b3171d5b6928f717fc5",
+    "packages/ugk_trainer/lib/src/voice/voice_line_controller.dart": "09021612e567b363be3f41c032554ba8ec10a4993bed00857925639e5cc9d2a1",
+    "packages/ugk_trainer/lib/src/voice/voice_queue.dart": "7c8b7d24de01d32eb7d448559e8017c288b0d3a470089431e40e46894de95a59",
+    "packages/ugk_trainer/lib/src/voice/voice_source.dart": "e0cb3aa4f3e9f8ae4909c7569ba93dd233c39d07de5f133e6cdebcd21f73dd07",
+    "packages/ugk_trainer/lib/ugk_trainer.dart": "6f4629ce049f1bee18f8cf0b2c9af32c860550519bb2779aaa2eb20864fa5271",
+    "packages/ugk_trainer/pubspec.yaml": "64044840d23bfd95bb26caf2433e4e3ceb446a2335b88993f14dd53d4dd9cee7",
+    "packages/ugk_coach_ui/lib/src/chat_list.dart": "e7a49d80a08312b805f604cabf3a533a215fc73fa49050b1987fbb48b82dbf21",
+    "packages/ugk_coach_ui/lib/src/message_widgets.dart": "9d186af5bfcd75af179ae3ef5753eea50e48d627c49ade231b6d4e9d0ae34e8c",
+    "packages/ugk_coach_ui/lib/src/models.dart": "60d6328aea5b4dbe5d35934799a9aaf32e7b54e5a413dc4d457411fbcbb9fed6",
+    "packages/ugk_coach_ui/lib/src/plan_card.dart": "993fae3026705ca2a58e29a2360d529b80531ac9e16e324af25502d246b895f2",
+    "packages/ugk_coach_ui/lib/src/primitives.dart": "17f0f7dd2916f2ab0b2fc0cfbf340b418455dd99572d57bd7f5c59afb6b0579c",
+    "packages/ugk_coach_ui/lib/src/question_bubble.dart": "08b34196bc29b23e546651ae0eaece49283a62d779473aadf73eebc8cff2eaef",
+    "packages/ugk_coach_ui/lib/src/theme.dart": "09d1471ab86bcd7a55288884e159f84c33361327c79983e70bad2bf96aac7849",
+    "packages/ugk_coach_ui/lib/ugk_coach_ui.dart": "cd3c2132c7e4290d0c66810fa2c685c93303e6b89a94c0650617afabe6a58cc8",
+    "packages/ugk_coach_ui/pubspec.yaml": "2e4187c7d5fb4314c296c1e70e3651d53dace1accd675c6ad64605baa8eff530",
+    "packages/ugk_trainer/shaders/packed_alpha.frag": "466b60708a36e194a1a8b159e4fef8ca398cab717caa3270a94c279e9b306a39",
+    "packages/ugk_trainer/example/pubspec.lock": "ee1d85e305913eff1c777127eab0d07ad2a5f3636258ad61ef94dd2b25450565",
+    "packages/ugk_trainer/example/lib/main.dart": "dfb3e9a1109ec7aa00e8d77a9bbdb3f6c954a2b787d71ef89927aab0de241ea6",
+    "packages/ugk_trainer/example/test/showcase_test.dart": "084ee52d02757e620f348aeac9477a43d69b8ce6253d27b236c1cb6f5bbc11be"
+  },
+  "images_sha256": {
+    "after-rest-dark.png": "91e38eb01cadeb9d4d6010c6be3b71d4659997f48e4aff4af14ae5b31d25a16f",
+    "after-rest-light.png": "b91a0d81bd97ae038629e7a6dbbcb998a4fa28b529f1bd17c128fbedf1a3afd0",
+    "after-result-dark.png": "88172307f24c1a600b3368b4201466bfc8e6f5341cd417a3fcf5bdcd7baa7e85",
+    "after-result-light.png": "15e499da4858565be249c99a60de4f503b54e632172c57f5b1846b1e6c91b880",
+    "after-training-dark.png": "e3ff36b0691d0c3228a757753a71e86e5ac03b8fa52c098579cf5c30e77caddc",
+    "after-training-light.png": "40533e9e36ca45f4b689a87951a650314c30139f3b0607bee419d195f841796b",
+    "after-transition-dark.png": "b204a1f879a67b54aca13fa95f2721c91253c832ad5b37bff802ade5e876eed8",
+    "after-transition-light.png": "0cfee38e1a002dc7ba459b9f3aa6d39f8a47a70891595e2165f18a227497d771"
+  },
+  "artifacts_sha256": {
+    "packages/ugk_trainer/example/build/web/main.dart.js": "60041d88750055be19ecdf1eb8786025fa46fb77294c10bf1e052a1494a1d19f",
+    "packages/ugk_trainer/example/build/app/outputs/flutter-apk/app-debug.apk": "3f1a3dd97ba7cb47b0b13d0b860201c4d459a42f01593e370dedea76ee13dbfe"
+  },
+  "acceptance_limits": [
+    "No emulator/device launch or install",
+    "No iOS build or native performance acceptance",
+    "Main merge and push require Kai approval"
+  ]
 }

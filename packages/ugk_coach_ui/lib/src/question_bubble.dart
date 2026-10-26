@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart' show CupertinoTheme;
 import 'models.dart';
 import 'theme.dart';
 import 'message_widgets.dart';
@@ -72,8 +73,16 @@ class _CoachQuestionBubbleState extends State<CoachQuestionBubble> {
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: style.colors.assistantBubble,
+            color: style.colors.assistantBubble.withValues(alpha: 1),
             borderRadius: bubbleRadius(user: false),
+            border: Border.all(color: style.colors.outline),
+            boxShadow: [
+              BoxShadow(
+                color: style.colors.shadow,
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 11),
@@ -81,22 +90,80 @@ class _CoachQuestionBubbleState extends State<CoachQuestionBubble> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(q.question, style: style.typography.body),
+                Text(
+                  q.question,
+                  style: style.typography.body.copyWith(
+                    color: style.colors.text,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 if (q.mode == CoachQuestionMode.text && !q.answered) ...[
-                  TextField(
-                    key: ValueKey('question-input-${q.id}'),
-                    controller: _text,
-                    enabled: _active,
-                    minLines: 1,
-                    maxLines: 4,
-                    textInputAction: TextInputAction.send,
-                    style: style.typography.body,
-                    decoration: InputDecoration(
-                      hintText: style.strings.answerHint,
+                  // A solid backer keeps the original unfilled underline
+                  // geometry, while host decoration/selection tints stay out.
+                  ColoredBox(
+                    color: style.colors.surfaceRaised.withValues(alpha: 1),
+                    child: TextSelectionTheme(
+                      data: TextSelectionThemeData(
+                        cursorColor: style.colors.accent,
+                        selectionColor: style.colors.accentSoft.withValues(
+                          alpha: 1,
+                        ),
+                        selectionHandleColor: style.colors.accent,
+                      ),
+                      child: CupertinoTheme(
+                        // iOS handles resolve through CupertinoTheme rather
+                        // than Material's TextSelectionTheme.
+                        data: CupertinoTheme.of(context).copyWith(
+                          primaryColor: style.colors.accent,
+                          selectionHandleColor: style.colors.accent,
+                        ),
+                        child: TextField(
+                          key: ValueKey('question-input-${q.id}'),
+                          controller: _text,
+                          enabled: _active,
+                          minLines: 1,
+                          maxLines: 4,
+                          textInputAction: TextInputAction.send,
+                          style: style.typography.body.copyWith(
+                            color: style.colors.text,
+                          ),
+                          cursorColor: style.colors.accent,
+                          decoration: InputDecoration(
+                            filled: false,
+                            fillColor: style.colors.surfaceRaised.withValues(
+                              alpha: 1,
+                            ),
+                            focusColor: style.colors.surfaceRaised.withValues(
+                              alpha: 1,
+                            ),
+                            hoverColor: style.colors.surfaceRaised.withValues(
+                              alpha: 1,
+                            ),
+                            hintText: style.strings.answerHint,
+                            hintStyle: style.typography.body.copyWith(
+                              color: style.colors.muted,
+                            ),
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(
+                                color: style.colors.outline,
+                              ),
+                            ),
+                            disabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(
+                                color: style.colors.outline,
+                              ),
+                            ),
+                            focusedBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(
+                                color: style.colors.accent,
+                              ),
+                            ),
+                          ),
+                          onChanged: (_) => setState(() {}),
+                          onSubmitted: (_) => _sendText(),
+                        ),
+                      ),
                     ),
-                    onChanged: (_) => setState(() {}),
-                    onSubmitted: (_) => _sendText(),
                   ),
                   CoachTextAction(
                     key: ValueKey('question-submit-${q.id}'),
@@ -110,7 +177,9 @@ class _CoachQuestionBubbleState extends State<CoachQuestionBubble> {
                   if (q.multiple && !q.answered)
                     Text(
                       style.strings.multipleHint,
-                      style: style.typography.caption,
+                      style: style.typography.caption.copyWith(
+                        color: style.colors.muted,
+                      ),
                     ),
                   Wrap(
                     spacing: 8,

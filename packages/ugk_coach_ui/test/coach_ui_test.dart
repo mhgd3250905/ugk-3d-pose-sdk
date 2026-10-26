@@ -45,7 +45,6 @@ void main() {
             onSave: (_) {},
             onOpen: (_) {},
             isSaved: (_) => false,
-            topColor: Colors.white,
             awaitingQuestionId: 'host-question',
           ),
         ),
@@ -325,7 +324,6 @@ void main() {
         CoachChatList(
           entries: rows,
           controller: controller,
-          topColor: Colors.white,
           dockHeight: 0,
           initiallySeen: const {'a'},
           timeMarkBuilder: (_, _) => const Text('Today'),

@@ -1,9 +1,5 @@
-// Player-scoped colour, type and spacing tokens. Hosts can continue to
-// supply their own TrainerTheme; the presets give the SDK's light and
-// dark studio surfaces, with one restrained accent for the main action.
+// Player-scoped solid surfaces, semantic colours and typography.
 import 'package:flutter/material.dart';
-
-import 'trainer_glass.dart';
 
 @immutable
 class TrainerTheme {
@@ -12,8 +8,12 @@ class TrainerTheme {
     required this.background,
     required this.surface,
     required this.surfaceHigh,
+    required this.border,
+    required this.shadow,
     required this.track,
+    required this.ringKnob,
     required this.accent,
+    required this.accentSubtle,
     required this.accentText,
     required this.onAccent,
     required this.text,
@@ -22,10 +22,8 @@ class TrainerTheme {
     required this.caution,
     required this.danger,
     required this.mediaStage,
-    required this.scrim,
     this.fontFamily,
     this.radius = 22,
-    this.glassStyle,
     Color? pausedColor,
     Color? onPaused,
   }) : pausedColor = pausedColor ?? danger,
@@ -33,91 +31,84 @@ class TrainerTheme {
 
   final Brightness brightness;
 
-  /// Behind the whole player.
+  /// The three opaque elevation levels: page, panel and raised control.
   final Color background;
-
-  /// Panels (下一个, stats).
   final Color surface;
-
-  /// Circle buttons.
   final Color surfaceHigh;
 
-  /// Ring / progress tracks.
+  /// One-pixel surface separation and the fixed, soft contact shadow.
+  final Color border;
+  final Color shadow;
   final Color track;
+  final Color ringKnob;
 
-  /// The working ring and the running pause disc.
+  /// Primary action, its quiet progress state, and readable foregrounds.
   final Color accent;
+  final Color accentSubtle;
   final Color accentText;
   final Color onAccent;
-
-  /// The resume disc while paused. Hosts may inject a state colour distinct
-  /// from their running accent; existing themes default to [danger].
   final Color pausedColor;
   final Color onPaused;
   final Color text;
   final Color muted;
   final Color faint;
-
-  /// Safety only (不舒服, 换侧).
   final Color caution;
   final Color danger;
 
-  /// Behind a drill clip.
+  /// Opaque background behind native or transparent training media.
   final Color mediaStage;
-
-  /// Labels floating on media (next move, discomfort).
-  final Color scrim;
   final String? fontFamily;
-
-  /// Media / panel corner radius.
   final double radius;
-
-  /// The app's own glass material; null: the matching SDK preset.
-  final TrainerGlassStyle? glassStyle;
-
-  /// Painted translucent glass for controls and HUD pills, without live
-  /// backdrop sampling. Suitable for both native video and alpha media.
-  TrainerGlassStyle get glass =>
-      glassStyle ?? (isDark ? TrainerGlassStyle.dark : TrainerGlassStyle.light);
 
   bool get isDark => brightness == Brightness.dark;
 
-  /// A copy with some tokens replaced (host apps pass their own theme).
+  /// Every visual token can be overridden within the player scope.
   TrainerTheme copyWith({
+    Brightness? brightness,
     Color? background,
     Color? surface,
     Color? surfaceHigh,
+    Color? border,
+    Color? shadow,
+    Color? track,
+    Color? ringKnob,
     Color? accent,
+    Color? accentSubtle,
     Color? accentText,
     Color? onAccent,
     Color? pausedColor,
     Color? onPaused,
     Color? text,
     Color? muted,
+    Color? faint,
+    Color? caution,
+    Color? danger,
+    Color? mediaStage,
     String? fontFamily,
     double? radius,
-    TrainerGlassStyle? glassStyle,
   }) => TrainerTheme(
-    brightness: brightness,
+    brightness: brightness ?? this.brightness,
     background: background ?? this.background,
     surface: surface ?? this.surface,
     surfaceHigh: surfaceHigh ?? this.surfaceHigh,
-    track: track,
+    border: border ?? this.border,
+    shadow: shadow ?? this.shadow,
+    track: track ?? this.track,
+    ringKnob: ringKnob ?? this.ringKnob,
     accent: accent ?? this.accent,
+    accentSubtle: accentSubtle ?? this.accentSubtle,
     accentText: accentText ?? this.accentText,
     onAccent: onAccent ?? this.onAccent,
     pausedColor: pausedColor ?? this.pausedColor,
     onPaused: onPaused ?? this.onPaused,
     text: text ?? this.text,
     muted: muted ?? this.muted,
-    faint: faint,
-    caution: caution,
-    danger: danger,
-    mediaStage: mediaStage,
-    scrim: scrim,
+    faint: faint ?? this.faint,
+    caution: caution ?? this.caution,
+    danger: danger ?? this.danger,
+    mediaStage: mediaStage ?? this.mediaStage,
     fontFamily: fontFamily ?? this.fontFamily,
     radius: radius ?? this.radius,
-    glassStyle: glassStyle ?? this.glassStyle,
   );
 
   static const dark = TrainerTheme(
@@ -125,8 +116,12 @@ class TrainerTheme {
     background: Color(0xFF0C1117),
     surface: Color(0xFF151D25),
     surfaceHigh: Color(0xFF202A33),
-    track: Color(0x24FFFFFF),
+    border: Color(0xFF303B45),
+    shadow: Color(0x1A000000),
+    track: Color(0xFF303D46),
+    ringKnob: Color(0xFFF3F6F7),
     accent: Color(0xFF64DAB5),
+    accentSubtle: Color(0xFF346F5E),
     accentText: Color(0xFF7BE2C1),
     onAccent: Color(0xFF072E23),
     text: Color(0xFFF3F6F7),
@@ -135,16 +130,19 @@ class TrainerTheme {
     caution: Color(0xFFF3A443),
     danger: Color(0xFFEF6A6A),
     mediaStage: Color(0xFF0C1117),
-    scrim: Color(0xA6000000),
   );
 
   static const light = TrainerTheme(
     brightness: Brightness.light,
-    background: Color(0xFFE7ECEF),
+    background: Color(0xFFF2F4F5),
     surface: Color(0xFFFFFFFF),
-    surfaceHigh: Color(0xFFE7EEED),
-    track: Color(0x1C18362C),
+    surfaceHigh: Color(0xFFE8EEF1),
+    border: Color(0xFFD6DEE2),
+    shadow: Color(0x0C17262C),
+    track: Color(0xFFD3DFDA),
+    ringKnob: Color(0xFFFFFFFF),
     accent: Color(0xFF12A97F),
+    accentSubtle: Color(0xFFA8D9CB),
     accentText: Color(0xFF08614B),
     onAccent: Color(0xFF052B21),
     text: Color(0xFF17262C),
@@ -152,8 +150,7 @@ class TrainerTheme {
     faint: Color(0xFF72858B),
     caution: Color(0xFFB8650F),
     danger: Color(0xFFD43F3F),
-    mediaStage: Color(0xFFE7ECEF),
-    scrim: Color(0x8C000000),
+    mediaStage: Color(0xFFF2F4F5),
   );
 
   TextStyle _t(double size, double height, FontWeight w, Color c) => TextStyle(

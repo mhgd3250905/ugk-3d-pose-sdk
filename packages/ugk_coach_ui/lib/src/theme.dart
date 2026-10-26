@@ -9,8 +9,11 @@ class CoachUiColors {
     required this.text,
     required this.muted,
     required this.faint,
+    required this.background,
     required this.surface,
-    required this.thumb,
+    required this.surfaceRaised,
+    required this.outline,
+    required this.shadow,
     required this.accent,
     required this.accentText,
     required this.accentSoft,
@@ -21,16 +24,68 @@ class CoachUiColors {
     required this.emphasis,
     required this.onEmphasis,
     required this.onMedia,
-    required this.mediaScrim,
-    required this.landingHighlight,
+    required this.mediaLabelSurface,
   });
   final Brightness brightness;
-  final Color text, muted, faint, surface, thumb;
+  final Color text, muted, faint;
+
+  /// The three opaque levels: page, content card and raised control.
+  final Color background, surface, surfaceRaised;
+
+  /// A low-contrast 1 px edge and the colour of fixed, shallow shadows.
+  final Color outline, shadow;
   final Color accent, accentText, accentSoft, onAccent;
   final Color userBubble, assistantBubble;
   final CoachMediaPalette stage;
-  final Color emphasis, onEmphasis, onMedia, mediaScrim, landingHighlight;
+  final Color emphasis, onEmphasis, onMedia, mediaLabelSurface;
   bool get isDark => brightness == Brightness.dark;
+
+  static final light = CoachUiColors.fromTheme(ThemeData.light());
+  static final dark = CoachUiColors.fromTheme(ThemeData.dark());
+
+  CoachUiColors copyWith({
+    Brightness? brightness,
+    Color? text,
+    Color? muted,
+    Color? faint,
+    Color? background,
+    Color? surface,
+    Color? surfaceRaised,
+    Color? outline,
+    Color? shadow,
+    Color? accent,
+    Color? accentText,
+    Color? accentSoft,
+    Color? onAccent,
+    Color? userBubble,
+    Color? assistantBubble,
+    CoachMediaPalette? stage,
+    Color? emphasis,
+    Color? onEmphasis,
+    Color? onMedia,
+    Color? mediaLabelSurface,
+  }) => CoachUiColors(
+    brightness: brightness ?? this.brightness,
+    text: text ?? this.text,
+    muted: muted ?? this.muted,
+    faint: faint ?? this.faint,
+    background: background ?? this.background,
+    surface: surface ?? this.surface,
+    surfaceRaised: surfaceRaised ?? this.surfaceRaised,
+    outline: outline ?? this.outline,
+    shadow: shadow ?? this.shadow,
+    accent: accent ?? this.accent,
+    accentText: accentText ?? this.accentText,
+    accentSoft: accentSoft ?? this.accentSoft,
+    onAccent: onAccent ?? this.onAccent,
+    userBubble: userBubble ?? this.userBubble,
+    assistantBubble: assistantBubble ?? this.assistantBubble,
+    stage: stage ?? this.stage,
+    emphasis: emphasis ?? this.emphasis,
+    onEmphasis: onEmphasis ?? this.onEmphasis,
+    onMedia: onMedia ?? this.onMedia,
+    mediaLabelSurface: mediaLabelSurface ?? this.mediaLabelSurface,
+  );
   factory CoachUiColors.fromTheme(ThemeData theme) {
     final c = theme.colorScheme;
     return CoachUiColors(
@@ -38,8 +93,11 @@ class CoachUiColors {
       text: c.onSurface,
       muted: c.onSurfaceVariant,
       faint: c.outline,
-      surface: c.surface,
-      thumb: c.surfaceContainerHighest,
+      background: c.surface,
+      surface: c.surfaceContainerLow,
+      surfaceRaised: c.surfaceContainerHigh,
+      outline: c.outlineVariant,
+      shadow: c.shadow.withValues(alpha: .08),
       accent: c.primary,
       accentText: c.primary,
       accentSoft: c.primaryContainer,
@@ -54,8 +112,7 @@ class CoachUiColors {
       emphasis: c.primary,
       onEmphasis: c.onPrimary,
       onMedia: c.onSurface,
-      mediaScrim: c.scrim.withValues(alpha: .4),
-      landingHighlight: c.onSurface,
+      mediaLabelSurface: c.surfaceContainerHigh,
     );
   }
 }
@@ -166,7 +223,10 @@ class CoachUiTheme extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _CoachUiThemeScope(
     style: style,
-    child: DefaultTextStyle.merge(style: style.typography.body, child: child),
+    child: DefaultTextStyle.merge(
+      style: style.typography.body.copyWith(color: style.colors.text),
+      child: child,
+    ),
   );
 }
 

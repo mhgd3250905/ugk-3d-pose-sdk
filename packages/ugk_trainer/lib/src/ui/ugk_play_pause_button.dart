@@ -7,7 +7,6 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 
 import 'countdown_ring.dart';
-import 'trainer_stage.dart';
 import 'trainer_strings.dart';
 import 'trainer_theme.dart';
 
@@ -424,9 +423,7 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
                         widget.trackColor ??
                         (th.isDark ? th.surfaceHigh : th.track),
                     color: widget.progressColor ?? th.accent,
-                    knob:
-                        widget.knobColor ??
-                        (th.isDark ? Colors.white : th.surface),
+                    knob: widget.knobColor ?? th.ringKnob,
                     glow: !_reduced,
                     glowOpacity: _atmosphere.value,
                     glowBlur: 4,
@@ -451,10 +448,17 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
                   ),
                 ),
               ),
-            TrainerHover(
-              theme: th,
-              lift: 10,
-              inset: .18,
+            DecoratedBox(
+              decoration: ShapeDecoration(
+                shape: const CircleBorder(),
+                shadows: [
+                  BoxShadow(
+                    color: th.shadow,
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: SizedBox.square(
                 dimension: widget.size,
                 child: DecoratedBox(
@@ -463,7 +467,7 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
                   decoration: ShapeDecoration(
                     shape: CircleBorder(
                       side: BorderSide(
-                        color: _focused ? th.accentText : Colors.transparent,
+                        color: _focused ? th.accentText : th.border,
                         width: _focused ? 2.5 : 0,
                         strokeAlign: BorderSide.strokeAlignOutside,
                       ),
@@ -478,6 +482,7 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
                         _newColor,
                         _colorProgress,
                         _reduced,
+                        th.border,
                       ),
                       child: Center(
                         child: Transform.translate(
@@ -522,29 +527,22 @@ class _DiscPainter extends CustomPainter {
     this.newColor,
     this.progress,
     this.reduced,
+    this.borderColor,
   );
   final Color baseColor;
   final List<_ColorLayer> layers;
   final Color? newColor;
   final double progress;
   final bool reduced;
+  final Color borderColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
-    const materialAlpha = .72;
-    // Colour waves must compose before applying the material's opacity.
-    // Otherwise translucent waves accumulate opacity, then visibly jump
-    // when the State settles them into one base colour. This bounded layer
-    // exists only during colour changes; stable/breathing frames paint
-    // directly. No video sample, image filter, or halo change is involved.
-    final compositingColor = layers.isNotEmpty || newColor != null;
-    if (compositingColor) {
-      canvas.saveLayer(
-        rect,
-        Paint()..color = Colors.white.withValues(alpha: materialAlpha),
-      );
-    }
+    // An opaque base remains behind every interrupted wave. Cross-fades only
+    // blend state colours on that base, so settling a wave cannot change the
+    // disc's opacity or expose the background. Morph Pulse timing and state
+    // reconciliation are independent of this material paint.
     void disc(Color color, double amount, bool fade) {
       if (amount <= 0) return;
       canvas.save();
@@ -558,33 +556,9 @@ class _DiscPainter extends CustomPainter {
           ),
         );
       }
-      final alpha =
-          (fade ? amount : 1.0) * (compositingColor ? 1 : materialAlpha);
       canvas.drawOval(
         rect,
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color.lerp(
-                color,
-                Colors.white,
-                .38,
-              )!.withValues(alpha: color.a * alpha),
-              Color.lerp(
-                color,
-                Colors.white,
-                .04,
-              )!.withValues(alpha: color.a * alpha),
-              Color.lerp(
-                color,
-                Colors.white,
-                .12,
-              )!.withValues(alpha: color.a * alpha),
-            ],
-            stops: const [0, .52, 1],
-          ).createShader(rect),
+        Paint()..color = color.withValues(alpha: fade ? amount : 1),
       );
       canvas.restore();
     }
@@ -594,48 +568,12 @@ class _DiscPainter extends CustomPainter {
       disc(layer.color, layer.progress, layer.crossFade);
     }
     if (newColor case final color?) disc(color, progress, reduced);
-    if (compositingColor) canvas.restore();
-
-    // A soft directional reflection and a fine inner edge provide depth
-    // while leaving the middle translucent and the foreground glyph clear.
-    canvas.drawOval(
-      rect.deflate(1.5),
-      Paint()
-        ..shader = const RadialGradient(
-          center: Alignment(-.35, -.85),
-          radius: 1.1,
-          colors: [Color(0x42FFFFFF), Color(0x08FFFFFF), Color(0x00FFFFFF)],
-          stops: [0, .48, 1],
-        ).createShader(rect),
-    );
     canvas.drawOval(
       rect.deflate(.5),
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1
-        ..shader = const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xD9FFFFFF),
-            Color(0x35FFFFFF),
-            Color(0x180D4937),
-            Color(0x70FFFFFF),
-          ],
-          stops: [0, .35, .7, 1],
-        ).createShader(rect),
-    );
-    canvas.drawOval(
-      rect.deflate(2),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = .65
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0x42FFFFFF), Color(0x00FFFFFF), Color(0x19032C23)],
-          stops: [0, .45, 1],
-        ).createShader(rect),
+        ..color = borderColor,
     );
   }
 
@@ -645,6 +583,7 @@ class _DiscPainter extends CustomPainter {
       old.newColor != newColor ||
       old.progress != progress ||
       old.reduced != reduced ||
+      old.borderColor != borderColor ||
       !listEquals(old.layers, layers);
 }
 

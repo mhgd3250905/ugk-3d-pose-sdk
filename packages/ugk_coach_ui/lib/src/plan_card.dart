@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'models.dart';
 import 'theme.dart';
 import 'primitives.dart';
+import 'paint_reveal.dart';
 
 /// The assistant's plan reply: a compact, fixed-height card (like a link
 /// share in a messenger), raised on a static glass-like face;
@@ -27,10 +28,10 @@ import 'primitives.dart';
 /// thumbnails fly on straight lines into their rows (transform only,
 /// ~40 ms apart, one curve with the height), moves hidden behind +N fade
 /// in place, each row's text rises in once its thumbnail is nearly home
-/// and nothing will cross it; ▶ / save fade out and back in
+/// and nothing will cross it; ▶ / save retract and reveal
 /// at their slots instead of travelling. Animated cutouts hold their still
 /// cover during the move. Collapsing mirrors it. Reduced motion: a plain
-/// cross-fade.
+/// bounded paint reveal.
 class CoachPlanCard extends StatefulWidget {
   const CoachPlanCard({
     super.key,
@@ -705,7 +706,7 @@ class _PlanCardState extends State<CoachPlanCard>
         ),
     ];
 
-    // ▶ never travels over the rows: it fades / shrinks out at its folded
+    // ▶ never travels over the rows: it clips / shrinks out at its folded
     // slot, and back in at the open one (and the reverse on fold).
     final play = AnimatedBuilder(
       animation: _expand,
@@ -719,9 +720,9 @@ class _PlanCardState extends State<CoachPlanCard>
             : _Timeline.folded(t, _back);
         final face = IgnorePointer(
           ignoring: o < .5,
-          child: Opacity(
+          child: PaintReveal.fixed(
             key: const ValueKey('plan-start-fade'),
-            opacity: o,
+            fraction: o,
             child: reduced || o == 1
                 ? child
                 : Transform.scale(scale: .7 + .3 * o, child: child),
@@ -827,9 +828,9 @@ class _PlanCardState extends State<CoachPlanCard>
             top: 0,
             height: heroH,
             child: IgnorePointer(
-              child: Opacity(
+              child: PaintReveal.fixed(
                 key: const ValueKey('plan-hero-title'),
-                opacity: o,
+                fraction: o,
                 child: child,
               ),
             ),
@@ -1035,7 +1036,7 @@ class _PlanCardState extends State<CoachPlanCard>
   /// The hero at flight progress [p]: its frame shrinks on a straight line
   /// from the folded hero to row 1's thumbnail (rect and corner radius
   /// lerp together). It shows the still cover throughout; a cutout, framed
-  /// differently from the row's boxed poster, cross-fades into exactly that
+  /// differently from the row's boxed poster, reveals exactly that
   /// thumbnail over the last ~60 ms, so the hand-off is seamless.
   Widget _heroFlyer({
     required CoachExercise? cover,
@@ -1063,13 +1064,13 @@ class _PlanCardState extends State<CoachPlanCard>
             fit: StackFit.expand,
             children: [
               if (poster > 0)
-                Opacity(
-                  opacity: poster,
+                ClipRect(
+                  clipper: MediaSliceClipper(0, poster),
                   child: _Media(exercise: cover),
                 ),
               if (fused && poster < 1 && cover != null)
-                Opacity(
-                  opacity: 1 - poster,
+                ClipRect(
+                  clipper: MediaSliceClipper(poster, 1),
                   child: _mediaImage(
                     context,
                     CoachMediaRequest(
@@ -1085,8 +1086,7 @@ class _PlanCardState extends State<CoachPlanCard>
                     ),
                   ),
                 ),
-              if (!fused && scrim > 0)
-                Opacity(opacity: scrim, child: _heroScrim(stage)),
+              if (!fused && scrim > 0) _heroScrim(stage, strength: scrim),
             ],
           ),
         ),
@@ -1125,7 +1125,7 @@ class _PlanCardState extends State<CoachPlanCard>
 /// The in-place details: the full move list (or a move's cues), notes and
 /// the save footer (the ▶ is laid over its right end). The clip grows on
 /// [height]; each row animates itself (text after its thumbnail lands).
-/// Reduced motion: no height move, the whole block fades.
+/// Reduced motion: no height move, the block reveals within its bounds.
 class _Details extends StatelessWidget {
   const _Details({
     required this.t,
@@ -1175,8 +1175,8 @@ class _Details extends StatelessWidget {
         children: [
           ...rows,
           if (note != null)
-            FadeTransition(
-              opacity: fade,
+            PaintReveal(
+              progress: fade,
               child: Padding(
                 padding: const EdgeInsets.only(top: CoachSpace.x1),
                 child: Text(
@@ -1185,8 +1185,8 @@ class _Details extends StatelessWidget {
                 ),
               ),
             ),
-          FadeTransition(
-            opacity: fade,
+          PaintReveal(
+            progress: fade,
             child: Container(
               margin: const EdgeInsets.only(top: CoachSpace.x2),
               padding: const EdgeInsets.only(
@@ -1215,7 +1215,7 @@ class _Details extends StatelessWidget {
         children: [h, content],
       );
     }
-    if (reduced) content = FadeTransition(opacity: t, child: content);
+    if (reduced) content = PaintReveal(progress: t, child: content);
     if (!clip) return RepaintBoundary(child: content);
 
     return AnimatedBuilder(
@@ -1282,9 +1282,9 @@ class _Header extends StatelessWidget {
                 ),
               );
             },
-            child: FadeTransition(
+            child: PaintReveal(
               key: const ValueKey('plan-header-fade'),
-              opacity: fade,
+              progress: fade,
               child: SlideTransition(
                 position: Tween(
                   begin: const Offset(0, .12),
@@ -1491,8 +1491,8 @@ class _CueRow extends StatelessWidget {
   );
 }
 
-/// A row's text arriving: fade + an 8 px rise (none under
-/// reduced motion, where the whole details block fades instead).
+/// A row's text arriving: paint reveal + an 8 px rise (none under
+/// reduced motion, where the whole details block reveals instead).
 Widget _rowIn({
   Key? key,
   required Animation<double> anim,
@@ -1500,9 +1500,9 @@ Widget _rowIn({
   required Widget child,
 }) => reduced
     ? child
-    : FadeTransition(
+    : PaintReveal(
         key: key,
-        opacity: anim,
+        progress: anim,
         child: AnimatedBuilder(
           animation: anim,
           builder: (context, child) => Transform.translate(
@@ -1841,9 +1841,9 @@ class _SetBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: FadeTransition(
+          child: PaintReveal(
             key: const ValueKey('plan-hero'),
-            opacity: hero,
+            progress: hero,
             child: fused
                 ? cutoutBounds != null
                       ? Stack(
@@ -1897,8 +1897,8 @@ class _SetBody extends StatelessWidget {
             child: Row(
               children: [
                 for (final e in shown) ...[
-                  FadeTransition(
-                    opacity: thumbs,
+                  PaintReveal(
+                    progress: thumbs,
                     child: _Thumb(
                       size: thumb,
                       child: _Media(exercise: e),
@@ -1907,8 +1907,8 @@ class _SetBody extends StatelessWidget {
                   const SizedBox(width: gap),
                 ],
                 if (more > 0)
-                  FadeTransition(
-                    opacity: chip,
+                  PaintReveal(
+                    progress: chip,
                     child: _Thumb(
                       size: thumb,
                       child: ColoredBox(
@@ -1940,19 +1940,20 @@ class _SetBody extends StatelessWidget {
 }
 
 /// Lower scrim over a boxed hero: transparent → stage, under the title.
-Widget _heroScrim(CoachMediaPalette stage) => DecoratedBox(
-  decoration: BoxDecoration(
-    gradient: LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      stops: const [.35, 1],
-      colors: [
-        stage.mediaStage.withValues(alpha: 0),
-        stage.mediaStage.withValues(alpha: .92),
-      ],
-    ),
-  ),
-);
+Widget _heroScrim(CoachMediaPalette stage, {double strength = 1}) =>
+    DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          stops: const [.35, 1],
+          colors: [
+            stage.mediaStage.withValues(alpha: 0),
+            stage.mediaStage.withValues(alpha: .92 * strength.clamp(0.0, 1.0)),
+          ],
+        ),
+      ),
+    );
 
 class _HeroTitle extends StatelessWidget {
   const _HeroTitle({
@@ -2286,8 +2287,8 @@ class _MoveRow extends StatelessWidget {
                 ),
               ),
             ),
-            FadeTransition(
-              opacity: thumb,
+            PaintReveal(
+              progress: thumb,
               child: thumbFor(exercise, key: ValueKey('plan-row-thumb-$index')),
             ),
             const SizedBox(width: CoachSpace.x3),

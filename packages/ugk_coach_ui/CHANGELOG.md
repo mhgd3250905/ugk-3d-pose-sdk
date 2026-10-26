@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4 - 2026-10-26
+
+- Replace conversation arrival and routine expansion subtree alpha with bounded paint reveals and the existing translation/scale paths. Preserve stable row keys, media flight rectangles and start/save/detail callbacks.
+- Paint typing-dot and hero-scrim transparency in their colors; hand over flying media with complementary clips. Remove the unused backdrop group. Host builders continue to own materials, icons and controls.
+- Reduced arrival is immediate. No new host switch or legacy alpha-rendering fallback is added. This is a local candidate; existing tags are unchanged.
+
 ## 0.1.3 - 2026-10-25
 
 - Add optional host media rendering via `CoachUiBuilders.media` and `CoachMediaRequest`. Use the same renderer for folded covers, still cutout flyers and thumbnails; null falls back to the original asset image.

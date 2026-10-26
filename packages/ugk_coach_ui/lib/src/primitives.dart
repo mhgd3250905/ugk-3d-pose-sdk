@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'theme.dart';
+import 'paint_reveal.dart';
 
 enum CoachGlyph { bookmark, chevronRight, play, stop }
 
@@ -270,11 +271,11 @@ class _CoachAppearState extends State<CoachAppear>
     if (_begun) return;
     _begun = true;
     _still = CoachMotion.reduced(context);
-    if (!widget.animate) {
+    if (!widget.animate || _still) {
       _c.value = 1;
       return;
     }
-    final run = _still ? const Duration(milliseconds: 200) : widget.duration;
+    final run = widget.duration;
     final total = widget.delay + run;
     if (total == Duration.zero) {
       _c.value = 1;
@@ -286,7 +287,7 @@ class _CoachAppearState extends State<CoachAppear>
       curve: Interval(
         widget.delay.inMicroseconds / total.inMicroseconds,
         1,
-        curve: _still ? Curves.easeOut : widget.curve,
+        curve: widget.curve,
       ),
     );
     _c.forward();
@@ -307,10 +308,8 @@ class _CoachAppearState extends State<CoachAppear>
       if (identical(_t, kAlwaysCompleteAnimation) || _c.isCompleted) {
         return child!;
       }
-      final o = v.clamp(0.0, 1.0);
-      if (_still) return Opacity(opacity: o, child: child);
-      return Opacity(
-        opacity: o,
+      return PaintReveal.fixed(
+        fraction: v,
         child: Transform.translate(
           offset: Offset(widget.shift * (1 - v), widget.rise * (1 - v)),
           child: Transform.scale(

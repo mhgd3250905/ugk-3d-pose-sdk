@@ -125,23 +125,21 @@ class _CoachChatListState extends State<CoachChatList> {
     });
     return Stack(
       children: [
-        BackdropGroup(
-          child: ListView.builder(
-            controller: widget.controller,
-            reverse: true,
-            padding: EdgeInsets.fromLTRB(
-              CoachSpace.x4,
-              48 + widget.topInset,
-              CoachSpace.x4,
-              widget.dockHeight + CoachSpace.x3,
-            ),
-            itemCount: reversed.length,
-            itemBuilder: (_, i) => reversed[i],
-            findChildIndexCallback: (key) {
-              final i = reversed.indexWhere((w) => w.key == key);
-              return i < 0 ? null : i;
-            },
+        ListView.builder(
+          controller: widget.controller,
+          reverse: true,
+          padding: EdgeInsets.fromLTRB(
+            CoachSpace.x4,
+            48 + widget.topInset,
+            CoachSpace.x4,
+            widget.dockHeight + CoachSpace.x3,
           ),
+          itemCount: reversed.length,
+          itemBuilder: (_, i) => reversed[i],
+          findChildIndexCallback: (key) {
+            final i = reversed.indexWhere((w) => w.key == key);
+            return i < 0 ? null : i;
+          },
         ),
         if (widget.fadeTop)
           IgnorePointer(

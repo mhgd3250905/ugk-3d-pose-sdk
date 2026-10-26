@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_coach_ui/ugk_coach_ui.dart';
+import 'package:ugk_coach_ui/src/paint_reveal.dart';
 
 const _longDose = '每侧完成十二次缓慢下放，最低位置停留三秒，再平稳回到起始位置';
 const _circuitDose = '每轮每侧十二次，缓慢下放三秒，完成后休息三十秒，共循环四轮';
@@ -143,14 +144,14 @@ Rect? _flyerRect(WidgetTester tester, String key) {
   );
 }
 
-double _textOpacity(WidgetTester tester, int i) => tester
-    .widget<FadeTransition>(
+double _textReveal(WidgetTester tester, int i) => tester
+    .widget<PaintReveal>(
       find.descendant(
         of: _row(i),
         matching: find.byKey(const ValueKey('row-text')),
       ),
     )
-    .opacity
+    .progress
     .value;
 
 void _expectAnimationFrame(WidgetTester tester, int rows) {
@@ -160,7 +161,7 @@ void _expectAnimationFrame(WidgetTester tester, int rows) {
     for (var k = 0; k < rows; k++) ?_flyerRect(tester, 'fly-$k'),
   ];
   for (var i = 0; i < rows; i++) {
-    if (_row(i).evaluate().isEmpty || _textOpacity(tester, i) <= 0) continue;
+    if (_row(i).evaluate().isEmpty || _textReveal(tester, i) <= 0) continue;
     final text = tester.getRect(
       find.descendant(
         of: _row(i),
@@ -177,7 +178,7 @@ void _expectAnimationFrame(WidgetTester tester, int rows) {
   }
   final header = find.byKey(const ValueKey('plan-header-fade'));
   if (header.evaluate().isNotEmpty &&
-      tester.widget<FadeTransition>(header).opacity.value > 0) {
+      tester.widget<PaintReveal>(header).progress.value > 0) {
     final text = tester.getRect(
       find.descendant(of: header, matching: find.byType(Column)).first,
     );

@@ -1,4 +1,6 @@
-# ugk_coach_ui 0.1.3
+# ugk_coach_ui 0.1.4
+
+`0.1.4` 本地候选移除消息和计划卡的子树透明合成：入场/展开继续使用原几何时间线、位移和缩放，显隐改为有界裁剪，圆点和scrim直接绘制颜色alpha。列表key、卡片状态、飞图坐标与开始/保存/详情回调保持；材质和图标继续由宿主builders提供。没有新增用户开关或旧透明路径fallback，旧tag不移动；本候选尚未发布。
 
 `0.1.3` 新增可选 `CoachUiBuilders.media` 和 `CoachPlanCard.cutoutTopInset`，让宿主绘制带透明边界裁剪的素材，紧凑封面与展开飞行动画共用同一渲染入口。默认值保持旧素材与卡片几何。测试分支发布 tag 为 `ugk_coach_ui-v0.1.3`，旧 tag 不移动。
 

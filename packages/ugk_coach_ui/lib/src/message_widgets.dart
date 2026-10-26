@@ -312,15 +312,16 @@ class _CoachTypingBubbleState extends State<CoachTypingBubble>
               children: [
                 for (var i = 0; i < 3; i++) ...[
                   if (i > 0) const SizedBox(width: 6),
-                  Opacity(
-                    opacity: .3 + .7 * _pulse((_c.value - i * .18) % 1),
-                    child: SizedBox.square(
-                      dimension: 6,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: CoachUiTheme.of(context).colors.muted,
-                          shape: BoxShape.circle,
+                  SizedBox.square(
+                    dimension: 6,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: CoachUiTheme.of(context).colors.muted.withValues(
+                          alpha:
+                              CoachUiTheme.of(context).colors.muted.a *
+                              (.3 + .7 * _pulse((_c.value - i * .18) % 1)),
                         ),
+                        shape: BoxShape.circle,
                       ),
                     ),
                   ),

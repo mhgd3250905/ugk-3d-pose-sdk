@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 - 2026-10-26（扁平实色收尾，main 待真机确认）
+
+- Finalize the selected flat UI from `c4d251d` and rerun the complete package suite. Runtime source and interaction/layout contracts are unchanged from 0.2.0; the shelved micro-skeuomorphic candidate is excluded.
+- **Migration from 0.1.x:** remove `CoachUiColors.thumb`, `mediaScrim`, `landingHighlight` and `CoachChatList.topColor`; provide `background`, `surfaceRaised`, `outline`, `shadow`, `mediaLabelSurface`. Use `surfaceRaised` and opaque `mediaLabelSurface` for the removed colour roles. These repeat the 0.2.0 breaking changes; this patch adds none.
+- Glass dependencies, background filters and glass switches remain absent. Main merge/push waits for Kai's device confirmation. Final SDK-wide checks are recorded in `../ugk_trainer/docs/flat-closeout-2026-10-26.md`.
+
 ## 0.2.0 - 2026-10-26
 
 - **Breaking:** replace decorative material configuration with opaque semantic surfaces. `CoachUiColors.thumb` is removed in favour of `surfaceRaised`; `mediaScrim` is removed in favour of the opaque `mediaLabelSurface`; `landingHighlight` is removed without a compatibility field. Add `background`, `outline`, `shadow`, complete `copyWith`, and `light` / `dark` defaults.

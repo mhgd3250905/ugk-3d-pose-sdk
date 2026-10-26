@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 — 2026-10-26（扁平实色收尾，main 待真机确认）
+
+- Finalize the selected flat, opaque UI from `c4d251d`; keep runtime code, training layout, no-flash colour handover and Morph Pulse unchanged. Correct two stale README entries that still advertised deleted glass APIs.
+- **Migration from 0.2.x:** `TrainerGlassStyle`, `TrainerGlass`, `TrainerGlassButton`, `TrainerGlassField`, `TrainerHover`, `TrainerTheme.glassStyle` / `glass` / `scrim` and `TrainerStageFloor.fadeClipEdge` are removed. Use `TrainerSurface` / `TrainerIconButton`; direct theme construction requires `border`, `shadow`, `ringKnob` and `accentSubtle`. These are the existing 0.3.0 breaking changes, with no additional API break in this patch.
+- Recheck all tracked production sources/manifests for glass dependencies, background blur, optical shaders and switches. Keep negative regression assertions and historical migration records; the packed-alpha video shader remains a media compositor.
+- Full final verification and the package tag receipt are recorded in `docs/flat-closeout-2026-10-26.md`. Main integration waits for Kai's device confirmation; the shelved micro-skeuomorphic candidate is not part of this release.
+
 ## 0.3.0 — 2026-10-26
 
 - **Breaking:** remove `liquid_glass_widgets` and every optical/painted glass implementation. Delete `TrainerGlassStyle`, `TrainerGlass`, `TrainerGlassButton`, `TrainerGlassField` and `TrainerHover`, including all material flags and compatibility paths. Use `TrainerSurface` / `TrainerIconButton` and the `background`, `panel`, `control` surface levels instead; no aliases or glass toggle remain.

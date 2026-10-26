@@ -1,0 +1,50 @@
+{
+  "selected_runtime_commit": "c4d251dff93360f1fa376132dcad95a8b78fc4d1",
+  "versions": {
+    "ugk_trainer": "0.3.1",
+    "ugk_coach_ui": "0.2.1",
+    "ugk_coach": "0.5.0 unchanged"
+  },
+  "full_suite_counts": {
+    "coach": 471,
+    "trainer": 257,
+    "ui": 33,
+    "example": 4,
+    "player_protocol": 8
+  },
+  "production_files_scanned": 121,
+  "production_glass_hits": 0,
+  "glass_manifest_hits": 0,
+  "shader_assets": [
+    "packages/ugk_trainer/shaders/packed_alpha.frag"
+  ],
+  "layout": {
+    "passed": true,
+    "state_theme_pairs": 8,
+    "tolerance_dp": 0.01,
+    "matched_rects": 106,
+    "matched_absent": 62,
+    "max_delta_dp": 0.0,
+    "differences": []
+  },
+  "new_capture_png_matches_c4d251d": {
+    "after-rest-dark.png": true,
+    "after-rest-light.png": true,
+    "after-result-dark.png": true,
+    "after-result-light.png": true,
+    "after-training-dark.png": true,
+    "after-training-light.png": true,
+    "after-transition-dark.png": true,
+    "after-transition-light.png": true
+  },
+  "root_analysis": {
+    "errors": 0,
+    "existing_warnings": 5,
+    "diagnostic": "unawaited_return_in_try_block",
+    "dart": "3.13.7"
+  },
+  "runtime_and_tests_diff_from_selected_commit": [],
+  "native_acceptance": "pending Kai device confirmation; no emulator/device launch or install",
+  "main_integration": "not merged or pushed; awaiting Kai device confirmation",
+  "shelved_candidate": "fcda16df8feb2f5546fe7818efc40391c6140ade untouched"
+}

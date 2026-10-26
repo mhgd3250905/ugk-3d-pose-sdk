@@ -1,6 +1,6 @@
-# ugk_coach_ui 0.2.0
+# ugk_coach_ui 0.2.1
 
-`0.2.0` 将默认 UI 改为不透明分层表面：页面、内容卡片、抬升控件三个层级，1px 低对比描边和轻固定阴影。颜色仅从注入的 `CoachUiColors` / `CoachMediaPalette` 获取；提供浅深默认值与完整 `copyWith`，没有玻璃开关、光学参数或旧材质兼容别名。本版本为接口不兼容的候选，尚未发布 tag。
+`0.2.1` 沿用已选定的 `c4d251d` 扁平实色界面：页面、内容卡片、抬升控件三个层级，1px 低对比描边和轻固定阴影。颜色仅从注入的 `CoachUiColors` / `CoachMediaPalette` 获取；提供浅深默认值与完整 `copyWith`，没有玻璃开关、光学参数或旧材质兼容别名。从 0.1.x 升级仍需完成下方不兼容迁移，本补丁未增加 API 变更。
 
 聊天/套路卡的既有位置、进入动画、展开测量与媒体飞行保留。`CoachUiBuilders.media`、`cutoutTopInset`、透明素材边界及原回调继续使用；透明的是人物素材及普通淡入动画，内容承载面保持不透明。列表的 `topInset` / `fadeTop` 保留，顶部滚动边缘遮罩不属于材质表面。
 
@@ -10,11 +10,14 @@
 
 ## 安装
 
-本轮 `0.2.0` 尚未发布，不使用一个尚不存在的 tag。仓库内验证可用本地 path 依赖；对外接入应在候选获审并发布后固定已核实的提交或新 tag，旧 tag 不移动。
+收尾 tag 为 `ugk_coach_ui-v0.2.1`，旧 tag 保持不变。仓库内验证也可使用本地 path 依赖；main 等开哥真机确认后再合入与推送。
 
 ```yaml
 ugk_coach_ui:
-  path: path/to/ugk-3d-pose-sdk/packages/ugk_coach_ui
+  git:
+    url: https://github.com/mhgd3250905/ugk-3d-pose-sdk.git
+    path: packages/ugk_coach_ui
+    ref: ugk_coach_ui-v0.2.1
 ```
 
 ```dart

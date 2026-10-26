@@ -1,10 +1,10 @@
-# ugk_trainer 0.3.0
+# ugk_trainer 0.3.1
 
 ## 实色分层与不兼容迁移
 
 默认界面统一为三个不透明层级：`TrainerTheme.background` 页面、`surface` 内容面、`surfaceHigh` 抬升控件；配合主题 `border` 的 1px 低对比描边与 `shadow` 的轻固定阴影。浅深默认值及完整 `copyWith` 可直接使用，颜色只来自传入的主题 token。`TrainerSurface`、`TrainerIconButton` 取代旧材质组件，没有背景模糊、玻璃 shader、仿玻璃半透明面或兼容开关。
 
-| 删除的 API | 0.3.0 迁移 |
+| 删除的 API | 0.3.x 迁移 |
 | --- | --- |
 | `TrainerGlassStyle`、`TrainerTheme.glassStyle` / `.glass` | 删除材质对象与赋值；向 `TrainerTheme` 注入实色角色 |
 | `TrainerGlass` 及 `overMedia` / `control` / `pressed` | 使用 `TrainerSurface(level: TrainerSurfaceLevel.background/panel/control)` |
@@ -16,7 +16,7 @@
 
 训练页现有位置、尺寸、交互和媒体布局保持。防闪颜色交接、Morph Pulse 形变/时序/呼吸/ripple 和径向进度 halo 保留；普通进入/退出与按压反馈使用位移、缩放、淡入。`packed_alpha.frag` 是透明视频合成，不属于玻璃，继续保留。更完整的删除清单与保留理由见[实色分层审计](docs/solid-layered-audit.md)。
 
-仓内[验收展示](example/README.md)支持四训练状态、浅/深/跟随系统；[当前图与检查](docs/visual-review.md)绑定本轮源文件。Web 可检查新的实色界面与交互，原生媒体、设备性能和 iOS 构建仍需对应验证。本轮不启动模拟器。版本在候选分支完成并发新 tag 后，main 合入与推送另等用户批准。
+仓内[验收展示](example/README.md)支持四训练状态、浅/深/跟随系统；[基线图与检查](docs/visual-review.md)保留 `c4d251d` 证据，[0.3.1 收尾记录](docs/flat-closeout-2026-10-26.md)记录本次复核。Web 可检查实色界面与交互，原生媒体、设备性能和 iOS 构建仍需对应验证。本轮不启动模拟器。main 等开哥真机确认后再合入与推送。
 
 ## 0.2.9：拼接 alpha 视频（随 0.2.10 纳入主线）
 
@@ -119,18 +119,18 @@ FlareLab 使用交付回执的 main 完整 SHA 固定依赖；接入后做锁屏
 | `voice/` | `VoiceQueue` / `VoiceLineController` / `JustAudioVoiceOutput`（10-19 安卓修复版）；`SessionScript`（SmartFit 组/轮 + HipLab 节奏计数、换边余量）；`VoiceSource` 接口 + `ManifestVoiceSource` / `DrillPackVoiceSource`；`SessionRunner` | HipLab / SmartFit |
 | `platform/` | `TrainingKeepAlive` / `TrainingHold`（安卓前台服务 + 唤醒锁，本包 Android 插件）、`ScreenAwake`（wakelock_plus） | HipLab |
 | `media/` | `DrillMedia`、`DrillMediaView`（封面 → WebView/iframe 循环示范）、本地资源服务 | SmartFit + 3D-Body web |
-| `ui/` | `TrainerPlayer`、`TrainerTheme`、`TrainerStrings`、倒计时环/数字、`TrainerGlass`、`TrainerStageFloor`、`TrainerHover` | SmartFit 播放页与 PR #6 舞台 UI |
+| `ui/` | `TrainerPlayer`、`TrainerTheme`、`TrainerStrings`、倒计时环/数字、`TrainerSurface`、`TrainerIconButton`、`TrainerStageFloor` | SmartFit 播放页与 PR #6 舞台 UI |
 | `result/` | `SessionResult`（开始即定 `sessionId`）、`SessionRecorder`、`ResultSaver` | 新 |
 
 `package:ugk_trainer/engine.dart` 只导出纯 Dart 部分（可在 `dart test` / 工具里用）；`package:ugk_trainer/ugk_trainer.dart` 导出全部。
 
-## 0.1.7 播放器
+## 播放器接入（沿用 0.1.7 的业务与布局）
 
-[PR #6](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/6) 已于 2026-10-23（Asia/Shanghai）合入 main，合入提交为 `eb29c749a52c1b226841726a3fba8e9f62e9e6be`。播放器采用方形示范画面与舞台地面、玻璃悬浮控件、动作序号和分段进度，倒计时环放在暂停按钮外侧。
+[PR #6](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/6) 已于 2026-10-23（Asia/Shanghai）合入 main，合入提交为 `eb29c749a52c1b226841726a3fba8e9f62e9e6be`。当前播放器保留方形示范画面与舞台地面、动作序号和分段进度；控件使用主题实色表面，倒计时环放在暂停按钮外侧。
 
 自主计次时，“完成本组”与顶部目标剂量同时可见，工作、暂停和下一组均保留目标；宿主 `doseLabel` 继续生效。顶卡、字幕和数字槽随系统 `TextScaler` 调整，倒计时有 `scaleDown` 兜底；已覆盖 1 / 1.5 / 2 倍字号及 390×844 / 844×390 横竖屏。关闭、上一项、暂停/继续、跳过按钮支持 Tab 聚焦及 Enter / Space 激活，并显示焦点环。
 
-原有 `TrainerPlayer` 接入参数继续可用。`TrainerTheme.glassStyle` / `glass` / `copyWith` 提供玻璃主题入口，另导出 `TrainerGlassStyle`、`TrainerGlassButton`、`TrainerGlassField`、`TrainerStageFloor`、`TrainerHover` 和 `TrainerCountdownDigits`。默认媒体以圆角 0 铺入舞台；宿主 `mediaBuilder` 收到的 `TrainerMediaRequest.theme.radius` 同样为 0，可据此保持画面边缘一致。
+原有 `TrainerPlayer` 业务接入参数继续可用。`TrainerTheme` 提供浅深默认 token 和完整 `copyWith`；表面与图标按钮分别使用 `TrainerSurface`、`TrainerIconButton`，并导出 `TrainerStageFloor`、`TrainerResultStage` 和 `TrainerCountdownDigits`。旧材质 API 的不兼容迁移见本页顶部。默认媒体以圆角 0 铺入舞台；宿主 `mediaBuilder` 收到的 `TrainerMediaRequest.theme.radius` 同样为 0，可据此保持画面边缘一致。
 
 0.1.5 / 0.1.6 的媒体缓存与内测预览策略沿用。测试和 Web 预览不能证明真机帧率、原生媒体播放或整节训练体验已验收，这些仍由宿主 App 验证。
 
@@ -142,7 +142,7 @@ dependencies:
     git:
       url: https://github.com/mhgd3250905/ugk-3d-pose-sdk
       path: packages/ugk_trainer
-      ref: <commit>
+      ref: ugk_trainer-v0.3.1
 ```
 
 ```dart

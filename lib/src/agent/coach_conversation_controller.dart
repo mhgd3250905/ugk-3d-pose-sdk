@@ -176,6 +176,47 @@ class CoachConversationController {
     );
   }
 
+  /// A grouped answer remains one ordinary user turn. No model/tool state is
+  /// accepted from the UI; every label is checked against the pending form.
+  Future<CoachTurnResult?> answerForm(
+    String questionId,
+    Map<String, List<String>> answers, {
+    CoachContext context = const CoachContext(),
+    CancelToken? cancel,
+  }) {
+    if (!canAnswer(questionId)) return Future.value();
+    final question = _state.pendingQuestion!.question!;
+    if (question.mode != AskUserMode.form ||
+        answers.keys.any(
+          (key) => !question.fields.any((field) => field.key == key),
+        )) {
+      return Future.value();
+    }
+    final lines = <String>[];
+    for (final field in question.fields) {
+      final selected = answers[field.key] ?? const <String>[];
+      if (selected.isEmpty ||
+          selected.toSet().length != selected.length ||
+          (!field.multiple && selected.length != 1) ||
+          selected.any((value) => !field.options.contains(value)) ||
+          (field.key == 'equipment' &&
+              selected.contains('徒手') &&
+              selected.length > 1)) {
+        return Future.value();
+      }
+      lines.add(
+        '${field.label}：${field.options.where(selected.contains).join(choiceSeparator)}',
+      );
+    }
+    return _send(lines.join('；'), context: context, cancel: cancel);
+  }
+
+  Future<CoachTurnResult?> skipQuestion(
+    String questionId, {
+    CoachContext context = const CoachContext(),
+    CancelToken? cancel,
+  }) => answerText(questionId, '直接出方案', context: context, cancel: cancel);
+
   /// Sends ordinary input, or a free-text answer to the current question.
   ///
   /// Empty/disposed/concurrent sends return null and never queue. Input rejected

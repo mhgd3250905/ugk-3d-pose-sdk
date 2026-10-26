@@ -39,6 +39,9 @@ Future<void> _mount(
   double? inset,
   bool single = false,
   bool reduced = false,
+  double scale = 1,
+  double viewportWidth = 360,
+  double parentWidth = 320,
   Brightness brightness = Brightness.light,
   Widget? Function(BuildContext, CoachMediaRequest)? media,
   VoidCallback? onOpen,
@@ -50,18 +53,28 @@ Future<void> _mount(
       theme: theme,
       home: MediaQuery(
         data: MediaQueryData(
-          size: const Size(360, 800),
+          size: Size(viewportWidth, 800),
+          textScaler: TextScaler.linear(scale),
           disableAnimations: reduced,
         ),
         child: Scaffold(
           body: Align(
             alignment: Alignment.topLeft,
             child: SizedBox(
-              width: 320,
+              width: parentWidth,
               child: CoachUiTheme(
                 style: CoachUiStyle(
                   colors: CoachUiColors.fromTheme(theme),
                   typography: CoachUiTypography.fromTheme(theme),
+                  strings: const CoachUiStrings(
+                    expand: '展开',
+                    collapse: '收起',
+                    expandDetails: '展开详情',
+                    collapseDetails: '收起详情',
+                    save: '保存',
+                    saved: '已保存',
+                    start: '开始训练',
+                  ),
                   builders: CoachUiBuilders(media: media),
                 ),
                 child: CoachPlanCard(
@@ -119,6 +132,93 @@ void main() {
   });
 
   for (final brightness in Brightness.values) {
+    for (final scale in [1.0, 2.0]) {
+      testWidgets(
+        'feedback header has balanced inset and first-line toggle $brightness ${scale}x',
+        (tester) async {
+          await _mount(
+            tester,
+            brightness: brightness,
+            scale: scale,
+            viewportWidth: 320,
+            media: _media,
+          );
+          await tester.tap(_expand);
+          await tester.pumpAndSettle();
+          final card = tester.getRect(_card);
+          final titleFinder = find.byKey(const ValueKey('plan-header-title'));
+          final metaFinder = find.byKey(const ValueKey('plan-header-meta'));
+          final title = tester.getRect(titleFinder);
+          final meta = tester.getRect(metaFinder);
+          expect(title.top - card.top, closeTo(22, .01));
+          expect(title.left - card.left, closeTo(22, .01));
+          expect(meta.top - title.bottom, closeTo(5, .01));
+          expect(
+            tester.getRect(_expand).center.dy,
+            closeTo(title.center.dy, .01),
+          );
+          expect(tester.getRect(_expand).left, greaterThan(title.right));
+          final text = tester.widget<Text>(metaFinder);
+          expect(text.style!.fontSize, 12);
+          expect(text.style!.fontWeight, FontWeight.w400);
+          final theme = CoachUiTheme.of(tester.element(metaFinder));
+          expect(text.style!.color, theme.colors.muted);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
+    for (final inset in <double?>[null, 0]) {
+      testWidgets(
+        'feedback cutout grows 25–35 percent without covering title or controls $brightness inset $inset',
+        (tester) async {
+          await _mount(
+            tester,
+            brightness: brightness,
+            inset: inset,
+            media: _media,
+          );
+          final card = tester.getRect(_card);
+          final hero = tester.getRect(_hero);
+          final oldHeroHeight = inset == null ? 118.0 : 128.0;
+          expect(card.height, CoachPlanCard.cutoutSetHeight);
+          expect(hero.height / oldHeroHeight, inInclusiveRange(1.25, 1.35));
+          final foldedTitle = tester.getRect(
+            find
+                .descendant(
+                  of: find.byKey(const ValueKey('plan-hero-title')),
+                  matching: find.byType(Column),
+                )
+                .first,
+          );
+          expect(foldedTitle.top - hero.bottom, closeTo(8, .01));
+          expect(hero.overlaps(tester.getRect(_start)), isFalse);
+          final strip = find.byKey(
+            const ValueKey('media-b-thumb.webp-false-true'),
+          );
+          expect(hero.overlaps(tester.getRect(strip)), isFalse);
+          final firstFrame = hero;
+          await tester.tap(_expand);
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 1));
+          final flyer = tester.getRect(find.byKey(const ValueKey('fly-hero')));
+          expect(flyer.top, closeTo(firstFrame.top, 1));
+          expect(flyer.height, closeTo(firstFrame.height, 1));
+          await tester.pump(const Duration(milliseconds: 520));
+          final landed = tester.getRect(find.byKey(const ValueKey('fly-hero')));
+          final rowThumb = tester.getRect(
+            find.byKey(const ValueKey('plan-row-thumb-1')),
+          );
+          expect(landed, rowThumb);
+          await tester.pumpAndSettle();
+          await tester.tap(_expand);
+          await tester.pumpAndSettle();
+          expect(tester.getRect(_hero), firstFrame);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
     testWidgets(
       'opt-in cutout keeps controls and opens its top padding $brightness',
       (tester) async {

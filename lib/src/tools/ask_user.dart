@@ -5,7 +5,27 @@ import 'dart:convert';
 
 import '../plan/plan_issue.dart';
 
-enum AskUserMode { text, choice }
+enum AskUserMode { text, choice, form }
+
+/// A group of choices in a single clarification round.
+class AskUserField {
+  AskUserField({
+    required this.key,
+    required this.label,
+    required List<String> options,
+    this.multiple = false,
+  }) : options = List.unmodifiable(options);
+  final String key;
+  final String label;
+  final List<String> options;
+  final bool multiple;
+  Map<String, Object?> toJson() => {
+    'key': key,
+    'label': label,
+    'options': options,
+    'multiple': multiple,
+  };
+}
 
 class AskUserQuestion {
   AskUserQuestion._(
@@ -13,7 +33,9 @@ class AskUserQuestion {
     this.mode,
     List<String> options,
     this.multiple,
-  ) : options = List.unmodifiable(options);
+    List<AskUserField> fields,
+  ) : options = List.unmodifiable(options),
+      fields = List.unmodifiable(fields);
 
   final String question;
   final AskUserMode mode;
@@ -21,6 +43,8 @@ class AskUserQuestion {
   /// text 时为空；choice 时为 2–6 个、每个不超过 12 个 Unicode 码点的选项。
   final List<String> options;
   final bool multiple;
+  final List<AskUserField> fields;
+  String get skipLabel => '直接出方案';
 
   Map<String, Object?> toJson() => {
     'question': question,
@@ -28,6 +52,10 @@ class AskUserQuestion {
     if (mode == AskUserMode.choice) ...{
       'options': options,
       'multiple': multiple,
+    },
+    if (mode == AskUserMode.form) ...{
+      'fields': [for (final field in fields) field.toJson()],
+      'skipLabel': skipLabel,
     },
   };
 }
@@ -52,7 +80,7 @@ abstract final class AskUserGate {
           path: path,
           expected: expected,
           actual: actual,
-          fix: '只问一件事，按 expected 重交完整 ask_user 参数；text 不带 options/multiple。',
+          fix: '一次补齐缺失条件，按 expected 重交完整 ask_user 参数。',
         ),
       );
     }
@@ -69,10 +97,17 @@ abstract final class AskUserGate {
       return AskUserGateResult._(null, errors);
     }
     for (final key in raw.keys) {
-      if (!const {'question', 'mode', 'options', 'multiple'}.contains(key)) {
+      if (!const {
+        'question',
+        'mode',
+        'options',
+        'multiple',
+        'fields',
+        'skipLabel',
+      }.contains(key)) {
         issue(
           key,
-          'question / mode / options / multiple',
+          'question / mode / options / multiple / fields / skipLabel',
           '多余字段',
           code: IssueCodes.unexpectedField,
         );
@@ -83,10 +118,16 @@ abstract final class AskUserGate {
       issue('question', '非空、简短口语问题', '${question.runtimeType}');
     }
     final mode = raw['mode'];
-    if (mode != 'text' && mode != 'choice') {
-      issue('mode', 'text 或 choice', '$mode');
+    if (mode != 'text' && mode != 'choice' && mode != 'form') {
+      issue('mode', 'text、choice 或 form', '$mode');
     }
     final options = <String>[];
+    final fields = <AskUserField>[];
+    if (mode != 'form') {
+      for (final key in ['fields', 'skipLabel']) {
+        if (raw.containsKey(key)) issue(key, '仅 form 模式提供', '字段存在');
+      }
+    }
     if (mode == 'text') {
       for (final key in ['options', 'multiple']) {
         if (raw.containsKey(key)) {
@@ -126,14 +167,80 @@ abstract final class AskUserGate {
           '${raw['multiple'].runtimeType}',
         );
       }
+    } else if (mode == 'form') {
+      for (final key in ['options', 'multiple']) {
+        if (raw.containsKey(key)) issue(key, 'form 使用 fields', '字段存在');
+      }
+      if (raw.containsKey('skipLabel') && raw['skipLabel'] != '直接出方案') {
+        issue('skipLabel', '直接出方案', '${raw['skipLabel']}');
+      }
+      final values = raw['fields'];
+      if (values is! List || values.isEmpty || values.length > 3) {
+        issue('fields', '1–3 组缺失条件', '${values.runtimeType}');
+      } else {
+        final keys = <String>{};
+        for (var i = 0; i < values.length; i++) {
+          final value = values[i];
+          if (value is! Map<String, dynamic>) {
+            issue('fields[$i]', '条件对象', '${value.runtimeType}');
+            continue;
+          }
+          if (value.keys.any(
+            (key) =>
+                !const {'key', 'label', 'options', 'multiple'}.contains(key),
+          )) {
+            issue('fields[$i]', 'key / label / options / multiple', '多余字段');
+          }
+          final key = value['key'];
+          final label = value['label'];
+          final choices = value['options'];
+          if (key is! String ||
+              !const {'scene', 'equipment', 'minutes'}.contains(key) ||
+              !keys.add(key)) {
+            issue('fields[$i].key', '不重复的 scene / equipment / minutes', '$key');
+          }
+          if (label is! String ||
+              label.trim().isEmpty ||
+              label.runes.length > 20) {
+            issue('fields[$i].label', '1–20 字标签', '$label');
+          }
+          if (choices is! List ||
+              choices.length < 2 ||
+              choices.length > 64 ||
+              choices.any(
+                (x) => x is! String || x.trim().isEmpty || x.runes.length > 24,
+              ) ||
+              choices.toSet().length != choices.length) {
+            issue('fields[$i].options', '2–64 个不重复的短选项', '$choices');
+            continue;
+          }
+          if (value.containsKey('multiple') && value['multiple'] is! bool) {
+            issue('fields[$i].multiple', 'boolean', '${value['multiple']}');
+          }
+          if (key != 'equipment' && value['multiple'] == true) {
+            issue('fields[$i].multiple', '场景和时长单选', 'true');
+          }
+          if (key is String && label is String) {
+            fields.add(
+              AskUserField(
+                key: key,
+                label: label.trim(),
+                options: choices.cast<String>(),
+                multiple: value['multiple'] == true,
+              ),
+            );
+          }
+        }
+      }
     }
     return AskUserGateResult._(
       errors.isEmpty
           ? AskUserQuestion._(
               (question as String).trim(),
-              mode == 'choice' ? AskUserMode.choice : AskUserMode.text,
+              AskUserMode.values.byName(mode as String),
               options,
               raw['multiple'] == true,
+              fields,
             )
           : null,
       errors,

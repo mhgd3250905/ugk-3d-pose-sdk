@@ -122,7 +122,20 @@ class CoachBubbleData {
   final String? caption;
 }
 
-enum CoachQuestionMode { text, choice }
+enum CoachQuestionMode { text, choice, form }
+
+@immutable
+class CoachQuestionField {
+  const CoachQuestionField({
+    required this.key,
+    required this.label,
+    required this.options,
+    this.multiple = false,
+  });
+  final String key, label;
+  final List<String> options;
+  final bool multiple;
+}
 
 /// UI-only snapshot. The App validates and submits answers to its agent.
 @immutable
@@ -135,6 +148,8 @@ class CoachQuestionData {
     this.multiple = false,
     this.answered = false,
     this.answeredChoices = const [],
+    this.fields = const [],
+    this.skipLabel = '直接出方案',
   });
   final String id;
   final String question;
@@ -143,6 +158,8 @@ class CoachQuestionData {
   final bool multiple;
   final bool answered;
   final List<String> answeredChoices;
+  final List<CoachQuestionField> fields;
+  final String skipLabel;
 }
 
 typedef CoachOriginRect = Rect? Function();

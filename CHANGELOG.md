@@ -1,5 +1,14 @@
 # Changelog
 
+## coach 0.7.0 / trainer 0.5.0 / coach_ui 0.3.0 — feedback r1 part 1 candidate
+
+- Start the shared trainer immediately with unchanged bundled alpha-WebP standing images. Video preparation, host verification, cache lookup and quiet backoff retries run independently of clocks and speech; dissolve the poster over 180 ms after a composed video frame. Add ordered, current-first preparation with at most two active actions and next-action priority during rest.
+- Replace the user action list with a two-column image/name grid, Chinese-name/alias search and combinable equipment/body/type facets. Hide eight pending entries without changing the 219-action catalogue. Open each complete action as a one-action shared training plan; the old detail constructor delegates to training.
+- Give expanded routine headers equal top/left clearance, a 5 px title/meta gap, smaller muted metadata and first-line-aligned collapse controls. Enlarge multi-action cutout heroes by approximately 30% while retaining host cutout placement and the shared first-row flight geometry. Keep the selected solid palette.
+- Add a backwards-readable grouped `ask_user` form and conversation/UI answer APIs. Infer known scene/equipment/minutes, clarify missing fields in one round with a skip action, and constrain final plans to available equipment, scene and requested duration. Existing exhaustive mode switches must handle the new form enum value.
+- Bundle 219 original v3 cover files, 5,316,554 bytes, with exact catalogue hashes. Audit all videos: 187 covers differ from frame zero (183/211 user-visible actions). Preserve original media and report exceptions rather than fabricating identical-pose replacement. See [candidate contract and verification](docs/feedback-r1-part1.md).
+- These are candidate versions on `codex/feedback-r1-part1`; merging/pushing main and publishing the three new tags require Kai's approval. Existing tags, R2 objects and source workspaces are preserved.
+
 ## coach 0.6.2 / trainer 0.4.2 — 2026-10-26
 
 - Publish compressed R1 media v3 as 657 Cloudflare R2 objects under `https://media.uuugk.win/pack/r1-v3/`; the GitHub Release retains only `catalog.json` and a complete ZIP backup. Media shrinks from 587,456,377 to 163,351,529 bytes; local paths, 219 action IDs and all 211-complete / 8-pending semantics remain unchanged. Update every media receipt and expose its stable per-file download URI.

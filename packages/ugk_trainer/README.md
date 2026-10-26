@@ -2,13 +2,13 @@
 
 ## 宿主媒体准备与 v3 逐文件素材
 
-可选注入 `mediaPreparer`，实现 `PoseHubMediaPreparer.prepareAction(action)` 并返回 `PoseHubMediaProgress` / `PoseHubMediaReady(mediaBaseUri:)` / `PoseHubMediaFailed(reason:)` 事件流。宿主负责下载、缓存及 `file.bytes` / `file.sha256` 校验；SDK 消费状态与最终本地目录，不做下载缓存。浏览列表/详情不会触发准备，进入单练才准备；媒体未就绪时禁止开始计时，失败展示原因和重试。不注入时保持既有本地 `mediaBaseUri` 行为。
+0.5.0 待审候选取消独立准备页与计时门禁。可选注入 `mediaPreparer`，实现 `PoseHubMediaPreparer.prepareAction(action)` 并返回 `PoseHubMediaProgress` / `PoseHubMediaReady(mediaBaseUri:)` / `PoseHubMediaFailed(reason:)` 事件流。宿主负责下载、缓存及 `file.bytes` / `file.sha256` 校验；SDK 编排最多两个并发准备任务、消费最终本地目录，不实现下载缓存。计时与播报照常开始，原始 alpha WebP 随包显示，失败保持静帧并静默重试；视频首帧可呈现后在原位淡入。不注入时保留本地 `mediaBaseUri` 播放。[候选接口与限制](../../docs/feedback-r1-part1.md)。
 
 v3 的 657 个媒体文件共 163,351,529 bytes，以 Cloudflare R2 独立对象分发（media.uuugk.win/pack/r1-v3/），GitHub Release 仅保留 catalog 和整包 ZIP 备份；`file.downloadUri` 给出稳定 URL，原 `file.path` 供宿主按原目录落盘。根 catalog 不再用固定 v2 SHA 作准入门槛，而按自身版本、文件清单和语义字段校验。完整签名、事件/取消契约与 URL 规则见[v3 接入指南](../../docs/posehub-app-test-pack-r1-v3.md)。
 
 ## 219 动作素材包
 
-`PoseHubActionLibrary.load()` 加载原始 219 动作元数据；`allActions` 全部可列出，`semanticCompleteActions` 为 211 个，`pendingActions` 为 8 个。只向 AI 传入 `library.toAiCatalog()`，不会返回待补动作。`PoseHubActionBrowser` / `PoseHubSinglePracticePage` 提供浏览与自主单练，传入安装后的 `mediaBaseUri`；8 个待补项明确标注“训练说明待补”，不推断剂量或计次节奏。
+`PoseHubActionLibrary.load()` 保留原始 219 动作元数据；`semanticCompleteActions` 为 211 个，`pendingActions` 为 8 个。AI 投影和用户动作库都排除待补动作。`PoseHubActionBrowser` 显示两列透明人物与中文名，中文名称/别名搜索和器械、部位、类型可组合筛选；点击卡片直接进入单动作训练。219 张原 cover WebP 按原 SHA 随包提供，离线可见，共 5,316,554 bytes；未改任何素材。187 张 cover 与视频首帧不同，其中 183 张属于用户库；[逐动作核对清单](../../docs/evidence/feedback-r1-part1/standing-first-frame-audit.md)记录差异与判定方法。
 
 v3 媒体已压缩并按文件发布，不进入普通 Git 历史；原始媒体的完整 ZIP 仍保留在 v1/v2 Release。语义来源与旧整包安装见[v2 接入指南](../../docs/posehub-app-test-pack-r1-semantics-v2.md)，原有 Web 演示与平台范围见[v1 接入指南](../../docs/posehub-app-test-pack-r1.md)。已有扁平实色训练布局、防闪按钮与 Morph Pulse 保持不变。
 

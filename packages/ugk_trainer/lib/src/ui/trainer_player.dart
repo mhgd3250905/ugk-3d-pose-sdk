@@ -32,6 +32,9 @@ import '../media/drill_media.dart';
 import '../media/drill_media_view.dart';
 import '../platform/screen_awake.dart';
 import '../platform/training_keep_alive.dart';
+import '../pose_hub/pose_hub_media_prefetcher.dart';
+import '../pose_hub/pose_hub_media_preparation.dart';
+import '../pose_hub/pose_hub_pack_media.dart';
 import '../result/session_result.dart';
 import '../rhythm/rhythm.dart';
 import '../voice/session_runner.dart';
@@ -126,6 +129,7 @@ class DiscomfortContext {
   final bool afterExercise;
   final double activeSeconds;
   final TrainerStrings strings;
+
   final TrainerTheme theme;
 }
 
@@ -180,6 +184,7 @@ class TrainerMediaRequest {
     required this.mirrored,
     required this.theme,
     required this.strings,
+    this.mediaPreparer,
   });
   final TrainerDrill drill;
   final bool paused;
@@ -188,6 +193,9 @@ class TrainerMediaRequest {
   final bool mirrored;
   final TrainerTheme theme;
   final TrainerStrings strings;
+
+  /// Shared session queue for custom PoseHub media builders.
+  final PoseHubMediaPreparer? mediaPreparer;
 }
 
 typedef TrainerMediaBuilder =
@@ -244,6 +252,10 @@ class TrainerPlayer extends StatefulWidget {
     this.doseLabel,
     this.announceDiscomfortPause = true,
     this.mediaBuilder,
+    this.poseHubCatalog,
+    this.poseHubActionOf,
+    this.poseHubMediaBaseUri,
+    this.poseHubMediaPreparer,
     this.sessionId,
     this.prepSeconds = 10,
     this.transitionSeconds = 15,
@@ -304,6 +316,14 @@ class TrainerPlayer extends StatefulWidget {
   /// Null: [DrillMediaView] of [TrainerDrill.media].
   final TrainerMediaBuilder? mediaBuilder;
 
+  /// Optional PoseHub rendering and ordered prefetch for the shared player.
+  /// A custom [mediaBuilder] can use [TrainerMediaRequest.mediaPreparer] to
+  /// participate in the same two-action queue. Session timing never waits.
+  final PoseHubAppTestCatalog? poseHubCatalog;
+  final PoseHubPackAction? Function(String exerciseId)? poseHubActionOf;
+  final Uri? poseHubMediaBaseUri;
+  final PoseHubMediaPreparer? poseHubMediaPreparer;
+
   /// Fixed id (e.g. resuming); null: a new one.
   final String? sessionId;
   final int prepSeconds;
@@ -349,6 +369,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   bool _disposed = false;
   bool _soundEnabled = true;
   bool _interruptionActive = false;
+  PoseHubMediaPrefetcher? _mediaPrefetcher;
+  Future<void>? _mediaRetirement;
+  int _mediaGeneration = -1;
   int _interruptionRevision = 0;
 
   String _shownKey = '';
@@ -446,6 +469,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         );
     _occurrences = _builder.occurrenceCount(_plan);
     _runner = SessionRunner(SessionEngine(_builder.phases(_plan)), _script);
+    _configureMedia();
     _recorder = SessionRecorder(
       plan: _plan,
       totalExercises: _occurrences,
@@ -486,6 +510,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   @override
   void dispose() {
     _disposed = true;
+    _mediaPrefetcher?.dispose();
     _audioOwner++;
     _terminalAudio?.cancel();
     _terminalAudio = null;
@@ -531,6 +556,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       _subtitle = null;
     }
     if (_engine.done) _onDone(t);
+    _prioritizeMedia();
     final p = _phase;
     _syncProgress(t);
     _haptics(p, t);
@@ -545,8 +571,59 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     }
   }
 
+  void _configureMedia() {
+    final preparer = widget.poseHubMediaPreparer;
+    if (_mediaPrefetcher?.host != preparer) {
+      _retireMedia();
+      _mediaPrefetcher = preparer == null
+          ? null
+          : PoseHubMediaPrefetcher(
+              preparer,
+              afterCancellation: _mediaRetirement,
+            );
+    }
+    _mediaGeneration = -1;
+    _prioritizeMedia();
+  }
+
+  void _retireMedia() {
+    final previous = _mediaPrefetcher;
+    previous?.dispose();
+    _mediaRetirement = previous?.cancellationComplete ?? _mediaRetirement;
+    _mediaPrefetcher = null;
+  }
+
+  void _prioritizeMedia() {
+    final scheduler = _mediaPrefetcher;
+    if ((widget.poseHubCatalog == null && widget.poseHubActionOf == null) ||
+        scheduler == null ||
+        _mediaGeneration == _engine.generation) {
+      return;
+    }
+    _mediaGeneration = _engine.generation;
+    scheduler.prioritize([
+      for (final phase in _engine.phases.skip(_engine.index))
+        ?_poseHubAction(phase.exerciseId ?? ''),
+    ]);
+  }
+
+  PoseHubPackAction? _poseHubAction(String id) =>
+      widget.poseHubActionOf?.call(id) ?? widget.poseHubCatalog?.tryGet(id);
+
+  @override
+  void didUpdateWidget(TrainerPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.poseHubCatalog != widget.poseHubCatalog ||
+        oldWidget.poseHubActionOf != widget.poseHubActionOf ||
+        oldWidget.poseHubMediaPreparer != widget.poseHubMediaPreparer ||
+        oldWidget.poseHubMediaBaseUri != widget.poseHubMediaBaseUri) {
+      _configureMedia();
+    }
+  }
+
   void _onDone(double t) {
     if (_recorder.finished) return;
+    _retireMedia();
     _endedAt ??= t;
     _clock.stop();
     // Keep the closing line (including queued tails) audible before ending
@@ -617,6 +694,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _occurrences = _builder.occurrenceCount(_plan);
     _runner = SessionRunner(SessionEngine(_builder.phases(_plan)), _script);
     _recorder = SessionRecorder(plan: _plan, totalExercises: _occurrences);
+    _configureMedia();
     _saver = ResultSaver(widget.onFinished);
     _queue = VoiceQueue(
       output: _voice.output,
@@ -1215,8 +1293,23 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       mirrored: p.side == Side.left,
       theme: theme,
       strings: _s,
+      mediaPreparer: _mediaPrefetcher,
     );
     if (widget.mediaBuilder != null) return widget.mediaBuilder!(context, req);
+    final action = _poseHubAction(d.id);
+    if (action != null) {
+      final media = PoseHubPackMedia(
+        action: action,
+        baseUri: widget.poseHubMediaBaseUri ?? Uri(),
+        playing: !_engine.done,
+        paused: _paused,
+        theme: theme,
+        mediaPreparer: _mediaPrefetcher,
+      );
+      return p.side == Side.left
+          ? Transform.flip(flipX: true, child: media)
+          : media;
+    }
     final m = d.media;
     if (m == null) {
       return ColoredBox(color: _th.mediaStage);
@@ -1249,7 +1342,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       PhaseKind.switchSide => _s.switchTo(p.side ?? Side.left),
       _ => '',
     };
-    final sub = _subtitle ?? (rest ? d?.cue : null);
+    final sub =
+        _subtitle ??
+        (rest || _poseHubAction(d?.id ?? '') != null ? d?.cue : null);
     final current = (p.itemIndex + 1).clamp(
       1,
       _occurrences < 1 ? 1 : _occurrences,

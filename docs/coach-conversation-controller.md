@@ -1,3 +1,27 @@
+# CoachConversationController：当前分组补问接口（R1 part1）
+
+同一个controller和agent承接初问、一次回答、交付方案。训练组最多补问1轮，多个缺项放一张form，已知的不问；跳过使用合理默认。text/choice接口与已有取消、重置、busy、重复提交保护保留。
+
+```dart
+final result = await conversation.send('在家10分钟练核心');
+final message = conversation.state.pendingQuestion;
+if (message?.question?.mode == AskUserMode.form) {
+  // 此例只缺器械；不要额外提交已知scene/minutes。
+  await conversation.answerForm(message!.id, {'equipment': ['瑜伽垫']});
+  // 或 await conversation.skipQuestion(message.id);
+}
+```
+
+`answerForm(id, Map<String,List<String>>)` 只接受当前有效form；字段名/选项必须属于表单，每组至少一项，场景/时长单选，器械多选且徒手不能与器械共选。非法、过期、重复或发送中回答返回null，不调用模型。`skipQuestion(id)` 使用已有文字回答通道发送“直接出方案”。
+
+App把fields逐项映射到独立UI包的 `CoachQuestionField`，mode映射为 `CoachQuestionMode.form`，`onFormAnswer` 接 `answerForm`；跳过/自由文本接 `answerText`。不传 `onFormAnswer` 的UI会把可读分组答案回退到已有 `onTextAnswer`。旧mapper的二元mode分支需要升级。
+
+默认值参与该次计划准入，保留既有筛查avoid，不将默认器械或身体状态保存为用户事实。当前参数缺失却直接交付、重问已知项、第二轮追问、器械/场景冲突及实际估时偏差会被门禁打回。
+
+---
+
+以下为0.5.0引入controller时的历史交付记录。其待审/版本/发布状态不表示当前分支状态；通用状态与取消规则仍适用，补问预算以上文为准。
+
 # CoachConversationController 接入（0.5.0，待审）
 
 `CoachConversationController` 在纯 Dart 包 `ugk_coach` 内管理一次 AI 对话。它不依赖 Flutter 或 `ugk_coach_ui`，也不把 `TrainingPlan` 映射为 UI 的 `CoachRoutine`。SmartFit 先接入；HipLab / Flare 本轮只作只读参考，未修改。

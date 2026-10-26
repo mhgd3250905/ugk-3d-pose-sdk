@@ -515,14 +515,14 @@ packages:
       path: "../../.."
       relative: true
     source: path
-    version: "0.6.2"
+    version: "0.7.0"
   ugk_trainer:
     dependency: "direct main"
     description:
       path: ".."
       relative: true
     source: path
-    version: "0.4.2"
+    version: "0.5.0"
   uuid:
     dependency: transitive
     description:

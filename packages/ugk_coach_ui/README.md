@@ -1,6 +1,6 @@
-# ugk_coach_ui 0.2.1
+# ugk_coach_ui 0.3.0 待审候选
 
-`0.2.1` 沿用已选定的 `c4d251d` 扁平实色界面：页面、内容卡片、抬升控件三个层级，1px 低对比描边和轻固定阴影。颜色仅从注入的 `CoachUiColors` / `CoachMediaPalette` 获取；提供浅深默认值与完整 `copyWith`，没有玻璃开关、光学参数或旧材质兼容别名。从 0.1.x 升级仍需完成下方不兼容迁移，本补丁未增加 API 变更。
+`0.3.0` 沿用已选定的扁平实色配色，仅优化套路卡标题留白和透明人物首图尺寸，新增一次补齐训练参数的分组问答 `form`。页面、内容卡片、抬升控件三个层级、1px 低对比描边和轻固定阴影继续使用；颜色仍来自注入的 `CoachUiColors` / `CoachMediaPalette`，提供浅深默认值与完整 `copyWith`。从 0.1.x 升级仍需完成下方迁移；旧穷举 `CoachQuestionMode` 分支须新增 `form`。
 
 聊天/套路卡的既有位置、进入动画、展开测量与媒体飞行保留。`CoachUiBuilders.media`、`cutoutTopInset`、透明素材边界及原回调继续使用；透明的是人物素材及普通淡入动画，内容承载面保持不透明。列表的 `topInset` / `fadeTop` 保留，顶部滚动边缘遮罩不属于材质表面。
 
@@ -10,7 +10,7 @@
 
 ## 安装
 
-收尾 tag 为 `ugk_coach_ui-v0.2.1`，旧 tag 保持不变。仓库内验证也可使用本地 path 依赖；main 等开哥真机确认后再合入与推送。
+当前已发布基线为 `ugk_coach_ui-v0.2.1`，下面固定 tag 示例继续可用。候选 `ugk_coach_ui-v0.3.0` 等开哥审阅同意后合 main、推送并创建；仓库内验证使用本地 path 依赖。[本轮改动与证据](../../docs/feedback-r1-part1.md)。
 
 ```yaml
 ugk_coach_ui:
@@ -41,8 +41,8 @@ import 'package:ugk_coach_ui/ugk_coach_ui.dart';
 | --- | --- |
 | `CoachChatList` / `CoachChatEntry` | 输入按时间正序的行快照及内容 widget；内部反向列表保证最新消息在底部。接收 App 所有的 `ScrollController`、时间标签 builder、输入栏占高、typing widget 和初始已读 ID 集合。顶部渐隐取自主题 `background`；`topInset`（默认 0）仅增加列表内容顶部留白，`fadeTop`（默认 true）控制原有顶部渐隐。 |
 | `CoachMessageBubble` / `CoachBubbleData` | 文字、用户/助理角色、可选标题、选项与已选索引；`optionsActive` 控制可答状态，`onOption` 回传索引。可替换 `optionBuilder`。 |
-| `CoachQuestionBubble` / `CoachQuestionData` / `CoachQuestionMode` | 一个澄清问题，`text` 或 `choice`；支持单选立即回答，多选先切换再确认。接收 `enabled`、`onTextAnswer`、`onChoiceAnswer`。`answered`、`answeredChoices` 用于历史展示。 |
-| `CoachPlanCard` | 接收 `CoachRoutine`、`CoachExerciseLibrary`、`saved`、`landing`；可选 `cutoutTopInset` 指定 cutout 在外卡坐标中的顶部位置，默认 null 保持旧位置。`onStart(CoachOriginRect)`、`onSave()`、`onOpen()` 全由 App 执行。紧凑单动作 130px，多动作 240px；保留展开/收起与减弱动态效果。 |
+| `CoachQuestionBubble` / `CoachQuestionData` / `CoachQuestionMode` | `text`、`choice` 或 `form`。旧单选立即回答、多选确认继续使用；form 通过 `CoachQuestionField` 按缺项分组，器械可多选，附“直接出方案”。接收 `enabled`、`onTextAnswer`、`onChoiceAnswer` 及分组回答回调；`answered`、`answeredChoices` 用于历史展示。宿主将其答案交回 coach 会话控制器。 |
+| `CoachPlanCard` | 接收 `CoachRoutine`、`CoachExerciseLibrary`、`saved`、`landing`；可选 `cutoutTopInset` 指定 cutout 在外卡坐标中的顶部位置。`onStart(CoachOriginRect)`、`onSave()`、`onOpen()` 全由 App 执行。紧凑单动作 130px，普通多动作 240px，透明人物多动作 288px；保留展开/收起与减弱动态效果。展开标题 top/left 均22px，标题/副信息间隔5px。 |
 | `CoachRoutine` / `CoachRoutineItem` | 预先本地化的标题、总时长、器械/水平/元信息、调整说明和剂量；`detailDose` 可表达循环内单组或一组多段摘要。无网络/训练引擎依赖。 |
 | `CoachExerciseLibrary` / `CoachExercise` / `CoachMediaPalette` | App 可信动作目录的 ID、名称、分类、提示词、主题匹配的 asset 路径、可选动态/静态 cutout 与媒体底色/文字色。路径由 App 解析，勿直接采用模型提供的路径。 |
 | `CoachUiTheme` / `CoachUiStyle` | 按 widget 子树注入 `colors`、`typography`、`strings`、`builders`；各 App 或并列聊天视图可使用不同主题，无全局可变配色。未注入时使用 Flutter Material Theme。 |

@@ -1,0 +1,3383 @@
+{
+  "catalogSha256": "75881cf91621c967f80732f0219f23e85b35e8bde5d1a51ee75dec5f7c5edd36",
+  "method": "Decode packed video frame 0; compare RGBA at 320 square against unchanged cover. Silhouette alpha >=128; IoU >=0.95 and foreground composite MAE <=8 on white/dark backgrounds. Lossy tolerance is an audit heuristic, not visual acceptance.",
+  "total": 219,
+  "mismatchCount": 187,
+  "mismatchIds": [
+    "abs-A",
+    "abs-B",
+    "adductors-A",
+    "adductors-B",
+    "adductors-C",
+    "chest-A",
+    "chest-B",
+    "chest-C",
+    "deltoids-A",
+    "deltoids-B",
+    "deltoids-C",
+    "erectors-A",
+    "erectors-B",
+    "erectors-C",
+    "forearms-A",
+    "forearms-B",
+    "g-cable-hip-abduction",
+    "g-cable-hip-extension",
+    "glute-max-A",
+    "glute-max-B",
+    "glute-max-C",
+    "h-9090-liftoff",
+    "h-adductor-rock",
+    "h-banana",
+    "h-band-chest-fly",
+    "h-band-face-pull",
+    "h-band-hip-extension",
+    "h-band-hip-ir",
+    "h-band-leg-out",
+    "h-band-pallof",
+    "h-band-pull-apart",
+    "h-band-row",
+    "h-band-shoulder-ir",
+    "h-band-standing-abduction",
+    "h-band-standing-adduction",
+    "h-band-stepout",
+    "h-band-straight-leg-raise",
+    "h-band-triceps-pressdown",
+    "h-bent-knee-calf-raise",
+    "h-bilateral-upper-back-hug",
+    "h-bulgarian",
+    "h-butterfly-active",
+    "h-calf-raise",
+    "h-catcow-quad",
+    "h-chair-dip",
+    "h-chair-kickback",
+    "h-chair-lat",
+    "h-chair-progressive-front-split-native",
+    "h-chair-single-leg-hip-thrust",
+    "h-chair-sit-to-stand",
+    "h-chair-step-up",
+    "h-chair-tspine",
+    "h-close-stance-forward-fold-native",
+    "h-cobra",
+    "h-couch-stretch",
+    "h-crunch",
+    "h-db-calf-raise",
+    "h-db-curl",
+    "h-db-front-raise",
+    "h-db-hammer-curl",
+    "h-db-kickback",
+    "h-db-lateral",
+    "h-db-overhead-triceps-extension",
+    "h-db-press",
+    "h-db-reverse-fly",
+    "h-db-row",
+    "h-db-shrug",
+    "h-db-supported-calf-raise",
+    "h-dd-shoulder",
+    "h-donkey-kick",
+    "h-doorframe-forearms-pec-native-r3",
+    "h-fixed-bar-vertical-pull",
+    "h-floor-nordic-hand-reset",
+    "h-forearm-plank",
+    "h-forward-lunge",
+    "h-hip-gate",
+    "h-knee-hug",
+    "h-knee-wall-dorsiflexion-native",
+    "h-kneeling-instep-stretch",
+    "h-kneeling-pushup",
+    "h-kneeling-thread-needle",
+    "h-lateral-step-lunge",
+    "h-plank-side-step",
+    "h-quad-cars",
+    "h-quadruped-open",
+    "h-quadruped-rockback",
+    "h-reverse-clam",
+    "h-reverse-crunch",
+    "h-russian-twist",
+    "h-seated-reachback",
+    "h-side-er",
+    "h-side-leg-raise",
+    "h-slider-body-saw",
+    "h-step-jack",
+    "h-suitcase-march",
+    "h-sumo-pry",
+    "h-superman",
+    "h-supine-bilateral-leg-raise",
+    "h-supine-heel-slide",
+    "h-supine-twist",
+    "h-supported-single-leg-calf",
+    "h-tabletop",
+    "h-tib-raise",
+    "h-unsupported-star-reach-native",
+    "h-wall-angel",
+    "h-wall-calf",
+    "h-wall-calf-bent-knee",
+    "h-wall-palm-lift",
+    "h-wall-straddle",
+    "h-wall-wrist-flexor-stretch",
+    "hamstrings-B",
+    "hamstrings-C",
+    "hip-abductors-A",
+    "hip-abductors-B",
+    "hip-abductors-C",
+    "hip-flexors-A",
+    "hip-flexors-B",
+    "hip-flexors-C",
+    "lats-A",
+    "lats-B",
+    "n-chair-wiper",
+    "n-half-split",
+    "n-leg-circles",
+    "n-pelvis-circle",
+    "n-prone-hip-ext",
+    "n-prone-ir",
+    "n-seated-ir-drop",
+    "n-seated-knee-lift",
+    "n-seated-squeeze",
+    "n-slider-lateral",
+    "n-squat-shift",
+    "n-straddle-fold",
+    "n-thomas-test",
+    "n-wide-fold",
+    "n-windshield",
+    "o-chair-knee-extension",
+    "o-seated-calf-raise",
+    "o-seated-catcow",
+    "o-seated-fig4",
+    "o-seated-ham",
+    "o-seated-hip-er",
+    "o-seated-sidebend",
+    "o-seated-twist",
+    "o-stand-crossreach",
+    "o-stand-ham",
+    "o-stand-lunge",
+    "o-stand-quad",
+    "o-stand-sidebend",
+    "o-supported-hip-airplane",
+    "o-supported-hip-hitch",
+    "o-supported-hip-ir",
+    "o-supported-knee-curl",
+    "o-supported-march",
+    "o-supported-mini-squat",
+    "o-supported-star-reach",
+    "o-wall-hip-hinge-stretch",
+    "obliques-A",
+    "obliques-B",
+    "obliques-C",
+    "quadriceps-A",
+    "quadriceps-B",
+    "quadriceps-C",
+    "rotator-cuff-A",
+    "rotator-cuff-B",
+    "rotator-cuff-C",
+    "s-9090",
+    "s-butterfly",
+    "s-frog",
+    "s-kneel-hipflex",
+    "s-lizard",
+    "s-pigeon",
+    "s-seated-fold",
+    "scapular-A",
+    "scapular-B",
+    "serratus-A",
+    "serratus-B",
+    "serratus-C",
+    "t-seated-straddle-lift-1leg",
+    "triceps-B",
+    "triceps-C",
+    "w-bird-dog",
+    "w-chair-hip-thrust",
+    "w-clamshell",
+    "w-dead-bug",
+    "w-feet-on-chair-bridge",
+    "w-fire-hydrant",
+    "w-prone-swimmer"
+  ],
+  "actions": [
+    {
+      "id": "abs-A",
+      "nameZh": "空心体支撑",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/abs-A/abs-A-r2-alpha-r2/abs-A.cover.alpha.webp",
+      "coverSha256": "bc8a4c4c56cecacb1fb0440d985004e78f3ae336ffa4a03e53488abbdefd6f2b",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.614828,
+      "foregroundCompositeMae": 65.2876,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994296,
+        "foregroundCompositeMae": 3.1726
+      }
+    },
+    {
+      "id": "abs-B",
+      "nameZh": "平行杆团身 L 撑",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/abs-B/abs-B-alpha-r2/abs-B.cover.alpha.webp",
+      "coverSha256": "06c52d0f631f4013886e35d20ff38d7144b9a75c410360b7c6c1a22f35dc1760",
+      "declaredCoverFrame": 135,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.630462,
+      "foregroundCompositeMae": 58.5677,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.975988,
+        "foregroundCompositeMae": 4.0525
+      }
+    },
+    {
+      "id": "abs-C",
+      "nameZh": "双杠直臂支撑举腿",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/abs-C/abs-C-r2-alpha-r2/abs-C.cover.alpha.webp",
+      "coverSha256": "0a43d0bc2c6d4bffd81de0b0a8e03111f38b2a0093f463c9c774cd6e632e065f",
+      "declaredCoverFrame": 9,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.96541,
+      "foregroundCompositeMae": 4.8215,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.550789,
+        "foregroundCompositeMae": 63.5398
+      }
+    },
+    {
+      "id": "adductors-A",
+      "nameZh": "哥萨克蹲",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/adductors-A/adductors-A-r2-alpha-r2/adductors-A.cover.alpha.webp",
+      "coverSha256": "5eddb3600e17e911e08c48738137b45ea3848d0297ef8f553b3df84d52d82bac",
+      "declaredCoverFrame": 59,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.076594,
+      "foregroundCompositeMae": 160.9632,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.985406,
+        "foregroundCompositeMae": 3.9592
+      }
+    },
+    {
+      "id": "adductors-B",
+      "nameZh": "屈膝哥本哈根侧撑",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/adductors-B/adductors-B-alpha-r2/adductors-B.cover.alpha.webp",
+      "coverSha256": "b89afa9971cc8c11bf693027591703765c6b9d6303569f5da7d019816b5c8fba",
+      "declaredCoverFrame": 72,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.910287,
+      "foregroundCompositeMae": 13.9496,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.985419,
+        "foregroundCompositeMae": 3.4931
+      }
+    },
+    {
+      "id": "adductors-C",
+      "nameZh": "绳索站姿髋内收",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/adductors-C/adductors-C-alpha-r2/adductors-C.cover.alpha.webp",
+      "coverSha256": "15744c0e2c1cd176add53a618ee8d1efdfa3cebb86848ebcdfc1bc8e5afbfef2",
+      "declaredCoverFrame": 48,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.785431,
+      "foregroundCompositeMae": 37.6926,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.995594,
+        "foregroundCompositeMae": 3.773
+      }
+    },
+    {
+      "id": "chest-A",
+      "nameZh": "俯卧撑转侧撑",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/chest-A/chest-A-r3-alpha-r2/chest-A.cover.alpha.webp",
+      "coverSha256": "e44e70fb33f6e7641f86512f8f41fe51876b768e512f94178a1f915d5b5a9798",
+      "declaredCoverFrame": 86,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.29449,
+      "foregroundCompositeMae": 120.4241,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.984348,
+        "foregroundCompositeMae": 3.5975
+      }
+    },
+    {
+      "id": "chest-B",
+      "nameZh": "平行杆深幅俯卧撑",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/chest-B/chest-B-r2-alpha-r2/chest-B.cover.alpha.webp",
+      "coverSha256": "9d7d297c3c80ea4d4d4348904862622dd275bbb71d026d6557e4c60d01c78600",
+      "declaredCoverFrame": 63,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.276482,
+      "foregroundCompositeMae": 127.5614,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.977592,
+        "foregroundCompositeMae": 3.6921
+      }
+    },
+    {
+      "id": "chest-C",
+      "nameZh": "绳索单臂站姿推胸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/chest-C/chest-C-alpha-r2/chest-C.cover.alpha.webp",
+      "coverSha256": "436b64810ad5b65f159c5e0b0adc9d3cb8ee3be61c2e160c033bb335ad450392",
+      "declaredCoverFrame": 45,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.882245,
+      "foregroundCompositeMae": 14.2716,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.985194,
+        "foregroundCompositeMae": 3.5232
+      }
+    },
+    {
+      "id": "deltoids-A",
+      "nameZh": "直臂侧平板支撑",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/deltoids-A/deltoids-A-r2-alpha-r2/deltoids-A.cover.alpha.webp",
+      "coverSha256": "b454547b6cf077af0f591479c03909cbe02ace47e753e170d5d1a80de6a569fc",
+      "declaredCoverFrame": 63,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.401357,
+      "foregroundCompositeMae": 94.4198,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.986394,
+        "foregroundCompositeMae": 3.6353
+      }
+    },
+    {
+      "id": "deltoids-B",
+      "nameZh": "哑铃半程土耳其起立（至高桥）",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/deltoids-B/deltoids-B-r2-alpha-r2/deltoids-B.cover.alpha.webp",
+      "coverSha256": "c97e404d29042eb633c7b4fe75b11ebdfb8e497f6ecb7c0e807695e91396c044",
+      "declaredCoverFrame": 120,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.733068,
+      "foregroundCompositeMae": 51.4859,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.99331,
+        "foregroundCompositeMae": 2.8212
+      }
+    },
+    {
+      "id": "deltoids-C",
+      "nameZh": "地雷杆半跪单臂推举",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/deltoids-C/deltoids-C-alpha-r2/deltoids-C.cover.alpha.webp",
+      "coverSha256": "68b435e87692f0cae48de7da28f74b398dc1b474b99a9d03e4a415a1ab2659a9",
+      "declaredCoverFrame": 48,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.641327,
+      "foregroundCompositeMae": 52.5482,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.990645,
+        "foregroundCompositeMae": 4.613
+      }
+    },
+    {
+      "id": "erectors-A",
+      "nameZh": "反向平板（后撑抬髋）",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/erectors-A/erectors-A.cover.alpha.webp",
+      "coverSha256": "7d20ddbd261319be2e70db7a4d5546b320e08ac71b0ae95eec74cc98fc7a4344",
+      "declaredCoverFrame": 78,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.40427,
+      "foregroundCompositeMae": 108.48,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.997546,
+        "foregroundCompositeMae": 4.1351
+      }
+    },
+    {
+      "id": "erectors-B",
+      "nameZh": "瑞士球背伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/erectors-B/erectors-B.cover.alpha.webp",
+      "coverSha256": "da02de5c3374a60b6c7a1376c5c5fb787c96f8cd2b1eb10c9434732114a4c4c4",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.728066,
+      "foregroundCompositeMae": 44.2134,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.990373,
+        "foregroundCompositeMae": 2.7931
+      }
+    },
+    {
+      "id": "erectors-C",
+      "nameZh": "45° 罗马椅背伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/erectors-C/erectors-C.cover.alpha.webp",
+      "coverSha256": "478ffe5ddf59fede6a507ebdcbddf84db6a273c4ecbae3aab0e07887a4d56d8d",
+      "declaredCoverFrame": 15,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.866692,
+      "foregroundCompositeMae": 18.84,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.981468,
+        "foregroundCompositeMae": 3.6767
+      }
+    },
+    {
+      "id": "forearms-A",
+      "nameZh": "跪姿多方向腕部摇摆",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/forearms-A/forearms-A.cover.alpha.webp",
+      "coverSha256": "65a24b56515a79aa334ddf7283a54a9d328a7f726c1283a8962b8b6212013360",
+      "declaredCoverFrame": 35,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.817871,
+      "foregroundCompositeMae": 36.2563,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.991722,
+        "foregroundCompositeMae": 3.1639
+      }
+    },
+    {
+      "id": "forearms-B",
+      "nameZh": "哑铃腕屈 + 腕伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/forearms-B/forearms-B.cover.alpha.webp",
+      "coverSha256": "88ca8e3f7e6a70ad4f7dd9043ebbdf67d75a9b7fec8880458bd281feb66d0eb8",
+      "declaredCoverFrame": 48,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.903119,
+      "foregroundCompositeMae": 16.3614,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.987156,
+        "foregroundCompositeMae": 3.4344
+      }
+    },
+    {
+      "id": "forearms-C",
+      "nameZh": "壶铃倒握行走",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/forearms-C/forearms-C-complete-alpha-r2/forearms-C.cover.alpha.webp",
+      "coverSha256": "5633f3f81291468089e662cea85647c703ed94881e654bf8e46296f89b41b2e1",
+      "declaredCoverFrame": 24,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.986738,
+      "foregroundCompositeMae": 3.9197,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.544726,
+        "foregroundCompositeMae": 75.9783
+      }
+    },
+    {
+      "id": "g-cable-hip-abduction",
+      "nameZh": "低位绳索髋外展",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/g-cable-hip-abduction/g-cable-hip-abduction-complete-alpha-r2/g-cable-hip-abduction.cover.alpha.webp",
+      "coverSha256": "903f21b55ac4338f1184e0979574cad3e40bb606c2944f1f0a9927a483e20e5a",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.884034,
+      "foregroundCompositeMae": 20.6061,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.985029,
+        "foregroundCompositeMae": 3.558
+      }
+    },
+    {
+      "id": "g-cable-hip-extension",
+      "nameZh": "低位绳索髋后伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/g-cable-hip-extension/g-cable-hip-extension-complete-alpha-r2/g-cable-hip-extension.cover.alpha.webp",
+      "coverSha256": "ea009902284354656a8ca86b2b55779efc45dc153af56561b57de1c4c5fbae98",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.945076,
+      "foregroundCompositeMae": 9.3887,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.986168,
+        "foregroundCompositeMae": 3.3268
+      }
+    },
+    {
+      "id": "glute-max-A",
+      "nameZh": "单腿臀桥",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/glute-max-A/glute-max-A.cover.alpha.webp",
+      "coverSha256": "3ce4d0eb06d6ac1b50a4759c356370483f24376e654c776e03b67d99290cf4e2",
+      "declaredCoverFrame": 63,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.605439,
+      "foregroundCompositeMae": 78.5515,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.99243,
+        "foregroundCompositeMae": 3.4607
+      }
+    },
+    {
+      "id": "glute-max-B",
+      "nameZh": "弹力带四足直腿后踢",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/glute-max-B/glute-max-B.cover.alpha.webp",
+      "coverSha256": "602b9ba828d7e8cd428abd16dbc90a23c6f1113fa406be1a000d9bf5b244926b",
+      "declaredCoverFrame": 57,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.771236,
+      "foregroundCompositeMae": 42.9577,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.990581,
+        "foregroundCompositeMae": 3.03
+      }
+    },
+    {
+      "id": "glute-max-C",
+      "nameZh": "反向背伸机",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/glute-max-C/glute-max-C.cover.alpha.webp",
+      "coverSha256": "61ead2e14b7690dfd0ea5807179ac3548f24207dc679228a5f0aadacd7feacc8",
+      "declaredCoverFrame": 39,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.517987,
+      "foregroundCompositeMae": 79.2301,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.97549,
+        "foregroundCompositeMae": 3.9252
+      }
+    },
+    {
+      "id": "h-9090-liftoff",
+      "nameZh": "90/90 后腿主动抬起",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-9090-liftoff/h-9090-liftoff.cover.alpha.webp",
+      "coverSha256": "ea5418f32eb4311cd3a017d6b1db888892143ff887b59d94f8ce6fe0790c1aca",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.939736,
+      "foregroundCompositeMae": 15.1938,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.997026,
+        "foregroundCompositeMae": 2.7543
+      }
+    },
+    {
+      "id": "h-adductor-rock",
+      "nameZh": "四足单腿侧伸后摇",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-adductor-rock/h-adductor-rock.cover.alpha.webp",
+      "coverSha256": "add3dded58925b069414b955dbe8118620d5a7acc186fe0d85c1d50b468ed1b5",
+      "declaredCoverFrame": 72,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.867886,
+      "foregroundCompositeMae": 27.1674,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.993716,
+        "foregroundCompositeMae": 2.9697
+      }
+    },
+    {
+      "id": "h-banana",
+      "nameZh": "仰卧香蕉式侧伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-banana/h-banana.cover.alpha.webp",
+      "coverSha256": "41c38b7115180e0bc78393628f31a5b389118d1dc723b1106c520e64cc4a6578",
+      "declaredCoverFrame": 72,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.927892,
+      "foregroundCompositeMae": 26.0267,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.997227,
+        "foregroundCompositeMae": 2.8096
+      }
+    },
+    {
+      "id": "h-band-chest-fly",
+      "nameZh": "站姿单臂弹力带夹胸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-band-chest-fly/h-band-chest-fly.cover.alpha.webp",
+      "coverSha256": "3854c5c49c96016c4a0cb53089333abd83d9fc7e75e32546294d5dff5bff1b58",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.900397,
+      "foregroundCompositeMae": 18.4201,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.991086,
+        "foregroundCompositeMae": 3.9474
+      }
+    },
+    {
+      "id": "h-band-face-pull",
+      "nameZh": "站姿弹力带面拉",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-band-face-pull/h-band-face-pull-rr1-complete-alpha-r2/h-band-face-pull.cover.alpha.webp",
+      "coverSha256": "ddf9ca0b71e6ee951b724067f115f81dad3207621a90c7d982c6ba78c4623d17",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.87959,
+      "foregroundCompositeMae": 15.6699,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-band-hip-extension",
+      "nameZh": "扶椅弹力带髋后伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-band-hip-extension/h-band-hip-extension-complete-alpha-r2/h-band-hip-extension.cover.alpha.webp",
+      "coverSha256": "e38f1246c36d6028fd44d5a1c50d6453d7e10b19093732c4a17ea422e32562cf",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.892363,
+      "foregroundCompositeMae": 17.7853,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.983768,
+        "foregroundCompositeMae": 3.7884
+      }
+    },
+    {
+      "id": "h-band-hip-ir",
+      "nameZh": "坐椅弹力带髋内旋",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-band-hip-ir/h-band-hip-ir.cover.alpha.webp",
+      "coverSha256": "0e640b26c9dd244a69e4500a7a82c456e5e31059eb068c49426191cecfab7d54",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.773938,
+      "foregroundCompositeMae": 38.6852,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.986782,
+        "foregroundCompositeMae": 3.5449
+      }
+    },
+    {
+      "id": "h-band-leg-out",
+      "nameZh": "仰卧弹力带单腿侧落",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-band-leg-out/h-band-leg-out.cover.alpha.webp",
+      "coverSha256": "7f73b10ff67f6d418ac1346f0a22d958ca7b52b88ab1ffd85cd8c8b02c58bfb7",
+      "declaredCoverFrame": 120,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.918662,
+      "foregroundCompositeMae": 17.8967,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.996245,
+        "foregroundCompositeMae": 2.8577
+      }
+    },
+    {
+      "id": "h-band-pallof",
+      "nameZh": "弹力带抗旋转推",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-band-pallof/h-band-pallof-complete-alpha-r2/h-band-pallof.cover.alpha.webp",
+      "coverSha256": "10db1a26fdd47ab9fd0fc7a9327535498ca9d772634b23af92ffbd4a00a449f7",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.72151,
+      "foregroundCompositeMae": 44.3642,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.982955,
+        "foregroundCompositeMae": 4.3514
+      }
+    },
+    {
+      "id": "h-band-pull-apart",
+      "nameZh": "弹力带水平拉开",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-band-pull-apart/h-band-pull-apart.cover.alpha.webp",
+      "coverSha256": "ad4ff54c34fddda1594b126276b2f73809ee314b8e712d1e9c0c3b65c0daa51f",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.621418,
+      "foregroundCompositeMae": 52.1205,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.982895,
+        "foregroundCompositeMae": 4.1085
+      }
+    },
+    {
+      "id": "h-band-row",
+      "nameZh": "弹力带坐姿划船",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-band-row/h-band-row.cover.alpha.webp",
+      "coverSha256": "cd8b2bc0cea530dbbb21649a9e7be1a14470cdf25b027dbd45a97358196b6af3",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.774337,
+      "foregroundCompositeMae": 34.7697,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994026,
+        "foregroundCompositeMae": 3.364
+      }
+    },
+    {
+      "id": "h-band-shoulder-ir",
+      "nameZh": "弹力带站姿肩内旋",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-band-shoulder-ir/h-band-shoulder-ir.cover.alpha.webp",
+      "coverSha256": "f3b9cc7ff92d85067f4ea5a6e00200687c1e712b9b5435054c7ea3d12ed41358",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.963903,
+      "foregroundCompositeMae": 8.3831,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.986628,
+        "foregroundCompositeMae": 3.7721
+      }
+    },
+    {
+      "id": "h-band-standing-abduction",
+      "nameZh": "扶椅弹力带站姿外展",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-band-standing-abduction/h-band-standing-abduction-complete-alpha-r2/h-band-standing-abduction.cover.alpha.webp",
+      "coverSha256": "f1f02d7936886cc9cec4ae78af9588441e54079101597eed9cca0acea9578cca",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.812166,
+      "foregroundCompositeMae": 32.1292,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.983559,
+        "foregroundCompositeMae": 3.4281
+      }
+    },
+    {
+      "id": "h-band-standing-adduction",
+      "nameZh": "弹力带站姿内收",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-band-standing-adduction/h-band-standing-adduction.cover.alpha.webp",
+      "coverSha256": "852b4f3285f888c16f08433bc4dbd17a649aeadd20d60487405d4cb670de834b",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.816458,
+      "foregroundCompositeMae": 31.558,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.983271,
+        "foregroundCompositeMae": 3.7912
+      }
+    },
+    {
+      "id": "h-band-stepout",
+      "nameZh": "弹力带侧向步出抗旋转",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-band-stepout/h-band-stepout.cover.alpha.webp",
+      "coverSha256": "84e38381b3d5e4964b670af90e308b3542032dab33ace4006b5aabe0107e5ecf",
+      "declaredCoverFrame": 108,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.394418,
+      "foregroundCompositeMae": 105.7635,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.986028,
+        "foregroundCompositeMae": 4.3501
+      }
+    },
+    {
+      "id": "h-band-straight-leg-raise",
+      "nameZh": "扶椅弹力带直腿前抬",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-band-straight-leg-raise/h-band-straight-leg-raise.cover.alpha.webp",
+      "coverSha256": "6390475fb75f0d03976dcc42e21c720c964ab147d6c54746e5468c6fe8fda130",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.856295,
+      "foregroundCompositeMae": 22.6195,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.982793,
+        "foregroundCompositeMae": 3.4474
+      }
+    },
+    {
+      "id": "h-band-triceps-pressdown",
+      "nameZh": "站姿单臂弹力带下压",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-band-triceps-pressdown/h-band-triceps-pressdown-complete-alpha-r2/h-band-triceps-pressdown.cover.alpha.webp",
+      "coverSha256": "ebd565706b0b5b3b6a2c5837b8b19146b065f4b4c600c6eaed1a300dd59faeae",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.862526,
+      "foregroundCompositeMae": 18.8841,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.976528,
+        "foregroundCompositeMae": 4.0289
+      }
+    },
+    {
+      "id": "h-bent-knee-calf-raise",
+      "nameZh": "屈膝承重提踵",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-bent-knee-calf-raise/h-bent-knee-calf-raise-rr7-alpha-r2/h-bent-knee-calf-raise.cover.alpha.webp",
+      "coverSha256": "d554f1a661edbe6d753b8212c83274b95dae015dab1799cc93e1adad25034e5f",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.839938,
+      "foregroundCompositeMae": 28.1601,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-bilateral-farmer-hold-native",
+      "nameZh": "双哑铃农夫站立保持",
+      "trainingDefinitionComplete": false,
+      "coverPath": "media/h-bilateral-farmer-hold-native/h-bilateral-farmer-hold-native-complete-alpha-r2/h-bilateral-farmer-hold-native.cover.alpha.webp",
+      "coverSha256": "abce6cf6ed9db51d2533ca910efb4be132f98a924aa417efa40680901ac6d8fb",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.986868,
+      "foregroundCompositeMae": 3.7251,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-bilateral-upper-back-hug",
+      "nameZh": "双臂前抱上背拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-bilateral-upper-back-hug/h-bilateral-upper-back-hug-rr3-complete-alpha-r2/h-bilateral-upper-back-hug.cover.alpha.webp",
+      "coverSha256": "9237021fda6a28df1328f9e9d9e09a9dd940c8c21a3824979e7bb97de6ea3cee",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.906103,
+      "foregroundCompositeMae": 15.37,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-bridge-march",
+      "nameZh": "臀桥交替踏步",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-bridge-march/h-bridge-march.cover.alpha.webp",
+      "coverSha256": "5b1309d788d0c296520e9326f0bb103915a05592c22f4189bcb38cabffa2c0a2",
+      "declaredCoverFrame": 3,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.988584,
+      "foregroundCompositeMae": 3.4383,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.995532,
+        "foregroundCompositeMae": 3.1149
+      }
+    },
+    {
+      "id": "h-bulgarian",
+      "nameZh": "椅子保加利亚分腿蹲",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-bulgarian/h-bulgarian.cover.alpha.webp",
+      "coverSha256": "9b1290c1c1ef3f7060a3085da1a027a3128018fe441bc0dddc41ec6b3283fcf1",
+      "declaredCoverFrame": 6,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.939205,
+      "foregroundCompositeMae": 6.0866,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.979848,
+        "foregroundCompositeMae": 3.6762
+      }
+    },
+    {
+      "id": "h-butterfly-active",
+      "nameZh": "仰卧蝴蝶主动开合",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-butterfly-active/h-butterfly-active.cover.alpha.webp",
+      "coverSha256": "7c27d92a434dd409a0e8131be9909641e04be87f788452a99d107bad14f70911",
+      "declaredCoverFrame": 69,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.88866,
+      "foregroundCompositeMae": 25.8291,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.993768,
+        "foregroundCompositeMae": 3.003
+      }
+    },
+    {
+      "id": "h-calf-raise",
+      "nameZh": "扶墙提踵",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-calf-raise/h-calf-raise-complete-alpha-r2/h-calf-raise.cover.alpha.webp",
+      "coverSha256": "0a6e984cba112b2e73c03bac7efc7d701ade98ceb3dcb98a0f3a3b879d39ad91",
+      "declaredCoverFrame": 57,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.836977,
+      "foregroundCompositeMae": 26.8453,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.995759,
+        "foregroundCompositeMae": 2.6059
+      }
+    },
+    {
+      "id": "h-catcow-quad",
+      "nameZh": "四足猫牛式",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-catcow-quad/h-catcow-quad.cover.alpha.webp",
+      "coverSha256": "9cc942d94165fffcba4126671d7459124b8114142781162022103eb09ba3c3cd",
+      "declaredCoverFrame": 39,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.846298,
+      "foregroundCompositeMae": 21.4508,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.949066,
+        "foregroundCompositeMae": 2.9302
+      }
+    },
+    {
+      "id": "h-chair-dip",
+      "nameZh": "椅子臂屈伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-chair-dip/h-chair-dip-complete-alpha-r2/h-chair-dip.cover.alpha.webp",
+      "coverSha256": "3d65c52d92f9ba20cd518d607e817bc1d40264197ddf669bbead09a27b4ccb89",
+      "declaredCoverFrame": 6,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.935099,
+      "foregroundCompositeMae": 5.4416,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.979004,
+        "foregroundCompositeMae": 3.5137
+      }
+    },
+    {
+      "id": "h-chair-kickback",
+      "nameZh": "扶椅站姿后踢腿",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-chair-kickback/h-chair-kickback.cover.alpha.webp",
+      "coverSha256": "e7b8927706f20cdbc5271367c4648a903d3953826d02c32b9187628003daa873",
+      "declaredCoverFrame": 57,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.702382,
+      "foregroundCompositeMae": 47.1809,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.982976,
+        "foregroundCompositeMae": 3.5876
+      }
+    },
+    {
+      "id": "h-chair-lat",
+      "nameZh": "扶椅背阔肌拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-chair-lat/h-chair-lat.cover.alpha.webp",
+      "coverSha256": "71f42397f9ee15acc6369ff509ecd5c19ecbcef6f146edd02fe978a61d5b2d6d",
+      "declaredCoverFrame": 108,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.700721,
+      "foregroundCompositeMae": 40.869,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.977175,
+        "foregroundCompositeMae": 3.7719
+      }
+    },
+    {
+      "id": "h-chair-progressive-front-split-native",
+      "nameZh": "扶椅前后劈叉渐进",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-chair-progressive-front-split-native/h-chair-progressive-front-split-native.cover.alpha.webp",
+      "coverSha256": "3f83b5f4b15a84285323537e5758d09227fc7c60e4d5014c6a48c17a2128d237",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.82517,
+      "foregroundCompositeMae": 33.0994,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-chair-single-leg-hip-thrust",
+      "nameZh": "肩靠椅单腿臀推",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-chair-single-leg-hip-thrust/h-chair-single-leg-hip-thrust-rr8-complete-alpha-r2/h-chair-single-leg-hip-thrust.cover.alpha.webp",
+      "coverSha256": "0f91eb007fa5cf38b7bedcb37f4e5d53263bc452c0c7bfe32e9b7afb245d9ae7",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.556837,
+      "foregroundCompositeMae": 79.8721,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-chair-sit-to-stand",
+      "nameZh": "普通椅双脚坐站",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-chair-sit-to-stand/h-chair-sit-to-stand.cover.alpha.webp",
+      "coverSha256": "ac57139d0ef0b7a6fa50f95ec4e7c3a7d9e15062115242371d7d2bdda4131c9a",
+      "declaredCoverFrame": 99,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.407475,
+      "foregroundCompositeMae": 98.9366,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.983576,
+        "foregroundCompositeMae": 3.4734
+      }
+    },
+    {
+      "id": "h-chair-step-up",
+      "nameZh": "椅子上步",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-chair-step-up/h-chair-step-up-r2-complete-alpha-r2/h-chair-step-up.cover.alpha.webp",
+      "coverSha256": "02a0c525c19313723e680ea838a95d10e2ed82b43626974f518a6d03f4449011",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.160033,
+      "foregroundCompositeMae": 138.7105,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.979331,
+        "foregroundCompositeMae": 3.6174
+      }
+    },
+    {
+      "id": "h-chair-tspine",
+      "nameZh": "跪姿椅面胸椎伸展",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-chair-tspine/h-chair-tspine-alpha-r2/h-chair-tspine.cover.alpha.webp",
+      "coverSha256": "34090f312e3188fcc6ae851d2ed013f1ab46a7734313564e10f57fc6f7ac6ef3",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.689983,
+      "foregroundCompositeMae": 50.3386,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.981936,
+        "foregroundCompositeMae": 3.3164
+      }
+    },
+    {
+      "id": "h-close-stance-forward-fold-native",
+      "nameZh": "并脚微屈膝无扶体前屈",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-close-stance-forward-fold-native/h-close-stance-forward-fold-native-complete-alpha-r2/h-close-stance-forward-fold-native.cover.alpha.webp",
+      "coverSha256": "cd05b8316ed9407a46e5cd7c691b5df332616e313821eedcf8c86b6627891302",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.308634,
+      "foregroundCompositeMae": 112.9218,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-cobra",
+      "nameZh": "眼镜蛇式",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-cobra/h-cobra.cover.alpha.webp",
+      "coverSha256": "e78564c7b3cb9a4d1fc4725aa40e09717c241982221e226b6934fd792a4be3b4",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.656194,
+      "foregroundCompositeMae": 63.5367,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994526,
+        "foregroundCompositeMae": 3.2418
+      }
+    },
+    {
+      "id": "h-couch-stretch",
+      "nameZh": "沙发拉伸（后脚搭矮凳）",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-couch-stretch/h-couch-stretch.cover.alpha.webp",
+      "coverSha256": "f47eac286a88e5d689583b53e1ad76ec637d759fc0cf15d2d05a449388824b97",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.689677,
+      "foregroundCompositeMae": 52.8472,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.991716,
+        "foregroundCompositeMae": 3.4081
+      }
+    },
+    {
+      "id": "h-crunch",
+      "nameZh": "卷腹",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-crunch/h-crunch.cover.alpha.webp",
+      "coverSha256": "b2a25373c3eebe57334d8d0d10317311db5a299b768d92f70a4dd2eff9840ac9",
+      "declaredCoverFrame": 57,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.759998,
+      "foregroundCompositeMae": 45.9292,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.997423,
+        "foregroundCompositeMae": 3.0286
+      }
+    },
+    {
+      "id": "h-db-calf-raise",
+      "nameZh": "双哑铃站姿提踵",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-calf-raise/h-db-calf-raise-complete-alpha-r2/h-db-calf-raise.cover.alpha.webp",
+      "coverSha256": "37b106dc0b70f2a3dfa066d512fbf098ed55f4a7fd03ed3d0a140f067f7c9a20",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.533499,
+      "foregroundCompositeMae": 78.7386,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.983093,
+        "foregroundCompositeMae": 3.5301
+      }
+    },
+    {
+      "id": "h-db-curl",
+      "nameZh": "哑铃交替弯举",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-curl/h-db-curl-r2-complete-alpha-r2/h-db-curl.cover.alpha.webp",
+      "coverSha256": "3a0d7dc704274ec454fa9c35a11c44fb8e71be37915662deaec8390a777a1c77",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.752097,
+      "foregroundCompositeMae": 33.9595,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.988224,
+        "foregroundCompositeMae": 3.9974
+      }
+    },
+    {
+      "id": "h-db-floor-fly",
+      "nameZh": "哑铃地板飞鸟",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-floor-fly/h-db-floor-fly.cover.alpha.webp",
+      "coverSha256": "ca0db037c065a2919a791428a8bb0a07a974d74b03afc9624dc034689fd76516",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.996255,
+      "foregroundCompositeMae": 2.7717,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-db-floor-press",
+      "nameZh": "哑铃地板卧推",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-floor-press/h-db-floor-press.cover.alpha.webp",
+      "coverSha256": "f60e55bbf3b967466432e06917fccb5e927070757e6045e57009b66b756a2630",
+      "declaredCoverFrame": 6,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.974341,
+      "foregroundCompositeMae": 4.8198,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.995429,
+        "foregroundCompositeMae": 2.866
+      }
+    },
+    {
+      "id": "h-db-front-raise",
+      "nameZh": "站姿双哑铃前平举",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-front-raise/h-db-front-raise.cover.alpha.webp",
+      "coverSha256": "b13dbd686ed2fbffd0d1e8a030503535b1470130a5f9c6478cbffc43cf6a2ab6",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.801853,
+      "foregroundCompositeMae": 39.9236,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.992377,
+        "foregroundCompositeMae": 3.8222
+      }
+    },
+    {
+      "id": "h-db-hammer-curl",
+      "nameZh": "站姿双哑铃锤式弯举",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-hammer-curl/h-db-hammer-curl.cover.alpha.webp",
+      "coverSha256": "9e262964f0cbfd738848f3c1c632c3a474bf097817e8d45284a1b1f43cca4d60",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.821347,
+      "foregroundCompositeMae": 32.3564,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.990919,
+        "foregroundCompositeMae": 3.7905
+      }
+    },
+    {
+      "id": "h-db-kickback",
+      "nameZh": "双哑铃俯身臂屈伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-kickback/h-db-kickback.cover.alpha.webp",
+      "coverSha256": "cc5c97a0d4830f7df8cf586f6a4a03408178159fc6d10547781bbf48922347f1",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.811247,
+      "foregroundCompositeMae": 32.889,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.984851,
+        "foregroundCompositeMae": 3.7977
+      }
+    },
+    {
+      "id": "h-db-lateral",
+      "nameZh": "哑铃侧平举",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-lateral/h-db-lateral.cover.alpha.webp",
+      "coverSha256": "70caff0e130c71fd86d3c77c4870cac5bd6ab4676168994d5789352f634eff76",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.622019,
+      "foregroundCompositeMae": 51.4651,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.98607,
+        "foregroundCompositeMae": 4.1578
+      }
+    },
+    {
+      "id": "h-db-overhead-triceps-extension",
+      "nameZh": "单臂哑铃过头臂屈伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-overhead-triceps-extension/h-db-overhead-triceps-extension.cover.alpha.webp",
+      "coverSha256": "de840a4a78b4c1ede4e168e7de154a979f88ea3330d61bd61b6dd5fff4056e2b",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.855934,
+      "foregroundCompositeMae": 24.7067,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-db-press",
+      "nameZh": "站姿哑铃推举",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-press/h-db-press-complete-alpha-r2/h-db-press.cover.alpha.webp",
+      "coverSha256": "d9e8fcd9a599d7a07464d9c18cdc2b89388c4aa07d598231793c9a73d77b6c97",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.585024,
+      "foregroundCompositeMae": 59.2807,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.987856,
+        "foregroundCompositeMae": 4.2507
+      }
+    },
+    {
+      "id": "h-db-rdl",
+      "nameZh": "哑铃罗马尼亚硬拉",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-rdl/h-db-rdl-complete-alpha-r2/h-db-rdl.cover.alpha.webp",
+      "coverSha256": "aa7abc5f8869a33d0cd34f8b6d02a9cd41d5ef8fcbe85ac9d9fa9c508c88db17",
+      "declaredCoverFrame": 6,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.973283,
+      "foregroundCompositeMae": 3.8131,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.895018,
+        "foregroundCompositeMae": 5.6785
+      }
+    },
+    {
+      "id": "h-db-reverse-fly",
+      "nameZh": "哑铃俯身飞鸟",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-reverse-fly/h-db-reverse-fly.cover.alpha.webp",
+      "coverSha256": "81171d8fc6619c83139ecac5e4bb70a52164c18e30a078338f53c80ba6781503",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.614999,
+      "foregroundCompositeMae": 55.8002,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.976062,
+        "foregroundCompositeMae": 4.0647
+      }
+    },
+    {
+      "id": "h-db-row",
+      "nameZh": "扶椅单臂哑铃划船",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-row/h-db-row.cover.alpha.webp",
+      "coverSha256": "1858620c63ca76d24f98173081a22c1ea2eea2e46ce29010dbd7cc95249e801b",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.806103,
+      "foregroundCompositeMae": 33.8008,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.984147,
+        "foregroundCompositeMae": 3.3619
+      }
+    },
+    {
+      "id": "h-db-shrug",
+      "nameZh": "双哑铃站姿耸肩",
+      "trainingDefinitionComplete": false,
+      "coverPath": "media/h-db-shrug/h-db-shrug-complete-alpha-r2/h-db-shrug.cover.alpha.webp",
+      "coverSha256": "25dbf5d42d369876d463e2f7bea6713f117ac8c8be45e7f8dc1713373d82b3b6",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.885963,
+      "foregroundCompositeMae": 20.4351,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.986022,
+        "foregroundCompositeMae": 3.695
+      }
+    },
+    {
+      "id": "h-db-split-squat",
+      "nameZh": "双哑铃原地分腿蹲",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-split-squat/h-db-split-squat-complete-alpha-r2/h-db-split-squat.cover.alpha.webp",
+      "coverSha256": "513001d60bcc83821cab1aadb227564360d9961acbf4559b74f06c6f7557f671",
+      "declaredCoverFrame": 6,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.976474,
+      "foregroundCompositeMae": 3.5176,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.976347,
+        "foregroundCompositeMae": 3.5156
+      }
+    },
+    {
+      "id": "h-db-supported-calf-raise",
+      "nameZh": "单手哑铃扶墙双脚提踵",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-db-supported-calf-raise/h-db-supported-calf-raise-complete-alpha-r2/h-db-supported-calf-raise.cover.alpha.webp",
+      "coverSha256": "1a1e85bab88f0992d09058f3b827b5d1414db43f9bec529454082d108d03738d",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.928476,
+      "foregroundCompositeMae": 14.6105,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.98569,
+        "foregroundCompositeMae": 2.7777
+      }
+    },
+    {
+      "id": "h-dd-shoulder",
+      "nameZh": "下犬式压肩",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-dd-shoulder/h-dd-shoulder.cover.alpha.webp",
+      "coverSha256": "d400e5fe6748c188b4f5f548816bbbd99fdb16b555a22e5af874780ce0de1dbc",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.793168,
+      "foregroundCompositeMae": 36.6941,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.99367,
+        "foregroundCompositeMae": 3.3762
+      }
+    },
+    {
+      "id": "h-donkey-kick",
+      "nameZh": "四足屈膝后踢",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-donkey-kick/h-donkey-kick.cover.alpha.webp",
+      "coverSha256": "0995385b762b44d66195345857f15e51bdcb497470618387d67f7fb211cc1ecd",
+      "declaredCoverFrame": 57,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.811512,
+      "foregroundCompositeMae": 35.6571,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.989152,
+        "foregroundCompositeMae": 3.2084
+      }
+    },
+    {
+      "id": "h-doorframe-forearms-pec-native-r3",
+      "nameZh": "门框双前臂胸肌拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-doorframe-forearms-pec-native-r3/h-doorframe-forearms-pec-native-r3-complete-alpha-r2/h-doorframe-forearms-pec-native-r3.cover.alpha.webp",
+      "coverSha256": "3f9d5266606fb448095023e1d69f14aff8f30e0d9dc1aa823248630096cb1a25",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.921315,
+      "foregroundCompositeMae": 10.2347,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-fixed-bar-vertical-pull",
+      "nameZh": "固定单杠舒适范围引体",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-fixed-bar-vertical-pull/h-fixed-bar-vertical-pull.cover.alpha.webp",
+      "coverSha256": "8cd00d9a7f8eb7bdfb329832c9d7c68031defac904c184d1c976e38410cf7ded",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.803886,
+      "foregroundCompositeMae": 34.354,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-floor-nordic-hand-reset",
+      "nameZh": "地面北欧离心及手撑复位",
+      "trainingDefinitionComplete": false,
+      "coverPath": "media/h-floor-nordic-hand-reset/h-floor-nordic-hand-reset.cover.alpha.webp",
+      "coverSha256": "0aee394299bf04ce4f2f2b58538b2bc0a26996b2aac740749c1c002c67118bcc",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.477954,
+      "foregroundCompositeMae": 88.9132,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-forearm-plank",
+      "nameZh": "前臂平板支撑",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-forearm-plank/h-forearm-plank.cover.alpha.webp",
+      "coverSha256": "52fbd42172f01dd607f0b40a0556c217fd9fa5e9d9633eae04375205c38e5d74",
+      "declaredCoverFrame": 63,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.928033,
+      "foregroundCompositeMae": 15.6134,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.997333,
+        "foregroundCompositeMae": 3.1033
+      }
+    },
+    {
+      "id": "h-forward-lunge",
+      "nameZh": "前跨步弓步蹲",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-forward-lunge/h-forward-lunge.cover.alpha.webp",
+      "coverSha256": "cc5aab6847f635b8519b370cdf1e1ed42634b51247794a7918fdaa8e6a5dd7ec",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.180626,
+      "foregroundCompositeMae": 141.7238,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-goblet-squat",
+      "nameZh": "哑铃高脚杯深蹲",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-goblet-squat/h-goblet-squat.cover.alpha.webp",
+      "coverSha256": "f1a983b15860b9ea9acfa2716af2f6c5a9546a4fbe76e5140ef88b04ea3a6d16",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.988643,
+      "foregroundCompositeMae": 4.1247,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-good-morning",
+      "nameZh": "徒手早安式",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-good-morning/h-good-morning-r2-complete-alpha-r2/h-good-morning.cover.alpha.webp",
+      "coverSha256": "d1400fc765e754fb3ddf4fe4657a5163346cd13376a8dea5f4d278c35abc57bc",
+      "declaredCoverFrame": 69,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.978816,
+      "foregroundCompositeMae": 3.8391,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.2123,
+        "foregroundCompositeMae": 131.0632
+      }
+    },
+    {
+      "id": "h-hip-gate",
+      "nameZh": "扶椅站姿开髋门",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-hip-gate/h-hip-gate.cover.alpha.webp",
+      "coverSha256": "0b903f223945d88b7f1b16b8c0bef9190cd411e272ee23af8fb47ccded6a1f67",
+      "declaredCoverFrame": 48,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.749657,
+      "foregroundCompositeMae": 37.3041,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.983779,
+        "foregroundCompositeMae": 3.3808
+      }
+    },
+    {
+      "id": "h-incline-pushup",
+      "nameZh": "扶凳上斜俯卧撑",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-incline-pushup/h-incline-pushup.cover.alpha.webp",
+      "coverSha256": "20fa382eaf3eb3bd00f14f23e8d8e978a3e0236cb2b3adc3f8e0988b4eccf1a4",
+      "declaredCoverFrame": 6,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.960455,
+      "foregroundCompositeMae": 4.9312,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.984855,
+        "foregroundCompositeMae": 3.7714
+      }
+    },
+    {
+      "id": "h-knee-hug",
+      "nameZh": "仰卧抱膝",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-knee-hug/h-knee-hug-r3-complete-alpha-r2/h-knee-hug.cover.alpha.webp",
+      "coverSha256": "299e5cb20cf5cc9dc2d326da748b6242558c28119cb4184edb874f020d3d956d",
+      "declaredCoverFrame": 75,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.875394,
+      "foregroundCompositeMae": 24.5543,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.995549,
+        "foregroundCompositeMae": 2.9755
+      }
+    },
+    {
+      "id": "h-knee-wall-dorsiflexion-native",
+      "nameZh": "膝碰墙背屈（前脚跟不离地）",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-knee-wall-dorsiflexion-native/h-knee-wall-dorsiflexion-native.cover.alpha.webp",
+      "coverSha256": "7478dd4d2948f6421f698e6c5057a328f88ed2e3de0939acc907881e50f7c54d",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.918567,
+      "foregroundCompositeMae": 19.5409,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-kneeling-instep-stretch",
+      "nameZh": "跪姿脚背支撑拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-kneeling-instep-stretch/h-kneeling-instep-stretch.cover.alpha.webp",
+      "coverSha256": "34638dfa0be9d2051e00959c9fdfb6794fd1aeb642172e85e939b757313f1b6b",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.81275,
+      "foregroundCompositeMae": 29.4132,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-kneeling-pushup",
+      "nameZh": "跪姿俯卧撑",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-kneeling-pushup/h-kneeling-pushup.cover.alpha.webp",
+      "coverSha256": "a658e781a8c27f061a42f4fe351aad34bbca688713c72573f9bad1f0d09b3eb5",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.51633,
+      "foregroundCompositeMae": 73.8883,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-kneeling-thread-needle",
+      "nameZh": "跪姿低位穿针（小范围修订）",
+      "trainingDefinitionComplete": false,
+      "coverPath": "media/h-kneeling-thread-needle/h-kneeling-thread-needle.cover.alpha.webp",
+      "coverSha256": "a73d846d170a284cf648dbefef0831386644055b7a880926a69da8fd46dca150",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.773025,
+      "foregroundCompositeMae": 29.8322,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-lateral-step-lunge",
+      "nameZh": "侧跨步弓步蹲",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-lateral-step-lunge/h-lateral-step-lunge.cover.alpha.webp",
+      "coverSha256": "0c62ce83c900afc3ac9021ca971246e4b59d7b150047d5b9fbfc7261a6d74854",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.165171,
+      "foregroundCompositeMae": 145.162,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-overhead-triceps-stretch",
+      "nameZh": "站姿过头肱三头肌拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-overhead-triceps-stretch/h-overhead-triceps-stretch.cover.alpha.webp",
+      "coverSha256": "1239f8bf8fa52333745274f09993afc8fbf569a9d9722f01486de5e3d0179242",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.986236,
+      "foregroundCompositeMae": 4.2978,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-pike-scapular-elevation",
+      "nameZh": "派克位直臂肩带提压",
+      "trainingDefinitionComplete": false,
+      "coverPath": "media/h-pike-scapular-elevation/h-pike-scapular-elevation.cover.alpha.webp",
+      "coverSha256": "d4881af8086f1d9afa418d850a377330f76a68ed0fe9df2889472988b6cfe37e",
+      "declaredCoverFrame": 6,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.994326,
+      "foregroundCompositeMae": 3.2415,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994264,
+        "foregroundCompositeMae": 3.2433
+      }
+    },
+    {
+      "id": "h-plank-side-step",
+      "nameZh": "直臂俯撑交替侧点地",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-plank-side-step/h-plank-side-step.cover.alpha.webp",
+      "coverSha256": "e93c246f3d21e89fb9f462c9b6ca89373a5c8b0b561d90a9f35f58bd195be405",
+      "declaredCoverFrame": 48,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.922352,
+      "foregroundCompositeMae": 12.0876,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.984213,
+        "foregroundCompositeMae": 3.042
+      }
+    },
+    {
+      "id": "h-quad-cars",
+      "nameZh": "四足髋关节画圈",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-quad-cars/h-quad-cars.cover.alpha.webp",
+      "coverSha256": "f45eb4ed47f68c5615d9b2307799541eb822b5c02479ffb1e175642807e31ce4",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.908853,
+      "foregroundCompositeMae": 20.5922,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994551,
+        "foregroundCompositeMae": 2.9201
+      }
+    },
+    {
+      "id": "h-quadruped-open",
+      "nameZh": "四足跪姿单臂开胸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-quadruped-open/h-quadruped-open.cover.alpha.webp",
+      "coverSha256": "1d4d820dcb237d32df125b5e86a08e326e8166e2416a147b4a10cf0b7efef390",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.797198,
+      "foregroundCompositeMae": 34.1292,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-quadruped-rockback",
+      "nameZh": "四足中立背后坐",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-quadruped-rockback/h-quadruped-rockback.cover.alpha.webp",
+      "coverSha256": "726f24162e6c0056e33a0899b54c837f380581e334d28f26172f9f10f4b58478",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.807222,
+      "foregroundCompositeMae": 35.1406,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-reverse-clam",
+      "nameZh": "侧卧反向蚌式",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-reverse-clam/h-reverse-clam.cover.alpha.webp",
+      "coverSha256": "b35da3d7832c95e615aecb66a53748f034d2c70b600388ad31e709eedeb25ead",
+      "declaredCoverFrame": 54,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.871597,
+      "foregroundCompositeMae": 25.5474,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.995172,
+        "foregroundCompositeMae": 2.9484
+      }
+    },
+    {
+      "id": "h-reverse-crunch",
+      "nameZh": "反向卷腹",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-reverse-crunch/h-reverse-crunch.cover.alpha.webp",
+      "coverSha256": "537576498e6b6561a867c205ef86c58399aff12569fb8282a54a09e804d670a9",
+      "declaredCoverFrame": 30,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.726443,
+      "foregroundCompositeMae": 48.7976,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.99165,
+        "foregroundCompositeMae": 2.9986
+      }
+    },
+    {
+      "id": "h-russian-twist",
+      "nameZh": "俄罗斯转体",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-russian-twist/h-russian-twist.cover.alpha.webp",
+      "coverSha256": "1174090394dfbd697846d318948e80eff6d599a8d45ebf359b74a0327c473a0c",
+      "declaredCoverFrame": 30,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.846313,
+      "foregroundCompositeMae": 27.4758,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.992326,
+        "foregroundCompositeMae": 3.3821
+      }
+    },
+    {
+      "id": "h-seated-reachback",
+      "nameZh": "坐姿后撑滑臀",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-seated-reachback/h-seated-reachback.cover.alpha.webp",
+      "coverSha256": "78d2d4278819b4698d00db151173c8fed4840298303a84dbe466f23bd73b34df",
+      "declaredCoverFrame": 120,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.729387,
+      "foregroundCompositeMae": 47.1515,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.991006,
+        "foregroundCompositeMae": 3.2808
+      }
+    },
+    {
+      "id": "h-short-side-plank",
+      "nameZh": "屈膝短杠杆侧平板",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-short-side-plank/h-short-side-plank.cover.alpha.webp",
+      "coverSha256": "8bb94cc0c27176ecc280adc22db0251f8db768aacb55afd39fb846428e07c43c",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.995652,
+      "foregroundCompositeMae": 3.3018,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-side-er",
+      "nameZh": "侧卧肩外旋",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-side-er/h-side-er.cover.alpha.webp",
+      "coverSha256": "eeae3d2f1bc81f61d716478cc189fe97756b228aea0fec801d4a4463de4ab6b0",
+      "declaredCoverFrame": 54,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.875062,
+      "foregroundCompositeMae": 21.8549,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.988523,
+        "foregroundCompositeMae": 2.7361
+      }
+    },
+    {
+      "id": "h-side-leg-raise",
+      "nameZh": "站姿侧抬腿",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-side-leg-raise/h-side-leg-raise.cover.alpha.webp",
+      "coverSha256": "4cbf473480a6b3cdb8fb96adf6e6e88f5537a8962f3e642f4bfa4559f82f4659",
+      "declaredCoverFrame": 57,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.687552,
+      "foregroundCompositeMae": 49.2807,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.989931,
+        "foregroundCompositeMae": 3.9572
+      }
+    },
+    {
+      "id": "h-sleeper-stretch",
+      "nameZh": "侧卧睡姿肩内旋拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-sleeper-stretch/h-sleeper-stretch.cover.alpha.webp",
+      "coverSha256": "3f29f39b431e031a4b0cb58d5c07b5e973a8ff5f68cff19a6bcfd38b2240701a",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.99572,
+      "foregroundCompositeMae": 6.8267,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-slider-body-saw",
+      "nameZh": "双脚滑盘长杠杆回收",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-slider-body-saw/h-slider-body-saw.cover.alpha.webp",
+      "coverSha256": "5cbb159e988592960e5d014ad30716125df8af2edc29b69b2d118160f6b2326d",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.544909,
+      "foregroundCompositeMae": 75.097,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.993179,
+        "foregroundCompositeMae": 3.7752
+      }
+    },
+    {
+      "id": "h-squat",
+      "nameZh": "徒手深蹲",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-squat/h-squat-r3/h-squat.cover.alpha.webp",
+      "coverSha256": "cd8e52226cc4d00cb6e038430953cc81aea7bba056c955c686367f5e0758f626",
+      "declaredCoverFrame": 63,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.988437,
+      "foregroundCompositeMae": 4.2296,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.318786,
+        "foregroundCompositeMae": 112.0056
+      }
+    },
+    {
+      "id": "h-standing-forearm-rotation",
+      "nameZh": "站姿屈肘前臂旋转",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-standing-forearm-rotation/h-standing-forearm-rotation.cover.alpha.webp",
+      "coverSha256": "b3e46ffa5ff910442879027c03ee8c73711381486486ac005b7b24d41dc68777",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.985704,
+      "foregroundCompositeMae": 4.9864,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.988349,
+        "foregroundCompositeMae": 3.6437
+      }
+    },
+    {
+      "id": "h-standing-wrist-deviation",
+      "nameZh": "站姿屈肘腕侧偏控制",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-standing-wrist-deviation/h-standing-wrist-deviation.cover.alpha.webp",
+      "coverSha256": "c871bad87ea9bb77bc2f4fdc7769183978d9b0acdf6b725b5471d69c27547efd",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.989357,
+      "foregroundCompositeMae": 4.7455,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.990242,
+        "foregroundCompositeMae": 3.5803
+      }
+    },
+    {
+      "id": "h-standing-wrist-extensor-stretch",
+      "nameZh": "站姿主动腕伸肌拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-standing-wrist-extensor-stretch/h-standing-wrist-extensor-stretch.cover.alpha.webp",
+      "coverSha256": "584d57c9881d548d224954cabbaa6a7fe839adfcbeafcfdcdfcdb3c210763e5e",
+      "declaredCoverFrame": 105,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.954409,
+      "foregroundCompositeMae": 7.6417,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.99142,
+        "foregroundCompositeMae": 3.7425
+      }
+    },
+    {
+      "id": "h-step-jack",
+      "nameZh": "低冲击开合跳",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-step-jack/h-step-jack-r3-complete-alpha-r2/h-step-jack.cover.alpha.webp",
+      "coverSha256": "a11c6ff83d5d9c6f030dca636e9f31bfbc71b1b2f73d4bc8411fc6aaaae99cde",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.296343,
+      "foregroundCompositeMae": 118.8196,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.985245,
+        "foregroundCompositeMae": 4.3964
+      }
+    },
+    {
+      "id": "h-straight-arm-hang-native",
+      "nameZh": "单杠直臂悬垂保持",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-straight-arm-hang-native/h-straight-arm-hang-native.cover.alpha.webp",
+      "coverSha256": "f90a93b13a0778f30df43674952b0144a5f38d1f7d2b718b209819fd217f479e",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.987882,
+      "foregroundCompositeMae": 3.8938,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-suitcase-hold",
+      "nameZh": "单手哑铃静态提握抗侧屈",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-suitcase-hold/h-suitcase-hold.cover.alpha.webp",
+      "coverSha256": "e99199d9e41b9363e13c835b0b151ffbc669402428afadb481c82f16acbc09b9",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.991069,
+      "foregroundCompositeMae": 3.8697,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.990568,
+        "foregroundCompositeMae": 3.8752
+      }
+    },
+    {
+      "id": "h-suitcase-march",
+      "nameZh": "单手哑铃交替踏步抗侧屈",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-suitcase-march/h-suitcase-march.cover.alpha.webp",
+      "coverSha256": "ea6092b0f8c79844cf3be1ddbd27994ba13349e6693639cc94dde76180762194",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.441934,
+      "foregroundCompositeMae": 97.3508,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.991081,
+        "foregroundCompositeMae": 4.0659
+      }
+    },
+    {
+      "id": "h-sumo-pry",
+      "nameZh": "相扑深蹲肘推膝停留",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-sumo-pry/h-sumo-pry.cover.alpha.webp",
+      "coverSha256": "6fdb941ef5672b87aa0940777bd843ef83a52ee539238d087af20902a6c958af",
+      "declaredCoverFrame": 78,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.606039,
+      "foregroundCompositeMae": 71.2961,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.99124,
+        "foregroundCompositeMae": 3.315
+      }
+    },
+    {
+      "id": "h-superman",
+      "nameZh": "俯卧超人式",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-superman/h-superman.cover.alpha.webp",
+      "coverSha256": "e6b576c82e425aef87149fa72eba5c51c27880992eeaa74acbc74d731ee527fc",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.601366,
+      "foregroundCompositeMae": 67.6688,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.985693,
+        "foregroundCompositeMae": 3.075
+      }
+    },
+    {
+      "id": "h-supine-bilateral-leg-raise",
+      "nameZh": "仰卧双直腿举腿",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-supine-bilateral-leg-raise/h-supine-bilateral-leg-raise.cover.alpha.webp",
+      "coverSha256": "bd0c5b6fa41ce2ee41ddae8da80c9932d0a204719433f15e09d4c53de624d1c4",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.751651,
+      "foregroundCompositeMae": 47.7868,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-supine-heel-slide",
+      "nameZh": "仰卧足跟滑",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-supine-heel-slide/h-supine-heel-slide.cover.alpha.webp",
+      "coverSha256": "f075fc1a9ba2b0d7024cbec642eb629e99140d2aa5c9ba054778cbd6391416f5",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.930456,
+      "foregroundCompositeMae": 15.7851,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-supine-twist",
+      "nameZh": "仰卧屈膝扭转",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-supine-twist/h-supine-twist.cover.alpha.webp",
+      "coverSha256": "f479fd01463a198631cec9c7372932fde63bfe8c9777c0632fe6f08913014325",
+      "declaredCoverFrame": 69,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.781992,
+      "foregroundCompositeMae": 39.6423,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.995899,
+        "foregroundCompositeMae": 3.054
+      }
+    },
+    {
+      "id": "h-supported-single-leg-calf",
+      "nameZh": "扶墙单腿提踵",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-supported-single-leg-calf/h-supported-single-leg-calf-complete-alpha-r2/h-supported-single-leg-calf.cover.alpha.webp",
+      "coverSha256": "75560cbe25322979b67b7f250c8a3d40bc75afab43f2af09b8c299ac8297a363",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.925537,
+      "foregroundCompositeMae": 16.7751,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994868,
+        "foregroundCompositeMae": 2.663
+      }
+    },
+    {
+      "id": "h-tabletop",
+      "nameZh": "桌面式后撑抬髋",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-tabletop/h-tabletop.cover.alpha.webp",
+      "coverSha256": "bcf8564d6516ac87d08548b9b88e60608745dcd62741a70ca7ac33ddc49c3c7f",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.527758,
+      "foregroundCompositeMae": 84.3282,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.990873,
+        "foregroundCompositeMae": 3.0712
+      }
+    },
+    {
+      "id": "h-tib-raise",
+      "nameZh": "靠墙勾脚尖",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-tib-raise/h-tib-raise-complete-alpha-r2/h-tib-raise.cover.alpha.webp",
+      "coverSha256": "d37fb44c6a37c24d39868786591490d645f6eabc0e5796b2009a098a4c900483",
+      "declaredCoverFrame": 54,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.752705,
+      "foregroundCompositeMae": 41.7023,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.988457,
+        "foregroundCompositeMae": 2.8563
+      }
+    },
+    {
+      "id": "h-towel-isometric-curl",
+      "nameZh": "毛巾脚锚等长弯举（卷束毛巾示意）",
+      "trainingDefinitionComplete": false,
+      "coverPath": "media/h-towel-isometric-curl/h-towel-isometric-curl.cover.alpha.webp",
+      "coverSha256": "fc829fcdf3ee12e17a76f8b693a636f7e4315226452ffe3abedc812e35f19082",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.984603,
+      "foregroundCompositeMae": 3.9321,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-unsupported-star-reach-native",
+      "nameZh": "无扶单腿三向点地",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-unsupported-star-reach-native/h-unsupported-star-reach-native.cover.alpha.webp",
+      "coverSha256": "1103eb985b882cd4b4112854df0b556bcf98189e497cb57c58f5eb6c8d59cc96",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.608725,
+      "foregroundCompositeMae": 61.9646,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-wall-angel",
+      "nameZh": "靠墙天使",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-wall-angel/h-wall-angel-complete-alpha-r2/h-wall-angel.cover.alpha.webp",
+      "coverSha256": "0b415107cacbbee7c4badd3b98e67c2e981f37ee597f8271d31a53a26249eb7b",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.920262,
+      "foregroundCompositeMae": 16.9312,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994844,
+        "foregroundCompositeMae": 2.8034
+      }
+    },
+    {
+      "id": "h-wall-calf",
+      "nameZh": "靠墙小腿拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-wall-calf/h-wall-calf.cover.alpha.webp",
+      "coverSha256": "6fb72313f76406e5b940e1e27f085e2d6c32e475a79f79b99b37f0bc1e565853",
+      "declaredCoverFrame": 105,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.61292,
+      "foregroundCompositeMae": 65.6559,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.981385,
+        "foregroundCompositeMae": 3.5471
+      }
+    },
+    {
+      "id": "h-wall-calf-bent-knee",
+      "nameZh": "扶墙屈膝小腿拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-wall-calf-bent-knee/h-wall-calf-bent-knee-complete-alpha-r2/h-wall-calf-bent-knee.cover.alpha.webp",
+      "coverSha256": "edd2acab841218107645ea75ec3122b0a0be09c216d3b3a2829c0d8e3d329c4f",
+      "declaredCoverFrame": 120,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.87913,
+      "foregroundCompositeMae": 21.0586,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.982608,
+        "foregroundCompositeMae": 3.2849
+      }
+    },
+    {
+      "id": "h-wall-palm-lift",
+      "nameZh": "墙面指端接触掌根抬起诊断",
+      "trainingDefinitionComplete": false,
+      "coverPath": "media/h-wall-palm-lift/h-wall-palm-lift.cover.alpha.webp",
+      "coverSha256": "31dde6b0fcfee98f0e9e76bebf24a581f465f14d31c7b55f1ddc32518fbfa782",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.953285,
+      "foregroundCompositeMae": 9.4788,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "h-wall-straddle",
+      "nameZh": "靠墙仰卧 V 字分腿",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-wall-straddle/h-wall-straddle.cover.alpha.webp",
+      "coverSha256": "2d745eed975317f00e788ae1542b12135af26cb0b661f75ca5d92d69eafe9f2b",
+      "declaredCoverFrame": 135,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.954786,
+      "foregroundCompositeMae": 10.8671,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994233,
+        "foregroundCompositeMae": 2.6636
+      }
+    },
+    {
+      "id": "h-wall-wrist-flexor-stretch",
+      "nameZh": "站姿扶墙腕屈肌拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/h-wall-wrist-flexor-stretch/h-wall-wrist-flexor-stretch-complete-alpha-r2/h-wall-wrist-flexor-stretch.cover.alpha.webp",
+      "coverSha256": "b8324bc80372a254140ae4edb947843f379729ca216967a03d45a21608ea6d37",
+      "declaredCoverFrame": 105,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.945583,
+      "foregroundCompositeMae": 9.1038,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.988319,
+        "foregroundCompositeMae": 2.7082
+      }
+    },
+    {
+      "id": "hamstrings-A",
+      "nameZh": "徒手单腿罗马尼亚硬拉",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/hamstrings-A/hamstrings-A-r3-complete-alpha-r2/hamstrings-A.cover.alpha.webp",
+      "coverSha256": "a7182ee1a6ad066bbb9ca0907f9737d409bf0f3ce8a27f92f91ab9f75322110e",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.978088,
+      "foregroundCompositeMae": 4.2207,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.172262,
+        "foregroundCompositeMae": 141.5232
+      }
+    },
+    {
+      "id": "hamstrings-B",
+      "nameZh": "滑盘腿弯举",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/hamstrings-B/hamstrings-B.cover.alpha.webp",
+      "coverSha256": "2e3d23acffbf6f9bc34d136c75ec126c074d3dcbe516152578bdb3bb7bbc76f9",
+      "declaredCoverFrame": 69,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.745636,
+      "foregroundCompositeMae": 54.9464,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.99626,
+        "foregroundCompositeMae": 3.0747
+      }
+    },
+    {
+      "id": "hamstrings-C",
+      "nameZh": "GHD 北欧离心",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/hamstrings-C/hamstrings-C-complete-alpha-r2/hamstrings-C.cover.alpha.webp",
+      "coverSha256": "c7c3ea7520db5f32a794adcf624e6d6cbaf763c48ea0526eec14dc7d1508f72f",
+      "declaredCoverFrame": 144,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.356089,
+      "foregroundCompositeMae": 99.4115,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.979171,
+        "foregroundCompositeMae": 3.6609
+      }
+    },
+    {
+      "id": "hip-abductors-A",
+      "nameZh": "侧平板抬腿",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/hip-abductors-A/hip-abductors-A.cover.alpha.webp",
+      "coverSha256": "e5f8a590948945888562c208b59769a7ecef5a5090ed821e58fc60683f50d2c5",
+      "declaredCoverFrame": 48,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.861036,
+      "foregroundCompositeMae": 26.4207,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.995851,
+        "foregroundCompositeMae": 2.9397
+      }
+    },
+    {
+      "id": "hip-abductors-B",
+      "nameZh": "仰卧弹力带 V 字开腿",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/hip-abductors-B/hip-abductors-B.cover.alpha.webp",
+      "coverSha256": "70dc655de410e5ad51855ee331d6b89e6d8aca6c66ad550b01e133d9d80204bc",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.617068,
+      "foregroundCompositeMae": 70.2315,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.991518,
+        "foregroundCompositeMae": 3.368
+      }
+    },
+    {
+      "id": "hip-abductors-C",
+      "nameZh": "器械髋外展",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/hip-abductors-C/hip-abductors-C.cover.alpha.webp",
+      "coverSha256": "21b930c2cb17e91b40da8fb33be84d7e9b9c5a9334ec9641137d012267445238",
+      "declaredCoverFrame": 48,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.817157,
+      "foregroundCompositeMae": 34.7763,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.990043,
+        "foregroundCompositeMae": 2.9934
+      }
+    },
+    {
+      "id": "hip-flexors-A",
+      "nameZh": "坐姿直腿抬腿（压缩）",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/hip-flexors-A/hip-flexors-A.cover.alpha.webp",
+      "coverSha256": "1c4db5f2215b897715d27245044cb694d41a3e626cec121bc058cf8963b2e635",
+      "declaredCoverFrame": 57,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.936271,
+      "foregroundCompositeMae": 11.5986,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.998549,
+        "foregroundCompositeMae": 3.1205
+      }
+    },
+    {
+      "id": "hip-flexors-B",
+      "nameZh": "弹力带站姿高抬膝",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/hip-flexors-B/hip-flexors-B.cover.alpha.webp",
+      "coverSha256": "e0009a25f5bf7c82e7d30c4e7120a9fe3b8a7059e8b7271d4bb07e9fe3c1b3ce",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.777526,
+      "foregroundCompositeMae": 38.8927,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.990037,
+        "foregroundCompositeMae": 2.9962
+      }
+    },
+    {
+      "id": "hip-flexors-C",
+      "nameZh": "绳索站姿直腿前抬",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/hip-flexors-C/hip-flexors-C-complete-alpha-r2/hip-flexors-C.cover.alpha.webp",
+      "coverSha256": "bce2e38a70579a3c90fdb0460b726d5ee3c633b62d5f832fe15b599d5143ed81",
+      "declaredCoverFrame": 48,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.783823,
+      "foregroundCompositeMae": 36.3781,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994078,
+        "foregroundCompositeMae": 3.3512
+      }
+    },
+    {
+      "id": "lats-A",
+      "nameZh": "坐姿撑地抬臀",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/lats-A/lats-A.cover.alpha.webp",
+      "coverSha256": "fb00869d7261ef9a63dd1a8866ebd0d7d14312808849c5d4950b151069f68333",
+      "declaredCoverFrame": 63,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.833981,
+      "foregroundCompositeMae": 32.3328,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.995391,
+        "foregroundCompositeMae": 3.6085
+      }
+    },
+    {
+      "id": "lats-B",
+      "nameZh": "弹力带直臂下拉",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/lats-B/lats-B.cover.alpha.webp",
+      "coverSha256": "b3b651f318725ff94f34506fedf7c15dd1e596e0acf89b4687d6189e50c9ff81",
+      "declaredCoverFrame": 3,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.865069,
+      "foregroundCompositeMae": 18.175,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.977962,
+        "foregroundCompositeMae": 3.8599
+      }
+    },
+    {
+      "id": "lats-C",
+      "nameZh": "双杠支撑耸肩下压",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/lats-C/lats-C-complete-alpha-r2/lats-C.cover.alpha.webp",
+      "coverSha256": "d00e6ce7f485e495bf205312ff24fe1d7ab7883cd7d3e798193a878f1ed0bbbf",
+      "declaredCoverFrame": 18,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.971735,
+      "foregroundCompositeMae": 5.1377,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.717745,
+        "foregroundCompositeMae": 45.3327
+      }
+    },
+    {
+      "id": "n-chair-wiper",
+      "nameZh": "坐椅雨刷（膝内倒）",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-chair-wiper/n-chair-wiper.cover.alpha.webp",
+      "coverSha256": "df77be3d27d29d6ee70e715d3d0960dcab755677f2061f0b707d769fdb65127e",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.781135,
+      "foregroundCompositeMae": 37.8426,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.983211,
+        "foregroundCompositeMae": 3.5663
+      }
+    },
+    {
+      "id": "n-half-split",
+      "nameZh": "半跪半劈叉",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-half-split/n-half-split.cover.alpha.webp",
+      "coverSha256": "1471c53a90f957530c936737f178dc825e1a5320eecde9c64c5719ea2b639e93",
+      "declaredCoverFrame": 90,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.847387,
+      "foregroundCompositeMae": 28.4928,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994753,
+        "foregroundCompositeMae": 3.1926
+      }
+    },
+    {
+      "id": "n-leg-circles",
+      "nameZh": "仰卧直腿画圈",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-leg-circles/n-leg-circles.cover.alpha.webp",
+      "coverSha256": "0187172910aa7de6464b59785311756660ad1d78dbdf972a64c53700cb5eb0af",
+      "declaredCoverFrame": 189,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.823981,
+      "foregroundCompositeMae": 33.4042,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994855,
+        "foregroundCompositeMae": 2.9179
+      }
+    },
+    {
+      "id": "n-pelvis-circle",
+      "nameZh": "站姿骨盆画圈",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-pelvis-circle/n-pelvis-circle-r2-complete-alpha-r2/n-pelvis-circle.cover.alpha.webp",
+      "coverSha256": "d163f8c3009c5db061cc2221c537aeeb09250cc315454e316b6d25d78fa4bd29",
+      "declaredCoverFrame": 33,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.768016,
+      "foregroundCompositeMae": 33.3698,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.980239,
+        "foregroundCompositeMae": 3.8704
+      }
+    },
+    {
+      "id": "n-prone-hip-ext",
+      "nameZh": "俯卧屈膝抬腿",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-prone-hip-ext/n-prone-hip-ext.cover.alpha.webp",
+      "coverSha256": "975f2cb990fb762979e50ad3094763598d6e2c68beac1f2a34d74eee236ea028",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.863358,
+      "foregroundCompositeMae": 27.9173,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.998111,
+        "foregroundCompositeMae": 3.1481
+      }
+    },
+    {
+      "id": "n-prone-ir",
+      "nameZh": "俯卧小腿外摆",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-prone-ir/n-prone-ir.cover.alpha.webp",
+      "coverSha256": "39425ea88a43d044ba1ca5bf13fd2efc6955b225895cdbc232b4e7a8d92e6c1e",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.85142,
+      "foregroundCompositeMae": 27.9115,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.991967,
+        "foregroundCompositeMae": 2.8633
+      }
+    },
+    {
+      "id": "n-seated-ir-drop",
+      "nameZh": "坐姿后撑单膝内倒",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-seated-ir-drop/n-seated-ir-drop.cover.alpha.webp",
+      "coverSha256": "2261203439c244bd1da83e6f24c325da28df9779d739a36a63584625320ac51f",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.91465,
+      "foregroundCompositeMae": 20.0395,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.996238,
+        "foregroundCompositeMae": 2.8727
+      }
+    },
+    {
+      "id": "n-seated-knee-lift",
+      "nameZh": "坐姿抬膝悬停",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-seated-knee-lift/n-seated-knee-lift.cover.alpha.webp",
+      "coverSha256": "5e97eb2b0f79ac6b72e959fd0f1aa99de6881c45c76bdd11d4a96697fb075c5f",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.83136,
+      "foregroundCompositeMae": 25.6868,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.982098,
+        "foregroundCompositeMae": 3.2815
+      }
+    },
+    {
+      "id": "n-seated-squeeze",
+      "nameZh": "坐姿夹砖（膝内夹）",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-seated-squeeze/n-seated-squeeze.cover.alpha.webp",
+      "coverSha256": "42555a29daae174bf7d7a0f3f130abf5bd27f9babf1cf6d656eb3e6da9069831",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.859011,
+      "foregroundCompositeMae": 21.6096,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.982326,
+        "foregroundCompositeMae": 3.4591
+      }
+    },
+    {
+      "id": "n-slider-lateral",
+      "nameZh": "滑垫侧向滑",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-slider-lateral/n-slider-lateral.cover.alpha.webp",
+      "coverSha256": "7fc7a09d8addcbb0412722b66ec956882dc198a9ee4560082c74c851b130937f",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.342455,
+      "foregroundCompositeMae": 119.312,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.989544,
+        "foregroundCompositeMae": 3.8439
+      }
+    },
+    {
+      "id": "n-squat-shift",
+      "nameZh": "低位蹲姿左右移重心",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-squat-shift/n-squat-shift.cover.alpha.webp",
+      "coverSha256": "4e59511860a7fc1182f8030ec5157ba848e40604926982a358634833b1598c2a",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.558988,
+      "foregroundCompositeMae": 82.7514,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.99271,
+        "foregroundCompositeMae": 3.186
+      }
+    },
+    {
+      "id": "n-straddle-fold",
+      "nameZh": "坐姿分腿体前屈",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-straddle-fold/n-straddle-fold.cover.alpha.webp",
+      "coverSha256": "50484c38fa693fec34492ce6bd56df00a4b314f4f8f73fb9f1996936915bdaff",
+      "declaredCoverFrame": 90,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.908068,
+      "foregroundCompositeMae": 20.428,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.996989,
+        "foregroundCompositeMae": 2.7656
+      }
+    },
+    {
+      "id": "n-thomas-test",
+      "nameZh": "仰卧单膝抱胸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-thomas-test/n-thomas-test.cover.alpha.webp",
+      "coverSha256": "8cbf8da89cfe2c9c22607610c573b21e10aed075fc2eec5f341c7f7b76083e31",
+      "declaredCoverFrame": 75,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.896309,
+      "foregroundCompositeMae": 19.7968,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.996392,
+        "foregroundCompositeMae": 3.2237
+      }
+    },
+    {
+      "id": "n-wide-fold",
+      "nameZh": "站姿宽距体前屈（扶椅）",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-wide-fold/n-wide-fold.cover.alpha.webp",
+      "coverSha256": "89a93bfea7a4a3fd3c8461eae5ccee9a8cacbc7c96b6ff27eb73c366c86936c3",
+      "declaredCoverFrame": 90,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.7169,
+      "foregroundCompositeMae": 44.5687,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.982688,
+        "foregroundCompositeMae": 3.2742
+      }
+    },
+    {
+      "id": "n-windshield",
+      "nameZh": "仰卧雨刷式",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/n-windshield/n-windshield.cover.alpha.webp",
+      "coverSha256": "d0e4f2549b1397ffef91e09ac0699c182644140de233cfc7cccc61a3188e35c1",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.923584,
+      "foregroundCompositeMae": 19.1935,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.995205,
+        "foregroundCompositeMae": 2.9075
+      }
+    },
+    {
+      "id": "o-chair-knee-extension",
+      "nameZh": "坐椅徒手伸膝",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-chair-knee-extension/o-chair-knee-extension.cover.alpha.webp",
+      "coverSha256": "a51015a52ba090d620ffabaa77c830a47eb9ccaa293523d85557222da98d09c7",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.850775,
+      "foregroundCompositeMae": 25.4472,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "o-seated-calf-raise",
+      "nameZh": "坐椅提踵",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-seated-calf-raise/o-seated-calf-raise.cover.alpha.webp",
+      "coverSha256": "e4774baaa00930d557020103733927d9faee22637151a503ba196d4dd6748047",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.868686,
+      "foregroundCompositeMae": 24.7798,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "o-seated-catcow",
+      "nameZh": "坐姿猫牛式",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-seated-catcow/o-seated-catcow.cover.alpha.webp",
+      "coverSha256": "0c3552b6cc635b119a03644fdf46ddbb55c1bdd75c8820f3d873776dbe1c0089",
+      "declaredCoverFrame": 78,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.762635,
+      "foregroundCompositeMae": 34.0825,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.988071,
+        "foregroundCompositeMae": 3.2337
+      }
+    },
+    {
+      "id": "o-seated-fig4",
+      "nameZh": "坐姿四字前压",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-seated-fig4/o-seated-fig4.cover.alpha.webp",
+      "coverSha256": "5b402380cc2719707ac2e020251aa6422bb6a13f445ff97563a8f603ac68bc51",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.740409,
+      "foregroundCompositeMae": 46.788,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.990049,
+        "foregroundCompositeMae": 3.1025
+      }
+    },
+    {
+      "id": "o-seated-ham",
+      "nameZh": "坐姿腘绳肌前伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-seated-ham/o-seated-ham.cover.alpha.webp",
+      "coverSha256": "324953ae385bcdc2251b9ac608dde25f409fd0bd9a9b8f051ca0bec300b4b6f5",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.630306,
+      "foregroundCompositeMae": 61.534,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.984836,
+        "foregroundCompositeMae": 3.3594
+      }
+    },
+    {
+      "id": "o-seated-hip-er",
+      "nameZh": "坐椅无阻力髋外旋控制",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-seated-hip-er/o-seated-hip-er.cover.alpha.webp",
+      "coverSha256": "921547dc80bcb145df63f3e04f759ed8a062cf5a0730bd923ca842c7250ff7c6",
+      "declaredCoverFrame": 105,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.900494,
+      "foregroundCompositeMae": 14.8778,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.985316,
+        "foregroundCompositeMae": 3.4066
+      }
+    },
+    {
+      "id": "o-seated-sidebend",
+      "nameZh": "坐椅单臂侧伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-seated-sidebend/o-seated-sidebend.cover.alpha.webp",
+      "coverSha256": "352cea37ce33e8a4659ae77fc2d3fb0ee34a6970f699baeb4a79ca9ec581f6a5",
+      "declaredCoverFrame": null,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.651226,
+      "foregroundCompositeMae": 54.7629,
+      "declaredCoverFrameMetrics": null
+    },
+    {
+      "id": "o-seated-twist",
+      "nameZh": "坐姿扶椅扭转",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-seated-twist/o-seated-twist.cover.alpha.webp",
+      "coverSha256": "80beaea7bd55118136aba8894718da7acd2796c1f160f40786afc56c9cb7cb20",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.881415,
+      "foregroundCompositeMae": 25.4222,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.987657,
+        "foregroundCompositeMae": 3.3277
+      }
+    },
+    {
+      "id": "o-stand-crossreach",
+      "nameZh": "扶椅站姿交叉侧伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-stand-crossreach/o-stand-crossreach-r2-complete-alpha-r2/o-stand-crossreach.cover.alpha.webp",
+      "coverSha256": "3651b1f4e6f478980729be921c96b3569102a6240edd3dd3c437c33d2e29ea4e",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.717874,
+      "foregroundCompositeMae": 42.0275,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.980742,
+        "foregroundCompositeMae": 3.4008
+      }
+    },
+    {
+      "id": "o-stand-ham",
+      "nameZh": "扶椅站姿单腿腘绳肌拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-stand-ham/o-stand-ham.cover.alpha.webp",
+      "coverSha256": "7e8c61f9a4b77901f1b08e363ee11bcfead6498cdd9413de5d8b2d42f71476d3",
+      "declaredCoverFrame": 105,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.722701,
+      "foregroundCompositeMae": 48.8532,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.98238,
+        "foregroundCompositeMae": 3.2922
+      }
+    },
+    {
+      "id": "o-stand-lunge",
+      "nameZh": "扶椅站姿弓步屈髋拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-stand-lunge/o-stand-lunge-complete-alpha-r2/o-stand-lunge.cover.alpha.webp",
+      "coverSha256": "400de9778ddb26128b1398ea337df59bfa223ba5778bb69ece67cbb66146a8fe",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.749514,
+      "foregroundCompositeMae": 43.7299,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.982714,
+        "foregroundCompositeMae": 3.5179
+      }
+    },
+    {
+      "id": "o-stand-quad",
+      "nameZh": "扶椅站姿股四头肌拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-stand-quad/o-stand-quad.cover.alpha.webp",
+      "coverSha256": "04166a24c38ed4fe5bc56efdff4dc55b1b4535a882477fe138b14e0ab11f064a",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.805801,
+      "foregroundCompositeMae": 31.3189,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.988993,
+        "foregroundCompositeMae": 3.2336
+      }
+    },
+    {
+      "id": "o-stand-sidebend",
+      "nameZh": "站姿举手侧屈",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-stand-sidebend/o-stand-sidebend.cover.alpha.webp",
+      "coverSha256": "291878c5ffca73afeb1d87100c75b71d897be63954fe7e0504708f3d60038bb9",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.724959,
+      "foregroundCompositeMae": 44.3654,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.98831,
+        "foregroundCompositeMae": 3.5836
+      }
+    },
+    {
+      "id": "o-supported-ankle-eversion",
+      "nameZh": "扶椅悬空足外翻控制",
+      "trainingDefinitionComplete": false,
+      "coverPath": "media/o-supported-ankle-eversion/o-supported-ankle-eversion.cover.alpha.webp",
+      "coverSha256": "a9a672544332a4f29f0b01c29d6888195259f5f8955dd06228b26e1c9ead59d7",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.982494,
+      "foregroundCompositeMae": 3.7899,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.988708,
+        "foregroundCompositeMae": 3.4903
+      }
+    },
+    {
+      "id": "o-supported-ankle-inversion",
+      "nameZh": "扶椅悬空足内翻控制",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-supported-ankle-inversion/o-supported-ankle-inversion.cover.alpha.webp",
+      "coverSha256": "336fa11269b55167879ac2104f5001c10d7b325fe26ffdcb4c946e59aff19b4a",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.978592,
+      "foregroundCompositeMae": 3.7722,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.985736,
+        "foregroundCompositeMae": 3.5121
+      }
+    },
+    {
+      "id": "o-supported-ankle-pump",
+      "nameZh": "扶椅悬空踝屈伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-supported-ankle-pump/o-supported-ankle-pump.cover.alpha.webp",
+      "coverSha256": "299248356251b69cb6e01ddc9786d53cef93bb492db180a8f7965ab73b8219cc",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.975218,
+      "foregroundCompositeMae": 4.0185,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.986788,
+        "foregroundCompositeMae": 3.3476
+      }
+    },
+    {
+      "id": "o-supported-hip-airplane",
+      "nameZh": "扶椅单腿髋飞机",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-supported-hip-airplane/o-supported-hip-airplane-complete-alpha-r2/o-supported-hip-airplane.cover.alpha.webp",
+      "coverSha256": "1a233458d2e630792c14864978f62dd8cae6deeb3eccba1712a109a557082745",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.755265,
+      "foregroundCompositeMae": 37.5993,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.980597,
+        "foregroundCompositeMae": 3.5245
+      }
+    },
+    {
+      "id": "o-supported-hip-hitch",
+      "nameZh": "扶椅单腿骨盆提拉",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-supported-hip-hitch/o-supported-hip-hitch.cover.alpha.webp",
+      "coverSha256": "4a12ff28324b0a4099ac9b46918150d5391b1d6154c34109742b385082ec49f4",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.842565,
+      "foregroundCompositeMae": 20.8899,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.977116,
+        "foregroundCompositeMae": 3.4131
+      }
+    },
+    {
+      "id": "o-supported-hip-ir",
+      "nameZh": "扶椅屈膝髋内旋控制",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-supported-hip-ir/o-supported-hip-ir-complete-alpha-r2/o-supported-hip-ir.cover.alpha.webp",
+      "coverSha256": "522807b1bf470d8cf729e466a657e018c17e8237df79ff5e3a17d13aed371051",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.900744,
+      "foregroundCompositeMae": 16.6135,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.983893,
+        "foregroundCompositeMae": 3.3961
+      }
+    },
+    {
+      "id": "o-supported-knee-curl",
+      "nameZh": "扶椅站姿徒手屈膝",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-supported-knee-curl/o-supported-knee-curl-complete-alpha-r2/o-supported-knee-curl.cover.alpha.webp",
+      "coverSha256": "30d49f8cee2bd6450d024d8bd1529c4db4ff391f72c14a9d58ff39880eacbd55",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.906903,
+      "foregroundCompositeMae": 16.7761,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.988157,
+        "foregroundCompositeMae": 3.4788
+      }
+    },
+    {
+      "id": "o-supported-march",
+      "nameZh": "扶椅站姿交替抬膝",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-supported-march/o-supported-march.cover.alpha.webp",
+      "coverSha256": "3835b035fbc154c136e31c80a9f8e864d746489557755a589c147d00bbb2ae7b",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.912632,
+      "foregroundCompositeMae": 15.935,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.983889,
+        "foregroundCompositeMae": 3.5568
+      }
+    },
+    {
+      "id": "o-supported-mini-squat",
+      "nameZh": "扶椅浅蹲",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-supported-mini-squat/o-supported-mini-squat.cover.alpha.webp",
+      "coverSha256": "61005cc705961cb0ac5aec2eb5d81613fb350eb61ce9911c65ae4cde70cba833",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.771046,
+      "foregroundCompositeMae": 38.9231,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.980857,
+        "foregroundCompositeMae": 3.5287
+      }
+    },
+    {
+      "id": "o-supported-single-leg-rdl",
+      "nameZh": "扶椅单腿髋铰链",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-supported-single-leg-rdl/o-supported-single-leg-rdl-complete-alpha-r2/o-supported-single-leg-rdl.cover.alpha.webp",
+      "coverSha256": "2a8207e3de307083ed476c2b122a9649d3a4cf5326a0fc1e0c77df539b57718c",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.981159,
+      "foregroundCompositeMae": 3.6913,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.45057,
+        "foregroundCompositeMae": 91.9541
+      }
+    },
+    {
+      "id": "o-supported-star-reach",
+      "nameZh": "扶椅单腿三向点地",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-supported-star-reach/o-supported-star-reach.cover.alpha.webp",
+      "coverSha256": "6eed897b8ea61675c418c5bee9eba6f52f49c7355fc19e34cf586323b3ed959f",
+      "declaredCoverFrame": 105,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.736217,
+      "foregroundCompositeMae": 42.618,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.986488,
+        "foregroundCompositeMae": 3.4455
+      }
+    },
+    {
+      "id": "o-wall-hip-hinge-stretch",
+      "nameZh": "扶墙髋后移躯干延展",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/o-wall-hip-hinge-stretch/o-wall-hip-hinge-stretch.cover.alpha.webp",
+      "coverSha256": "fbec0ee4c6a518f257f2ab930185daaa3c322505b6d707ce65af3984c744a72a",
+      "declaredCoverFrame": 105,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.80145,
+      "foregroundCompositeMae": 33.6128,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.985728,
+        "foregroundCompositeMae": 3.1184
+      }
+    },
+    {
+      "id": "obliques-A",
+      "nameZh": "熊爬穿腿",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/obliques-A/obliques-A.cover.alpha.webp",
+      "coverSha256": "264b5f74169bf42eea9c4bf44c93f763e3f9a44b25b3737ea81bf0d9455859fb",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.595186,
+      "foregroundCompositeMae": 73.3869,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.992106,
+        "foregroundCompositeMae": 3.2816
+      }
+    },
+    {
+      "id": "obliques-B",
+      "nameZh": "弹力带抗旋转推",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/obliques-B/obliques-B-complete-alpha-r2/obliques-B.cover.alpha.webp",
+      "coverSha256": "791e93e9b5a1ea2dec00605915c69c9387b12231a8cba86c07faae8165554200",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.780677,
+      "foregroundCompositeMae": 34.986,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.988379,
+        "foregroundCompositeMae": 4.392
+      }
+    },
+    {
+      "id": "obliques-C",
+      "nameZh": "绳索高位伐木",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/obliques-C/obliques-C-complete-alpha-r2/obliques-C.cover.alpha.webp",
+      "coverSha256": "04138c363010b5c915582f1fb2c82984b25a9171ed082d1195f2cb934cd08002",
+      "declaredCoverFrame": 30,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.799424,
+      "foregroundCompositeMae": 30.5074,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.982928,
+        "foregroundCompositeMae": 3.6737
+      }
+    },
+    {
+      "id": "quadriceps-A",
+      "nameZh": "跪姿反向北欧",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/quadriceps-A/quadriceps-A-complete-alpha-r2/quadriceps-A.cover.alpha.webp",
+      "coverSha256": "bac125429e2ba1c739b661c47fd97703c2d7b54a6ed65d935dd3d5d0c16a283f",
+      "declaredCoverFrame": 63,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.472916,
+      "foregroundCompositeMae": 90.712,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.995423,
+        "foregroundCompositeMae": 3.1412
+      }
+    },
+    {
+      "id": "quadriceps-B",
+      "nameZh": "弹力带终末伸膝",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/quadriceps-B/quadriceps-B.cover.alpha.webp",
+      "coverSha256": "78945efa4192eb50a57ded462a15102a1e2becc3aa8c301110152e9eb307e8d5",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.632467,
+      "foregroundCompositeMae": 62.8544,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.989288,
+        "foregroundCompositeMae": 3.9275
+      }
+    },
+    {
+      "id": "quadriceps-C",
+      "nameZh": "器械腿屈伸（顶端锁直）",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/quadriceps-C/quadriceps-C.cover.alpha.webp",
+      "coverSha256": "4e3892ac0305bb3f6d4df935550aa22f96564abf012f35f12fec0f637da6b43a",
+      "declaredCoverFrame": 78,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.807329,
+      "foregroundCompositeMae": 32.2731,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.990844,
+        "foregroundCompositeMae": 2.9463
+      }
+    },
+    {
+      "id": "rotator-cuff-A",
+      "nameZh": "俯撑交替触肩",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/rotator-cuff-A/rotator-cuff-A.cover.alpha.webp",
+      "coverSha256": "a93423381772138126d6e3fda07b61f7c33e6d17ed6af3cc08adeb17b0a79c57",
+      "declaredCoverFrame": 26,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.542777,
+      "foregroundCompositeMae": 88.6864,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.989259,
+        "foregroundCompositeMae": 2.959
+      }
+    },
+    {
+      "id": "rotator-cuff-B",
+      "nameZh": "弹力带肘贴体侧外旋",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/rotator-cuff-B/rotator-cuff-B.cover.alpha.webp",
+      "coverSha256": "bdfdf9c92c605657f465257511bfbc41b57b7b32d5e025ea370e8a38fec0d431",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.882163,
+      "foregroundCompositeMae": 18.0461,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.987644,
+        "foregroundCompositeMae": 3.803
+      }
+    },
+    {
+      "id": "rotator-cuff-C",
+      "nameZh": "绳索 90/90 外旋",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/rotator-cuff-C/rotator-cuff-C-r2-complete-alpha-r2/rotator-cuff-C.cover.alpha.webp",
+      "coverSha256": "15f7cbe2fe06598c54752a733bca2ca5d765cfe63782cd43e666d4913e7de7a2",
+      "declaredCoverFrame": 48,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.729788,
+      "foregroundCompositeMae": 33.8508,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.975297,
+        "foregroundCompositeMae": 3.0848
+      }
+    },
+    {
+      "id": "s-9090",
+      "nameZh": "90/90 坐姿换髋",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/s-9090/s-9090.cover.alpha.webp",
+      "coverSha256": "3a9c2553dfcca4e05333caafd4832126f6a8f815dc45db4c0c14a6e5995fb5f5",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.806211,
+      "foregroundCompositeMae": 36.9634,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994833,
+        "foregroundCompositeMae": 2.8294
+      }
+    },
+    {
+      "id": "s-butterfly",
+      "nameZh": "蝴蝶式",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/s-butterfly/s-butterfly.cover.alpha.webp",
+      "coverSha256": "635d6606847d5d1efdae82e1ad07c12e556b414f317ee00c67f67ba2c4917b35",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.823678,
+      "foregroundCompositeMae": 40.574,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.996885,
+        "foregroundCompositeMae": 3.104
+      }
+    },
+    {
+      "id": "s-figure4",
+      "nameZh": "仰卧 4 字拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/s-figure4/s-figure4.cover.alpha.webp",
+      "coverSha256": "a6e5873219e04fe6b637c529b12bd4dd9066e1be11c9224ae9e40a796fae7883",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.989244,
+      "foregroundCompositeMae": 5.3073,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.997882,
+        "foregroundCompositeMae": 3.0175
+      }
+    },
+    {
+      "id": "s-frog",
+      "nameZh": "青蛙式",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/s-frog/s-frog.cover.alpha.webp",
+      "coverSha256": "ad5130f49917613d4424b172630f30aef38c087c6542e48a62fd8614770e3f3d",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.943715,
+      "foregroundCompositeMae": 13.6614,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.992715,
+        "foregroundCompositeMae": 2.9608
+      }
+    },
+    {
+      "id": "s-kneel-hipflex",
+      "nameZh": "半跪髋屈肌拉伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/s-kneel-hipflex/s-kneel-hipflex.cover.alpha.webp",
+      "coverSha256": "363f0c527ba69dcfed0bd156d3a14d482428e7972762a19e64b6b9baa216e39c",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.699324,
+      "foregroundCompositeMae": 52.5701,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.987451,
+        "foregroundCompositeMae": 3.4653
+      }
+    },
+    {
+      "id": "s-lizard",
+      "nameZh": "蜥蜴式低弓步",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/s-lizard/s-lizard.cover.alpha.webp",
+      "coverSha256": "11b41f6916cfec3ab0760d4c8bde6ebd503563eed6142acfe3b2449a2350d5b2",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.854601,
+      "foregroundCompositeMae": 28.713,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994025,
+        "foregroundCompositeMae": 3.283
+      }
+    },
+    {
+      "id": "s-pigeon",
+      "nameZh": "鸽子式（直立扶砖版）",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/s-pigeon/s-pigeon.cover.alpha.webp",
+      "coverSha256": "14a1efb99c953fab9556c7b7163400607e4599c8973e7910227e2d323b7d48a7",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.945259,
+      "foregroundCompositeMae": 9.9705,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.995958,
+        "foregroundCompositeMae": 3.025
+      }
+    },
+    {
+      "id": "s-seated-fold",
+      "nameZh": "坐姿体前屈",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/s-seated-fold/s-seated-fold.cover.alpha.webp",
+      "coverSha256": "54bbb1d3264466131b2f866f4e582ae5709d1218c7fb3e56a33cc0c6c076f988",
+      "declaredCoverFrame": 114,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.591049,
+      "foregroundCompositeMae": 69.0272,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994045,
+        "foregroundCompositeMae": 3.2383
+      }
+    },
+    {
+      "id": "scapular-A",
+      "nameZh": "俯卧 Y-T-W 举",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/scapular-A/scapular-A.cover.alpha.webp",
+      "coverSha256": "8e07dc9d48cf0235f966e89e857e39162b6ae16c9640bdd49ffbddf38707231b",
+      "declaredCoverFrame": 26,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.821257,
+      "foregroundCompositeMae": 26.0628,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.991885,
+        "foregroundCompositeMae": 3.4079
+      }
+    },
+    {
+      "id": "scapular-B",
+      "nameZh": "单杠肩胛引体",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/scapular-B/scapular-B-complete-alpha-r2/scapular-B.cover.alpha.webp",
+      "coverSha256": "9f04db9983e341b6cba606024f338cbf79bf136f9f8b84d83aa3217b50a03bdf",
+      "declaredCoverFrame": 57,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.780312,
+      "foregroundCompositeMae": 37.4648,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.986353,
+        "foregroundCompositeMae": 3.4325
+      }
+    },
+    {
+      "id": "scapular-C",
+      "nameZh": "吊环直臂支撑",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/scapular-C/scapular-C-complete-alpha-r2/scapular-C.cover.alpha.webp",
+      "coverSha256": "b106df5302bb90922fbace639bee2a5ee41dc4e76e3cbd8c5487412b928183fa",
+      "declaredCoverFrame": 6,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.967626,
+      "foregroundCompositeMae": 4.6962,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.805991,
+        "foregroundCompositeMae": 21.1565
+      }
+    },
+    {
+      "id": "serratus-A",
+      "nameZh": "俯撑肩胛前伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/serratus-A/serratus-A.cover.alpha.webp",
+      "coverSha256": "40b452db663633a101710283171ee721ceedd3d29bec10421b1fe4f620c5d63d",
+      "declaredCoverFrame": 74,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.905651,
+      "foregroundCompositeMae": 16.3253,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.990487,
+        "foregroundCompositeMae": 3.0063
+      }
+    },
+    {
+      "id": "serratus-B",
+      "nameZh": "泡沫轴墙面上滑",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/serratus-B/serratus-B-complete-alpha-r2/serratus-B.cover.alpha.webp",
+      "coverSha256": "87beaebfd06e6c57fb718bff70943b081e78d0dd68273cd8ec3d0ea53eb04c04",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.83355,
+      "foregroundCompositeMae": 30.5745,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.983619,
+        "foregroundCompositeMae": 3.2608
+      }
+    },
+    {
+      "id": "serratus-C",
+      "nameZh": "吊环俯卧撑加前伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/serratus-C/serratus-C-complete-alpha-r2/serratus-C.cover.alpha.webp",
+      "coverSha256": "8809d2971689f5a2aa75dd7916d6f4e48588941c8c7d5d5d6c6a379fe99bca8e",
+      "declaredCoverFrame": 18,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.688161,
+      "foregroundCompositeMae": 45.8255,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.793687,
+        "foregroundCompositeMae": 29.3322
+      }
+    },
+    {
+      "id": "t-seated-straddle-lift-1leg",
+      "nameZh": "坐姿分腿单腿抬起",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/t-seated-straddle-lift-1leg/t-seated-straddle-lift-1leg.cover.alpha.webp",
+      "coverSha256": "3a17ec7a59f69ab8081bc4879696508b4c5e32158a8bb32fa01f487ac38eb0e0",
+      "declaredCoverFrame": 18,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.935791,
+      "foregroundCompositeMae": 13.4886,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.996983,
+        "foregroundCompositeMae": 3.3042
+      }
+    },
+    {
+      "id": "triceps-A",
+      "nameZh": "窄距俯卧撑（锁肘停顿）",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/triceps-A/triceps-A.cover.alpha.webp",
+      "coverSha256": "5ac38a1464e4ce98eb15c33c78de5c4725380371fdddcbfee014e14a929bdb3c",
+      "declaredCoverFrame": 99,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.97101,
+      "foregroundCompositeMae": 5.0639,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.990825,
+        "foregroundCompositeMae": 3.0509
+      }
+    },
+    {
+      "id": "triceps-B",
+      "nameZh": "平行杆直臂支撑",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/triceps-B/triceps-B-r2-complete-alpha-r2/triceps-B.cover.alpha.webp",
+      "coverSha256": "98e2eb02b6eccee6d245d3203a70466f0ec84ec8844aa50f1af884ce23f77822",
+      "declaredCoverFrame": 105,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.642612,
+      "foregroundCompositeMae": 53.0552,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.982287,
+        "foregroundCompositeMae": 3.9675
+      }
+    },
+    {
+      "id": "triceps-C",
+      "nameZh": "双杠臂屈伸",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/triceps-C/triceps-C-complete-alpha-r2/triceps-C.cover.alpha.webp",
+      "coverSha256": "b47afb56ef6ec78f9434cd3006801e6a07e24ef557df250ca5ae5ae8dc8be1c8",
+      "declaredCoverFrame": 18,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.702733,
+      "foregroundCompositeMae": 40.614,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.970694,
+        "foregroundCompositeMae": 4.8278
+      }
+    },
+    {
+      "id": "w-bird-dog",
+      "nameZh": "鸟狗式",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/w-bird-dog/w-bird-dog-alpha-r2/w-bird-dog.cover.alpha.webp",
+      "coverSha256": "33e84ec95443e58e253b299ca99051d4cd786aed3476a609e294989dbb0d894d",
+      "declaredCoverFrame": 66,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.762188,
+      "foregroundCompositeMae": 41.5692,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.988025,
+        "foregroundCompositeMae": 3.1444
+      }
+    },
+    {
+      "id": "w-chair-hip-thrust",
+      "nameZh": "椅子臀推",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/w-chair-hip-thrust/w-chair-hip-thrust.cover.alpha.webp",
+      "coverSha256": "ccdae71d2ecc94bc85a310c254c35379fe5d27eb40c7ba1f5d331dcb3eab9248",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.604187,
+      "foregroundCompositeMae": 73.9453,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.991246,
+        "foregroundCompositeMae": 3.3557
+      }
+    },
+    {
+      "id": "w-clamshell",
+      "nameZh": "侧卧蚌式开合",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/w-clamshell/w-clamshell.cover.alpha.webp",
+      "coverSha256": "2c8e3781f89d8eb4a5b734224d5b3d85e386e7e8bfa014b96cba2d9d6719daf5",
+      "declaredCoverFrame": 54,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.866939,
+      "foregroundCompositeMae": 25.3745,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.994094,
+        "foregroundCompositeMae": 3.108
+      }
+    },
+    {
+      "id": "w-dead-bug",
+      "nameZh": "死虫式",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/w-dead-bug/w-dead-bug.cover.alpha.webp",
+      "coverSha256": "5301251c968632b7eb5adbf3b4fd2a1f5b003670f6e14ef0d10e6a7636053a7f",
+      "declaredCoverFrame": 56,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.763501,
+      "foregroundCompositeMae": 39.0062,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.988773,
+        "foregroundCompositeMae": 3.208
+      }
+    },
+    {
+      "id": "w-feet-on-chair-bridge",
+      "nameZh": "脚踩椅面臀桥",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/w-feet-on-chair-bridge/w-feet-on-chair-bridge.cover.alpha.webp",
+      "coverSha256": "3e44f884236f121f9ee3f09e22a8cbff51e8b2b0ace505b9e4b9dfbcbbb730c5",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.615365,
+      "foregroundCompositeMae": 71.791,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.986444,
+        "foregroundCompositeMae": 3.4972
+      }
+    },
+    {
+      "id": "w-fire-hydrant",
+      "nameZh": "四足消防栓",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/w-fire-hydrant/w-fire-hydrant.cover.alpha.webp",
+      "coverSha256": "53b71000a71959ea95b85e8f8569590173726b89352a83e98b1ea753589ae3fe",
+      "declaredCoverFrame": 57,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.87673,
+      "foregroundCompositeMae": 26.7846,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.995354,
+        "foregroundCompositeMae": 2.8623
+      }
+    },
+    {
+      "id": "w-prone-swimmer",
+      "nameZh": "俯卧游泳式",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/w-prone-swimmer/w-prone-swimmer.cover.alpha.webp",
+      "coverSha256": "fa60d8b5b09b2dee1e63068ed64419ab07042e2117a9002a3f389f7724b28a98",
+      "declaredCoverFrame": 22,
+      "matchesFirstFrameWithinLossyTolerance": false,
+      "silhouetteIoU": 0.828783,
+      "foregroundCompositeMae": 29.5108,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.989574,
+        "foregroundCompositeMae": 2.9732
+      }
+    },
+    {
+      "id": "w-wall-sit",
+      "nameZh": "靠墙静蹲",
+      "trainingDefinitionComplete": true,
+      "coverPath": "media/w-wall-sit/w-wall-sit-complete-alpha-r2/w-wall-sit.cover.alpha.webp",
+      "coverSha256": "eb8190361ff051cb1c3497fe3c6f8a791fb344ba3ed5ebec30eb683d973f336c",
+      "declaredCoverFrame": 60,
+      "matchesFirstFrameWithinLossyTolerance": true,
+      "silhouetteIoU": 0.994543,
+      "foregroundCompositeMae": 2.7929,
+      "declaredCoverFrameMetrics": {
+        "silhouetteIoU": 0.907989,
+        "foregroundCompositeMae": 13.3416
+      }
+    }
+  ]
+}

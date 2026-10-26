@@ -50,7 +50,7 @@ Evidence excludes keys, headers, device IDs, raw prompts and reasoning.
     if (c['message'] is! String ||
         c['first'] is! String ||
         c['expect'] is! Map ||
-        !['choice', 'text'].contains(c['response'])) {
+        !['choice', 'text', 'form'].contains(c['response'])) {
       throw FormatException('Invalid fixture ${c['id']}');
     }
   }
@@ -163,7 +163,7 @@ Evidence excludes keys, headers, device IDs, raw prompts and reasoning.
     'limitations': [
       '每例单次运行，不代表稳定成功率或延迟保证。',
       'SDK 真实模型路径；未经过 App UI 或 App 额外计划校验。',
-      '三问上限的恶意重复调用另由离线门禁测试验证；本评测记录模型实际是否耗尽预算。',
+      '一轮上限的恶意重复调用另由离线门禁测试验证；本评测记录模型实际是否耗尽预算。',
     ],
   };
   await _json(File('${output.path}/summary.json'), report);
@@ -332,15 +332,47 @@ Future<Json> _runCase(Json c, LlmClient raw, Catalog catalog) async {
         if (agent.questionsAsked != questions) {
           failures.add('question counter mismatch');
         }
-        if (questions > 3) {
-          failures.add('exceeded three-question task limit');
+        if (questions > 1) {
+          failures.add('exceeded one-round task limit');
           break;
+        }
+        if (c['expectedFields'] case final List<dynamic> fields) {
+          if (question.mode != AskUserMode.form ||
+              question.fields
+                  .map((field) => field.key)
+                  .toSet()
+                  .difference(fields.toSet())
+                  .isNotEmpty ||
+              fields
+                  .toSet()
+                  .difference(question.fields.map((field) => field.key).toSet())
+                  .isNotEmpty) {
+            failures.add('form must contain exactly the missing fields');
+          }
         }
         final topic = _topic(question.question, question.options);
         if (known.contains(topic)) {
           failures.add('repeated known topic: $topic');
         }
-        if (c['response'] == 'choice' && question.mode == AskUserMode.choice) {
+        if ((c['response'] == 'choice' || c['response'] == 'form') &&
+            question.mode == AskUserMode.form) {
+          final answers = <String>[];
+          for (final field in question.fields) {
+            final topic = switch (field.key) {
+              'minutes' => 'duration',
+              'equipment' => 'equipment',
+              _ => 'scene',
+            };
+            final choice = _choice(field.options, field.multiple, topic);
+            final label = choice.join('、');
+            answers.add('${field.label}：$label');
+            _facts(expected, label, topic);
+            known.add(topic);
+          }
+          text = answers.join('；');
+          clickedAnswers++;
+        } else if (c['response'] == 'choice' &&
+            question.mode == AskUserMode.choice) {
           final choice = _choice(question.options, question.multiple, topic);
           text = choice.join('、');
           clickedAnswers++;
@@ -356,7 +388,7 @@ Future<Json> _runCase(Json c, LlmClient raw, Catalog catalog) async {
             known.add(topic);
           }
         }
-        if (questions > (expected['maxQuestions'] as int? ?? 3)) {
+        if (questions > (expected['maxQuestions'] as int? ?? 1)) {
           failures.add('unexpected extra question');
           break;
         }
@@ -373,7 +405,7 @@ Future<Json> _runCase(Json c, LlmClient raw, Catalog catalog) async {
       break;
     }
     if (questions < (expected['minQuestions'] as int? ?? 0) ||
-        questions > (expected['maxQuestions'] as int? ?? 3)) {
+        questions > (expected['maxQuestions'] as int? ?? 1)) {
       failures.add('question count outside case expectation');
     }
     if (expected['requireChoiceAnswer'] == true && clickedAnswers == 0) {
@@ -396,7 +428,7 @@ Future<Json> _runCase(Json c, LlmClient raw, Catalog catalog) async {
     'failures': failures,
     'questions': questions,
     'enableUserMemory': c['enableUserMemory'] == true,
-    'budgetExhausted': questions == 3,
+    'budgetExhausted': questions == 1,
     'choiceAnswers': clickedAnswers,
     'elapsedMs': watch.elapsedMilliseconds,
     'turns': turns,
@@ -431,6 +463,7 @@ List<String> _choice(List<String> options, bool multiple, String topic) {
   final preferred = switch (topic) {
     'duration' => RegExp('12|15|10'),
     'scene' => RegExp('在家|家里|居家|家中'),
+    'equipment' => RegExp('瑜伽垫|垫子'),
     'pain' => RegExp('没有|无|不疼|都不'),
     'level' => RegExp('新手|入门|初级|初学'),
     'focus' => RegExp('肩|颈|髋屈|髂腰|髋前|髋'),
@@ -470,6 +503,11 @@ void _facts(Json expected, String answer, String topic) {
   }
   if (topic == 'scene' && answer.contains('只有垫子')) {
     expected['equipmentAllowed'] = ['mat', 'none'];
+  }
+  if (topic == 'equipment') {
+    expected['equipmentAllowed'] = answer.contains('徒手')
+        ? ['none']
+        : ['mat', 'none'];
   }
   if (topic == 'level' && RegExp('新手|入门|初级|初学').hasMatch(answer)) {
     expected['level'] = 1;
@@ -556,7 +594,7 @@ void _assertPlan(
   }
   final shouldExplain =
       e['assumptions'] == true ||
-      e['assumptionsAtCap'] == true && questions == 3;
+      e['assumptionsAtCap'] == true && questions == 1;
   if (shouldExplain &&
       !RegExp(
         '默认|假设|先按|暂按|按.*(?:分钟|居家|水平)|未提供|未说明',

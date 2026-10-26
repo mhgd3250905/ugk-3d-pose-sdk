@@ -100,7 +100,7 @@ void main() {
         final events = <AgentEvent>[];
         coach.events.listen(events.add);
 
-        final result = await coach.send('帮我安排训练');
+        final result = await coach.send('请澄清这个动作');
 
         expect(result.status, TurnStatus.ok);
         expect(result.text, '准备花多久？');
@@ -192,34 +192,30 @@ void main() {
     }
 
     test(
-      'all previous questions and answers survive until final plan',
+      'the one question and combined answer survive until final plan',
       () async {
         final client = FakeLlmClient([
-          _ask(_textQuestion('准备花多久？')),
-          _ask(_textQuestion('在哪里练？')),
-          _ask(_choiceQuestion(multiple: true)),
+          _ask(_textQuestion('还有什么特别要求？')),
           _showPlan(),
         ]);
         final coach = agent(client);
 
-        await coach.send('我明天练托马斯，先给我一套放松计划');
-        await coach.send('10 分钟');
-        await coach.send('在家，有瑜伽垫');
-        final result = await coach.send('肩颈、髋屈肌');
+        await coach.send('我明天练托马斯，先了解动作');
+        final result = await coach.send('在家，有瑜伽垫，10 分钟，肩颈、髋屈肌');
 
         expect(result.status, TurnStatus.ok);
         expect(result.plan, isNotNull);
         expect(
           client.requests.last.messages
               .where((message) => message.role == LlmRole.user)
-              .map((message) => message.content),
-          ['我明天练托马斯，先给我一套放松计划', '10 分钟', '在家，有瑜伽垫', '肩颈、髋屈肌'],
+              .map((message) => message.content.split('\n').last),
+          ['我明天练托马斯，先了解动作', '在家，有瑜伽垫，10 分钟，肩颈、髋屈肌'],
         );
         expect(
           client.requests.last.messages
               .expand((message) => message.toolCalls)
               .where((call) => call.name == AgentTools.askUser),
-          hasLength(3),
+          hasLength(1),
         );
         _expectToolProtocol(client.requests.last.messages);
         expect(coach.questionsAsked, 0);
@@ -282,7 +278,7 @@ void main() {
           final events = <AgentEvent>[];
           coach.events.listen(events.add);
 
-          final result = await coach.send('排个训练');
+          final result = await coach.send('请澄清这个动作');
 
           expect(result.status, TurnStatus.ok);
           expect(result.question!.question, '准备花多久？');
@@ -315,7 +311,7 @@ void main() {
             ]),
           );
 
-          final result = await coach.send('排个训练');
+          final result = await coach.send('请澄清这个动作');
 
           expect(result.status, TurnStatus.ok);
           expect(result.question!.options, hasLength(length));
@@ -337,7 +333,7 @@ void main() {
         final events = <AgentEvent>[];
         coach.events.listen(events.add);
 
-        final result = await coach.send('排个训练');
+        final result = await coach.send('请澄清这个动作');
 
         expect(result.status, TurnStatus.fallback);
         expect(result.question, isNull);
@@ -376,7 +372,7 @@ void main() {
             final events = <AgentEvent>[];
             coach.events.listen(events.add);
 
-            final result = await coach.send('排个训练');
+            final result = await coach.send('请澄清这个动作');
 
             expect(result.status, TurnStatus.ok);
             expect(result.plan, isNull);
@@ -409,7 +405,7 @@ void main() {
         final events = <AgentEvent>[];
         coach.events.listen(events.add);
 
-        final result = await coach.send('排个训练');
+        final result = await coach.send('请澄清这个动作');
 
         expect(result.status, TurnStatus.ok);
         expect(result.records.first.outcome, CallOutcome.rejected);
@@ -429,7 +425,7 @@ void main() {
       ]);
       final coach = agent(client);
 
-      final result = await coach.send('排个训练');
+      final result = await coach.send('请澄清这个动作');
 
       expect(result.status, TurnStatus.ok);
       expect(result.question, isNotNull);
@@ -453,7 +449,7 @@ void main() {
           final events = <AgentEvent>[];
           coach.events.listen(events.add);
 
-          final result = await coach.send('排个训练');
+          final result = await coach.send('请澄清这个动作');
 
           expect(result.status, TurnStatus.ok);
           expect(result.records.first.outcome, CallOutcome.rejected);
@@ -476,17 +472,17 @@ void main() {
 
   group('ask_user task budget', () {
     test(
-      'three questions across sends are allowed; fourth is repaired to plan and starts a new task',
+      'one question is allowed; second is repaired to plan and starts a new task',
       () async {
         final client = FakeLlmClient([
-          for (var i = 0; i < 4; i++) _ask(_textQuestion('问题$i？')),
+          for (var i = 0; i < 2; i++) _ask(_textQuestion('问题$i？')),
           _showPlan(),
           _ask(_textQuestion('新任务多久？')),
         ]);
         final coach = agent(client);
-        expect(CoachAgent.maxQuestionsPerTask, 3);
+        expect(CoachAgent.maxQuestionsPerTask, 1);
 
-        for (var i = 0; i < 3; i++) {
+        for (var i = 0; i < 1; i++) {
           expect((await coach.send('回答$i')).question, isNotNull);
           expect(coach.questionsAsked, i + 1);
         }
@@ -496,11 +492,11 @@ void main() {
         expect(result.plan, isNotNull);
         expect(result.question, isNull);
         expect(result.records.first.outcome, CallOutcome.rejected);
-        final feedback = client.requests[4].messages.last.content;
+        final feedback = client.requests[2].messages.last.content;
         expect((jsonDecode(feedback) as Map)['ok'], false);
         expect(feedback, contains('show_plan'));
         expect(coach.questionsAsked, 0);
-        expect((await coach.send('下一个训练任务')).question!.question, '新任务多久？');
+        expect((await coach.send('下一个动作问题')).question!.question, '新任务多久？');
         expect(coach.questionsAsked, 1);
       },
     );
@@ -510,7 +506,7 @@ void main() {
         FakeLlmClient([_ask(_textQuestion()), _showActions()]),
       );
 
-      await coach.send('排个训练');
+      await coach.send('请澄清这个动作');
       expect(coach.questionsAsked, 1);
       final result = await coach.send('改为看看动作');
 
@@ -529,7 +525,7 @@ void main() {
             SessionFallbackReply('按默认 10 分钟安排。', plan: fallbackPlan),
       );
 
-      await coach.send('排个训练');
+      await coach.send('请澄清这个动作');
       final result = await coach.send('10 分钟');
 
       expect(result.status, TurnStatus.fallback);
@@ -541,14 +537,19 @@ void main() {
       'plain text does not silently reset an unfinished task budget',
       () async {
         final coach = agent(
-          FakeLlmClient([_ask(_textQuestion()), '收到。', _ask(_textQuestion())]),
+          FakeLlmClient([
+            _ask(_textQuestion()),
+            '收到。',
+            _ask(_textQuestion()),
+            _showPlan(),
+          ]),
         );
 
-        await coach.send('排个训练');
+        await coach.send('请澄清这个动作');
         await coach.send('我先想想');
         expect(coach.questionsAsked, 1);
         await coach.send('继续');
-        expect(coach.questionsAsked, 2);
+        expect(coach.questionsAsked, 0);
       },
     );
 
@@ -556,12 +557,12 @@ void main() {
       'reset clears question count, history, and permits a fresh task',
       () async {
         final coach = agent(
-          FakeLlmClient([for (var i = 0; i < 3; i++) _ask(_textQuestion())]),
+          FakeLlmClient([_ask(_textQuestion()), '收到', _ask(_textQuestion())]),
         );
 
-        await coach.send('排个训练');
+        await coach.send('请澄清这个动作');
         await coach.send('10 分钟');
-        expect(coach.questionsAsked, 2);
+        expect(coach.questionsAsked, 1);
         coach.reset();
 
         expect(coach.questionsAsked, 0);
@@ -590,7 +591,7 @@ void main() {
           );
           final events = <AgentEvent>[];
           coach.events.listen(events.add);
-          final pending = coach.send('排个训练', cancel: token);
+          final pending = coach.send('请澄清这个动作', cancel: token);
           await inSink.future;
           expect(coach.questionsAsked, 0);
           expect(coach.history, isEmpty);
@@ -633,7 +634,7 @@ void main() {
             }
           });
 
-          final result = await coach.send('排个训练', cancel: token);
+          final result = await coach.send('请澄清这个动作', cancel: token);
 
           expect(result.status, TurnStatus.cancelled);
           expect(result.question, isNull);
@@ -662,7 +663,7 @@ void main() {
           },
         ]);
         final coach = agent(client);
-        await coach.send('排个训练');
+        await coach.send('请澄清这个动作');
         final historyBefore = List<LlmMessage>.of(coach.history);
         final pending = coach.send('10 分钟', cancel: token);
         await entered.future;

@@ -79,11 +79,15 @@ final class PoseHubMediaPreparationController extends ChangeNotifier {
     status: PoseHubMediaPreparationStatus.idle,
   );
   StreamSubscription<PoseHubMediaPreparationEvent>? _subscription;
+  Future<void> _cancellation = Future<void>.value();
   var _generation = 0;
   var _terminal = true;
   var _disposed = false;
 
   PoseHubMediaPreparationState get state => _state;
+
+  /// Completes after all retired host subscriptions have stopped their work.
+  Future<void> get cancellationComplete => _cancellation;
 
   void start(PoseHubMediaPreparer preparer, PoseHubPackAction action) {
     if (_disposed) return;
@@ -110,7 +114,7 @@ final class PoseHubMediaPreparationController extends ChangeNotifier {
       if (_current(generation)) {
         _subscription = subscription;
       } else {
-        unawaited(_cancelQuietly(subscription));
+        _retireSubscription(subscription);
       }
     } catch (_) {
       _fail(generation, _failedMessage);
@@ -230,7 +234,16 @@ final class PoseHubMediaPreparationController extends ChangeNotifier {
   void _stopSubscription() {
     final subscription = _subscription;
     _subscription = null;
-    if (subscription != null) unawaited(_cancelQuietly(subscription));
+    if (subscription != null) _retireSubscription(subscription);
+  }
+
+  void _retireSubscription(
+    StreamSubscription<PoseHubMediaPreparationEvent> subscription,
+  ) {
+    _cancellation = Future.wait<void>([
+      _cancellation,
+      _cancelQuietly(subscription),
+    ]).then((_) {});
   }
 
   static Future<void> _cancelQuietly(

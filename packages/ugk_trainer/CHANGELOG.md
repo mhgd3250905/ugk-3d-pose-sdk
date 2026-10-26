@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 — feedback r1 part 1 candidate
+
+- Remove the SDK preparation-page / clock gate from training. Keep original bundled standing images visible offline and dissolve them over 180 ms once a video frame is composed; failures retry quietly and do not interrupt timing or speech.
+- Add session-scoped two-action preparation scheduling, preserving host ownership of download, byte/hash checks, cache and installed playback directories. Expose the shared queue through custom media requests; prioritize current/next actions through plan transitions and rest.
+- Show only complete actions in a two-column Chinese image/name browser with combined equipment, body and type filters. Direct card taps use the shared one-action training player and catalogue doses; the old detail entry delegates there.
+- Bundle 219 unchanged cover WebPs (5,316,554 bytes). Report 187 first-frame differences, including 183 visible complete actions, without altering assets. Require candidate coach 0.7.0. No palette redesign, emulator or device operation; merge/tags await approval. Full scope and evidence: repository `docs/feedback-r1-part1.md`.
+
 ## 0.4.2 — 2026-10-26
 
 - Bundle the compressed v3 catalogue and require coach 0.6.2. Its 657 R2 media objects total 163,351,529 bytes, served from `https://media.uuugk.win/pack/r1-v3/` with original relative paths; GitHub retains the catalogue and full ZIP backup. 219 actions and 211/8 semantics are unchanged. Catalogue parsing no longer uses a fixed v2 hash gate.

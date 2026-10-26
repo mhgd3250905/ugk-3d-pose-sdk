@@ -1,19 +1,121 @@
-import 'dart:async';
-
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import '../engine/session.dart';
+import '../rhythm/rhythm.dart';
+import '../ui/trainer_player.dart';
+import '../ui/trainer_strings.dart';
 import '../ui/trainer_surface.dart';
 import '../ui/trainer_theme.dart';
 import 'pose_hub_media_preparation.dart';
 import 'pose_hub_pack_image.dart';
-import 'pose_hub_pack_media.dart';
 
+const poseHubEquipmentLabels = <String, String>{
+  'mat': '瑜伽垫',
+  'chair': '椅子',
+  'band': '弹力带',
+  'dumbbell': '哑铃',
+  'wall': '墙',
+  'cable': '绳索器械',
+  'block': '瑜伽砖',
+  'pullup-bar': '单杠',
+  'parallettes': '俯卧撑架',
+  'dip-bars': '双杠',
+  'slider': '滑盘',
+  'rings': '吊环',
+  'landmine': '地雷杆',
+  'swiss-ball': '健身球',
+  'roman-chair': '罗马椅',
+  'kettlebell': '壶铃',
+  'reverse-hyper': '反向挺身机',
+  'ghd': '臀腿训练器',
+  'hip-abductor-machine': '髋外展机',
+  'leg-extension-machine': '腿屈伸机',
+  'foam-roller': '泡沫轴',
+};
+
+@Deprecated(
+  'The user library only exposes complete actions with user-facing facets.',
+)
 enum PoseHubActionFilter { all, semanticComplete, pending }
 
-/// Browses every original action, including entries whose training definition
-/// is incomplete. AI selection is a separate, stricter catalog interface.
+/// User-facing facets derived from complete catalogue definitions.
+abstract final class PoseHubActionFacets {
+  static List<String> equipment(PoseHubPackAction action) =>
+      (action.raw['equipment'] as List?)?.whereType<String>().toList() ?? [];
+
+  static Set<String> bodyParts(PoseHubPackAction action) {
+    final muscles =
+        (action.raw['muscleGroups'] as List?)?.whereType<String>() ?? [];
+    final parts = <String>{};
+    for (final muscle in muscles) {
+      parts.add(switch (muscle) {
+        'chest' => '胸',
+        'lats' || 'erectors' || 'scapular' => '背',
+        'deltoids' || 'rotator-cuff' || 'serratus' => '肩',
+        'biceps' || 'triceps' || 'forearms' => '手臂',
+        'abs' || 'obliques' => '核心',
+        'glute-max' ||
+        'hip-abductors' ||
+        'hamstrings' ||
+        'quadriceps' ||
+        'hip-flexors' ||
+        'adductors' ||
+        'calves' ||
+        'tibialis' => '臀腿',
+        _ => '全身',
+      });
+    }
+    if (parts.length >= 3 || action.raw['category'] == 'cardio') {
+      parts.add('全身');
+    }
+    return parts;
+  }
+
+  static String type(PoseHubPackAction action) =>
+      switch (action.raw['category']) {
+        'stretch' || 'mobility' => '拉伸放松',
+        'strength' || 'core' => '力量',
+        _ => '其他',
+      };
+
+  static bool matches(
+    PoseHubPackAction action, {
+    String query = '',
+    String equipment = '全部',
+    String bodyPart = '全部',
+    String type = '全部',
+  }) {
+    if (!action.trainingDefinitionComplete || !action.availableForApp) {
+      return false;
+    }
+    final aliases = action.raw['aliasesZh'] ?? action.raw['aliases'];
+    final names = [
+      action.nameZh,
+      if (aliases is List) ...aliases.whereType<String>(),
+    ];
+    final term = query.trim();
+    if (term.isNotEmpty &&
+        !names.any(
+          (name) =>
+              RegExp(r'[\u3400-\u9fff]').hasMatch(name) && name.contains(term),
+        )) {
+      return false;
+    }
+    final tools = PoseHubActionFacets.equipment(action);
+    if (equipment == '徒手' && tools.isNotEmpty) return false;
+    if (equipment == '需要器械' && tools.isEmpty) return false;
+    if (!const ['全部', '徒手', '需要器械'].contains(equipment) &&
+        !tools.contains(equipment)) {
+      return false;
+    }
+    if (bodyPart != '全部' && !bodyParts(action).contains(bodyPart)) return false;
+    if (type != '全部' && PoseHubActionFacets.type(action) != type) return false;
+    return true;
+  }
+}
+
 class PoseHubActionBrowser extends StatefulWidget {
   const PoseHubActionBrowser({
     super.key,
@@ -22,38 +124,50 @@ class PoseHubActionBrowser extends StatefulWidget {
     this.theme,
     this.onPracticeFinished,
     this.mediaPreparer,
+    this.voice,
   });
   final PoseHubAppTestCatalog catalog;
   final Uri mediaBaseUri;
   final TrainerTheme? theme;
   final ValueChanged<PoseHubPracticeResult>? onPracticeFinished;
   final PoseHubMediaPreparer? mediaPreparer;
-
+  final TrainerVoice? voice;
   @override
   State<PoseHubActionBrowser> createState() => _PoseHubActionBrowserState();
 }
 
 class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
-  String _query = '';
-  PoseHubActionFilter _filter = PoseHubActionFilter.all;
+  String _query = '', _equipment = '全部', _body = '全部', _type = '全部';
 
   @override
   Widget build(BuildContext context) {
     final theme = _themeOf(context, widget.theme);
-    final source = switch (_filter) {
-      PoseHubActionFilter.all => widget.catalog.allActions,
-      PoseHubActionFilter.semanticComplete =>
-        widget.catalog.semanticCompleteActions,
-      PoseHubActionFilter.pending => widget.catalog.pendingActions,
-    };
-    final query = _query.trim().toLowerCase();
-    final actions = source
-        .where((a) => '${a.id} ${a.nameZh}'.toLowerCase().contains(query))
+    final nameHeight =
+        MediaQuery.textScalerOf(context).scale(theme.callout.fontSize ?? 16) *
+            (theme.callout.height ?? 1.3) *
+            2 +
+        8;
+    final equipment =
+        widget.catalog.semanticCompleteActions
+            .expand(PoseHubActionFacets.equipment)
+            .toSet()
+            .toList()
+          ..sort();
+    final actions = widget.catalog.semanticCompleteActions
+        .where(
+          (action) => PoseHubActionFacets.matches(
+            action,
+            query: _query,
+            equipment: _equipment,
+            bodyPart: _body,
+            type: _type,
+          ),
+        )
         .toList(growable: false);
     return Scaffold(
       backgroundColor: theme.background,
       appBar: AppBar(
-        title: Text('动作库 · ${widget.catalog.allActions.length}'),
+        title: const Text('动作库'),
         backgroundColor: theme.surface,
         foregroundColor: theme.text,
         surfaceTintColor: theme.surface,
@@ -69,226 +183,161 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
                 style: theme.body,
                 cursorColor: theme.accent,
                 decoration: InputDecoration(
-                  hintText: '搜索动作名称或 ID',
+                  hintText: '搜索动作',
                   hintStyle: theme.body.copyWith(color: theme.muted),
                   prefixIcon: Icon(CupertinoIcons.search, color: theme.muted),
                   filled: true,
                   fillColor: theme.surface,
-                  enabledBorder: OutlineInputBorder(
+                  border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(theme.radius),
-                    borderSide: BorderSide(color: theme.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(theme.radius),
-                    borderSide: BorderSide(color: theme.accent),
                   ),
                 ),
                 onChanged: (value) => setState(() => _query = value),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Wrap(
-                spacing: 8,
-                children: [
-                  for (final (filter, title) in [
-                    (
-                      PoseHubActionFilter.all,
-                      '全部 ${widget.catalog.allActions.length}',
-                    ),
-                    (
-                      PoseHubActionFilter.semanticComplete,
-                      '说明完整 ${widget.catalog.semanticCompleteActions.length}',
-                    ),
-                    (
-                      PoseHubActionFilter.pending,
-                      '待补 ${widget.catalog.pendingActions.length}',
-                    ),
-                  ])
-                    ChoiceChip(
-                      key: ValueKey('posehub-filter-${filter.name}'),
-                      label: Text(title),
-                      labelStyle: theme.label.copyWith(
-                        color: _filter == filter
-                            ? theme.accentText
-                            : theme.text,
-                      ),
-                      selected: _filter == filter,
-                      selectedColor: theme.surfaceHigh,
-                      backgroundColor: theme.surface,
-                      side: BorderSide(color: theme.border),
-                      checkmarkColor: theme.accent,
-                      onSelected: (_) => setState(() => _filter = filter),
-                    ),
-                ],
-              ),
+            _filters(
+              '器械',
+              ['全部', '徒手', '需要器械', ...equipment],
+              _equipment,
+              (value) => setState(() => _equipment = value),
+              theme,
+              label: (value) => const ['全部', '徒手', '需要器械'].contains(value)
+                  ? value
+                  : poseHubEquipmentLabels[value] ?? '其他器械',
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('显示 ${actions.length} 个动作', style: theme.label),
-              ),
+            _filters(
+              '部位',
+              const ['全部', '胸', '背', '肩', '手臂', '核心', '臀腿', '全身'],
+              _body,
+              (value) => setState(() => _body = value),
+              theme,
             ),
+            _filters(
+              '类型',
+              const ['全部', '力量', '拉伸放松'],
+              _type,
+              (value) => setState(() => _type = value),
+              theme,
+            ),
+            const SizedBox(height: 8),
             Expanded(
-              child: ListView.separated(
-                key: const ValueKey('posehub-action-list'),
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                itemCount: actions.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final action = actions[index];
-                  return Semantics(
-                    button: true,
-                    label: '${action.nameZh}，${action.trainingStatusLabel}',
-                    child: GestureDetector(
-                      key: ValueKey('posehub-action-${action.id}'),
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => Navigator.of(context).push<void>(
-                        MaterialPageRoute(
-                          builder: (_) => PoseHubActionDetail(
-                            action: action,
-                            mediaBaseUri: widget.mediaBaseUri,
-                            theme: theme,
-                            onPracticeFinished: widget.onPracticeFinished,
-                            mediaPreparer: widget.mediaPreparer,
-                          ),
-                        ),
+              child: actions.isEmpty
+                  ? Center(child: Text('没有符合条件的动作', style: theme.body))
+                  : GridView.builder(
+                      key: const ValueKey('posehub-action-list'),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        mainAxisExtent:
+                            (MediaQuery.sizeOf(context).width - 44) / 2 +
+                            nameHeight +
+                            8,
                       ),
-                      child: TrainerSurface(
-                        theme: theme,
-                        radius: theme.radius,
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            SizedBox.square(
-                              dimension: 88,
-                              child: PoseHubPackImage(
-                                file: action.thumbnail,
-                                baseUri: widget.mediaBaseUri,
-                                semanticLabel: action.nameZh,
+                      itemCount: actions.length,
+                      itemBuilder: (context, index) {
+                        final action = actions[index];
+                        return Semantics(
+                          button: true,
+                          label: action.nameZh,
+                          child: GestureDetector(
+                            key: ValueKey('posehub-action-${action.id}'),
+                            onTap: () => Navigator.of(context).push<void>(
+                              MaterialPageRoute(
+                                builder: (_) => PoseHubSinglePracticePage(
+                                  action: action,
+                                  mediaBaseUri: widget.mediaBaseUri,
+                                  theme: theme,
+                                  onFinished: widget.onPracticeFinished,
+                                  mediaPreparer: widget.mediaPreparer,
+                                  voice: widget.voice,
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
+                            child: TrainerSurface(
+                              theme: theme,
+                              padding: const EdgeInsets.all(10),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(action.nameZh, style: theme.callout),
-                                  const SizedBox(height: 4),
-                                  Text(action.id, style: theme.label),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    action.trainingStatusLabel,
-                                    style: theme.label.copyWith(
-                                      color: action.trainingDefinitionComplete
-                                          ? theme.accentText
-                                          : theme.caution,
+                                  Expanded(
+                                    child: PoseHubStandingImage(
+                                      action: action,
+                                      theme: theme,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    height: nameHeight,
+                                    child: Center(
+                                      child: Text(
+                                        action.nameZh,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: theme.callout,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            Icon(
-                              CupertinoIcons.chevron_right,
-                              color: theme.muted,
-                              size: 18,
-                            ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),
       ),
     );
   }
-}
 
-class PoseHubActionDetail extends StatelessWidget {
-  const PoseHubActionDetail({
-    super.key,
-    required this.action,
-    required this.mediaBaseUri,
-    this.theme,
-    this.onPracticeFinished,
-    this.mediaPreparer,
-  });
-  final PoseHubPackAction action;
-  final Uri mediaBaseUri;
-  final TrainerTheme? theme;
-  final ValueChanged<PoseHubPracticeResult>? onPracticeFinished;
-  final PoseHubMediaPreparer? mediaPreparer;
-
-  @override
-  Widget build(BuildContext context) {
-    final th = _themeOf(context, theme);
-    return Scaffold(
-      backgroundColor: th.background,
-      appBar: AppBar(
-        title: Text(action.nameZh),
-        backgroundColor: th.surface,
-        surfaceTintColor: th.surface,
-        foregroundColor: th.text,
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            AspectRatio(
-              aspectRatio: 1,
-              child: PoseHubPackImage(
-                file: action.cover,
-                baseUri: mediaBaseUri,
-                semanticLabel: '${action.nameZh}动作封面',
-              ),
-            ),
-            Text(action.nameZh, style: th.title),
-            Text(action.id, style: th.label),
-            const SizedBox(height: 12),
-            Text(
-              action.trainingStatusLabel,
-              style: th.callout.copyWith(
-                color: action.trainingDefinitionComplete
-                    ? th.accentText
-                    : th.caution,
-              ),
-            ),
-            if (!action.trainingDefinitionComplete)
-              Text('可浏览与自主单练；次数、组数和时长由你决定。', style: th.body),
-            const SizedBox(height: 16),
-            _information(action, th),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              key: const ValueKey('posehub-practice'),
-              style: FilledButton.styleFrom(
-                backgroundColor: th.accent,
-                foregroundColor: th.onAccent,
-                minimumSize: const Size(80, 52),
-              ),
-              icon: const Icon(CupertinoIcons.play_fill),
-              label: const Text('单练'),
-              onPressed: () => Navigator.of(context).push<void>(
-                MaterialPageRoute(
-                  builder: (_) => PoseHubSinglePracticePage(
-                    action: action,
-                    mediaBaseUri: mediaBaseUri,
-                    theme: th,
-                    onFinished: onPracticeFinished,
-                    mediaPreparer: mediaPreparer,
-                  ),
+  Widget _filters(
+    String title,
+    List<String> options,
+    String selected,
+    ValueChanged<String> onChanged,
+    TrainerTheme theme, {
+    String Function(String)? label,
+  }) => SizedBox(
+    height:
+        (MediaQuery.textScalerOf(context).scale(theme.label.fontSize ?? 13) +
+                28)
+            .clamp(42, double.infinity),
+    child: Row(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 16, right: 8),
+          child: Text(title, style: theme.label),
+        ),
+        Expanded(
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(right: 16),
+            itemCount: options.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 6),
+            itemBuilder: (_, index) {
+              final value = options[index];
+              return ChoiceChip(
+                key: ValueKey('posehub-$title-$value'),
+                label: Text(label?.call(value) ?? value),
+                selected: selected == value,
+                showCheckmark: false,
+                labelStyle: theme.label.copyWith(
+                  color: selected == value ? theme.accentText : theme.text,
                 ),
-              ),
-            ),
-          ],
+                selectedColor: theme.surfaceHigh,
+                backgroundColor: theme.surface,
+                side: BorderSide(color: theme.border),
+                onSelected: (_) => onChanged(value),
+              );
+            },
+          ),
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
 }
 
 @immutable
@@ -303,9 +352,37 @@ class PoseHubPracticeResult {
   final bool trainingDefinitionComplete;
 }
 
-/// Manual single-action practice works for all 219 entries. No unknown dose,
-/// rep timing or safety instruction is inferred from video duration.
-class PoseHubSinglePracticePage extends StatefulWidget {
+/// Kept for source compatibility; the removed detail UI now opens training.
+@Deprecated(
+  'Use PoseHubSinglePracticePage; details now open the shared trainer.',
+)
+class PoseHubActionDetail extends StatelessWidget {
+  const PoseHubActionDetail({
+    super.key,
+    required this.action,
+    required this.mediaBaseUri,
+    this.theme,
+    this.onPracticeFinished,
+    this.mediaPreparer,
+  });
+  final PoseHubPackAction action;
+  final Uri mediaBaseUri;
+  final TrainerTheme? theme;
+  final ValueChanged<PoseHubPracticeResult>? onPracticeFinished;
+  final PoseHubMediaPreparer? mediaPreparer;
+  @override
+  Widget build(BuildContext context) => PoseHubSinglePracticePage(
+    action: action,
+    mediaBaseUri: mediaBaseUri,
+    theme: theme,
+    onFinished: onPracticeFinished,
+    mediaPreparer: mediaPreparer,
+  );
+}
+
+/// Compatibility entry backed by the same one-action training player.
+/// Dose comes from complete catalogue semantics, never from video duration.
+class PoseHubSinglePracticePage extends StatelessWidget {
   const PoseHubSinglePracticePage({
     super.key,
     required this.action,
@@ -313,201 +390,88 @@ class PoseHubSinglePracticePage extends StatefulWidget {
     this.theme,
     this.onFinished,
     this.mediaPreparer,
+    this.voice,
   });
   final PoseHubPackAction action;
   final Uri mediaBaseUri;
   final TrainerTheme? theme;
   final ValueChanged<PoseHubPracticeResult>? onFinished;
   final PoseHubMediaPreparer? mediaPreparer;
-  @override
-  State<PoseHubSinglePracticePage> createState() => _PoseHubPracticeState();
-}
-
-class _PoseHubPracticeState extends State<PoseHubSinglePracticePage>
-    with WidgetsBindingObserver {
-  final _clock = Stopwatch();
-  Timer? _ticker;
-  bool _started = false;
-  bool _finished = false;
-  bool _paused = false;
-  final _preparation = PoseHubMediaPreparationController();
-
-  bool get _canStart =>
-      widget.mediaPreparer == null ||
-      _preparation.state.status == PoseHubMediaPreparationStatus.ready;
-  Uri get _mediaBase => widget.mediaPreparer == null
-      ? widget.mediaBaseUri
-      : _preparation.state.mediaBaseUri ?? widget.mediaBaseUri;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _preparation.addListener(_preparationChanged);
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && _clock.isRunning) setState(() {});
-    });
-    _prepare();
-  }
-
-  void _prepare() {
-    final preparer = widget.mediaPreparer;
-    if (preparer != null) _preparation.start(preparer, widget.action);
-  }
-
-  void _preparationChanged() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void didUpdateWidget(PoseHubSinglePracticePage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.action.id != widget.action.id ||
-        oldWidget.action.files.entries.any(
-          (entry) =>
-              entry.value.sha256 != widget.action.files[entry.key]?.sha256 ||
-              entry.value.bytes != widget.action.files[entry.key]?.bytes ||
-              entry.value.path != widget.action.files[entry.key]?.path,
-        ) ||
-        oldWidget.mediaPreparer != widget.mediaPreparer ||
-        oldWidget.mediaBaseUri != widget.mediaBaseUri) {
-      _clock.stop();
-      _clock.reset();
-      _started = _finished = _paused = false;
-      _preparation.cancel();
-      _prepare();
-    }
-  }
-
-  void _toggle() {
-    if (_finished || !_canStart) return;
-    setState(() {
-      _started = true;
-      _paused = _clock.isRunning;
-      if (_paused) {
-        _clock.stop();
-      } else {
-        _clock.start();
-      }
-    });
-  }
-
-  void _finish() {
-    if (_finished || !_started) return;
-    _clock.stop();
-    setState(() {
-      _finished = true;
-      _paused = true;
-    });
-    widget.onFinished?.call(
-      PoseHubPracticeResult(
-        actionId: widget.action.id,
-        activeDuration: _clock.elapsed,
-        trainingDefinitionComplete: widget.action.trainingDefinitionComplete,
-      ),
-    );
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed && _clock.isRunning) {
-      _clock.stop();
-      setState(() => _paused = true);
-    }
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _ticker?.cancel();
-    _clock.stop();
-    _preparation.removeListener(_preparationChanged);
-    _preparation.dispose();
-    super.dispose();
-  }
+  final TrainerVoice? voice;
 
   @override
   Widget build(BuildContext context) {
-    final th = _themeOf(context, widget.theme);
-    final elapsed = _clock.elapsed.inSeconds;
-    return Scaffold(
-      backgroundColor: th.background,
-      appBar: AppBar(
-        title: Text(widget.action.nameZh),
-        backgroundColor: th.surface,
-        surfaceTintColor: th.surface,
-        foregroundColor: th.text,
+    if (!action.trainingDefinitionComplete) {
+      return Scaffold(
+        appBar: AppBar(),
+        body: const Center(child: Text('此动作暂未开放训练')),
+      );
+    }
+    final dose = action.raw['defaultDose']! as Map;
+    final cues = action.raw['cues'] as Map?;
+    final zh = cues?['zh'] as List?;
+    final cue = zh?.whereType<String>().join('；');
+    final item = PlanItem(
+      exerciseId: action.id,
+      mode: dose['mode'] == 'reps' ? DoseMode.reps : DoseMode.time,
+      sets: dose['sets']! as int,
+      reps: dose['reps'] as int?,
+      workSeconds: dose['seconds'] as int?,
+      perSide: action.raw['unilateral'] == true,
+      restSeconds: dose['restSeconds']! as int,
+    );
+    final rhythms = {
+      action.id: Rhythm.forDose(
+        item.mode,
+        category: action.raw['category'] as String?,
+        holdSeconds: (dose['holdSeconds'] as num?)?.toDouble(),
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Text(
-              widget.action.trainingStatusLabel,
-              style: th.callout.copyWith(
-                color: widget.action.trainingDefinitionComplete
-                    ? th.accentText
-                    : th.caution,
-              ),
-            ),
-            if (widget.mediaPreparer != null)
-              PoseHubMediaPreparationPanel(
-                state: _preparation.state,
-                theme: th,
-                onRetry: _prepare,
-                readyLabel: _started ? '动作资源已就绪' : '资源已就绪，点击开始单练',
-              ),
-            AspectRatio(
-              aspectRatio: 1,
-              child: PoseHubPackMedia(
-                key: ValueKey('posehub-practice-media-${widget.action.id}'),
-                action: widget.action,
-                baseUri: _mediaBase,
-                playing: _started && !_finished,
-                paused: _paused,
-                theme: th,
-              ),
-            ),
-            Center(
-              child: Text(
-                '${elapsed ~/ 60}:${(elapsed % 60).toString().padLeft(2, '0')}',
-                key: const ValueKey('posehub-elapsed'),
-                style: th.numeral(40),
-              ),
-            ),
-            Center(
-              child: Text(_finished ? '单练已结束' : '自主单练 · 实际用时', style: th.label),
-            ),
-            const SizedBox(height: 16),
-            if (!_finished)
-              FilledButton(
-                key: const ValueKey('posehub-practice-toggle'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: th.accent,
-                  foregroundColor: th.onAccent,
-                  minimumSize: const Size(80, 52),
-                  disabledBackgroundColor: th.surfaceHigh,
-                  disabledForegroundColor: th.muted,
-                ),
-                onPressed: _canStart ? _toggle : null,
-                child: Text(
-                  !_started
-                      ? '开始单练'
-                      : _paused
-                      ? '继续'
-                      : '暂停',
-                ),
-              ),
-            if (_started && !_finished)
-              TextButton(
-                key: const ValueKey('posehub-practice-finish'),
-                style: TextButton.styleFrom(foregroundColor: th.text),
-                onPressed: _finish,
-                child: const Text('结束单练'),
-              ),
-            const SizedBox(height: 16),
-            _information(widget.action, th),
-          ],
+    };
+    final scenes = (action.raw['scenes'] as List).whereType<String>();
+    var plan = TrainingPlan(
+      id: 'practice-${action.id}',
+      source: 'template',
+      title: action.nameZh,
+      goal: action.raw['purpose'] as String? ?? '',
+      scene: scenes.first,
+      equipment: PoseHubActionFacets.equipment(action),
+      level: action.raw['level'] as int? ?? 1,
+      targetMinutes: 1,
+      blocks: [
+        PlanBlock(
+          id: 'single',
+          name: action.nameZh,
+          type: BlockType.main,
+          items: [item],
+        ),
+      ],
+    );
+    final seconds = SessionBuilder(
+      rhythms: rhythms,
+      prepSeconds: 0,
+    ).phases(plan).fold<double>(0, (sum, phase) => sum + phase.seconds);
+    plan = plan.copyWith(targetMinutes: (seconds / 60).ceil().clamp(1, 10000));
+    return TrainerPlayer(
+      key: ValueKey('posehub-practice-${action.id}'),
+      plan: plan,
+      rhythms: rhythms,
+      strings: TrainerStrings.zh(),
+      theme: _themeOf(context, theme),
+      drillOf: (id) => id == action.id
+          ? TrainerDrill(id: id, name: action.nameZh, cue: cue)
+          : null,
+      poseHubActionOf: (id) => id == action.id ? action : null,
+      poseHubMediaBaseUri: mediaBaseUri,
+      poseHubMediaPreparer: mediaPreparer,
+      voice: voice,
+      prepSeconds: 0,
+      onFinished: (result) async => onFinished?.call(
+        PoseHubPracticeResult(
+          actionId: action.id,
+          activeDuration: Duration(
+            microseconds: (result.activeSeconds * 1e6).round(),
+          ),
+          trainingDefinitionComplete: true,
         ),
       ),
     );
@@ -519,77 +483,3 @@ TrainerTheme _themeOf(BuildContext context, TrainerTheme? supplied) =>
     (Theme.of(context).brightness == Brightness.dark
         ? TrainerTheme.dark
         : TrainerTheme.light);
-
-Widget _information(PoseHubPackAction action, TrainerTheme theme) {
-  final raw = action.raw;
-  final cues = raw['cues'];
-  final zh = cues is Map ? cues['zh'] : null;
-  final dose = raw['defaultDose'];
-  final values = <Widget>[];
-  void line(String label, Object? value) {
-    if (value is String && value.trim().isNotEmpty) {
-      values.add(Text('$label$value', style: theme.body));
-    }
-  }
-
-  line('用途：', raw['purpose']);
-  line('器械：', raw['equipmentZh']);
-  if (action.trainingDefinitionComplete && dose is Map) {
-    final amount = dose['mode'] == 'reps'
-        ? '${dose['reps']} 次'
-        : '${dose['seconds']} 秒';
-    values.add(
-      Text(
-        '原始建议：${dose['sets']} 组 × $amount · 组间 ${dose['restSeconds']} 秒',
-        style: theme.callout,
-      ),
-    );
-  }
-  if (zh is List) {
-    for (final cue in zh) {
-      line('· ', cue);
-    }
-  }
-  final errors = raw['commonErrors'];
-  final errorZh = errors is Map ? errors['zh'] : null;
-  if (errorZh is List) {
-    for (final error in errorZh) {
-      line('常见问题：', error);
-    }
-  }
-  final cautionNotes = raw['cautionNotes'];
-  final cautionZh = cautionNotes is Map ? cautionNotes['zh'] : null;
-  if (cautionZh is String) line('注意：', cautionZh);
-  if (cautionZh is List) {
-    for (final note in cautionZh) {
-      line('注意：', note);
-    }
-  }
-  for (final (field, label) in [
-    ('cautions', '原始注意部位：'),
-    ('contraindications', '原始禁忌记录：'),
-  ]) {
-    final value = raw[field];
-    if (value is List && value.isNotEmpty) {
-      line(label, value.whereType<String>().join('、'));
-    }
-  }
-  if (!action.trainingDefinitionComplete) {
-    values.add(
-      Text(
-        '训练说明待补；未预设次数、组数、时长或计次节奏。',
-        key: const ValueKey('posehub-pending-label'),
-        style: theme.body.copyWith(color: theme.caution),
-      ),
-    );
-  }
-  return TrainerSurface(
-    theme: theme,
-    radius: theme.radius,
-    padding: const EdgeInsets.all(16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: values,
-    ),
-  );
-}

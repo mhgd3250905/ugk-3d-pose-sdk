@@ -1,3 +1,58 @@
+# ask_user：单轮训练参数补齐（R1 part1）
+
+当前行为：生成训练组前检查场景、器械、时长；对话、前轮回答和 App 上下文已知的不问。缺多项合为一张可点击表单，最多 **1 轮**。用户跳过或回答仍不完整，就以默认场景/时长和徒手生成，简短说明假设。动作讲解与动作查询不为补这三项而追问。
+
+## 分组表单
+
+```json
+{
+  "question": "补充一下训练条件，也可以直接出方案。",
+  "mode": "form",
+  "fields": [
+    {"key":"scene","label":"场景","options":["办公室","家里","健身房"],"multiple":false},
+    {"key":"equipment","label":"器械","options":["徒手","瑜伽垫","椅子"],"multiple":true},
+    {"key":"minutes","label":"时长","options":["5 分钟","10 分钟","15 分钟","20+ 分钟"],"multiple":false}
+  ],
+  "skipLabel": "直接出方案"
+}
+```
+
+`fields` **只列缺项**。示例器械并非固定清单：实际选项取 `profile.scope(catalog)` 动作用到的器械及 taxonomy 中文名。器械允许多选，徒手与器械互斥；场景和时长单选。表单最多3组，每组2–64个不重复的短选项。未知器械、不支持的场景/时长选项、重问已知字段、漏掉缺项、同批混调别的工具都会被打回重交。
+
+`AskUserQuestion.fields` 为不可变的 `List<AskUserField>`，每项有 `key/label/options/multiple`；`skipLabel` 为“直接出方案”。旧 `text`、`choice` 参数和结果仍可用，但当前训练任务预算为1轮。给训练组缺多项却使用单项问题会要求改成form。`AskUserMode` 新增form，穷举switch需要增加分支。
+
+## App 回答与 UI 映射
+
+沿用同一个 `CoachAgent` 或 `CoachConversationController`。必须等 `await send()` 返回后启用问题；`askUser` 事件仅用于进度展示。事件中立即send仍可能碰到busy。
+
+```dart
+await conversation.answerForm(questionId, {
+  'scene': ['家里'],
+  'equipment': ['瑜伽垫', '椅子'],
+  'minutes': ['10 分钟'],
+});
+// 跳过整张表单：
+await conversation.skipQuestion(questionId);
+```
+
+`answerForm` 校验问题有效期、重复选项、未知字段/选项、单多选和徒手互斥，再将“场景：家里；器械：瑜伽垫、椅子；时长：10 分钟”作为普通用户文字提交。自由文本也可通过 `answerText` 直接回答；用户无需按固定格式输入。
+
+UI包无coach依赖：App需把 `AskUserMode.form` 映射为 `CoachQuestionMode.form`，将每个字段映射为 `CoachQuestionField`。可将 `CoachQuestionBubble.onFormAnswer` 接到controller；不传该新回调时，气泡会把可读的分组文字交给已有 `onTextAnswer`，支持渐进接入。旧仅用 `mode == choice ? choice : text` 的映射必须更新，否则form会误显示为文本。旧text/choice构造及回调保持兼容。
+
+## 最终准入
+
+参数不足却直接 `show_plan` 会被要求先补问；信息全却 `ask_user` 会被要求直接交付。场景由既有动作scenes/办公室体位规则校验；器械以明确或跳过后的有效集合校验，不因居家自动授予垫子/椅子。最新显式用户纠正优先于旧App条件；否定的器械不授予。用户明确时长或默认时长同时约束targetMinutes和实际剂量估时（偏差不超过25%），不能只改标题时长。
+
+默认值会参与本次准入，但不记作用户主动事实，也不写入长期记忆。已有avoid和其他筛查条件保留；未知身体状况不视为确认无不适。
+
+## 验证边界
+
+`test/training_parameters_test.dart` 通过确定性协议回放覆盖信息全、缺1项、缺3项和跳过，以及违例重交、否定器械、参数纠正、实际估时冲突。它不调用网络模型，不证明模型成功率。`tool/eval_ask_user.dart --dry` 只验证真实评测fixture，记录 `modelCalls=0`、`modelQualityPassed=null`；已新增4类真实评测案例，但无配置凭据时不执行有费模型请求。
+
+---
+
+以下保留早期0.4.0接口接入示例及历史说明；与上文冲突的三问预算、单项提问及旧版本号不代表当前行为。
+
 # ask_user：App 接口（ugk_coach 0.4.0）
 
 **升级兼容性：** 0.4.0 新增 `AgentEventKind.askUser`，对旧穷举 `switch` 是源码破坏性变更：没有此分支会编译失败。升级时补 `case AgentEventKind.askUser`（switch expression 则补 `AgentEventKind.askUser => ...`）；进度标签可返回 null，问题事件交由气泡处理。明确的 default / `_` 兜底也可解决穷举编译，但不会自动完成问题 UI 接入。

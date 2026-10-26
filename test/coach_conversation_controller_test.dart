@@ -53,45 +53,35 @@ void main() {
   }
 
   test(
-    'text and multi-choice clarification reaches a plan on the same agent',
+    'one multi-choice clarification reaches a plan on the same agent',
     () async {
-      final client = FakeLlmClient([
-        _textQuestion(),
-        _choiceQuestion(multiple: true),
-        _plan(),
-      ]);
+      final client = FakeLlmClient([_choiceQuestion(multiple: true), _plan()]);
       final conversation = controller(client);
       final agent = conversation.agent;
 
-      await conversation.send('帮我安排训练');
+      await conversation.send('请澄清这个动作');
       final first = conversation.state.pendingQuestion!;
       expect(first.text, isEmpty, reason: 'The question body is not repeated');
       expect(conversation.canAnswer(first.id), isTrue);
       expect(conversation.state.messages, hasLength(2));
 
-      await conversation.answerText(first.id, ' 10 分钟 ');
-      final second = conversation.state.pendingQuestion!;
-      expect(conversation.canAnswer(first.id), isFalse);
-      expect(conversation.canAnswer(second.id), isTrue);
-      expect(conversation.state.messages[1].questionAnswered, isTrue);
-
-      await conversation.answerChoices(second.id, ['腿部', '肩颈']);
+      await conversation.answerChoices(first.id, ['腿部', '肩颈']);
       expect(identical(conversation.agent, agent), isTrue);
-      expect(agent.turnCount, 3);
-      expect(client.requests, hasLength(3));
+      expect(agent.turnCount, 2);
+      expect(client.requests, hasLength(2));
       expect(conversation.state.pendingQuestion, isNull);
       expect(conversation.state.admittedPlans, hasLength(1));
       expect(
         conversation.state.messages.last.plan,
         same(conversation.state.admittedPlans.single),
       );
-      expect(conversation.state.messages[3].answeredChoices, ['肩颈', '腿部']);
-      expect(conversation.state.messages[4].text, '肩颈、腿部');
+      expect(conversation.state.messages[1].answeredChoices, ['肩颈', '腿部']);
+      expect(conversation.state.messages[2].text, '肩颈、腿部');
       expect(
         client.requests.last.messages
             .where((m) => m.role == LlmRole.user)
             .map((m) => m.content),
-        containsAllInOrder(['帮我安排训练', '10 分钟', '肩颈、腿部']),
+        containsAllInOrder(['请澄清这个动作', '肩颈、腿部']),
       );
       expect(conversation.state.error, isNull);
     },
@@ -102,7 +92,7 @@ void main() {
     () async {
       final client = FakeLlmClient([_choiceQuestion(), '安排好了']);
       final conversation = controller(client);
-      await conversation.send('安排训练');
+      await conversation.send('请澄清这个动作');
       final question = conversation.state.pendingQuestion!;
       for (final invalid in <List<String>>[
         [],
@@ -125,7 +115,7 @@ void main() {
     () async {
       final client = FakeLlmClient([
         _choiceQuestion(multiple: true),
-        _textQuestion(),
+        '收到',
         '收到',
       ]);
       final agent = CoachAgent(
@@ -139,7 +129,7 @@ void main() {
         choiceSeparator: ', ',
       );
       addTearDown(conversation.dispose);
-      await conversation.send('安排训练');
+      await conversation.send('请澄清这个动作');
       final question = conversation.state.pendingQuestion!;
       expect(conversation.choiceText(question.id, ['腿部', '肩颈']), '肩颈, 腿部');
       await conversation.answerText(question.id, '@settings');
@@ -164,7 +154,7 @@ void main() {
         }
       });
       addTearDown(subscription.cancel);
-      final pending = conversation.send('安排训练');
+      final pending = conversation.send('请澄清这个动作');
       expect(conversation.state.isWaiting, isTrue);
       await pending;
       expect(sawQuestionEvent, isTrue);
@@ -189,7 +179,7 @@ void main() {
         },
       ]);
       final conversation = controller(client);
-      await conversation.send('安排训练');
+      await conversation.send('请澄清这个动作');
       final question = conversation.state.pendingQuestion!;
       final first = conversation.answerChoices(question.id, ['肩颈']);
       expect(conversation.state.isWaiting, isTrue);
@@ -210,7 +200,7 @@ void main() {
     () async {
       final client = FakeLlmClient([_textQuestion(), '收到']);
       final conversation = controller(client);
-      await conversation.send('安排训练');
+      await conversation.send('请澄清这个动作');
       final question = conversation.state.pendingQuestion!;
       expect(await conversation.answerText(question.id, '  '), isNull);
       final rejected = await conversation.answerText(question.id, '长' * 501);
@@ -231,7 +221,7 @@ void main() {
       final client = FakeLlmClient([_textQuestion(), '新请求收到']);
       final conversation = controller(client);
       final agent = conversation.agent;
-      await conversation.send('安排训练');
+      await conversation.send('请澄清这个动作');
       final question = conversation.state.pendingQuestion!;
       conversation.cancel();
       expect(conversation.state.pendingQuestion, isNull);
@@ -278,7 +268,7 @@ void main() {
       final client = FakeLlmClient([_textQuestion(), '全新回复']);
       final conversation = controller(client);
       final agent = conversation.agent;
-      await conversation.send('安排训练');
+      await conversation.send('请澄清这个动作');
       final question = conversation.state.pendingQuestion!;
       conversation.newConversation();
       expect(conversation.state.messages, isEmpty);
@@ -301,7 +291,7 @@ void main() {
     'restoring history cannot reactivate a question or tool history',
     () async {
       final conversation = controller(FakeLlmClient([_textQuestion()]));
-      await conversation.send('安排训练');
+      await conversation.send('请澄清这个动作');
       final history = conversation.state.messages;
       final question = history.last;
       conversation.restoreHistory(history);
@@ -315,7 +305,7 @@ void main() {
 
   test('App-only interactions can invalidate a live question', () async {
     final conversation = controller(FakeLlmClient([_choiceQuestion()]));
-    await conversation.send('安排训练');
+    await conversation.send('请澄清这个动作');
     final question = conversation.state.pendingQuestion!;
     conversation.invalidateQuestion();
     expect(conversation.state.messages.last.questionAnswered, isTrue);
@@ -333,7 +323,7 @@ void main() {
       conversation.addListener(listener);
       final subscription = conversation.states.listen(states.add);
       addTearDown(subscription.cancel);
-      await conversation.send('安排训练');
+      await conversation.send('请澄清这个动作');
       await Future<void>.delayed(Duration.zero);
       expect(notifications, 2);
       expect(states.map((s) => s.isWaiting), [true, false]);
@@ -361,7 +351,7 @@ void main() {
       final conversation = controller(
         FakeLlmClient([const LlmException(LlmErrorKind.auth, 'auth failed')]),
       );
-      final result = await conversation.send('安排训练');
+      final result = await conversation.send('请澄清这个动作');
       expect(result!.status, TurnStatus.error);
       expect(conversation.state.lastResult, same(result));
       expect(conversation.state.error, isNotNull);
@@ -374,7 +364,7 @@ void main() {
   test('dispose is idempotent and prevents sends and stale answers', () async {
     final client = FakeLlmClient([_textQuestion()]);
     final conversation = controller(client);
-    await conversation.send('安排训练');
+    await conversation.send('请澄清这个动作');
     final question = conversation.state.pendingQuestion!;
     final disposed = conversation.dispose();
     expect(conversation.state.isWaiting, isFalse);

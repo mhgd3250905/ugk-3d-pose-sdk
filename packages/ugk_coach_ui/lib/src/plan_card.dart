@@ -14,7 +14,7 @@ import 'primitives.dart';
 ///
 /// * one move → [_ExerciseBody], 130 px at default text size: a square preview on the left,
 ///   name · dose · one cue on the right, tags on the bottom line;
-/// * a set → [_SetBody], 240 px: the first move as the hero with title,
+/// * a set → [_SetBody], 240 px (288 px with a cutout): the first move as the hero with title,
 ///   duration and move count over it, one bottom row with the other moves
 ///   as thumbnails (as many as fit, then +N).
 ///
@@ -69,6 +69,7 @@ class CoachPlanCard extends StatefulWidget {
   /// Compact card heights at the default text size.
   static const exerciseHeight = 130.0;
   static const setHeight = 240.0;
+  static const cutoutSetHeight = 288.0;
 
   @override
   State<CoachPlanCard> createState() => _PlanCardState();
@@ -451,6 +452,10 @@ class _PlanCardState extends State<CoachPlanCard>
     final gearText = p.gearLabel;
     final duration = p.durationLabel;
     final single = items.length == 1;
+    final cover = single
+        ? null
+        : (lib.tryGet(items.first.exerciseId) ?? moves.firstOrNull);
+    final fused = (cover?.cutout != null);
     // Keep the compact design at the default size, but leave enough vertical
     // room for system text scaling. The preview keeps its original width so
     // a taller card cannot squeeze the text column off a narrow phone.
@@ -460,6 +465,8 @@ class _PlanCardState extends State<CoachPlanCard>
     );
     final height = single
         ? CoachPlanCard.exerciseHeight * textScale
+        : fused
+        ? CoachPlanCard.cutoutSetHeight
         : CoachPlanCard.setHeight;
     final reduced = CoachMotion.reduced(context);
     final compactH = height - _inset * 2;
@@ -475,14 +482,15 @@ class _PlanCardState extends State<CoachPlanCard>
     final cues = single
         ? (moves.firstOrNull?.cues ?? const <String>[])
         : const <String>[];
-    final cover = single
-        ? null
-        : (lib.tryGet(items.first.exerciseId) ?? moves.firstOrNull);
-    final fused = (cover?.cutout != null);
     final stage = cover?.stage ?? CoachUiTheme.of(context).colors.stage;
     // The unfolded set's header: title + meta on the left, collapse on the right.
-    final headerH = math.max(_Header.minHeight, textScale * 40 + 16);
     final meta = p.metaLabel;
+    final headerTitleH = _Header.lineHeight(
+      context,
+      p.title,
+      _Header.titleStyle,
+    );
+    final headerH = _Header.heightFor(context, headerTitleH, meta);
 
     // Resolve text exactly as the rows paint it. The same row measurements
     // determine natural height, thumbnail destinations and no-crossing bands.
@@ -530,12 +538,16 @@ class _PlanCardState extends State<CoachPlanCard>
     // The hero's folded frame (the cutout's box, or the boxed cover) and
     // its landing slot, row 1's thumbnail.
     final heroH = compactH - _SetBody.stripHeight;
+    final fusedTitleRoom =
+        _HeroTitle.heightFor(context, p.title, meta) +
+        CoachSpace.x3 +
+        CoachSpace.x2;
     var heroFrom = fused
         ? Rect.fromLTWH(
             CoachSpace.x4,
             CoachSpace.x1,
             innerW - 2 * CoachSpace.x4,
-            heroH - CoachSpace.x1 - _SetBody.fusedTitleRoom,
+            heroH - CoachSpace.x1 - fusedTitleRoom,
           )
         : Rect.fromLTWH(0, 0, innerW, heroH);
     final cutoutTop = widget.cutoutTopInset == null
@@ -618,7 +630,10 @@ class _PlanCardState extends State<CoachPlanCard>
             more: more,
             landing: widget.landing,
             still: _moving,
-            cutoutBounds: fused && cutoutTop != null ? heroFrom : null,
+            cutoutBounds: fused ? heroFrom : null,
+            cutoutAlignment: cutoutTop == null
+                ? Alignment.center
+                : Alignment.topCenter,
             thumbs: stripThumbs,
             // The hero leaves its place at once: a flyer carries it into
             // row 1 (reduced motion: it fades with the rest of the body).
@@ -936,6 +951,7 @@ class _PlanCardState extends State<CoachPlanCard>
               child: _Header(
                 key: const ValueKey('plan-header'),
                 height: headerH,
+                titleLineHeight: headerTitleH,
                 title: p.title,
                 meta: meta,
                 openKey: ValueKey('plan-open-${p.id}'),
@@ -1208,13 +1224,14 @@ class _Details extends StatelessWidget {
   }
 }
 
-/// The unfolded set's header (≈56 px): plan title and meta on the left in
+/// The unfolded set's header: plan title and meta on the left in
 /// the page's ink, room for collapse on the right. Tapping it opens the plan
 /// page, as the folded card does.
 class _Header extends StatelessWidget {
   const _Header({
     super.key,
     required this.height,
+    required this.titleLineHeight,
     required this.title,
     required this.meta,
     required this.openKey,
@@ -1225,6 +1242,7 @@ class _Header extends StatelessWidget {
     required this.toggle,
   });
   final double height;
+  final double titleLineHeight;
   final String title;
   final String meta;
   final Key openKey;
@@ -1234,73 +1252,107 @@ class _Header extends StatelessWidget {
   final bool reduced;
   final Widget toggle;
 
-  static const minHeight = 56.0;
+  // Together with the surface's 6 px inset, title top/left are both 22 px.
+  static const padding = 16.0;
+  static const gap = 5.0;
+  static const bottom = 12.0;
+  static const titleStyle = TextStyle(
+    fontSize: 17,
+    height: 1.25,
+    fontWeight: FontWeight.w700,
+  );
+  static const metaStyle = TextStyle(
+    fontSize: 12,
+    height: 1.35,
+    fontWeight: FontWeight.w400,
+    fontFeatures: CoachUiTypography.tabular,
+  );
+
+  static double lineHeight(BuildContext context, String text, TextStyle style) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final height = painter.height;
+    painter.dispose();
+    return height;
+  }
+
+  static double heightFor(
+    BuildContext context,
+    double titleLineHeight,
+    String meta,
+  ) =>
+      padding +
+      math.max(
+        titleLineHeight + gap + lineHeight(context, meta, metaStyle),
+        _ExpandToggle.heightFor(context),
+      ) +
+      bottom;
 
   @override
   Widget build(BuildContext context) => SizedBox(
     height: height,
-    child: Row(
-      children: [
-        Expanded(
-          child: AnimatedBuilder(
-            animation: progress,
-            builder: (context, child) {
-              if (progress.value == 0) return const SizedBox.shrink();
-              final inactive = progress.value < 1;
-              return ExcludeFocus(
-                excluding: inactive,
-                child: IgnorePointer(
-                  ignoring: inactive,
-                  child: ExcludeSemantics(excluding: inactive, child: child!),
-                ),
-              );
-            },
-            child: FadeTransition(
-              key: const ValueKey('plan-header-fade'),
-              opacity: fade,
-              child: SlideTransition(
-                position: Tween(
-                  begin: const Offset(0, .12),
-                  end: Offset.zero,
-                ).animate(reduced ? kAlwaysCompleteAnimation : fade),
-                child: CoachPressable(
-                  key: openKey,
-                  semanticLabel: CoachUiTheme.of(
-                    context,
-                  ).strings.planDetails(title),
-                  scale: 1,
-                  haptic: CoachHaptic.selection,
-                  onTap: onOpen,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: _Details.pad),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(padding, padding, 0, bottom),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: AnimatedBuilder(
+              animation: progress,
+              builder: (context, child) {
+                if (progress.value == 0) return const SizedBox.shrink();
+                final inactive = progress.value < 1;
+                return ExcludeFocus(
+                  excluding: inactive,
+                  child: IgnorePointer(
+                    ignoring: inactive,
+                    child: ExcludeSemantics(excluding: inactive, child: child!),
+                  ),
+                );
+              },
+              child: FadeTransition(
+                key: const ValueKey('plan-header-fade'),
+                opacity: fade,
+                child: SlideTransition(
+                  position: Tween(
+                    begin: const Offset(0, .12),
+                    end: Offset.zero,
+                  ).animate(reduced ? kAlwaysCompleteAnimation : fade),
+                  child: CoachPressable(
+                    key: openKey,
+                    semanticLabel: CoachUiTheme.of(
+                      context,
+                    ).strings.planDetails(title),
+                    scale: 1,
+                    haptic: CoachHaptic.selection,
+                    onTap: onOpen,
                     child: Align(
-                      alignment: Alignment.centerLeft,
+                      alignment: Alignment.topLeft,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             title,
+                            key: const ValueKey('plan-header-title'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
+                            style: titleStyle.copyWith(
                               color: CoachUiTheme.of(context).colors.text,
-                              fontSize: 17,
-                              height: 1.25,
-                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: gap),
                           Text(
                             meta,
+                            key: const ValueKey('plan-header-meta'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
+                            style: metaStyle.copyWith(
                               color: CoachUiTheme.of(context).colors.muted,
-                              fontSize: 12.5,
-                              height: 1.35,
-                              fontWeight: FontWeight.w500,
-                              fontFeatures: CoachUiTypography.tabular,
                             ),
                           ),
                         ],
@@ -1311,10 +1363,19 @@ class _Header extends StatelessWidget {
               ),
             ),
           ),
-        ),
-        const SizedBox(width: CoachSpace.x3),
-        toggle,
-      ],
+          const SizedBox(width: CoachSpace.x3),
+          Transform.translate(
+            offset: Offset(
+              0,
+              (titleLineHeight - _ExpandToggle.heightFor(context)) / 2,
+            ),
+            child: SizedBox(
+              height: _ExpandToggle.heightFor(context),
+              child: toggle,
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -1333,6 +1394,12 @@ class _ExpandToggle extends StatelessWidget {
   final Animation<double> turns;
   final bool onMedia;
   final VoidCallback onTap;
+
+  static double heightFor(BuildContext context) => math.max(
+    44,
+    MediaQuery.textScalerOf(context).scale(12.5) * 1.2 +
+        (CoachUiTheme.of(context).colors.isDark ? 18 : 10),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -1794,6 +1861,7 @@ class _SetBody extends StatelessWidget {
     this.landing = false,
     this.still = false,
     this.cutoutBounds,
+    this.cutoutAlignment = Alignment.center,
   });
   final bool still;
   final CoachExercise? cover;
@@ -1804,14 +1872,12 @@ class _SetBody extends StatelessWidget {
   final Animation<double> chip;
   final bool landing;
   final Rect? cutoutBounds;
+  final Alignment cutoutAlignment;
 
   static const stripHeight = 52.0;
   static const stripTop = 6.0;
   static const thumb = 36.0;
   static const gap = 6.0;
-
-  /// Room under a cutout hero for the title + meta laid over the card.
-  static const fusedTitleRoom = 50.0;
 
   /// Slots in the strip for a card content width (the last one turns
   /// into +N when some moves don't fit).
@@ -1835,37 +1901,22 @@ class _SetBody extends StatelessWidget {
             key: const ValueKey('plan-hero'),
             opacity: hero,
             child: fused
-                ? cutoutBounds != null
-                      ? Stack(
-                          fit: StackFit.expand,
-                          clipBehavior: Clip.none,
-                          children: [
-                            Positioned.fromRect(
-                              rect: cutoutBounds!,
-                              child: _Media(
-                                exercise: cover,
-                                landing: landing,
-                                cutout: true,
-                                still: still,
-                                cutoutAlignment: Alignment.topCenter,
-                              ),
-                            ),
-                          ],
-                        )
-                      : Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            CoachSpace.x4,
-                            CoachSpace.x1,
-                            CoachSpace.x4,
-                            fusedTitleRoom,
-                          ),
-                          child: _Media(
-                            exercise: cover,
-                            landing: landing,
-                            cutout: true,
-                            still: still,
-                          ),
-                        )
+                ? Stack(
+                    fit: StackFit.expand,
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fromRect(
+                        rect: cutoutBounds!,
+                        child: _Media(
+                          exercise: cover,
+                          landing: landing,
+                          cutout: true,
+                          still: still,
+                          cutoutAlignment: cutoutAlignment,
+                        ),
+                      ),
+                    ],
+                  )
                 : ClipRRect(
                     borderRadius: BorderRadius.circular(CoachRadius.lg - 6),
                     child: Stack(
@@ -1961,6 +2012,27 @@ class _HeroTitle extends StatelessWidget {
   final String meta;
   final Color titleColor;
   final Color metaColor;
+
+  static double heightFor(BuildContext context, String title, String meta) =>
+      _Header.lineHeight(
+        context,
+        title,
+        const TextStyle(
+          fontSize: 19,
+          height: 1.25,
+          fontWeight: FontWeight.w700,
+        ),
+      ) +
+      2 +
+      _Header.lineHeight(
+        context,
+        meta,
+        const TextStyle(
+          fontSize: 13,
+          height: 1.35,
+          fontWeight: FontWeight.w500,
+        ),
+      );
 
   @override
   Widget build(BuildContext context) => Column(

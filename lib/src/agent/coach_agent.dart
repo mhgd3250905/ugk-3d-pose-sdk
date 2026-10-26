@@ -35,6 +35,7 @@ import '../util/clock.dart';
 import 'agent_prompt.dart';
 import 'agent_resilience.dart';
 import 'skill_files.dart';
+import 'training_parameters.dart';
 import 'user_memory.dart';
 
 export 'agent_resilience.dart';
@@ -115,8 +116,8 @@ class AgentStepLimitExceeded implements Exception {
 }
 
 class CoachAgent {
-  /// 一次任务（到成功交付计划/动作卡为止）最多向用户提问三次。
-  static const maxQuestionsPerTask = 3;
+  /// 一次任务最多一轮；同一表单可同时补齐多个条件。
+  static const maxQuestionsPerTask = 1;
 
   CoachAgent({
     required this.client,
@@ -225,6 +226,7 @@ class CoachAgent {
   final Set<LlmMessage> _memoryReasoning = {};
   int _turns = 0;
   int _questionsAsked = 0;
+  bool _parameterTask = false;
   int _generation = 0;
   int? _busyGen;
 
@@ -254,6 +256,7 @@ class CoachAgent {
     _memoryReasoning.clear();
     _turns = 0;
     _questionsAsked = 0;
+    _parameterTask = false;
     _resetSig.complete();
     _resetSig = Completer<void>();
   }
@@ -445,7 +448,56 @@ class CoachAgent {
     final turnWatch = Stopwatch()..start();
 
     final cat = _catalog();
-    final gate = gateFor(cat);
+    final parameters = TrainingParameters.infer(
+      [
+        ..._history.where((m) => m.role == LlmRole.user).map((m) => m.content),
+        text,
+      ],
+      context,
+      cat,
+      profile,
+    );
+    final explicitPlan = RegExp(
+      r'训练组|计划|方案|排课|(?:一套|一组|一份).*(?:训练|动作|拉伸|放松)|\b(?:plan|routine|workout)\b',
+      caseSensitive: false,
+    ).hasMatch(text);
+    final explainingAction = RegExp(
+      r'怎么做|如何做|怎么练|如何练|讲解|要领|姿势|区别|展示|看看|找动作',
+    ).hasMatch(text);
+    final parameterTask =
+        _parameterTask ||
+        explicitPlan ||
+        (text.contains('训练') && !explainingAction);
+    // Only explicit facts constrain admission. Defaults guide generation and
+    // are explained to the user; they do not turn guesses into user facts.
+    context = parameterTask
+        ? parameters.resolved(
+            profile,
+            clarificationFinished: _questionsAsked >= maxQuestionsPerTask,
+          )
+        : parameters.context;
+    final gate = ToolGate(
+      catalog: cat,
+      profile: profile,
+      canary: prompts.canary,
+      extraRules: [
+        ...extraRules,
+        parameters.validate,
+        if (parameterTask &&
+            _questionsAsked == 0 &&
+            !parameters.skipped &&
+            parameters.missing.isNotEmpty)
+          (plan, catalog, context) => [
+            PlanIssue(
+              'training_parameters_missing',
+              '先补齐必要训练参数，再生成训练组',
+              expected: parameters.missing.join('/'),
+              fix: '只调用一次ask_user(mode=form)，将所有缺项放同一张表单，提供直接出方案',
+            ),
+          ],
+      ],
+      enforceDrillDoseRange: enforceDrillDoseRange,
+    );
     // 记忆开关、系统提示、工具、文件系统在每次调模型前按当前开关重建（运行时可切）。
     var memoryOn = memoryAllowed();
     var fs = files(cat);
@@ -465,6 +517,10 @@ class CoachAgent {
         memorySummary: summary,
         userText: text,
         questionsAsked: _questionsAsked,
+        trainingParameters: parameters.prompt(
+          profile,
+          clarificationFinished: _questionsAsked >= maxQuestionsPerTask,
+        ),
       );
     }
 
@@ -922,7 +978,7 @@ class CoachAgent {
           issues.add(
             const PlanIssue(
               'ask_limit',
-              '本次任务已问满 3 次，必须直接出方案',
+              '本次任务已问满 1 轮，必须直接出方案',
               path: 'tool_calls',
               expected: 'show_plan，使用已有回答和合理默认值',
               actual: 'ask_user',
@@ -932,6 +988,63 @@ class CoachAgent {
         }
         final checked = AskUserGate.check(asks.first.arguments);
         issues.addAll(checked.errors);
+        if (parameterTask &&
+            (parameters.skipped || parameters.missing.isEmpty)) {
+          issues.add(
+            const PlanIssue(
+              'ask_not_needed',
+              '已有必要参数或用户已跳过，直接生成方案',
+              fix: '不要再问，使用已知参数和合理默认值调用 show_plan',
+            ),
+          );
+        }
+        final form = checked.question;
+        if (form != null &&
+            form.mode != AskUserMode.form &&
+            parameters.missing.length > 1 &&
+            parameterTask) {
+          issues.add(
+            const PlanIssue(
+              'ask_use_form',
+              '多项训练参数缺失须合并一轮表单',
+              fix: '用mode=form一次列出所有缺项，提供直接出方案',
+            ),
+          );
+        }
+        if (form?.mode == AskUserMode.form) {
+          final keys = form!.fields.map((field) => field.key).toSet();
+          if (keys.difference(parameters.missing).isNotEmpty ||
+              parameters.missing.difference(keys).isNotEmpty) {
+            issues.add(
+              PlanIssue(
+                'ask_missing_fields',
+                '一轮表单必须恰好包含缺少的条件',
+                expected: parameters.missing.join('/'),
+                actual: keys.join('/'),
+              ),
+            );
+          }
+          for (final field in form.fields) {
+            final allowed = switch (field.key) {
+              'scene' => const {'办公室', '家里', '健身房'},
+              'minutes' => const {'5 分钟', '10 分钟', '15 分钟', '20+ 分钟'},
+              _ => {'徒手', ...parameters.equipmentLabels.values},
+            };
+            if (field.options.any((option) => !allowed.contains(option))) {
+              issues.add(
+                PlanIssue(
+                  'ask_options',
+                  '表单选项必须来自规定场景/时长或当前库器械',
+                  path: 'fields.${field.key}.options',
+                  expected: allowed.join('/'),
+                ),
+              );
+            }
+            if (field.key == 'equipment' && !field.multiple) {
+              issues.add(const PlanIssue('ask_equipment_multiple', '器械必须支持多选'));
+            }
+          }
+        }
         if (issues.isEmpty) {
           final question = checked.question!;
           calls.add(
@@ -950,6 +1063,8 @@ class CoachAgent {
             question: question,
             commit: () {
               _questionsAsked++;
+              _parameterTask =
+                  parameterTask || question.mode == AskUserMode.form;
               _turns++;
               _history
                 ..add(userMsg)
@@ -1190,6 +1305,7 @@ class CoachAgent {
           warnings: g.warnings,
           commit: () {
             _questionsAsked = 0;
+            _parameterTask = false;
             _turns++;
             _history
               ..add(userMsg)
@@ -1252,17 +1368,20 @@ class CoachAgent {
         ),
       );
       if (dead()) {
-        return cancelled(step);
+        return await cancelled(step);
       }
       final plan = r.plan == null ? null : gate.admitTemplate(r.plan!, context);
-      return done(
+      return await done(
         TurnStatus.fallback,
         TurnOutcome.fallback,
         step,
         text: r.text,
         plan: plan,
         commit: () {
-          if (plan != null) _questionsAsked = 0;
+          if (plan != null) {
+            _questionsAsked = 0;
+            _parameterTask = false;
+          }
           _turns++;
           _history
             ..add(userMsg)
@@ -1274,7 +1393,7 @@ class CoachAgent {
         return cancelled(step);
       }
       error = e;
-      return done(TurnStatus.error, TurnOutcome.error, step);
+      return await done(TurnStatus.error, TurnOutcome.error, step);
     }
   }
 

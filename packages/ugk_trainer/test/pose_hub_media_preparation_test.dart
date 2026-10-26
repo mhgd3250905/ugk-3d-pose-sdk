@@ -1,14 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 import 'package:ugk_trainer/ugk_trainer.dart';
+
+import 'support.dart';
 
 /// Deliberately permits callbacks after cancellation to verify generation
 /// guards in addition to ordinary StreamSubscription cancellation.
@@ -288,10 +288,6 @@ void main() {
     tester.view.reset();
   }
 
-  FilledButton startButton(WidgetTester tester) => tester.widget<FilledButton>(
-    find.byKey(const ValueKey('posehub-practice-toggle')),
-  );
-
   test(
     'gate accepts one terminal outcome, ignores late events and cancels',
     () {
@@ -458,404 +454,122 @@ void main() {
   });
 
   testWidgets(
-    'browser and detail browse without preparing; single practice prepares once',
-    (tester) async {
-      await mount(
-        tester,
-        app(
-          PoseHubActionBrowser(
-            catalog: catalog,
-            mediaBaseUri: fallbackBase,
-            mediaPreparer: host,
-          ),
-        ),
-      );
-      expect(host.actions, isEmpty);
-      await tester.tap(find.byKey(ValueKey('posehub-action-${first.id}')));
-      await tester.pumpAndSettle();
-      expect(find.byType(PoseHubActionDetail), findsOneWidget);
-      expect(host.actions, isEmpty);
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('posehub-practice')),
-        300,
-      );
-      await tester.tap(find.byKey(const ValueKey('posehub-practice')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 350));
-      expect(host.actions, [first]);
-      expect(startButton(tester).onPressed, isNull);
-      host.streams.single.emit(PoseHubMediaReady(mediaBaseUri: readyBase));
-      await tester.pump();
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('posehub-practice-toggle')),
-      );
-      await tester.tap(find.byKey(const ValueKey('posehub-practice-toggle')));
-      await tester.pump();
-      expect(
-        host.actions,
-        hasLength(1),
-        reason: 'The page must not prepare again through its media widget',
-      );
-      expect(platform.sources, [first.video.resolve(readyBase)]);
-      await unmount(tester);
-    },
-  );
-
-  testWidgets(
-    'preparing and ready do not start time; only an explicit start records activity',
+    'training starts immediately and media failure retries silently',
     (tester) async {
       final results = <PoseHubPracticeResult>[];
       await mount(tester, practice(preparer: host, onFinished: results.add));
-      expect(startButton(tester).onPressed, isNull);
+      expect(find.byType(TrainerPlayer), findsOneWidget);
+      expect(host.actions, [first]);
+      expect(find.byType(PoseHubMediaPreparationPanel), findsNothing);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
       host.streams.single.emit(
-        const PoseHubMediaProgress(
-          fraction: .42,
-          receivedBytes: 42,
-          totalBytes: 100,
-        ),
+        const PoseHubMediaProgress(receivedBytes: 42, totalBytes: 100),
       );
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.textContaining('字节'), findsNothing);
+      host.streams.single.emit(const PoseHubMediaFailed(reason: '网络不可用'));
       await tester.pump();
-      expect(find.text('42%'), findsOneWidget);
-      expect(find.text('已准备 42 / 100 字节'), findsOneWidget);
-      expect(
-        tester
-            .widget<LinearProgressIndicator>(
-              find.byType(LinearProgressIndicator),
-            )
-            .value,
-        .42,
-      );
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 1050)),
-      );
-      host.streams.single.emit(PoseHubMediaReady(mediaBaseUri: readyBase));
-      await tester.pump();
-      expect(startButton(tester).onPressed, isNotNull);
-      expect(platform.sources, isEmpty);
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 1050)),
-      );
-      await tester.pump(const Duration(seconds: 2));
-      expect(find.text('0:00'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('posehub-practice-toggle')));
-      await tester.pump();
-      expect(find.text('暂停'), findsOneWidget);
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 30)),
-      );
-      await tester.tap(find.byKey(const ValueKey('posehub-practice-finish')));
-      await tester.pump();
-      expect(results, hasLength(1));
-      expect(results.single.activeDuration, greaterThan(Duration.zero));
-      expect(
-        results.single.activeDuration,
-        lessThan(const Duration(milliseconds: 900)),
-      );
-      await unmount(tester);
-    },
-  );
-
-  testWidgets(
-    'host failure is visible and retry remains unstarted until ready and tapped',
-    (tester) async {
-      await mount(tester, practice(preparer: host));
-      host.streams.single.emit(const PoseHubMediaFailed(reason: '网络不可用，请稍后重试'));
-      await tester.pump();
-      expect(find.text('网络不可用，请稍后重试'), findsOneWidget);
-      expect(startButton(tester).onPressed, isNull);
-      await tester.tap(
-        find.byKey(const ValueKey('posehub-media-preparation-retry')),
-      );
-      await tester.pump();
+      expect(find.text('网络不可用'), findsNothing);
+      // The deliberately hand-written host subscription completes cancellation
+      // on the real async boundary. Allow it to finish before advancing timers.
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump(const Duration(milliseconds: 2100));
       expect(host.actions, hasLength(2));
-      expect(find.text('0:00'), findsOneWidget);
-      expect(startButton(tester).onPressed, isNull);
+      expect(platform.sources, isEmpty);
       host.streams.last.emit(PoseHubMediaReady(mediaBaseUri: readyBase));
       await tester.pump();
-      expect(startButton(tester).onPressed, isNotNull);
-      expect(platform.sources, isEmpty);
+      expect(platform.sources, [first.video.resolve(readyBase)]);
       await unmount(tester);
-    },
-  );
-
-  testWidgets(
-    'no preparer preserves immediate local practice and existing controls',
-    (tester) async {
-      await mount(tester, practice());
-      expect(find.byType(PoseHubMediaPreparationPanel), findsNothing);
-      expect(startButton(tester).onPressed, isNotNull);
-      await tester.tap(find.byKey(const ValueKey('posehub-practice-toggle')));
-      await tester.pump();
-      expect(platform.sources, [first.video.resolve(fallbackBase)]);
-      expect(find.text('暂停'), findsOneWidget);
-      await unmount(tester);
-    },
-  );
-
-  testWidgets('action replacement and disposal retire late host events', (
-    tester,
-  ) async {
-    await mount(tester, practice(preparer: host));
-    final old = host.streams.single;
-    await tester.pumpWidget(practice(action: second, preparer: host));
-    await tester.pump();
-    expect(old.cancelled, isTrue);
-    expect(host.actions, [first, second]);
-    old.emit(PoseHubMediaReady(mediaBaseUri: readyBase));
-    await tester.pump();
-    expect(startButton(tester).onPressed, isNull);
-    expect(platform.sources, isEmpty);
-    final current = host.streams.last;
-    await unmount(tester);
-    expect(current.cancelled, isTrue);
-    current.emit(PoseHubMediaReady(mediaBaseUri: readyBase));
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets(
-    'replacing a provider after start stops and resets time until explicit restart',
-    (tester) async {
-      final replacement = _HostPreparer();
-      captureHosts.add(replacement);
-      final results = <PoseHubPracticeResult>[];
-      await mount(tester, practice(preparer: host, onFinished: results.add));
-      final old = host.streams.single;
-      old.emit(PoseHubMediaReady(mediaBaseUri: readyBase));
-      await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('posehub-practice-toggle')));
-      await tester.pump();
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 1050)),
-      );
-      await tester.pump(const Duration(seconds: 1));
-      expect(find.text('0:01'), findsOneWidget);
-      expect(platform.sources, hasLength(1));
-
-      await tester.pumpWidget(
-        practice(preparer: replacement, onFinished: results.add),
-      );
-      await tester.pump();
-      expect(replacement.actions, [first]);
-      expect(find.text('0:00'), findsOneWidget);
-      expect(startButton(tester).onPressed, isNull);
-      expect(
-        find.byKey(const ValueKey('posehub-practice-finish')),
-        findsNothing,
-      );
-      old.emit(PoseHubMediaReady(mediaBaseUri: readyBase));
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 1050)),
-      );
-      await tester.pump(const Duration(seconds: 1));
-      expect(find.text('0:00'), findsOneWidget);
-      expect(startButton(tester).onPressed, isNull);
-      expect(platform.sources, hasLength(1));
-
-      replacement.streams.single.emit(
-        PoseHubMediaReady(mediaBaseUri: readyBase),
-      );
-      await tester.pump(const Duration(seconds: 1));
-      expect(find.text('0:00'), findsOneWidget);
-      expect(startButton(tester).onPressed, isNotNull);
-      expect(platform.sources, hasLength(1));
-      await tester.tap(find.byKey(const ValueKey('posehub-practice-toggle')));
-      await tester.pump();
-      expect(platform.sources, hasLength(2));
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 30)),
-      );
-      await tester.tap(find.byKey(const ValueKey('posehub-practice-finish')));
-      await tester.pump();
       expect(results, hasLength(1));
       expect(results.single.activeDuration, greaterThan(Duration.zero));
-      expect(
-        results.single.activeDuration,
-        lessThan(const Duration(milliseconds: 900)),
-      );
-      await unmount(tester);
     },
   );
 
-  for (final (name, theme) in [
-    ('light', TrainerTheme.light),
-    ('dark', TrainerTheme.dark),
-  ]) {
-    testWidgets(
-      '$name preparation and failure use supplied opaque theme tokens',
-      (tester) async {
-        await mount(tester, practice(preparer: host, theme: theme));
-        final surface = tester.widget<TrainerSurface>(
-          find.descendant(
-            of: find.byType(PoseHubMediaPreparationPanel),
-            matching: find.byType(TrainerSurface),
-          ),
-        );
-        expect(surface.theme, same(theme));
-        host.streams.single.emit(const PoseHubMediaFailed(reason: '缓存空间不足'));
-        await tester.pump();
-        final reason = tester.widget<Text>(
-          find.byKey(const ValueKey('posehub-media-preparation-reason')),
-        );
-        expect(reason.style!.color, theme.caution);
-        await tester.pumpWidget(practice(preparer: host, theme: theme));
-        await tester.pump();
-        expect(
-          host.actions,
-          hasLength(1),
-          reason: 'A theme/rebuild must not retry failed work',
-        );
-        await unmount(tester);
-      },
-    );
-  }
-
   testWidgets(
-    'media prepares only on playback intent and decodes only after verified ready',
+    'media prepares on intent, holds bundled still and dissolves after first frame',
     (tester) async {
-      final statuses = <PoseHubPackPlaybackStatus>[];
-      await mount(tester, media(onStatus: statuses.add));
+      await mount(tester, media());
       expect(host.actions, isEmpty);
-      expect(statuses.last, PoseHubPackPlaybackStatus.cover);
-      await tester.pumpWidget(media(playing: true, onStatus: statuses.add));
+      expect(tester.widget<Image>(find.byType(Image)).image, isA<AssetImage>());
+      await tester.pumpWidget(media(playing: true));
       await tester.pump();
       expect(host.actions, [first]);
       expect(platform.sources, isEmpty);
-      expect(find.byType(UgkPackedAlphaVideo), findsNothing);
-      expect(statuses.last, PoseHubPackPlaybackStatus.loading);
       host.streams.single.emit(PoseHubMediaReady(mediaBaseUri: readyBase));
       await tester.pump();
-      expect(platform.sources, [first.video.resolve(readyBase)]);
+      await tester.pump();
       platform.emit(1, 'ready');
+      await tester.pump();
       platform.emit(1, 'first-frame');
       await tester.pump();
       await tester.pump();
-      expect(statuses.last, PoseHubPackPlaybackStatus.playing);
-      await tester.pumpWidget(
-        media(playing: true, paused: true, onStatus: statuses.add),
-      );
-      await tester.pump();
-      expect(statuses.last, PoseHubPackPlaybackStatus.paused);
-      expect(host.actions, hasLength(1));
-      await tester.pumpWidget(media(onStatus: statuses.add));
-      await tester.pump();
-      await tester.pumpWidget(media(playing: true, onStatus: statuses.add));
-      await tester.pump();
-      expect(
-        host.actions,
-        hasLength(1),
-        reason: 'Verified ready state may be reused for the same action',
-      );
-      expect(platform.sources, hasLength(2));
+      final fade = tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity));
+      expect(fade.opacity, 0);
+      expect(fade.duration, const Duration(milliseconds: 180));
       await unmount(tester);
     },
   );
 
   testWidgets(
-    'media failure, retry and stopped/replaced streams cannot reveal a stale decoder',
+    'replacing a provider cancels stale downloads without restarting training',
     (tester) async {
-      await mount(tester, media(playing: true));
+      final replacement = _HostPreparer();
+      captureHosts.add(replacement);
+      await mount(tester, practice(preparer: host));
       final old = host.streams.single;
-      old.emit(const PoseHubMediaFailed(reason: '校验未通过，请重试'));
+      await tester.pumpWidget(practice(preparer: replacement));
       await tester.pump();
-      expect(find.text('校验未通过，请重试'), findsOneWidget);
-      await tester.tap(
-        find.byKey(const ValueKey('posehub-media-preparation-retry')),
+      expect(old.cancelled, isTrue);
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      expect(replacement.actions, [first]);
+      old.emit(PoseHubMediaReady(mediaBaseUri: readyBase));
+      await tester.pump();
+      expect(platform.sources, isEmpty);
+      replacement.streams.single.emit(
+        PoseHubMediaReady(mediaBaseUri: readyBase),
       );
       await tester.pump();
-      final retry = host.streams.last;
-      expect(host.actions, hasLength(2));
-      await tester.pumpWidget(media(action: second, playing: true));
-      await tester.pump();
-      expect(retry.cancelled, isTrue);
-      old.emit(PoseHubMediaReady(mediaBaseUri: readyBase));
-      retry.emit(PoseHubMediaReady(mediaBaseUri: readyBase));
-      await tester.pump();
-      expect(platform.sources, isEmpty);
-      final current = host.streams.last;
-      await tester.pumpWidget(media(action: second));
-      await tester.pump();
-      expect(current.cancelled, isTrue);
-      current.emit(PoseHubMediaReady(mediaBaseUri: readyBase));
-      await tester.pump();
-      expect(platform.sources, isEmpty);
+      expect(platform.sources, [first.video.resolve(readyBase)]);
       await unmount(tester);
     },
   );
 
   testWidgets(
-    'optional software captures of light/dark preparing and failed states',
+    'plan timing and speech finish normally while all media are pending',
     (tester) async {
-      if (captureDirectory == null || captureDirectory.isEmpty) return;
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size(430, 932);
-      final configuredBase = Platform.environment['POSEHUB_CAPTURE_MEDIA_BASE'];
-      final captureBase = configuredBase == null || configuredBase.isEmpty
-          ? fallbackBase
-          : Directory(configuredBase).absolute.uri;
-      for (final (name, theme) in [
-        ('light', TrainerTheme.light),
-        ('dark', TrainerTheme.dark),
-      ]) {
-        final captureHost = _HostPreparer();
-        captureHosts.add(captureHost);
-        await tester.pumpWidget(
-          RepaintBoundary(
-            key: const ValueKey('preparation-capture'),
-            child: app(
-              PoseHubSinglePracticePage(
-                key: ValueKey(name),
-                action: first,
-                mediaBaseUri: captureBase,
-                mediaPreparer: captureHost,
-                theme: theme,
-              ),
-              theme: theme,
-            ),
+      final output = RecordingOutput();
+      final saved = <SessionResult>[];
+      await mount(
+        tester,
+        app(
+          TrainerPlayer(
+            plan: planOf([timed(first.id, 2), timed(second.id, 2)]),
+            drillOf: (id) => TrainerDrill(id: id, name: id),
+            strings: TrainerStrings.zh(),
+            keepAlive: false,
+            prepSeconds: 0,
+            transitionSeconds: 1,
+            voice: TrainerVoice(source: hipSource(), output: output),
+            poseHubCatalog: catalog,
+            poseHubMediaPreparer: host,
+            poseHubMediaBaseUri: fallbackBase,
+            onFinished: (result) async {
+              saved.add(result);
+            },
           ),
-        );
-        await tester.pump();
-        // FileImage performs real I/O; allow it to complete without awaiting a
-        // cached image future across the test's fake/real async zones.
-        for (var frame = 0; frame < 20; frame++) {
-          await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 100)),
-          );
-          await tester.pump();
-          final image = find.byType(RawImage);
-          if (image.evaluate().isNotEmpty &&
-              tester.widget<RawImage>(image).image != null) {
-            break;
-          }
-        }
-        for (final state in ['preparing', 'failed']) {
-          captureHost.streams.single.emit(
-            state == 'preparing'
-                ? const PoseHubMediaProgress(
-                    fraction: .42,
-                    receivedBytes: 420000,
-                    totalBytes: 1000000,
-                  )
-                : const PoseHubMediaFailed(reason: '网络连接不可用，请稍后重试'),
-          );
-          await tester.pump(const Duration(milliseconds: 100));
-          final boundary = tester.renderObject<RenderRepaintBoundary>(
-            find.byKey(const ValueKey('preparation-capture')),
-          );
-          await tester.runAsync(() async {
-            final image = await boundary.toImage(pixelRatio: 2);
-            final bytes = await image.toByteData(
-              format: ui.ImageByteFormat.png,
-            );
-            final output = File('$captureDirectory/$state-$name.png');
-            await output.parent.create(recursive: true);
-            await output.writeAsBytes(bytes!.buffer.asUint8List());
-            image.dispose();
-          });
-        }
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pump();
+        ),
+      );
+      expect(host.actions, [first, second]);
+      for (var i = 0; i < 65; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
       }
-      tester.view.reset();
+      expect(saved, hasLength(1));
+      expect(saved.single.full, isTrue);
+      expect(platform.sources, isEmpty);
+      expect(output.spoken.isNotEmpty || output.chimes.isNotEmpty, isTrue);
+      expect(find.byType(PoseHubMediaPreparationPanel), findsNothing);
+      await unmount(tester);
     },
   );
 }

@@ -2,7 +2,9 @@
 
 > **2026-10-26：** 开哥已确认扁平版真机流畅，`c6e261e`（trainer 0.3.1 / coach_ui 0.2.1）已合入并推送 main。微拟物暂存保持不动。
 >
-> coach 0.6.2 / trainer 0.4.2 提供压缩媒体 v3：657 个独立文件从 587.46 MB 降至 163.35 MB，219 / 211 完整 / 8 待补语义保持。新增宿主注入 `mediaPreparer` 的进度、失败重试和单练计时门禁；SDK 不做下载缓存。目录按自身版本和清单校验，支持后续版本。v1/v2 Release 保留。[v3 接口、逐文件 URL 与校验](docs/posehub-app-test-pack-r1-v3.md)。训练页实色布局、防闪和 Morph Pulse 保持；coach_ui 仍为 0.2.1。
+> **真机反馈 r1 / 第 1 部分待审候选：coach 0.7.0 / trainer 0.5.0 / coach_ui 0.3.0。** 训练计时与播报独立于媒体下载；随包原始 alpha WebP 立即占位，后台校验、重试与有序预取，视频就绪原位淡入。动作库只展示 211 个说明完整动作，支持中文搜索与组合筛选，点击直接训练。套路卡优化留白与出框人物尺寸；AI 一轮补齐场景、器械、时长。保留原配色、v3 素材和既有发布。分支 `codex/feedback-r1-part1`，合 main、推送及三个新 minor tag 等开哥批准。[本轮改动、接入与验证](docs/feedback-r1-part1.md)。
+>
+> 现有 0.6.2 / 0.4.2 的压缩媒体 v3 仍是素材来源：657 个独立文件共 163.35 MB，219 / 211 完整 / 8 待补语义保持。SDK 不实现下载缓存，宿主继续负责逐文件校验。[v3 URL 与校验协议](docs/posehub-app-test-pack-r1-v3.md)。旧版本的媒体准备计时门禁在本候选中停用。
 
 仓库 `mhgd3250905/ugk-3d-pose-sdk`，根目录是纯 Dart 包 **`ugk_coach`**，`packages/ugk_trainer` 是 Flutter 训练执行包（PR #1 已合入）。
 

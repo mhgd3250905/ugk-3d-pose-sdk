@@ -42,7 +42,12 @@ void main() {
       ]);
       final result = await agent(client).send(
         '排个十分钟居家开胯计划',
-        context: const CoachContext(scene: 'home', minutes: 10, level: 1),
+        context: const CoachContext(
+          scene: 'home',
+          equipment: {'mat'},
+          minutes: 10,
+          level: 1,
+        ),
       );
       expect(result.status, TurnStatus.ok);
       expect(result.plan, isNotNull);
@@ -77,7 +82,12 @@ void main() {
       ]);
       final result = await agent(client).send(
         '排个十分钟计划',
-        context: const CoachContext(scene: 'home', minutes: 10, level: 1),
+        context: const CoachContext(
+          scene: 'home',
+          equipment: {'mat'},
+          minutes: 10,
+          level: 1,
+        ),
       );
       expect(result.status, TurnStatus.ok);
       expect(result.records.first.issueCodes, contains('unknown_exercise'));

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0 — feedback r1 part 1 candidate
+
+- Give expanded routine headers 22 px outer-card top/left clearance, 5 px title/meta spacing, 12 px muted metadata and collapse-button alignment with the first title line. Preserve complete wrapping of large Chinese dose text and shared animation measurements.
+- Increase multi-action transparent-cutout card height from 240 to 288 px. Enlarge the actual hero contain frame approximately 30%, preserving text/control clearance, host top-inset semantics, reduced motion and hero-to-first-row continuity. Single-action horizontal cards retain their existing layout.
+- Add grouped form question fields, single/multiple selection and a skip action. Keep text/choice presentation supported; hosts must map the new form mode and bind its answer/skip callbacks. Keep the selected solid colors; candidate merge and tag await approval.
+
 ## 0.2.1 - 2026-10-26（扁平实色收尾，main 待真机确认）
 
 - Finalize the selected flat UI from `c4d251d` and rerun the complete package suite. Runtime source and interaction/layout contracts are unchanged from 0.2.0; the shelved micro-skeuomorphic candidate is excluded.

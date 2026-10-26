@@ -5,9 +5,9 @@
 
 三个 App（托马斯 FlareLab、开胯 HipLab、智能健身 SmartFit）共用一个 AI 训练助理：模型只能用 Pose-Hub 统一动作目录里的动作，按固定 JSON 输出动作 id + 剂量；App 校验通过后渲染成套路卡，可保存、可直接跟练。本目录是 Python 侧的校验器与评测，Dart 侧实现在 `lib/`（`PlanValidator`、`PromptBuilder`）。
 
-## Agent 先问再出方案（SDK 0.4）
+## Agent 单轮补齐参数（R1 part1）
 
-`cases/ask_user.json` 和 `../tool/eval_ask_user.dart` 独立覆盖真实 `OpenAiCompatibleClient → CoachAgent` 路径。每个案例新建 Agent；同一案例的选项标签或自由输入通过下一次 `send()` 进入同一会话。六个案例包括 bboy 程序员的原始长句、点击选项、自由输入、条件完整直接排课、App 筛查上下文、用户说「直接出」和最多三问后使用默认值。三问案例允许模型信息已足时提前结束，是否实际耗尽预算会单独记录；SDK 对恶意第四次调用的硬拒绝由离线单元测试覆盖。
+`cases/ask_user.json` 和 `../tool/eval_ask_user.dart` 覆盖真实 `OpenAiCompatibleClient → CoachAgent` 路径。当前最多1轮form，已有信息不重问；包含信息全、缺1项、缺3项、用户跳过四类，以及原始bboy、自由输入、App上下文和预算案例。`test/training_parameters_test.dart` 为独立确定性多轮协议回放，使用脚本响应而非真实模型，不计作模型质量评测。
 
 ```powershell
 dart run tool/eval_ask_user.dart --dry
@@ -20,7 +20,7 @@ dart run tool/eval_ask_user.dart
 
 `--dry` 只验证 fixture，不调用 FakeLlmClient，也不计作提示词效果评测；验证证据写入 `results/ask-user/dry-<UTC>/summary.json`，明确记录 `modelCalls=0`、`modelQualityPassed=null`。真实运行输出 `results/ask-user/<UTC>/summary.json` 和逐例 JSON；包含实际模型、端点、SDK 版本、fixture/catalog 哈希、每轮 typed 问题/事件、最终门禁计划、耗时和 token，以及失败断言。不会输出凭据、请求头、设备 ID、系统提示词或推理原文；读取鉴权文件失败时也不输出原路径或内容。可用 `--out` 指定单独的证据目录，失败退出码为 1。
 
-断言覆盖首轮应问/不应问、问题事件与返回结果一致、提问结束后 Agent 空闲、提问轮不读取任何文件且只有一次模型请求、问题计数与三问上限、交付成功后计数归零，以及最终计划使用之前的时长/地点/水平/器械/重点部位回答。重点部位由选中动作的名称和目录肌群检查，不只检查计划说明的口头承诺；明确的髋屈肌/髋前侧答案要求动作命中髋屈肌相关名称或肌群，宽泛的髋部动作不能代替这一断言。每个案例是一次样本，不是稳定通过率或 App UI 验收。`bboy_choice` 使用默认开启的用户记忆，其余案例关闭记忆，summary 按所选案例逐项保存实际配置；仅将 `maxHistoryChars` 提到 200000，避免多轮计划历史先触发 40000 字符会话上限，其余 Agent 步数/请求超时/整轮超时保持默认。
+断言覆盖首轮应问/不应问、问题事件与返回结果一致、提问结束后 Agent 空闲、提问轮不读取任何文件且只有一次模型请求、问题计数与一轮上限、交付成功后计数归零，以及最终计划使用之前的时长/地点/水平/器械/重点部位回答。重点部位由选中动作的名称和目录肌群检查，不只检查计划说明的口头承诺；明确的髋屈肌/髋前侧答案要求动作命中髋屈肌相关名称或肌群，宽泛的髋部动作不能代替这一断言。每个案例是一次样本，不是稳定通过率或 App UI 验收。`bboy_choice` 使用默认开启的用户记忆，其余案例关闭记忆，summary 按所选案例逐项保存实际配置；仅将 `maxHistoryChars` 提到 200000，避免多轮计划历史先触发 40000 字符会话上限，其余 Agent 步数/请求超时/整轮超时保持默认。
 
 动作目录本体在 Pose-Hub `catalog/`（分支 `feat/ai-coach-catalog`，809f36a）。
 

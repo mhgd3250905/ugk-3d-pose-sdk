@@ -14,11 +14,13 @@ class CoachQuestionBubble extends StatefulWidget {
     required this.enabled,
     required this.onTextAnswer,
     required this.onChoiceAnswer,
+    this.onFormAnswer,
   });
   final CoachQuestionData question;
   final bool enabled;
   final Future<void> Function(String) onTextAnswer;
   final Future<void> Function(List<String>) onChoiceAnswer;
+  final Future<void> Function(Map<String, List<String>>)? onFormAnswer;
   @override
   State<CoachQuestionBubble> createState() => _CoachQuestionBubbleState();
 }
@@ -26,6 +28,7 @@ class CoachQuestionBubble extends StatefulWidget {
 class _CoachQuestionBubbleState extends State<CoachQuestionBubble> {
   final _text = TextEditingController();
   final _selected = <String>{};
+  final _formSelected = <String, Set<String>>{};
   bool _submitting = false;
   bool get _active =>
       widget.enabled && !widget.question.answered && !_submitting;
@@ -35,6 +38,7 @@ class _CoachQuestionBubbleState extends State<CoachQuestionBubble> {
     if (oldWidget.question.id != widget.question.id) {
       _text.clear();
       _selected.clear();
+      _formSelected.clear();
       _submitting = false;
     }
   }
@@ -97,6 +101,98 @@ class _CoachQuestionBubbleState extends State<CoachQuestionBubble> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                if (q.mode == CoachQuestionMode.form) ...[
+                  for (final field in q.fields) ...[
+                    Text(
+                      field.label,
+                      style: style.typography.caption.copyWith(
+                        color: style.colors.muted,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (var i = 0; i < field.options.length; i++)
+                          CoachOptionPill(
+                            key: ValueKey(
+                              'question-field-${q.id}-${field.key}-$i',
+                            ),
+                            label: field.options[i],
+                            enabled: _active,
+                            chosen:
+                                _formSelected[field.key]?.contains(
+                                  field.options[i],
+                                ) ??
+                                false,
+                            onTap: () {
+                              if (!_active) return;
+                              setState(() {
+                                final selected = _formSelected.putIfAbsent(
+                                  field.key,
+                                  () => <String>{},
+                                );
+                                final option = field.options[i];
+                                if (!field.multiple || option == '徒手') {
+                                  selected
+                                    ..clear()
+                                    ..add(option);
+                                } else {
+                                  selected.remove('徒手');
+                                  if (!selected.add(option)) {
+                                    selected.remove(option);
+                                  }
+                                }
+                              });
+                            },
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (!q.answered) ...[
+                    CoachTextAction(
+                      key: ValueKey('question-submit-${q.id}'),
+                      label: style.strings.submitAnswer,
+                      onPressed:
+                          _active &&
+                              q.fields.every(
+                                (field) =>
+                                    _formSelected[field.key]?.isNotEmpty ??
+                                    false,
+                              )
+                          ? () => _submit(() {
+                              final answers = {
+                                for (final field in q.fields)
+                                  field.key: field.options
+                                      .where(_formSelected[field.key]!.contains)
+                                      .toList(),
+                              };
+                              final callback = widget.onFormAnswer;
+                              return callback != null
+                                  ? callback(answers)
+                                  : widget.onTextAnswer(
+                                      q.fields
+                                          .map(
+                                            (field) =>
+                                                '${field.label}：${answers[field.key]!.join('、')}',
+                                          )
+                                          .join('；'),
+                                    );
+                            })
+                          : null,
+                    ),
+                    CoachTextAction(
+                      key: ValueKey('question-skip-${q.id}'),
+                      label: q.skipLabel,
+                      onPressed: _active
+                          ? () =>
+                                _submit(() => widget.onTextAnswer(q.skipLabel))
+                          : null,
+                    ),
+                  ],
+                ],
                 if (q.mode == CoachQuestionMode.text && !q.answered) ...[
                   // A solid backer keeps the original unfilled underline
                   // geometry, while host decoration/selection tints stay out.

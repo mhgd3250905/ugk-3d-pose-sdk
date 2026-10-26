@@ -4,6 +4,30 @@ import 'package:ugk_coach/ugk_coach.dart';
 import '../ui/trainer_theme.dart';
 import 'pose_hub_pack_image_platform.dart' as platform;
 
+/// The unchanged, bundled alpha-WebP cover. It never requests the network.
+/// Covers authored at a later source frame retain their original pose; media
+/// QA records these exceptions rather than silently replacing source assets.
+class PoseHubStandingImage extends StatelessWidget {
+  const PoseHubStandingImage({
+    super.key,
+    required this.action,
+    this.theme = TrainerTheme.light,
+  });
+
+  final PoseHubPackAction action;
+  final TrainerTheme theme;
+
+  @override
+  Widget build(BuildContext context) => Image.asset(
+    'assets/pose_hub/app-test-pack-r1/standing/${action.id}.webp',
+    package: 'ugk_trainer',
+    fit: BoxFit.contain,
+    gaplessPlayback: true,
+    semanticLabel: '${action.nameZh}站位图',
+    errorBuilder: (_, _, _) => ColoredBox(color: theme.mediaStage),
+  );
+}
+
 /// A catalog-referenced original cover/thumbnail, from one complete installed
 /// pack or its same-origin Web mount. No asset is renamed or recompressed.
 class PoseHubPackImage extends StatelessWidget {

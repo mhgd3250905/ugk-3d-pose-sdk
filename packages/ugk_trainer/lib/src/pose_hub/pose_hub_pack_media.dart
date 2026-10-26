@@ -3,6 +3,7 @@ import 'package:ugk_coach/ugk_coach.dart';
 
 import '../media/media_controller.dart';
 import '../ui/trainer_theme.dart';
+import 'pose_hub_media_prefetcher.dart';
 import 'pose_hub_media_preparation.dart';
 import 'pose_hub_pack_image.dart';
 import 'pose_hub_pack_surface.dart';
@@ -16,9 +17,8 @@ enum PoseHubPackPlaybackStatus {
   error,
 }
 
-/// Demonstration of one original RGB-over-alpha clip. Its catalog cover may be
-/// any source frame: it is deliberately not passed as a frame-zero poster.
-/// The cover stays over the live surface until a real composed frame exists.
+/// Bundled standing image first, then a 180 ms dissolve after a composed frame.
+/// Media preparation is independent of session timing and speech.
 class PoseHubPackMedia extends StatefulWidget {
   const PoseHubPackMedia({
     super.key,
@@ -46,6 +46,25 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
   late DrillMediaController _controller;
   PoseHubPackPlaybackStatus? _lastStatus;
   final _preparation = PoseHubMediaPreparationController();
+  PoseHubMediaPrefetcher? _ownedPrefetcher;
+  Future<void>? _preparerRetirement;
+
+  PoseHubMediaPreparer? get _preparer =>
+      _ownedPrefetcher ?? widget.mediaPreparer;
+
+  void _bindPreparer() {
+    final previous = _ownedPrefetcher;
+    previous?.dispose();
+    _preparerRetirement = previous?.cancellationComplete ?? _preparerRetirement;
+    _ownedPrefetcher =
+        widget.mediaPreparer != null &&
+            widget.mediaPreparer is! PoseHubMediaPrefetcher
+        ? PoseHubMediaPrefetcher(
+            widget.mediaPreparer!,
+            afterCancellation: _preparerRetirement,
+          )
+        : null;
+  }
 
   bool get _prepared =>
       widget.mediaPreparer == null ||
@@ -78,11 +97,12 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
     super.initState();
     _preparation.addListener(_preparationChanged);
     _bind();
+    _bindPreparer();
     _ensurePreparation();
   }
 
   void _ensurePreparation() {
-    final preparer = widget.mediaPreparer;
+    final preparer = _preparer;
     if (widget.playing &&
         preparer != null &&
         _preparation.state.status != PoseHubMediaPreparationStatus.preparing &&
@@ -148,6 +168,7 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
                 PoseHubMediaPreparationStatus.preparing)) {
       _preparation.cancel();
     }
+    if (sourceChanged) _bindPreparer();
     if (sourceChanged || oldWidget.playing != widget.playing) {
       _controller.removeListener(_changed);
       _controller.dispose();
@@ -168,6 +189,7 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
     _controller.dispose();
     _preparation.removeListener(_preparationChanged);
     _preparation.dispose();
+    _ownedPrefetcher?.dispose();
     super.dispose();
   }
 
@@ -186,44 +208,33 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
                 sourceUri: widget.action.video.resolve(_mediaBase),
                 controller: _controller,
               ),
-            if (!widget.playing || !hasFrame || !_prepared)
-              ColoredBox(
-                key: const ValueKey('pose-hub-pack-cover'),
-                color: widget.theme.mediaStage,
-                child: PoseHubPackImage(
-                  file: widget.action.cover,
-                  baseUri: _mediaBase,
-                  theme: widget.theme,
-                  semanticLabel: '${widget.action.nameZh}封面（非固定帧零）',
-                ),
-              ),
-            if (widget.playing && widget.mediaPreparer != null && !_prepared)
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: PoseHubMediaPreparationPanel(
-                    state: _preparation.state,
+            IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: widget.playing && hasFrame && _prepared ? 0 : 1,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                child: ColoredBox(
+                  key: const ValueKey('pose-hub-pack-cover'),
+                  color: widget.theme.mediaStage,
+                  child: PoseHubStandingImage(
+                    action: widget.action,
                     theme: widget.theme,
-                    onRetry: _ensurePreparation,
                   ),
                 ),
               ),
-            if (_status == PoseHubPackPlaybackStatus.unsupported ||
-                (_status == PoseHubPackPlaybackStatus.error &&
-                    !_preparationFailed))
+            ),
+            if (widget.playing && !hasFrame)
               Align(
-                alignment: Alignment.bottomCenter,
-                child: ColoredBox(
-                  color: widget.theme.surface,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Text(
-                      _status == PoseHubPackPlaybackStatus.unsupported
-                          ? '当前平台仅显示封面'
-                          : '动作视频暂不可播放',
-                      key: const ValueKey('pose-hub-pack-playback-message'),
-                      style: widget.theme.label,
+                alignment: Alignment.bottomRight,
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Tooltip(
+                    message: '视频加载中',
+                    child: Icon(
+                      Icons.slow_motion_video,
+                      key: const ValueKey('posehub-video-loading'),
+                      size: 16,
+                      color: widget.theme.muted.withValues(alpha: .55),
                     ),
                   ),
                 ),

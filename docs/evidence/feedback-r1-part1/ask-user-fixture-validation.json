@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "mode": "fixture-validation-only",
+  "checkedAt": "2026-10-26T15:00:08.959020Z",
+  "fixtureSha256": "258aa3b60423ce0834692b81d2a6511a549a29e835ef5c493466e888bf8b1362",
+  "cases": [
+    "bboy_choice",
+    "bboy_free_text",
+    "core_ready",
+    "known_context",
+    "direct_after_question",
+    "question_budget",
+    "parameters_full",
+    "parameters_missing_one",
+    "parameters_missing_three",
+    "parameters_skip"
+  ],
+  "fixtureValidationPassed": true,
+  "modelQualityPassed": null,
+  "modelCalls": 0
+}

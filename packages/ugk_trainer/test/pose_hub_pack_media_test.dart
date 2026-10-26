@@ -87,12 +87,12 @@ void main() {
     expect(find.byType(UgkPackedAlphaVideo), findsNothing);
     expect(platform.sourceUris, isEmpty);
     final image = tester.widget<Image>(find.byType(Image));
-    expect(image.image, isA<FileImage>());
+    expect(image.image, isA<AssetImage>());
     expect(
-      (image.image as FileImage).file.path,
-      File.fromUri(action.cover.resolve(baseUri)).path,
+      (image.image as AssetImage).assetName,
+      contains('standing/${action.id}.webp'),
     );
-    expect(image.semanticLabel, contains('非固定帧零'));
+    expect(image.semanticLabel, contains('站位图'));
     expect(statuses, [PoseHubPackPlaybackStatus.cover]);
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -113,7 +113,10 @@ void main() {
     expect(find.byKey(cover), findsOneWidget);
     await tester.pump();
     await tester.pump();
-    expect(find.byKey(cover), findsNothing);
+    expect(
+      tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
+      0,
+    );
     expect(statuses.last, PoseHubPackPlaybackStatus.playing);
     await tester.pumpWidget(const SizedBox.shrink());
     expect(platform.commands.last, (1, 'dispose', null));
@@ -128,12 +131,18 @@ void main() {
       platform.emit(1, 'first-frame');
       await tester.pump();
       await tester.pump();
-      expect(find.byKey(cover), findsNothing);
+      expect(
+        tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
+        0,
+      );
       await tester.pumpWidget(show(playing: true, paused: true));
       await tester.pump();
       expect(platform.sourceUris, hasLength(1));
       expect(platform.commands.last, (1, 'pause', null));
-      expect(find.byKey(cover), findsNothing);
+      expect(
+        tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
+        0,
+      );
       await tester.pumpWidget(show(playing: true));
       await tester.pump();
       expect(platform.sourceUris, hasLength(1));
@@ -152,7 +161,10 @@ void main() {
       platform.emit(2, 'first-frame');
       await tester.pump();
       await tester.pump();
-      expect(find.byKey(cover), findsNothing);
+      expect(
+        tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
+        0,
+      );
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
@@ -165,7 +177,7 @@ void main() {
     await tester.pumpWidget(show(playing: true, onStatus: statuses.add));
     await tester.pump();
     expect(find.byKey(cover), findsOneWidget);
-    expect(find.text('当前平台仅显示封面'), findsOneWidget);
+    expect(find.text('当前平台仅显示封面'), findsNothing);
     expect(platform.sourceUris, isEmpty);
     expect(statuses.last, PoseHubPackPlaybackStatus.unsupported);
     await tester.pumpWidget(const SizedBox.shrink());

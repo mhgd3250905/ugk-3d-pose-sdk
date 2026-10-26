@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "description": "CoachAgent 0.4.0 真实模型多轮评测；每例独立 Agent，用户回答始终经同一个 send() 会话进入。",
+  "description": "R1 part1: one-round grouped clarification; real-model runner and dry fixture checks are separate from deterministic protocol tests.",
   "cases": [
     {
       "id": "bboy_choice",
@@ -10,7 +10,16 @@
       "message": "我明天打算去练托马斯。我是一个 bboy，也是个程序员。我日常久坐，引起了肌肉相关的比较紧张，所以我在练习之前需要进行放松。你给我出一个放松的方案计划。",
       "first": "question",
       "response": "choice",
-      "expect": {"goals": ["relax", "warmup", "mobility"], "minQuestions": 1, "maxQuestions": 3, "requireChoiceAnswer": true}
+      "expect": {
+        "goals": [
+          "relax",
+          "warmup",
+          "mobility"
+        ],
+        "minQuestions": 1,
+        "maxQuestions": 1,
+        "requireChoiceAnswer": true
+      }
     },
     {
       "id": "bboy_free_text",
@@ -20,27 +29,99 @@
       "first": "question",
       "response": "text",
       "answer": "在家，只有垫子，12 分钟。重点放松肩颈和髋屈肌，没有疼痛，我是入门水平。",
-      "answerFacts": {"scene": "home", "minutes": [12, 12], "level": 1, "focus": ["shoulder", "hip-flexor"], "equipmentAllowed": ["none", "mat"]},
-      "expect": {"goals": ["relax", "warmup", "mobility"], "minQuestions": 1, "maxQuestions": 1}
+      "answerFacts": {
+        "scene": "home",
+        "minutes": [
+          12,
+          12
+        ],
+        "level": 1,
+        "focus": [
+          "shoulder",
+          "hip-flexor"
+        ],
+        "equipmentAllowed": [
+          "none",
+          "mat"
+        ]
+      },
+      "expect": {
+        "goals": [
+          "relax",
+          "warmup",
+          "mobility"
+        ],
+        "minQuestions": 1,
+        "maxQuestions": 1
+      }
     },
     {
       "id": "core_ready",
-      "title": "条件已够：在家 20 分钟练核心直接出方案",
+      "title": "条件完整：在家有瑜伽垫20分钟练核心直接出方案",
       "profile": "smartfit",
-      "message": "在家 20 分钟练核心",
+      "message": "在家，有瑜伽垫，20 分钟练核心",
       "first": "plan",
       "response": "text",
-      "expect": {"scene": "home", "minutes": [20, 20], "goals": ["core"], "focus": ["core"], "minQuestions": 0, "maxQuestions": 0}
+      "expect": {
+        "scene": "home",
+        "minutes": [
+          20,
+          20
+        ],
+        "goals": [
+          "core"
+        ],
+        "focus": [
+          "core"
+        ],
+        "minQuestions": 0,
+        "maxQuestions": 0
+      }
     },
     {
       "id": "known_context",
       "title": "筛查和 App 上下文已有条件不再问",
       "profile": "smartfit",
       "message": "我明天练托马斯之前需要放松，给我排个方案。",
-      "context": {"scene": "home", "equipment": ["mat"], "minutes": 12, "level": 1, "goal": "relax", "avoid": ["膝"], "notes": ["用户筛查已完成：没有红旗症状；膝盖偶有不适需保护，肩颈和髋屈肌紧绷。"]},
+      "context": {
+        "scene": "home",
+        "equipment": [
+          "mat"
+        ],
+        "minutes": 12,
+        "level": 1,
+        "goal": "relax",
+        "avoid": [
+          "膝"
+        ],
+        "notes": [
+          "用户筛查已完成：没有红旗症状；膝盖偶有不适需保护，肩颈和髋屈肌紧绷。"
+        ]
+      },
       "first": "plan",
       "response": "text",
-      "expect": {"scene": "home", "minutes": [12, 12], "level": 1, "focus": ["shoulder", "hip-flexor"], "avoid": ["膝"], "goals": ["relax", "warmup", "mobility"], "minQuestions": 0, "maxQuestions": 0}
+      "expect": {
+        "scene": "home",
+        "minutes": [
+          12,
+          12
+        ],
+        "level": 1,
+        "focus": [
+          "shoulder",
+          "hip-flexor"
+        ],
+        "avoid": [
+          "膝"
+        ],
+        "goals": [
+          "relax",
+          "warmup",
+          "mobility"
+        ],
+        "minQuestions": 0,
+        "maxQuestions": 0
+      }
     },
     {
       "id": "direct_after_question",
@@ -50,17 +131,117 @@
       "first": "question",
       "response": "text",
       "answer": "直接出",
-      "expect": {"goals": ["relax", "warmup", "mobility"], "minQuestions": 1, "maxQuestions": 1, "assumptions": true}
+      "expect": {
+        "goals": [
+          "relax",
+          "warmup",
+          "mobility"
+        ],
+        "minQuestions": 1,
+        "maxQuestions": 1,
+        "assumptions": true
+      }
     },
     {
       "id": "question_budget",
-      "title": "回答仍含糊：至多三问后使用默认值交付",
+      "title": "回答含糊：最多一轮后使用默认值交付",
       "profile": "smartfit",
       "message": "我明天打算去练托马斯。我是一个 bboy，也是个程序员。我日常久坐，引起了肌肉相关的比较紧张，所以我在练习之前需要进行放松。你给我出一个放松的方案计划。",
       "first": "question",
       "response": "text",
       "answer": "这点我还不确定。",
-      "expect": {"goals": ["relax", "warmup", "mobility"], "minQuestions": 1, "maxQuestions": 3, "assumptionsAtCap": true}
+      "expect": {
+        "goals": [
+          "relax",
+          "warmup",
+          "mobility"
+        ],
+        "minQuestions": 1,
+        "maxQuestions": 1,
+        "assumptionsAtCap": true
+      }
+    },
+    {
+      "id": "parameters_full",
+      "title": "场景器械时长齐全不提问",
+      "profile": "smartfit",
+      "message": "在家，有瑜伽垫，10 分钟练核心",
+      "first": "plan",
+      "response": "text",
+      "expect": {
+        "scene": "home",
+        "minutes": [
+          10,
+          10
+        ],
+        "equipmentAllowed": [
+          "mat",
+          "none"
+        ],
+        "minQuestions": 0,
+        "maxQuestions": 0
+      }
+    },
+    {
+      "id": "parameters_missing_one",
+      "title": "缺器械只问器械",
+      "profile": "smartfit",
+      "message": "在家，10 分钟练核心",
+      "first": "question",
+      "response": "form",
+      "expectedFields": [
+        "equipment"
+      ],
+      "expect": {
+        "scene": "home",
+        "minutes": [
+          10,
+          10
+        ],
+        "minQuestions": 1,
+        "maxQuestions": 1,
+        "requireChoiceAnswer": true
+      }
+    },
+    {
+      "id": "parameters_missing_three",
+      "title": "缺三项合并一轮",
+      "profile": "smartfit",
+      "message": "帮我做个全身训练组",
+      "first": "question",
+      "response": "form",
+      "expectedFields": [
+        "scene",
+        "equipment",
+        "minutes"
+      ],
+      "expect": {
+        "minQuestions": 1,
+        "maxQuestions": 1,
+        "requireChoiceAnswer": true
+      }
+    },
+    {
+      "id": "parameters_skip",
+      "title": "用户跳过后直接使用合理默认值",
+      "profile": "smartfit",
+      "message": "帮我做个全身训练组",
+      "first": "question",
+      "response": "text",
+      "expectedFields": [
+        "scene",
+        "equipment",
+        "minutes"
+      ],
+      "answer": "直接出方案",
+      "expect": {
+        "minQuestions": 1,
+        "maxQuestions": 1,
+        "equipmentAllowed": [
+          "none"
+        ],
+        "assumptions": true
+      }
     }
   ]
 }

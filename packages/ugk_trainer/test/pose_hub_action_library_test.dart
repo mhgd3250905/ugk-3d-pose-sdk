@@ -185,113 +185,122 @@ void main() {
     },
   );
 
-  testWidgets('browser lists all entries and separates the 8 pending actions', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: PoseHubActionBrowser(
-          catalog: catalog,
-          mediaBaseUri: Uri.parse('https://example.test/pack/'),
-        ),
-      ),
-    );
-    await tester.pump();
-    expect(find.text('动作库 · 219'), findsOneWidget);
-    expect(find.text('显示 219 个动作'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('posehub-filter-pending')));
-    await tester.pump();
-    expect(find.text('显示 8 个动作'), findsOneWidget);
-    final pending = catalog.pendingActions.first;
-    expect(
-      find.byKey(ValueKey('posehub-action-${pending.id}')),
-      findsOneWidget,
-    );
-    await tester.tap(find.byKey(ValueKey('posehub-action-${pending.id}')));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('posehub-pending-label')),
-      300,
-    );
-    expect(find.byKey(const ValueKey('posehub-pending-label')), findsOneWidget);
-    expect(find.textContaining('原始建议：'), findsNothing);
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('posehub-practice')),
-      200,
-    );
-    await tester.tap(find.byKey(const ValueKey('posehub-practice')));
-    await tester.pumpAndSettle();
-    expect(find.byType(PoseHubSinglePracticePage), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('开始单练'), 300);
-    expect(find.text('开始单练'), findsOneWidget);
-    await tester.pumpWidget(const SizedBox.shrink());
-  });
-
-  testWidgets('all 219 are addressable and search never renames an action ID', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: PoseHubActionBrowser(
-          catalog: catalog,
-          mediaBaseUri: Uri.parse('https://example.test/pack/'),
-        ),
-      ),
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey('posehub-search')),
-      catalog.allActions.last.id,
-    );
-    await tester.pump();
-    expect(
-      find.byKey(ValueKey('posehub-action-${catalog.allActions.last.id}')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(
-          ValueKey('posehub-action-${catalog.allActions.last.id}'),
-        ),
-        matching: find.text(catalog.allActions.last.id),
-      ),
-      findsOneWidget,
-    );
-    await tester.pumpWidget(const SizedBox.shrink());
-  });
-
   testWidgets(
-    'manual pending practice records real time and ends once without a dose',
+    'browser shows two columns, hides internals, searches names and opens trainer',
     (tester) async {
-      final action = catalog.pendingActions.first;
-      final results = <PoseHubPracticeResult>[];
       await tester.pumpWidget(
         MaterialApp(
-          home: PoseHubSinglePracticePage(
-            action: action,
-            mediaBaseUri: Uri.parse('https://example.test/pack/'),
-            onFinished: results.add,
+          home: PoseHubActionBrowser(
+            catalog: catalog,
+            mediaBaseUri: Uri.parse('file:///pack/'),
           ),
         ),
       );
-      expect(find.textContaining('原始建议：'), findsNothing);
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('posehub-practice-toggle')),
-        300,
+      expect(find.text('动作库'), findsOneWidget);
+      expect(find.textContaining('219'), findsNothing);
+      expect(find.textContaining('说明完整'), findsNothing);
+      final grid = tester.widget<GridView>(find.byType(GridView));
+      expect(
+        (grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount)
+            .crossAxisCount,
+        2,
       );
-      await tester.tap(find.byKey(const ValueKey('posehub-practice-toggle')));
-      await tester.pump();
-      expect(find.text('暂停'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('posehub-practice-finish')),
-        200,
+      expect(grid.childrenDelegate.estimatedChildCount, 211);
+      await tester.enterText(
+        find.byKey(const ValueKey('posehub-search')),
+        catalog.allActions.first.id,
       );
-      await tester.tap(find.byKey(const ValueKey('posehub-practice-finish')));
       await tester.pump();
-      expect(results, hasLength(1));
-      expect(results.single.actionId, action.id);
-      expect(results.single.trainingDefinitionComplete, isFalse);
-      expect(find.text('单练已结束'), findsOneWidget);
+      expect(find.byType(GridView), findsNothing);
+      final action = catalog.semanticCompleteActions.first;
+      await tester.enterText(
+        find.byKey(const ValueKey('posehub-search')),
+        action.nameZh,
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(ValueKey('posehub-action-${action.id}')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(TrainerPlayer), findsOneWidget);
+      expect(find.textContaining('原始'), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
     },
   );
+
+  test('facets combine real equipment, body parts and training type', () {
+    final actions = catalog.semanticCompleteActions;
+    final filtered = actions
+        .where(
+          (a) => PoseHubActionFacets.matches(
+            a,
+            equipment: 'mat',
+            bodyPart: '核心',
+            type: '力量',
+          ),
+        )
+        .toList();
+    expect(filtered, isNotEmpty);
+    expect(
+      filtered.every((a) => (a.raw['equipment'] as List).contains('mat')),
+      isTrue,
+    );
+    expect(
+      filtered.every(
+        (a) => const ['core', 'strength'].contains(a.raw['category']),
+      ),
+      isTrue,
+    );
+    expect(catalog.pendingActions.any(PoseHubActionFacets.matches), isFalse);
+    expect(
+      actions.where((a) => PoseHubActionFacets.matches(a, equipment: '徒手')),
+      everyElement(
+        predicate<PoseHubPackAction>(
+          (a) => (a.raw['equipment'] as List).isEmpty,
+        ),
+      ),
+    );
+    expect(
+      actions
+          .expand(PoseHubActionFacets.equipment)
+          .toSet()
+          .difference(poseHubEquipmentLabels.keys.toSet()),
+      isEmpty,
+    );
+  });
+
+  testWidgets('two-column browser supports a 320px screen and large text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: PoseHubActionBrowser(
+          catalog: catalog,
+          mediaBaseUri: Uri.parse('file:///pack/'),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    final first = catalog.semanticCompleteActions.first;
+    final second = catalog.semanticCompleteActions[1];
+    expect(
+      tester.getTopLeft(find.byKey(ValueKey('posehub-action-${first.id}'))).dy,
+      tester.getTopLeft(find.byKey(ValueKey('posehub-action-${second.id}'))).dy,
+    );
+    expect(
+      tester.getSize(find.text(first.nameZh)).height,
+      lessThanOrEqualTo(100),
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }

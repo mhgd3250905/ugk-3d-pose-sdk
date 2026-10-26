@@ -4,7 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 import 'package:ugk_trainer/ugk_trainer.dart';
 
-void main() => runApp(const ShowcaseApp());
+void main() => runApp(
+  ShowcaseApp(
+    initialLibrary: Uri.base.queryParameters['page'] == 'library',
+    initialTheme: switch (Uri.base.queryParameters['theme']) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
+    },
+  ),
+);
 
 enum ShowcaseState {
   training('训练中'),
@@ -23,11 +32,13 @@ class ShowcaseApp extends StatefulWidget {
     this.initialTheme = ThemeMode.system,
     this.fontFamily,
     this.onSaved,
+    this.initialLibrary = false,
   });
   final ShowcaseState initialState;
   final ThemeMode initialTheme;
   final String? fontFamily;
   final ValueChanged<SessionResult>? onSaved;
+  final bool initialLibrary;
   @override
   State<ShowcaseApp> createState() => _ShowcaseAppState();
 }
@@ -71,7 +82,7 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     darkTheme: _theme(Brightness.dark),
     themeMode: _mode,
     themeAnimationDuration: Duration.zero,
-    initialRoute: '/showcase',
+    initialRoute: widget.initialLibrary ? '/library' : '/showcase',
     builder: (_, child) => _ShowcaseSettings(
       mode: _mode,
       onMode: (value) => setState(() => _mode = value),
@@ -79,13 +90,15 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
     ),
     onGenerateRoute: (settings) => PageRouteBuilder<void>(
       settings: settings,
-      pageBuilder: (_, _, _) => settings.name == '/showcase'
-          ? ShowcaseScreen(
-              initialState: widget.initialState,
-              fontFamily: widget.fontFamily,
-              onSaved: widget.onSaved,
-            )
-          : const _Launcher(),
+      pageBuilder: (_, _, _) => switch (settings.name) {
+        '/showcase' => ShowcaseScreen(
+          initialState: widget.initialState,
+          fontFamily: widget.fontFamily,
+          onSaved: widget.onSaved,
+        ),
+        '/library' => const _PoseHubLibraryDemo(),
+        _ => const _Launcher(),
+      },
       // Never wrap the media route in a full-page Opacity or Clip layer.
       transitionsBuilder: (_, _, _, child) => child,
       transitionDuration: Duration.zero,
@@ -120,6 +133,32 @@ class _Launcher extends StatelessWidget {
         label: const Text('打开训练展示'),
       ),
     ),
+  );
+}
+
+class _PoseHubLibraryDemo extends StatelessWidget {
+  const _PoseHubLibraryDemo();
+  @override
+  Widget build(BuildContext context) => FutureBuilder<PoseHubAppTestCatalog>(
+    future: PoseHubActionLibrary.load(),
+    builder: (context, snapshot) {
+      final catalog = snapshot.data;
+      if (catalog == null) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('219 动作库')),
+          body: Center(
+            child: snapshot.hasError
+                ? const Text('动作目录暂时无法加载')
+                : const CircularProgressIndicator(),
+          ),
+        );
+      }
+      const configuredBase = String.fromEnvironment('POSEHUB_MEDIA_BASE');
+      final mediaBase = configuredBase.isEmpty
+          ? Uri.base.resolve('/__posehub_pack__/')
+          : Uri.parse(configuredBase);
+      return PoseHubActionBrowser(catalog: catalog, mediaBaseUri: mediaBase);
+    },
   );
 }
 
@@ -227,6 +266,13 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
                           child: Text(entry.value),
                         ),
                     ],
+                  ),
+                  IconButton(
+                    key: const ValueKey('showcase-library'),
+                    tooltip: '219 动作库',
+                    onPressed: () =>
+                        Navigator.of(context).pushNamed('/library'),
+                    icon: Icon(Icons.grid_view_rounded, color: theme.text),
                   ),
                   IconButton(
                     key: const ValueKey('showcase-restart'),

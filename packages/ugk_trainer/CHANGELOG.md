@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 — 2026-10-26
+
+- Add `PoseHubActionLibrary`, `PoseHubActionBrowser`, `PoseHubActionDetail` and manual `PoseHubSinglePracticePage` for all 219 original R1 IDs. Label 77 incomplete definitions `训练说明待补`; never synthesize training dose or timing. The coach 0.6.0 `toAiCatalog()` API exposes only the 142 complete definitions.
+- Add whole-pack URI images and packed-alpha Web/Android playback. Covers remain selected poses, never fabricated frame-zero posters. Keep the existing trainer layout, no-flash button and Morph Pulse unchanged. Retain covers with explicit unsupported status on other platforms.
+- Host media outside Git in one original-byte, hash-verified Release ZIP. No tiered downloads or new runtime dependency. The optional `PackedAlphaUriPlatform` capability preserves existing platform implementers.
+- No new API removals. Require coach 0.6.0; the earlier 0.3.x glass migration remains applicable. See the repository's `docs/posehub-app-test-pack-r1.md` for APIs, pack installation and showcase commands.
+
 ## 0.3.1 — 2026-10-26（扁平实色收尾，main 待真机确认）
 
 - Finalize the selected flat, opaque UI from `c4d251d`; keep runtime code, training layout, no-flash colour handover and Morph Pulse unchanged. Correct two stale README entries that still advertised deleted glass APIs.

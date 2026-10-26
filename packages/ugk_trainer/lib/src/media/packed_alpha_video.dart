@@ -18,8 +18,17 @@ class UgkPackedAlphaVideo extends StatefulWidget {
     super.key,
     required this.asset,
     required this.controller,
-  });
+  }) : sourceUri = null;
+
+  /// A complete installed pack keeps its original media outside the bundle.
+  /// The host must verify the pack before supplying this trusted source URI.
+  const UgkPackedAlphaVideo.source({
+    super.key,
+    required Uri this.sourceUri,
+    required this.controller,
+  }) : asset = '';
   final String asset;
+  final Uri? sourceUri;
   final DrillMediaController controller;
 
   static final _defaultPlatform = MethodChannelPackedAlphaPlatform();
@@ -65,6 +74,7 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
   void didUpdateWidget(UgkPackedAlphaVideo oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.asset != widget.asset ||
+        oldWidget.sourceUri != widget.sourceUri ||
         oldWidget.controller != widget.controller) {
       _retire();
       _bind();
@@ -88,7 +98,9 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
       }
     };
     owner.attach(_sink!);
-    unawaited(_initialize(platform, generation, owner, widget.asset));
+    unawaited(
+      _initialize(platform, generation, owner, widget.asset, widget.sourceUri),
+    );
   }
 
   Future<void> _initialize(
@@ -96,6 +108,7 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
     int generation,
     DrillMediaController owner,
     String asset,
+    Uri? sourceUri,
   ) async {
     try {
       if (!platform.isSupported) throw UnsupportedError('Packed alpha backend');
@@ -129,7 +142,12 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
           if (_current(generation, owner)) owner.reportError();
         },
       );
-      final created = await platform.create(asset);
+      if (sourceUri != null && platform is! PackedAlphaUriPlatform) {
+        throw UnsupportedError('External packed source');
+      }
+      final created = sourceUri == null
+          ? await platform.create(asset)
+          : await (platform as PackedAlphaUriPlatform).createUri(sourceUri);
       if (!_current(generation, owner)) {
         await platform.command(created.playerId, 'dispose');
         return;

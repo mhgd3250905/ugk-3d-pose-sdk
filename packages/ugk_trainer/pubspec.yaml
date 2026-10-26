@@ -2,7 +2,7 @@ name: ugk_trainer
 description: >-
   Shared training player for FlareLab, HipLab and SmartFit: plan execution,
   exercise rhythms, voice scheduling, media, background playback and results.
-version: 0.3.1
+version: 0.4.0
 repository: https://github.com/mhgd3250905/ugk-3d-pose-sdk
 publish_to: none
 
@@ -15,10 +15,10 @@ dependencies:
     sdk: flutter
   cupertino_icons: 1.0.8
   ugk_coach:
-    version: ^0.5.0
+    version: ^0.6.0
     git:
       url: https://github.com/mhgd3250905/ugk-3d-pose-sdk.git
-      ref: ugk_coach-v0.5.0
+      ref: ugk_coach-v0.6.0
   # Same pinned versions as HipLab / SmartFit / 3D-Body.
   just_audio: 0.10.6
   audio_session: 0.2.4
@@ -48,3 +48,7 @@ flutter:
   assets:
     - assets/silence.m4a
     - assets/media_player/
+    - assets/pose_hub/app-test-pack-r1/catalog.json
+    - assets/pose_hub/app-test-pack-r1/manifest.json
+    - assets/pose_hub/app-test-pack-r1/catalog/catalog.json
+    - assets/pose_hub_player/

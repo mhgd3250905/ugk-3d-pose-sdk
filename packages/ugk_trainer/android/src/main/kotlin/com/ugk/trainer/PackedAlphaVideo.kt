@@ -3,6 +3,8 @@
 package com.ugk.trainer
 
 import android.media.MediaPlayer
+import android.net.Uri
+import java.io.File
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -47,7 +49,10 @@ internal class PackedAlphaVideoHost(
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         try {
             if (call.method == "create") {
-                val asset = call.argument<String>("asset") ?: error("Missing asset")
+                val asset = call.argument<String>("asset")
+                val sourceUri = call.argument<String>("sourceUri")
+                require((asset != null) != (sourceUri != null)) { "One packed source is required" }
+                val external = sourceUri?.let { validateSourceUri(it) }
                 val id = nextId++
                 val producer = binding.textureRegistry.createSurfaceProducer()
                 val player = try { Player(id, producer) } catch (error: Exception) {
@@ -56,7 +61,7 @@ internal class PackedAlphaVideoHost(
                 }
                 players[id] = player
                 try {
-                    player.prepare(asset)
+                    player.prepare(asset, external)
                     result.success(mapOf("playerId" to id, "textureId" to producer.id()))
                 } catch (error: Exception) {
                     players.remove(id)
@@ -85,6 +90,21 @@ internal class PackedAlphaVideoHost(
         }
     }
 
+    private fun validateSourceUri(value: String): Uri {
+        val uri = Uri.parse(value)
+        require(uri.isAbsolute && uri.scheme in setOf("file", "http", "https"))
+        require(uri.userInfo == null && uri.query == null && uri.fragment == null)
+        val path = uri.path ?: error("Missing media path")
+        require(path.startsWith("/") && path.endsWith(".mp4", ignoreCase = true))
+        require(uri.pathSegments.none { it == "." || it == ".." })
+        if (uri.scheme == "file") {
+            require(uri.host.isNullOrEmpty())
+            val file = File(path)
+            require(file.isAbsolute && file.isFile)
+        } else require(!uri.host.isNullOrEmpty())
+        return uri
+    }
+
     fun dispose() {
         players.values.toList().forEach { it.dispose() }
         players.clear()
@@ -111,7 +131,7 @@ internal class PackedAlphaVideoHost(
             if (!disposed) publish(id, type, fields)
         }
 
-        fun prepare(asset: String) {
+        fun prepare(asset: String?, sourceUri: Uri?) {
             producer.setSize(720, 1440)
             producer.setCallback(this)
             media.setSurface(producer.surface)
@@ -142,9 +162,12 @@ internal class PackedAlphaVideoHost(
                 if (!disposed) emit("error", mapOf("what" to what, "extra" to extra))
                 true
             }
-            val key = binding.flutterAssets.getAssetFilePathByName(asset)
-            binding.applicationContext.assets.openFd(key).use {
-                media.setDataSource(it.fileDescriptor, it.startOffset, it.length)
+            if (sourceUri != null) media.setDataSource(binding.applicationContext, sourceUri)
+            else {
+                val key = binding.flutterAssets.getAssetFilePathByName(requireNotNull(asset))
+                binding.applicationContext.assets.openFd(key).use {
+                    media.setDataSource(it.fileDescriptor, it.startOffset, it.length)
+                }
             }
             media.prepareAsync()
         }

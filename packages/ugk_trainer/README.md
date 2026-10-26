@@ -1,4 +1,10 @@
-# ugk_trainer 0.3.1
+# ugk_trainer 0.4.0
+
+## 219 动作素材包
+
+`PoseHubActionLibrary.load()` 加载原始 219 动作元数据；`allActions` 全部可列出，`semanticCompleteActions` 为 142 个，`pendingActions` 为 77 个。只向 AI 传入 `library.toAiCatalog()`，不会返回待补动作。`PoseHubActionBrowser` / `PoseHubSinglePracticePage` 提供浏览与自主单练，传入安装后的 `mediaBaseUri`；77 个待补项明确标注“训练说明待补”，不推断剂量或计次节奏。
+
+657 个媒体文件保持原字节，随独立完整 ZIP 分发，不进入普通 Git 历史。完整用法、校验值、Web 演示与平台范围见[素材包接入指南](../../docs/posehub-app-test-pack-r1.md)。已有扁平实色训练布局、防闪按钮与 Morph Pulse 保持不变。
 
 ## 实色分层与不兼容迁移
 
@@ -16,7 +22,7 @@
 
 训练页现有位置、尺寸、交互和媒体布局保持。防闪颜色交接、Morph Pulse 形变/时序/呼吸/ripple 和径向进度 halo 保留；普通进入/退出与按压反馈使用位移、缩放、淡入。`packed_alpha.frag` 是透明视频合成，不属于玻璃，继续保留。更完整的删除清单与保留理由见[实色分层审计](docs/solid-layered-audit.md)。
 
-仓内[验收展示](example/README.md)支持四训练状态、浅/深/跟随系统；[基线图与检查](docs/visual-review.md)保留 `c4d251d` 证据，[0.3.1 收尾记录](docs/flat-closeout-2026-10-26.md)记录本次复核。Web 可检查实色界面与交互，原生媒体、设备性能和 iOS 构建仍需对应验证。本轮不启动模拟器。main 等开哥真机确认后再合入与推送。
+仓内[验收展示](example/README.md)支持四训练状态、浅/深/跟随系统；[基线图与检查](docs/visual-review.md)保留 `c4d251d` 证据，[0.3.1 收尾记录](docs/flat-closeout-2026-10-26.md)记录当时复核。开哥已确认扁平版真机流畅，`c6e261e` 已合入并推送 main。219 素材包的 Web 检查不替代新一轮原生性能验收；本轮不启动模拟器。
 
 ## 0.2.9：拼接 alpha 视频（随 0.2.10 纳入主线）
 

@@ -1,0 +1,4 @@
+# Integrity-pinned source metadata must retain its original bytes on Windows.
+packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json -text
+packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/manifest.json -text
+packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog/catalog.json -text

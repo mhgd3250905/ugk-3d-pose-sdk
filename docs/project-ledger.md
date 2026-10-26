@@ -1,10 +1,18 @@
 # 项目维护台账
 
-更新日期：2026-10-25。仓库：[mhgd3250905/ugk-3d-pose-sdk](https://github.com/mhgd3250905/ugk-3d-pose-sdk)。
+更新日期：2026-10-26。仓库：[mhgd3250905/ugk-3d-pose-sdk](https://github.com/mhgd3250905/ugk-3d-pose-sdk)。
 
 本台账统一记录维护状态、已合并成果、验证证据和待办。包版本、接口行为仍以对应清单和实现为准；发布历史保留在 CHANGELOG。表内 SHA 是核验快照，后续文档提交会推进 main，不能把快照当成永远最新的分支指针。
 
-## 当前快照：trainer 0.2.10 与 R4 合入批准（2026-10-25）
+## 当前快照：扁平版批准与 219 动作包（2026-10-26）
+
+开哥已确认扁平版真机流畅，`c6e261e`（trainer 0.3.1 / coach_ui 0.2.1）已快进合入并推送 main。微拟物 stash `fcda16d` 未动；原始主工作区 `159dadf` 未动。
+
+随后从 main 新建 `codex/posehub-219-assets` 接入原始 R1：219 动作、657 媒体、587,456,377 bytes；142 个完整，77 个标“训练说明待补”，AI 投影只含 142 个。coach 0.6.0 / trainer 0.4.0 为新增接口，coach_ui 保持 0.2.1；没有本轮新增 API 删除。素材以完整 ZIP 的 Release asset 分发（592,170,694 bytes），不进入普通 Git 历史。现有训练页布局、防闪按钮和 Morph Pulse 保持不变。
+
+用户已授权测试通过后合 main、推送和打 tag。测试、文件完整性、Web 透明播放、构建与平台边界见[本轮核验](posehub219-verification-2026-10-26.md)；接口和素材安装见[接入指南](posehub-app-test-pack-r1.md)。原生 Raster P99 待测，本轮不启动模拟器、不操作设备。
+
+## 历史快照：trainer 0.2.10 与 R4 合入批准（2026-10-25）
 
 开哥已同意将当前 R4 候选做版本归档并推进 main。版本组合为根包 `ugk_coach 0.5.0`、`ugk_coach_ui 0.1.2`、`ugk_trainer 0.2.10`；已批准快进 main，最终 SHA 见交付回执。本轮不发布新 tag，也不移动既有 tag；固定 tag 与清单版本、main 指针分别记录。
 

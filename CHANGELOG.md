@@ -1,5 +1,12 @@
 # Changelog
 
+## coach 0.6.0 / trainer 0.4.0 — 2026-10-26
+
+- Integrate the unchanged Pose Hub R1 catalogue: 219 original IDs, 142 complete training definitions and 77 explicitly pending. Add a strict, immutable pack model and `toAiCatalog()` that excludes every pending entry and validates the original canonical catalogue.
+- Add the SDK action browser, detail and manual single-practice pages, plus Web/Android packed-alpha media from an independently installed whole pack. Preserve existing training layout, no-flash controls and Morph Pulse.
+- Distribute 657 media files (587,456,377 bytes) as one verified GitHub Release ZIP (592,170,694 bytes); Git stores only original JSON metadata and code. No media changes, ID renaming, fabricated training defaults or tiered download. Usage/integrity/platform limits: [R1 guide](docs/posehub-app-test-pack-r1.md).
+- Additive APIs; no new removals. Trainer pins coach 0.6.0; coach_ui stays 0.2.1. The flat release `c6e261e` was approved on device and integrated into main before this work; the micro-skeuomorphic stash remains untouched.
+
 ## trainer 0.2.10 / coach_ui 0.1.2 — 2026-10-25（已批准快进 main）
 
 - Archive trainer 0.2.10 and advance the reviewed candidate to main, including the existing 0.2.4–0.2.9 media, handoff, transparent-video and playback-control changes plus the R4 UI revision. Final integration SHA is recorded in the delivery receipt; this version commit does not create or move tags.

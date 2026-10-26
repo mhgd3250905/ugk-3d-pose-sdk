@@ -1,12 +1,12 @@
 # ugk_coach · 三 App 共用的 AI 训练助理 SDK
 
-> **2026-10-25 合入版本快照：** `ugk_coach 0.5.0`、`ugk_coach_ui 0.1.2`、`ugk_trainer 0.2.10` 已获批准快进 main，最终 SHA 见交付回执。本轮不发布新 tag，既有 tag 保持固定；清单版本归档不等于新增正式发布。
+> **2026-10-26：** 开哥已确认扁平版真机流畅，`c6e261e`（trainer 0.3.1 / coach_ui 0.2.1）已合入并推送 main。微拟物暂存保持不动。
 >
-> 本次包含 trainer 0.2.4–0.2.9 的既有修复、透明媒体与播放控制，以及 R4 浅深 Liquid Glass 配方和展示入口；候选祖先中的 coach_ui 0.1.2 `topInset` / `fadeTop` 一并合入。训练布局软件检查与功能测试已有证据，R4 原生通透效果、媒体合成和设备性能仍待验。详情见[维护台账](docs/project-ledger.md)及[训练包记录](packages/ugk_trainer/docs/visual-review.md)。
+> coach 0.6.0 / trainer 0.4.0 新增原始 219 动作库、详情、自主单练与只返回 142 个完整定义的 AI 接口；77 个待补项不补训练参数。657 个媒体文件（587,456,377 bytes）作为独立完整 Release ZIP 分发，不进入普通 Git 历史。[接入、校验和演示](docs/posehub-app-test-pack-r1.md)。现有训练页实色布局、防闪按钮和 Morph Pulse 保持不变；coach_ui 仍为 0.2.1。
 
 仓库 `mhgd3250905/ugk-3d-pose-sdk`，根目录是纯 Dart 包 **`ugk_coach`**，`packages/ugk_trainer` 是 Flutter 训练执行包（PR #1 已合入）。
 
-2026-10-24 已合入的纯 Dart `CoachConversationController` 将同 agent 多轮发送、待答问题有效期、答案整理、取消/新对话与可监听状态收束到 coach。`ugk_coach-v0.5.0` 和依赖兼容补丁 `ugk_trainer-v0.2.3` 已有固定 tag；该轮 UI 源码对应 `ugk_coach_ui-v0.1.1`。这部分是既有基线，本次不改根包运行代码。接入方式与接口清单见[会话控制器说明](docs/coach-conversation-controller.md)。
+2026-10-24 已合入的纯 Dart `CoachConversationController` 将同 agent 多轮发送、待答问题有效期、答案整理、取消/新对话与可监听状态收束到 coach。`ugk_coach-v0.5.0` 和依赖兼容补丁 `ugk_trainer-v0.2.3` 已有固定 tag；该轮 UI 源码对应 `ugk_coach_ui-v0.1.1`。会话控制器沿用该基线。接入方式与接口清单见[会话控制器说明](docs/coach-conversation-controller.md)。
 
 2026-10-24 已批准合入并发布补丁：`ugk_coach_ui-v0.1.1`、`ugk_coach-v0.4.2`、`ugk_trainer-v0.2.2` 均固定 `3302d6235a39e2c2b4b51fa196cc32b37c31b54c`。已核对 SDK 的「320px / 2 倍字体 / 浅深主题 / 展开套路卡 / 中文长剂量」用例通过，包含在 UI 21 项通过记录中。剂量完整换行，行高、飞行落点和动画保护区共享测量；coach/trainer 仅修 ASCII 清单和依赖 tag，运行代码不变。SmartFit 在正式 GitHub 远端原生 Pub 严格锁文件验证通过后，已将功能源码 `9d2ff7d` 合入并推送 main。旧 tag 未移动，后续发布状态文档不会移动新 tag。
 

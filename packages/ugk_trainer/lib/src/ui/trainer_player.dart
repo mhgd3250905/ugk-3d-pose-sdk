@@ -354,7 +354,16 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   TrainingHold? _hold;
   Timer? _timer;
   Timer? _terminalAudio;
+
+  /// Quiet window after a manual skip/previous. The first switch of a burst
+  /// speaks at once; later switches inside the window only restart it.
   Timer? _navigationVoice;
+
+  /// A later switch landed inside the window: hold speech until it settles.
+  bool _navigationCoalescing = false;
+
+  /// Phase index the burst's first switch already announced.
+  int? _navigationAnnounced;
   final _mediaHost = GlobalKey();
   Future<void>? _audioEnding;
   bool _audioEnded = false;
@@ -544,7 +553,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   void _tick() {
     if (_disposed || !mounted || (_paused && !_engine.done)) return;
     final t = _t;
-    if (_navigationVoice != null) {
+    if (_navigationCoalescing) {
       // Navigation settles only presentation and speech, never the clock.
       // Do not mark intermediate runner cues fired before the final target.
       _engine.update(t);
@@ -680,6 +689,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _terminalAudio = null;
     _navigationVoice?.cancel();
     _navigationVoice = null;
+    _navigationCoalescing = false;
+    _navigationAnnounced = null;
     // End the previous owner's delayed close before acquiring a new one.
     // The shared output stays open; no old route can end the new session.
     _hold?.release();
@@ -816,23 +827,54 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _after(void Function() change, {bool settleVoice = false}) {
+    // Leading edge: a switch outside a running window speaks immediately.
+    // Switches inside it are merged and only the final target speaks.
+    final leading = !settleVoice || _navigationVoice == null;
     _navigationVoice?.cancel();
     _navigationVoice = null;
+    _navigationCoalescing = !leading;
+    if (leading) _navigationAnnounced = null;
     _queue.cancelAll(_t);
     change();
     if (settleVoice && !_engine.done) {
-      _navigationVoice = Timer(DrillMediaHandoff.defaultSettleDelay, () {
-        _navigationVoice = null;
-        if (_disposed || !mounted || _paused) return;
-        // The engine may naturally cross a zero-length rest while settling.
-        // The latest timer owns navigation; speak the phase that is current.
-        _tick();
-      });
+      _navigationVoice = Timer(
+        DrillMediaHandoff.defaultSettleDelay,
+        _settleNavigationVoice,
+      );
+    } else {
+      _navigationCoalescing = false;
     }
     _subtitle = null;
     _syncProgress(_t);
     _tick();
+    if (leading && settleVoice && !_paused && !_engine.done) {
+      _navigationAnnounced = _engine.index;
+    }
     setState(() {});
+  }
+
+  void _settleNavigationVoice() {
+    _navigationVoice = null;
+    final coalesced = _navigationCoalescing;
+    final announced = _navigationAnnounced;
+    _navigationCoalescing = false;
+    _navigationAnnounced = null;
+    if (_disposed || !mounted) return;
+    if (coalesced && announced != null) {
+      final t = _t;
+      // The engine may naturally cross a zero-length rest while settling.
+      _engine.update(t);
+      if (!_engine.done && _engine.index == announced) {
+        // Back on the phase this burst already announced: consume its due
+        // cues silently instead of speaking them a second time.
+        for (final f in _runner.update(t)) {
+          if (f.cue.subtitle != null) _subtitle = f.cue.subtitle;
+        }
+      }
+    }
+    if (_paused) return;
+    // The latest timer owns navigation; speak the phase that is current.
+    _tick();
   }
 
   void _skip() => _after(() => _runner.skip(_t), settleVoice: true);

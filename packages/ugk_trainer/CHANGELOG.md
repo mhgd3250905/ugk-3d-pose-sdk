@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Manual skip/previous announcements are leading-edge: a single switch, or the first switch of a burst, speaks immediately instead of after 150 ms. Further switches within 150 ms of the last one are merged, the window restarting on each tap; only the final stop speaks, and returning to the action the burst already announced stays silent. Disposal still cancels the pending window; the training clock, media handoff and other cues are unchanged.
+
 ## 0.5.0 — 2026-10-26
 
 - Remove the SDK preparation-page / clock gate from training. Keep original bundled standing images visible offline and dissolve them over 180 ms once a video frame is composed; failures retry quietly and do not interrupt timing or speech.

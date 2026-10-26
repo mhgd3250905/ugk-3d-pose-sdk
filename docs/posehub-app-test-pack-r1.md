@@ -1,5 +1,7 @@
 # Pose Hub R1: 219-action integration
 
+> This page describes the immutable v1 pack (142 complete / 77 pending). For the reviewed semantic revision (211 / 8), use [v2](posehub-app-test-pack-r1-semantics-v2.md).
+
 This release adds the original `app-test-pack-r1` catalogue and a separate, whole
 media pack. Action IDs, media bytes and training definitions are unchanged.
 All 219 actions can be listed, searched, inspected and used for manual single

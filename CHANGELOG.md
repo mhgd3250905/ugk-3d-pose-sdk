@@ -1,5 +1,11 @@
 # Changelog
 
+## coach 0.6.1 / trainer 0.4.1 — 2026-10-26
+
+- Adopt the reviewed R1 semantic catalogue with exact SHA256 `a1655e5c64055c14af35850b5468390d9d11161e53a87a0cbe7780ec7ed25dc0`: 211 complete definitions, 8 pending, all 219 action IDs retained. `toAiCatalog()` projects the approved 69 additional definitions without generating defaults; the original 142 canonical definitions remain unchanged.
+- Publish whole-pack version `posehub-app-test-pack-r1-v2`. Only `catalog.json` changes inside the ZIP; all 657 media files, the original manifest and canonical JSON retain their bytes. Keep the v1 Release, tags and assets immutable.
+- Pin the approved semantic snapshot for the catalogue adapter and loader; preserve raw review/availability flags and all existing UI/player behaviour. Coach UI stays 0.2.1. [Revision and integrity](docs/posehub-app-test-pack-r1-semantics-v2.md).
+
 ## coach 0.6.0 / trainer 0.4.0 — 2026-10-26
 
 - Integrate the unchanged Pose Hub R1 catalogue: 219 original IDs, 142 complete training definitions and 77 explicitly pending. Add a strict, immutable pack model and `toAiCatalog()` that excludes every pending entry and validates the original canonical catalogue.

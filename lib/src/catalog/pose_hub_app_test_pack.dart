@@ -57,7 +57,7 @@ final class PoseHubPackFile {
 
 /// All source semantics, including null/unknown values, are preserved in [raw].
 final class PoseHubPackAction {
-  PoseHubPackAction._(this.raw)
+  PoseHubPackAction._(this.raw, {bool approvedSemanticRevision = false})
     : id = _id(raw['id'], 'action.id'),
       nameZh = _text(raw['nameZh'], 'action.nameZh'),
       trainingDefinitionComplete = _boolean(
@@ -104,10 +104,12 @@ final class PoseHubPackAction {
     );
     final unknown = _list(semantics['unknownFields'], '$id.unknownFields');
     if (declared != trainingDefinitionComplete ||
-        availableForTraining != trainingDefinitionComplete ||
+        (!approvedSemanticRevision &&
+            availableForTraining != trainingDefinitionComplete) ||
         (availableForTraining && !availableForApp) ||
         (trainingDefinitionComplete &&
-            (missing.isNotEmpty || unknown.isNotEmpty)) ||
+            (missing.isNotEmpty ||
+                (!approvedSemanticRevision && unknown.isNotEmpty))) ||
         (!trainingDefinitionComplete && missing.isEmpty)) {
       throw FormatException(
         '$id has contradictory training-completeness flags',
@@ -138,6 +140,8 @@ final class PoseHubPackAction {
   final String id;
   final String nameZh;
   final bool trainingDefinitionComplete;
+
+  /// Original source flag; semantic completeness does not rewrite approval.
   final bool availableForTraining;
   final bool availableForApp;
   final Map<String, Object?> raw;
@@ -154,12 +158,18 @@ final class PoseHubPackAction {
 
 /// Strict pack index for all actions, plus an explicit complete-only AI view.
 final class PoseHubAppTestCatalog {
-  PoseHubAppTestCatalog._(this.raw, this._semanticCatalog) {
+  PoseHubAppTestCatalog._(this.raw, this._semanticCatalog)
+    : _approvedSemanticRevision =
+          _jsonFingerprint(raw) == _approvedSemanticCatalogFingerprint {
     if (raw['format'] != format) {
       throw const FormatException('Unsupported app-test catalog format');
     }
     id = _id(raw['id'], 'catalog.id');
     _reviewFlags(raw, 'catalog');
+    final summary = _map(raw['trainingSemantics'], 'catalog.trainingSemantics');
+    if (summary.containsKey('semanticRevision') && !_approvedSemanticRevision) {
+      throw const FormatException('Unrecognized training semantic revision');
+    }
     semanticCatalogFile = PoseHubPackFile.fromJson(raw['semanticCatalog']);
     final semanticReference = _map(raw['semanticCatalog'], 'semanticCatalog');
     semanticCatalogVersion = _text(
@@ -170,7 +180,10 @@ final class PoseHubAppTestCatalog {
     final byId = <String, PoseHubPackAction>{};
     final paths = <String>{};
     for (final entry in _list(raw['actions'], 'catalog.actions')) {
-      final action = PoseHubPackAction._(_map(entry, 'action'));
+      final action = PoseHubPackAction._(
+        _map(entry, 'action'),
+        approvedSemanticRevision: _approvedSemanticRevision,
+      );
       if (byId.containsKey(action.id)) {
         throw FormatException('Duplicate action id: ${action.id}');
       }
@@ -201,7 +214,6 @@ final class PoseHubAppTestCatalog {
         'App-test media counts disagree with its actions',
       );
     }
-    final summary = _map(raw['trainingSemantics'], 'catalog.trainingSemantics');
     _reviewFlags(summary, 'training semantics summary');
     if (summary['videoLoopIsTrainingDose'] != false ||
         _integer(
@@ -261,6 +273,7 @@ final class PoseHubAppTestCatalog {
   static const format = 'pose-hub-app-test-catalog@1';
   final Map<String, Object?> raw;
   final Catalog? _semanticCatalog;
+  final bool _approvedSemanticRevision;
   late final String id;
   late final String semanticCatalogVersion;
   late final PoseHubPackFile semanticCatalogFile;
@@ -270,7 +283,8 @@ final class PoseHubAppTestCatalog {
   late final Map<String, PoseHubPackAction> _byId;
   PoseHubPackAction? tryGet(String id) => _byId[id];
 
-  /// Only exact-ID canonical definitions marked complete in this pack.
+  /// Exact-ID canonical definitions, plus the pinned semantic revision's own
+  /// complete definitions. The original canonical catalog is always required.
   /// This is not approval of upstream media, nor a replacement for PlanValidator.
   Catalog toAiCatalog({Catalog? semanticCatalog}) {
     final canonical = semanticCatalog == null
@@ -285,7 +299,8 @@ final class PoseHubAppTestCatalog {
     }
     _validateSemanticCatalog(canonical);
     final drills = [
-      for (final action in semanticCompleteActions) canonical[action.id]!,
+      for (final action in semanticCompleteActions)
+        canonical[action.id] ?? _approvedDefinition(action),
     ];
     return Catalog(
       version: canonical.version,
@@ -308,9 +323,14 @@ final class PoseHubAppTestCatalog {
         'Canonical catalog has parse problems or a different version',
       );
     }
+    if (_approvedSemanticRevision &&
+        _jsonFingerprint(canonical.raw) != _originalCanonicalFingerprint) {
+      throw const FormatException('Original canonical catalog differs');
+    }
     for (final action in semanticCompleteActions) {
       final drill = canonical[action.id];
       if (drill == null) {
+        if (_approvedSemanticRevision) continue;
         throw FormatException('Canonical definition missing: ${action.id}');
       }
       if (drill.name.of('zh') != action.nameZh) {
@@ -324,6 +344,47 @@ final class PoseHubAppTestCatalog {
       }
     }
   }
+
+  Drill _approvedDefinition(PoseHubPackAction action) {
+    if (!_approvedSemanticRevision || !action.trainingDefinitionComplete) {
+      throw FormatException('Unapproved training definition: ${action.id}');
+    }
+    final problems = <String>[];
+    final drill = Drill.tryParse(
+      Map<String, Object?>.unmodifiable({
+        ...action.raw,
+        'name': Map<String, Object?>.unmodifiable({'zh': action.nameZh}),
+      }),
+      problems,
+    );
+    if (drill == null || problems.isNotEmpty) {
+      throw FormatException('Invalid approved definition: ${action.id}');
+    }
+    return drill;
+  }
+}
+
+// Full JSON snapshots, recursively sorted by object key and encoded by Dart's
+// jsonEncode. The approved source catalog's original byte SHA-256 is
+// a1655e5c64055c14af35850b5468390d9d11161e53a87a0cbe7780ec7ed25dc0.
+// Sorting accepts harmless object-key/whitespace changes in fromJson, while any
+// value, list order, ID, flag, provenance or definition change fails closed.
+const _approvedSemanticCatalogFingerprint =
+    '0679d53f6ccee58ac2c145f0da23d30f49e8ceada309d162a5263a6247d46b18';
+const _originalCanonicalFingerprint =
+    'e1ed9042aaf62273bee1fb376e1e07f5ebc9176704dce5f79f048eb902b4bfbe';
+
+String _jsonFingerprint(Object? value) => crypto.sha256
+    .convert(utf8.encode(jsonEncode(_sortedJson(value))))
+    .toString();
+
+Object? _sortedJson(Object? value) {
+  if (value is Map<String, Object?>) {
+    final keys = value.keys.toList()..sort();
+    return {for (final key in keys) key: _sortedJson(value[key])};
+  }
+  if (value is List<Object?>) return value.map(_sortedJson).toList();
+  return value;
 }
 
 const _mediaKinds = {'video', 'cover', 'thumbnail'};

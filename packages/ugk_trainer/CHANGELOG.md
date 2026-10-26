@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1 — 2026-10-26
+
+- Load the reviewed R1 semantic revision: 211 complete / 8 pending / 219 total. Update the pinned catalogue checksum and whole-pack download to `posehub-app-test-pack-r1-v2`; v1 remains available unchanged.
+- Require coach 0.6.1 for the approved supplemental AI catalogue. Catalogue bytes, raw unknown/review flags and all media identities remain intact; no playback, layout, manual-practice or training-state changes.
+
 ## 0.4.0 — 2026-10-26
 
 - Add `PoseHubActionLibrary`, `PoseHubActionBrowser`, `PoseHubActionDetail` and manual `PoseHubSinglePracticePage` for all 219 original R1 IDs. Label 77 incomplete definitions `训练说明待补`; never synthesize training dose or timing. The coach 0.6.0 `toAiCatalog()` API exposes only the 142 complete definitions.

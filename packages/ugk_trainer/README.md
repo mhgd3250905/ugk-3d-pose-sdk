@@ -1,10 +1,10 @@
-# ugk_trainer 0.4.0
+# ugk_trainer 0.4.1
 
 ## 219 动作素材包
 
-`PoseHubActionLibrary.load()` 加载原始 219 动作元数据；`allActions` 全部可列出，`semanticCompleteActions` 为 142 个，`pendingActions` 为 77 个。只向 AI 传入 `library.toAiCatalog()`，不会返回待补动作。`PoseHubActionBrowser` / `PoseHubSinglePracticePage` 提供浏览与自主单练，传入安装后的 `mediaBaseUri`；77 个待补项明确标注“训练说明待补”，不推断剂量或计次节奏。
+`PoseHubActionLibrary.load()` 加载原始 219 动作元数据；`allActions` 全部可列出，`semanticCompleteActions` 为 211 个，`pendingActions` 为 8 个。只向 AI 传入 `library.toAiCatalog()`，不会返回待补动作。`PoseHubActionBrowser` / `PoseHubSinglePracticePage` 提供浏览与自主单练，传入安装后的 `mediaBaseUri`；8 个待补项明确标注“训练说明待补”，不推断剂量或计次节奏。
 
-657 个媒体文件保持原字节，随独立完整 ZIP 分发，不进入普通 Git 历史。完整用法、校验值、Web 演示与平台范围见[素材包接入指南](../../docs/posehub-app-test-pack-r1.md)。已有扁平实色训练布局、防闪按钮与 Morph Pulse 保持不变。
+657 个媒体文件保持原字节，随独立完整 ZIP 分发，不进入普通 Git 历史。语义修订、校验值与安装见[v2 接入指南](../../docs/posehub-app-test-pack-r1-semantics-v2.md)，原有 Web 演示与平台范围见[v1 接入指南](../../docs/posehub-app-test-pack-r1.md)。已有扁平实色训练布局、防闪按钮与 Morph Pulse 保持不变。
 
 ## 实色分层与不兼容迁移
 

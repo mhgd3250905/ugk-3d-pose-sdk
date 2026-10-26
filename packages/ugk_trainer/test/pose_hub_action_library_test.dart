@@ -33,8 +33,8 @@ void main() {
     'bundled original metadata loads all 219 media identities unchanged',
     () {
       expect(catalog.allActions, hasLength(219));
-      expect(catalog.semanticCompleteActions, hasLength(142));
-      expect(catalog.pendingActions, hasLength(77));
+      expect(catalog.semanticCompleteActions, hasLength(211));
+      expect(catalog.pendingActions, hasLength(8));
       expect(catalog.allActions.map((a) => a.id).toSet(), hasLength(219));
       for (final action in catalog.allActions) {
         expect(catalog.tryGet(action.id), same(action));
@@ -46,7 +46,7 @@ void main() {
           expect(file.bytes, greaterThan(0));
         }
       }
-      expect(catalog.toAiCatalog().drills, hasLength(142));
+      expect(catalog.toAiCatalog().drills, hasLength(211));
     },
   );
 
@@ -61,7 +61,7 @@ void main() {
   );
 
   testWidgets(
-    'browser lists all entries and separates the 77 pending actions',
+    'browser lists all entries and separates the 8 pending actions',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -76,7 +76,7 @@ void main() {
       expect(find.text('显示 219 个动作'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('posehub-filter-pending')));
       await tester.pump();
-      expect(find.text('显示 77 个动作'), findsOneWidget);
+      expect(find.text('显示 8 个动作'), findsOneWidget);
       final pending = catalog.pendingActions.first;
       expect(
         find.byKey(ValueKey('posehub-action-${pending.id}')),

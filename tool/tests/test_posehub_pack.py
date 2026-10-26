@@ -71,9 +71,9 @@ def write_metadata(root, actions):
     return blobs
 
 
-def make_fixture(root):
+def make_fixture(root, action_flags=None):
     actions = []
-    for action_id, complete in [("demo-A", True), ("pending-B", False)]:
+    for action_id, complete in action_flags or [("demo-A", True), ("pending-B", False)]:
         files = {}
         for role, suffix in [("video", "rgb-alpha.mp4"), ("cover", "cover.webp"), ("thumbnail", "thumb.webp")]:
             name = f"media/{action_id}/{action_id}.{suffix}"
@@ -117,6 +117,29 @@ class PackToolTests(unittest.TestCase):
     def build(self):
         return pack.build_pack(self.source, self.archive, counts=COUNTS)
 
+    def semantic_overlay(self):
+        """Keep the base manifest/canonical bytes and replace only the catalogue."""
+        original = {name: (self.source / name).read_bytes() for name in pack.METADATA_PATHS}
+        catalog = json.loads(original["catalog.json"])
+        catalog["actions"][0]["availableForTraining"] = False
+        catalog["actions"][0]["defaultDose"] = {
+            "mode": "reps", "sets": 1, "reps": 6, "restSeconds": 10,
+        }
+        catalog["actions"][0]["trainingSemantics"]["unknownFields"] = [
+            {"field": "contraindications", "reason": "optional, unreviewed"},
+        ]
+        catalog["trainingSemantics"]["sourceCatalog"] = {
+            "bytes": len(original["catalog.json"]),
+            "sha256": pack.digest_bytes(original["catalog.json"]),
+        }
+        catalog["trainingSemantics"]["sourceManifest"] = {
+            "bytes": len(original["manifest.json"]),
+            "sha256": pack.digest_bytes(original["manifest.json"]),
+        }
+        blob = encoded(catalog)
+        (self.source / "catalog.json").write_bytes(blob)
+        return pack.digest_bytes(blob), original
+
     def test_verify_counts_hashes_and_semantic_flags_without_defaults(self):
         index = pack.load_pack(self.source, COUNTS)
         self.assertEqual((index.complete_count, index.pending_count), (1, 1))
@@ -140,6 +163,113 @@ class PackToolTests(unittest.TestCase):
         write_metadata(self.source, changed)
         with self.assertRaisesRegex(pack.PackError, "flags disagree"):
             pack.load_pack(self.source, COUNTS)
+
+    def test_only_exact_approved_catalogue_can_overlay_frozen_semantic_flags(self):
+        trusted_sha, _ = self.semantic_overlay()
+        with self.assertRaisesRegex(pack.PackError, "flags disagree"):
+            pack.load_pack(self.source, COUNTS)
+        with mock.patch.object(pack, "APPROVED_SEMANTICS_V2_SHA256", trusted_sha):
+            index = pack.load_pack(self.source, COUNTS)
+            self.assertEqual((index.complete_count, index.pending_count), (1, 1))
+            self.assertFalse(index.catalog["actions"][0]["availableForTraining"])
+            catalog = json.loads((self.source / "catalog.json").read_bytes())
+            catalog["actions"][0]["nameZh"] += "tampered"
+            (self.source / "catalog.json").write_bytes(encoded(catalog))
+            with self.assertRaisesRegex(pack.PackError, "flags disagree"):
+                pack.load_pack(self.source, COUNTS)
+
+    def test_approved_overlay_keeps_and_verifies_the_original_manifest_bytes(self):
+        trusted_sha, original = self.semantic_overlay()
+        with mock.patch.object(pack, "APPROVED_SEMANTICS_V2_SHA256", trusted_sha):
+            desc = self.build()
+            with zipfile.ZipFile(self.archive) as archive:
+                self.assertEqual(archive.read("manifest.json"), original["manifest.json"])
+                self.assertEqual(archive.read("catalog/catalog.json"), original["catalog/catalog.json"])
+                self.assertNotEqual(archive.read("catalog.json"), original["catalog.json"])
+            dest = self.base / "installed-overlay"
+            installed = pack.install_pack(self.archive, dest, desc["archive"]["sha256"], COUNTS)
+            self.assertEqual(installed["installedFiles"], 9)
+            self.assertEqual((dest / "manifest.json").read_bytes(), original["manifest.json"])
+            (self.source / "manifest.json").write_bytes(original["manifest.json"] + b" ")
+            with self.assertRaisesRegex(pack.PackError, "frozen source"):
+                pack.load_pack(self.source, COUNTS)
+
+    def test_overlay_rejects_wrong_base_reference_even_with_a_trusted_catalogue(self):
+        self.semantic_overlay()
+        catalog = json.loads((self.source / "catalog.json").read_bytes())
+        catalog["trainingSemantics"]["sourceCatalog"]["sha256"] = "0" * 64
+        blob = encoded(catalog)
+        (self.source / "catalog.json").write_bytes(blob)
+        with mock.patch.object(pack, "APPROVED_SEMANTICS_V2_SHA256", pack.digest_bytes(blob)):
+            with self.assertRaisesRegex(pack.PackError, "frozen source"):
+                pack.load_pack(self.source, COUNTS)
+
+    def test_overlay_still_rejects_definition_disagreement_and_missing_numeric_dose(self):
+        for mutation, message in (
+            (lambda a: a["trainingSemantics"].update(definitionComplete=False), "flags disagree"),
+            (lambda a: a["defaultDose"].update(reps=None), "invalid reps dose"),
+            (lambda a: a["trainingSemantics"].update(missingRequiredFields=["level"]), "semantic gaps"),
+        ):
+            with self.subTest(message=message):
+                write_metadata(self.source, self.actions)
+                self.semantic_overlay()
+                catalog = json.loads((self.source / "catalog.json").read_bytes())
+                mutation(catalog["actions"][0])
+                blob = encoded(catalog)
+                (self.source / "catalog.json").write_bytes(blob)
+                with mock.patch.object(pack, "APPROVED_SEMANTICS_V2_SHA256", pack.digest_bytes(blob)):
+                    with self.assertRaisesRegex(pack.PackError, message):
+                        pack.load_pack(self.source, COUNTS)
+
+    def test_summary_id_order_duplicates_and_substitutions_are_rejected(self):
+        actions = make_fixture(
+            self.source,
+            [("one", True), ("two", True), ("three", False), ("four", False)],
+        )
+        counts = pack.ExpectedCounts(actions=4, complete=2, pending=2)
+        catalog = json.loads((self.source / "catalog.json").read_bytes())
+
+        def load_changed():
+            blob = encoded(catalog)
+            (self.source / "catalog.json").write_bytes(blob)
+            manifest = json.loads((self.source / "manifest.json").read_bytes())
+            manifest["catalog"].update(bytes=len(blob), sha256=pack.digest_bytes(blob))
+            (self.source / "manifest.json").write_bytes(encoded(manifest))
+            return pack.load_pack(self.source, counts)
+
+        self.assertEqual(load_changed().complete_count, 2)
+        for field, expected_ids in (
+            ("definitionCompleteIds", ["one", "two"]),
+            ("incompleteActionIds", ["three", "four"]),
+        ):
+            for ids in (
+                list(reversed(expected_ids)),
+                [expected_ids[0], expected_ids[0]],
+                [expected_ids[0], expected_ids[0].upper()],
+                [expected_ids[0], "unrelated"],
+            ):
+                with self.subTest(field=field, ids=ids):
+                    catalog["trainingSemantics"]["definitionCompleteIds"] = ["one", "two"]
+                    catalog["trainingSemantics"]["incompleteActionIds"] = ["three", "four"]
+                    catalog["trainingSemantics"][field] = ids
+                    with self.assertRaisesRegex(pack.PackError, "duplicate or mismatched"):
+                        load_changed()
+        self.assertEqual(len(actions), 4)
+
+    def test_default_counts_select_new_pack_and_recognize_the_exact_legacy_catalogue(self):
+        self.assertEqual(pack.EXPECTED, pack.ExpectedCounts(actions=219, complete=211, pending=8))
+        with self.assertRaisesRegex(pack.PackError, "approved exact catalogue"):
+            pack.load_pack(self.source)
+        with self.assertRaisesRegex(pack.PackError, "approved exact catalogue"):
+            pack.load_pack(self.source, pack.EXPECTED)
+        legacy_sha = pack.digest_file(self.source / "catalog.json")
+        with mock.patch.object(pack, "LEGACY_CATALOG_SHA256", legacy_sha), mock.patch.object(
+            pack, "LEGACY_EXPECTED", COUNTS
+        ):
+            self.assertEqual(pack.load_pack(self.source).complete_count, 1)
+            desc = pack.build_pack(self.source, self.archive)
+            dest = self.base / "installed-legacy"
+            self.assertEqual(pack.install_pack(self.archive, dest, desc["archive"]["sha256"])["installedFiles"], 9)
 
     def test_missing_file_and_same_size_hash_corruption_are_rejected(self):
         video = self.source / self.actions[0]["files"]["video"]["path"]

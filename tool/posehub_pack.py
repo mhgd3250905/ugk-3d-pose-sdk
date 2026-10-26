@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify, package, install and locally serve the unchanged Pose Hub R1 pack.
+"""Verify, package, install and locally serve approved Pose Hub R1 packs.
 
 Python 3.10+, standard library only. The catalogue is the media allowlist;
 historical media on disk is deliberately excluded. No transcoding or semantic
@@ -25,6 +25,8 @@ import zipfile
 
 
 PACK_ID = "app-test-pack-r1"
+LEGACY_CATALOG_SHA256 = "c5f090aa06e2743904a3f0c1f9193c87955242b1aa7f054a14a9f6e7c824be54"
+APPROVED_SEMANTICS_V2_SHA256 = "a1655e5c64055c14af35850b5468390d9d11161e53a87a0cbe7780ec7ed25dc0"
 METADATA_PATHS = ("catalog.json", "manifest.json", "catalog/catalog.json")
 CHUNK = 1024 * 1024
 MAX_METADATA_BYTES = 16 * CHUNK
@@ -42,11 +44,12 @@ class PackError(ValueError):
 @dataclass(frozen=True)
 class ExpectedCounts:
     actions: int = 219
-    complete: int = 142
-    pending: int = 77
+    complete: int = 211
+    pending: int = 8
 
 
 EXPECTED = ExpectedCounts()
+LEGACY_EXPECTED = ExpectedCounts(complete=142, pending=77)
 
 
 @dataclass(frozen=True)
@@ -156,13 +159,19 @@ def json_object(blob: bytes, label: str) -> dict:
 
 
 def index_from_metadata(
-    metadata: dict[str, bytes], counts: ExpectedCounts = EXPECTED
+    metadata: dict[str, bytes], counts: ExpectedCounts | None = None
 ) -> PackIndex:
     if set(metadata) != set(METADATA_PATHS):
         raise PackError("pack must contain exactly the three original metadata JSON files")
     catalog = json_object(metadata["catalog.json"], "catalog.json")
     manifest = json_object(metadata["manifest.json"], "manifest.json")
     json_object(metadata["catalog/catalog.json"], "catalog/catalog.json")
+    catalog_sha256 = digest_bytes(metadata["catalog.json"])
+    approved_overlay = catalog_sha256 == APPROVED_SEMANTICS_V2_SHA256
+    if counts is None:
+        counts = LEGACY_EXPECTED if catalog_sha256 == LEGACY_CATALOG_SHA256 else EXPECTED
+    if counts == EXPECTED and not approved_overlay:
+        raise PackError("semantic v2 catalogue SHA256 is not the approved exact catalogue")
     if catalog.get("id") != PACK_ID or manifest.get("id") != PACK_ID:
         raise PackError("unexpected catalogue/manifest pack ID")
     if catalog.get("format") != "pose-hub-app-test-catalog@1":
@@ -208,7 +217,11 @@ def index_from_metadata(
             semantics.get("definitionComplete"),
             action.get("availableForTraining"),
         )
-        if not all(isinstance(flag, bool) for flag in flags) or len(set(flags)) != 1:
+        if (
+            not all(isinstance(flag, bool) for flag in flags)
+            or flags[0] != flags[1]
+            or (flags[0] != flags[2] and not (approved_overlay and flags[0] and not flags[2]))
+        ):
             raise PackError(f"{action_id}: three semantic completeness flags disagree")
         if action.get("availableForApp") is not True:
             raise PackError(f"{action_id}: action is not marked available for browsing")
@@ -218,9 +231,19 @@ def index_from_metadata(
             raise PackError(f"{action_id}: semantic status and flags disagree")
         if complete and (
             semantics.get("missingRequiredFields") != []
-            or semantics.get("unknownFields") != []
+            or (semantics.get("unknownFields") != [] and not approved_overlay)
         ):
             raise PackError(f"{action_id}: complete action still declares semantic gaps")
+        if approved_overlay and complete:
+            dose = action.get("defaultDose")
+            if not isinstance(dose, dict) or dose.get("mode") not in ("reps", "time"):
+                raise PackError(f"{action_id}: complete action is missing its training dose")
+            quantity = "reps" if dose["mode"] == "reps" else "seconds"
+            for field in ("sets", quantity, "restSeconds"):
+                value = dose.get(field)
+                minimum = 0 if field == "restSeconds" else 1
+                if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+                    raise PackError(f"{action_id}: complete action has an invalid {field} dose")
         (complete_ids if complete else pending_ids).append(action_id)
         rows = action.get("files")
         if not isinstance(rows, dict) or set(rows) != {"video", "cover", "thumbnail"}:
@@ -247,18 +270,40 @@ def index_from_metadata(
     summary = catalog.get("trainingSemantics")
     if not isinstance(summary, dict):
         raise PackError("missing semantic summary")
-    if (
-        summary.get("definitionCompleteCount") != counts.complete
-        or summary.get("definitionCompleteIds") != complete_ids
-        or summary.get("incompleteActionIds") != pending_ids
+    if summary.get("definitionCompleteCount") != counts.complete:
+        raise PackError("semantic summary differs from the per-action flags")
+    for field, expected_ids in (
+        ("definitionCompleteIds", complete_ids),
+        ("incompleteActionIds", pending_ids),
     ):
-        raise PackError("semantic summary differs from the per-action flags/order")
+        ids = summary.get(field)
+        if (
+            not isinstance(ids, list)
+            or not all(isinstance(value, str) for value in ids)
+            or len(ids) != len(set(ids))
+            or len(ids) != len({value.casefold() for value in ids})
+            or ids != expected_ids
+        ):
+            raise PackError(f"semantic summary {field} has duplicate or mismatched action IDs/order")
     for record, label, blob in (
         (catalog.get("semanticCatalog"), "semantic catalogue", metadata["catalog/catalog.json"]),
         (manifest.get("catalog"), "manifest catalogue", metadata["catalog.json"]),
     ):
         if not isinstance(record, dict):
             raise PackError(f"missing {label} digest")
+        if label == "manifest catalogue" and approved_overlay:
+            source_catalog = summary.get("sourceCatalog")
+            source_manifest = summary.get("sourceManifest")
+            if (
+                not isinstance(source_catalog, dict)
+                or not isinstance(source_manifest, dict)
+                or record.get("bytes") != source_catalog.get("bytes")
+                or record.get("sha256") != source_catalog.get("sha256")
+                or source_manifest.get("bytes") != len(metadata["manifest.json"])
+                or source_manifest.get("sha256") != digest_bytes(metadata["manifest.json"])
+            ):
+                raise PackError("approved semantic overlay does not match its frozen source catalogue/manifest")
+            continue
         if record.get("bytes") != len(blob) or record.get("sha256") != digest_bytes(blob):
             raise PackError(f"{label} bytes/SHA256 do not match the original JSON")
     return PackIndex(catalog, manifest, metadata, files, len(complete_ids), len(pending_ids))
@@ -271,7 +316,7 @@ def verify_file(path: Path, expected: PackFile) -> None:
         raise PackError(f"SHA256 mismatch: {expected.path}")
 
 
-def load_pack(root: Path, counts: ExpectedCounts = EXPECTED) -> PackIndex:
+def load_pack(root: Path, counts: ExpectedCounts | None = None) -> PackIndex:
     root = root.resolve()
     metadata = {}
     for name in METADATA_PATHS:
@@ -315,7 +360,7 @@ def build_pack(
     root: Path,
     output: Path,
     descriptor: Path | None = None,
-    counts: ExpectedCounts = EXPECTED,
+    counts: ExpectedCounts | None = None,
 ) -> dict:
     index = load_pack(root, counts)
     output = output.resolve()
@@ -380,7 +425,7 @@ class NullWriter:
         return len(block)
 
 
-def inspect_zip(archive: zipfile.ZipFile, counts: ExpectedCounts) -> PackIndex:
+def inspect_zip(archive: zipfile.ZipFile, counts: ExpectedCounts | None) -> PackIndex:
     names, folded = set(), set()
     infos = archive.infolist()
     for info in infos:
@@ -429,7 +474,7 @@ def install_pack(
     archive_path: Path,
     destination: Path,
     expected_sha256: str,
-    counts: ExpectedCounts = EXPECTED,
+    counts: ExpectedCounts | None = None,
 ) -> dict:
     expected_sha256 = checked_sha(expected_sha256, "archive")
     if digest_file(archive_path) != expected_sha256:
@@ -505,7 +550,7 @@ def byte_range(header: str | None, size: int) -> tuple[int, int] | None:
 
 
 def make_server(
-    web_root: Path, pack_root: Path, port: int = 7362, counts: ExpectedCounts = EXPECTED
+    web_root: Path, pack_root: Path, port: int = 7362, counts: ExpectedCounts | None = None
 ) -> ThreadingHTTPServer:
     web_root, pack_root = web_root.resolve(), pack_root.resolve()
     if not (web_root / "index.html").is_file():

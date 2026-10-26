@@ -17,6 +17,11 @@ Map<String, Object?> _action(Map<String, Object?> catalog, [int index = 0]) =>
 Map<String, Object?> _files(Map<String, Object?> action) =>
     action['files']! as Map<String, Object?>;
 
+Map<String, Object?> _actionById(Map<String, Object?> catalog, String id) =>
+    (catalog['actions']! as List<Object?>)
+        .cast<Map<String, Object?>>()
+        .firstWhere((action) => action['id'] == id);
+
 void main() {
   late Map<String, Object?> original;
   late Map<String, Object?> canonical;
@@ -28,6 +33,31 @@ void main() {
   });
 
   Map<String, Object?> fresh() => _read('$_pack/catalog.json');
+
+  // Exercise the existing generic parser without the v2 snapshot gate. The
+  // original 142 definitions are unchanged by the approved semantic revision.
+  Map<String, Object?> legacyFixture() {
+    final legacy = fresh();
+    final baseIds = (canonical['drills']! as List<Object?>)
+        .cast<Map<String, Object?>>()
+        .map((drill) => drill['id'])
+        .toSet();
+    final actions = (legacy['actions']! as List<Object?>)
+        .cast<Map<String, Object?>>()
+        .where((action) => baseIds.contains(action['id']))
+        .toList();
+    legacy['actions'] = actions;
+    legacy['totalCount'] = actions.length;
+    legacy['readyCount'] = actions.length;
+    final summary = legacy['trainingSemantics']! as Map<String, Object?>;
+    summary.remove('semanticRevision');
+    summary['definitionCompleteCount'] = actions.length;
+    summary['definitionCompleteIds'] = [
+      for (final action in actions) action['id'],
+    ];
+    summary['incompleteActionIds'] = <Object?>[];
+    return legacy;
+  }
 
   test(
     'all 219 load in exact source order, with 657 intact file references',
@@ -66,13 +96,17 @@ void main() {
   );
 
   test(
-    '142 complete / 77 pending remain separate from media readiness and review',
+    '211 complete / 8 pending retain original availability and review flags',
     () {
-      expect(pack.semanticCompleteActions, hasLength(142));
-      expect(pack.pendingActions, hasLength(77));
+      expect(pack.semanticCompleteActions, hasLength(211));
+      expect(pack.pendingActions, hasLength(8));
       expect(
-        pack.semanticCompleteActions.every((a) => a.availableForTraining),
-        isTrue,
+        pack.semanticCompleteActions.where((a) => a.availableForTraining),
+        hasLength(142),
+      );
+      expect(
+        pack.semanticCompleteActions.where((a) => !a.availableForTraining),
+        hasLength(69),
       );
       expect(pack.pendingActions.every((a) => !a.availableForTraining), isTrue);
       expect(
@@ -91,11 +125,12 @@ void main() {
   );
 
   test('pending fields including null stay unchanged and deeply read-only', () {
-    final pending = pack.tryGet('g-cable-hip-abduction')!;
+    final pending = pack.tryGet('h-towel-isometric-curl')!;
     expect(pending.rawTrainingDefinition['level'], isNull);
     final dose =
         pending.rawTrainingDefinition['defaultDose']! as Map<String, Object?>;
-    expect(dose['reps'], isNull);
+    expect(dose['mode'], 'time');
+    expect(dose['seconds'], isNull);
     expect(dose['sets'], isNull);
     expect(dose['restSeconds'], isNull);
     expect(pending.rawTrainingSemantics['definitionComplete'], isFalse);
@@ -135,14 +170,14 @@ void main() {
     expect(browsingOnly.allActions, hasLength(219));
     expect(browsingOnly.toAiCatalog, throwsStateError);
     final ai = pack.toAiCatalog();
-    expect(ai.length, 142);
+    expect(ai.length, 211);
     expect(ai.problems, isEmpty);
     expect(ai.version, canonical['version']);
     expect(ai.taxonomy.categoryLabel('strength'), isNotEmpty);
     expect(ai.ids, pack.semanticCompleteActions.map((a) => a.id));
     final profile = loadProfile('smartfit');
     final whitelist = CoachTools.whitelist(profile, ai);
-    expect(whitelist, hasLength(142));
+    expect(whitelist, hasLength(211));
     for (final action in pack.pendingActions) {
       expect(ai.contains(action.id), isFalse);
       expect(profile.scope(ai).any((d) => d.id == action.id), isFalse);
@@ -174,7 +209,7 @@ void main() {
           bytes,
           semanticCatalogBytes: canonicalBytes,
         ).toAiCatalog().length,
-        142,
+        211,
       );
       final rewritten = utf8.encode(jsonEncode(canonical));
       expect(
@@ -183,6 +218,205 @@ void main() {
           semanticCatalogBytes: rewritten,
         ),
         throwsFormatException,
+      );
+    },
+  );
+
+  test(
+    'base 142 stay canonical; all 69 additions keep their own exact dose',
+    () {
+      final ai = pack.toAiCatalog();
+      final base = (canonical['drills']! as List<Object?>)
+          .cast<Map<String, Object?>>();
+      final baseIds = base.map((d) => d['id']).toSet();
+      expect(base, hasLength(142));
+      for (final drill in base) {
+        expect(ai[drill['id']! as String]!.raw, drill);
+      }
+      final additions = pack.semanticCompleteActions.where(
+        (action) => !baseIds.contains(action.id),
+      );
+      expect(additions, hasLength(69));
+      for (final action in additions) {
+        final drill = ai[action.id]!;
+        expect(action.availableForTraining, isFalse);
+        expect(drill.name.of('zh'), action.nameZh);
+        expect(drill.defaultDose.toJson(), action.raw['defaultDose']);
+        expect(drill.doseRange.toJson(), action.raw['doseRange']);
+        expect(drill.cues, action.raw['cues']);
+        for (final field in action.raw.entries) {
+          expect(
+            drill.raw[field.key],
+            field.value,
+            reason: '${action.id}.${field.key} must retain source metadata',
+          );
+        }
+      }
+      // These defaults differ by design; a generic strength fallback is invalid.
+      expect(ai['h-slider-body-saw']!.defaultDose.toJson(), {
+        'mode': 'reps',
+        'sets': 1,
+        'reps': 4,
+        'restSeconds': 45,
+      });
+      expect(ai['g-cable-hip-abduction']!.defaultDose.toJson(), {
+        'mode': 'reps',
+        'sets': 3,
+        'reps': 12,
+        'restSeconds': 30,
+      });
+    },
+  );
+
+  test('the pinned revision rejects value, flag and provenance tampering', () {
+    for (final mutation in <void Function(Map<String, Object?>)>[
+      (data) =>
+          (_actionById(data, 'g-cable-hip-abduction')['defaultDose']!
+                  as Map<String, Object?>)['restSeconds'] =
+              null,
+      (data) =>
+          _actionById(data, 'g-cable-hip-abduction')['availableForTraining'] =
+              true,
+      (data) =>
+          (data['trainingSemantics']!
+                  as Map<String, Object?>)['revisionSha256'] =
+              '0' * 64,
+      (data) => _actionById(data, 'h-towel-isometric-curl')['level'] = 1,
+    ]) {
+      final data = fresh();
+      mutation(data);
+      expect(
+        () => PoseHubAppTestCatalog.fromJson(data, semanticCatalog: canonical),
+        throwsFormatException,
+      );
+      expect(
+        () => PoseHubAppTestCatalog.fromBytes(
+          utf8.encode(jsonEncode(data)),
+          semanticCatalogBytes: File(
+            '$_pack/catalog/catalog.json',
+          ).readAsBytesSync(),
+        ),
+        throwsFormatException,
+      );
+    }
+    final disguised = fresh();
+    (disguised['trainingSemantics']! as Map<String, Object?>).remove(
+      'semanticRevision',
+    );
+    for (final raw
+        in (disguised['actions']! as List<Object?>)
+            .cast<Map<String, Object?>>()) {
+      if (raw['trainingDefinitionComplete'] != true) continue;
+      raw['availableForTraining'] = true;
+      (raw['trainingSemantics']! as Map<String, Object?>)['unknownFields'] =
+          <Object?>[];
+    }
+    final browsing = PoseHubAppTestCatalog.fromJson(disguised);
+    expect(browsing.allActions, hasLength(219));
+    expect(browsing.semanticCompleteActions, hasLength(211));
+    expect(browsing.toAiCatalog, throwsStateError);
+    expect(
+      () => browsing.toAiCatalog(semanticCatalog: Catalog.fromJson(canonical)),
+      throwsFormatException,
+      reason: 'Removing the revision label cannot add definitions to canonical',
+    );
+    expect(
+      () =>
+          PoseHubAppTestCatalog.fromJson(disguised, semanticCatalog: canonical),
+      throwsFormatException,
+    );
+  });
+
+  test(
+    'object-key order is harmless, but the original canonical is pinned',
+    () {
+      final reordered = Map<String, Object?>.fromEntries(
+        original.entries.toList().reversed,
+      );
+      expect(
+        PoseHubAppTestCatalog.fromJson(
+          reordered,
+          semanticCatalog: canonical,
+        ).toAiCatalog().length,
+        211,
+      );
+      final changed = deepCopy(canonical)..['unrecognizedMetadata'] = 'changed';
+      expect(
+        () =>
+            PoseHubAppTestCatalog.fromJson(original, semanticCatalog: changed),
+        throwsFormatException,
+        reason: 'Even non-definition edits break the fixed canonical snapshot',
+      );
+    },
+  );
+
+  test(
+    'legacy 142 definitions retain strict flags and unknown-field checks',
+    () {
+      final legacy = legacyFixture();
+      expect(
+        PoseHubAppTestCatalog.fromJson(
+          legacy,
+          semanticCatalog: canonical,
+        ).toAiCatalog().length,
+        142,
+      );
+      final changedFlag = deepCopy(legacy);
+      _action(changedFlag)['availableForTraining'] = false;
+      expect(
+        () => PoseHubAppTestCatalog.fromJson(changedFlag),
+        throwsFormatException,
+      );
+      final changedUnknown = deepCopy(legacy);
+      (_action(changedUnknown)['trainingSemantics']!
+          as Map<String, Object?>)['unknownFields'] = [
+        {'field': 'contraindications', 'reason': 'legacy cannot waive this'},
+      ];
+      expect(
+        () => PoseHubAppTestCatalog.fromJson(changedUnknown),
+        throwsFormatException,
+      );
+    },
+  );
+
+  test(
+    'legacy explicit matching canonical may contain more than 142 actions',
+    () {
+      final legacy = legacyFixture();
+      final added = deepCopy(_actionById(original, 'g-cable-hip-abduction'));
+      added['availableForTraining'] = true;
+      (added['trainingSemantics']! as Map<String, Object?>)['unknownFields'] =
+          <Object?>[];
+      final actions = legacy['actions']! as List<Object?>;
+      actions.add(added);
+      legacy['totalCount'] = actions.length;
+      legacy['readyCount'] = actions.length;
+      final summary = legacy['trainingSemantics']! as Map<String, Object?>;
+      summary['definitionCompleteCount'] = actions.length;
+      (summary['definitionCompleteIds']! as List<Object?>).add(added['id']);
+      final expandedCanonical = deepCopy(canonical);
+      (expandedCanonical['drills']! as List<Object?>).add({
+        ...added,
+        'name': {'zh': added['nameZh']},
+      });
+
+      final browsing = PoseHubAppTestCatalog.fromJson(legacy);
+      expect(browsing.allActions, hasLength(143));
+      expect(browsing.toAiCatalog, throwsStateError);
+      final ai = browsing.toAiCatalog(
+        semanticCatalog: Catalog.fromJson(expandedCanonical),
+      );
+      expect(ai.length, 143);
+      expect(
+        ai['g-cable-hip-abduction']!.defaultDose.toJson(),
+        added['defaultDose'],
+      );
+      expect(
+        PoseHubAppTestCatalog.fromJson(
+          legacy,
+          semanticCatalog: expandedCanonical,
+        ).toAiCatalog().ids,
+        ai.ids,
       );
     },
   );
@@ -201,13 +435,13 @@ void main() {
   test(
     'canonical must match complete definitions exactly and keep unique IDs',
     () {
+      final legacy = legacyFixture();
       final changed = _read('$_pack/catalog/catalog.json');
       final first =
           (changed['drills']! as List<Object?>).first! as Map<String, Object?>;
       (first['defaultDose']! as Map<String, Object?>)['sets'] = 99;
       expect(
-        () =>
-            PoseHubAppTestCatalog.fromJson(original, semanticCatalog: changed),
+        () => PoseHubAppTestCatalog.fromJson(legacy, semanticCatalog: changed),
         throwsFormatException,
       );
       final duplicated = _read('$_pack/catalog/catalog.json');
@@ -215,23 +449,21 @@ void main() {
         (duplicated['drills']! as List<Object?>).first,
       );
       expect(
-        () => PoseHubAppTestCatalog.fromJson(
-          original,
-          semanticCatalog: duplicated,
-        ),
+        () =>
+            PoseHubAppTestCatalog.fromJson(legacy, semanticCatalog: duplicated),
         throwsFormatException,
       );
       final absent = _read('$_pack/catalog/catalog.json');
       (absent['drills']! as List<Object?>).removeAt(0);
       expect(
-        () => PoseHubAppTestCatalog.fromJson(original, semanticCatalog: absent),
+        () => PoseHubAppTestCatalog.fromJson(legacy, semanticCatalog: absent),
         throwsFormatException,
       );
     },
   );
 
   test('duplicate pack IDs are rejected instead of silently keeping one', () {
-    final data = fresh();
+    final data = legacyFixture();
     _action(data, 1)['id'] = _action(data)['id'];
     expect(() => PoseHubAppTestCatalog.fromJson(data), throwsFormatException);
   });
@@ -252,7 +484,7 @@ void main() {
         'media/abs-A/rev/demo.mp4#fragment',
         'https://evil.test/demo.mp4',
       ]) {
-        final data = fresh();
+        final data = legacyFixture();
         (_files(_action(data))['video']! as Map<String, Object?>)['path'] =
             path;
         expect(
@@ -326,7 +558,7 @@ void main() {
                     as Map<String, Object?>)['definitionCompleteCount'] =
                 143,
       ]) {
-        final data = fresh();
+        final data = legacyFixture();
         mutation(data);
         expect(
           () => PoseHubAppTestCatalog.fromJson(data),

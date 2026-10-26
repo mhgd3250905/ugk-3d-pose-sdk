@@ -1,0 +1,41 @@
+{
+  "actions": 219,
+  "archive": {
+    "bytes": 592748021,
+    "compression": "stored",
+    "entries": 660,
+    "format": "zip",
+    "name": "posehub-app-test-pack-r1-v2.zip",
+    "sha256": "f59a699d6be905f5bf91bafdff7ca294c8d1a4e879ba792b794280a6e7559bdb"
+  },
+  "archiveEntries": 660,
+  "catalogSha256": "a1655e5c64055c14af35850b5468390d9d11161e53a87a0cbe7780ec7ed25dc0",
+  "files": {
+    "catalog.json": {
+      "bytes": 2770221,
+      "sha256": "a1655e5c64055c14af35850b5468390d9d11161e53a87a0cbe7780ec7ed25dc0"
+    },
+    "catalog/catalog.json": {
+      "bytes": 581839,
+      "sha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983"
+    },
+    "manifest.json": {
+      "bytes": 1800486,
+      "sha256": "c41608082c8489c3a41c8b37e4983687becc44e6f27e8ae79242794bccfd9ae3"
+    }
+  },
+  "format": "ugk-posehub-pack-descriptor@1",
+  "manifestSha256": "c41608082c8489c3a41c8b37e4983687becc44e6f27e8ae79242794bccfd9ae3",
+  "mediaBytes": 587456377,
+  "mediaFiles": 657,
+  "metadataBytes": 5152546,
+  "metadataFiles": 3,
+  "packId": "app-test-pack-r1",
+  "semanticCatalogSha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983",
+  "semanticComplete": 211,
+  "semanticPending": 8,
+  "sourceCommit": "1fdd117d8e29bb0efcc8c57cb23dc1d9dc7422dd",
+  "sourceReleaseEligible": false,
+  "sourceReviewed": false,
+  "sourceStatus": "test-unreviewed"
+}

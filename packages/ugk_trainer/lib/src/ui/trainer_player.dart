@@ -364,6 +364,14 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   /// Phase index the burst's first switch already announced.
   int? _navigationAnnounced;
+
+  /// Cues the leading switch actually handed to the queue as playable, by
+  /// [_cueKey]. Only these are deduplicated when the burst settles back on
+  /// [_navigationAnnounced]; counts and chimes still pending are kept.
+  Set<String>? _navigationAnnouncedCues;
+
+  /// Collects [_cueKey]s while the leading switch speaks.
+  Set<String>? _navigationRecording;
   final _mediaHost = GlobalKey();
   Future<void>? _audioEnding;
   bool _audioEnded = false;
@@ -543,8 +551,21 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   SessionResult _result() =>
       _recorder.finish(_engine, activeSeconds: _endedAt ?? _t);
 
+  static String _cueKey(VoiceCue c) =>
+      '${c.at}|${c.priority.name}|${c.clips.join('+')}';
+
+  /// Whether [cue] has anything the queue would play with current settings.
+  bool _playable(VoiceCue cue) {
+    final s = _queue.settings;
+    return (s.voice && cue.voiceClips.isNotEmpty) ||
+        (s.chimes && cue.chimes.isNotEmpty);
+  }
+
   void _submit(Iterable<FiredCue> fired, double t) {
     for (final f in fired) {
+      if (_navigationRecording case final rec? when _playable(f.cue)) {
+        rec.add(_cueKey(f.cue));
+      }
       _queue.submit(f.cue, t);
       if (f.cue.subtitle != null) _subtitle = f.cue.subtitle;
     }
@@ -691,6 +712,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _navigationVoice = null;
     _navigationCoalescing = false;
     _navigationAnnounced = null;
+    _navigationAnnouncedCues = null;
     // End the previous owner's delayed close before acquiring a new one.
     // The shared output stays open; no old route can end the new session.
     _hold?.release();
@@ -833,7 +855,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _navigationVoice?.cancel();
     _navigationVoice = null;
     _navigationCoalescing = !leading;
-    if (leading) _navigationAnnounced = null;
+    if (leading) {
+      _navigationAnnounced = null;
+      _navigationAnnouncedCues = null;
+    }
     _queue.cancelAll(_t);
     change();
     if (settleVoice && !_engine.done) {
@@ -846,9 +871,20 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     }
     _subtitle = null;
     _syncProgress(_t);
+    final record = leading && settleVoice;
+    if (record) _navigationRecording = <String>{};
     _tick();
-    if (leading && settleVoice && !_paused && !_engine.done) {
+    final spoken = _navigationRecording;
+    _navigationRecording = null;
+    // Remember only what was really submitted as playable speech/chimes: a
+    // muted or paused switch announced nothing and must not be deduplicated.
+    if (record &&
+        spoken != null &&
+        spoken.isNotEmpty &&
+        !_paused &&
+        !_engine.done) {
       _navigationAnnounced = _engine.index;
+      _navigationAnnouncedCues = spoken;
     }
     setState(() {});
   }
@@ -857,19 +893,28 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _navigationVoice = null;
     final coalesced = _navigationCoalescing;
     final announced = _navigationAnnounced;
+    final announcedCues = _navigationAnnouncedCues;
     _navigationCoalescing = false;
     _navigationAnnounced = null;
+    _navigationAnnouncedCues = null;
     if (_disposed || !mounted) return;
-    if (coalesced && announced != null) {
+    if (coalesced && announced != null && announcedCues != null) {
       final t = _t;
       // The engine may naturally cross a zero-length rest while settling.
       _engine.update(t);
-      if (!_engine.done && _engine.index == announced) {
-        // Back on the phase this burst already announced: consume its due
-        // cues silently instead of speaking them a second time.
+      if (!_engine.done && _engine.index == announced && !_paused) {
+        // Back on the phase this burst already announced: drop only the
+        // cues the leading switch really spoke; counts, chimes and any other
+        // cue it had not reached yet still play.
+        final keep = <FiredCue>[];
         for (final f in _runner.update(t)) {
-          if (f.cue.subtitle != null) _subtitle = f.cue.subtitle;
+          if (announcedCues.remove(_cueKey(f.cue))) {
+            if (f.cue.subtitle != null) _subtitle = f.cue.subtitle;
+          } else {
+            keep.add(f);
+          }
         }
+        _submit(keep, t);
       }
     }
     if (_paused) return;
@@ -899,6 +944,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   void _toggleSound() {
     _queue.cancelAll(_t);
+    // What a navigation burst "already announced" depends on the sound state;
+    // never let it suppress speech after sound is switched.
+    _navigationAnnounced = null;
+    _navigationAnnouncedCues = null;
     _soundEnabled = !_soundEnabled;
     _queue.settings = _soundSettings;
     _voice.output.volume = _soundEnabled ? _voice.settings.volume : 0;

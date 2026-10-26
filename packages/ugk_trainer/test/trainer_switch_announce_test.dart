@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ugk_coach/ugk_coach.dart' show PlanItem;
 import 'package:ugk_trainer/ugk_trainer.dart';
 
 import 'support.dart';
@@ -22,23 +23,50 @@ class _NamedScript extends SessionScript {
   }
 }
 
+/// [_NamedScript] plus a standalone `chime.tick` 0.1 s into every phase.
+class _NamedTickScript extends _NamedScript {
+  _NamedTickScript(super.source);
+
+  @override
+  List<VoiceCue> cues(
+    SessionPhase phase, {
+    double planSeconds = 0,
+    bool bySkip = false,
+  }) {
+    return [
+      ...super.cues(phase, planSeconds: planSeconds, bySkip: bySkip),
+      if (phase.exerciseId != null)
+        const VoiceCue(.1, ['chime.tick'], CuePriority.count),
+    ];
+  }
+}
+
 const _ids = ['h-squat', 'w-dead-bug', 'h-couch-stretch', 's-figure4'];
 
-Future<RecordingOutput> _pumpPlayer(WidgetTester tester) async {
+Future<RecordingOutput> _pumpPlayer(
+  WidgetTester tester, {
+  List<PlanItem>? items,
+  Map<String, Rhythm> rhythms = const {},
+  SessionScript Function(VoiceSource source, String lang)? scriptBuilder =
+      _namedScript,
+  bool showSoundToggle = false,
+}) async {
   final output = RecordingOutput();
   await tester.pumpWidget(
     MaterialApp(
       home: TrainerPlayer(
-        plan: planOf([for (final id in _ids) timed(id, 30, rest: 0)]),
+        plan: planOf(items ?? [for (final id in _ids) timed(id, 30, rest: 0)]),
         drillOf: (id) => TrainerDrill(id: id, name: id),
         strings: TrainerStrings.en(),
         prepSeconds: 0,
         transitionSeconds: 0,
         keepAlive: false,
+        rhythms: rhythms,
+        showSoundToggle: showSoundToggle,
         voice: TrainerVoice(
           source: smartSource(),
           output: output,
-          scriptBuilder: (source, _) => _NamedScript(source),
+          scriptBuilder: scriptBuilder,
         ),
         mediaBuilder: (_, _) => const SizedBox.expand(),
         onFinished: (_) async {},
@@ -50,6 +78,9 @@ Future<RecordingOutput> _pumpPlayer(WidgetTester tester) async {
   output.chimes.clear();
   return output;
 }
+
+SessionScript _namedScript(VoiceSource source, String _) =>
+    _NamedScript(source);
 
 /// Which exercises were announced, in order, one entry per spoken line.
 List<String> _announced(RecordingOutput output) => [
@@ -136,5 +167,77 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(_announced(output), ['w-dead-bug']);
     // flutter_test also fails the test if the window Timer outlived dispose.
+  });
+
+  testWidgets(
+    'returning to the announced action keeps its first count (default script)',
+    (tester) async {
+      final output = await _pumpPlayer(
+        tester,
+        items: [for (final id in _ids) reps(id, 10, rest: 0)],
+        rhythms: {
+          'w-dead-bug': const Rhythm(
+            kind: ActionKind.repUpdown,
+            lead: .1,
+            phases: [KitPhase('go', 3, [])],
+            source: RhythmSource.catalog,
+          ),
+        },
+        scriptBuilder: null,
+      );
+      final one = smartSource().asset('n.1', lang: 'zh');
+      bool counted() => output.spoken.any((clips) => clips.contains(one));
+      await _tap(tester, 'skip'); // → w-dead-bug, leading announcement
+      await tester.pump(const Duration(milliseconds: 50));
+      await _tap(tester, 'skip'); // → h-couch-stretch, merged
+      await tester.pump(const Duration(milliseconds: 50));
+      await _tap(tester, 'prev'); // back to w-dead-bug
+      expect(counted(), isFalse);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump();
+      expect(
+        counted(),
+        isTrue,
+        reason: 'the first count was never spoken and must not be dropped',
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets('returning to the announced action keeps a pending chime', (
+    tester,
+  ) async {
+    final output = await _pumpPlayer(
+      tester,
+      scriptBuilder: (source, _) => _NamedTickScript(source),
+    );
+    final tick = smartSource().asset('chime.tick', lang: 'zh');
+    await _tap(tester, 'skip'); // → w-dead-bug, leading announcement
+    await tester.pump(const Duration(milliseconds: 50));
+    await _tap(tester, 'skip'); // → h-couch-stretch, merged
+    await tester.pump(const Duration(milliseconds: 50));
+    await _tap(tester, 'prev'); // back to w-dead-bug
+    expect(output.chimes, isNot(contains(tick)));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump();
+    expect(_announced(output), ['w-dead-bug'], reason: 'name stays deduped');
+    expect(output.chimes, contains(tick));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('a switch made while muted is not treated as announced', (
+    tester,
+  ) async {
+    final output = await _pumpPlayer(tester, showSoundToggle: true);
+    await _tap(tester, 'sound-toggle'); // sound off
+    await _tap(tester, 'skip'); // → w-dead-bug, silent
+    await tester.pump(const Duration(milliseconds: 20));
+    await _tap(tester, 'sound-toggle'); // sound on
+    await _tap(tester, 'skip'); // → h-couch-stretch, merged
+    await _tap(tester, 'prev'); // back to w-dead-bug
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump();
+    expect(_announced(output), ['w-dead-bug']);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 }

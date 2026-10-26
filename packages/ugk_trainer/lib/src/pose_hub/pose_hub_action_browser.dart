@@ -138,6 +138,40 @@ class PoseHubActionBrowser extends StatefulWidget {
 
 class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
   String _query = '', _equipment = '全部', _body = '全部', _type = '全部';
+  final _search = TextEditingController();
+
+  bool get _hasSelection =>
+      _query.trim().isNotEmpty ||
+      _equipment != '全部' ||
+      _body != '全部' ||
+      _type != '全部';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _clear() {
+    _search.clear();
+    setState(() {
+      _query = '';
+      _equipment = _body = _type = '全部';
+    });
+  }
+
+  String _equipmentLabel(String value) =>
+      const ['全部', '徒手', '需要器械'].contains(value)
+      ? value
+      : poseHubEquipmentLabels[value] ?? '其他器械';
+
+  Color _selectedBackground(TrainerTheme theme) => Color.alphaBlend(
+    const Color(0xFF12A97F).withValues(alpha: theme.isDark ? .22 : .12),
+    theme.surface,
+  );
+
+  Color _selectedForeground(TrainerTheme theme) =>
+      theme.isDark ? const Color(0xFF7BE2C1) : const Color(0xFF08614B);
 
   @override
   Widget build(BuildContext context) {
@@ -180,6 +214,7 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: TextField(
                 key: const ValueKey('posehub-search'),
+                controller: _search,
                 style: theme.body,
                 cursorColor: theme.accent,
                 decoration: InputDecoration(
@@ -201,9 +236,7 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
               _equipment,
               (value) => setState(() => _equipment = value),
               theme,
-              label: (value) => const ['全部', '徒手', '需要器械'].contains(value)
-                  ? value
-                  : poseHubEquipmentLabels[value] ?? '其他器械',
+              label: _equipmentLabel,
             ),
             _filters(
               '部位',
@@ -219,79 +252,205 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
               (value) => setState(() => _type = value),
               theme,
             ),
-            const SizedBox(height: 8),
+            _selectionSummary(theme),
             Expanded(
-              child: actions.isEmpty
-                  ? Center(child: Text('没有符合条件的动作', style: theme.body))
-                  : GridView.builder(
-                      key: const ValueKey('posehub-action-list'),
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        mainAxisExtent:
-                            (MediaQuery.sizeOf(context).width - 44) / 2 +
-                            nameHeight +
-                            8,
-                      ),
-                      itemCount: actions.length,
-                      itemBuilder: (context, index) {
-                        final action = actions[index];
-                        return Semantics(
-                          button: true,
-                          label: action.nameZh,
-                          child: GestureDetector(
-                            key: ValueKey('posehub-action-${action.id}'),
-                            onTap: () => Navigator.of(context).push<void>(
-                              MaterialPageRoute(
-                                builder: (_) => PoseHubSinglePracticePage(
-                                  action: action,
-                                  mediaBaseUri: widget.mediaBaseUri,
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  final cardWidth = (box.maxWidth - 44) / 2;
+                  return actions.isEmpty
+                      ? _emptyState(theme)
+                      : GridView.builder(
+                          key: const ValueKey('posehub-action-list'),
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                                mainAxisExtent: cardWidth + nameHeight + 16,
+                              ),
+                          itemCount: actions.length,
+                          itemBuilder: (context, index) {
+                            final action = actions[index];
+                            return Semantics(
+                              button: true,
+                              label: action.nameZh,
+                              child: GestureDetector(
+                                key: ValueKey('posehub-action-${action.id}'),
+                                onTap: () => Navigator.of(context).push<void>(
+                                  MaterialPageRoute(
+                                    builder: (_) => PoseHubSinglePracticePage(
+                                      action: action,
+                                      mediaBaseUri: widget.mediaBaseUri,
+                                      theme: theme,
+                                      onFinished: widget.onPracticeFinished,
+                                      mediaPreparer: widget.mediaPreparer,
+                                      voice: widget.voice,
+                                    ),
+                                  ),
+                                ),
+                                child: TrainerSurface(
                                   theme: theme,
-                                  onFinished: widget.onPracticeFinished,
-                                  mediaPreparer: widget.mediaPreparer,
-                                  voice: widget.voice,
+                                  radius: 22,
+                                  child: ClipRRect(
+                                    key: ValueKey(
+                                      'posehub-card-clip-${action.id}',
+                                    ),
+                                    borderRadius: BorderRadius.circular(22),
+                                    child: Column(
+                                      children: [
+                                        AspectRatio(
+                                          aspectRatio: 1,
+                                          child: DecoratedBox(
+                                            key: ValueKey(
+                                              'posehub-image-area-${action.id}',
+                                            ),
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                                colors: [
+                                                  theme.mediaStage,
+                                                  Color.alphaBlend(
+                                                    theme.accent.withValues(
+                                                      alpha: .08,
+                                                    ),
+                                                    theme.surface,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(8),
+                                              child: PoseHubStandingImage(
+                                                action: action,
+                                                theme: theme,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          height: nameHeight + 16,
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 8,
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                action.nameZh,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                textAlign: TextAlign.center,
+                                                style: theme.callout,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                            child: TrainerSurface(
-                              theme: theme,
-                              padding: const EdgeInsets.all(10),
-                              child: Column(
-                                children: [
-                                  Expanded(
-                                    child: PoseHubStandingImage(
-                                      action: action,
-                                      theme: theme,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  SizedBox(
-                                    height: nameHeight,
-                                    child: Center(
-                                      child: Text(
-                                        action.nameZh,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                        style: theme.callout,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                            );
+                          },
                         );
-                      },
-                    ),
+                },
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _selectionSummary(TrainerTheme theme) {
+    final labels = [
+      if (_query.trim().isNotEmpty) '搜索：${_query.trim()}',
+      if (_equipment != '全部') '器械：${_equipmentLabel(_equipment)}',
+      if (_body != '全部') '部位：$_body',
+      if (_type != '全部') '类型：$_type',
+    ];
+    return Padding(
+      key: const ValueKey('posehub-selection-summary'),
+      padding: const EdgeInsets.fromLTRB(16, 2, 8, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: labels.isEmpty
+                ? Text('全部动作', style: theme.label)
+                : SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final label in labels)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: _selectedBackground(theme),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                child: Text(
+                                  label,
+                                  style: theme.label.copyWith(
+                                    color: _selectedForeground(theme),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+          ),
+          TextButton(
+            key: const ValueKey('posehub-clear-filters'),
+            onPressed: _hasSelection ? _clear : null,
+            style: TextButton.styleFrom(
+              foregroundColor: _selectedForeground(theme),
+            ),
+            child: const Text('清除'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyState(TrainerTheme theme) => Center(
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        key: const ValueKey('posehub-empty-state'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.search_off_rounded, size: 44, color: theme.muted),
+          const SizedBox(height: 12),
+          Text('没有符合条件的动作', style: theme.callout, textAlign: TextAlign.center),
+          const SizedBox(height: 6),
+          Text(
+            '试试其他关键词，或清除筛选',
+            style: theme.label,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            key: const ValueKey('posehub-empty-clear'),
+            onPressed: _clear,
+            style: TextButton.styleFrom(
+              foregroundColor: _selectedForeground(theme),
+            ),
+            child: const Text('清除筛选'),
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _filters(
     String title,
@@ -313,6 +472,7 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
         ),
         Expanded(
           child: ListView.separated(
+            key: ValueKey('posehub-filter-options-$title'),
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.only(right: 16),
             itemCount: options.length,
@@ -323,11 +483,14 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
                 key: ValueKey('posehub-$title-$value'),
                 label: Text(label?.call(value) ?? value),
                 selected: selected == value,
-                showCheckmark: false,
+                showCheckmark: true,
+                checkmarkColor: _selectedForeground(theme),
                 labelStyle: theme.label.copyWith(
-                  color: selected == value ? theme.accentText : theme.text,
+                  color: selected == value
+                      ? _selectedForeground(theme)
+                      : theme.text,
                 ),
-                selectedColor: theme.surfaceHigh,
+                selectedColor: _selectedBackground(theme),
                 backgroundColor: theme.surface,
                 side: BorderSide(color: theme.border),
                 onSelected: (_) => onChanged(value),

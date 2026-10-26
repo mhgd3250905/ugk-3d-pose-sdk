@@ -1,10 +1,10 @@
 # R1 v3: compressed media and host-owned preparation
 
-> Historical 0.6.2 / 0.4.2 delivery contract. The pending feedback-r1-part1
-> candidate supersedes the preparation UI / clock gate described below:
+> Historical 0.6.2 / 0.4.2 delivery contract. The feedback-r1-part1
+> release supersedes the preparation UI / clock gate described below:
 > training starts immediately with bundled unchanged covers and silent
 > background preparation. R2 URLs, media hashes and host verification remain
-> unchanged. See [current candidate contract](feedback-r1-part1.md).
+> unchanged. See [current contract](feedback-r1-part1.md).
 
 SDK tags: **`ugk_coach-v0.6.2` / `ugk_trainer-v0.4.2`**. Data tag:
 **`posehub-app-test-pack-r1-v3`**. Coach UI remains 0.2.1. v1 and v2 Release

@@ -1,6 +1,6 @@
 # 真机反馈 r1 · 第 1 部分
 
-状态：待开哥审阅。基线 `main ac9b31f` 已执行 `git pull --ff-only origin main` 核对；开发分支 `codex/feedback-r1-part1`。候选清单版本为 **ugk_coach 0.7.0 / ugk_trainer 0.5.0 / ugk_coach_ui 0.3.0**。尚未合 main、推送或创建新 tag；批准后分别发布 `ugk_coach-v0.7.0`、`ugk_trainer-v0.5.0`、`ugk_coach_ui-v0.3.0`，不移动旧 tag。
+开哥于 2026-10-26 批准合入 main、推送并发布 **ugk_coach 0.7.0 / ugk_trainer 0.5.0 / ugk_coach_ui 0.3.0**。基线为 `main ac9b31f`，开发分支 `codex/feedback-r1-part1`；原候选 `a451760` 复核后仅包含六项反馈及对应资源、测试和文档，没有夹带液态玻璃改动。三个固定 tag 为 `ugk_coach-v0.7.0`、`ugk_trainer-v0.5.0`、`ugk_coach_ui-v0.3.0`，旧 tag 保持不变。
 
 开发在原有隔离工作树 `.worktrees/trainer-liquid-glass` 完成。原始 checkout 的 `fix/phone-feedback-media-20261024` / `159dadf`、其他工作树与微拟物 stash 保持；本轮没有整体配色或视觉重设计，没有设备与模拟器操作。
 
@@ -34,6 +34,10 @@ python tool/audit_posehub_standing.py <v3-pack-root> <evidence-output-directory>
 
 用户动作库只列 211 个语义完整动作，219/211/8 的原始目录数据不变。两列卡片以上方透明人物为主体，下方仅中文名称（最多两行）；名称/别名中文搜索，不按内部 ID 搜索。器械、部位、类型三维横向筛选可组合。动作 ID、完整性状态、总数与 pending 筛选不出现在用户界面。
 
+合入前按交接 C ① 补齐卡片22px圆角、1:1渐变图区、名称最多两行；选中筛选项使用青绿浅底和勾选，另有中文已选项摘要及右侧“清除”（同时恢复搜索与全部筛选）。无结果时提供图标、提示与恢复入口。局部视觉补齐不改全局主题或媒体素材。
+
+截图：[默认](evidence/feedback-r1-part1/browser-default.png)、[组合筛选](evidence/feedback-r1-part1/browser-filtered.png)、[空状态](evidence/feedback-r1-part1/browser-empty.png)、[320px深色](evidence/feedback-r1-part1/browser-dark-320.png)。使用原始alpha素材和本机字体，仅为Flutter软件渲染证据。不可变原候选的[差异范围核验](evidence/feedback-r1-part1/diff-scope-audit.md)单独记录，无玻璃实现夹带。
+
 点动作卡片直接启动只含该动作的共享训练播放器。默认剂量取动作目录语义，不从视频时长推断；使用共享训练页的说明展示。旧单练入口保持可调用，详情页不再是导航中转。
 
 ## 套路卡
@@ -56,8 +60,8 @@ python tool/audit_posehub_standing.py <v3-pack-root> <evidence-output-directory>
 
 新增确定性多轮测试覆盖信息全、缺1项、缺3项、跳过，以及缺项直接出方案、已知参数重问、第二轮追问、否定场景/器械、常见训练意图和实际剂量估时约束。`dart run tool/eval_ask_user.dart --dry` 的 **10/10** fixture 校验通过（[回执](evidence/feedback-r1-part1/ask-user-fixture-validation.json)）。当前环境没有模型鉴权配置，`modelCalls=0` / `modelQualityPassed=null`；这两类证据不冒充真实模型效果评测。
 
-trainer 全套 **298/298** 与 `flutter analyze --no-pub` 通过。新增回归覆盖所有视频始终 pending 时整计划计时与播报正常完成、首帧后180ms淡入、失败静默退避、取消/晚事件、当前抢占、异步取消完成前不释放并发槽、同host父重建复用队列、换host先等待旧队列取消、320px/2倍字体。
+trainer 合入前最终全套 **301/301** 与 `flutter analyze --no-pub` 通过（原候选298项，加交接C视觉/交互回归3项）；动作库中文实图截图检查1/1通过。回归覆盖所有视频始终 pending 时整计划计时与播报正常完成、首帧后180ms淡入、失败静默退避、取消/晚事件、当前抢占、异步取消完成前不释放并发槽、同host父重建复用队列、换host先等待旧队列取消、320px/2倍字体，以及正方形渐变、22px圆角、筛选与清除/空状态恢复。
 
 example 的 `flutter pub get --offline --enforce-lockfile` 与 `flutter build web --release --no-pub` 通过；Web 产物内219张站位图再次逐SHA核对，全部与v3目录一致。`git diff --check` 通过。源媒体219项解码审计与219个bundle cover SHA256全量核对已完成；没有改原媒体、目录或R2对象。没有启动设备或模拟器，构建与软件截图不扩张为原生硬解、设备性能、长时训练或iOS验收。
 
-本地 trainer 测试使用忽略的 `pubspec_overrides.yaml` 指向本分支 coach，因为待批准的新远端 tag 尚不存在。批准推送 tags 后再以真实远端 tag 做无 override 严格锁文件消费者验证；该最终发布验证当前尚未发生。
+仓内 trainer 测试通过忽略的 `pubspec_overrides.yaml` 指向同一工作树 coach。正式消费者验证必须从真实远端固定 tags 获取三个包、无 override，并使用 `--enforce-lockfile` 复核；不能把仓内 path 测试当成远端 tag 验证。

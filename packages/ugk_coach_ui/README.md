@@ -1,4 +1,4 @@
-# ugk_coach_ui 0.3.0 待审候选
+# ugk_coach_ui 0.3.0
 
 `0.3.0` 沿用已选定的扁平实色配色，仅优化套路卡标题留白和透明人物首图尺寸，新增一次补齐训练参数的分组问答 `form`。页面、内容卡片、抬升控件三个层级、1px 低对比描边和轻固定阴影继续使用；颜色仍来自注入的 `CoachUiColors` / `CoachMediaPalette`，提供浅深默认值与完整 `copyWith`。从 0.1.x 升级仍需完成下方迁移；旧穷举 `CoachQuestionMode` 分支须新增 `form`。
 
@@ -10,14 +10,14 @@
 
 ## 安装
 
-当前已发布基线为 `ugk_coach_ui-v0.2.1`，下面固定 tag 示例继续可用。候选 `ugk_coach_ui-v0.3.0` 等开哥审阅同意后合 main、推送并创建；仓库内验证使用本地 path 依赖。[本轮改动与证据](../../docs/feedback-r1-part1.md)。
+固定 tag 为 `ugk_coach_ui-v0.3.0`；开哥已批准与 coach 0.7.0 / trainer 0.5.0 一同交付。旧 tag 保持，仓库内验证也可使用本地 path 依赖。[本轮改动与证据](../../docs/feedback-r1-part1.md)。
 
 ```yaml
 ugk_coach_ui:
   git:
     url: https://github.com/mhgd3250905/ugk-3d-pose-sdk.git
     path: packages/ugk_coach_ui
-    ref: ugk_coach_ui-v0.2.1
+    ref: ugk_coach_ui-v0.3.0
 ```
 
 ```dart

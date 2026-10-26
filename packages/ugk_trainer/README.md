@@ -2,7 +2,7 @@
 
 ## 宿主媒体准备与 v3 逐文件素材
 
-0.5.0 待审候选取消独立准备页与计时门禁。可选注入 `mediaPreparer`，实现 `PoseHubMediaPreparer.prepareAction(action)` 并返回 `PoseHubMediaProgress` / `PoseHubMediaReady(mediaBaseUri:)` / `PoseHubMediaFailed(reason:)` 事件流。宿主负责下载、缓存及 `file.bytes` / `file.sha256` 校验；SDK 编排最多两个并发准备任务、消费最终本地目录，不实现下载缓存。计时与播报照常开始，原始 alpha WebP 随包显示，失败保持静帧并静默重试；视频首帧可呈现后在原位淡入。不注入时保留本地 `mediaBaseUri` 播放。[候选接口与限制](../../docs/feedback-r1-part1.md)。
+0.5.0 取消独立准备页与计时门禁。可选注入 `mediaPreparer`，实现 `PoseHubMediaPreparer.prepareAction(action)` 并返回 `PoseHubMediaProgress` / `PoseHubMediaReady(mediaBaseUri:)` / `PoseHubMediaFailed(reason:)` 事件流。宿主负责下载、缓存及 `file.bytes` / `file.sha256` 校验；SDK 编排最多两个并发准备任务、消费最终本地目录，不实现下载缓存。计时与播报照常开始，原始 alpha WebP 随包显示，失败保持静帧并静默重试；视频首帧可呈现后在原位淡入。不注入时保留本地 `mediaBaseUri` 播放。[接口与限制](../../docs/feedback-r1-part1.md)。
 
 v3 的 657 个媒体文件共 163,351,529 bytes，以 Cloudflare R2 独立对象分发（media.uuugk.win/pack/r1-v3/），GitHub Release 仅保留 catalog 和整包 ZIP 备份；`file.downloadUri` 给出稳定 URL，原 `file.path` 供宿主按原目录落盘。根 catalog 不再用固定 v2 SHA 作准入门槛，而按自身版本、文件清单和语义字段校验。完整签名、事件/取消契约与 URL 规则见[v3 接入指南](../../docs/posehub-app-test-pack-r1-v3.md)。
 

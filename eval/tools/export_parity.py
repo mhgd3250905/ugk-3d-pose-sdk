@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """导出 Python 校验器的判定，给 Dart `test/parity_test.dart` 逐例对照（评测通过率 = 线上通过率）。
 
-内容：validate.py 自测的 24 例 + 补充规则样例（mode 与目录一致、动作 scenes 匹配计划场所），
+内容：validate.py 自测的 25 例 + 补充规则样例（mode 与目录一致、动作 scenes 匹配计划场所），
 每例记录回复、profile、请求条件、期望分类，以及 Python 实际给出的错误分类与每类条数。
 
 用法（仓库根）：python3 eval/tools/export_parity.py [--catalog <catalog.json>] [--out test/fixtures/parity.json]
@@ -36,14 +36,14 @@ def rule_cases(ok):
     return [
         # mode 必须与目录剂量单位一致
         ("mode：计次动作写成计时", "hiplab",
-         mut(lambda p: p["blocks"][1]["items"][3].update(mode="time", workSeconds=30)), {}, {"E_DOSE"}),
+         mut(lambda p: p["blocks"][1]["items"][3].update(mode="time", workSeconds=30)), {"equipment": ["mat"]}, {"E_DOSE"}),
         ("mode：计时动作写成计次（含合法 reps）", "smartfit",
-         mut(lambda p: p["blocks"][2]["items"][0].update(mode="reps", reps=10)), {}, {"E_DOSE"}),
-        ("mode：与目录一致的计次 / 计时混排合法", "smartfit", ok, {}, set()),
+         mut(lambda p: p["blocks"][2]["items"][0].update(mode="reps", reps=10)), {"equipment": ["mat"]}, {"E_DOSE"}),
+        ("mode：与目录一致的计次 / 计时混排合法", "smartfit", ok, {"equipment": ["mat"]}, set()),
         # 动作 scenes 必须匹配计划场所（健身房也接受居家动作）
         ("scenes：居家计划用健身房专属动作（器械已声明）", "smartfit", single("home", chest_c), {"equipment": ["cable"]}, {"E_SCENE"}),
         ("scenes：办公室计划用居家专属站姿动作", "smartfit", single("office", sumo), {"scene": "office"}, {"E_SCENE"}),
-        ("scenes：健身房计划用健身房专属动作合法", "smartfit", single("gym", chest_c), {}, set()),
+        ("scenes：健身房计划用健身房专属动作合法", "smartfit", single("gym", chest_c), {"equipment": ["cable"]}, set()),
         ("scenes：健身房接受居家动作", "smartfit", single("gym", sumo), {}, set()),
         ("scenes：本轮场所为健身房、计划写居家", "smartfit", single("home", sumo), {"scene": "gym"}, {"E_SCENE"}),
     ]
@@ -71,7 +71,7 @@ def tool_cases(ok_plan):
 
     seven = ["glute-max-A", "h-9090-liftoff", "h-adductor-rock", "h-band-hip-ir", "h-band-leg-out", "h-butterfly-active", "h-couch-stretch"]
     dup_item = {"exerciseId": "s-figure4", "mode": "time", "sets": 1, "workSeconds": 30, "perSide": True, "restSeconds": 10}
-    return [
+    cases = [
         ("纯文字", "hiplab", "在家还是办公室？", [], {}, set(), False),
         ("空回复", "hiplab", "", [], {}, {"E_TOOL"}, False),
         ("看动作合法", "hiplab", "这两个动作：", [acts("s-figure4", "s-butterfly")], {}, set(), False),
@@ -106,6 +106,10 @@ def tool_cases(ok_plan):
         ("计划水平与时长都冲突", "hiplab", "x", [plan(lambda p: p.update(level=3, targetMinutes=15))], {"level": 1, "minutes": 30}, {"E_CONTEXT"}, False),
         ("计划与本轮水平时长一致", "hiplab", "x", [plan()], {"level": 1, "minutes": 10}, set(), False),
     ]
+    # Historical tool cases use an explicitly available mat; this is the
+    # same fixture precondition used by the Dart parity test.
+    return [(name, profile, text, calls, {"equipment": ["mat"], **request}, expect, leak)
+            for name, profile, text, calls, request, expect, leak in cases]
 
 
 def main():

@@ -48,7 +48,7 @@ void main() {
     final client = FakeLlmClient([okEnvelope()], pricing: pricing);
     final a = make(client);
     final conv = CoachConversation();
-    final r = await a.ask('睡前开胯 10 分钟', context: const CoachContext(scene: 'home', avoid: {'腰'}), conversation: conv);
+    final r = await a.ask('睡前开胯 10 分钟', context: const CoachContext(scene: 'home', equipment: {'mat'}, avoid: {'腰'}), conversation: conv);
     expect(r.outcome, TurnOutcome.model);
     expect(r.reply!.plan!.source, 'ai');
     expect(r.reply!.plan!.avoid, contains('腰'), reason: '本轮保护部位并入计划');
@@ -63,7 +63,7 @@ void main() {
   test('首轮不合格 → 带错误重写 → 通过', () async {
     final client = FakeLlmClient([badEnvelope(), okEnvelope()]);
     final a = make(client);
-    final r = await a.ask('来一套');
+    final r = await a.ask('来一套', context: const CoachContext(equipment: {'mat'}));
     expect(r.outcome, TurnOutcome.rewritten);
     expect(r.records.map((x) => x.outcome), [CallOutcome.rejected, CallOutcome.rewritten]);
     expect(r.records.first.issueCodes, containsAll([IssueCodes.repsRange, IssueCodes.unknownExercise]));
@@ -93,7 +93,7 @@ void main() {
   });
 
   test('不是 JSON 也走重写', () async {
-    final r = await make(FakeLlmClient(['好的，给你排一个计划', okEnvelope()])).ask('x');
+    final r = await make(FakeLlmClient(['好的，给你排一个计划', okEnvelope()])).ask('x', context: const CoachContext(equipment: {'mat'}));
     expect(r.outcome, TurnOutcome.rewritten);
     expect(r.records.first.issueCodes, [IssueCodes.notJson]);
   });
@@ -181,7 +181,7 @@ void main() {
 
   test('调用记录：App/profile/模型/提示词版本/目录版本/token/耗时/花费', () async {
     final a = make(FakeLlmClient([okEnvelope()], pricing: pricing));
-    final r = await a.ask('x');
+    final r = await a.ask('x', context: const CoachContext(equipment: {'mat'}));
     final rec = r.records.single;
     expect(rec.appId, 'hiplab');
     expect(rec.profileId, 'hiplab');
@@ -205,10 +205,10 @@ void main() {
     final next = Catalog.fromJson(raw);
     final client = FakeLlmClient([okEnvelope(), okEnvelope(), okEnvelope()]);
     final a = make(client, cat: () => current);
-    final r1 = await a.ask('x');
+    final r1 = await a.ask('x', context: const CoachContext(equipment: {'mat'}));
     expect(r1.outcome, TurnOutcome.model);
     current = next;
-    final r2 = await a.ask('x');
+    final r2 = await a.ask('x', context: const CoachContext(equipment: {'mat'}));
     expect(r2.records.first.catalogVersion, '0.1.1');
     expect(r2.records.first.issueCodes, contains(IssueCodes.unknownExercise));
     expect(client.requests[1].messages.first.content, isNot(contains('s-butterfly|')));
@@ -219,8 +219,8 @@ void main() {
     final client = FakeLlmClient([okEnvelope(), okEnvelope()]);
     final a = make(client);
     final conv = CoachConversation();
-    await a.ask('睡前开胯', conversation: conv);
-    await a.ask('再短一点', conversation: conv);
+    await a.ask('睡前开胯', context: const CoachContext(equipment: {'mat'}), conversation: conv);
+    await a.ask('再短一点', context: const CoachContext(equipment: {'mat'}), conversation: conv);
     final msgs = client.requests[1].messages;
     expect(msgs.map((m) => m.role), [LlmRole.system, LlmRole.user, LlmRole.assistant, LlmRole.user]);
     expect(msgs[2].content, contains('"blocks"'));
@@ -229,7 +229,7 @@ void main() {
 
   test('会话可序列化保存', () async {
     final conv = CoachConversation();
-    await make(FakeLlmClient([okEnvelope()])).ask('x', conversation: conv);
+    await make(FakeLlmClient([okEnvelope()])).ask('x', context: const CoachContext(equipment: {'mat'}), conversation: conv);
     final back = CoachConversation.fromJson(jsonDecode(jsonEncode(conv.toJson())) as Map<String, Object?>);
     expect(back.lastPlan!.title, '睡前开胯');
   });
@@ -248,6 +248,6 @@ void main() {
       profile: hip,
       usage: CallbackUsageSink((_) => throw StateError('上报失败')),
     );
-    expect((await a.ask('x')).outcome, TurnOutcome.model);
+    expect((await a.ask('x', context: const CoachContext(equipment: {'mat'}))).outcome, TurnOutcome.model);
   });
 }

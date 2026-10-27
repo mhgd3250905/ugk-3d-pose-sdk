@@ -7,24 +7,29 @@ class CoachContext {
   const CoachContext({
     this.scene,
     this.equipment,
-    this.avoid = const {},
+    Set<String>? avoid,
     this.level,
     this.minutes,
     this.goal,
     this.language = 'zh',
     this.notes = const [],
-  });
+  }) : avoid = avoid ?? const {},
+       hasExplicitAvoid = avoid != null;
 
   /// home / office / gym；null = 未知（模型可追问，校验按 profile.defaultScene）。
   final String? scene;
 
-  /// 用户额外有的器械（场所默认器械由 profile 补上）。
-  /// null = App 不知道（用户可能在话里说了「我有哑铃」）：校验时信任计划声明的 equipment；
-  /// `{}` = 明确没有额外器械。
+  /// 用户或宿主明确可用的器械；null 表示未知，空集合表示明确徒手。
+  /// 校验未知器械时按徒手处理，不把计划声明当作用户拥有的事实。
   final Set<String>? equipment;
 
   /// 要保护的部位（膝 / 腰 / 肩 / 手腕 …）。
   final Set<String> avoid;
+
+  /// Whether the host explicitly supplied [avoid] for this update. An
+  /// explicit empty set can clear host restrictions; an omitted value cannot.
+  /// The persistent source of truth for host limits is the session state.
+  final bool hasExplicitAvoid;
   final int? level;
   final int? minutes;
   final String? goal;
@@ -35,12 +40,16 @@ class CoachContext {
 
   String sceneOr(CoachProfile p) => scene ?? p.defaultScene;
 
-  /// 实际可用器械 = 场所默认 + 用户额外（未知时用 [declared]，即计划自己声明的器械）。
-  /// 返回 null 表示「全部器械」（健身房）。
-  Set<String>? availableEquipment(CoachProfile p, {String? scene, Iterable<String> declared = const []}) {
-    final rule = p.sceneRule(scene ?? sceneOr(p));
-    if (rule.allEquipment) return null;
-    return {...rule.assumedEquipment, ...(equipment ?? declared)};
+  /// 用户明确提供的器械；未知时按徒手处理。
+  ///
+  /// [p]、[scene] 与 [declared] 为旧调用保留；场所和计划声明都不会
+  /// 自动增加可用器械，也不会因健身房场景推定所有器械可用。
+  Set<String>? availableEquipment(
+    CoachProfile p, {
+    String? scene,
+    Iterable<String> declared = const [],
+  }) {
+    return {...?equipment};
   }
 
   CoachContext copyWith({
@@ -55,7 +64,7 @@ class CoachContext {
   }) => CoachContext(
     scene: scene ?? this.scene,
     equipment: equipment ?? this.equipment,
-    avoid: avoid ?? this.avoid,
+    avoid: avoid ?? (hasExplicitAvoid ? this.avoid : null),
     level: level ?? this.level,
     minutes: minutes ?? this.minutes,
     goal: goal ?? this.goal,

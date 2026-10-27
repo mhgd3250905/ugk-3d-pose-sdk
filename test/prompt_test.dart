@@ -11,7 +11,7 @@ import 'support.dart';
 void main() {
   final catalog = loadCatalog();
 
-  group('系统提示词与评测逐字节一致（ai-coach-eval tools/build_prompt.py 金样）', () {
+  group('系统提示词与当前配置金样逐字节一致', () {
     for (final id in ['flarelab', 'hiplab', 'smartfit']) {
       test(id, () {
         final golden = File('test/fixtures/golden/$id.md').readAsStringSync();
@@ -33,8 +33,8 @@ void main() {
 
   test('版本号含内核哈希与 profile 版本', () {
     final v = PromptBuilder().version(loadProfile('hiplab'));
-    expect(kernelRevision, 2);
-    expect(v, startsWith('kernel-v2-$kernelMarkdownHash'));
+    expect(kernelRevision, 3);
+    expect(v, startsWith('kernel-v3-$kernelMarkdownHash'));
     expect(v, endsWith('@hiplab-1'));
   });
 
@@ -76,7 +76,7 @@ void main() {
     test('有已知条件：前置一行', () {
       final m = PromptBuilder().contextMessage(
           hip, catalog, const CoachContext(scene: 'office', equipment: {}, avoid: {'膝'}, minutes: 10), '来一套');
-      expect(m, '（App 已知条件：场所 办公室（office）；除场所默认外没有器械；要保护 膝；时长 10 分钟）\n来一套');
+      expect(m, '（App 已知条件：场所 办公室（office）；没有器械（徒手）；要保护 膝；时长 10 分钟）\n来一套');
     });
   });
 

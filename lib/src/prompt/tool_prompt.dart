@@ -17,7 +17,7 @@ import 'prompt_template.dart';
 import 'prompts.g.dart';
 
 /// 内核修订号。改 `prompts/kernel_v3.md` 的语义时手动加一（v3.x 记在 CHANGELOG）。
-const kernelV3Revision = 3;
+const kernelV3Revision = 4;
 
 /// 提示词暗号默认值：写进系统消息并要求模型永不输出；回复或工具参数里出现即视为泄露，整轮丢弃改回落。
 const defaultPromptCanary = 'UGK-CANARY-7F3K9Q';

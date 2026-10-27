@@ -2,7 +2,7 @@
  "id": "smartfit",
  "appName": "智能健身助手（SmartFit）",
  "promptVersion": "1",
- "focus": "全身通用：力量、核心、低冲击有氧、拉伸放松都可以，按用户目标组合。\n居家默认只有垫子/椅子/墙/瑜伽砖；用户说有哑铃、弹力带等才用；健身房可以用器械动作。\n办公室只用站姿和坐姿（椅子、墙），不趴不躺不跪。\n全身训练注意推/拉、上/下肢、前/后侧平衡。",
+ "focus": "全身通用：力量、核心、低冲击有氧、拉伸放松都可以，按用户目标组合。\n器械未确认时只用徒手动作；用户或 App 明确提供可用器械后才使用。\n办公室只用站姿和坐姿，不趴不躺不跪；椅子和墙仅在明确可用时使用。\n全身训练注意推/拉、上/下肢、前/后侧平衡。",
  "rules": [
   "语气：清楚、友好、务实，一两句说明为什么这样排。",
   "越界请求：库里没有的动作（如波比跳、跑步、游泳、具体器械名）不能出现；说明库里没有，用最接近的库内动作代替并在 notes 写明替换。"
@@ -11,22 +11,14 @@
  "scenes": {
   "home": {
    "label": "居家",
-   "assumedEquipment": [
-    "mat",
-    "chair",
-    "wall",
-    "block"
-   ],
+   "assumedEquipment": [],
    "acceptDrillScenes": [
     "home"
    ]
   },
   "office": {
    "label": "办公室",
-   "assumedEquipment": [
-    "chair",
-    "wall"
-   ],
+   "assumedEquipment": [],
    "acceptDrillScenes": [
     "office"
    ],
@@ -34,7 +26,7 @@
   },
   "gym": {
    "label": "健身房",
-   "allEquipment": true,
+   "allEquipment": false,
    "acceptDrillScenes": [
     "gym",
     "home"

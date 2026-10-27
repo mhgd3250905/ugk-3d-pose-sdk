@@ -52,8 +52,8 @@ python3 eval/tools/eval_tools.py summary --round 1
 | `../test/fixtures/pose-hub-catalog.json` | Pose-Hub catalog v0.1.0 快照（142 个动作），评测默认目录；`--catalog` 可换 |
 | `../schema/catalog.schema.json` | 动作目录 JSON Schema（与 Pose-Hub `catalog/catalog.schema.json` 相同） |
 | `../test/fixtures/golden/*.md` | 三个 App 拼好的完整系统提示词（`build_prompt.py` 产物，SDK 金样） |
-| `../test/fixtures/parity.json` | `export_parity.py` 产物：自测 24 例 + 补充规则样例与 Python 判定，Dart `test/parity_test.dart` 逐例对照 |
-| `tools/validate.py` | 回复校验器（规则对齐 SmartFit `plan_validator.dart` + profile 范围检查），`--selftest` 跑 24 个手写样例 |
+| `../test/fixtures/parity.json` | `export_parity.py` 产物：自测 25 例 + 补充规则样例与 Python 判定，Dart `test/parity_test.dart` 逐例对照 |
+| `tools/validate.py` | 回复校验器（规则对齐 SmartFit `plan_validator.dart` + profile 范围检查），`--selftest` 跑 25 个手写样例 |
 | `tools/build_prompt.py` | 拼提示词：内核 + profile + 按 profile 筛过的紧凑目录表 |
 | `tools/export_parity.py` | 导出 Python 校验结果给 Dart 对照测试 |
 | `tools/eval.py` | 评测：调用模型 → 校验 → 失败回传错误重写一次 → 统计 |
@@ -63,7 +63,7 @@ python3 eval/tools/eval_tools.py summary --round 1
 命令都在仓库根运行：
 
 ```bash
-python3 eval/tools/validate.py --selftest                       # 24/24
+python3 eval/tools/validate.py --selftest                       # 25/25
 python3 eval/tools/export_parity.py                             # 改了 validate.py 后重导 test/fixtures/parity.json
 for p in flarelab hiplab smartfit; do python3 eval/tools/build_prompt.py --profile profiles/$p.json --out test/fixtures/golden/$p.md; done
 python3 eval/tools/eval.py dry                                  # 不调模型走一遍流程

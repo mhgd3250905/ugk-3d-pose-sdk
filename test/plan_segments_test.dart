@@ -115,7 +115,7 @@ void main() {
       expect(parent.workSeconds, isNull);
       final roundTrip = codec.decode(codec.encode(decoded.plan!));
       expect(roundTrip.toJson(), decoded.plan!.toJson());
-      expect(validator.validate(roundTrip).ok, isTrue);
+      expect(validator.validate(roundTrip, const CoachContext(equipment: {'mat'})).ok, isTrue);
       item['segments'] = [];
       expect(codec.decodeStrict(planOf(env)).ok, isFalse);
       final legacy = codec.decode(planOf(env)).blocks[1].items[1];
@@ -246,7 +246,7 @@ void main() {
         PlanBlock(id: b.id, name: b.name, type: b.type, items: [invalid]),
       ],
     );
-    final result = validator.validate(plan);
+    final result = validator.validate(plan, const CoachContext(equipment: {'mat'}));
     expect(result.errors.map((e) => e.code), containsAll([IssueCodes.schema, IssueCodes.workSecondsRange]));
   });
 

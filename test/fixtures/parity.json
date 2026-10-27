@@ -1,7 +1,7 @@
 {
  "generatedBy": "eval/tools/export_parity.py",
  "catalogVersion": "0.1.0",
- "selftestCount": 24,
+ "selftestCount": 25,
  "cases": [
   {
    "group": "selftest",
@@ -104,7 +104,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [],
    "python": {
     "errors": [],
@@ -117,7 +121,11 @@
    "name": "代码块包裹也能解析",
    "profile": "hiplab",
    "reply": "```json\n{\"kind\": \"plan\", \"text\": \"给你排了 10 分钟开胯。\", \"plan\": {\"schemaVersion\": 1, \"source\": \"ai\", \"title\": \"睡前开胯\", \"summary\": \"放松髋部\", \"goal\": \"relax\", \"scene\": \"home\", \"equipment\": [\"mat\"], \"level\": 1, \"targetMinutes\": 10, \"avoid\": [], \"notes\": [], \"safetyNotes\": [], \"blocks\": [{\"id\": \"b1\", \"name\": \"热身\", \"type\": \"warmup\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"n-windshield\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 8, \"perSide\": false, \"restSeconds\": 10}]}, {\"id\": \"b2\", \"name\": \"拉伸\", \"type\": \"main\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 15}, {\"exerciseId\": \"s-kneel-hipflex\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-reverse-clam\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 12, \"perSide\": true, \"restSeconds\": 20}]}, {\"id\": \"b3\", \"name\": \"放松\", \"type\": \"cooldown\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 45, \"perSide\": false, \"restSeconds\": 0}]}]}}\n```",
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [],
    "python": {
     "errors": [],
@@ -137,7 +145,11 @@
      "办公室"
     ]
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [],
    "python": {
     "errors": [],
@@ -153,7 +165,11 @@
     "kind": "reply",
     "text": "建议先就医。"
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [],
    "python": {
     "errors": [],
@@ -166,7 +182,11 @@
    "name": "不是 JSON",
    "profile": "hiplab",
    "reply": "好的，给你排一个计划",
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_JSON"
    ],
@@ -190,7 +210,11 @@
     "kind": "chat",
     "text": "x"
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_JSON"
    ],
@@ -315,7 +339,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_UNKNOWN"
    ],
@@ -440,19 +468,26 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_SCOPE"
    ],
    "python": {
     "errors": [
+     "E_EQUIP",
      "E_SCOPE"
     ],
     "counts": {
+     "E_EQUIP": 1,
      "E_SCOPE": 1
     },
     "messages": [
-     "E_SCOPE 扶凳上斜俯卧撑（h-incline-pushup） 不在本 App 的动作范围"
+     "E_SCOPE 扶凳上斜俯卧撑（h-incline-pushup） 不在本 App 的动作范围",
+     "E_EQUIP 扶凳上斜俯卧撑（h-incline-pushup） 需要椅子/凳子"
     ]
    }
   },
@@ -557,7 +592,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_SIDE"
    ],
@@ -682,7 +721,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [],
    "python": {
     "errors": [],
@@ -791,7 +834,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_DOSE"
    ],
@@ -908,7 +955,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_DOSE"
    ],
@@ -1026,7 +1077,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_DOSE"
    ],
@@ -1143,7 +1198,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_DOSE"
    ],
@@ -1277,7 +1336,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_ORDER"
    ],
@@ -1396,7 +1459,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_AVOID"
    ],
@@ -1515,6 +1582,9 @@
     }
    },
    "request": {
+    "equipment": [
+     "mat"
+    ],
     "avoid": [
      "膝"
     ]
@@ -1637,6 +1707,9 @@
     }
    },
    "request": {
+    "equipment": [
+     "mat"
+    ],
     "scene": "office"
    },
    "expect": [
@@ -1666,7 +1739,7 @@
   },
   {
    "group": "selftest",
-   "name": "缺器械：居家没有哑铃",
+   "name": "缺器械：居家只有瑜伽垫没有哑铃",
    "profile": "smartfit",
    "reply": {
     "kind": "plan",
@@ -1774,7 +1847,9 @@
     }
    },
    "request": {
-    "equipment": []
+    "equipment": [
+     "mat"
+    ]
    },
    "expect": [
     "E_EQUIP"
@@ -1900,7 +1975,12 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat",
+     "leg-extension-machine"
+    ]
+   },
    "expect": [],
    "python": {
     "errors": [],
@@ -2017,7 +2097,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_EQUIP",
     "E_SCENE"
@@ -2080,7 +2164,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_SCENE"
    ],
@@ -2197,7 +2285,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_SCHEMA"
    ],
@@ -2315,7 +2407,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_DOSE"
    ],
@@ -2328,6 +2424,128 @@
     },
     "messages": [
      "E_DOSE targetMinutes 90 超出 3–40"
+    ]
+   }
+  },
+  {
+   "group": "selftest",
+   "name": "器械未知：计划声明垫子不能证明拥有",
+   "profile": "hiplab",
+   "reply": {
+    "kind": "plan",
+    "text": "给你排了 10 分钟开胯。",
+    "plan": {
+     "schemaVersion": 1,
+     "source": "ai",
+     "title": "睡前开胯",
+     "summary": "放松髋部",
+     "goal": "relax",
+     "scene": "home",
+     "equipment": [
+      "mat"
+     ],
+     "level": 1,
+     "targetMinutes": 10,
+     "avoid": [],
+     "notes": [],
+     "safetyNotes": [],
+     "blocks": [
+      {
+       "id": "b1",
+       "name": "热身",
+       "type": "warmup",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "n-windshield",
+         "mode": "reps",
+         "sets": 1,
+         "reps": 8,
+         "perSide": false,
+         "restSeconds": 10
+        }
+       ]
+      },
+      {
+       "id": "b2",
+       "name": "拉伸",
+       "type": "main",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "s-figure4",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "s-butterfly",
+         "mode": "time",
+         "sets": 2,
+         "workSeconds": 40,
+         "perSide": false,
+         "restSeconds": 15
+        },
+        {
+         "exerciseId": "s-kneel-hipflex",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 40,
+         "perSide": true,
+         "restSeconds": 10
+        },
+        {
+         "exerciseId": "h-reverse-clam",
+         "mode": "reps",
+         "sets": 2,
+         "reps": 12,
+         "perSide": true,
+         "restSeconds": 20
+        }
+       ]
+      },
+      {
+       "id": "b3",
+       "name": "放松",
+       "type": "cooldown",
+       "rounds": 1,
+       "restBetweenRoundsSeconds": 0,
+       "items": [
+        {
+         "exerciseId": "h-knee-hug",
+         "mode": "time",
+         "sets": 1,
+         "workSeconds": 45,
+         "perSide": false,
+         "restSeconds": 0
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "request": {},
+   "expect": [
+    "E_EQUIP"
+   ],
+   "python": {
+    "errors": [
+     "E_EQUIP"
+    ],
+    "counts": {
+     "E_EQUIP": 6
+    },
+    "messages": [
+     "E_EQUIP 仰卧雨刷式（n-windshield） 需要瑜伽垫",
+     "E_EQUIP 仰卧 4 字拉伸（s-figure4） 需要瑜伽垫",
+     "E_EQUIP 蝴蝶式（s-butterfly） 需要瑜伽垫",
+     "E_EQUIP 半跪髋屈肌拉伸（s-kneel-hipflex） 需要瑜伽垫",
+     "E_EQUIP 侧卧反向蚌式（h-reverse-clam） 需要瑜伽垫",
+     "E_EQUIP 仰卧抱膝（h-knee-hug） 需要瑜伽垫"
     ]
    }
   },
@@ -2433,7 +2651,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_DOSE"
    ],
@@ -2551,7 +2773,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_DOSE"
    ],
@@ -2668,7 +2894,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [],
    "python": {
     "errors": [],
@@ -2843,7 +3073,11 @@
      ]
     }
    },
-   "request": {},
+   "request": {
+    "equipment": [
+     "cable"
+    ]
+   },
    "expect": [],
    "python": {
     "errors": [],

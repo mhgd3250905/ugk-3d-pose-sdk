@@ -1,4 +1,4 @@
-// 评测对照之外的规则细节：mode / 场所两条错误规则的路径与代码、警告、可选严格模式、器械信任、扩展规则、计划保存序列化。
+// 评测对照之外的规则细节：mode / 场所的路径与代码、警告、可选严格模式、器械来源、扩展规则和计划保存序列化。
 import 'dart:convert';
 
 import 'package:test/test.dart';
@@ -10,7 +10,9 @@ void main() {
   final catalog = loadCatalog();
   final hip = loadProfile('hiplab');
   TrainingPlan planFrom(Map<String, Object?> env) => const EnvelopeParser().parse(jsonEncode(env)).reply!.plan!;
-  ValidationReport v(Map<String, Object?> env, [CoachContext c = const CoachContext(), PlanValidator? val]) =>
+  // The standard HipLab fixture uses a mat; unrelated rules are tested with
+  // that equipment explicitly supplied by the host, not inferred from a plan.
+  ValidationReport v(Map<String, Object?> env, [CoachContext c = const CoachContext(equipment: {'mat'}), PlanValidator? val]) =>
       (val ?? PlanValidator(catalog: catalog, profile: hip)).validate(planFrom(env), c);
 
   test('合法计划无错误、无警告', () {
@@ -25,7 +27,7 @@ void main() {
     final loose = v(e);
     expect(loose.ok, isTrue);
     expect(loose.warnings.map((w) => w.code), contains(IssueCodes.doseRange));
-    final strict = v(e, const CoachContext(), PlanValidator(catalog: catalog, profile: hip, enforceDrillDoseRange: true));
+    final strict = v(e, const CoachContext(equipment: {'mat'}), PlanValidator(catalog: catalog, profile: hip, enforceDrillDoseRange: true));
     expect(strict.errors.single.code, IssueCodes.workSecondsRange);
   });
 
@@ -41,7 +43,7 @@ void main() {
   test('难度高于用户 1 级以上给警告', () {
     final e = okEnvelope();
     addItem(e, 1, {'exerciseId': 'h-9090-liftoff', 'mode': 'reps', 'sets': 1, 'reps': 8, 'perSide': true, 'restSeconds': 10});
-    final r = v(e, const CoachContext(level: 1));
+    final r = v(e, const CoachContext(equipment: {'mat'}, level: 1));
     expect(r.warnings.map((w) => w.code), contains(IssueCodes.levelHigh));
   });
 
@@ -51,15 +53,16 @@ void main() {
     expect(v(e).warnings.map((w) => w.code), contains(IssueCodes.duration));
   });
 
-  test('器械：App 不知道时信任计划声明；明确没有时判错', () {
+  test('器械：未知和明确徒手均拒绝计划自称器材，全部明确提供才通过', () {
     final sf = loadProfile('smartfit');
     final e = okEnvelope();
     addItem(e, 1, {'exerciseId': 'h-db-curl', 'mode': 'reps', 'sets': 2, 'reps': 10, 'perSide': false, 'restSeconds': 30});
     planOf(e)['equipment'] = ['mat', 'dumbbell'];
     final val = PlanValidator(catalog: catalog, profile: sf);
-    expect(val.validate(planFrom(e)).ok, isTrue);
+    expect(val.validate(planFrom(e)).errorCategories, {'E_EQUIP'});
     expect(val.validate(planFrom(e), const CoachContext(equipment: {})).errorCategories, {'E_EQUIP'});
-    expect(val.validate(planFrom(e), const CoachContext(equipment: {'dumbbell'})).ok, isTrue);
+    expect(val.validate(planFrom(e), const CoachContext(equipment: {'dumbbell'})).errorCategories, {'E_EQUIP'});
+    expect(val.validate(planFrom(e), const CoachContext(equipment: {'mat', 'dumbbell'})).ok, isTrue);
   });
 
   test('plan.equipment 漏写给警告', () {
@@ -77,7 +80,7 @@ void main() {
   });
 
   test('计划场所与本轮场所不符', () {
-    expect(v(okEnvelope(), const CoachContext(scene: 'office')).errors.map((e) => e.code), contains(IssueCodes.scene));
+    expect(v(okEnvelope(), const CoachContext(scene: 'office', equipment: {'mat'})).errors.map((e) => e.code), contains(IssueCodes.scene));
   });
 
   test('mode 必须与目录剂量单位一致：两个方向都判 mode_mismatch（E_DOSE），带路径与动作 id', () {
@@ -105,13 +108,13 @@ void main() {
     final home = val.validate(planFrom(one('home', chestC)), const CoachContext(equipment: {'cable'}));
     expect(home.errors.single.code, IssueCodes.scene);
     expect(home.errors.single.exerciseId, 'chest-C');
-    expect(val.validate(planFrom(one('gym', chestC))).ok, isTrue);
+    expect(val.validate(planFrom(one('gym', chestC)), const CoachContext(equipment: {'cable'})).ok, isTrue);
     expect(val.validate(planFrom(one('gym', sumo))).ok, isTrue);
     expect(val.validate(planFrom(one('office', sumo)), const CoachContext(scene: 'office')).errors.single.code, IssueCodes.scene);
   });
 
   test('缺 title + 错 goal：结构解析与规则校验各报一次，不重复（与 validate.py 一致）', () {
-    final r = check(okEnvelope()..['plan'] = ({...planOf(okEnvelope())}..remove('title')..['goal'] = 'fun'), hip, catalog);
+    final r = check(okEnvelope()..['plan'] = ({...planOf(okEnvelope())}..remove('title')..['goal'] = 'fun'), hip, catalog, const CoachContext(equipment: {'mat'}));
     expect([for (final i in r.issues) if (i.isError) i.code], unorderedEquals([IssueCodes.schema, IssueCodes.goal]));
   });
 
@@ -128,7 +131,7 @@ void main() {
     final val = PlanValidator(catalog: catalog, profile: hip, extraRules: [
       (plan, _, _) => [if (plan.items.length > 5) const PlanIssue('custom_max5', '本 App 最多 5 个动作')],
     ]);
-    expect(val.validate(planFrom(okEnvelope())).errors.single.code, 'custom_max5');
+    expect(val.validate(planFrom(okEnvelope()), const CoachContext(equipment: {'mat'})).errors.single.code, 'custom_max5');
   });
 
   test('目录更新后复核已存计划：动作被移除 → unknown_exercise', () {
@@ -137,7 +140,7 @@ void main() {
     (raw['drills']! as List).removeWhere((d) => (d as Map)['id'] == 's-butterfly');
     raw['version'] = '0.1.1';
     final next = Catalog.fromJson(raw);
-    final r = PlanValidator(catalog: next, profile: hip).validate(plan);
+    final r = PlanValidator(catalog: next, profile: hip).validate(plan, const CoachContext(equipment: {'mat'}));
     expect(r.errors.single.code, IssueCodes.unknownExercise);
   });
 

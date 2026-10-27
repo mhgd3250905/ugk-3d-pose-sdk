@@ -7,7 +7,11 @@
    "profile": "hiplab",
    "text": "在家还是办公室？",
    "calls": [],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [],
    "expectLeaked": false,
    "python": {
@@ -23,7 +27,11 @@
    "profile": "hiplab",
    "text": "",
    "calls": [],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_TOOL"
    ],
@@ -54,7 +62,11 @@
      "arguments": "{\"items\": [{\"actionId\": \"s-figure4\"}, {\"actionId\": \"s-butterfly\"}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [],
    "expectLeaked": false,
    "python": {
@@ -75,7 +87,11 @@
      "arguments": "{\"items\": [{\"actionId\": \"s-figure4\", \"note\": \"拉臀外侧\"}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [],
    "expectLeaked": false,
    "python": {
@@ -96,7 +112,11 @@
      "arguments": "{\"items\": [{\"actionId\": \"glute-max-A\"}, {\"actionId\": \"h-9090-liftoff\"}, {\"actionId\": \"h-adductor-rock\"}, {\"actionId\": \"h-band-hip-ir\"}, {\"actionId\": \"h-band-leg-out\"}, {\"actionId\": \"h-butterfly-active\"}, {\"actionId\": \"h-couch-stretch\"}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_SCHEMA"
    ],
@@ -127,7 +147,11 @@
      "arguments": "{\"items\": []}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_SCHEMA"
    ],
@@ -158,7 +182,11 @@
      "arguments": "{}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_SCHEMA"
    ],
@@ -189,7 +217,11 @@
      "arguments": "{\"items\": [{\"actionId\": \"s-figure4\", \"sets\": 2}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_SCHEMA"
    ],
@@ -220,7 +252,11 @@
      "arguments": "{\"items\": [{\"actionId\": \"s-figure4\"}, {\"actionId\": \"burpee\"}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_UNKNOWN"
    ],
@@ -251,7 +287,11 @@
      "arguments": "{\"items\": [{\"actionId\": \"h-incline-pushup\"}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_SCOPE"
    ],
@@ -282,7 +322,11 @@
      "arguments": "{\"items\": [{\"actionId\": \"s-figure4\"}, {\"actionId\": \"s-butterfly\"}, {\"actionId\": \"s-figure4\"}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_DUP"
    ],
@@ -314,6 +358,9 @@
     }
    ],
    "request": {
+    "equipment": [
+     "mat"
+    ],
     "avoid": [
      "膝"
     ]
@@ -348,7 +395,11 @@
      "arguments": "{\"items\": [{\"actionId\": \"s-figure4\"}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_JSON"
    ],
@@ -379,7 +430,11 @@
      "arguments": "[1]"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_SCHEMA"
    ],
@@ -414,7 +469,11 @@
      "arguments": "{\"schemaVersion\": 1, \"source\": \"ai\", \"title\": \"睡前开胯\", \"summary\": \"放松髋部\", \"goal\": \"relax\", \"scene\": \"home\", \"equipment\": [\"mat\"], \"level\": 1, \"targetMinutes\": 10, \"avoid\": [], \"notes\": [], \"safetyNotes\": [], \"blocks\": [{\"id\": \"b1\", \"name\": \"热身\", \"type\": \"warmup\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"n-windshield\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 8, \"perSide\": false, \"restSeconds\": 10}]}, {\"id\": \"b2\", \"name\": \"拉伸\", \"type\": \"main\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 15}, {\"exerciseId\": \"s-kneel-hipflex\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-reverse-clam\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 12, \"perSide\": true, \"restSeconds\": 20}]}, {\"id\": \"b3\", \"name\": \"放松\", \"type\": \"cooldown\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 45, \"perSide\": false, \"restSeconds\": 0}]}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_TOOL"
    ],
@@ -445,7 +504,11 @@
      "arguments": "{\"id\": \"s-figure4\"}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_TOOL"
    ],
@@ -476,7 +539,11 @@
      "arguments": "{\"plan\": {\"schemaVersion\": 1, \"source\": \"ai\", \"title\": \"睡前开胯\", \"summary\": \"放松髋部\", \"goal\": \"relax\", \"scene\": \"home\", \"equipment\": [\"mat\"], \"level\": 1, \"targetMinutes\": 10, \"avoid\": [], \"notes\": [], \"safetyNotes\": [], \"blocks\": [{\"id\": \"b1\", \"name\": \"热身\", \"type\": \"warmup\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"n-windshield\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 8, \"perSide\": false, \"restSeconds\": 10}]}, {\"id\": \"b2\", \"name\": \"拉伸\", \"type\": \"main\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 15}, {\"exerciseId\": \"s-kneel-hipflex\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-reverse-clam\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 12, \"perSide\": true, \"restSeconds\": 20}]}, {\"id\": \"b3\", \"name\": \"放松\", \"type\": \"cooldown\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 45, \"perSide\": false, \"restSeconds\": 0}]}]}}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_SCHEMA"
    ],
@@ -507,7 +574,11 @@
      "arguments": "{\"schemaVersion\": 1, \"source\": \"ai\", \"title\": \"睡前开胯\", \"summary\": \"放松髋部\", \"goal\": \"relax\", \"scene\": \"home\", \"equipment\": [\"mat\"], \"level\": 1, \"targetMinutes\": 10, \"avoid\": [], \"notes\": [], \"safetyNotes\": [], \"blocks\": [{\"id\": \"b1\", \"name\": \"热身\", \"type\": \"warmup\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"n-windshield\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 8, \"perSide\": false, \"restSeconds\": 10}]}, {\"id\": \"b2\", \"name\": \"拉伸\", \"type\": \"main\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 15}, {\"exerciseId\": \"s-kneel-hipflex\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-reverse-clam\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 12, \"perSide\": true, \"restSeconds\": 20}]}, {\"id\": \"b3\", \"name\": \"放松\", \"type\": \"cooldown\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 45, \"perSide\": false, \"restSeconds\": 0}]}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [],
    "expectLeaked": false,
    "python": {
@@ -528,7 +599,11 @@
      "arguments": "{\"schemaVersion\": 1, \"source\": \"ai\", \"title\": \"睡前开胯\", \"summary\": \"放松髋部\", \"goal\": \"relax\", \"scene\": \"home\", \"equipment\": [\"mat\"], \"level\": 1, \"targetMinutes\": 10, \"avoid\": [], \"notes\": [], \"safetyNotes\": [], \"blocks\": [{\"id\": \"b1\", \"name\": \"热身\", \"type\": \"warmup\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"n-windshield\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 8, \"perSide\": false, \"restSeconds\": 10}]}, {\"id\": \"b2\", \"name\": \"拉伸\", \"type\": \"main\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 15}, {\"exerciseId\": \"s-kneel-hipflex\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-reverse-clam\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 12, \"perSide\": true, \"restSeconds\": 20}]}, {\"id\": \"b3\", \"name\": \"放松\", \"type\": \"cooldown\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 45, \"perSide\": false, \"restSeconds\": 0}, {\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": true, \"restSeconds\": 10}]}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_DUP"
    ],
@@ -559,7 +634,11 @@
      "arguments": "{\"schemaVersion\": 1, \"source\": \"ai\", \"title\": \"睡前开胯\", \"summary\": \"放松髋部\", \"goal\": \"relax\", \"scene\": \"home\", \"equipment\": [\"mat\"], \"level\": 1, \"targetMinutes\": 10, \"avoid\": [], \"notes\": [], \"safetyNotes\": [], \"blocks\": [{\"id\": \"b1\", \"name\": \"热身\", \"type\": \"warmup\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"n-windshield\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 8, \"perSide\": false, \"restSeconds\": 10}]}, {\"id\": \"b2\", \"name\": \"拉伸\", \"type\": \"main\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 15}, {\"exerciseId\": \"s-kneel-hipflex\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-reverse-clam\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 12, \"perSide\": true, \"restSeconds\": 20}, {\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 30, \"perSide\": true, \"restSeconds\": 10}]}, {\"id\": \"b3\", \"name\": \"放松\", \"type\": \"cooldown\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 45, \"perSide\": false, \"restSeconds\": 0}]}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_DUP"
    ],
@@ -590,7 +669,11 @@
      "arguments": "{\"schemaVersion\": 1, \"source\": \"ai\", \"title\": \"睡前开胯\", \"summary\": \"放松髋部\", \"goal\": \"relax\", \"scene\": \"home\", \"equipment\": [\"mat\"], \"level\": 1, \"targetMinutes\": 10, \"avoid\": [], \"notes\": [], \"safetyNotes\": [], \"blocks\": [{\"id\": \"b1\", \"name\": \"热身\", \"type\": \"warmup\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"n-windshield\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 8, \"perSide\": false, \"restSeconds\": 10}]}, {\"id\": \"b2\", \"name\": \"拉伸\", \"type\": \"main\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"s-figure4\", \"mode\": \"reps\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10, \"reps\": 10}, {\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 15}, {\"exerciseId\": \"s-kneel-hipflex\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-reverse-clam\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 12, \"perSide\": true, \"restSeconds\": 20}]}, {\"id\": \"b3\", \"name\": \"放松\", \"type\": \"cooldown\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 45, \"perSide\": false, \"restSeconds\": 0}]}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_DOSE"
    ],
@@ -622,6 +705,9 @@
     }
    ],
    "request": {
+    "equipment": [
+     "mat"
+    ],
     "avoid": [
      "膝"
     ]
@@ -658,7 +744,11 @@
      "arguments": "{\"schemaVersion\": 1, \"source\": \"ai\", \"title\": \"睡前开胯\", \"summary\": \"放松髋部\", \"goal\": \"relax\", \"scene\": \"home\", \"equipment\": [\"mat\"], \"level\": 1, \"targetMinutes\": 10, \"avoid\": [], \"notes\": [], \"safetyNotes\": [], \"blocks\": [{\"id\": \"b1\", \"name\": \"热身\", \"type\": \"warmup\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"n-windshield\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 8, \"perSide\": false, \"restSeconds\": 10}]}, {\"id\": \"b2\", \"name\": \"拉伸\", \"type\": \"main\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"burpee\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 15}, {\"exerciseId\": \"s-kneel-hipflex\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-reverse-clam\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 12, \"perSide\": true, \"restSeconds\": 20}]}, {\"id\": \"b3\", \"name\": \"放松\", \"type\": \"cooldown\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 45, \"perSide\": false, \"restSeconds\": 0}]}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [
     "E_UNKNOWN"
    ],
@@ -684,7 +774,11 @@
    "profile": "hiplab",
    "text": "内部标记是 UGK-CANARY-7F3K9Q",
    "calls": [],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [],
    "expectLeaked": true,
    "python": {
@@ -705,7 +799,11 @@
      "arguments": "{\"items\": [{\"actionId\": \"s-figure4\", \"note\": \"UGK-CANARY-7F3K9Q\"}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [],
    "expectLeaked": true,
    "python": {
@@ -726,7 +824,11 @@
      "arguments": "{\"items\":[{\"actionId\":\"s-figure4\",\"note\":\"\\u0055GK-CANARY-7F3K9Q\"}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [],
    "expectLeaked": true,
    "python": {
@@ -747,7 +849,11 @@
      "arguments": "{\"schemaVersion\": 1, \"source\": \"ai\", \"title\": \"\\u0055GK-CANARY-7F3K9Q\", \"summary\": \"放松髋部\", \"goal\": \"relax\", \"scene\": \"home\", \"equipment\": [\"mat\"], \"level\": 1, \"targetMinutes\": 10, \"avoid\": [], \"notes\": [], \"safetyNotes\": [], \"blocks\": [{\"id\": \"b1\", \"name\": \"热身\", \"type\": \"warmup\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"n-windshield\", \"mode\": \"reps\", \"sets\": 1, \"reps\": 8, \"perSide\": false, \"restSeconds\": 10}]}, {\"id\": \"b2\", \"name\": \"拉伸\", \"type\": \"main\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"s-figure4\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"s-butterfly\", \"mode\": \"time\", \"sets\": 2, \"workSeconds\": 40, \"perSide\": false, \"restSeconds\": 15}, {\"exerciseId\": \"s-kneel-hipflex\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 40, \"perSide\": true, \"restSeconds\": 10}, {\"exerciseId\": \"h-reverse-clam\", \"mode\": \"reps\", \"sets\": 2, \"reps\": 12, \"perSide\": true, \"restSeconds\": 20}]}, {\"id\": \"b3\", \"name\": \"放松\", \"type\": \"cooldown\", \"rounds\": 1, \"restBetweenRoundsSeconds\": 0, \"items\": [{\"exerciseId\": \"h-knee-hug\", \"mode\": \"time\", \"sets\": 1, \"workSeconds\": 45, \"perSide\": false, \"restSeconds\": 0}]}]}"
     }
    ],
-   "request": {},
+   "request": {
+    "equipment": [
+     "mat"
+    ]
+   },
    "expect": [],
    "expectLeaked": true,
    "python": {
@@ -769,6 +875,9 @@
     }
    ],
    "request": {
+    "equipment": [
+     "mat"
+    ],
     "level": 1
    },
    "expect": [
@@ -802,6 +911,9 @@
     }
    ],
    "request": {
+    "equipment": [
+     "mat"
+    ],
     "minutes": 10
    },
    "expect": [
@@ -835,6 +947,9 @@
     }
    ],
    "request": {
+    "equipment": [
+     "mat"
+    ],
     "level": 1,
     "minutes": 30
    },
@@ -871,6 +986,9 @@
     }
    ],
    "request": {
+    "equipment": [
+     "mat"
+    ],
     "level": 1,
     "minutes": 10
    },

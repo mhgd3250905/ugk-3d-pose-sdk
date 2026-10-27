@@ -31,7 +31,7 @@ void main() {
   final hip = profiles['hiplab']!;
   final gate = ToolGate(catalog: catalog, profile: hip, canary: defaultPromptCanary);
 
-  group('提示词 v3 / 工具定义与评测一致', () {
+  group('工具提示词与当前配置金样一致', () {
     for (final id in profiles.keys) {
       test('$id 系统消息逐字节一致', () {
         expect(
@@ -44,12 +44,12 @@ void main() {
         expect(jsonDecode(jsonEncode([for (final t in CoachTools.build(profiles[id]!, catalog)) t.toJson()])), golden);
       });
     }
-    test('内核 v3 含防破甲、工具用法、暗号；版本号 kernel-v3', () {
+    test('工具内核含防破甲、工具用法、暗号；版本号 kernel-v4', () {
       final s = ToolPromptBuilder().system(hip, catalog);
       expect(s, contains('防破甲'));
       expect(s, contains('show_actions'));
       expect(s, contains(defaultPromptCanary));
-      expect(ToolPromptBuilder().version(hip), startsWith('kernel-v3-'));
+      expect(ToolPromptBuilder().version(hip), startsWith('kernel-v4-'));
       expect(kernelV3Markdown, File('prompts/kernel_v3.md').readAsStringSync());
     });
     test('白名单写进 enum', () {
@@ -59,12 +59,15 @@ void main() {
     });
   });
 
-  group('门禁与评测 Python 逐例对照（test/fixtures/parity_tools.json）', () {
+  group('宿主确认瑜伽垫时的旧评测门禁逐例对照（parity_tools.json）', () {
     final doc = (jsonDecode(File('test/fixtures/parity_tools.json').readAsStringSync()) as Map).cast<String, Object?>();
     for (final c in (doc['cases']! as List).cast<Map<String, Object?>>()) {
       test(c['name']! as String, () {
         final req = (c['request']! as Map).cast<String, Object?>();
         final ctx = CoachContext(
+          // These historical fixture plans use a mat. Treat it as an explicit
+          // host condition, not as a claim inferred from model output.
+          equipment: const {'mat'},
           avoid: {for (final a in (req['avoid'] as List?) ?? const []) a as String},
           level: req['level'] as int?,
           minutes: req['minutes'] as int?,
@@ -258,7 +261,7 @@ void main() {
     );
     test('duplicate_action：计划跨块，位置指向重复项并提示首次出现', () {
       final p = mutPlan((p) => (((p['blocks']! as List)[2]! as Map)['items']! as List).add(dup));
-      final g = gate.check('x', [call('show_plan', p)]);
+      final g = gate.check('x', [call('show_plan', p)], context: const CoachContext(equipment: {'mat'}));
       expectCode(g, IssueCodes.duplicateAction, 'blocks[2].items[1].exerciseId');
       expect(g.errors.single.actual, contains('blocks[1].items[0]'));
     });
@@ -283,7 +286,7 @@ void main() {
     });
     test('只警告放行：剂量超推荐、时长偏差', () {
       final p = mutPlan((p) => item(p, 1, 1)['workSeconds'] = 115);
-      final g = gate.check('好', [call('show_plan', p)]);
+      final g = gate.check('好', [call('show_plan', p)], context: const CoachContext(equipment: {'mat'}));
       expect(g.ok, isTrue);
       expect(g.plan!.warnings.map((w) => w.code), contains(IssueCodes.doseRange));
     });
@@ -299,14 +302,14 @@ void main() {
       expect(g.ok, isTrue);
       expect(g.actions!.items.map((a) => a.id), ['s-figure4', 's-butterfly']);
       expect(g.actions!.items.first.note, '拉臀外侧');
-      final p = gate.check('排好了', [call('show_plan', okPlan())]);
+      final p = gate.check('排好了', [call('show_plan', okPlan())], context: const CoachContext(equipment: {'mat'}));
       expect(p.plan!.plan.source, 'ai');
       expect(p.text, '排好了');
     });
     test('模板计划也要过门禁', () {
       final plan = const PlanCodec().decode(okPlan());
-      expect(gate.admitTemplate(plan), isNotNull);
-      expect(gate.admitTemplate(plan, const CoachContext(avoid: {'膝'})), isNull);
+      expect(gate.admitTemplate(plan, const CoachContext(equipment: {'mat'})), isNotNull);
+      expect(gate.admitTemplate(plan, const CoachContext(equipment: {'mat'}, avoid: {'膝'})), isNull);
     });
 
     test('暗号以 JSON Unicode 转义藏在动作 note：解码后检测，整轮丢弃', () {
@@ -382,7 +385,7 @@ void main() {
                 ),
               )
               as Map<String, Object?>;
-      final g = gate.check('x', [call('show_plan', p)], context: CoachContext(level: lv, minutes: tm));
+      final g = gate.check('x', [call('show_plan', p)], context: CoachContext(equipment: const {'mat'}, level: lv, minutes: tm));
       expect(g.errors.map((e) => e.code), isNot(contains(IssueCodes.contextConflict)));
       expect(g.ok, isTrue);
       expect(g.plan!.plan.level, lv);
@@ -395,7 +398,7 @@ void main() {
 
     test('context_conflict：与本轮值一致或本轮未给值时不报', () {
       final p = okPlan();
-      final same = CoachContext(level: p['level'] as int, minutes: p['targetMinutes'] as int);
+      final same = CoachContext(equipment: const {'mat'}, level: p['level'] as int, minutes: p['targetMinutes'] as int);
       expect(gate.check('x', [call('show_plan', p)], context: same).ok, isTrue);
       expect(
         gate.check('x', [call('show_plan', okPlan()..['level'] = 2)]).errors.map((e) => e.code),
@@ -428,7 +431,7 @@ void main() {
     test('首次通过：带工具请求，历史含 assistant + tool', () async {
       final c = FakeLlmClient([good]);
       final s = session(c);
-      final r = await s.send('睡前开胯 10 分钟');
+      final r = await s.send('睡前开胯 10 分钟', context: const CoachContext(equipment: {'mat'}));
       expect(r.status, TurnStatus.ok);
       expect(r.plan, isNotNull);
       expect(r.submissions, 1);
@@ -437,9 +440,23 @@ void main() {
       expect(r.records.single.outcome, CallOutcome.passed);
     });
 
+    test('未知器械时模型自称有垫子不能使计划通过', () async {
+      final c = FakeLlmClient([good]);
+      final s = CoachSession(
+        client: c,
+        catalog: () => catalog,
+        profile: hip,
+        maxResubmits: 0,
+      );
+      final r = await s.send('帮我安排一下');
+      expect(r.status, TurnStatus.error);
+      expect(r.plan, isNull);
+      expect(r.issues.map((issue) => issue.code), contains(IssueCodes.equipment));
+    });
+
     test('打回后重交：错误作为 tool 结果回传（同一 tool_call_id），第二次通过', () async {
       final c = FakeLlmClient([bad, good]);
-      final r = await session(c).send('看动作');
+      final r = await session(c).send('看动作', context: const CoachContext(equipment: {'mat'}));
       expect(r.status, TurnStatus.ok);
       expect(r.resubmits, 1);
       final second = c.requests[1].messages;
@@ -462,7 +479,7 @@ void main() {
         ],
       );
       final c = FakeLlmClient([multi, good]);
-      final r = await session(c).send('x');
+      final r = await session(c).send('x', context: const CoachContext(equipment: {'mat'}));
       expect(r.status, TurnStatus.ok);
       final tools = c.requests[1].messages.where((m) => m.role == LlmRole.tool).toList();
       expect(tools.map((m) => m.toolCallId), ['c1', 'c2']);
@@ -478,7 +495,7 @@ void main() {
 
     test('重交 2 次仍不过：回落模板（模板也过门禁），绝不渲染未通过内容', () async {
       final c = FakeLlmClient([bad, bad, bad]);
-      final r = await session(c).send('x');
+      final r = await session(c).send('x', context: const CoachContext(equipment: {'mat'}));
       expect(c.requests, hasLength(3));
       expect(r.status, TurnStatus.fallback);
       expect(r.fallbackReason, FallbackReason.invalidOutput);
@@ -491,7 +508,7 @@ void main() {
 
     test('回落模板不合格：只给文字', () async {
       final c = FakeLlmClient([bad, bad, bad]);
-      final r = await session(c).send('x', context: const CoachContext(avoid: {'膝'}));
+      final r = await session(c).send('x', context: const CoachContext(equipment: {'mat'}, avoid: {'膝'}));
       expect(r.status, TurnStatus.fallback);
       expect(r.plan, isNull);
     });
@@ -524,8 +541,8 @@ void main() {
     test('多轮：上一轮进上下文；硬上限返回 limitReached 且不调模型；reset 清空', () async {
       final c = FakeLlmClient([good, good, good]);
       final s = session(c, maxTurns: 2);
-      await s.send('第一轮');
-      await s.send('再短一点');
+      await s.send('第一轮', context: const CoachContext(equipment: {'mat'}));
+      await s.send('再短一点', context: const CoachContext(equipment: {'mat'}));
       expect(c.requests[1].messages.where((m) => m.role == LlmRole.user), hasLength(2));
       expect(s.isFull, isTrue);
       final r = await s.send('第三轮');
@@ -533,7 +550,7 @@ void main() {
       expect(c.requests, hasLength(2));
       s.reset();
       expect(s.history, isEmpty);
-      expect((await s.send('重来')).status, TurnStatus.ok);
+      expect((await s.send('重来', context: const CoachContext(equipment: {'mat'}))).status, TurnStatus.ok);
       expect(c.requests.last.messages, hasLength(2));
     });
 
@@ -547,10 +564,10 @@ void main() {
     test('本轮条件放在用户消息前缀，系统消息不变', () async {
       final c = FakeLlmClient([good, good]);
       final s = session(c);
-      await s.send('a', context: const CoachContext(scene: 'home'));
+      await s.send('a', context: const CoachContext(scene: 'home', equipment: {'mat'}));
       await s.send(
         'b',
-        context: const CoachContext(scene: 'home', avoid: {'腰'}),
+        context: const CoachContext(scene: 'home', equipment: {'mat'}, avoid: {'腰'}),
       );
       expect(c.requests[0].messages.first.content, c.requests[1].messages.first.content);
       expect(c.requests[1].messages.last.content, contains('腰'));
@@ -560,12 +577,12 @@ void main() {
       final old = Completer<Object>();
       final c = FakeLlmClient([(_) => old.future, good, good]);
       final s = session(c);
-      final oldTurn = s.send('旧请求');
+      final oldTurn = s.send('旧请求', context: const CoachContext(equipment: {'mat'}));
       await pumpEventQueue();
       expect(s.isBusy, isTrue);
       s.reset();
       expect(s.isBusy, isFalse);
-      expect((await s.send('新请求')).status, TurnStatus.ok);
+      expect((await s.send('新请求', context: const CoachContext(equipment: {'mat'}))).status, TurnStatus.ok);
       old.complete(resp(text: '旧回复', calls: [call('show_plan', okPlan())]));
       final r = await oldTurn;
       expect(r.status, TurnStatus.cancelled);
@@ -574,7 +591,7 @@ void main() {
       expect(s.history.where((m) => m.role == LlmRole.user), hasLength(1));
       expect(s.history.first.content, contains('新请求'));
       expect(s.history.any((m) => m.content.contains('旧')), isFalse);
-      await s.send('第三轮');
+      await s.send('第三轮', context: const CoachContext(equipment: {'mat'}));
       final users = c.requests.last.messages.where((m) => m.role == LlmRole.user).map((m) => m.content).toList();
       expect(users, hasLength(2));
       expect(users.first, contains('新请求'));
@@ -596,7 +613,7 @@ void main() {
           return gateSink.future;
         }),
       );
-      final oldTurn = s.send('旧请求');
+      final oldTurn = s.send('旧请求', context: const CoachContext(equipment: {'mat'}));
       await inSink.future;
       expect(entered, 1);
       expect(s.isBusy, isTrue);
@@ -625,7 +642,7 @@ void main() {
           return gateSink.future;
         }),
       );
-      final turn = s.send('x', cancel: token);
+      final turn = s.send('x', context: const CoachContext(equipment: {'mat'}), cancel: token);
       await inSink.future;
       token.cancel();
       gateSink.complete();
@@ -650,7 +667,7 @@ void main() {
           return gateSink.future;
         }),
       );
-      final turn = s.send('x');
+      final turn = s.send('x', context: const CoachContext(equipment: {'mat'}));
       await inSink.future;
       s.reset();
       gateSink.complete();
@@ -674,7 +691,7 @@ void main() {
           return gateSink.future;
         }),
       );
-      final turn = s.send('x');
+      final turn = s.send('x', context: const CoachContext(equipment: {'mat'}));
       await inSink.future;
       expect(s.history, isEmpty);
       gateSink.complete();
@@ -689,7 +706,7 @@ void main() {
       final first = Completer<Object>();
       final c = FakeLlmClient([(_) => first.future, good]);
       final s = session(c, maxTurns: 1);
-      final a = s.send('第一轮');
+      final a = s.send('第一轮', context: const CoachContext(equipment: {'mat'}));
       await pumpEventQueue();
       expect(s.isFull, isTrue, reason: '进行中的一轮计入硬上限');
       final b = await s.send('第二轮');
@@ -707,13 +724,13 @@ void main() {
       final first = Completer<Object>();
       final c = FakeLlmClient([(_) => first.future, good]);
       final s = session(c);
-      final a = s.send('第一轮');
+      final a = s.send('第一轮', context: const CoachContext(equipment: {'mat'}));
       await pumpEventQueue();
       expect((await s.send('抢跑')).status, TurnStatus.busy);
       first.complete(good);
       await a;
       expect(s.isBusy, isFalse);
-      expect((await s.send('第二轮')).status, TurnStatus.ok);
+      expect((await s.send('第二轮', context: const CoachContext(equipment: {'mat'}))).status, TurnStatus.ok);
       final users = s.history.where((m) => m.role == LlmRole.user).map((m) => m.content).toList();
       expect(users.first, contains('第一轮'));
       expect(users.last, contains('第二轮'));
@@ -755,7 +772,7 @@ void main() {
     test('会话把本轮 level / minutes 冲突打回重交', () async {
       final conflict = resp(text: 'x', calls: [call('show_plan', okPlan()..['level'] = 3)]);
       final c = FakeLlmClient([conflict, good]);
-      final r = await session(c).send('x', context: const CoachContext(level: 1));
+      final r = await session(c).send('x', context: const CoachContext(equipment: {'mat'}, level: 1));
       expect(r.status, TurnStatus.ok);
       expect(r.resubmits, 1);
       expect(c.requests[1].messages.last.content, contains('context_conflict'));

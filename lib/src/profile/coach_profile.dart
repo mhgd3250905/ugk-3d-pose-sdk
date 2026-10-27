@@ -61,7 +61,7 @@ class DrillSelector {
   };
 }
 
-/// 场所规则。默认值与 Pose-Hub taxonomy.rules 一致。
+/// 场所规则。内置场所不假设用户拥有任何器械。
 class SceneRule {
   const SceneRule({
     this.label,
@@ -109,9 +109,9 @@ class SceneRule {
   };
 
   static const defaults = <String, SceneRule>{
-    'home': SceneRule(label: '居家', assumedEquipment: {'mat', 'chair', 'wall', 'block'}, acceptDrillScenes: {'home'}),
-    'office': SceneRule(label: '办公室', assumedEquipment: {'chair', 'wall'}, acceptDrillScenes: {'office'}, forbidFloor: true),
-    'gym': SceneRule(label: '健身房', allEquipment: true, acceptDrillScenes: {'gym', 'home'}),
+    'home': SceneRule(label: '居家', acceptDrillScenes: {'home'}),
+    'office': SceneRule(label: '办公室', acceptDrillScenes: {'office'}, forbidFloor: true),
+    'gym': SceneRule(label: '健身房', acceptDrillScenes: {'gym', 'home'}),
   };
 }
 

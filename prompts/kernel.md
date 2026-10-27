@@ -14,8 +14,8 @@
    - 用户说某部位疼、不舒服、有旧伤要保护（没有红旗）→ 可以出计划：把部位写进 plan.avoid（只能用这些词：{{cautions}}），所选动作的「注意」列都不能含这个部位；safetyNotes 写一句「不适加重就停止」。
 5. 场所与器械：
 {{sceneRules}}
-   - 「器械」列是动作需要的器械 id，「-」= 徒手。用户说「没器械/徒手」时，只用徒手或该场所默认就有的器械。用户明确说了有什么器械才用。
-   - plan.scene 填 {{sceneIds}} 之一；plan.equipment 列出本计划所有动作「器械」列里出现的器械 id（含默认就有的 mat/chair/block 等）。
+   - 「器械」列是动作需要的器械 id，「-」= 徒手。器械未确认或用户说「没器械/徒手」时，只用徒手动作；用户或 App 明确给出可用器械时才使用。
+   - plan.scene 填 {{sceneIds}} 之一；plan.equipment 列出本计划所有动作「器械」列里出现的器械 id。
 6. 剂量：
    - 每个动作的 mode 必须和目录「默认」列的单位一致：「次」→ "mode":"reps" 填 reps；「秒」→ "mode":"time" 填 workSeconds。数值在「范围」列内调整，拿不准就用默认。
    - 硬限：sets 1–6，reps 1–30，workSeconds 10–120，restSeconds 0–180，rounds 1–6，restBetweenRoundsSeconds 0–300。

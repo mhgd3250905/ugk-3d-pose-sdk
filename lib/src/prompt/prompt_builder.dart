@@ -154,14 +154,7 @@ class PromptBuilder {
     for (final e in profile.scenes.entries) {
       final sid = e.key, r = e.value;
       final label = r.label ?? sid;
-      final String eq;
-      if (r.allEquipment) {
-        eq = '默认全部器械都有';
-      } else if (r.assumedEquipment.isNotEmpty) {
-        eq = '默认有 ${r.assumedEquipment.map((q) => '$q（${tax.equipmentLabel(q)}）').join('、')}';
-      } else {
-        eq = '默认没有器械';
-      }
+      const eq = '器械未确认时只用徒手';
       final acc = (r.acceptDrillScenes.isEmpty ? [sid] : r.acceptDrillScenes).map((s) => _sceneShort[s] ?? s).join('、');
       final extra = r.forbidFloor ? '；不能用着地体位（体位带 * 的：仰卧/俯/四足/跪/侧卧）' : '';
       lines.add('   - $sid（$label）：只用「场所」列含「$acc」的动作；$eq$extra。');
@@ -182,7 +175,7 @@ class PromptBuilder {
     final parts = <String>[
       if (c.scene != null) '场所 ${profile.sceneRule(c.scene!).label ?? _sceneLabels[c.scene] ?? c.scene}（${c.scene}）',
       if (c.equipment != null)
-        c.equipment!.isEmpty ? '除场所默认外没有器械' : '另有器械 ${c.equipment!.map((q) => '$q（${tax.equipmentLabel(q)}）').join('、')}',
+        c.equipment!.isEmpty ? '没有器械（徒手）' : '可用器械 ${c.equipment!.map((q) => '$q（${tax.equipmentLabel(q)}）').join('、')}',
       if (c.avoid.isNotEmpty) '要保护 ${c.avoid.join('、')}',
       if (c.level != null) '水平 ${c.level}',
       if (c.minutes != null) '时长 ${c.minutes} 分钟',

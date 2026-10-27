@@ -186,7 +186,7 @@ void main() {
       expect(conversation.canAnswer(first.id), isTrue);
       expect(conversation.state.messages, hasLength(2));
 
-      await conversation.answerChoices(first.id, ['腿部', '肩颈']);
+      await conversation.answerChoices(first.id, ['腿部', '肩颈'], context: const CoachContext(equipment: {'mat'}));
       expect(identical(conversation.agent, agent), isTrue);
       expect(agent.turnCount, 2);
       expect(client.requests, hasLength(2));

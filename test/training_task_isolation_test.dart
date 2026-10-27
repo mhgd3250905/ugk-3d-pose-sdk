@@ -11,6 +11,38 @@ LlmResponse _tool(String name, Map<String, Object?> args) => LlmResponse(
   toolCalls: [LlmToolCall(id: 'test', name: name, arguments: jsonEncode(args))],
 );
 
+LlmResponse _set(Map<String, Object?> fields) =>
+    _tool(AgentTools.setParams, {'fields': fields});
+
+Map<String, Object?> _user(Object value, String quote) => {
+  'value': value,
+  'source': 'user',
+  'quote': quote,
+};
+
+LlmResponse _ask([String question = '准备在哪儿练？']) => _tool(AgentTools.askUser, {
+  'question': question,
+  'mode': 'form',
+  'fields': [
+    {
+      'key': 'scene',
+      'label': '场景',
+      'options': ['家里', '办公室'],
+    },
+    {
+      'key': 'equipment',
+      'label': '器械',
+      'options': ['徒手', '瑜伽垫'],
+      'multiple': true,
+    },
+    {
+      'key': 'minutes',
+      'label': '时长',
+      'options': ['5 分钟', '10 分钟'],
+    },
+  ],
+});
+
 void main() {
   final catalog = loadCatalog();
   final profile = loadProfile('hiplab');
@@ -33,107 +65,121 @@ void main() {
     return a;
   }
 
-  AskUserField field(AskUserQuestion q, String key) =>
-      q.fields.firstWhere((f) => f.key == key);
+  test('new focus retains host conditions and safety restrictions', () async {
+    final client = FakeLlmClient([
+      '已记录条件。',
+      _set({
+        'goal': _user(['body.inner_thigh'], '大腿内侧'),
+      }),
+      '好的。',
+    ]);
+    final a = agent(client);
+    await a.send(
+      '想训练',
+      context: const CoachContext(
+        scene: 'home',
+        equipment: {'mat'},
+        minutes: 10,
+        avoid: {'knee'},
+        level: 2,
+        notes: ['screening-kept'],
+      ),
+    );
+    await a.send('练练大腿内侧');
+    final params = a.sessionState.params;
+    expect(params['scene']!.value, 'home');
+    expect(params['equipment']!.value, ['equip.mat']);
+    expect(params['minutes']!.value, 10);
+    expect(params['level']!.value, 2);
+    expect(params['limits']!.value, contains('limit.knee'));
+    expect(params['goal']!.value, ['body.inner_thigh']);
+    expect(params['goal']!.source, 'user');
+  });
 
-  test(
-    'new focus resets old host fields but displays them as previous',
-    () async {
-      final client = FakeLlmClient(['无法提供', '无法提供']);
-      final a = agent(client);
-      await a.send('在家徒手10分钟做一个训练计划');
-      final result = await a.send(
-        '练练大腿内侧',
-        context: const CoachContext(
-          scene: 'home',
-          equipment: {'mat'},
-          minutes: 10,
-          avoid: {'knee'},
-          level: 2,
-          goal: 'core',
-          notes: ['screening-kept'],
-        ),
-      );
-      final q = result.question!;
-      expect(q.isConfirmation, isTrue);
-      expect(q.focus, '大腿内侧');
-      expect(q.fields.map((f) => f.key), ['scene', 'equipment', 'minutes']);
-      expect(field(q, 'scene').previousSelections, ['家里']);
-      expect(field(q, 'equipment').previousSelections, ['瑜伽垫']);
-      expect(field(q, 'minutes').previousSelections, ['10 分钟']);
-      expect(a.lastConfirmedForm, isNull);
-      await a.send(
-        '确认',
-        context: const CoachContext(
-          avoid: {'knee'},
-          level: 2,
-          goal: 'core',
-          notes: ['screening-kept'],
-        ),
-        confirmedForm: {
-          'scene': ['家里'],
-          'equipment': ['徒手'],
-          'minutes': ['5 分钟'],
-        },
-      );
-      final prompt = client.requests.last.messages.first.content;
-      expect(prompt, contains('"avoid":["knee"]'));
-      expect(prompt, contains('"level":2'));
-      expect(prompt, contains('"goal":"core"'));
-      expect(prompt, contains('screening-kept'));
-      expect(a.lastConfirmedForm!['minutes'], ['5 分钟']);
-    },
-  );
-
-  test('editing the current plan retains its original conditions', () async {
-    final client = FakeLlmClient(['无法提供', '无法提供']);
+  test('editing current duration retains the other user conditions', () async {
+    final client = FakeLlmClient([
+      _set({
+        'scene': _user('home', '在家'),
+        'equipment': _user(<String>[], '徒手'),
+        'minutes': _user(10, '10分钟'),
+      }),
+      '记录好了。',
+      _set({'minutes': _user(15, '15分钟')}),
+      '时间已更新。',
+    ]);
     final a = agent(client);
     await a.send('在家徒手10分钟做一个训练计划');
     await a.send('把这个计划改成15分钟');
-    final prompt = client.requests.last.messages.first.content;
-    expect(prompt, contains('"scene":"home"'));
-    expect(prompt, contains('"equipment":[]'));
-    expect(prompt, contains('"minutes":15'));
-  });
-
-  test('a new objective resets conditions without the word plan', () async {
-    final client = FakeLlmClient(['无法提供', '减脂指减少体脂。']);
-    final a = agent(client);
-    await a.send('在家徒手10分钟训练全身');
-    final next = await a.send('我想减脂');
-    expect(next.question?.isConfirmation, isTrue);
-    expect(next.question?.focus, '减脂');
-    expect(next.question?.fields.map((field) => field.key), [
-      'scene',
-      'equipment',
-      'minutes',
-    ]);
-    final explanation = await a.send('减脂是什么');
-    expect(explanation.question, isNull);
-    expect(explanation.plan, isNull);
-    expect(explanation.text, contains('减少体脂'));
+    expect(a.sessionState.params['scene']!.value, 'home');
+    expect(a.sessionState.params['equipment']!.value, isEmpty);
+    expect(a.sessionState.params['minutes']!.value, 15);
   });
 
   test(
-    'routine verb plus opening hips is a new plan without the word plan',
+    'a new objective retains known conditions and can be explained',
     () async {
-      final a = agent(FakeLlmClient([]));
-      final result = await a.send('排十分钟居家开胯');
-      expect(result.question?.isConfirmation, isTrue);
-      expect(result.question?.focus, '髋');
-      expect(field(result.question!, 'scene').preselected, ['家里']);
-      expect(field(result.question!, 'minutes').preselected, ['10 分钟']);
+      final a = agent(
+        FakeLlmClient([
+          _set({'scene': _user('home', '在家'), 'minutes': _user(10, '10分钟')}),
+          '记录好了。',
+          _set({
+            'goal': _user(['purpose.stretch'], '拉伸'),
+          }),
+          '记下新目标。',
+          '拉伸可以轻柔进行。',
+        ]),
+      );
+      await a.send('在家10分钟训练全身');
+      await a.send('我想拉伸');
+      expect(a.sessionState.params['scene']!.value, 'home');
+      expect(a.sessionState.params['minutes']!.value, 10);
+      expect(a.sessionState.params['goal']!.value, ['purpose.stretch']);
+      final explanation = await a.send('拉伸是什么');
+      expect(explanation.question, isNull);
+      expect(explanation.plan, isNull);
+      expect(explanation.text, contains('轻柔'));
     },
   );
 
-  test('unrelated chat does not consume a pending confirmation', () async {
-    final a = agent(FakeLlmClient(['你好。', '无法提供该方案。']));
-    final first = await a.send('想练肩颈');
-    expect(first.question?.isConfirmation, isTrue);
-    final chat = await a.send('你好');
-    expect(chat.question, isNull);
-    expect(chat.plan, isNull);
-    final confirmed = await a.send(
+  test(
+    'model may ask about a routine without local confirmation injection',
+    () async {
+      final a = agent(FakeLlmClient([_ask()]));
+      final result = await a.send('排十分钟居家开胯');
+      expect(result.question!.mode, AskUserMode.form);
+      expect(result.question!.isConfirmation, isFalse);
+      expect(a.pendingConfirmation, same(result.question));
+    },
+  );
+
+  test(
+    'unrelated chat retains a pending model question until parameter progress',
+    () async {
+      final a = agent(
+        FakeLlmClient([
+          _ask(),
+          '你好。',
+          _set({'minutes': _user(10, '10分钟')}),
+          '记下时间。',
+        ]),
+      );
+      final first = await a.send('想练肩颈');
+      final chat = await a.send('你好');
+      expect(chat.question, isNull);
+      expect(chat.plan, isNull);
+      expect(a.pendingConfirmation, same(first.question));
+      await a.send('10分钟');
+      expect(a.sessionState.params['minutes']!.value, 10);
+      expect(a.pendingConfirmation, isNull);
+    },
+  );
+
+  test('dismissing a question invalidates stale structured replies', () async {
+    final a = agent(FakeLlmClient([_ask()]));
+    expect((await a.send('想练肩颈')).question, isNotNull);
+    a.dismissConfirmation();
+    expect(a.pendingConfirmation, isNull);
+    final stale = await a.send(
       '确认',
       confirmedForm: {
         'scene': ['家里'],
@@ -141,127 +187,117 @@ void main() {
         'minutes': ['10 分钟'],
       },
     );
-    expect(confirmed.status, TurnStatus.ok);
-    expect(a.lastConfirmedForm?['scene'], ['家里']);
-    expect(a.lastConfirmedForm?['minutes'], ['10 分钟']);
+    expect(stale.status, TurnStatus.error);
+    expect(stale.plan, isNull);
+  });
+
+  test('changing body focus retains known context across turns', () async {
+    final a = agent(
+      FakeLlmClient([
+        _set({'scene': _user('home', '在家'), 'minutes': _user(10, '10分钟')}),
+        '已记录。',
+        _ask('肩颈有不适吗？'),
+        '可以轻柔活动肩颈。',
+      ]),
+    );
+    await a.send('在家10分钟训练全身');
+    final next = await a.send('把这套换成肩颈');
+    expect(next.question!.question, '肩颈有不适吗？');
+    expect(a.sessionState.params['scene']!.value, 'home');
+    expect(a.sessionState.params['minutes']!.value, 10);
+    final explain = await a.send('肩颈动作怎么做');
+    expect(explain.question, isNull);
+    expect(explain.plan, isNull);
   });
 
   test(
-    'dismissing a confirmation invalidates stale structured replies',
+    'new model question replaces pending question without a round limit',
     () async {
-      final a = agent(FakeLlmClient([]));
-      expect((await a.send('想练肩颈')).question, isNotNull);
-      a.dismissConfirmation();
-      expect(a.pendingConfirmation, isNull);
-      expect(a.questionsAsked, 0);
-      final stale = await a.send(
-        '确认',
-        confirmedForm: {
-          'scene': ['家里'],
-          'equipment': ['徒手'],
-          'minutes': ['10 分钟'],
-        },
+      final a = agent(
+        FakeLlmClient([
+          _ask('第一个问题？'),
+          _ask('第二个问题？'),
+          _ask('第三个问题？'),
+          _ask('第四个问题？'),
+        ]),
       );
-      expect(stale.status, TurnStatus.error);
-      expect(stale.plan, isNull);
-    },
-  );
-
-  test(
-    'changing to another body region starts a new task, not a plan edit',
-    () async {
-      final a = agent(FakeLlmClient(['无法提供', '可以轻柔活动肩颈。']));
-      await a.send('在家徒手10分钟训练全身');
-      final next = await a.send('把这套换成肩颈');
-      expect(next.question?.isConfirmation, isTrue);
-      expect(next.question?.focus, '肩颈');
-      final explain = await a.send('肩颈动作怎么做');
-      expect(explain.question, isNull);
-      expect(explain.plan, isNull);
-    },
-  );
-
-  test(
-    'a new plan can replace a pending question and gets its own budget',
-    () async {
-      final a = agent(FakeLlmClient([]));
-      expect((await a.send('帮我做个训练组')).question, isNotNull);
-      final result = await a.send('再做一套新训练组');
-      expect(result.question?.fields.map((f) => f.key), [
-        'scene',
-        'equipment',
-        'minutes',
-      ]);
-      expect(a.questionsAsked, 1);
+      final first = (await a.send('帮我做个训练组')).question!;
+      final second = (await a.send('再做一套新训练组')).question!;
+      expect(second.question, '第二个问题？');
+      expect(second, isNot(same(first)));
+      expect(a.pendingConfirmation, same(second));
+      expect((await a.send('在家')).question!.question, '第三个问题？');
+      final fourth = (await a.send('十分钟')).question!;
+      expect(fourth.question, '第四个问题？');
+      expect(a.pendingConfirmation, same(fourth));
     },
   );
 
   for (final enabled in [false, true]) {
-    test('memory values are suggestions only when enabled=$enabled', () async {
-      final store = InMemoryUserMemoryStore([
-        MemoryEntry(MemoryKind.scene, '在家', at: DateTime.utc(2026)),
-        MemoryEntry(MemoryKind.equipment, '有瑜伽垫', at: DateTime.utc(2026)),
-        MemoryEntry(MemoryKind.schedule, '10分钟', at: DateTime.utc(2026)),
-      ]);
-      final a = agent(FakeLlmClient([]), memoryStore: store, memory: enabled);
-      final q = (await a.send('帮我练练髋部')).question!;
-      expect(q.fields.length, 3);
-      expect(field(q, 'scene').previousSelections, enabled ? ['家里'] : isEmpty);
-      expect(
-        field(q, 'equipment').previousSelections,
-        enabled ? ['瑜伽垫'] : isEmpty,
-      );
-      expect(
-        field(q, 'minutes').previousSelections,
-        enabled ? ['10 分钟'] : isEmpty,
-      );
-    });
+    test(
+      'memory is visible only when enabled and does not set conditions: $enabled',
+      () async {
+        final store = InMemoryUserMemoryStore([
+          MemoryEntry(MemoryKind.scene, '在家', at: DateTime.utc(2026)),
+          MemoryEntry(MemoryKind.equipment, '有瑜伽垫', at: DateTime.utc(2026)),
+          MemoryEntry(MemoryKind.schedule, '10分钟', at: DateTime.utc(2026)),
+        ]);
+        final client = FakeLlmClient([_ask()]);
+        final a = agent(client, memoryStore: store, memory: enabled);
+        await a.send('帮我练练髋部');
+        final system = client.requests.single.messages.first.content;
+        expect(system.contains('有瑜伽垫'), enabled);
+        expect(a.sessionState.params.containsKey('equipment'), isFalse);
+      },
+    );
   }
 
-  test('scene equipment follows actual eligible catalog actions', () async {
-    final smart = loadProfile('smartfit');
-    for (final sample in [
-      ('在家有哑铃做肩部训练', '家里', catalog.taxonomy.equipmentLabel('dumbbell')),
-      ('在办公室有弹力带做肩部训练', '办公室', catalog.taxonomy.equipmentLabel('band')),
-    ]) {
-      final a = CoachAgent(
-        client: FakeLlmClient([]),
-        catalog: () => catalog,
-        profile: smart,
-        enableUserMemory: false,
-      );
-      addTearDown(a.dispose);
-      final q = (await a.send(sample.$1)).question!;
-      final equipment = field(q, 'equipment');
-      expect(equipment.optionsByScene[sample.$2], contains(sample.$3));
-      expect(equipment.preselected, contains(sample.$3));
-      expect(q.defaultSelections['equipment'], contains(sample.$3));
-    }
-  });
+  test(
+    'reported equipment enters ledger only from current user quotation',
+    () async {
+      for (final sample in [
+        ('在家有哑铃', 'home', '哑铃', 'equip.dumbbell'),
+        ('在办公室有弹力带', 'office', '弹力带', 'equip.band'),
+      ]) {
+        final a = CoachAgent(
+          client: FakeLlmClient([
+            _set({
+              'scene': _user(sample.$2, sample.$1),
+              'equipment': _user([sample.$4], sample.$3),
+            }),
+            '记录好了。',
+          ]),
+          catalog: () => catalog,
+          profile: loadProfile('smartfit'),
+          enableUserMemory: false,
+        );
+        addTearDown(a.dispose);
+        await a.send(sample.$1);
+        expect(a.sessionState.params['scene']!.value, sample.$2);
+        expect(a.sessionState.params['equipment']!.value, [sample.$4]);
+        expect(a.sessionState.params['equipment']!.source, 'user');
+      }
+    },
+  );
 
   test(
-    'explicit scene equipment stays selectable and defaults validate',
+    'explicit equipment answer is recorded, without assumed scene equipment',
     () async {
-      final a = CoachAgent(
-        client: FakeLlmClient([]),
-        catalog: () => catalog,
-        profile: loadProfile('smartfit'),
-        enableUserMemory: false,
+      final a = agent(
+        FakeLlmClient([
+          _ask(),
+          _set({
+            'equipment': _user(['equip.mat'], '瑜伽垫'),
+          }),
+          '记下瑜伽垫。',
+        ]),
       );
-      addTearDown(a.dispose);
-      final q = (await a.send('在办公室有瑜伽垫做肩部训练')).question!;
-      final equipment = field(q, 'equipment');
-      expect(equipment.optionsByScene['办公室'], contains('瑜伽垫'));
-      expect(equipment.preselected, ['瑜伽垫']);
-      expect(
-        confirmedTrainingContext(
-          q,
-          q.defaultSelections,
-          const CoachContext(),
-          catalog,
-        ),
-        isNotNull,
-      );
+      final question = (await a.send('在办公室训练')).question!;
+      final equipment = question.fields.firstWhere((f) => f.key == 'equipment');
+      expect(equipment.options, contains('瑜伽垫'));
+      expect(a.sessionState.params.containsKey('equipment'), isFalse);
+      await a.send('我有瑜伽垫');
+      expect(a.sessionState.params['equipment']!.value, ['equip.mat']);
     },
   );
 
@@ -557,13 +593,13 @@ void main() {
   });
 
   test('red flags persist across tasks until an explicit correction', () async {
-    final a = agent(FakeLlmClient(['建议先就医。', '请先咨询医生。']));
+    final a = agent(FakeLlmClient(['建议先就医。', '请先咨询医生。', _ask()]));
     expect((await a.send('腿麻，想做训练计划')).question, isNull);
     final blocked = await a.send('那给我排个训练计划');
     expect(blocked.question, isNull);
     expect(blocked.plan, isNull);
     final corrected = await a.send('刚才说错了，没有腿麻，请给我做训练计划');
-    expect(corrected.question?.isConfirmation, isTrue);
+    expect(corrected.question?.mode, AskUserMode.form);
   });
 
   test('unadmitted fallback plan is an error, never successful text', () async {

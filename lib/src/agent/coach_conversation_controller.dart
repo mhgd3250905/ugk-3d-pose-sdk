@@ -224,7 +224,7 @@ class CoachConversationController {
     CancelToken? cancel,
   }) {
     if (!canAnswer(questionId)) return Future.value();
-    return _send(text, context: context, cancel: cancel);
+    return _send(text, context: context, cancel: cancel, explicitAnswer: true);
   }
 
   Future<CoachTurnResult?> answerChoices(
@@ -240,6 +240,7 @@ class CoachConversationController {
       context: context,
       cancel: cancel,
       choices: ordered,
+      explicitAnswer: true,
     );
   }
 
@@ -295,6 +296,7 @@ class CoachConversationController {
       cancel: cancel,
       formAnswers: orderedAnswers,
       confirmedForm: question.isConfirmation ? orderedAnswers : null,
+      explicitAnswer: true,
     );
   }
 
@@ -333,6 +335,7 @@ class CoachConversationController {
       confirmedForm: question.isConfirmation
           ? question.defaultSelections
           : null,
+      explicitAnswer: true,
     );
   }
 
@@ -353,6 +356,7 @@ class CoachConversationController {
     List<String> choices = const [],
     Map<String, List<String>> formAnswers = const {},
     Map<String, List<String>>? confirmedForm,
+    bool explicitAnswer = false,
   }) async {
     final text = input.trim();
     if (_disposed || _state.isWaiting || text.isEmpty) return null;
@@ -364,10 +368,13 @@ class CoachConversationController {
     final token = CancelToken();
     final question = _state.pendingQuestion;
     final originalMessages = _state.messages;
-    final confirmationSubmitted =
-        question?.question?.isConfirmation == true && confirmedForm != null;
-    final submittedMessages = confirmationSubmitted
-        ? (_closedMessages(question!.id, formAnswers: formAnswers)..add(
+    final answerSubmitted = explicitAnswer && question != null;
+    final submittedMessages = answerSubmitted
+        ? (_closedMessages(
+            question.id,
+            choices: choices,
+            formAnswers: formAnswers,
+          )..add(
             CoachConversationMessage(
               id: _nextId(),
               at: _clock(),
@@ -426,9 +433,7 @@ class CoachConversationController {
         _active = null;
         _publish(
           CoachConversationState._(
-            messages: confirmationSubmitted
-                ? originalMessages
-                : _state.messages,
+            messages: answerSubmitted ? originalMessages : _state.messages,
             pendingQuestion: question,
             lastResult: result,
             error: result.error,
@@ -439,12 +444,20 @@ class CoachConversationController {
       final closedForm = question?.question?.isConfirmation == true
           ? agent.lastConfirmedForm ?? formAnswers
           : formAnswers;
-      final keepsConfirmation =
-          question?.question?.isConfirmation == true &&
-          identical(agent.pendingConfirmation, question!.question);
-      final messages = keepsConfirmation
+      final keepsQuestion =
+          !answerSubmitted &&
+          question != null &&
+          result.question == null &&
+          result.plan == null &&
+          result.actions == null &&
+          identical(agent.pendingConfirmation, question.question);
+      if (answerSubmitted &&
+          identical(agent.pendingConfirmation, question.question)) {
+        agent.dismissConfirmation();
+      }
+      final messages = keepsQuestion
           ? List<CoachConversationMessage>.of(originalMessages)
-          : confirmationSubmitted
+          : answerSubmitted
           ? List<CoachConversationMessage>.of(_state.messages)
           : _closedMessages(
               question?.id,
@@ -452,7 +465,7 @@ class CoachConversationController {
               formAnswers: closedForm,
             );
       final at = _clock();
-      if (!confirmationSubmitted || keepsConfirmation) {
+      if (!answerSubmitted) {
         messages.add(
           CoachConversationMessage(
             id: _nextId(),
@@ -494,7 +507,7 @@ class CoachConversationController {
         CoachConversationState._(
           messages: messages,
           pendingQuestion: admittedQuestion == null
-              ? (keepsConfirmation ? question : null)
+              ? (keepsQuestion ? question : null)
               : assistant,
           lastResult: result,
           error: result.error,
@@ -504,15 +517,20 @@ class CoachConversationController {
     } on Object catch (error) {
       if (current()) {
         _active = null;
-        final keepsConfirmation =
-            question?.question?.isConfirmation == true &&
-            identical(agent.pendingConfirmation, question!.question);
-        final messages = keepsConfirmation
+        final keepsQuestion =
+            !answerSubmitted &&
+            question != null &&
+            identical(agent.pendingConfirmation, question.question);
+        if (answerSubmitted &&
+            identical(agent.pendingConfirmation, question.question)) {
+          agent.dismissConfirmation();
+        }
+        final messages = keepsQuestion
             ? List<CoachConversationMessage>.of(originalMessages)
-            : confirmationSubmitted
+            : answerSubmitted
             ? List<CoachConversationMessage>.of(_state.messages)
             : _closedMessages(question?.id);
-        if (!confirmationSubmitted || keepsConfirmation) {
+        if (!answerSubmitted) {
           messages.add(
             CoachConversationMessage(
               id: _nextId(),
@@ -533,7 +551,7 @@ class CoachConversationController {
         _publish(
           CoachConversationState._(
             messages: messages,
-            pendingQuestion: keepsConfirmation ? question : null,
+            pendingQuestion: keepsQuestion ? question : null,
             error: error,
           ),
         );
@@ -548,7 +566,10 @@ class CoachConversationController {
   /// Closes a live question when an App-only route consumes the interaction.
   void invalidateQuestion() {
     if (_disposed || _state.pendingQuestion == null) return;
-    if (_state.pendingQuestion!.question?.isConfirmation == true) {
+    if (identical(
+      agent.pendingConfirmation,
+      _state.pendingQuestion!.question,
+    )) {
       agent.dismissConfirmation();
     }
     _publish(

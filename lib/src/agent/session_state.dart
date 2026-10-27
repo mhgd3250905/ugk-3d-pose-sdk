@@ -167,6 +167,7 @@ class CoachSessionState {
     Set<String> seenActionIds = const {},
     List<String> picks = const [],
     Map<String, List<CoachPlanVersion>> plans = const {},
+    Map<String, Object?> hostValues = const {},
   }) : userTurns = List.unmodifiable(userTurns),
        params = Map.unmodifiable(params),
        seenActionIds = Set.unmodifiable(seenActionIds),
@@ -174,7 +175,8 @@ class CoachSessionState {
        plans = Map.unmodifiable({
          for (final entry in plans.entries)
            entry.key: List<CoachPlanVersion>.unmodifiable(entry.value),
-       });
+       }),
+       hostValues = _freezeMap(hostValues);
 
   final List<CoachUserTurn> userTurns;
   final CoachTaskState? task;
@@ -182,6 +184,10 @@ class CoachSessionState {
   final Set<String> seenActionIds;
   final List<String> picks;
   final Map<String, List<CoachPlanVersion>> plans;
+
+  /// Last values explicitly supplied by the host, used to distinguish a new
+  /// host update from a repeated context after a user adjustment.
+  final Map<String, Object?> hostValues;
 
   CoachSessionState copyWith({
     List<CoachUserTurn>? userTurns,
@@ -191,6 +197,7 @@ class CoachSessionState {
     Set<String>? seenActionIds,
     List<String>? picks,
     Map<String, List<CoachPlanVersion>>? plans,
+    Map<String, Object?>? hostValues,
   }) => CoachSessionState(
     userTurns: userTurns ?? this.userTurns,
     task: clearTask ? null : task ?? this.task,
@@ -198,6 +205,7 @@ class CoachSessionState {
     seenActionIds: seenActionIds ?? this.seenActionIds,
     picks: picks ?? this.picks,
     plans: plans ?? this.plans,
+    hostValues: hostValues ?? this.hostValues,
   );
 
   CoachSessionState appendUserTurn(String text) => copyWith(
@@ -222,6 +230,7 @@ class CoachSessionState {
       for (final entry in plans.entries)
         entry.key: [for (final version in entry.value) version.toJson()],
     },
+    if (hostValues.isNotEmpty) 'hostValues': _thaw(hostValues),
   };
 
   factory CoachSessionState.fromJson(Map<String, Object?> json) =>
@@ -248,6 +257,7 @@ class CoachSessionState {
                 CoachPlanVersion.fromJson(_map(version)),
             ],
         },
+        hostValues: _map(json['hostValues'] ?? const {}),
       );
 }
 

@@ -43,30 +43,92 @@ Map<String, Object?> _plan(
   ],
 };
 Map<String, Object?> _initial() => _plan([
-  _item('s-kneel-hipflex', 'time', seconds: 120, perSide: true),
-  _item('s-butterfly', 'time', sets: 3, seconds: 120, rest: 30),
+  _item(
+    's-kneel-hipflex',
+    'time',
+    sets: 2,
+    seconds: 60,
+    perSide: true,
+    rest: 60,
+  ),
+  _item('s-butterfly', 'time', sets: 2, seconds: 80, rest: 60),
 ]);
 Map<String, Object?> _replacement() => _plan([
-  _item('h-squat', 'reps', sets: 3, reps: 30, rest: 20),
-  _item('adductors-A', 'reps', reps: 30, perSide: true),
+  _item('h-squat', 'reps', sets: 4, reps: 18, rest: 30),
+  _item('adductors-A', 'reps', sets: 3, reps: 8, perSide: true, rest: 20),
 ], equipment: []);
 Map<String, Object?> _replaceSecond() => _plan([
-  _item('s-kneel-hipflex', 'time', seconds: 120, perSide: true),
-  _item('h-squat', 'reps', sets: 3, reps: 30, rest: 20),
+  _item(
+    's-kneel-hipflex',
+    'time',
+    sets: 2,
+    seconds: 60,
+    perSide: true,
+    rest: 60,
+  ),
+  _item('h-squat', 'reps', sets: 3, reps: 18, rest: 20),
 ]);
-Map<String, Object?> _shorter() =>
-    _plan([_item('s-butterfly', 'time', seconds: 120)], minutes: 5);
+Map<String, Object?> _shorter() => _plan([
+  _item('s-kneel-hipflex', 'time', seconds: 60, perSide: true),
+  _item('s-butterfly', 'time', sets: 2, seconds: 80, rest: 10),
+], minutes: 5);
+Map<String, Object?> _shorterReplacement() => _plan(
+  [
+    _item('h-squat', 'reps', sets: 2, reps: 18, rest: 20),
+    _item('adductors-A', 'reps', sets: 2, reps: 8, perSide: true, rest: 15),
+  ],
+  minutes: 5,
+  equipment: [],
+);
 Map<String, Object?> _three() => _plan([
-  _item('s-kneel-hipflex', 'time', seconds: 120, perSide: true),
-  _item('s-butterfly', 'time', seconds: 120),
-  _item('h-squat', 'reps', sets: 2, reps: 30, rest: 20),
+  _item(
+    's-kneel-hipflex',
+    'time',
+    sets: 2,
+    seconds: 60,
+    perSide: true,
+    rest: 60,
+  ),
+  _item('s-butterfly', 'time', seconds: 60),
+  _item('h-squat', 'reps', sets: 2, reps: 18, rest: 20),
 ]);
 Map<String, Object?> _oneOfThreeChanged() => _plan([
-  _item('s-kneel-hipflex', 'time', seconds: 120, perSide: true),
-  _item('adductors-A', 'reps', reps: 30, perSide: true),
-  _item('h-squat', 'reps', sets: 2, reps: 30, rest: 20),
+  _item(
+    's-kneel-hipflex',
+    'time',
+    sets: 2,
+    seconds: 60,
+    perSide: true,
+    rest: 60,
+  ),
+  _item('adductors-A', 'reps', sets: 2, reps: 8, perSide: true, rest: 20),
+  _item('h-squat', 'reps', sets: 2, reps: 18, rest: 20),
 ]);
 int _seq = 0;
+Map<String, Object?> _user(Object value, String quote) => {
+  'value': value,
+  'source': 'user',
+  'quote': quote,
+};
+LlmResponse _tool(String name, Object arguments) => LlmResponse(
+  content: '',
+  toolCalls: [
+    LlmToolCall(
+      id: 'swap-tool-${_seq++}',
+      name: name,
+      arguments: jsonEncode(arguments),
+    ),
+  ],
+  finishReason: 'tool_calls',
+  model: 'fake',
+);
+LlmResponse _set(Map<String, Object?> fields) =>
+    _tool(AgentTools.setParams, {'fields': fields});
+LlmResponse _initialFacts() => _set({
+  'scene': _user('home', '在家'),
+  'equipment': _user(['equip.mat'], '瑜伽垫'),
+  'minutes': _user(10, '10分钟'),
+});
 LlmResponse _show(Map<String, Object?> plan) => LlmResponse(
   content: '调整后的计划',
   toolCalls: [
@@ -109,12 +171,47 @@ void main() {
     return c;
   }
 
+  test('swap fixtures use catalogue doses and remain within 10%', () {
+    const available = CoachContext(scene: 'home', equipment: {'mat'});
+    final duration = const PlanDuration();
+    final validator = PlanValidator(
+      catalog: catalog,
+      profile: profile,
+      enforceDrillDoseRange: true,
+    );
+    for (final raw in [
+      _initial(),
+      _replacement(),
+      _replaceSecond(),
+      _shorter(),
+      _shorterReplacement(),
+      _three(),
+      _oneOfThreeChanged(),
+    ]) {
+      final plan = const PlanCodec().decode(raw);
+      final checked = validator.validate(plan, available);
+      expect(
+        checked.errors,
+        isEmpty,
+        reason: '${plan.targetMinutes}: ${checked.errors}',
+      );
+      expect(
+        (duration.estimateSeconds(plan, catalog) / 60 - plan.targetMinutes)
+                .abs() /
+            plan.targetMinutes,
+        lessThanOrEqualTo(.10),
+        reason: '${plan.targetMinutes}-minute scripted plan',
+      );
+    }
+  });
+
   for (final phrase in ['换一套', '换个别的', '再来一套']) {
     for (final restore in [false, true]) {
       test(
         '$phrase after ${restore ? 'restore' : 'live session'} replaces the plan',
         () async {
           final client = FakeLlmClient([
+            _initialFacts(),
             _show(_initial()),
             _show(_initial()),
             _show(_replacement()),
@@ -137,6 +234,12 @@ void main() {
           expect(updated.scene, 'home');
           expect(updated.targetMinutes, 10);
           expect(
+            (const PlanDuration().estimateSeconds(updated, catalog) / 60 - 10)
+                    .abs() /
+                10,
+            lessThanOrEqualTo(.10),
+          );
+          expect(
             updated.exerciseIds.intersection(previous.exerciseIds),
             isEmpty,
           );
@@ -157,9 +260,11 @@ void main() {
   }
 
   test('a replacement can also request a shorter plan', () async {
-    final shorterReplacement = _replacement()..['targetMinutes'] = 5;
+    final shorterReplacement = _shorterReplacement();
     final client = FakeLlmClient([
+      _initialFacts(),
       _show(_initial()),
+      _set({'minutes': _user(5, '短一点')}),
       _show(shorterReplacement),
     ]);
     final c = await started(client);
@@ -167,6 +272,13 @@ void main() {
     expect(result!.question, isNull);
     expect(result.plan, isNotNull, reason: '${result.issues} ${result.error}');
     expect(result.plan!.plan.targetMinutes, 5);
+    expect(
+      (const PlanDuration().estimateSeconds(result.plan!.plan, catalog) / 60 -
+                  5)
+              .abs() /
+          5,
+      lessThanOrEqualTo(.10),
+    );
     final request = client.requests.last.messages
         .map((m) => m.content)
         .join('\n');
@@ -178,6 +290,7 @@ void main() {
     'a whole replacement retries when fewer than half the actions are new',
     () async {
       final client = FakeLlmClient([
+        _initialFacts(),
         _show(_three()),
         _show(_oneOfThreeChanged()),
         _show(_replacement()),
@@ -190,7 +303,7 @@ void main() {
         isNotNull,
         reason: '${result.issues} ${result.error}',
       );
-      expect(client.requests, hasLength(3));
+      expect(client.requests, hasLength(4));
       final feedback = client.requests.last.messages
           .map((m) => m.content)
           .join('\n');
@@ -207,7 +320,12 @@ void main() {
       test(
         'shortcut ${sample.$1} is an adjustment; restore=$restore',
         () async {
-          final client = FakeLlmClient([_show(_initial()), _show(sample.$2())]);
+          final client = FakeLlmClient([
+            _initialFacts(),
+            _show(_initial()),
+            if (sample.$1 == '再短一点') _set({'minutes': _user(5, '短一点')}),
+            _show(sample.$2()),
+          ]);
           var c = await started(client);
           if (restore) c = controller(client)..restoreHistory(c.state.messages);
           final result = await c.send(sample.$1);
@@ -225,19 +343,19 @@ void main() {
     }
   }
 
-  test('a different focus still starts a new planning confirmation', () async {
-    final client = FakeLlmClient([_show(_initial())]);
+  test('the model may ask about a different focus', () async {
+    final client = FakeLlmClient([
+      _initialFacts(),
+      _show(_initial()),
+      _tool(AgentTools.askUser, {'question': '肩膀有疼痛吗？', 'mode': 'text'}),
+    ]);
     final c = await started(client);
     final requests = client.requests.length;
     final result = await c.send('再来一套练肩膀');
     expect(result!.plan, isNull);
-    expect(result.question?.isConfirmation, isTrue);
-    expect(result.question!.fields.map((f) => f.key).toSet(), {
-      'scene',
-      'equipment',
-      'minutes',
-    });
-    expect(client.requests, hasLength(requests));
+    expect(result.question?.mode, AskUserMode.text);
+    expect(result.question!.question, '肩膀有疼痛吗？');
+    expect(client.requests, hasLength(requests + 1));
   });
 
   test(
@@ -257,6 +375,7 @@ void main() {
       '$text does not trigger a whole-plan replacement requirement',
       () async {
         final client = FakeLlmClient([
+          _initialFacts(),
           _show(_three()),
           _show(_oneOfThreeChanged()),
         ]);
@@ -276,7 +395,7 @@ void main() {
           ),
           hasLength(2),
         );
-        expect(client.requests, hasLength(2));
+        expect(client.requests, hasLength(3));
       },
     );
   }

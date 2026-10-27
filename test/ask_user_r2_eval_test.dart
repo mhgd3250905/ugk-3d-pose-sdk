@@ -109,6 +109,62 @@ LlmResponse _show(Map<String, Object?> plan) => LlmResponse(
   model: 'fake',
 );
 
+var _scriptSequence = 0;
+LlmResponse _tool(String name, Object arguments) => LlmResponse(
+  content: '',
+  toolCalls: [
+    LlmToolCall(
+      id: 'scripted-${_scriptSequence++}',
+      name: name,
+      arguments: jsonEncode(arguments),
+    ),
+  ],
+  finishReason: 'tool_calls',
+  model: 'fake',
+);
+
+LlmResponse _askText(String question) =>
+    _tool(AgentTools.askUser, {'question': question, 'mode': 'text'});
+
+LlmResponse _askForm() => _tool(AgentTools.askUser, {
+  'question': '你准备在哪里、用什么器材、练多久？',
+  'mode': 'form',
+  'fields': [
+    {
+      'key': 'scene',
+      'label': '场景',
+      'options': ['家里', '办公室'],
+      'multiple': false,
+    },
+    {
+      'key': 'equipment',
+      'label': '器械',
+      'options': ['徒手', '瑜伽垫', '椅子/凳子', '墙'],
+      'multiple': true,
+    },
+    {
+      'key': 'minutes',
+      'label': '时长',
+      'options': ['5 分钟', '10 分钟', '15 分钟'],
+      'multiple': false,
+    },
+  ],
+});
+
+Map<String, Object?> _user(Object value, String quote) => {
+  'value': value,
+  'source': 'user',
+  'quote': quote,
+};
+
+Map<String, Object?> _default(Object value) => {
+  'value': value,
+  'source': 'default',
+};
+
+LlmResponse _setParams(Map<String, Object?> fields) =>
+    _tool(AgentTools.setParams, {'fields': fields});
+
 void main() {
   final fixture =
       jsonDecode(File('eval/cases/ask_user_r2.json').readAsStringSync())
@@ -160,36 +216,58 @@ void main() {
       });
     });
 
-    test('new focus asks once with all three prior values suggested', () async {
-      const id = 'new_focus_previous_preselected';
-      final client = FakeLlmClient([_show(_hipPlan())]);
-      final controller = chat(client);
-      final initial = await controller.send(turn(id, 0));
-      expect(initial!.plan, isNotNull);
-      final before = client.requests.length;
-      final next = await controller.send(turn(id, 1));
-      final question = next!.question;
-      expect(question, isNotNull);
-      expect(question!.isConfirmation, isTrue);
-      expect(question.fields.map((field) => field.key).toSet(), {
-        'scene',
-        'equipment',
-        'minutes',
-      });
-      final fields = {for (final field in question.fields) field.key: field};
-      expect(fields['scene']!.preselected, contains('家里'));
-      expect(fields['equipment']!.preselected, contains('瑜伽垫'));
-      expect(fields['minutes']!.preselected, contains('10 分钟'));
-      for (final field in fields.values) {
-        expect(field.previousSelections, isNotEmpty);
-      }
-      expect(
-        client.requests.length,
-        before,
-        reason: 'the card is SDK generated, not a model round',
-      );
-      expect(next.plan, isNull);
-    });
+    test(
+      'model asks about new focus and preserves known conditions across questions',
+      () async {
+        const id = 'new_focus_previous_preselected';
+        final client = FakeLlmClient([
+          _setParams({
+            'scene': _user('home', '在家'),
+            'equipment': _user(['equip.mat'], '瑜伽垫'),
+            'minutes': _user(10, '10分钟'),
+          }),
+          _show(_hipPlan()),
+          _askText('肩颈主要是僵硬，还是活动时有不适？'),
+          _askText('有没有疼痛或其他运动限制？'),
+          '明白，出现不适时请停下休息。',
+        ]);
+        final controller = chat(client);
+        final initial = await controller.send(turn(id, 0));
+        expect(initial!.plan, isNotNull);
+        final before = client.requests.length;
+        final next = await controller.send(turn(id, 1));
+        final question = next!.question;
+        expect(question, isNotNull);
+        expect(question!.mode, AskUserMode.text);
+        expect(question.question, '肩颈主要是僵硬，还是活动时有不适？');
+        expect(client.requests.length, greaterThan(before));
+        expect(next.plan, isNull);
+        final second = await controller.answerText(
+          controller.state.pendingQuestion!.id,
+          '只是有点僵硬',
+        );
+        expect(second!.question?.question, '有没有疼痛或其他运动限制？');
+        expect(controller.agent.sessionState.params['scene']!.value, 'home');
+        expect(controller.agent.sessionState.params['equipment']!.value, [
+          'equip.mat',
+        ]);
+        expect(controller.agent.sessionState.params['minutes']!.value, 10);
+        final result = await controller.answerText(
+          controller.state.pendingQuestion!.id,
+          '没有疼痛，也没有运动限制',
+        );
+        expect(result!.question, isNull);
+        expect(controller.state.pendingQuestion, isNull);
+        final userHistory = controller.agent.sessionState.userTurns
+            .map((t) => t.text)
+            .toList();
+        expect(
+          userHistory,
+          containsAll([turn(id, 0), turn(id, 1), '只是有点僵硬', '没有疼痛，也没有运动限制']),
+        );
+        expect(client.remaining, 0);
+      },
+    );
 
     test(
       'shorter adjustment does not ask and changes the actual target',
@@ -250,14 +328,22 @@ void main() {
     );
 
     test(
-      'office chair and wall plan uses selected equipment and lasts 8 to 12 minutes',
+      'model asks for office conditions before the chair and wall plan',
       () async {
         const id = 'office_chair_wall';
-        final client = FakeLlmClient([_show(_officePlan())]);
+        final client = FakeLlmClient([
+          _askForm(),
+          _setParams({
+            'scene': _user('office', '办公室'),
+            'equipment': _user(['equip.chair', 'equip.wall'], '椅子/凳子、墙'),
+            'minutes': _user(10, '10 分钟'),
+          }),
+          _show(_officePlan()),
+        ]);
         final controller = chat(client);
         final first = await controller.send(turn(id, 0));
-        expect(first!.question?.isConfirmation, isTrue);
-        expect(client.requests, isEmpty);
+        expect(first!.question?.mode, AskUserMode.form);
+        expect(client.requests, hasLength(1));
         final form = (caseTurn(id, 1)['answerForm']! as Map<String, Object?>)
             .map(
               (key, value) =>
@@ -281,6 +367,14 @@ void main() {
         expect(plan.equipment.toSet(), used);
         expect(plan.scene, 'office');
         expect(plan.targetMinutes, 10);
+        expect(controller.agent.sessionState.params['equipment']!.value, [
+          'equip.chair',
+          'equip.wall',
+        ]);
+        expect(
+          controller.agent.sessionState.params['equipment']!.source,
+          'user',
+        );
         expect(
           const PlanDuration().estimateSeconds(plan, catalog) / 60,
           inInclusiveRange(8, 12),
@@ -288,24 +382,39 @@ void main() {
       },
     );
 
-    test(
-      'accept defaults produces a plan without another confirmation',
-      () async {
-        const id = 'accept_defaults';
-        final client = FakeLlmClient([_show(_defaultPlan())]);
-        final controller = chat(client);
-        final first = await controller.send(turn(id, 0));
-        expect(first!.question?.isConfirmation, isTrue);
-        expect(first.question!.skipLabel, turn(id, 1));
-        expect(client.requests, isEmpty);
-        final pending = controller.state.pendingQuestion!;
-        final result = await controller.skipQuestion(pending.id);
-        expect(result!.question, isNull);
-        expect(result.plan, isNotNull);
-        expect(controller.state.pendingQuestion, isNull);
-        expect(client.requests, hasLength(1));
-      },
-    );
+    test('model records the user-requested defaults and continues', () async {
+      const id = 'accept_defaults';
+      final client = FakeLlmClient([
+        _askForm(),
+        _setParams({
+          'scene': _default('home'),
+          'equipment': _default(<String>[]),
+          'minutes': _default(15),
+          'level': _default(1),
+        }),
+        _show(_defaultPlan()),
+      ]);
+      final controller = chat(client);
+      final first = await controller.send(turn(id, 0));
+      expect(first!.question?.mode, AskUserMode.form);
+      expect(client.requests, hasLength(1));
+      final pending = controller.state.pendingQuestion!;
+      final result = await controller.answerText(pending.id, turn(id, 1));
+      expect(result!.question, isNull);
+      expect(result.plan, isNotNull);
+      expect(controller.state.pendingQuestion, isNull);
+      expect(client.requests, hasLength(3));
+      expect(controller.agent.sessionState.params['equipment']!.value, isEmpty);
+      expect(
+        controller.agent.sessionState.params['equipment']!.source,
+        'default',
+      );
+      expect(controller.agent.sessionState.params['minutes']!.value, 15);
+      expect(
+        controller.agent.sessionState.params['minutes']!.source,
+        'default',
+      );
+    });
 
     test(
       'model failure creates one failure message and never exposes internals',

@@ -46,32 +46,92 @@ Map<String, Object?> _initial() => _plan(
   minutes: 10,
   equipment: ['mat'],
   items: [
-    _item('s-kneel-hipflex', 'time', seconds: 120, perSide: true),
-    _item('s-butterfly', 'time', sets: 3, seconds: 120, rest: 30),
+    _item(
+      's-kneel-hipflex',
+      'time',
+      sets: 2,
+      seconds: 60,
+      perSide: true,
+      rest: 60,
+    ),
+    _item('s-butterfly', 'time', sets: 2, seconds: 80, rest: 60),
   ],
 );
 Map<String, Object?> _seven() => _plan(
   minutes: 7,
   equipment: ['mat'],
   items: [
-    _item('s-kneel-hipflex', 'time', seconds: 60, perSide: true),
-    _item('s-butterfly', 'time', sets: 2, seconds: 120, rest: 20),
+    _item(
+      's-kneel-hipflex',
+      'time',
+      sets: 2,
+      seconds: 60,
+      perSide: true,
+      rest: 30,
+    ),
+    _item('s-butterfly', 'time', seconds: 80),
   ],
 );
 Map<String, Object?> _shorter() => _plan(
   minutes: 5,
   equipment: ['mat'],
-  items: [_item('s-butterfly', 'time', seconds: 120)],
-);
-Map<String, Object?> _bodyweight() => _plan(
-  minutes: 10,
-  equipment: [],
   items: [
-    _item('h-squat', 'reps', sets: 3, reps: 30, rest: 20),
-    _item('adductors-A', 'reps', reps: 30, perSide: true),
+    _item('s-kneel-hipflex', 'time', seconds: 60, perSide: true),
+    _item('s-butterfly', 'time', sets: 2, seconds: 80, rest: 10),
   ],
 );
+Map<String, Object?> _bodyweight({bool short = false}) => _plan(
+  minutes: short ? 5 : 10,
+  equipment: [],
+  items: short
+      ? [
+          _item('h-squat', 'reps', sets: 2, reps: 18, rest: 20),
+          _item(
+            'adductors-A',
+            'reps',
+            sets: 2,
+            reps: 8,
+            perSide: true,
+            rest: 15,
+          ),
+        ]
+      : [
+          _item('h-squat', 'reps', sets: 4, reps: 18, rest: 30),
+          _item(
+            'adductors-A',
+            'reps',
+            sets: 3,
+            reps: 8,
+            perSide: true,
+            rest: 20,
+          ),
+        ],
+);
 var _seq = 0;
+Map<String, Object?> _user(Object value, String quote) => {
+  'value': value,
+  'source': 'user',
+  'quote': quote,
+};
+LlmResponse _tool(String name, Object arguments) => LlmResponse(
+  content: '',
+  toolCalls: [
+    LlmToolCall(
+      id: 'restore-tool-${_seq++}',
+      name: name,
+      arguments: jsonEncode(arguments),
+    ),
+  ],
+  finishReason: 'tool_calls',
+  model: 'fake',
+);
+LlmResponse _set(Map<String, Object?> fields) =>
+    _tool(AgentTools.setParams, {'fields': fields});
+LlmResponse _initialFacts() => _set({
+  'scene': _user('home', '在家'),
+  'equipment': _user(['equip.mat'], '瑜伽垫'),
+  'minutes': _user(10, '10分钟'),
+});
 LlmResponse _show(Map<String, Object?> p) => LlmResponse(
   content: '调整后的计划',
   toolCalls: [
@@ -109,7 +169,7 @@ void main() {
   }
 
   Future<List<CoachConversationMessage>> history() async {
-    final c = controller(FakeLlmClient([_show(_initial())]));
+    final c = controller(FakeLlmClient([_initialFacts(), _show(_initial())]));
     final result = await c.send('在家有瑜伽垫，10分钟做髋部放松');
     expect(result!.plan, isNotNull, reason: '${result.issues} ${result.error}');
     return c.state.messages;
@@ -143,7 +203,19 @@ void main() {
       () async {
         final previous = await history();
         final oldPlan = previous.lastWhere((m) => m.plan != null).plan!.plan;
-        final client = FakeLlmClient([_show(sample.$2())]);
+        final client = FakeLlmClient([
+          _set(
+            sample.$1 == '换成徒手'
+                ? {'equipment': _user(<String>[], '徒手')}
+                : {
+                    'minutes': _user(
+                      sample.$3,
+                      sample.$1 == '短一点' ? '短一点' : '7 分钟',
+                    ),
+                  },
+          ),
+          _show(sample.$2()),
+        ]);
         final c = controller(client)..restoreHistory(previous);
         final result = await c.send(sample.$1);
         expect(result!.question, isNull);
@@ -162,7 +234,7 @@ void main() {
             lessThan(duration.estimateSeconds(oldPlan, catalog)),
           );
         }
-        final requestText = client.requests.single.messages
+        final requestText = client.requests.first.messages
             .map((m) => m.content)
             .join('\n');
         expect(
@@ -185,7 +257,10 @@ void main() {
       final previous = legacy(
         await history(),
       ).where((message) => message.plan != null).toList();
-      final client = FakeLlmClient([_show(_seven())]);
+      final client = FakeLlmClient([
+        _set({'minutes': _user(7, '7 分钟')}),
+        _show(_seven()),
+      ]);
       final c = controller(client)..restoreHistory(previous);
       final result = await c.send('缩短到 7 分钟');
       expect(result!.question, isNull);
@@ -200,21 +275,22 @@ void main() {
     },
   );
 
-  test('restored plan followed by a new focus asks for a new plan', () async {
-    final previous = await history();
-    final client = FakeLlmClient([]);
-    final c = controller(client)..restoreHistory(previous);
-    final result = await c.send('我想针对肩膀拉伸');
-    expect(result!.plan, isNull);
-    expect(result.question, isNotNull);
-    expect(result.question!.isConfirmation, isTrue);
-    expect(result.question!.fields.map((f) => f.key).toSet(), {
-      'scene',
-      'equipment',
-      'minutes',
-    });
-    expect(client.requests, isEmpty);
-  });
+  test(
+    'restored plan followed by a new focus may be clarified by the model',
+    () async {
+      final previous = await history();
+      final client = FakeLlmClient([
+        _tool(AgentTools.askUser, {'question': '肩膀有疼痛吗？', 'mode': 'text'}),
+      ]);
+      final c = controller(client)..restoreHistory(previous);
+      final result = await c.send('我想针对肩膀拉伸');
+      expect(result!.plan, isNull);
+      expect(result.question, isNotNull);
+      expect(result.question!.mode, AskUserMode.text);
+      expect(result.question!.question, '肩膀有疼痛吗？');
+      expect(client.requests, hasLength(1));
+    },
+  );
 
   test(
     'host-provided snapshot retains unused equipment and safety constraints',
@@ -236,7 +312,10 @@ void main() {
         jsonDecode(jsonEncode(snapshot.toJson())) as Map<String, dynamic>,
       );
       expect(restoredSnapshot.toJson(), snapshot.toJson());
-      final client = FakeLlmClient([_show(_seven())]);
+      final client = FakeLlmClient([
+        _set({'minutes': _user(7, '7 分钟')}),
+        _show(_seven()),
+      ]);
       final c = controller(client)
         ..restoreHistory(previous, planState: restoredSnapshot);
       final result = await c.send('缩短到 7 分钟');
@@ -250,7 +329,7 @@ void main() {
         c.agent.lastConfirmedForm?['equipment'],
         containsAll(['瑜伽垫', '椅子/凳子']),
       );
-      final requestText = client.requests.single.messages
+      final requestText = client.requests.first.messages
           .map((m) => m.content)
           .join('\n');
       expect(requestText, contains('wrist'));
@@ -260,10 +339,15 @@ void main() {
 
   for (final oldHistory in [false, true]) {
     test(
-      'relative duration policy survives restore; legacy=$oldHistory',
+      'relative duration remains within 10% after restore; legacy=$oldHistory',
       () async {
         final original = controller(
-          FakeLlmClient([_show(_initial()), _show(_shorter())]),
+          FakeLlmClient([
+            _initialFacts(),
+            _show(_initial()),
+            _set({'minutes': _user(5, '短一点')}),
+            _show(_shorter()),
+          ]),
         );
         expect((await original.send('在家有瑜伽垫，10分钟做髋部放松'))!.plan, isNotNull);
         final short = (await original.send('短一点'))!;
@@ -274,13 +358,16 @@ void main() {
                       before.targetMinutes)
                   .abs() /
               before.targetMinutes,
-          greaterThan(.25),
+          lessThanOrEqualTo(.10),
         );
         final messages = oldHistory
             ? legacy(original.state.messages)
             : original.state.messages;
-        final bodyweight = _bodyweight()..['targetMinutes'] = 5;
-        final client = FakeLlmClient([_show(bodyweight)]);
+        final bodyweight = _bodyweight(short: true);
+        final client = FakeLlmClient([
+          _set({'equipment': _user(<String>[], '徒手')}),
+          _show(bodyweight),
+        ]);
         final c = controller(client)..restoreHistory(messages);
         final result = await c.send('换成徒手');
         expect(result!.question, isNull);
@@ -291,6 +378,12 @@ void main() {
         );
         expect(result.plan!.plan.targetMinutes, 5);
         expect(result.plan!.plan.equipment, isEmpty);
+        expect(
+          (duration.estimateSeconds(result.plan!.plan, catalog) / 60 - 5)
+                  .abs() /
+              5,
+          lessThanOrEqualTo(.10),
+        );
       },
     );
   }
@@ -308,8 +401,12 @@ void main() {
         ),
         focus: '肩膀',
       );
-      final c = controller(FakeLlmClient([_show(_seven())]))
-        ..restoreHistory(previous, planState: mismatched);
+      final c = controller(
+        FakeLlmClient([
+          _set({'minutes': _user(7, '7 分钟')}),
+          _show(_seven()),
+        ]),
+      )..restoreHistory(previous, planState: mismatched);
       final result = await c.send('缩短到 7 分钟');
       expect(result!.question, isNull);
       expect(
@@ -327,13 +424,22 @@ void main() {
     'the last of multiple plan cards becomes the adjustment baseline',
     () async {
       final original = controller(
-        FakeLlmClient([_show(_initial()), _show(_seven())]),
+        FakeLlmClient([
+          _initialFacts(),
+          _show(_initial()),
+          _set({'minutes': _user(7, '7 分钟')}),
+          _show(_seven()),
+        ]),
       );
       expect((await original.send('在家有瑜伽垫，10分钟做髋部放松'))!.plan, isNotNull);
       expect((await original.send('缩短到 7 分钟'))!.plan, isNotNull);
       final restored = original.state.messages;
       final eight = _seven()..['targetMinutes'] = 8;
-      final client = FakeLlmClient([_show(eight), _show(_shorter())]);
+      final client = FakeLlmClient([
+        _show(eight),
+        _set({'minutes': _user(5, '短一点')}),
+        _show(_shorter()),
+      ]);
       final c = controller(client)..restoreHistory(restored);
       final result = await c.send('短一点');
       expect(result!.question, isNull);
@@ -345,7 +451,7 @@ void main() {
       expect(result.plan!.plan.targetMinutes, 5);
       expect(
         client.requests,
-        hasLength(2),
+        hasLength(3),
         reason:
             '8 minutes is shorter than the older card, but not the latest 7-minute card',
       );

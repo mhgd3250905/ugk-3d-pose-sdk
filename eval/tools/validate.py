@@ -43,9 +43,9 @@ GOALS = {"relax", "mobility", "strength", "core", "fullbody", "warmup", "cooldow
 SCENES = {"home", "office", "gym"}
 SWITCH_SIDE_S, TRANSITION_S, PREP_S = 5, 15, 10
 DEFAULT_SCENE_RULES = {
-    "home": {"assumedEquipment": ["mat", "chair", "wall", "block"], "acceptDrillScenes": ["home"]},
-    "office": {"assumedEquipment": ["chair", "wall"], "acceptDrillScenes": ["office"], "forbidFloor": True},
-    "gym": {"allEquipment": True, "acceptDrillScenes": ["gym", "home"]},
+    "home": {"acceptDrillScenes": ["home"]},
+    "office": {"acceptDrillScenes": ["office"], "forbidFloor": True},
+    "gym": {"acceptDrillScenes": ["gym", "home"]},
 }
 
 
@@ -265,11 +265,9 @@ def validate_plan(plan, catalog, profile, request, R, tool=False):
         if a not in tax["cautions"]:
             R.warn(f"avoid 部位 {a!r} 不在词表 {tax['cautions']}")
     rule = scene_rules.get(scene) or DEFAULT_SCENE_RULES.get(scene) or {}
-    if rule.get("allEquipment"):
-        have = None
-    else:
-        base = request.get("equipment") if request.get("equipment") is not None else (plan.get("equipment") or [])
-        have = set(base) | set(rule.get("assumedEquipment", []))
+    # Unknown equipment means bodyweight. Neither the model's plan declaration
+    # nor the venue provides evidence that the user owns any equipment.
+    have = set(request.get("equipment") or [])
     accept = set(rule.get("acceptDrillScenes") or [scene])
     blocks = plan.get("blocks")
     if not isinstance(blocks, list) or not blocks:
@@ -551,7 +549,7 @@ def load_profiles():
 
 
 def selftest_cases():
-    """24 个手写样例：(名称, profile, 回复, 请求, 期望错误分类)。export_parity.py 也用它导出给 Dart 对照。"""
+    """25 个手写样例：(名称, profile, 回复, 请求, 期望错误分类)。export_parity.py 也用它导出给 Dart 对照。"""
     ok_plan = {"kind": "plan", "text": "给你排了 10 分钟开胯。", "plan": {
         "schemaVersion": 1, "source": "ai", "title": "睡前开胯", "summary": "放松髋部", "goal": "relax", "scene": "home",
         "equipment": ["mat"], "level": 1, "targetMinutes": 10, "avoid": [], "notes": [], "safetyNotes": [],
@@ -591,13 +589,20 @@ def selftest_cases():
         ("膝要保护却选了含膝动作", "hiplab", mut(lambda p: p.update(avoid=["膝"])), {}, {"E_AVOID"}),
         ("请求侧 avoid 也生效", "hiplab", ok_plan, {"avoid": ["膝"]}, {"E_AVOID"}),
         ("办公室着地动作", "hiplab", mut(lambda p: p.update(scene="office")), {"scene": "office"}, {"E_SCENE"}),
-        ("缺器械：居家没有哑铃", "smartfit", mut(lambda p: p["blocks"][1]["items"].append({"exerciseId": "h-db-curl", "mode": "reps", "sets": 2, "reps": 10, "perSide": False, "restSeconds": 30})), {"equipment": []}, {"E_EQUIP"}),
-        ("健身房可用器械与居家动作", "smartfit", mut(lambda p: (p.update(scene="gym"), p["blocks"][1]["items"].append({"exerciseId": "quadriceps-C", "mode": "reps", "sets": 3, "reps": 10, "perSide": False, "restSeconds": 45}))), {}, set()),
+        ("缺器械：居家只有瑜伽垫没有哑铃", "smartfit", mut(lambda p: p["blocks"][1]["items"].append({"exerciseId": "h-db-curl", "mode": "reps", "sets": 2, "reps": 10, "perSide": False, "restSeconds": 30})), {"equipment": ["mat"]}, {"E_EQUIP"}),
+        ("健身房可用器械与居家动作", "smartfit", mut(lambda p: (p.update(scene="gym"), p["blocks"][1]["items"].append({"exerciseId": "quadriceps-C", "mode": "reps", "sets": 3, "reps": 10, "perSide": False, "restSeconds": 45}))), {"equipment": ["mat", "leg-extension-machine"]}, set()),
         ("居家用健身房器械", "smartfit", mut(lambda p: p["blocks"][1]["items"].append({"exerciseId": "quadriceps-C", "mode": "reps", "sets": 3, "reps": 10, "perSide": False, "restSeconds": 45})), {}, {"E_EQUIP", "E_SCENE"}),
         ("托马斯 App 不支持办公室", "flarelab", {"kind": "plan", "text": "x", "plan": {**ok_plan["plan"], "scene": "office", "blocks": [{"id": "b", "name": "主", "type": "main", "rounds": 1, "restBetweenRoundsSeconds": 0, "items": [{"exerciseId": "hamstrings-A", "mode": "reps", "sets": 2, "reps": 8, "perSide": True, "restSeconds": 30}]}]}}, {}, {"E_SCENE"}),
         ("缺 title / 错 goal", "hiplab", mut(lambda p: (p.pop("title"), p.update(goal="fun"))), {}, {"E_SCHEMA"}),
         ("targetMinutes 超出 profile", "hiplab", mut(lambda p: p.update(targetMinutes=90)), {}, {"E_DOSE"}),
     ]
+    # These historical cases deliberately use the same mat-based plan. The mat
+    # is an explicit test precondition, never inferred from the model's plan.
+    cases = [(name, profile, reply, {"equipment": ["mat"], **request}, expect)
+             for name, profile, reply, request, expect in cases]
+    # A separate case retains truly unknown availability even though the plan
+    # itself declares a mat; the declaration must not prove ownership.
+    cases.append(("器械未知：计划声明垫子不能证明拥有", "hiplab", ok_plan, {}, {"E_EQUIP"}))
     return cases
 
 

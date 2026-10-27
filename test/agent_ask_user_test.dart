@@ -187,20 +187,19 @@ void main() {
         },
       );
     }
-    test('valid model ask is rejected for a non-planning request', () async {
-      final client = FakeLlmClient([_ask(_text()), '这动作注意缓慢呼吸。']);
-      final coach = agent(client);
-      final result = await coach.send('请讲解这个动作');
-      expect(result.status, TurnStatus.ok);
-      expect(result.question, isNull);
-      expect(result.plan, isNull);
-      expect(result.records.first.outcome, CallOutcome.rejected);
-      expect(
-        client.requests.last.messages.last.content,
-        contains('clarification_not_requested'),
-      );
-      _expectToolProtocol(client.requests.last.messages);
-    });
+    test(
+      'the model may ask a valid question without code intent classification',
+      () async {
+        final client = FakeLlmClient([_ask(_text())]);
+        final coach = agent(client);
+        final result = await coach.send('请讲解这个动作');
+        expect(result.status, TurnStatus.ok);
+        expect(result.question!.question, '准备花多久？');
+        expect(result.plan, isNull);
+        expect(result.records.single.outcome, CallOutcome.passed);
+        _expectToolProtocol(coach.history);
+      },
+    );
     for (final show in [AgentTools.showPlan, AgentTools.showActions]) {
       for (final askFirst in [true, false]) {
         test(
@@ -329,81 +328,71 @@ void main() {
     );
   });
 
-  group('real local confirmation and task budget', () {
-    const answer = {
-      'scene': ['家里'],
-      'equipment': ['瑜伽垫'],
-      'minutes': ['10 分钟'],
-    };
+  group('model-controlled clarification', () {
     test(
-      'confirmation is local, has three groups, then no second ask is allowed',
+      'four model questions can pause and resume without a question ceiling',
       () async {
-        final client = FakeLlmClient([_ask(_text()), _showPlan()]);
+        final client = FakeLlmClient([
+          _ask(_text('在哪里练？')),
+          _ask(_text('有什么器材？')),
+          _ask(_text('想练多久？')),
+          _ask(_text('有伤痛限制吗？')),
+        ], latency: Duration.zero);
         final coach = agent(client);
-        final events = <AgentEvent>[];
-        coach.events.listen(events.add);
-        final first = await coach.send('帮我排个髋部训练计划');
-        expect(first.status, TurnStatus.ok);
-        expect(first.question!.isConfirmation, isTrue);
-        expect(first.question!.mode, AskUserMode.form);
-        expect(first.question!.fields.map((field) => field.key).toSet(), {
-          'scene',
-          'equipment',
-          'minutes',
-        });
-        expect(first.plan, isNull);
-        expect(first.steps, 0);
-        expect(client.requests, isEmpty);
-        expect(coach.questionsAsked, 1);
-        expect(events.map((event) => event.kind), [
-          AgentEventKind.askUser,
-          AgentEventKind.done,
+        final results = <CoachTurnResult>[];
+        for (final input in ['帮我排个训练计划', '在家', '有瑜伽垫', '10分钟']) {
+          results.add(await coach.send(input));
+        }
+        expect(results.map((result) => result.question?.question), [
+          '在哪里练？',
+          '有什么器材？',
+          '想练多久？',
+          '有伤痛限制吗？',
         ]);
-        expect(events.first.question, same(first.question));
-        final result = await coach.send('家里，有瑜伽垫，10 分钟', confirmedForm: answer);
-        expect(result.status, TurnStatus.ok);
-        expect(result.question, isNull);
-        expect(result.plan, isNotNull);
-        expect(result.records.first.outcome, CallOutcome.rejected);
-        expect(
-          client.requests.last.messages.last.content,
-          contains('ask_limit'),
-        );
-        expect(coach.questionsAsked, 0);
-        _expectToolProtocol(client.requests.last.messages);
-        final next = await coach.send('再做一组肩颈放松');
-        expect(next.question?.isConfirmation, isTrue);
-        expect(coach.questionsAsked, 1);
+        expect(client.requests, hasLength(4));
+        expect(coach.questionsAsked, 4);
+        expect(coach.pendingConfirmation, same(results.last.question));
+        _expectToolProtocol(coach.history);
+        expect(coach.sessionState.userTurns, hasLength(4));
       },
     );
+
     test(
-      'known conditions reject model ask and repair to valid plan',
+      'model may ask for a different missing condition while known host values stay visible',
       () async {
-        final client = FakeLlmClient([_ask(_choice()), _showPlan()]);
+        final client = FakeLlmClient([_ask(_choice())], latency: Duration.zero);
         final coach = agent(client);
-        final result = await coach.send('在家有瑜伽垫，10分钟排个训练计划');
-        expect(result.status, TurnStatus.ok);
-        expect(result.question, isNull);
-        expect(result.plan, isNotNull);
-        expect(result.records.first.outcome, CallOutcome.rejected);
-        expect(
-          client.requests.last.messages.last.content,
-          contains('ask_not_needed'),
+        final result = await coach.send(
+          '帮我排训练计划',
+          context: const CoachContext(
+            scene: 'home',
+            equipment: {'mat'},
+            minutes: 10,
+          ),
         );
-        expect(coach.questionsAsked, 0);
-        _expectToolProtocol(client.requests.last.messages);
+        expect(result.status, TurnStatus.ok);
+        expect(result.question!.question, '哪里最紧？');
+        expect(result.records.single.outcome, CallOutcome.passed);
+        expect(coach.sessionState.params['minutes']!.value, 10);
+        expect(coach.sessionState.params['minutes']!.source, 'host');
+        _expectToolProtocol(coach.history);
       },
     );
-    test('successful action delivery clears a pending task budget', () async {
-      final coach = agent(FakeLlmClient([_showActions()]));
-      final first = await coach.send('帮我排个训练组');
-      expect(first.question?.isConfirmation, isTrue);
-      expect(coach.questionsAsked, 1);
-      final result = await coach.send('看看动作');
-      expect(result.question, isNull);
-      expect(result.actions, isNotNull);
-      expect(coach.questionsAsked, 0);
-    });
+
+    test(
+      'successful action delivery clears a pending question counter',
+      () async {
+        final coach = agent(FakeLlmClient([_ask(_text()), _showActions()]));
+        final first = await coach.send('帮我排个训练组');
+        expect(first.question, isNotNull);
+        expect(coach.questionsAsked, 1);
+        final result = await coach.send('看看动作');
+        expect(result.question, isNull);
+        expect(result.actions, isNotNull);
+        expect(coach.questionsAsked, 0);
+      },
+    );
+
     test('planning failure cannot silently admit a fallback plan', () async {
       var fallbackCalls = 0;
       final coach = agent(
@@ -416,41 +405,37 @@ void main() {
           );
         },
       );
-      final first = await coach.send('帮我排个训练组');
-      expect(first.question?.isConfirmation, isTrue);
-      final result = await coach.send('家里，有瑜伽垫，10 分钟', confirmedForm: answer);
+      final result = await coach.send('帮我排个训练组');
       expect(result.status, TurnStatus.error);
       expect(result.plan, isNull);
-      expect(result.question, isNull);
       expect(fallbackCalls, 0);
     });
+
     test(
-      'reset clears the card and history; a new task can ask once again',
+      'reset clears a question and a new model request can ask again',
       () async {
-        final client = FakeLlmClient([]);
+        final client = FakeLlmClient([_ask(_text()), _ask(_choice())]);
         final coach = agent(client);
         final first = await coach.send('帮我排个训练组');
         expect(first.question, isNotNull);
-        expect(coach.questionsAsked, 1);
         coach.reset();
         expect(coach.questionsAsked, 0);
         expect(coach.history, isEmpty);
         expect(coach.turnCount, 0);
         final next = await coach.send('再做一个训练组');
-        expect(next.question?.isConfirmation, isTrue);
-        expect(coach.questionsAsked, 1);
-        expect(client.requests, isEmpty);
+        expect(next.question, isNotNull);
+        expect(client.requests, hasLength(2));
       },
     );
   });
 
-  group('local confirmation cancellation boundaries', () {
+  group('model question cancellation boundaries', () {
     for (final how in ['cancel', 'reset']) {
       test(
-        '$how in the synchronous confirmation listener cannot commit stale state',
+        '$how in the synchronous question listener cannot commit stale state',
         () async {
           final token = CancelToken();
-          final client = FakeLlmClient([]);
+          final client = FakeLlmClient([_ask(_text())], latency: Duration.zero);
           final coach = agent(client);
           final events = <AgentEvent>[];
           coach.events.listen((event) {
@@ -462,11 +447,11 @@ void main() {
           final result = await coach.send('帮我排个训练组', cancel: token);
           expect(result.status, TurnStatus.cancelled);
           expect(result.question, isNull);
-          expect(result.text, isEmpty);
           expect(coach.questionsAsked, 0);
           expect(coach.history, isEmpty);
+          expect(coach.sessionState.userTurns, isEmpty);
           expect(coach.turnCount, 0);
-          expect(client.requests, isEmpty);
+          expect(client.requests, hasLength(1));
           expect(
             events.where((event) => event.kind == AgentEventKind.done),
             isEmpty,
@@ -474,31 +459,25 @@ void main() {
         },
       );
     }
+
     test(
-      'cancel while the confirmed model response is in flight preserves prior card',
+      'cancel during the following response preserves the prior question and history',
       () async {
         final entered = Completer<void>();
         final release = Completer<Object>();
         final token = CancelToken();
         final client = FakeLlmClient([
+          _ask(_text()),
           (_) {
             entered.complete();
             return release.future;
           },
-        ]);
+        ], latency: Duration.zero);
         final coach = agent(client);
         final first = await coach.send('帮我排个训练组');
-        expect(first.question?.isConfirmation, isTrue);
+        expect(first.question, isNotNull);
         final historyBefore = List<LlmMessage>.of(coach.history);
-        final pending = coach.send(
-          '家里，有瑜伽垫，10 分钟',
-          cancel: token,
-          confirmedForm: const {
-            'scene': ['家里'],
-            'equipment': ['瑜伽垫'],
-            'minutes': ['10 分钟'],
-          },
-        );
+        final pending = coach.send('家里，有瑜伽垫，10分钟', cancel: token);
         await entered.future;
         token.cancel();
         final result = await pending.timeout(const Duration(seconds: 1));
@@ -507,6 +486,7 @@ void main() {
         expect(result.plan, isNull);
         expect(coach.questionsAsked, 1);
         expect(coach.history, historyBefore);
+        expect(coach.sessionState.userTurns, hasLength(1));
         expect(coach.turnCount, 1);
       },
     );

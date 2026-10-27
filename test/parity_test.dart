@@ -1,4 +1,4 @@
-// 与评测 Python 校验器逐例对照：`eval/tools/validate.py --selftest` 的 24 例 + 补充规则样例
+// 与评测 Python 校验器逐例对照：`eval/tools/validate.py --selftest` 的 25 例 + 补充规则样例
 // （mode 与目录一致、动作 scenes 匹配计划场所），由 `eval/tools/export_parity.py` 导出到
 // test/fixtures/parity.json（含 Python 实际判定）。同一份输出，SDK 给出相同的错误分类（E_*）
 // 且每类条数相同，保证评测通过率 = 线上通过率。改了 validate.py 或目录后重导。
@@ -22,9 +22,9 @@ void main() {
     avoid: {for (final a in (r['avoid'] as List?) ?? const []) a as String},
   );
 
-  test('自测用例数与评测一致（24），并含补充规则样例', () {
-    expect(doc['selftestCount'], 24);
-    expect(cases.where((c) => c['group'] == 'selftest'), hasLength(24));
+  test('自测用例数与评测一致（25），并含补充规则样例', () {
+    expect(doc['selftestCount'], 25);
+    expect(cases.where((c) => c['group'] == 'selftest'), hasLength(25));
     expect(cases.where((c) => c['group'] == 'rules'), isNotEmpty);
     expect(doc['catalogVersion'], catalog.version);
   });
@@ -53,6 +53,19 @@ void main() {
       }
     });
   }
+
+  test('器械未知时计划自报垫子不成为可用器械', () {
+    final c = cases.singleWhere((row) => row['name'] == '器械未知：计划声明垫子不能证明拥有');
+    final req = (c['request']! as Map).cast<String, Object?>();
+    expect(req, isEmpty);
+    final plan = (c['reply']! as Map)['plan']! as Map;
+    expect(plan['equipment'], ['mat']);
+    final result = check(c['reply']!, profiles[c['profile']]!, catalog, contextOf(req));
+    final equipmentErrors = result.issues.where((issue) => issue.isError && issue.category == 'E_EQUIP');
+    expect(equipmentErrors, hasLength(6));
+    final python = (c['python']! as Map)['counts']! as Map;
+    expect(python['E_EQUIP'], 6);
+  });
 
   test('合法计划估算时长与评测一致（validate.py 输出 10.7 分钟）', () {
     final plan = const EnvelopeParser().parse(jsonEncode(okEnvelope())).reply!.plan!;

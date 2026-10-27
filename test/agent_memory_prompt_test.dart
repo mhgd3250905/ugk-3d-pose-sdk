@@ -42,7 +42,7 @@ void main() {
         );
         final tools = jsonEncode([
           for (final tool in AgentTools.build(profile, catalog, memory: false))
-            if (tool.name != AgentTools.askUser)
+            if (tool.name != AgentTools.askUser && tool.name != AgentTools.setParams)
               {'name': tool.name, 'parameters': tool.parameters},
         ]);
         expect(sha256.convert(utf8.encode(tools)).toString(), entry.value);
@@ -67,17 +67,11 @@ void main() {
       );
       expect(
         system,
-        contains('必须先用 read 读 user-memory/SKILL.md，再按类别逐条调用 remember'),
+        contains('必须先用 read 读 user-memory/SKILL.md'),
       );
-      expect(system, contains('remember(kind=level, text=新手)'));
-      expect(system, contains('remember(kind=equipment, text=家里有哑铃)'));
       expect(system, contains('只有记忆工具返回 ok=true 后才能确认'));
-      expect(system, contains('未要求找动作/排计划，且对话中没有待完成的训练请求'));
-      expect(system, contains('本轮不调用 show_actions / show_plan'));
-      expect(system, contains('若用户同时明确要求新规划且缺条件，先由 SDK 展示确认卡'));
-      expect(system, contains('回答后交付方案前再保存'));
-      expect(system, contains('确认卡预选或模型推断当作用户新提供的长期事实'));
-      expect(system, contains('不要从一次训练请求推断长期习惯'));
+      expect(system, contains('不把 App 条件、预选、模型推断或一次临时请求当作长期习惯'));
+      expect(system, contains('历史习惯只能作为预选'));
       expect(system, contains('长期提升力量'));
     },
   );

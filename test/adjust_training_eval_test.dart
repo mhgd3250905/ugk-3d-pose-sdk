@@ -32,6 +32,7 @@ Map<String, Object?> _plan({
   required int minutes,
   required List<String> equipment,
   required List<Map<String, Object?>> items,
+  int rounds = 1,
 }) => {
   'schemaVersion': 1,
   'title': '髋部放松训练',
@@ -42,7 +43,14 @@ Map<String, Object?> _plan({
   'targetMinutes': minutes,
   'equipment': equipment,
   'blocks': [
-    {'id': 'main', 'name': '训练', 'type': 'main', 'items': items},
+    {
+      'id': 'main',
+      'name': '训练',
+      'type': 'main',
+      'rounds': rounds,
+      'restBetweenRoundsSeconds': 15,
+      'items': items,
+    },
   ],
 };
 
@@ -51,8 +59,15 @@ Map<String, Object?> _initialPlan() => _plan(
   minutes: 10,
   equipment: ['mat'],
   items: [
-    _item('s-kneel-hipflex', 'time', seconds: 120, perSide: true),
-    _item('s-butterfly', 'time', sets: 3, seconds: 120, rest: 30),
+    _item(
+      's-kneel-hipflex',
+      'time',
+      sets: 2,
+      seconds: 60,
+      perSide: true,
+      rest: 60,
+    ),
+    _item('s-butterfly', 'time', sets: 2, seconds: 80, rest: 60),
   ],
 );
 
@@ -61,8 +76,15 @@ Map<String, Object?> _sevenMinutes() => _plan(
   minutes: 7,
   equipment: ['mat'],
   items: [
-    _item('s-kneel-hipflex', 'time', seconds: 60, perSide: true),
-    _item('s-butterfly', 'time', sets: 2, seconds: 120, rest: 20),
+    _item(
+      's-kneel-hipflex',
+      'time',
+      sets: 2,
+      seconds: 60,
+      perSide: true,
+      rest: 30,
+    ),
+    _item('s-butterfly', 'time', seconds: 80),
   ],
 );
 
@@ -70,16 +92,10 @@ Map<String, Object?> _twentyMinutes() => _plan(
   scene: 'home',
   minutes: 20,
   equipment: ['mat'],
+  rounds: 3,
   items: [
-    _item(
-      's-kneel-hipflex',
-      'time',
-      sets: 3,
-      seconds: 120,
-      perSide: true,
-      rest: 30,
-    ),
-    _item('s-butterfly', 'time', sets: 3, seconds: 120, rest: 30),
+    _item('s-kneel-hipflex', 'time', seconds: 60, perSide: true),
+    _item('s-butterfly', 'time', sets: 2, seconds: 80, rest: 60),
   ],
 );
 
@@ -87,23 +103,20 @@ Map<String, Object?> _relativeShort() => _plan(
   scene: 'home',
   minutes: 5,
   equipment: ['mat'],
-  items: [_item('s-butterfly', 'time', seconds: 120)],
+  items: [
+    _item('s-kneel-hipflex', 'time', seconds: 60, perSide: true),
+    _item('s-butterfly', 'time', sets: 2, seconds: 80, rest: 10),
+  ],
 );
 
 Map<String, Object?> _relativeLong() => _plan(
   scene: 'home',
   minutes: 19,
   equipment: ['mat'],
+  rounds: 3,
   items: [
-    _item(
-      's-kneel-hipflex',
-      'time',
-      sets: 2,
-      seconds: 120,
-      perSide: true,
-      rest: 30,
-    ),
-    _item('s-butterfly', 'time', sets: 2, seconds: 120, rest: 30),
+    _item('s-kneel-hipflex', 'time', seconds: 60, perSide: true),
+    _item('s-butterfly', 'time', sets: 2, seconds: 80, rest: 60),
   ],
 );
 
@@ -112,14 +125,53 @@ Map<String, Object?> _bodyweight({String scene = 'home'}) => _plan(
   minutes: 10,
   equipment: [],
   items: scene == 'office'
-      ? [_item('h-step-jack', 'time', sets: 4, seconds: 120, rest: 30)]
+      ? [
+          _item('h-step-jack', 'time', sets: 3, seconds: 80, rest: 30),
+          _item(
+            'o-stand-sidebend',
+            'time',
+            sets: 2,
+            seconds: 60,
+            perSide: true,
+            rest: 60,
+          ),
+        ]
       : [
-          _item('h-squat', 'reps', sets: 3, reps: 30, rest: 20),
-          _item('adductors-A', 'reps', reps: 30, perSide: true),
+          _item('h-squat', 'reps', sets: 4, reps: 18, rest: 30),
+          _item(
+            'adductors-A',
+            'reps',
+            sets: 3,
+            reps: 8,
+            perSide: true,
+            rest: 20,
+          ),
         ],
 );
 
 var _sequence = 0;
+Map<String, Object?> _user(Object value, String quote) => {
+  'value': value,
+  'source': 'user',
+  'quote': quote,
+};
+LlmResponse _set(Map<String, Object?> fields) => LlmResponse(
+  content: '',
+  toolCalls: [
+    LlmToolCall(
+      id: 'adjust-params-${_sequence++}',
+      name: AgentTools.setParams,
+      arguments: jsonEncode({'fields': fields}),
+    ),
+  ],
+  finishReason: 'tool_calls',
+  model: 'fake',
+);
+LlmResponse _initialFacts() => _set({
+  'scene': _user('home', '在家'),
+  'equipment': _user(['equip.mat'], '瑜伽垫'),
+  'minutes': _user(10, '10分钟'),
+});
 LlmResponse _show(Map<String, Object?> plan) => LlmResponse(
   content: '这里是调整后的方案。',
   toolCalls: [
@@ -195,6 +247,40 @@ void main() {
     },
   );
 
+  test('scripted adjustment plans use catalogue doses and stay within 10%', () {
+    const homeMat = CoachContext(scene: 'home', equipment: {'mat'});
+    const homeBodyweight = CoachContext(scene: 'home', equipment: {});
+    const officeBodyweight = CoachContext(scene: 'office', equipment: {});
+    for (final (raw, context) in [
+      (_initialPlan(), homeMat),
+      (_sevenMinutes(), homeMat),
+      (_twentyMinutes(), homeMat),
+      (_relativeShort(), homeMat),
+      (_relativeLong(), homeMat),
+      (_bodyweight(), homeBodyweight),
+      (_bodyweight(scene: 'office'), officeBodyweight),
+    ]) {
+      final plan = const PlanCodec().decode(raw);
+      final checked = PlanValidator(
+        catalog: catalog,
+        profile: profile,
+        enforceDrillDoseRange: true,
+      ).validate(plan, context);
+      expect(
+        checked.errors,
+        isEmpty,
+        reason: '${plan.targetMinutes}: ${checked.errors}',
+      );
+      expect(
+        (duration.estimateSeconds(plan, catalog) / 60 - plan.targetMinutes)
+                .abs() /
+            plan.targetMinutes,
+        lessThanOrEqualTo(.10),
+        reason: '${plan.targetMinutes}-minute scripted plan',
+      );
+    }
+  });
+
   for (final sample in [
     ('shorten_to_7', 7, _sevenMinutes),
     ('extend_to_20', 20, _twentyMinutes),
@@ -203,7 +289,9 @@ void main() {
       '${sample.$1}: explicit time overrides the previous 10-minute target',
       () async {
         final client = FakeLlmClient([
+          _initialFacts(),
           _show(_initialPlan()),
+          _set({'minutes': _user(sample.$2, '${sample.$2} 分钟')}),
           _show(_initialPlan()),
           _show(sample.$3()),
         ]);
@@ -230,11 +318,11 @@ void main() {
         expect(
           (duration.estimateSeconds(plan, catalog) / 60 - sample.$2).abs() /
               sample.$2,
-          lessThanOrEqualTo(.25),
+          lessThanOrEqualTo(.10),
         );
         expect(
           client.requests,
-          hasLength(3),
+          hasLength(5),
           reason: 'old-target plan must be rejected and corrected',
         );
         expect(
@@ -255,10 +343,17 @@ void main() {
     ('relative_longer', _relativeLong, false),
   ]) {
     test(
-      '${sample.$1}: actual direction is respected without a 25% target gate',
+      '${sample.$1}: actual direction is respected within 10% of target',
       () async {
         final c = controller(
-          FakeLlmClient([_show(_initialPlan()), _show(sample.$2())]),
+          FakeLlmClient([
+            _initialFacts(),
+            _show(_initialPlan()),
+            _set({
+              'minutes': _user(sample.$3 ? 5 : 19, sample.$3 ? '短一点' : '长一点'),
+            }),
+            _show(sample.$2()),
+          ]),
         );
         final previous = await begin(c, sample.$1);
         final result = await c.send(
@@ -282,8 +377,8 @@ void main() {
         expect(plan.targetMinutes, sample.$3 ? lessThan(10) : greaterThan(10));
         expect(
           (after - plan.targetMinutes).abs() / plan.targetMinutes,
-          greaterThan(.25),
-          reason: 'a relative adjustment has no fixed target tolerance',
+          lessThanOrEqualTo(.10),
+          reason: 'relative adjustments also meet the v2 duration tolerance',
         );
         expect(plan.scene, 'home');
         expect(plan.equipment, ['mat']);
@@ -297,7 +392,12 @@ void main() {
   ]) {
     test('${sample.$1}: new conditions replace the previous values', () async {
       final client = FakeLlmClient([
+        _initialFacts(),
         _show(_initialPlan()),
+        _set({
+          if (sample.$2 == 'office') 'scene': _user('office', '办公室'),
+          'equipment': _user(<String>[], '徒手'),
+        }),
         _show(_initialPlan()),
         _show(_bodyweight(scene: sample.$2)),
       ]);
@@ -327,7 +427,7 @@ void main() {
       );
       expect(
         client.requests,
-        hasLength(3),
+        hasLength(5),
         reason: 'old mat plan must be rejected',
       );
       expect(c.agent.lastConfirmedForm?['equipment'], ['徒手']);
@@ -338,8 +438,10 @@ void main() {
     'retry after a failed explicit adjustment keeps the new 7-minute conditions',
     () async {
       final client = FakeLlmClient([
+        _initialFacts(),
         _show(_initialPlan()),
         const LlmException(LlmErrorKind.network, 'offline'),
+        _set({'minutes': _user(7, '7 分钟')}),
         // A stale retry response must be rejected against the pending edit,
         // even though the last successfully delivered plan is still 10 min.
         _show(_initialPlan()),
@@ -361,8 +463,8 @@ void main() {
       expect(retried.plan!.plan.targetMinutes, 7);
       expect(retried.plan!.plan.equipment, ['mat']);
       expect(c.agent.lastConfirmedForm?['minutes'], ['7 分钟']);
-      expect(client.requests, hasLength(4));
-      expect(client.requests[2].messages.last.content, contains('缩短到 7 分钟'));
+      expect(client.requests, hasLength(6));
+      expect(client.requests[3].messages.last.content, contains('缩短到 7 分钟'));
       expect(
         client.requests.last.messages
             .where((m) => m.role == LlmRole.tool)

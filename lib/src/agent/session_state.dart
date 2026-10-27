@@ -167,6 +167,8 @@ class CoachSessionState {
     Set<String> seenActionIds = const {},
     List<String> picks = const [],
     Map<String, List<CoachPlanVersion>> plans = const {},
+    this.activePlanId,
+    this.legacyPlanFallback = false,
     Map<String, Object?> hostValues = const {},
   }) : userTurns = List.unmodifiable(userTurns),
        params = Map.unmodifiable(params),
@@ -185,6 +187,12 @@ class CoachSessionState {
   final List<String> picks;
   final Map<String, List<CoachPlanVersion>> plans;
 
+  /// Current draft plan, independent of retained previous task plans.
+  final String? activePlanId;
+
+  /// True only for restored snapshots written before activePlanId existed.
+  final bool legacyPlanFallback;
+
   /// Last values explicitly supplied by the host, used to distinguish a new
   /// host update from a repeated context after a user adjustment.
   final Map<String, Object?> hostValues;
@@ -197,6 +205,8 @@ class CoachSessionState {
     Set<String>? seenActionIds,
     List<String>? picks,
     Map<String, List<CoachPlanVersion>>? plans,
+    String? activePlanId,
+    bool clearActivePlanId = false,
     Map<String, Object?>? hostValues,
   }) => CoachSessionState(
     userTurns: userTurns ?? this.userTurns,
@@ -205,6 +215,10 @@ class CoachSessionState {
     seenActionIds: seenActionIds ?? this.seenActionIds,
     picks: picks ?? this.picks,
     plans: plans ?? this.plans,
+    activePlanId: clearActivePlanId ? null : activePlanId ?? this.activePlanId,
+    legacyPlanFallback: clearActivePlanId || activePlanId != null
+        ? false
+        : legacyPlanFallback,
     hostValues: hostValues ?? this.hostValues,
   );
 
@@ -230,6 +244,8 @@ class CoachSessionState {
       for (final entry in plans.entries)
         entry.key: [for (final version in entry.value) version.toJson()],
     },
+    if (!legacyPlanFallback || activePlanId != null)
+      'activePlanId': activePlanId,
     if (hostValues.isNotEmpty) 'hostValues': _thaw(hostValues),
   };
 
@@ -257,6 +273,8 @@ class CoachSessionState {
                 CoachPlanVersion.fromJson(_map(version)),
             ],
         },
+        activePlanId: json['activePlanId'] as String?,
+        legacyPlanFallback: !json.containsKey('activePlanId'),
         hostValues: _map(json['hostValues'] ?? const {}),
       );
 }

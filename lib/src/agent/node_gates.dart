@@ -341,8 +341,15 @@ class NodeGates {
   }
 
   CoachPlanVersion? _version(CoachSessionState state, String? id) {
+    if (state.activePlanId != null && id != null && id != state.activePlanId) {
+      return null;
+    }
     final key =
-        id ?? (state.plans.length == 1 ? state.plans.keys.single : null);
+        id ??
+        state.activePlanId ??
+        (state.legacyPlanFallback && state.plans.length == 1
+            ? state.plans.keys.single
+            : null);
     final versions = key == null ? null : state.plans[key];
     return versions == null || versions.isEmpty ? null : versions.last;
   }

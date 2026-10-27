@@ -40,8 +40,30 @@ class SessionParams {
     'level',
     'limits',
   };
-  static const scenes = {'home', 'office', 'gym', 'outdoor'};
   static const sources = {'user', 'preselect', 'default'};
+
+  /// Profile scenes that have at least one matching scoped catalogue action.
+  /// The profile's accepted scenes and posture rules are the same rules used
+  /// during action admission; no scene is invented from an empty directory.
+  List<String> get sceneCodes {
+    final profile = tags.profile;
+    final catalog = tags.catalog;
+    final drills = profile.scope(catalog);
+    return [
+      for (final entry in profile.scenes.entries)
+        if (drills.any((drill) {
+          final rule = entry.value;
+          final acceptable = rule.acceptDrillScenes.isEmpty
+              ? {entry.key}
+              : rule.acceptDrillScenes;
+          return drill.scenes.any(acceptable.contains) &&
+              !(rule.forbidFloor &&
+                  catalog.taxonomy.floorPositions.contains(drill.position)) &&
+              !rule.forbidPositions.contains(drill.position);
+        }))
+          entry.key,
+    ]..sort();
+  }
 
   /// Existing host-only equipment may be kept or removed by the model, but
   /// a new opaque code cannot be introduced through the model-facing tool.
@@ -341,12 +363,12 @@ class SessionParams {
       final name = entry.key;
       final value = entry.value;
       final old = state.params[name];
-      if (name == 'scene' && !scenes.contains(value)) {
+      if (name == 'scene' && !sceneCodes.contains(value)) {
         return _failure(
           state,
           'invalid_host_context',
           'scene',
-          scenes.toList(),
+          sceneCodes,
           value,
           '宿主提供有效场景编码。',
         );
@@ -391,7 +413,7 @@ class SessionParams {
 
   Object? _valueError(String name, Object? value, CoachSessionState state) {
     if (name == 'scene') {
-      return value is String && scenes.contains(value) ? null : scenes.toList();
+      return value is String && sceneCodes.contains(value) ? null : sceneCodes;
     }
     if (name == 'minutes') return value is int && value > 0 ? null : '正整数';
     if (name == 'level') {

@@ -1,0 +1,133 @@
+{
+  "legacyGoalMap": [
+    {
+      "anyOf": [
+        "purpose.stretch"
+      ],
+      "goal": "relax"
+    },
+    {
+      "anyOf": [
+        "purpose.mobility"
+      ],
+      "goal": "mobility"
+    },
+    {
+      "anyOf": [],
+      "onlyBlocks": [
+        "warmup"
+      ],
+      "goal": "warmup"
+    },
+    {
+      "anyOf": [],
+      "onlyBlocks": [
+        "cooldown"
+      ],
+      "goal": "cooldown"
+    },
+    {
+      "anyOf": [
+        "body.core",
+        "body.abs",
+        "body.obliques",
+        "body.erectors"
+      ],
+      "bodyOnlyOf": [
+        "body.core",
+        "body.abs",
+        "body.obliques",
+        "body.erectors"
+      ],
+      "goal": "core"
+    },
+    {
+      "anyOf": [
+        "body.biceps",
+        "body.chest",
+        "body.deltoids",
+        "body.forearms",
+        "body.lats",
+        "body.rotator_cuff",
+        "body.scapular",
+        "body.serratus",
+        "body.triceps",
+        "body.inner_thigh",
+        "body.calves",
+        "body.glute_max",
+        "body.hamstrings",
+        "body.hip_abductors",
+        "body.hip_flexors",
+        "body.quadriceps",
+        "body.tibialis",
+        "body.core",
+        "body.abs",
+        "body.obliques",
+        "body.erectors"
+      ],
+      "bodyRegions": {
+        "upper": [
+          "body.biceps",
+          "body.chest",
+          "body.deltoids",
+          "body.forearms",
+          "body.lats",
+          "body.rotator_cuff",
+          "body.scapular",
+          "body.serratus",
+          "body.triceps"
+        ],
+        "lower": [
+          "body.inner_thigh",
+          "body.calves",
+          "body.glute_max",
+          "body.hamstrings",
+          "body.hip_abductors",
+          "body.hip_flexors",
+          "body.quadriceps",
+          "body.tibialis"
+        ],
+        "core": [
+          "body.core",
+          "body.abs",
+          "body.obliques",
+          "body.erectors"
+        ]
+      },
+      "minBodyRegions": 2,
+      "goal": "fullbody"
+    },
+    {
+      "anyOf": [
+        "purpose.strength",
+        "body.biceps",
+        "body.chest",
+        "body.deltoids",
+        "body.forearms",
+        "body.lats",
+        "body.rotator_cuff",
+        "body.scapular",
+        "body.serratus",
+        "body.triceps",
+        "body.inner_thigh",
+        "body.calves",
+        "body.glute_max",
+        "body.hamstrings",
+        "body.hip_abductors",
+        "body.hip_flexors",
+        "body.quadriceps",
+        "body.tibialis",
+        "body.core",
+        "body.abs",
+        "body.obliques",
+        "body.erectors"
+      ],
+      "goal": "strength"
+    },
+    {
+      "anyOf": [],
+      "fallback": true,
+      "goal": "fullbody"
+    }
+  ]
+}

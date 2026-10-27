@@ -213,6 +213,7 @@ class CoachProfile {
     this.goals = const ['relax', 'mobility', 'strength', 'core', 'fullbody', 'warmup', 'cooldown'],
     this.limits = const PlanLimits(),
     this.minActions = 3,
+    this.legacyGoalMap = const [],
     this.assetApps = const [],
     this.vars = const {},
     this.skills = const [],
@@ -242,6 +243,9 @@ class CoachProfile {
 
   /// Minimum distinct actions required for an action node.
   final int minActions;
+
+  /// Ordered structured-to-legacy goal rules, including an explicit fallback.
+  final List<Map<String, Object?>> legacyGoalMap;
 
   /// 素材来源优先级（[AssetResolver.appOrder]），空 = `[id, 'pose-hub']`。
   final List<String> assetApps;
@@ -278,6 +282,7 @@ class CoachProfile {
       goals: j['goals'] == null ? const CoachProfile(id: '', appName: '').goals : asStringList(j['goals']),
       limits: PlanLimits.fromJson(j['limits']),
       minActions: asInt(j['minActions']) ?? 3,
+      legacyGoalMap: [for (final rule in asList(j['legacyGoalMap'])) asMap(rule)],
       assetApps: asStringList(j['assetApps']),
       vars: {for (final e in asMap(j['vars']).entries) if (e.value is String) e.key: e.value! as String},
       skills: [for (final x in asList(j['skills'])) ?ProfileSkill.tryParse(x)],
@@ -296,6 +301,7 @@ class CoachProfile {
     'goals': goals,
     'limits': limits.toJson(),
     'minActions': minActions,
+    if (legacyGoalMap.isNotEmpty) 'legacyGoalMap': legacyGoalMap,
     if (assetApps.isNotEmpty) 'assetApps': assetApps,
     if (vars.isNotEmpty) 'vars': vars,
     if (skills.isNotEmpty) 'skills': [for (final x in skills) x.toJson()],

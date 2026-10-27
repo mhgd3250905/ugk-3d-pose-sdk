@@ -7,7 +7,7 @@ import '../catalog/catalog.dart';
 import '../profile/coach_profile.dart';
 
 class ActionTags {
-  ActionTags(CoachProfile profile, Catalog catalog) {
+  ActionTags(this.profile, this.catalog) {
     final drills = profile.scope(catalog);
     _actions = {
       for (final drill in drills) drill.id: Set.unmodifiable(_encode(drill)),
@@ -51,6 +51,9 @@ class ActionTags {
     }..removeWhere((value) => value.isEmpty);
     limitCodes = _sorted(limits.map((value) => limitCode(value)!));
   }
+
+  final CoachProfile profile;
+  final Catalog catalog;
 
   late final Map<String, Set<String>> _actions;
   late final Map<String, String> _equipmentById;

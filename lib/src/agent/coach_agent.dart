@@ -38,6 +38,7 @@ import 'agent_prompt.dart';
 import 'agent_resilience.dart';
 import 'agent_task.dart';
 import 'node_gates.dart';
+import 'plan_builder.dart';
 import 'session_params.dart';
 import 'session_state.dart';
 import 'skill_files.dart';
@@ -1899,6 +1900,30 @@ class CoachAgent {
         // Host settings may change while the model request is in flight.
         context = ledgerContext(context);
         switch (t.name) {
+          case AgentTools.draftPlan:
+            Object? args;
+            try {
+              args = jsonDecode(t.arguments);
+            } on FormatException {
+              args = null;
+            }
+            if (args is! Map || args.keys.any((key) => key is! String)) {
+              results[t.id] = jsonEncode(nodeError(
+                'invalid_arguments', 'arguments',
+                '包含 title、blocks 和可选 plan_id 的 JSON 对象',
+                args, '按 draft_plan schema 提供结构化计划。',
+              ));
+              continue;
+            }
+            final draft = PlanBuilder(profile, cat, minPicks: profile.minActions)
+                .draft(_sessionState, args.cast<String, Object?>(),
+                    newPlanId: _ids.next('plan'));
+            // duration_unfit still records a version for the model to repair.
+            if (draft.planId != null) {
+              _sessionState = draft.state;
+              fresh = true;
+            }
+            results[t.id] = jsonEncode(draft.toJson());
           case AgentTools.searchActions || AgentTools.getAction:
             Object? args;
             try {

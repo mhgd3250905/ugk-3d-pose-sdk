@@ -101,6 +101,7 @@ class AgentTask {
     ];
     final next = state.copyWith(
       task: CoachTaskState(type: type, nodes: nodes, reused: reuse),
+      clearActivePlanId: true,
       picks: reuse ? state.picks : const [],
       seenActionIds: reuse ? state.seenActionIds : const {},
     );

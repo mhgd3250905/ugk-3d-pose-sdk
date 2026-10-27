@@ -15,7 +15,7 @@
 新建 lib/src/agent/session_state.dart，定义 CoachSessionState，可以 toJson/fromJson，并并入现有 CoachPlanState 的保存和恢复（005dd9d 那套）。字段如下：
 • userTurns：本会话每条用户消息的原文和序号。
 • task：{type: qa|recommend|plan, nodes:[{id, status: pending|current|done|updated, stamp, doneAtTurn}], reused}
-• params：每项都是 {value, source: user|host|preselect|default, quote?, turn}。包含的项：scene（枚举：home/office/gym/outdoor）、goal（练什么，用 body.* / purpose.* 编码的数组）、equipment（equip.* 编码的数组，空数组表示徒手）、minutes（整数）、level（1–3）、limits（伤痛限制编码的数组，空数组表示无）。host 只由代码从 CoachContext 写入，模型不得指定。
+• params：每项都是 {value, source: user|host|preselect|default, quote?, turn}。包含的项：scene（枚举由当前 profile 与目录实际支持的场景生成；outdoor 等目录和宿主支持后启用）、goal（练什么，用 body.* / purpose.* 编码的数组）、equipment（equip.* 编码的数组，空数组表示徒手）、minutes（整数）、level（1–3）、limits（伤痛限制编码的数组，空数组表示无）。host 只由代码从 CoachContext 写入，模型不得指定。
 • seenActionIds：本任务里 search_actions 返回过的动作 id 集合。
 • picks：动作节点选中的动作 id。
 • plans：plan_id → [{version, plan, estimateSec, fitLog, check: null|{ok, errors}}]
@@ -25,6 +25,7 @@
 新增工具 set_params。schema 如下：
 { "fields": { "scene"|"goal"|"equipment"|"minutes"|"level"|"limits": { "value": ..., "source": "user"|"preselect"|"default", "quote": "用户原话片段，可选" } } }
 所有枚举值都写进 schema 的 enum。
+scene enum 随当前 profile 与目录支持生成，现有计划卡场景校验保持不变。用户在户外时，不能擅自记成 home 或 gym：先说明暂时没有专门的户外动作，调用 ask_user 提供可选场景；用户选定后以 source=user 和该次回答的 quote 记账。用户坚持只要户外时，说明暂时无法提供并结束任务。
 代码校验（任何一条不过，整次调用就失败，并按第 10 步的格式报错）：
 1. source=user 时必须带 quote。把 quote 和 userTurns 里的每条消息都去掉空白和标点、转成小写后，quote 必须是其中某条消息的子串。quote 长度 ≤30 字。这是在核对来源，不是在判断意图。
 2. 器械只减不加：如果新的 equipment 比当前多出了器械，那么 source 必须是 user，且 quote 必须来自上次设置之后的新用户消息。
@@ -64,6 +65,7 @@ profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有�
 ======== 第 5 步：draft_plan（教练定结构，助理填数、配时长） ========
 新建 lib/src/agent/plan_builder.dart。估时复用 plan_validator 里现有的估时函数，保证口径一致。
 • schema：{ "plan_id"?: string, "title": string, "blocks": [ { "kind": "warmup"|"main"|"cooldown", "rounds"?: int, "items": [ { "id": string, "sets"?: int, "reps"?: int, "seconds"?: int } ] } ] }。不传 plan_id 就新建计划，传了就生成该计划的新版本。
+• 旧卡片 goal 由各 profile 的有序 legacyGoalMap 从账本 params.goal 和计划结构确定，模型不能传入或覆盖。依次匹配：拉伸/放松 purpose→relax；灵活性/活动度 purpose→mobility；热身 purpose 且只有 warmup 块→warmup；收尾 purpose 且只有 cooldown 块→cooldown；body 目标仅核心→core；body 跨上肢、下肢、核心至少两个大区或含全身编码→fullbody；力量 purpose 或其余单一部位 body→strength；未命中→fullbody。编码采用目录实际值，各 profile 可按业务语义调整顺序；具体映射由配置提供，代码不写死。返回结果包含 legacyGoal；完整目标和 focus 核对仍以账本编码为准。
 • 各项只能从 picks 里取。只有当时长不够时，才允许使用 seenActionIds 里符合 params 的其他动作。
 • 缺省的剂量用目录默认值补齐。模型给的剂量如果超出目录范围，就夹到范围内，并记入 fitLog。
 • 自动配时长：目标 T = params.minutes × 60。如果估时不在 T ±10% 以内，就按下面的顺序调整，每调一次重算一次，进入 ±5% 就停：

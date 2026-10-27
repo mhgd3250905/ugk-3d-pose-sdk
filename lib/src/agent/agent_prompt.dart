@@ -31,6 +31,7 @@ abstract final class AgentTools {
   static const check = 'check';
   static const searchActions = 'search_actions';
   static const getAction = 'get_action';
+  static const draftPlan = 'draft_plan';
   static const checkPlan = 'check_plan';
   static const showActions = CoachTools.showActions;
   static const showPlan = CoachTools.showPlan;
@@ -169,6 +170,48 @@ abstract final class AgentTools {
           'additionalProperties': false,
         },
       ),
+      const LlmTool(
+        name: draftPlan,
+        description: '编排计划结构；剂量按目录补齐或调整，并按目标时长配平。',
+        parameters: {
+          'type': 'object',
+          'properties': {
+            'plan_id': {'type': 'string'},
+            'title': {'type': 'string'},
+            'blocks': {
+              'type': 'array',
+              'items': {
+                'type': 'object',
+                'properties': {
+                  'kind': {
+                    'type': 'string',
+                    'enum': ['warmup', 'main', 'cooldown'],
+                  },
+                  'rounds': {'type': 'integer'},
+                  'items': {
+                    'type': 'array',
+                    'items': {
+                      'type': 'object',
+                      'properties': {
+                        'id': {'type': 'string'},
+                        'sets': {'type': 'integer'},
+                        'reps': {'type': 'integer'},
+                        'seconds': {'type': 'integer'},
+                      },
+                      'required': ['id'],
+                      'additionalProperties': false,
+                    },
+                  },
+                },
+                'required': ['kind', 'items'],
+                'additionalProperties': false,
+              },
+            },
+          },
+          'required': ['title', 'blocks'],
+          'additionalProperties': false,
+        },
+      ),
       LlmTool(
         name: setParams,
         description:
@@ -183,7 +226,7 @@ abstract final class AgentTools {
               'properties': {
                 'scene': parameter({
                   'type': 'string',
-                  'enum': SessionParams.scenes.toList(),
+                  'enum': SessionParams(tags).sceneCodes,
                 }),
                 'goal': parameter(codes(tags.goalCodes)),
                 'equipment': parameter(codes(equipmentCodes)),

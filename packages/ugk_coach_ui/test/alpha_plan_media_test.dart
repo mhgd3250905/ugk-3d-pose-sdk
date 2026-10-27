@@ -47,6 +47,7 @@ Future<void> _mount(
   double parentWidth = 320,
   Brightness brightness = Brightness.light,
   Widget? Function(BuildContext, CoachMediaRequest)? media,
+  CoachExerciseLibrary? library,
   Widget Function(BuildContext, CoachCardSurface)? surface,
   double? surfaceTopInset,
   VoidCallback? onOpen,
@@ -87,7 +88,7 @@ Future<void> _mount(
                   ),
                   child: CoachPlanCard(
                     plan: _plan(single),
-                    library: _library,
+                    library: library ?? _library,
                     saved: false,
                     cutoutTopInset: inset,
                     surfaceTopInset: surfaceTopInset,
@@ -299,6 +300,95 @@ Finder get _hero => find.descendant(
 );
 
 void main() {
+  for (final brightness in Brightness.values) {
+    testWidgets(
+      'routine thumbnails use transparent still and theme stage $brightness',
+      (tester) async {
+        final requests = <CoachMediaRequest>[];
+        await _mount(
+          tester,
+          brightness: brightness,
+          media: (context, request) {
+            requests.add(request);
+            return _media(context, request);
+          },
+        );
+        expect(
+          find.byKey(const ValueKey('media-b-still.webp-true-true')),
+          findsWidgets,
+        );
+        final stageFinder = find.byKey(const ValueKey('plan-thumbnail-stage'));
+        expect(stageFinder, findsWidgets);
+        final theme = CoachUiTheme.of(tester.element(stageFinder.first));
+        for (final stage in tester.widgetList<ColoredBox>(stageFinder)) {
+          expect(
+            stage.color,
+            theme.colors.stage.mediaStage.withValues(alpha: 1),
+          );
+          expect(
+            stage.color.computeLuminance(),
+            brightness == Brightness.light ? greaterThan(.5) : lessThan(.2),
+          );
+        }
+        await tester.tap(_expand);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('media-a-still.webp-true-true')),
+          findsWidgets,
+        );
+        expect(
+          find.byKey(const ValueKey('media-b-still.webp-true-true')),
+          findsWidgets,
+        );
+        expect(
+          requests.any(
+            (r) =>
+                r.asset == 'b-still.webp' &&
+                r.cutout &&
+                r.still &&
+                r.fit == BoxFit.contain,
+          ),
+          isTrue,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'routine thumbnails fall back to a host poster when no still exists',
+    (tester) async {
+      final requests = <CoachMediaRequest>[];
+      await _mount(
+        tester,
+        library: CoachExerciseLibrary([
+          for (final id in ['a', 'b'])
+            CoachExercise(
+              id: id,
+              name: id,
+              poster: '$id-poster.webp',
+              stage: _stage,
+            ),
+        ]),
+        media: (context, request) {
+          requests.add(request);
+          return _media(context, request);
+        },
+      );
+      expect(
+        requests.any((r) => r.asset == 'b-poster.webp' && !r.cutout && r.still),
+        isTrue,
+      );
+      await tester.tap(_expand);
+      await tester.pumpAndSettle();
+      expect(
+        requests.any((r) => r.asset == 'a-poster.webp' && !r.cutout && r.still),
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'adjacent cutout cards reserve space throughout both directions',
     (tester) async {
@@ -525,7 +615,7 @@ void main() {
           expect(foldedTitle.top - hero.bottom, closeTo(8, .01));
           expect(hero.overlaps(tester.getRect(_start)), isFalse);
           final strip = find.byKey(
-            const ValueKey('media-b-thumb.webp-false-true'),
+            const ValueKey('media-b-still.webp-true-true'),
           );
           expect(hero.overlaps(tester.getRect(strip)), isFalse);
           final firstFrame = hero;

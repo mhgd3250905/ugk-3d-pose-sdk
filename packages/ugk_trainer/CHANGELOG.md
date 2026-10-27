@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 — 2026-10-27
+
+- Add a low-contrast perspective floor behind the training media, with light/dark palettes and optional per-drill geometry. The fallback projection is an estimate; the bundled catalog does not contain calibrated floor coordinates.
 
 - Manual skip/previous announcements are leading-edge: a single switch, or the first switch of a burst, speaks immediately instead of after 150 ms. Further switches within 150 ms of the last one are merged, the window restarting on each tap; only the final stop speaks. Returning to the action the burst's first switch announced does not repeat that action's announcement (its `CuePriority.call` start line), and only when the voice output confirmed the line really started playing; its chimes, counts, coaching lines and every other cue play again as usual. A line that was only submitted or still waiting behind another (then cancelled by the next switch), a switch made while sound was off or paused, and an output that cannot confirm starts are never treated as announced; toggling sound clears the record. Disposal still cancels the pending window; the training clock, media handoff and other cues are unchanged.
 - Voice start confirmation: new optional `StartReportingVoiceOutput.speakReportingStart` (implemented by `JustAudioVoiceOutput`), `VoiceLineController.speak(onStarted:)` (called when the platform player is told to play the line, after earlier lines and its load, never for a stopped or skipped line) and `VoiceQueue.onStarted`.

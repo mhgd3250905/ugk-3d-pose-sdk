@@ -56,6 +56,7 @@ class TrainerDrill {
     required this.name,
     this.cue,
     this.media,
+    this.floorGeometry,
   });
   final String id;
 
@@ -65,6 +66,10 @@ class TrainerDrill {
   /// Key point shown while resting before it.
   final String? cue;
   final DrillMedia? media;
+
+  /// Optional image-space calibration for this drill's training media.
+  /// When absent, the stage uses an estimated default projection.
+  final TrainerFloorGeometry? floorGeometry;
 }
 
 /// The voice: clips, where sound goes, the user's settings.
@@ -1419,7 +1424,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         baseUri: widget.poseHubMediaBaseUri ?? Uri(),
         playing: !_engine.done,
         paused: _paused,
-        theme: theme,
+        // The stage already supplies the opaque background. Keep the
+        // bundled transparent still transparent here so the floor behind it
+        // is visible while the video initializes.
+        theme: theme.copyWith(mediaStage: Colors.transparent),
         mediaPreparer: _mediaPrefetcher,
       );
       return p.side == Side.left
@@ -1511,6 +1519,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                 clipSize: v,
                 clipLeft: left,
                 clipTop: top,
+                geometry: d?.floorGeometry ?? const TrainerFloorGeometry(),
               ),
             ),
             if (d != null)

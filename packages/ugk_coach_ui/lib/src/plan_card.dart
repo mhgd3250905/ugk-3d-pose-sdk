@@ -1443,7 +1443,7 @@ class _PlanCardState extends State<CoachPlanCard>
               if (poster > 0)
                 Opacity(
                   opacity: poster,
-                  child: _Media(exercise: cover),
+                  child: _Media(exercise: cover, thumbnail: fused),
                 ),
               if (fused && poster < 1 && cover != null)
                 Opacity(
@@ -1973,6 +1973,7 @@ class _Media extends StatelessWidget {
     this.landing = false,
     this.cutout = false,
     this.still = false,
+    this.thumbnail = false,
     this.cutoutAlignment = Alignment.center,
   });
   final CoachExercise? exercise;
@@ -1980,6 +1981,10 @@ class _Media extends StatelessWidget {
 
   /// Show the cutout's still cover (while the card unfolds / folds).
   final bool still;
+
+  /// A routine thumbnail has a theme-coloured background and uses the
+  /// transparent still when the host supplies one.
+  final bool thumbnail;
 
   /// The keyed figure straight on the card (no stage box), when [exercise]
   /// has one (the supplied cutout); otherwise the boxed cover as before.
@@ -2019,8 +2024,13 @@ class _Media extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         ColoredBox(
-          color: (e?.stage ?? CoachUiTheme.of(context).colors.stage).mediaStage
-              .withValues(alpha: 1),
+          key: thumbnail ? const ValueKey('plan-thumbnail-stage') : null,
+          color:
+              (thumbnail
+                      ? CoachUiTheme.of(context).colors.stage
+                      : e?.stage ?? CoachUiTheme.of(context).colors.stage)
+                  .mediaStage
+                  .withValues(alpha: 1),
         ),
         if (e != null)
           TweenAnimationBuilder<double>(
@@ -2037,12 +2047,16 @@ class _Media extends StatelessWidget {
               context,
               CoachMediaRequest(
                 exercise: e,
-                asset: e.poster,
-                cutout: false,
+                asset: thumbnail ? e.stillCutout ?? e.poster : e.poster,
+                cutout: thumbnail && e.stillCutout != null,
                 still: true,
                 landing: landing,
-                fit: BoxFit.cover,
-                alignment: const Alignment(0, -.15),
+                fit: thumbnail && e.stillCutout != null
+                    ? BoxFit.contain
+                    : BoxFit.cover,
+                alignment: thumbnail && e.stillCutout != null
+                    ? Alignment.center
+                    : const Alignment(0, -.15),
               ),
             ),
           ),
@@ -2325,7 +2339,7 @@ class _SetBody extends StatelessWidget {
                     opacity: thumbs,
                     child: _Thumb(
                       size: thumb,
-                      child: _Media(exercise: e),
+                      child: _Media(exercise: e, thumbnail: true),
                     ),
                   ),
                   const SizedBox(width: gap),
@@ -2685,7 +2699,7 @@ class _MoveRow extends StatelessWidget {
     borderRadius: BorderRadius.circular(radius),
     child: SizedBox.square(
       dimension: thumbSize,
-      child: _Media(exercise: e),
+      child: _Media(exercise: e, thumbnail: true),
     ),
   );
 

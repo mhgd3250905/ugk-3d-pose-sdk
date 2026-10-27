@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0 — 2026-10-27
+
+- Use theme-coloured thumbnail stages and prefer the host-provided transparent still for routine strips, expanded rows, and animated landing points; keep the poster fallback when no still is supplied.
+- Replace the large waiting card with a compact animated bubble. Hosts can map real agent events and supply rotating text by phase; the existing progress label remains supported. Event and first-frame wiring remain host responsibilities.
+
 ## 0.3.1 — 2026-10-27
 
 - Restore the multi-action cutout above the card face and reserve layout space during expansion and collapse. Use cached first-frame alpha bounds to enlarge smaller upright artwork by up to 15% and fit clearly horizontal artwork to the card's display band without crossing its top edge. Keep the image and its flying still on the same path and leave adjacent cards clear.

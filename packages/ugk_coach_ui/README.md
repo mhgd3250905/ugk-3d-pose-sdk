@@ -49,14 +49,16 @@ import 'package:ugk_coach_ui/ugk_coach_ui.dart';
 | `CoachUiColors` / `CoachUiTypography` / `CoachUiStrings` | 三层表面、前景/状态色、描边/阴影、文字样式、所有固定文案及时间/详情标签函数。提供浅深默认颜色及完整 `copyWith`，默认从 Material Theme 映射。App 无需采用固定品牌或字体。 |
 | `CoachUiBuilders` | 可注入 `pressable`、`controlFace`、`textAction`、`surface`、`icon`、`startButton`，保留宿主图标/触感与表面实现；应遵守不透明分层、原 padding/child 几何与触控语义。可选 `media(context, CoachMediaRequest)` 返回 Widget 或 null（使用默认 Image.asset）。列表、气泡、卡片核心布局仍在 SDK。 |
 | `CoachMediaRequest` | 可信目录中的 `exercise` 与所选 `asset`，以及 `cutout`、`still`、`landing`、`fit`、`alignment`、可选 `semanticLabel`。封面、静态飞行图和缩略图均经过同一 builder。 |
-| `CoachGreetingBlock` / `CoachTimeMark` / `CoachTypingBubble` | 问候、时间及等待气泡。typing 可注入进度标签和取消回调。 |
+| `CoachGreetingBlock` / `CoachTimeMark` / `CoachTypingBubble` | 问候、时间及单行等待气泡。typing 可接入事件流、分步骤文案和取消回调。 |
 | `CoachOptionPill` / `CoachAppear` | 可复用的选项和进入动画；减弱动态效果遵循 `MediaQuery.disableAnimations`。 |
 
 `CoachOriginRect` 为 `Rect? Function()`：App 可在进入与退出播放器时读取卡片的实时屏幕位置。`coachRectOf` 提供已布局 widget 的安全矩形读取。
 
 ## 透明素材与封面突出卡片
 
-宿主可根据本地可信清单中的 alpha 边界绘制素材；SDK 不扫描像素、不裁改源文件、不下载素材。`media` 返回 null 时使用原来的 asset 图，适合缺少边界或校验不匹配时回退。宿主应尊重请求中的 `fit`、`alignment`、`semanticLabel`，并对同一资源在封面和飞行图中使用一致的裁剪；SDK 继续控制淡入、落地与展开动画。
+套路卡缩略图、展开列表和动画落点优先请求 `CoachExercise.stillCutout`，并使用主题的 `stage.mediaStage` 作为背景；缺少静帧时才回退 `poster`。本包不包含动作素材，宿主必须将 `stillCutout` 指向可信的透明首帧并在 `media` builder 中解析它。若宿主同时使用 `ugk_trainer` 的 PoseHub 素材，可以将通过目录核验的动作 ID 映射到 `assets/pose_hub/app-test-pack-r1/standing/<id>.webp`，并以 `Image.asset(path, package: 'ugk_trainer', fit: request.fit, alignment: request.alignment)` 渲染；不要把旧的选姿 alpha cover 当成已验证的视频首帧。
+
+宿主可根据本地可信清单中的 alpha 边界绘制素材；SDK 不裁改源文件、不下载素材，透明首图的自适应缩放会采样可见范围。`media` 返回 null 时使用原来的 asset 图，适合缺少边界或校验不匹配时回退。宿主应尊重请求中的 `fit`、`alignment`、`semanticLabel`，并对同一资源在封面和飞行图中使用一致的裁剪；SDK 继续控制淡入、落地与展开动画。
 
 ```dart
 final builders = CoachUiBuilders(
@@ -99,6 +101,30 @@ CoachChatList(
 会话状态可使用 `ugk_coach` 的纯 Dart [`CoachConversationController`](../../docs/coach-conversation-controller.md)。本包不依赖 coach/controller；宿主应按自己的已核实版本独立接入，不从 UI 版本推断另一个包的发布状态。
 
 App 把构造好的一个 agent 交给 controller，并监听 `state`。controller 负责等 `send` 返回后才启用已过门禁的问题、单选/多选校验与排序、同步锁定提交、旧问题失效、取消与新对话；App 不再另存一套“当前可答问题”的状态。agent 进度事件仅用于显示进度，不直接启用询问气泡。
+
+等待气泡与 coach 包保持独立。宿主为当前会话创建并持有稳定的映射流，在忙碌期间传入；气泡订阅并在销毁或更换流时取消订阅。要按产品语言替换轮换文案，向 `messages` 提供各阶段的非空列表；旧的 `progressLabel` 仍可直接覆盖状态文字，使用事件分阶段轮换时应将它置空。
+
+```dart
+// 保存在 State 中，不要在每次 build 时重新创建映射流。
+late final Stream<CoachTypingEvent> typingEvents =
+    conversation.events.map((event) => CoachTypingEvent(
+      event.kind.name,
+      path: event.path,
+    ));
+
+CoachTypingBubble(
+  events: typingEvents,
+  onCancel: cancelCurrentTurn,
+  messages: const {
+    CoachTypingPhase.understanding: ['正在理解需求', '整理训练目标'],
+    CoachTypingPhase.searching: ['正在查动作库', '挑选合适的动作'],
+    CoachTypingPhase.planning: ['正在编排计划', '安排动作和节奏'],
+    CoachTypingPhase.checking: ['正在核对计划', '检查训练安排'],
+  },
+);
+```
+
+事件按实际收到的内容显示：`action-library/` 的 reading/listing 显示查库，`checking` 显示核对；读过动作库或排课技能后的下一次 `thinking` 显示编排。Agent 没有独立的“开始编排”事件，后者是根据事件上下文的展示推断；紧凑动作索引本来就内联在提示中，不发生读取时不会虚构查库阶段。其他事件不强行推进阶段，因此一次对话可以跳过某些阶段。文字每 6 秒轮换，动效遵循系统减弱动画设置。
 
 Flutter `State` 中的监听片段如下，`widget.conversation` 由 App 注入；下面以 App 创建并拥有本页面会话的生命周期为例：
 

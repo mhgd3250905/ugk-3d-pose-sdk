@@ -1,5 +1,7 @@
 # ugk_trainer 0.4.2
 
+训练舞台在透明媒体后绘制浅色或深色的低对比透视地板，不改变训练页布局。默认地平线和接地位置是视觉估算；当前随包目录没有与发布素材绑定的逐动作相机矩阵或接地坐标。宿主若有经验证的素材坐标，可为对应 `TrainerDrill.floorGeometry` 传入 `TrainerFloorGeometry(horizon: ..., ground: ..., vanishingX: ...)`，坐标均相对于方形媒体帧，缺省使用估算值。静帧和媒体均须保留 alpha 才能透出地板。
+
 ## 宿主媒体准备与 v3 逐文件素材
 
 0.5.0 取消独立准备页与计时门禁。可选注入 `mediaPreparer`，实现 `PoseHubMediaPreparer.prepareAction(action)` 并返回 `PoseHubMediaProgress` / `PoseHubMediaReady(mediaBaseUri:)` / `PoseHubMediaFailed(reason:)` 事件流。宿主负责下载、缓存及 `file.bytes` / `file.sha256` 校验；SDK 编排最多两个并发准备任务、消费最终本地目录，不实现下载缓存。计时与播报照常开始，原始 alpha WebP 随包显示，失败保持静帧并静默重试；视频首帧可呈现后在原位淡入。不注入时保留本地 `mediaBaseUri` 播放。[接口与限制](../../docs/feedback-r1-part1.md)。

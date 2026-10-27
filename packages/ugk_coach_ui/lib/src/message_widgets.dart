@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'models.dart';
 import 'theme.dart';
@@ -291,11 +293,38 @@ class CoachTimeMark extends StatelessWidget {
   }
 }
 
-/// Three soft dots while the assistant "thinks".
+/// The visible phase of a coach turn. Phases are driven by real agent events;
+/// a turn may skip phases when the model does not need the corresponding tool.
+enum CoachTypingPhase { understanding, searching, planning, checking }
+
+/// Presentation-only snapshot of an agent event. To keep this package
+/// independent of ugk_coach, hosts map AgentEvent.kind.name and path here.
+@immutable
+class CoachTypingEvent {
+  const CoachTypingEvent(this.kind, {this.path});
+  final String kind;
+  final String? path;
+}
+
+/// A compact progress indicator. [events] should be a stable stream for the
+/// current turn; the host maps its CoachAgent events to [CoachTypingEvent].
+/// A host may override the rotating phrases for any phase in [messages].
 class CoachTypingBubble extends StatefulWidget {
-  const CoachTypingBubble({super.key, this.onCancel, this.progressLabel});
+  const CoachTypingBubble({
+    super.key,
+    this.onCancel,
+    this.progressLabel,
+    this.events,
+    this.messages = const {},
+    this.rotationInterval = const Duration(seconds: 6),
+  });
   final VoidCallback? onCancel;
+
+  /// Existing host-supplied label, if any, takes precedence over phase copy.
   final String? progressLabel;
+  final Stream<CoachTypingEvent>? events;
+  final Map<CoachTypingPhase, List<String>> messages;
+  final Duration rotationInterval;
   @override
   State<CoachTypingBubble> createState() => _CoachTypingBubbleState();
 }
@@ -306,6 +335,95 @@ class _CoachTypingBubbleState extends State<CoachTypingBubble>
     vsync: this,
     duration: const Duration(milliseconds: 1100),
   );
+  static const _defaults = <CoachTypingPhase, List<String>>{
+    CoachTypingPhase.understanding: ['正在理解需求', '整理你的训练目标'],
+    CoachTypingPhase.searching: ['正在查动作库', '挑选合适的动作'],
+    CoachTypingPhase.planning: ['正在编排计划', '安排动作和节奏'],
+    CoachTypingPhase.checking: ['正在核对计划', '检查动作和训练安排'],
+  };
+  CoachTypingPhase _phase = CoachTypingPhase.understanding;
+  bool _sawPlanContext = false;
+  int _phrase = 0;
+  StreamSubscription<CoachTypingEvent>? _subscription;
+  Timer? _rotation;
+
+  @override
+  void initState() {
+    super.initState();
+    _listen();
+    _scheduleRotation();
+  }
+
+  void _listen() {
+    _subscription = widget.events?.listen(
+      _onEvent,
+      onError: (Object _, StackTrace _) {},
+    );
+  }
+
+  void _onEvent(CoachTypingEvent event) {
+    final path = event.path ?? '';
+    CoachTypingPhase? next;
+    if ((event.kind == 'reading' || event.kind == 'listing') &&
+        (path == 'action-library' || path.startsWith('action-library/'))) {
+      next = CoachTypingPhase.searching;
+    } else if ((event.kind == 'reading' || event.kind == 'listing') &&
+        (path == 'plan-training' || path.startsWith('plan-training/'))) {
+      _sawPlanContext = true;
+    } else if (event.kind == 'checking') {
+      next = CoachTypingPhase.checking;
+    } else if (event.kind == 'thinking' &&
+        (_sawPlanContext ||
+            _phase == CoachTypingPhase.searching ||
+            _phase == CoachTypingPhase.checking)) {
+      next = CoachTypingPhase.planning;
+    }
+    if (next != null && next != _phase && mounted) {
+      setState(() {
+        _phase = next!;
+        _phrase = 0;
+      });
+      _scheduleRotation();
+    }
+  }
+
+  List<String> get _phrases {
+    final configured = widget.messages[_phase];
+    return configured == null || configured.isEmpty
+        ? _defaults[_phase]!
+        : configured;
+  }
+
+  void _scheduleRotation() {
+    _rotation?.cancel();
+    if (widget.progressLabel != null ||
+        _phrases.length < 2 ||
+        widget.rotationInterval <= Duration.zero) {
+      return;
+    }
+    _rotation = Timer.periodic(widget.rotationInterval, (_) {
+      if (mounted) setState(() => _phrase = (_phrase + 1) % _phrases.length);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant CoachTypingBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.events != widget.events) {
+      _subscription?.cancel();
+      _phase = CoachTypingPhase.understanding;
+      _sawPlanContext = false;
+      _phrase = 0;
+      _listen();
+    }
+    if (oldWidget.events != widget.events ||
+        oldWidget.messages != widget.messages ||
+        oldWidget.progressLabel != widget.progressLabel ||
+        oldWidget.rotationInterval != widget.rotationInterval) {
+      _phrase = 0;
+      _scheduleRotation();
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -321,70 +439,93 @@ class _CoachTypingBubbleState extends State<CoachTypingBubble>
 
   @override
   void dispose() {
+    _subscription?.cancel();
+    _rotation?.cancel();
     _c.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => Align(
-    alignment: Alignment.centerLeft,
-    child: _Bubble(
-      user: false,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedBuilder(
-            animation: _c,
-            builder: (_, _) => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < 3; i++) ...[
-                  if (i > 0) const SizedBox(width: 6),
-                  Opacity(
-                    opacity: .3 + .7 * _pulse((_c.value - i * .18) % 1),
-                    child: SizedBox.square(
-                      dimension: 6,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: CoachUiTheme.of(context).colors.muted,
-                          shape: BoxShape.circle,
+  Widget build(BuildContext context) {
+    final style = CoachUiTheme.of(context);
+    final label = widget.progressLabel ?? _phrases[_phrase % _phrases.length];
+    final reduce = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        key: const ValueKey('typing-bubble-surface'),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * .86,
+        ),
+        child: _Bubble(
+          user: false,
+          padding: const EdgeInsets.only(left: 14, right: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedBuilder(
+                animation: _c,
+                builder: (_, _) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < 3; i++) ...[
+                      if (i > 0) const SizedBox(width: 3),
+                      Opacity(
+                        opacity: .35 + .65 * _pulse((_c.value - i * .18) % 1),
+                        child: SizedBox.square(
+                          dimension: 5,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: style.colors.accent,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
                         ),
                       ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: AnimatedSwitcher(
+                  duration: reduce ? Duration.zero : CoachMotion.fast,
+                  child: Text(
+                    label,
+                    key: ValueKey(label),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: style.typography.body.copyWith(
+                      color: style.colors.text,
                     ),
                   ),
-                ],
-              ],
-            ),
+                ),
+              ),
+              if (widget.onCancel != null)
+                IconButton(
+                  key: const ValueKey('chat-cancel'),
+                  tooltip: style.strings.cancel,
+                  onPressed: widget.onCancel,
+                  icon: Icon(
+                    Icons.close_rounded,
+                    size: 17,
+                    color: style.colors.muted,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 44,
+                    minHeight: 44,
+                  ),
+                  padding: EdgeInsets.zero,
+                )
+              else
+                const SizedBox(width: 10, height: 44),
+            ],
           ),
-          if (widget.onCancel != null) ...[
-            const SizedBox(height: CoachSpace.x3),
-            Text(
-              widget.progressLabel ??
-                  CoachUiTheme.of(context).strings.preparing,
-              style: CoachUiTheme.of(context).typography.body.copyWith(
-                color: CoachUiTheme.of(context).colors.text,
-              ),
-            ),
-            const SizedBox(height: CoachSpace.x1),
-            Text(
-              CoachUiTheme.of(context).strings.progressHint,
-              style: CoachUiTheme.of(context).typography.caption.copyWith(
-                color: CoachUiTheme.of(context).colors.muted,
-              ),
-            ),
-            CoachTextAction(
-              key: const ValueKey('chat-cancel'),
-              label: CoachUiTheme.of(context).strings.cancel,
-              icon: CoachGlyph.stop,
-              onPressed: widget.onCancel,
-            ),
-          ],
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   static double _pulse(double t) => t < .5 ? t * 2 : (1 - t) * 2;
 }

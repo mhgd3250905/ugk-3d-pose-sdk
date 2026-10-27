@@ -68,6 +68,8 @@ void main() {
       final pixels = await _paintFloor(tester, theme);
       // Entire rows above the default horizon remain the flat stage color.
       expect(_changedPixels(pixels, 170, theme.mediaStage), 0);
+      // The rays fade in below the horizon instead of meeting in a bright tip.
+      expect(_changedPixels(pixels, 180, theme.mediaStage), 0);
       // The ground anchor spans the image, unlike individual perspective rays.
       expect(_changedPixels(pixels, 243, theme.mediaStage), greaterThan(150));
       expect(_changedPixels(pixels, 238, theme.mediaStage), lessThan(70));
@@ -107,6 +109,15 @@ void main() {
       },
     );
   }
+
+  testWidgets('light floor remains visible at the contact plane', (
+    tester,
+  ) async {
+    final pixels = await _paintFloor(tester, TrainerTheme.light);
+    final redAtGround = pixels[(243 * 400 + 200) * 4];
+    final backgroundRed = (TrainerTheme.light.mediaStage.r * 255).round();
+    expect(backgroundRed - redAtGround, greaterThan(10));
+  });
 
   testWidgets('calibrated contact line changes grid position', (tester) async {
     final pixels = await _paintFloor(

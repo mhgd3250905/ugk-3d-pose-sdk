@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -101,26 +100,29 @@ class _FloorPainter extends CustomPainter {
       return;
     }
 
-    // Keep the perspective stationary in the clip's coordinate system; the
-    // row at `ground` anchors the source's contact plane. The radial shader
-    // makes the grid disappear towards the stage edges and controls.
-    final radius = math.max(size.width, size.height - ground) * .9;
+    // Keep the grid in the media's coordinates, but fade it in below the
+    // horizon so the converging rays do not create a conspicuous bright tip.
     final ink = dark ? Colors.white : const Color(0xFF26383A);
-    final grid = Paint()
-      ..strokeWidth = 1
-      ..shader = ui.Gradient.radial(
-        Offset(cx, ground + clipSize * .05),
-        math.max(1, radius),
-        [
-          ink.withValues(alpha: dark ? .09 : .065),
-          ink.withValues(alpha: dark ? .045 : .03),
-          ink.withValues(alpha: 0),
-        ],
-        const [0, .5, 1],
-      );
+    final opacity = dark ? .105 : .17;
+    final depth = size.height - horizon;
+    final fadeIn = ((ground - horizon) / depth).clamp(.08, .45);
     for (var k = -8; k <= 8; k++) {
       final bottomX = cx + k * clipSize * .32;
-      canvas.drawLine(Offset(cx, horizon), Offset(bottomX, size.height), grid);
+      final rayOpacity = opacity * (1 - k.abs() / 12);
+      final ray = Paint()
+        ..strokeWidth = 1
+        ..shader = ui.Gradient.linear(
+          Offset(0, horizon),
+          Offset(0, size.height),
+          [
+            ink.withValues(alpha: 0),
+            ink.withValues(alpha: rayOpacity),
+            ink.withValues(alpha: rayOpacity * .65),
+            ink.withValues(alpha: 0),
+          ],
+          [0, fadeIn, .7, 1],
+        );
+      canvas.drawLine(Offset(cx, horizon), Offset(bottomX, size.height), ray);
     }
     // Quadratic spacing gives denser lines in the distance and widening
     // intervals toward the viewer; i=3 is precisely the contact line.
@@ -128,7 +130,23 @@ class _FloorPainter extends CustomPainter {
       final y = horizon + (ground - horizon) * i * i / 9;
       if (y > size.height) break;
       if (y < 0) continue;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+      final nearFade = ((y - horizon) / (ground - horizon)).clamp(0.0, 1.0);
+      final farFade = ((size.height - y) / depth).clamp(0.0, 1.0);
+      final lineOpacity = opacity * nearFade * (farFade * 2).clamp(0.0, 1.0);
+      final row = Paint()
+        ..strokeWidth = 1
+        ..shader = ui.Gradient.linear(
+          Offset(0, y),
+          Offset(size.width, y),
+          [
+            ink.withValues(alpha: 0),
+            ink.withValues(alpha: lineOpacity),
+            ink.withValues(alpha: lineOpacity),
+            ink.withValues(alpha: 0),
+          ],
+          const [0, .2, .8, 1],
+        );
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), row);
     }
   }
 

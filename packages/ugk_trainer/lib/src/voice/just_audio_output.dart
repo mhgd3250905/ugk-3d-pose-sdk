@@ -6,6 +6,7 @@
 import 'dart:async';
 
 import 'package:audio_session/audio_session.dart';
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart'
     show
         TargetPlatform,
@@ -97,6 +98,10 @@ class JustAudioVoiceOutput
   late final VoiceLineController _lines;
   int _playGeneration = 0;
   int _speechRequest = 0;
+
+  /// Bumped by every line asked for: tells a line waiting for the session
+  /// whether a newer one was asked for behind it.
+  int _speechAsk = 0;
   Future<void>? _voicePlayback;
 
   final AudioPlayer _voice;
@@ -357,13 +362,25 @@ class JustAudioVoiceOutput
     // VoiceLineController promises (ugk_trainer PR #7).
     final request = _speechRequest;
     final generation = _sessionGeneration;
+    final ask = ++_speechAsk;
+    // The line's wait starts now, not when the session is ready: the
+    // training clock does not wait for audio initialization.
+    final asked = clock.now();
     await _beginning;
     if (!_current(generation) ||
         request != _speechRequest ||
         _session == null) {
       return;
     }
-    await _lines.speak(assets, onStarted: onStarted);
+    // The controller's backlog rule, applied to the time spent waiting for
+    // the session: a line more than staleAfter late with a newer line
+    // already asked for behind it is skipped, never started or reported.
+    if (ask != _speechAsk &&
+        clock.now().difference(asked) > _lines.staleAfter) {
+      _lines.onSkip?.call(assets);
+      return;
+    }
+    await _lines.speak(assets, onStarted: onStarted, asked: asked);
   }
 
   @override

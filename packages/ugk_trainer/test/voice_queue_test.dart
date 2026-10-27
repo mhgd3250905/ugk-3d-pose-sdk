@@ -54,6 +54,26 @@ void main() {
       expect(p.violations, isEmpty);
     });
 
+    test('the backlog rule counts from the time the line was asked for '
+        'upstream (PR #7 fourth review)', () async {
+      final p = SlowLoadPlatform(loadMs: 0);
+      final skipped = <String>[];
+      final c = VoiceLineController(
+        p,
+        releaseDelay: const Duration(milliseconds: 40),
+        onSkip: (a) => skipped.addAll(a),
+      );
+      final first = c.speak(['coach']);
+      // Asked for 3.1 s ago upstream (the output waited for its session).
+      final late = c.speak([
+        'p.go',
+      ], asked: DateTime.now().subtract(const Duration(milliseconds: 3100)));
+      final count = c.speak(['n.1']);
+      await Future.wait([first, late, count]);
+      expect(p.finished, ['coach', 'n.1']);
+      expect(skipped, ['p.go']);
+    });
+
     test(
       'a deliberate cut still drops everything asked for before it',
       () async {

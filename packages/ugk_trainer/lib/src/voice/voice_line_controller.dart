@@ -1,6 +1,7 @@
 // Ported from HipLab@99fcc83 lib/hip/voice/voice_line_controller.dart
 // (10-19 Android voice fix + PR #24 review). Changes: [speak] can report
-// when the line really starts (ugk_trainer PR #7).
+// when the line really starts, and can take the time the line was asked for
+// upstream (ugk_trainer PR #7).
 import 'dart:async';
 
 import 'package:clock/clock.dart';
@@ -135,7 +136,15 @@ class VoiceLineController {
   /// lines before it ended, after its clips loaded, and only if no
   /// [stopSpeech] / [abandon] dropped it and it was not skipped as stale.
   /// A line that never gets that far never calls it.
-  Future<void> speak(List<String> assets, {void Function()? onStarted}) {
+  ///
+  /// [asked] is when the line was really asked for (default: now); an
+  /// output that had to wait before calling this passes it, so the
+  /// [staleAfter] backlog rule counts that wait too.
+  Future<void> speak(
+    List<String> assets, {
+    void Function()? onStarted,
+    DateTime? asked,
+  }) {
     if (!isActive()) return Future<void>.value();
     _release?.cancel();
     final gen = ++_generation;
@@ -143,12 +152,11 @@ class VoiceLineController {
     final cut = _cut;
     _cut = false;
     final prev = _line;
-    final asked = clock.now();
     final line = _queued(
       gen,
       epoch,
       cut ? null : prev,
-      asked,
+      asked ?? clock.now(),
       assets,
       onStarted,
     );

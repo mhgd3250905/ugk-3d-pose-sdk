@@ -15,7 +15,7 @@
 新建 lib/src/agent/session_state.dart，定义 CoachSessionState，可以 toJson/fromJson，并并入现有 CoachPlanState 的保存和恢复（005dd9d 那套）。字段如下：
 • userTurns：本会话每条用户消息的原文和序号。
 • task：{type: qa|recommend|plan, nodes:[{id, status: pending|current|done|updated, stamp, doneAtTurn}], reused}
-• params：每项都是 {value, source: user|preselect|default, quote?, turn}。包含的项：scene（枚举：home/office/gym/outdoor）、goal（练什么，用 body.* / purpose.* 编码的数组）、equipment（equip.* 编码的数组，空数组表示徒手）、minutes（整数）、level（1–3）、limits（伤痛限制编码的数组，空数组表示无）。
+• params：每项都是 {value, source: user|host|preselect|default, quote?, turn}。包含的项：scene（枚举：home/office/gym/outdoor）、goal（练什么，用 body.* / purpose.* 编码的数组）、equipment（equip.* 编码的数组，空数组表示徒手）、minutes（整数）、level（1–3）、limits（伤痛限制编码的数组，空数组表示无）。host 只由代码从 CoachContext 写入，模型不得指定。
 • seenActionIds：本任务里 search_actions 返回过的动作 id 集合。
 • picks：动作节点选中的动作 id。
 • plans：plan_id → [{version, plan, estimateSec, fitLog, check: null|{ok, errors}}]
@@ -29,23 +29,26 @@
 1. source=user 时必须带 quote。把 quote 和 userTurns 里的每条消息都去掉空白和标点、转成小写后，quote 必须是其中某条消息的子串。quote 长度 ≤30 字。这是在核对来源，不是在判断意图。
 2. 器械只减不加：如果新的 equipment 比当前多出了器械，那么 source 必须是 user，且 quote 必须来自上次设置之后的新用户消息。
 3. source=default 的 equipment 只能是空数组（徒手）。source=preselect 只能使用 user_memory 里保存的习惯值。
-4. 如果一项的旧值是 user，就不能用 default 或 preselect 去覆盖它。
+4. 如果一项的旧值是 user 或 host，就不能用 default 或 preselect 去覆盖它。
+5. host 优先级等同 user，参数节点视为已确认，提示词不得再问。用户在对话里用带 quote 的 source=user 可以覆盖 host 的时长等条件；器械仍只减不加，新增加的器械必须来自新的用户原话。
+6. 安全类只能收紧，不能放宽：host 给的 limits 和现有 safety avoid，模型与用户只能增加，不能删除；需要放宽时只能由宿主重新传入。创建会话或宿主在会话中更新 CoachContext 时，代码将其中场景、器械、时长、水平及伤痛限制写入账本；变化触发第 3 步的参数更新流程。公开接口不变，planState 保存及恢复 host 来源。
 成功时返回当前完整的 params。如果参数节点已经 done，就按第 3 步的“参数更新”规则处理。
 profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有垫子/椅子/墙/砖”的器械默认。器械的默认值一律是徒手。
 测试：用 R2 的数据。用户只说了“有瑜伽垫”，之后没有新消息时，模型想把墙和砖加进来，必须被拒绝。quote 不在原话里时被拒绝。用 default 覆盖 user 时被拒绝。
+补充测试：host 提供时长不再追问；模型传 source=host 被拒绝；default 覆盖 host 被拒绝；用户原话可以覆盖 host 时长；模型和用户不能去掉 host 伤痛限制；中途更新 CoachContext 触发节点重置；保存恢复无损。
 
 ======== 第 3 步：节点门禁与打卡（每一步由代码把关） ========
 改造 lib/src/agent/agent_task.dart，并新建 lib/src/agent/node_gates.dart。
 • start_task(type, reuse?)：由代码生成节点。recommend 的节点是 understand → parameters → actions → output；plan 的节点是 understand → parameters → actions → planning → review → output。reuse=true 只在上一个任务是 recommend 且已经 show_actions 时允许，前三个节点和 picks 沿用。
 • check(node, picks?)：模型只是请求完成某个节点。代码按下表判定。通过时由代码生成 stamp（打卡文字），模型不提供打卡文字：
   understand：task 已创建。stamp 例：“要一份 20 分钟的计划”，或“要推荐动作”。
-  parameters：plan 类必须有 scene、goal、minutes；recommend 类必须有 goal。各项都已经过 set_params 写入。equipment、level、limits 如果没设置，代码在打卡时自动补 default。stamp 例：“居家（你说的）· 徒手（你说的）· 20 分钟（你说的）· 初学（你说的）· 无伤痛（默认）”。这里 user 写成“你说的”，preselect 写成“上次习惯”，default 写成“默认”。英文会话用英文模板。
+  parameters：plan 类必须有 scene、goal、minutes；recommend 类必须有 goal。各项经 set_params 或宿主 CoachContext 写入。equipment、level、limits 如果没设置，代码在打卡时自动补 default。stamp 例：“居家（你说的）· 徒手（你说的）· 20 分钟（你说的）· 初学（你说的）· 无伤痛（默认）”。这里 user 写成“你说的”，host 写成“App 设置”，preselect 写成“上次习惯”，default 写成“默认”。英文会话用英文模板，host 显示“app setting”。
   actions：picks 至少 3 个（阈值放在 profile 里）；每个 id 都在 seenActionIds 里；每个都满足 params 的器械、场景和伤痛限制。stamp 例：“选了 10 个核心动作，都不用器材”。
   planning：已有当前版本的 plan（来自 draft_plan）。stamp 例：“热身 3 · 主体 5×3 轮 · 收尾 2，约 20 分钟”。
   review：当前版本的 check_plan 已通过。stamp 例：“安全、时长、器材、均衡、重点都通过”。
   output：由 show_* 成功时自动打卡，不允许对它调用 check。
 • 顺序门禁：只能 check 当前节点。如果 check 的节点不对，报错里要写明当前节点是哪个。
-• 参数更新：如果参数节点已经 done，之后 set_params 又改变了参数，代码会：重写参数节点的 stamp 并把状态设为 updated；把已完成的 actions、planning、review 重置为 pending；从 picks 里去掉不再符合新参数的动作；把当前节点设为 actions。节点不增、不删、不调序。每次状态变化都发出节点事件。
+• 参数更新：如果参数节点已经 done，之后 set_params 或宿主更新 CoachContext 改变了参数，代码会：重写参数节点的 stamp 并把状态设为 updated；把已完成的 actions、planning、review 重置为 pending；从 picks 里去掉不再符合新参数的动作；把当前节点设为 actions。节点不增、不删、不调序。每次状态变化都发出节点事件。
 • ask_user 在任何节点都可以用。用户回答后，从当前节点继续。
 测试：用 R3 的数据。参数节点已完成后，用户回答“初学”，模型 set_params(level=1)，此时参数节点的 stamp 应变成“初学（你说的）”，后续节点应被重置。另外测：跳节点被拒绝；picks 里有没搜到过的 id 时被拒绝；picks 里有需要垫子的动作、而用户是徒手时被拒绝。
 

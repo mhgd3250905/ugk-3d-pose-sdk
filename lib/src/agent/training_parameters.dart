@@ -184,8 +184,9 @@ class TrainingParameters {
   Iterable<PlanIssue> validate(
     TrainingPlan plan,
     Catalog catalog,
-    CoachContext effective,
-  ) sync* {
+    CoachContext effective, {
+    bool enforceDurationEstimate = true,
+  }) sync* {
     if (effective.minutes case final target?) {
       // This rule also runs for admitted fallback templates, which do not
       // pass through ToolGate's raw model-output checks.
@@ -201,7 +202,8 @@ class TrainingParameters {
       }
       final estimated =
           const PlanDuration().estimateSeconds(plan, catalog) / 60;
-      if ((estimated - target).abs() / target > .25) {
+      if (enforceDurationEstimate &&
+          (estimated - target).abs() / target > .25) {
         yield PlanIssue(
           IssueCodes.contextConflict,
           '实际训练估时偏离用户要求过大',

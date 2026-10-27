@@ -9,6 +9,8 @@
 
 `cases/ask_user_r2.json` 记录六个验收场景，`../test/ask_user_r2_eval_test.dart` 使用随包真实 Pose-Hub 目录、`CoachAgent` 和 `CoachConversationController` 回放多轮协议。响应由 `FakeLlmClient` 预先编排，覆盖确认卡、上次值预选、修改当前计划、条件完整直接出方案、真实器械与时长、接受默认、失败隔离；确认卡阶段额外断言没有模型请求。执行 `dart test test/ask_user_r2_eval_test.dart`。
 
+`cases/adjust_training_r2.json` 与 `../test/adjust_training_eval_test.dart` 补充已有计划调整评测：明确新时长、相对变长变短、改为徒手、场景与器械联合变更，以及失败后按新条件重试。执行 `dart test test/adjust_training_eval_test.dart`。该套同样使用脚本化模型响应，不证明真实模型表现。
+
 该测试不发网络请求、没有真实模型调用，也不能证明模型会主动选择合适的动作、文本或重试策略；本文件的真实模型评测需另用已授权的网络配置执行，并单独记录版本与结果。不要把离线协议通过标作真实模型通过。
 
 ## Agent 真实模型追问评测（r2）

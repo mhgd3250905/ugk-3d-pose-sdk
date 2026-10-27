@@ -233,6 +233,11 @@ class CoachAgent {
   final List<String> _planParameterMessages = [];
   AskUserQuestion? _pendingConfirmation;
   CoachContext? _confirmedPlanContext;
+  // The last admitted plan is the only reliable baseline for relative time
+  // adjustments. Failed submissions never replace it.
+  double? _lastAdmittedPlanSeconds;
+  bool _relativeDurationPolicy = false;
+  String? _pendingAdjustment;
   CoachContext? _taskSafetyContext;
   String? _planFocus;
   String? _planGoal;
@@ -315,6 +320,12 @@ class CoachAgent {
     _questionsAsked = 0;
     _parameterTask = false;
     _planningFailure = false;
+    _pendingAdjustment = null;
+    _relativeDurationPolicy = false;
+    _lastAdmittedPlanSeconds = const PlanDuration().estimateSeconds(
+      admitted.plan,
+      _catalog(),
+    );
     _turns++;
     _history
       ..add(const LlmMessage.user('用预设方案'))
@@ -329,7 +340,13 @@ class CoachAgent {
 
   ValidatedPlan? _admitPreset(TrainingPlan plan) {
     final context = _confirmedPlanContext;
-    if (_safetyBlocked || context == null || _planFocus == null) return null;
+    // A preset checked against the old plan could contradict a failed edit.
+    if (_safetyBlocked ||
+        _pendingAdjustment != null ||
+        context == null ||
+        _planFocus == null) {
+      return null;
+    }
     final catalog = _catalog();
     if (!presetMatchesFocus(plan, catalog, _planFocus)) return null;
     final parameters = TrainingParameters.infer(
@@ -363,6 +380,9 @@ class CoachAgent {
     _planParameterMessages.clear();
     _pendingConfirmation = null;
     _confirmedPlanContext = null;
+    _lastAdmittedPlanSeconds = null;
+    _relativeDurationPolicy = false;
+    _pendingAdjustment = null;
     _taskSafetyContext = null;
     _planFocus = null;
     _planGoal = null;
@@ -562,6 +582,12 @@ class CoachAgent {
 
     final turnWatch = Stopwatch()..start();
 
+    final originalText = text;
+    final retry = RegExp(r'^(?:再)?(?:重试|重新尝试|再试一次)').hasMatch(text);
+    // A failed edit must be retried with the same explicit conditions and
+    // relative direction, while the previously admitted plan stays intact.
+    if (retry && _pendingAdjustment != null) text = _pendingAdjustment!;
+    final requestedText = text;
     final cat = _catalog();
     final suppliedContext = context;
     final focus = trainingFocus(text);
@@ -625,7 +651,6 @@ class CoachAgent {
         _planParameterMessages.isNotEmpty &&
         RegExp(r'换|改|变成|改成|想|练|做').hasMatch(text) &&
         !onlyExplanation;
-    final retry = RegExp(r'^(?:再)?(?:重试|重新尝试|再试一次)').hasMatch(text);
     final wantsPlan =
         explicitPlan ||
         asksFocusTraining ||
@@ -640,7 +665,9 @@ class CoachAgent {
         !newFocus &&
         (revision ||
             (_planParameterMessages.isNotEmpty &&
-                RegExp(r'短一点|长一点|难一点|简单一点|轻一点|换掉|换成|调整一下').hasMatch(text)));
+                RegExp(
+                  r'短一点|短一些|短些|更短|长一点|长一些|长些|更长|难一点|简单一点|轻一点|换掉|换成|换到|改成|改为|改到|调整一下|缩短|延长|加长|(?:加|增|减|降)(?:到|至|为)',
+                ).hasMatch(text)));
     final parameterTask =
         !redFlag &&
         ((wantsPlan && !onlyExplanation) ||
@@ -701,7 +728,10 @@ class CoachAgent {
       typedConfirmed != null
           ? const ['']
           : parameterTask
-          ? [if (!startsNewPlan) ..._planParameterMessages, text]
+          ? [
+              if (!startsNewPlan && prior == null) ..._planParameterMessages,
+              text,
+            ]
           : [text],
       typedConfirmed ?? parameterContext,
       cat,
@@ -715,12 +745,22 @@ class CoachAgent {
             clarificationFinished: questionsAsked >= maxQuestionsPerTask,
           )
         : parameters.context;
+    // An explicit duration takes precedence over the old value and is
+    // validated as an absolute request, even if the sentence says 缩短/延长.
+    final relativeDuration =
+        changesCurrent && answerFacts.context.minutes == null;
     final shortensPlan =
-        changesCurrent && RegExp(r'短一点|短些|更短|缩短|少一点时间').hasMatch(text);
+        relativeDuration && RegExp(r'短一点|短一些|短些|更短|缩短|少一点时间').hasMatch(text);
     final lengthensPlan =
-        changesCurrent && RegExp(r'长一点|长些|更长|延长|多一点时间').hasMatch(text);
+        relativeDuration && RegExp(r'长一点|长一些|长些|更长|延长|加长|多一点时间').hasMatch(text);
     final adjustsDuration = shortensPlan || lengthensPlan;
-    final oldDuration = context.minutes;
+    final oldDuration = prior?.minutes;
+    final oldPlanSeconds = _lastAdmittedPlanSeconds;
+    final carryRelativeDurationPolicy =
+        _relativeDurationPolicy &&
+        changesCurrent &&
+        answerFacts.context.minutes == null &&
+        !adjustsDuration;
     if (adjustsDuration && oldDuration != null) {
       context = CoachContext(
         scene: context.scene,
@@ -738,7 +778,12 @@ class CoachAgent {
       canary: prompts.canary,
       extraRules: [
         ...extraRules,
-        parameters.validate,
+        (plan, catalog, effective) => parameters.validate(
+          plan,
+          catalog,
+          effective,
+          enforceDurationEstimate: !carryRelativeDurationPolicy,
+        ),
         if (parameterTask)
           (plan, catalog, context) => [
             if (planTouchesFocus(
@@ -768,15 +813,16 @@ class CoachAgent {
                 expected: '${shortensPlan ? '少于' : '多于'} $oldDuration 分钟',
                 actual: '${plan.targetMinutes} 分钟',
               ),
-            if (plan.targetMinutes > 0 &&
-                ((const PlanDuration().estimateSeconds(plan, catalog) / 60 -
-                                plan.targetMinutes)
-                            .abs() /
-                        plan.targetMinutes) >
-                    .25)
+            if (oldPlanSeconds != null &&
+                ((shortensPlan &&
+                        const PlanDuration().estimateSeconds(plan, catalog) >=
+                            oldPlanSeconds) ||
+                    (lengthensPlan &&
+                        const PlanDuration().estimateSeconds(plan, catalog) <=
+                            oldPlanSeconds)))
               const PlanIssue(
                 IssueCodes.contextConflict,
-                '调整后的实际训练时长与计划目标不符',
+                '调整后的实际训练时长未按要求变化',
                 path: 'blocks',
               ),
           ],
@@ -821,12 +867,16 @@ class CoachAgent {
             ? '# 本次训练调整\n'
                   '当前已确认条件：${jsonEncode(context.toJson())}\n'
                   '用户要求${shortensPlan ? '短' : '长'}一点，目标时长必须${shortensPlan ? '小于' : '大于'}$oldDuration分钟；'
-                  '按新目标调整实际训练量，估算时长偏差不超过25%。'
-                  '场景、器械和安全条件不变，不重新追问。'
+                  '按方向调整实际训练量，${shortensPlan ? '减少' : '增加'}实际估时，不因标注时长与估时偏差重问或拒绝。'
+                  '沿用未修改的场景、器械和安全条件，不重新追问。'
             : parameters.prompt(
-                profile,
-                clarificationFinished: questionsAsked >= maxQuestionsPerTask,
-              ),
+                    profile,
+                    clarificationFinished:
+                        questionsAsked >= maxQuestionsPerTask,
+                  ) +
+                  (carryRelativeDurationPolicy
+                      ? '\n上一方案时长来自相对调整；沿用其目标时长，不将目标与估时的25%偏差作为拒绝条件。'
+                      : ''),
       );
     }
 
@@ -849,7 +899,12 @@ class CoachAgent {
       catalog: cat.version,
     );
     final userMsg = LlmMessage.user(
-      prompts.userMessage(profile, cat, context, text),
+      prompts.userMessage(
+        profile,
+        cat,
+        context,
+        retry && text != originalText ? '重试：$text' : text,
+      ),
     );
     final turnMsgs = <LlmMessage>[];
     // 与记忆相关的工具结果（读 user-memory/ 文件、remember / forget）：关闭记忆后在后续请求里替换。
@@ -960,12 +1015,26 @@ class CoachAgent {
                   _confirmedPlanContext = null;
                   _pendingConfirmation = null;
                   _lastConfirmedForm = null;
+                  _lastAdmittedPlanSeconds = null;
+                  _relativeDurationPolicy = false;
+                  _pendingAdjustment = null;
                   _planFocus = focus ?? goal;
                   _planGoal = goal;
                 }
                 commit?.call();
+                if (plan != null) {
+                  _relativeDurationPolicy =
+                      adjustsDuration ||
+                      (!startsNewPlan &&
+                          typedConfirmed == null &&
+                          answerFacts.context.minutes == null &&
+                          _relativeDurationPolicy);
+                  _lastAdmittedPlanSeconds = const PlanDuration()
+                      .estimateSeconds(plan.plan, cat);
+                  _pendingAdjustment = null;
+                }
                 if (parameterTask) {
-                  _planParameterMessages.add(text);
+                  _planParameterMessages.add(requestedText);
                   _taskSafetyContext = cleanContext;
                 }
                 if (parameterTask &&
@@ -989,6 +1058,9 @@ class CoachAgent {
       }
       if (!dead() && correctsRedFlag && r.status != TurnStatus.cancelled) {
         _safetyBlocked = false;
+      }
+      if (!dead() && changesCurrent && r.status == TurnStatus.error) {
+        _pendingAdjustment = requestedText;
       }
       if (!dead()) _planningFailure = r.isPlanningFailure;
       emit(AgentEventKind.done, step: step, status: r.status);
@@ -1781,7 +1853,9 @@ class CoachAgent {
               ..add(
                 assistant(
                   response,
-                  content: g.text,
+                  content: g.plan == null
+                      ? g.text
+                      : _planSummary(g.plan!.plan, cat),
                   toolCalls: finals,
                   history: true,
                 ),

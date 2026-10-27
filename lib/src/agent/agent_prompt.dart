@@ -214,7 +214,7 @@ class AgentPromptBuilder {
       'actionIndex': files.compactIndex,
       'questionProgress':
           '# 本次任务澄清进度（SDK 计数）\n已问 $questionsAsked/1 轮。'
-          '${questionsAsked >= 1 ? '已达到上限，禁止再调 ask_user；按本次确认结果或 SDK 有效默认值直接出方案。' : '新规划缺场景、器械或时长时由 SDK 展示一次确认卡，历史只作为标注“上次”的预选；确认后不重复询问。调整当前计划沿用原条件。'}',
+          '${questionsAsked >= 1 ? '已达到上限，禁止再调 ask_user；按本次确认结果或 SDK 有效默认值直接出方案。' : '新规划缺场景、器械或时长时由 SDK 展示一次确认卡，历史只作为标注“上次”的预选；确认后不重复询问。调整当前计划沿用未修改条件，用户明确的新条件覆盖原值。'}',
       'trainingParameters': trainingParameters,
       'preloadedDetails': preloaded.isEmpty
           ? ''

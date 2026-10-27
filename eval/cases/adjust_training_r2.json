@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "description": "SmartFit r2 #5 adjustment: offline scripted CoachAgent and Controller evaluation; no real model calls.",
+  "mode": "offline-scripted-protocol",
+  "cases": [
+    {
+      "id": "shorten_to_7",
+      "title": "明确缩短到7分钟覆盖旧时长",
+      "turns": [
+        {
+          "role": "user",
+          "text": "在家有瑜伽垫，10分钟做髋部放松"
+        },
+        {
+          "role": "user",
+          "text": "缩短到 7 分钟"
+        }
+      ],
+      "expect": {
+        "targetMinutes": 7,
+        "scene": "home",
+        "equipment": [
+          "mat"
+        ],
+        "maxQuestions": 0,
+        "explicitDuration": true
+      }
+    },
+    {
+      "id": "extend_to_20",
+      "title": "明确增加到20分钟覆盖旧时长",
+      "turns": [
+        {
+          "role": "user",
+          "text": "在家有瑜伽垫，10分钟做髋部放松"
+        },
+        {
+          "role": "user",
+          "text": "加到 20 分钟"
+        }
+      ],
+      "expect": {
+        "targetMinutes": 20,
+        "scene": "home",
+        "equipment": [
+          "mat"
+        ],
+        "maxQuestions": 0,
+        "explicitDuration": true
+      }
+    },
+    {
+      "id": "relative_shorter",
+      "title": "短一点按相对变化，不套用25%估时偏差",
+      "turns": [
+        {
+          "role": "user",
+          "text": "在家有瑜伽垫，10分钟做髋部放松"
+        },
+        {
+          "role": "user",
+          "text": "短一点"
+        }
+      ],
+      "expect": {
+        "relative": "shorter",
+        "actualTargetDeviationGreaterThan": 0.25,
+        "maxQuestions": 0
+      }
+    },
+    {
+      "id": "relative_longer",
+      "title": "长一点按相对变化，不套用25%估时偏差",
+      "turns": [
+        {
+          "role": "user",
+          "text": "在家有瑜伽垫，10分钟做髋部放松"
+        },
+        {
+          "role": "user",
+          "text": "长一点"
+        }
+      ],
+      "expect": {
+        "relative": "longer",
+        "actualTargetDeviationGreaterThan": 0.25,
+        "maxQuestions": 0
+      }
+    },
+    {
+      "id": "switch_bodyweight",
+      "title": "换成徒手覆盖原器械但保留时长场景",
+      "turns": [
+        {
+          "role": "user",
+          "text": "在家有瑜伽垫，10分钟做髋部放松"
+        },
+        {
+          "role": "user",
+          "text": "换成徒手"
+        }
+      ],
+      "expect": {
+        "targetMinutes": 10,
+        "scene": "home",
+        "equipment": [],
+        "maxQuestions": 0
+      }
+    },
+    {
+      "id": "switch_scene_bodyweight",
+      "title": "明确改场景和器械时保留原时长",
+      "turns": [
+        {
+          "role": "user",
+          "text": "在家有瑜伽垫，10分钟做髋部放松"
+        },
+        {
+          "role": "user",
+          "text": "改成办公室徒手"
+        }
+      ],
+      "expect": {
+        "targetMinutes": 10,
+        "scene": "office",
+        "equipment": [],
+        "maxQuestions": 0
+      }
+    }
+  ]
+}

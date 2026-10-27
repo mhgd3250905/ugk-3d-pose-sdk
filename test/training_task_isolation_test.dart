@@ -375,7 +375,7 @@ void main() {
         (LlmRequest request) {
           final system = request.messages.first.content;
           expect(system, contains('目标时长必须小于10分钟'));
-          expect(system, contains('偏差不超过25%'));
+          expect(system, contains('减少实际估时'));
           expect(system, isNot(contains('"minutes":10')));
           expect(system, contains('"scene":"home"'));
           return _tool(AgentTools.showPlan, shorter);

@@ -350,10 +350,10 @@ class CoachSession {
       );
       // 回落是异步的：返回后复查取消与世代，作废就不接纳、不改状态。
       if (dead()) {
-        return _finish(turnId, meta, calls, TurnStatus.cancelled, TurnOutcome.cancelled, submissions: calls.length);
+        return await _finish(turnId, meta, calls, TurnStatus.cancelled, TurnOutcome.cancelled, submissions: calls.length);
       }
       final plan = r.plan == null ? null : gate.admitTemplate(r.plan!, context);
-      return _finish(
+      return await _finish(
         turnId,
         meta,
         calls,

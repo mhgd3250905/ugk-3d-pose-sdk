@@ -202,7 +202,7 @@ class CoachAssistant {
         error: error,
       ));
       _remember(conv, text, reply);
-      return _finish(turnId, built, cat, pending, TurnOutcome.fallback,
+      return await _finish(turnId, built, cat, pending, TurnOutcome.fallback,
           reply: reply, issues: lastIssues, reason: reason, error: error);
     } on Object catch (e) {
       return _finish(turnId, built, cat, pending, TurnOutcome.error, issues: lastIssues, reason: reason, error: e);

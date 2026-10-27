@@ -10,6 +10,7 @@ import '../tools/ask_user.dart';
 import '../tools/coach_session.dart';
 import '../tools/tool_gate.dart';
 import 'coach_agent.dart';
+import 'training_confirmation.dart';
 
 /// A presentation/history snapshot. Only live controller results are answerable.
 ///
@@ -27,6 +28,7 @@ class CoachConversationMessage {
     List<String> answeredChoices = const [],
     Map<String, List<String>> answeredForm = const {},
     this.plan,
+    this.planState,
     this.actions,
     this.turnId,
     this.isFailure = false,
@@ -48,6 +50,10 @@ class CoachConversationMessage {
   /// Confirmed selections retained for the collapsed confirmation summary.
   final Map<String, List<String>> answeredForm;
   final ValidatedPlan? plan;
+
+  /// Optional planning conditions to persist with [plan]. Older history may
+  /// omit this; restoration then infers conditions from the admitted plan.
+  final CoachPlanState? planState;
   final ValidatedActions? actions;
   final String? turnId;
 
@@ -73,6 +79,7 @@ class CoachConversationMessage {
     answeredChoices: answeredChoices ?? this.answeredChoices,
     answeredForm: answeredForm ?? this.answeredForm,
     plan: plan,
+    planState: planState,
     actions: actions,
     turnId: turnId,
     isFailure: isFailure,
@@ -178,6 +185,7 @@ class CoachConversationController {
           at: _clock(),
           text: result.text,
           plan: result.plan,
+          planState: agent.planStateFor(result.plan!),
           turnId: result.turnId,
         ),
       );
@@ -464,6 +472,9 @@ class CoachConversationController {
         text: result.text == admittedQuestion?.question ? '' : result.text,
         question: admittedQuestion,
         plan: result.plan,
+        planState: result.plan == null
+            ? null
+            : agent.planStateFor(result.plan!),
         actions: result.actions,
         turnId: result.turnId,
         isFailure:
@@ -576,11 +587,45 @@ class CoachConversationController {
     _publish(CoachConversationState._());
   }
 
-  /// Restores display history only. Restored questions always remain read-only.
-  void restoreHistory(List<CoachConversationMessage> messages) {
+  /// Restores the last admitted plan as the active task. Questions remain
+  /// read-only and old tool calls are not resumed. [planState], if supplied,
+  /// takes precedence only when its planId matches the last plan card.
+  void restoreHistory(
+    List<CoachConversationMessage> messages, {
+    CoachPlanState? planState,
+  }) {
     if (_disposed) return;
     _cancel();
     agent.reset();
+    final planIndex = messages.lastIndexWhere(
+      (message) => message.plan != null,
+    );
+    if (planIndex >= 0) {
+      final card = messages[planIndex];
+      final plan = card.plan!;
+      final explicit = planState?.planId == plan.plan.id ? planState : null;
+      final stored = card.planState?.planId == plan.plan.id
+          ? card.planState
+          : null;
+      String? focus;
+      String? goal;
+      // Only inspect the messages associated with this plan, never a previous
+      // card's request. This avoids attaching stale focus to a new plan.
+      for (var i = planIndex - 1; i >= 0; i--) {
+        final message = messages[i];
+        if (message.plan != null) break;
+        if (message.isUser) {
+          focus ??= trainingFocus(message.text);
+          goal ??= trainingGoal(message.text);
+        }
+      }
+      agent.restorePlan(
+        plan,
+        planState: explicit ?? stored,
+        focusHint: focus,
+        goalHint: goal,
+      );
+    }
     _publish(
       CoachConversationState._(
         messages: [

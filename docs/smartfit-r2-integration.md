@@ -34,4 +34,12 @@ The local checkout must remain accessible. Remove the temporary override when th
 - Route trusted PoseHub `standing/<id>.webp` assets from `ugk_trainer` into `CoachExercise.stillCutout` and the host media builder. Map CoachAgent progress events to `CoachTypingEvent`, and do not pass a nonempty legacy `progressLabel` when phase rotation is enabled.
 - The floor geometry uses an approximate default; calibrated per-action values can be supplied with `TrainerDrill.floorGeometry`.
 
+## Restore a conversation and its current plan
+
+Persist `CoachConversationMessage.planState?.toJson()` with each delivered plan card, alongside the plan and presentation history. The snapshot contains the confirmed scene, available equipment, duration, focus and safety context, including the relative-duration policy. When reading it, construct `CoachPlanState.fromJson(...)` and attach it to the corresponding `CoachConversationMessage.planState`. Re-admit stored plans using the current catalog and profile before constructing messages, as required by the existing `ValidatedPlan` contract.
+
+Call `controller.restoreHistory(messages)` as before. It restores the last admitted plan card and its matching snapshot, without reactivating old questions or tool calls. As an alternative, `restoreHistory(messages, planState: snapshot)` accepts a host-held snapshot; its `planId` must match the last plan card and it takes precedence over the card snapshot. Mismatched snapshots are ignored. The host still owns persistence; restoring in-memory messages alone cannot survive an app restart unless the host saves and reloads them.
+
+Old history may omit the snapshot. The controller then infers scene, equipment, duration and safety restrictions from the plan and derives focus from the associated user text or plan title/summary. Equipment inferred from a legacy plan means equipment actually used, which may be narrower than the equipment the user originally made available. Persist snapshots for precise future restoration. If a legacy plan's estimated duration differs from its labelled duration by over 25%, restoration preserves the prior relative-duration behavior as a fallback; a new explicit duration still enables the normal consistency gate.
+
 The screenshots in `.review-artifacts` are local widget renders, not native media or device acceptance. The scripted multi-turn evaluation uses fake model responses; the real-model runner's dry mode validates fixtures only.

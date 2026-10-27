@@ -41,6 +41,61 @@ import 'user_memory.dart';
 
 export 'agent_resilience.dart';
 
+/// Persist alongside a delivered plan card to restore its planning conditions.
+/// [planId] binds the snapshot to that exact card. A snapshot for another plan
+/// is ignored. Missing fields in older snapshots are inferred from the plan.
+class CoachPlanState {
+  const CoachPlanState({
+    required this.planId,
+    this.context = const CoachContext(),
+    this.focus,
+    this.goal,
+    this.relativeDurationPolicy,
+  });
+
+  final String planId;
+  final CoachContext context;
+  final String? focus;
+  final String? goal;
+  final bool? relativeDurationPolicy;
+
+  Map<String, Object?> toJson() => {
+    'planId': planId,
+    'context': context.toJson(),
+    if (focus != null) 'focus': focus,
+    if (goal != null) 'goal': goal,
+    if (relativeDurationPolicy != null)
+      'relativeDurationPolicy': relativeDurationPolicy,
+  };
+
+  factory CoachPlanState.fromJson(Map<String, dynamic> json) {
+    final raw = json['context'];
+    final map = raw is Map ? raw : const {};
+    Set<String>? stringSet(Object? value) =>
+        value is List ? value.whereType<String>().toSet() : null;
+    return CoachPlanState(
+      planId: json['planId'] is String ? json['planId'] as String : '',
+      context: CoachContext(
+        scene: map['scene'] is String ? map['scene'] as String : null,
+        equipment: stringSet(map['equipment']),
+        avoid: stringSet(map['avoid']) ?? const {},
+        level: map['level'] is int ? map['level'] as int : null,
+        minutes: map['minutes'] is int ? map['minutes'] as int : null,
+        goal: map['goal'] is String ? map['goal'] as String : null,
+        language: map['language'] is String ? map['language'] as String : 'zh',
+        notes: map['notes'] is List
+            ? (map['notes'] as List).whereType<String>().toList()
+            : const [],
+      ),
+      focus: json['focus'] is String ? json['focus'] as String : null,
+      goal: json['goal'] is String ? json['goal'] as String : null,
+      relativeDurationPolicy: json['relativeDurationPolicy'] is bool
+          ? json['relativeDurationPolicy'] as bool
+          : null,
+    );
+  }
+}
+
 enum AgentEventKind {
   /// 第 [AgentEvent.step] 次调模型。
   thinking,
@@ -265,6 +320,80 @@ class CoachAgent {
   /// The three conditions last confirmed for the active planning task.
   /// Failure and retry preserve this snapshot; a new task or reset clears it.
   Map<String, List<String>>? get lastConfirmedForm => _lastConfirmedForm;
+
+  /// Capture the active conditions for persistence with an admitted plan.
+  CoachPlanState planStateFor(ValidatedPlan admitted) {
+    final plan = admitted.plan;
+    final context = _confirmedPlanContext ?? const CoachContext();
+    final safety = _taskSafetyContext;
+    return CoachPlanState(
+      planId: plan.id,
+      context: CoachContext(
+        scene: context.scene,
+        equipment: context.equipment,
+        minutes: context.minutes,
+        avoid: {...plan.avoid, ...context.avoid, ...?safety?.avoid},
+        level: context.level ?? safety?.level,
+        goal: context.goal ?? safety?.goal,
+        language: context.language,
+        notes: {...context.notes, ...?safety?.notes}.toList(),
+      ),
+      focus: _planFocus,
+      goal: _planGoal,
+      relativeDurationPolicy: _relativeDurationPolicy,
+    );
+  }
+
+  /// Rebuild the active task from a previously re-admitted plan. This does not
+  /// restore or replay old tool calls or pending questions. Call after reset.
+  void restorePlan(
+    ValidatedPlan admitted, {
+    CoachPlanState? planState,
+    String? focusHint,
+    String? goalHint,
+  }) {
+    final plan = admitted.plan;
+    final stored = planState?.planId == plan.id ? planState : null;
+    final saved = stored?.context;
+    final context = CoachContext(
+      scene: saved?.scene ?? plan.scene,
+      equipment: saved?.equipment ?? plan.equipment.toSet(),
+      minutes: saved?.minutes ?? plan.targetMinutes,
+      avoid: {...plan.avoid, ...?saved?.avoid},
+      level: saved?.level ?? plan.level,
+      goal: saved?.goal,
+      language: saved?.language ?? 'zh',
+      notes: saved?.notes ?? const [],
+    );
+    final cat = _catalog();
+    final actual = const PlanDuration().estimateSeconds(plan, cat);
+    _confirmedPlanContext = context;
+    _taskSafetyContext = context;
+    _planFocus =
+        stored?.focus ??
+        focusHint ??
+        trainingFocus('${plan.title} ${plan.summary}');
+    _planGoal =
+        stored?.goal ??
+        goalHint ??
+        trainingGoal('${plan.title} ${plan.summary}');
+    _lastConfirmedForm = trainingSelections(context, cat);
+    _lastAdmittedPlanSeconds = actual;
+    _relativeDurationPolicy =
+        stored?.relativeDurationPolicy ??
+        (plan.targetMinutes > 0 &&
+            (actual / 60 - plan.targetMinutes).abs() / plan.targetMinutes >
+                .25);
+    _planParameterMessages
+      ..clear()
+      ..add('已恢复的当前计划');
+    _history.add(
+      LlmMessage.assistant(
+        '已恢复的当前计划（供后续调整使用）：${jsonEncode(plan.toJson())}',
+        reasoning: '',
+      ),
+    );
+  }
 
   /// The still-active local confirmation, including while unrelated chat is
   /// handled. Successful answer, a replacement task, or reset clears it.

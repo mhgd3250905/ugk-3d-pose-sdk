@@ -189,7 +189,7 @@ void main() {
       expect(off, isNot(contains('左膝疼')));
       expect(off, isNot(contains('remember')));
       final offTools = AgentTools.build(hiplab, catalog, memory: false).map((t) => t.name);
-      expect(offTools, ['read', 'ls', 'set_params', 'check_plan', 'show_actions', 'show_plan', 'ask_user']);
+      expect(offTools, ['start_task', 'check', 'read', 'ls', 'set_params', 'check_plan', 'show_actions', 'show_plan', 'ask_user']);
     });
   });
 

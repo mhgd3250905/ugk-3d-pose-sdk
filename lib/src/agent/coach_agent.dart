@@ -35,6 +35,8 @@ import '../util/clock.dart';
 import 'action_tags.dart';
 import 'agent_prompt.dart';
 import 'agent_resilience.dart';
+import 'agent_task.dart';
+import 'node_gates.dart';
 import 'session_params.dart';
 import 'session_state.dart';
 import 'skill_files.dart';
@@ -137,6 +139,9 @@ enum AgentEventKind {
 
   /// 单步超过 [CoachAgent.slowAfter] 仍未返回（每步最多一次）。
   slow,
+
+  /// 任务节点状态变更；[AgentEvent.task] 是变更后的任务快照。
+  node,
 }
 
 /// 过程事件：供 App 显示进度（「正在查动作库…」）。作废的轮次（reset / 取消）不再发事件。
@@ -152,6 +157,8 @@ class AgentEvent {
     this.reason,
     this.delay,
     this.question,
+    this.node,
+    this.task,
   });
   final String turnId;
   final AgentEventKind kind;
@@ -159,6 +166,8 @@ class AgentEvent {
   final String? path;
   final TurnStatus? status;
   final AskUserQuestion? question;
+  final CoachNodeState? node;
+  final CoachTaskState? task;
 
   /// retrying：第几次重试（从 1 起）/ 最多几次。
   final int attempt;
@@ -289,6 +298,53 @@ class CoachAgent {
 
   /// 过程事件流（broadcast）。
   Stream<AgentEvent> get events => _events.stream;
+
+  void _emitNodeChanges(String turnId, NodeResult result) {
+    for (final node in result.changes) {
+      if (_events.isClosed ||
+          !identical(_sessionState.task, result.state.task)) {
+        return;
+      }
+      _events.add(
+        AgentEvent(
+          turnId,
+          AgentEventKind.node,
+          node: node,
+          task: result.state.task,
+        ),
+      );
+    }
+  }
+
+  void _emitTaskRollback(String turnId, CoachTaskState? before) {
+    final task = _sessionState.task;
+    if (jsonEncode(before?.toJson()) == jsonEncode(task?.toJson()) ||
+        _events.isClosed) {
+      return;
+    }
+    if (task == null) {
+      _events.add(AgentEvent(turnId, AgentEventKind.node));
+      return;
+    }
+    final oldNodes = {
+      for (final node in before?.nodes ?? const <CoachNodeState>[])
+        node.id: node,
+    };
+    var emitted = false;
+    for (final node in task.nodes) {
+      if (!identical(_sessionState.task, task) || _events.isClosed) return;
+      if (jsonEncode(oldNodes[node.id]?.toJson()) !=
+          jsonEncode(node.toJson())) {
+        emitted = true;
+        _events.add(
+          AgentEvent(turnId, AgentEventKind.node, node: node, task: task),
+        );
+      }
+    }
+    if (!emitted && identical(_sessionState.task, task) && !_events.isClosed) {
+      _events.add(AgentEvent(turnId, AgentEventKind.node, task: task));
+    }
+  }
 
   final List<LlmMessage> _history = [];
   CoachSessionState _sessionState = CoachSessionState();
@@ -430,10 +486,24 @@ class CoachAgent {
     final nextAvoid = Set<String>.unmodifiable(avoid);
     _hostSafetyRevision++;
     _latestExplicitAvoid = nextAvoid;
+    final cat = _catalog();
     final updated = SessionParams(
-      ActionTags(profile, _catalog()),
+      ActionTags(profile, cat),
     ).applyHost(_sessionState, CoachContext(avoid: nextAvoid));
-    _sessionState = updated.state;
+    final nodes = updated.changedFields.isEmpty
+        ? NodeResult(updated.state)
+        : NodeGates(
+            profile,
+            cat,
+            minPicks: profile.minActions,
+          ).parametersChanged(
+            updated.state,
+            language:
+                _taskSafetyContext?.language ??
+                _confirmedPlanContext?.language ??
+                'zh',
+          );
+    _sessionState = nodes.state;
     CoachContext replace(CoachContext c) => CoachContext(
       scene: c.scene,
       equipment: c.equipment,
@@ -448,6 +518,7 @@ class CoachAgent {
     if (_confirmedPlanContext != null) {
       _confirmedPlanContext = replace(_confirmedPlanContext!);
     }
+    if (nodes.changes.isNotEmpty) _emitNodeChanges(_ids.next('host'), nodes);
   }
 
   /// Explicitly invalidate an unanswered confirmation. A previously confirmed
@@ -704,16 +775,25 @@ class CoachAgent {
     CoachSessionState rollback() {
       final currentAvoid = _latestExplicitAvoid;
       if (_hostSafetyRevision != safetyRevision && currentAvoid != null) {
-        return SessionParams(
-          ActionTags(profile, _catalog()),
-        ).applyHost(rollbackSession, CoachContext(avoid: currentAvoid)).state;
+        final cat = _catalog();
+        final host = SessionParams(
+          ActionTags(profile, cat),
+        ).applyHost(rollbackSession, CoachContext(avoid: currentAvoid));
+        return host.changedFields.isEmpty
+            ? host.state
+            : NodeGates(
+                profile,
+                cat,
+                minPicks: profile.minActions,
+              ).parametersChanged(host.state, language: context.language).state;
       }
       return rollbackSession;
     }
 
     try {
+      final cat = _catalog();
       final host = SessionParams(
-        ActionTags(profile, _catalog()),
+        ActionTags(profile, cat),
       ).applyHost(_sessionState, context);
       if (!host.ok) {
         return CoachTurnResult(
@@ -722,8 +802,20 @@ class CoachAgent {
           error: FormatException(jsonEncode(host.error)),
         );
       }
-      rollbackSession = host.state;
-      _sessionState = host.state.appendUserTurn(userText);
+      final nodes = host.changedFields.isEmpty
+          ? NodeResult(host.state)
+          : NodeGates(
+              profile,
+              cat,
+              minPicks: profile.minActions,
+            ).parametersChanged(host.state, language: context.language);
+      _sessionState = nodes.state;
+      if (nodes.changes.isNotEmpty) _emitNodeChanges(turnId, nodes);
+      if (_generation != gen || (cancel?.isCancelled ?? false)) {
+        return CoachTurnResult(turnId: turnId, status: TurnStatus.cancelled);
+      }
+      rollbackSession = _sessionState;
+      _sessionState = _sessionState.appendUserTurn(userText);
       acceptedInput = true;
       final result = await _run(
         turnId,
@@ -734,18 +826,24 @@ class CoachAgent {
         confirmedForm,
       );
       if (result.status == TurnStatus.cancelled && _generation == gen) {
+        final before = _sessionState.task;
         _sessionState = rollback();
-        if (_confirmationDismissRevision == dismissRevision) {
+        _emitTaskRollback(turnId, before);
+        if (_generation == gen &&
+            _confirmationDismissRevision == dismissRevision) {
           _pendingConfirmation = previousQuestion;
         }
       }
       return result;
     } on Object {
       if (_generation == gen) {
+        final before = _sessionState.task;
         _sessionState = acceptedInput
             ? rollback().appendUserTurn(userText)
             : rollback();
-        if (_confirmationDismissRevision == dismissRevision) {
+        _emitTaskRollback(turnId, before);
+        if (_generation == gen &&
+            _confirmationDismissRevision == dismissRevision) {
           _pendingConfirmation = previousQuestion;
         }
       }
@@ -1243,6 +1341,7 @@ class CoachAgent {
       AskUserQuestion? question,
       List<PlanIssue> warnings = const [],
       void Function()? commit,
+      bool Function()? commitValid,
     }) async {
       final r = await _finish(
         turnId,
@@ -1263,7 +1362,7 @@ class CoachAgent {
         submissions: submissions,
         steps: step,
         reads: reads,
-        dead: dead,
+        dead: () => dead() || (commitValid != null && !commitValid()),
         commit:
             (commit == null &&
                 !(parameterTask &&
@@ -1766,6 +1865,69 @@ class CoachAgent {
         // Host settings may change while the model request is in flight.
         context = ledgerContext(context);
         switch (t.name) {
+          case AgentTools.startTask || AgentTools.check:
+            Object? args;
+            try {
+              args = jsonDecode(t.arguments);
+            } on FormatException {
+              args = null;
+            }
+            if (args is! Map ||
+                args.keys.any((key) => key is! String) ||
+                (t.name == AgentTools.startTask &&
+                    (args['type'] is! String ||
+                        (args['reuse'] != null && args['reuse'] is! bool) ||
+                        args.keys.any(
+                          (key) => key != 'type' && key != 'reuse',
+                        ))) ||
+                (t.name == AgentTools.check &&
+                    (args['node'] is! String ||
+                        (args['picks'] != null &&
+                            (args['picks'] is! List ||
+                                (args['picks'] as List).any(
+                                  (v) => v is! String,
+                                ))) ||
+                        args.keys.any(
+                          (key) => key != 'node' && key != 'picks',
+                        )))) {
+              results[t.id] = jsonEncode(
+                nodeError(
+                  'invalid_arguments',
+                  'arguments',
+                  t.name == AgentTools.startTask
+                      ? '{type: recommend|plan, reuse?: bool}'
+                      : '{node: fixed node, picks?: string[]}',
+                  args,
+                  '使用工具 schema 中的字段和值。',
+                ),
+              );
+              continue;
+            }
+            final nodes = t.name == AgentTools.startTask
+                ? AgentTask.start(
+                    _sessionState,
+                    args['type'] as String,
+                    reuse: args['reuse'] as bool? ?? false,
+                  )
+                : NodeGates(profile, cat, minPicks: profile.minActions).check(
+                    _sessionState,
+                    args['node'] as String,
+                    picks: (args['picks'] as List?)?.cast<String>(),
+                    language: context.language,
+                  );
+            if (nodes.ok) {
+              _sessionState = nodes.state;
+              _emitNodeChanges(turnId, nodes);
+              fresh = true;
+            }
+            results[t.id] = jsonEncode(
+              nodes.error ??
+                  {
+                    'ok': true,
+                    'task': nodes.state.task?.toJson(),
+                    if (nodes.warnings.isNotEmpty) 'warnings': nodes.warnings,
+                  },
+            );
           case AgentTools.setParams:
             Object? args;
             try {
@@ -1798,6 +1960,13 @@ class CoachAgent {
               _sessionState = update.state;
               context = ledgerContext(context);
               if (update.changedFields.isNotEmpty) {
+                final nodes = NodeGates(
+                  profile,
+                  cat,
+                  minPicks: profile.minActions,
+                ).parametersChanged(_sessionState, language: context.language);
+                _sessionState = nodes.state;
+                _emitNodeChanges(turnId, nodes);
                 fresh = true;
                 _pendingConfirmation = null;
               }
@@ -1952,6 +2121,50 @@ class CoachAgent {
         continue;
       }
 
+      // During the staged migration, an explicitly started task cannot
+      // deliver a card until every required node has actually completed.
+      final activeTask = _sessionState.task;
+      NodeResult? outputNode;
+      if (activeTask != null) {
+        final expectedTool = activeTask.type == 'plan'
+            ? AgentTools.showPlan
+            : AgentTools.showActions;
+        outputNode = NodeGates(
+          profile,
+          cat,
+          minPicks: profile.minActions,
+        ).completeOutput(_sessionState, language: context.language);
+        if (!outputNode.ok ||
+            finals.length != 1 ||
+            finals.single.name != expectedTool) {
+          final issue =
+              outputNode.error ??
+              nodeError('wrong_output', 'tool', expectedTool, [
+                for (final call in finals) call.name,
+              ], '使用与当前任务类型匹配的交付工具。');
+          calls.add(
+            _Call.ok(
+              step,
+              res,
+              retry: tag,
+              CallOutcome.rejected,
+              codes: [issue['code'] as String],
+            ),
+          );
+          lastErrors = [
+            PlanIssue(issue['code'] as String, issue['fix'] as String),
+          ];
+          if (++rejected > maxResubmits) break;
+          turnMsgs.add(assistant(res));
+          for (final call in res.toolCalls) {
+            turnMsgs.add(
+              LlmMessage.tool(call.id, results[call.id] ?? jsonEncode(issue)),
+            );
+          }
+          continue;
+        }
+      }
+
       if (redFlag &&
           finals.any((call) => call.name == AgentTools.showActions)) {
         submissions++;
@@ -1998,6 +2211,8 @@ class CoachAgent {
         break;
       }
       if (g.ok) {
+        final admittedTask = _sessionState.task;
+        final admittedSafetyRevision = _hostSafetyRevision;
         calls.add(
           _Call.ok(
             step,
@@ -2014,7 +2229,14 @@ class CoachAgent {
           plan: g.plan,
           actions: g.actions,
           warnings: g.warnings,
+          commitValid: () =>
+              identical(_sessionState.task, admittedTask) &&
+              _hostSafetyRevision == admittedSafetyRevision,
           commit: () {
+            if (outputNode != null) {
+              _sessionState = outputNode.state;
+              _emitNodeChanges(turnId, outputNode);
+            }
             _pendingConfirmation = null;
             if (parameterTask && g.plan != null && !startsNewPlan) {
               _confirmedPlanContext = CoachContext(

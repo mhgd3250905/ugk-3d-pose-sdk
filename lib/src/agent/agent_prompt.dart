@@ -27,6 +27,8 @@ abstract final class AgentTools {
   static const read = 'read';
   static const ls = 'ls';
   static const setParams = 'set_params';
+  static const startTask = 'start_task';
+  static const check = 'check';
   static const checkPlan = 'check_plan';
   static const showActions = CoachTools.showActions;
   static const showPlan = CoachTools.showPlan;
@@ -66,6 +68,48 @@ abstract final class AgentTools {
       'uniqueItems': true,
     };
     return [
+      const LlmTool(
+        name: startTask,
+        description: '开始动作推荐或组装计划；只有完成推荐卡后才能复用节点。',
+        parameters: {
+          'type': 'object',
+          'properties': {
+            'type': {
+              'type': 'string',
+              'enum': ['recommend', 'plan'],
+            },
+            'reuse': {'type': 'boolean'},
+          },
+          'required': ['type'],
+          'additionalProperties': false,
+        },
+      ),
+      const LlmTool(
+        name: check,
+        description: '请求完成当前节点；动作节点需要传入已搜索并选择的动作 ID。',
+        parameters: {
+          'type': 'object',
+          'properties': {
+            'node': {
+              'type': 'string',
+              'enum': [
+                'understand',
+                'parameters',
+                'actions',
+                'planning',
+                'review',
+              ],
+            },
+            'picks': {
+              'type': 'array',
+              'items': {'type': 'string'},
+              'uniqueItems': true,
+            },
+          },
+          'required': ['node'],
+          'additionalProperties': false,
+        },
+      ),
       const LlmTool(
         name: read,
         description:

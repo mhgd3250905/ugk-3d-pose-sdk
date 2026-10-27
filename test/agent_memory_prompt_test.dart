@@ -42,7 +42,10 @@ void main() {
         );
         final tools = jsonEncode([
           for (final tool in AgentTools.build(profile, catalog, memory: false))
-            if (tool.name != AgentTools.askUser && tool.name != AgentTools.setParams)
+            if (tool.name != AgentTools.askUser &&
+                tool.name != AgentTools.setParams &&
+                tool.name != AgentTools.startTask &&
+                tool.name != AgentTools.check)
               {'name': tool.name, 'parameters': tool.parameters},
         ]);
         expect(sha256.convert(utf8.encode(tools)).toString(), entry.value);
@@ -65,10 +68,7 @@ void main() {
         memory: true,
         memorySummary: '- goal：长期提升力量',
       );
-      expect(
-        system,
-        contains('必须先用 read 读 user-memory/SKILL.md'),
-      );
+      expect(system, contains('必须先用 read 读 user-memory/SKILL.md'));
       expect(system, contains('只有记忆工具返回 ok=true 后才能确认'));
       expect(system, contains('不把 App 条件、预选、模型推断或一次临时请求当作长期习惯'));
       expect(system, contains('历史习惯只能作为预选'));

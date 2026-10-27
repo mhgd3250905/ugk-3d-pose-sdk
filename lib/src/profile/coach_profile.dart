@@ -212,6 +212,7 @@ class CoachProfile {
     this.defaultScene = 'home',
     this.goals = const ['relax', 'mobility', 'strength', 'core', 'fullbody', 'warmup', 'cooldown'],
     this.limits = const PlanLimits(),
+    this.minActions = 3,
     this.assetApps = const [],
     this.vars = const {},
     this.skills = const [],
@@ -238,6 +239,9 @@ class CoachProfile {
   /// 允许的 goal 值。
   final List<String> goals;
   final PlanLimits limits;
+
+  /// Minimum distinct actions required for an action node.
+  final int minActions;
 
   /// 素材来源优先级（[AssetResolver.appOrder]），空 = `[id, 'pose-hub']`。
   final List<String> assetApps;
@@ -273,6 +277,7 @@ class CoachProfile {
       defaultScene: asString(j['defaultScene']) ?? 'home',
       goals: j['goals'] == null ? const CoachProfile(id: '', appName: '').goals : asStringList(j['goals']),
       limits: PlanLimits.fromJson(j['limits']),
+      minActions: asInt(j['minActions']) ?? 3,
       assetApps: asStringList(j['assetApps']),
       vars: {for (final e in asMap(j['vars']).entries) if (e.value is String) e.key: e.value! as String},
       skills: [for (final x in asList(j['skills'])) ?ProfileSkill.tryParse(x)],
@@ -290,6 +295,7 @@ class CoachProfile {
     'defaultScene': defaultScene,
     'goals': goals,
     'limits': limits.toJson(),
+    'minActions': minActions,
     if (assetApps.isNotEmpty) 'assetApps': assetApps,
     if (vars.isNotEmpty) 'vars': vars,
     if (skills.isNotEmpty) 'skills': [for (final x in skills) x.toJson()],

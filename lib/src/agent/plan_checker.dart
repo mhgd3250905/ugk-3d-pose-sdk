@@ -51,11 +51,18 @@ class PlanCheckResult {
 }
 
 class PlanChecker {
-  PlanChecker(this.profile, this.catalog, {required int minPicks})
-    : gate = NodeGates(profile, catalog, minPicks: minPicks);
+  PlanChecker(
+    this.profile,
+    this.catalog, {
+    required int minPicks,
+    this.extraRules = const [],
+    this.enforceDrillDoseRange = false,
+  }) : gate = NodeGates(profile, catalog, minPicks: minPicks);
   final CoachProfile profile;
   final Catalog catalog;
   final NodeGates gate;
+  final List<PlanRule> extraRules;
+  final bool enforceDrillDoseRange;
 
   PlanCheckResult check(CoachSessionState state, String planId) {
     PlanCheckResult fail(
@@ -109,6 +116,8 @@ class PlanChecker {
         plan: version.plan,
         estimateSec: version.estimateSec,
         fitLog: version.fitLog,
+        createdAtTurn: version.createdAtTurn,
+        operation: version.operation,
         check: {
           'ok': false,
           'errors': [error],
@@ -412,6 +421,8 @@ class PlanChecker {
     final legacy = PlanValidator(
       catalog: catalog,
       profile: profile,
+      extraRules: extraRules,
+      enforceDrillDoseRange: enforceDrillDoseRange,
     ).validate(plan, context);
     final hard = legacy.errors;
     for (final issue in hard) {
@@ -444,6 +455,8 @@ class PlanChecker {
       plan: version.plan,
       estimateSec: seconds,
       fitLog: version.fitLog,
+      createdAtTurn: version.createdAtTurn,
+      operation: version.operation,
       check: check,
     );
     var next = state.copyWith(

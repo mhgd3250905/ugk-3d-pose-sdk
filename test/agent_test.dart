@@ -19,9 +19,8 @@ LlmResponse _read(String path) => _tools([
 
 LlmResponse _showActions(List<String> ids, [String text = '这几个动作可以看看。']) => _tools([
   _call('show_actions', {
-    'items': [
-      for (final id in ids) {'actionId': id},
-    ],
+    'ids': ids,
+    'note': text,
   }),
 ], text);
 
@@ -94,6 +93,21 @@ void main() {
     maxRequestRetries: maxRequestRetries,
     fallback: fallback,
   );
+
+  const selected = ['h-sumo-pry', 'n-squat-shift', 'h-squat'];
+  LlmResponse prepareActions() => _tools([
+    _call('start_task', {'type': 'recommend'}),
+    _call('check', {'node': 'understand'}),
+    _call('set_params', {'fields': {
+      'scene': {'value': 'home', 'source': 'user', 'quote': '在家'},
+      'equipment': {'value': <String>[], 'source': 'user', 'quote': '徒手'},
+      'goal': {'value': ['body.glute_max'], 'source': 'user', 'quote': '臀部'},
+    }}),
+    _call('check', {'node': 'parameters'}),
+    for (final id in selected)
+      _call('search_actions', {'tags': <String>[], 'keywords': catalog[id]!.name.of('zh')}),
+  ]);
+  LlmToolCall selectActions() => _call('check', {'node': 'actions', 'picks': selected});
 
   group('虚拟文件系统', () {
     final fs = SkillFiles.build(hiplab, catalog);
@@ -194,38 +208,40 @@ void main() {
   });
 
   group('循环', () {
-    test('多步：读 SKILL → 读索引 → show_actions，事件、reads、历史只留最终交付', () async {
+    test('多步：读技能 → 搜索 → 打卡 → show_actions，事件、reads 与最终历史', () async {
       final c = FakeLlmClient([
         _read('action-library/SKILL.md'),
         _tools([
           _call('read', {'path': 'action-library/index/muscle/glute-max.md'}),
           _call('read', {'path': 'action-library/SKILL.md'}),
         ]),
-        _showActions(['s-figure4', 'h-knee-hug']),
+        prepareActions(),
+        _tools([selectActions(), _call('show_actions', {'ids': selected, 'note': '可以看看这些动作。'})]),
       ]);
       final a = agent(c);
       final events = <AgentEvent>[];
       a.events.listen(events.add);
-      final r = await a.send('看看有哪些臀部动作？');
+      final r = await a.send('在家徒手看看有哪些臀部动作？');
       expect(r.status, TurnStatus.ok);
-      expect(r.actions!.items.map((i) => i.id), ['s-figure4', 'h-knee-hug']);
-      expect(r.steps, 3);
+      expect(r.actions!.items.map((i) => i.id), selected);
+      expect(r.steps, 4);
       expect(r.reads, ['action-library/SKILL.md', 'action-library/index/muscle/glute-max.md']);
-      expect(r.records.map((x) => x.outcome), [CallOutcome.toolStep, CallOutcome.toolStep, CallOutcome.passed]);
+      expect(r.records.map((x) => x.outcome), [CallOutcome.toolStep, CallOutcome.toolStep, CallOutcome.toolStep, CallOutcome.passed]);
       // 重复读返回简短提示。
       final third = c.requests[2].messages.where((m) => m.role == LlmRole.tool).map((m) => m.content).toList();
       expect(third.last, contains('已读过'));
-      expect(events.map((e) => e.kind), [
+      expect(events.where((e) => e.kind != AgentEventKind.node).map((e) => e.kind), [
         AgentEventKind.thinking,
         AgentEventKind.reading,
         AgentEventKind.thinking,
         AgentEventKind.reading,
         AgentEventKind.reading,
+        AgentEventKind.thinking,
         AgentEventKind.thinking,
         AgentEventKind.done,
       ]);
-      expect(a.history.length, 3); // user + assistant(show_actions) + tool
-      expect(a.history[1].toolCalls.single.name, 'show_actions');
+      expect(a.history.length, 2); // user + delivered visible note
+      expect(a.history.last.content, '可以看看这些动作。');
       expect(a.turnCount, 1);
     });
 
@@ -278,29 +294,36 @@ void main() {
       expect(a.history, isEmpty);
     });
 
-    test('门禁不过：错误回给模型，读索引后重交通过', () async {
+    test('门禁不过：错误回给模型，重交所选动作后通过', () async {
       final c = FakeLlmClient([
-        _showActions(['made-up-id']),
-        _read('action-library/index/scene/home.md'),
-        _showActions(['s-figure4']),
+        prepareActions(),
+        _tools([selectActions(), _call('show_actions', {'ids': ['made-up-id'], 'note': '可以看看。'})]),
+        _showActions([selected.first]),
       ]);
-      final r = await agent(c).send('臀部拉伸怎么做');
+      final r = await agent(c).send('在家徒手推荐臀部动作');
       expect(r.status, TurnStatus.ok);
       expect(r.submissions, 2);
       expect(r.records.map((x) => x.turnOutcome).toSet(), {TurnOutcome.rewritten});
-      final fb = jsonDecode(c.requests[1].messages.last.content) as Map;
+      final fb = jsonDecode(c.requests[2].messages.last.content) as Map;
       expect(fb['ok'], false);
-      expect(jsonEncode(fb), contains('unknown_exercise'));
-      expect(jsonEncode(fb), contains('action-library'));
+      expect(fb['code'], 'unpicked_actions');
+      expect(jsonEncode(fb), contains('made-up-id'));
     });
 
-    test('白名单外的 id 也被门禁拦下（重交用尽回落）', () async {
+    test('白名单外的 id 不能通过详情工具或进入所选动作', () async {
       final c = FakeLlmClient([
-        for (var i = 0; i < 3; i++) _showActions(['abs-A']),
+        prepareActions(),
+        _tools([_call('get_action', {'ids': ['abs-A']})]),
+        _tools([_call('ask_user', {'question': '还需要其他帮助吗？', 'mode': 'text'})]),
       ]);
-      final r = await agent(c, fallback: (_) => const SessionFallbackReply('t')).send('x');
-      expect(r.status, TurnStatus.fallback);
-      expect(r.issues.map((i) => i.code), contains(IssueCodes.outOfProfile));
+      final a = agent(c);
+      final r = await a.send('在家徒手推荐臀部动作');
+      expect(r.question, isNotNull);
+      expect(r.actions, isNull);
+      final fb = jsonDecode(c.requests.last.messages.last.content) as Map;
+      expect(fb['code'], 'incompatible_actions');
+      expect(jsonEncode(fb), contains('abs-A'));
+      expect(a.sessionState.seenActionIds, isNot(contains('abs-A')));
     });
 
     test('暗号泄露回落', () async {

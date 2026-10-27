@@ -92,9 +92,8 @@ void main() {
     () async {
       final client = FakeLlmClient([
         tool('bad', AgentTools.showActions, {
-          'items': [
-            {'actionId': 'invented-id'},
-          ],
+          'ids': ['invented-id'],
+          'note': '请看动作。',
         }),
         tool('check', AgentTools.checkPlan, {'plan_id': 'missing'}),
         '目录里没有这个动作。',
@@ -103,7 +102,7 @@ void main() {
       expect(result.status, TurnStatus.ok);
       expect(result.actions, isNull);
       expect(client.requests.every(hasCheck), isTrue);
-      expect(result.records.first.issueCodes, contains('unknown_exercise'));
+      expect(result.records.first.issueCodes, contains('wrong_task_type'));
       expect(feedback(client.requests[2], 'check')['ok'], isFalse);
     },
   );

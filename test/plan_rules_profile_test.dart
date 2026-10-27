@@ -13,6 +13,8 @@ void main() {
     'exemptWarmupForPureStretch': true,
     'focusRatio': 0.5,
     'maxSameMuscleInRow': 3,
+    'replaceAllMinDiff': 0.5,
+    'derivedStep': {'min': 0.2, 'max': 0.5},
     'antagonisticPairs': <Object>[],
   };
 
@@ -48,6 +50,8 @@ void main() {
         'exemptWarmupForPureStretch': false,
         'focusRatio': 0.75,
         'maxSameMuscleInRow': 2,
+        'replaceAllMinDiff': 0.75,
+        'derivedStep': {'min': 0.25, 'max': 0.45},
         'antagonisticPairs': [
           {
             'first': ['body.abs', 'body.obliques'],
@@ -62,6 +66,8 @@ void main() {
     expect(rules.exemptWarmupForPureStretch, isFalse);
     expect(rules.focusRatio, 0.75);
     expect(rules.maxSameMuscleInRow, 2);
+    expect(rules.replaceAllMinDiff, 0.75);
+    expect((rules.derivedStep.min, rules.derivedStep.max), (0.25, 0.45));
     expect(rules.antagonisticPairs.single.first, ['body.abs', 'body.obliques']);
     expect(rules.antagonisticPairs.single.second, ['body.erectors']);
     final restored = CoachProfile.fromJson(
@@ -79,6 +85,18 @@ void main() {
       {'cooldownFromMinutes': -1},
       {'maxSameMuscleInRow': 0},
       {'maxSameMuscleInRow': -1},
+      {'replaceAllMinDiff': -0.1},
+      {'replaceAllMinDiff': 1.1},
+      {'derivedStep': 'bad'},
+      {
+        'derivedStep': {'min': 0, 'max': 0.5},
+      },
+      {
+        'derivedStep': {'min': 0.5, 'max': 0.2},
+      },
+      {
+        'derivedStep': {'min': 0.2, 'max': 1.1},
+      },
       {'exemptWarmupForPureStretch': 'yes'},
       {'antagonisticPairs': 'invalid'},
       {

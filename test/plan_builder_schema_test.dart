@@ -11,6 +11,7 @@ void main() {
     'type': 'object',
     'properties': {
       'plan_id': {'type': 'string'},
+      'operation': {'type': 'string', 'enum': ['edit', 'replace_all']},
       'title': {'type': 'string'},
       'blocks': {
         'type': 'array',

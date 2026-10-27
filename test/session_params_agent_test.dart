@@ -220,96 +220,236 @@ void main() {
   test(
     'new safety protection while model is in flight reaches the gate',
     () async {
+      final started = Completer<void>();
       final pendingModel = Completer<Object>();
       final client = FakeLlmClient([
-        (LlmRequest _) => pendingModel.future,
+        _tools([
+          LlmToolCall(
+            id: 'start',
+            name: AgentTools.startTask,
+            arguments: jsonEncode({'type': 'recommend'}),
+          ),
+          LlmToolCall(
+            id: 'understand',
+            name: AgentTools.check,
+            arguments: jsonEncode({'node': 'understand'}),
+          ),
+          _set('params', {
+            'scene': _user('home', '在家'),
+            'equipment': _user(<String>[], '徒手'),
+            'goal': _user(['body.core'], '核心'),
+          }),
+          LlmToolCall(
+            id: 'parameters',
+            name: AgentTools.check,
+            arguments: jsonEncode({'node': 'parameters'}),
+          ),
+          LlmToolCall(
+            id: 'squat',
+            name: AgentTools.searchActions,
+            arguments: jsonEncode({
+              'tags': <String>[],
+              'keywords': catalog['h-squat']!.name.of('zh'),
+            }),
+          ),
+          LlmToolCall(
+            id: 'all',
+            name: AgentTools.searchActions,
+            arguments: jsonEncode({'tags': <String>[], 'limit': 20}),
+          ),
+        ]),
+        (LlmRequest request) {
+          final all =
+              jsonDecode(
+                    request.messages
+                        .singleWhere((m) => m.toolCallId == 'all')
+                        .content,
+                  )
+                  as Map;
+          final picks = [
+            'h-squat',
+            ...(all['items'] as List)
+                .map((row) => (row as Map)['id'] as String)
+                .where((id) => id != 'h-squat')
+                .take(2),
+          ];
+          return _tools([
+            LlmToolCall(
+              id: 'actions',
+              name: AgentTools.check,
+              arguments: jsonEncode({'node': 'actions', 'picks': picks}),
+            ),
+          ]);
+        },
+        (LlmRequest _) {
+          started.complete();
+          return pendingModel.future;
+        },
         '先保护膝盖，不勉强训练。',
       ], latency: Duration.zero);
       final coach = agent(client);
-      final pending = coach.send('推荐几个动作');
-      await Future<void>.delayed(Duration.zero);
+      final pending = coach.send('在家徒手推荐核心动作');
+      await started.future;
+      expect(coach.sessionState.picks, contains('h-squat'));
       coach.replaceSafetyAvoid({'knee'});
       pendingModel.complete(
         _tools([
           LlmToolCall(
             id: 'unsafe-squat',
-            name: AgentTools.showActions,
+            name: AgentTools.getAction,
             arguments: jsonEncode({
-              'items': [
-                {'actionId': 'h-squat'},
-              ],
+              'ids': ['h-squat'],
             }),
           ),
         ]),
       );
       final result = await pending;
       expect(result.actions, isNull);
-      final feedback = client.requests.last.messages.singleWhere(
-        (message) => message.toolCallId == 'unsafe-squat',
+      final response = client.requests.last.messages.singleWhere(
+        (m) => m.toolCallId == 'unsafe-squat',
       );
-      expect(feedback.content, contains('avoid'));
+      final feedback = jsonDecode(response.content) as Map;
+      expect(feedback['code'], 'incompatible_actions');
+      expect(jsonEncode(feedback['actual']), contains('h-squat'));
       expect(coach.sessionState.params['limits']!.value, ['limit.knee']);
+      expect(coach.sessionState.picks, isNot(contains('h-squat')));
     },
   );
 
   test('same-turn model parameters reach the subsequent plan gate', () async {
-    final plan = {
-      'schemaVersion': 1,
-      'title': '髋部放松',
-      'summary': '温和放松',
-      'goal': 'relax',
-      'scene': 'home',
-      'level': 1,
-      'targetMinutes': 10,
-      'equipment': ['mat'],
-      'blocks': [
-        {
-          'id': 'main',
-          'name': '训练',
-          'type': 'main',
-          'items': [
-            {
-              'exerciseId': 's-kneel-hipflex',
-              'mode': 'time',
-              'sets': 1,
-              'workSeconds': 120,
-              'perSide': true,
-              'restSeconds': 0,
-            },
-            {
-              'exerciseId': 's-butterfly',
-              'mode': 'time',
-              'sets': 3,
-              'workSeconds': 120,
-              'perSide': false,
-              'restSeconds': 30,
-            },
-          ],
-        },
-      ],
-    };
+    late List<String> ids;
+    late String planId;
     final client = FakeLlmClient([
       _tools([
+        LlmToolCall(
+          id: 'start',
+          name: AgentTools.startTask,
+          arguments: jsonEncode({'type': 'plan'}),
+        ),
+        LlmToolCall(
+          id: 'understand',
+          name: AgentTools.check,
+          arguments: jsonEncode({'node': 'understand'}),
+        ),
         _set('mat', {
           'equipment': _user(['equip.mat'], 'a mat'),
+          'goal': _user(['body.core'], 'core'),
         }),
+        LlmToolCall(
+          id: 'parameters',
+          name: AgentTools.check,
+          arguments: jsonEncode({'node': 'parameters'}),
+        ),
+        LlmToolCall(
+          id: 'search',
+          name: AgentTools.searchActions,
+          arguments: jsonEncode({
+            'tags': ['body.core', 'equip.mat'],
+          }),
+        ),
       ]),
-      LlmResponse(
-        content: '已按你的条件安排。',
-        toolCalls: [
+      (LlmRequest request) {
+        final search =
+            jsonDecode(
+                  request.messages
+                      .singleWhere((m) => m.toolCallId == 'search')
+                      .content,
+                )
+                as Map;
+        expect(search['ok'], isTrue);
+        final groups = <String>{};
+        ids = [
+          for (final row in search['items'] as List)
+            if ((row as Map)['id'] case final String id)
+              if (catalog[id]!.muscleGroups.isNotEmpty &&
+                  groups.add(catalog[id]!.muscleGroups.first))
+                id,
+        ].take(3).toList();
+        expect(ids, hasLength(3));
+        return _tools([
           LlmToolCall(
-            id: 'plan',
-            name: AgentTools.showPlan,
-            arguments: jsonEncode(plan),
+            id: 'actions',
+            name: AgentTools.check,
+            arguments: jsonEncode({'node': 'actions', 'picks': ids}),
           ),
-        ],
-        finishReason: 'tool_calls',
-        model: 'fake',
-      ),
+          LlmToolCall(
+            id: 'draft',
+            name: AgentTools.draftPlan,
+            arguments: jsonEncode({
+              'title': '核心训练',
+              'blocks': [
+                {
+                  'kind': 'warmup',
+                  'items': [
+                    {'id': ids.first},
+                  ],
+                },
+                {
+                  'kind': 'main',
+                  'items': [
+                    for (final id in ids) {'id': id},
+                  ],
+                },
+                {
+                  'kind': 'cooldown',
+                  'items': [
+                    {'id': ids.last},
+                  ],
+                },
+              ],
+            }),
+          ),
+          LlmToolCall(
+            id: 'planning',
+            name: AgentTools.check,
+            arguments: jsonEncode({'node': 'planning'}),
+          ),
+        ]);
+      },
+      (LlmRequest request) {
+        final draft =
+            jsonDecode(
+                  request.messages
+                      .singleWhere((m) => m.toolCallId == 'draft')
+                      .content,
+                )
+                as Map;
+        expect(draft['ok'], isTrue, reason: '$draft');
+        planId = draft['plan_id'] as String;
+        return _tools([
+          LlmToolCall(
+            id: 'check-plan',
+            name: AgentTools.checkPlan,
+            arguments: jsonEncode({'plan_id': planId}),
+          ),
+        ]);
+      },
+      (LlmRequest request) {
+        final checked =
+            jsonDecode(
+                  request.messages
+                      .singleWhere((m) => m.toolCallId == 'check-plan')
+                      .content,
+                )
+                as Map;
+        expect(checked['ok'], isTrue, reason: '$checked');
+        return _tools([
+          LlmToolCall(
+            id: 'review',
+            name: AgentTools.check,
+            arguments: jsonEncode({'node': 'review'}),
+          ),
+          LlmToolCall(
+            id: 'show',
+            name: AgentTools.showPlan,
+            arguments: jsonEncode({'plan_id': planId, 'note': '先按这个节奏练习。'}),
+          ),
+        ]);
+      },
     ], latency: Duration.zero);
     final coach = agent(client);
     final result = await coach.send(
-      '请排个训练计划，I have a mat',
+      '请排个 core 训练计划，I have a mat',
       context: const CoachContext(scene: 'home', equipment: {}, minutes: 10),
     );
     expect(result.plan, isNotNull, reason: '${result.issues}; ${result.error}');

@@ -16,14 +16,6 @@ LlmResponse _read(String path) => _tools([
   _call('read', {'path': path}),
 ]);
 
-LlmResponse _showActions(List<String> ids) => _tools([
-  _call('show_actions', {
-    'items': [
-      for (final id in ids) {'actionId': id},
-    ],
-  }),
-], '可以看看。');
-
 FakeStep _hang() =>
     (_) => Completer<Object>().future;
 
@@ -94,7 +86,7 @@ void main() {
     final c = FakeLlmClient([
       _read('action-library/SKILL.md'),
       _hang(),
-      _showActions(['s-figure4']),
+      '可以看看。',
     ]);
     final a = agent(c, requestTimeout: const Duration(milliseconds: 40));
     final events = <AgentEvent>[];
@@ -205,7 +197,7 @@ void main() {
       _read('action-library/SKILL.md'),
       _read('action-library/index/scene/home.md'),
       const LlmException(LlmErrorKind.http, "This model's maximum context length is 65536 tokens", statusCode: 400),
-      _showActions(['s-figure4']),
+      '可以看看。',
     ]);
     final a = agent(c);
     final events = <AgentEvent>[];
@@ -226,7 +218,7 @@ void main() {
       _read('action-library/SKILL.md'),
       _read('plan-training/SKILL.md'),
       _read('action-library/SKILL.md'),
-      _showActions(['s-figure4']),
+      '可以看看。',
     ]);
     final r = await agent(c, contextBudgetTokens: 1, keepRecentSteps: 1).send('展示臀部动作');
     expect(r.status, TurnStatus.ok);
@@ -330,7 +322,7 @@ void main() {
       _read('action-library'),
       _read('action-library/index'),
       _read('action-library/index/scene'),
-      _showActions(['s-figure4']),
+      '可以看看。',
     ]);
     final r = await agent(c).send('展示臀部动作');
     expect(r.status, TurnStatus.ok);
@@ -365,7 +357,7 @@ void main() {
       readAs('call_0', 'action-library/SKILL.md'),
       readAs('call_0', 'plan-training/SKILL.md'),
       _read('action-library/SKILL.md'),
-      _showActions(['s-figure4']),
+      '可以看看。',
     ]);
     final r = await agent(c, contextBudgetTokens: 1, keepRecentSteps: 1).send('展示臀部动作');
     expect(r.status, TurnStatus.ok);

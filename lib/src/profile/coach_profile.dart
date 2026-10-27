@@ -226,6 +226,16 @@ class AntagonistPair {
 
 /// Configurable plan checks. The nine-minute thresholds preserve the existing
 /// guidance that plans of eight minutes or less may have only one or two blocks.
+class DerivedStepRange {
+  const DerivedStepRange({
+    this.min = defaultDerivedStepMin,
+    this.max = defaultDerivedStepMax,
+  });
+  final double min;
+  final double max;
+  Map<String, Object?> toJson() => {'min': min, 'max': max};
+}
+
 class PlanRules {
   const PlanRules({
     this.warmupFromMinutes = defaultWarmupFromMinutes,
@@ -233,6 +243,8 @@ class PlanRules {
     this.exemptWarmupForPureStretch = defaultExemptWarmupForPureStretch,
     this.focusRatio = defaultFocusRatio,
     this.maxSameMuscleInRow = defaultMaxSameMuscleInRow,
+    this.replaceAllMinDiff = defaultReplaceAllMinDiff,
+    this.derivedStep = const DerivedStepRange(),
     this.antagonisticPairs = defaultAntagonisticPairs,
   });
 
@@ -241,6 +253,8 @@ class PlanRules {
   final bool exemptWarmupForPureStretch;
   final double focusRatio;
   final int maxSameMuscleInRow;
+  final double replaceAllMinDiff;
+  final DerivedStepRange derivedStep;
   final List<AntagonistPair> antagonisticPairs;
 
   factory PlanRules.fromJson(Object? raw) {
@@ -258,6 +272,22 @@ class PlanRules {
     final ratio = json.containsKey('focusRatio') ? asDouble(json['focusRatio']) : defaults.focusRatio;
     if (ratio == null || !ratio.isFinite || ratio < 0 || ratio > 1) {
       throw const FormatException('focusRatio must be between 0 and 1');
+    }
+    final replaceDiff = json.containsKey('replaceAllMinDiff')
+        ? asDouble(json['replaceAllMinDiff']) : defaults.replaceAllMinDiff;
+    if (replaceDiff == null || !replaceDiff.isFinite || replaceDiff < 0 || replaceDiff > 1) {
+      throw const FormatException('replaceAllMinDiff must be between 0 and 1');
+    }
+    final rawStep = json['derivedStep'];
+    if (json.containsKey('derivedStep') && rawStep is! Map) {
+      throw const FormatException('derivedStep must be an object');
+    }
+    final stepJson = asMap(rawStep);
+    final stepMin = rawStep == null ? defaults.derivedStep.min : asDouble(stepJson['min']);
+    final stepMax = rawStep == null ? defaults.derivedStep.max : asDouble(stepJson['max']);
+    if (stepMin == null || stepMax == null || !stepMin.isFinite || !stepMax.isFinite ||
+        stepMin <= 0 || stepMax < stepMin || stepMax > 1) {
+      throw const FormatException('derivedStep must satisfy 0 < min <= max <= 1');
     }
     final exemption = json.containsKey('exemptWarmupForPureStretch')
         ? asBool(json['exemptWarmupForPureStretch'])
@@ -279,6 +309,8 @@ class PlanRules {
       exemptWarmupForPureStretch: exemption,
       focusRatio: ratio,
       maxSameMuscleInRow: nonNegative('maxSameMuscleInRow', defaults.maxSameMuscleInRow, positive: true),
+      replaceAllMinDiff: replaceDiff,
+      derivedStep: DerivedStepRange(min: stepMin, max: stepMax),
       antagonisticPairs: json.containsKey('antagonisticPairs') ? pairs : defaults.antagonisticPairs,
     );
   }
@@ -289,6 +321,8 @@ class PlanRules {
     'exemptWarmupForPureStretch': exemptWarmupForPureStretch,
     'focusRatio': focusRatio,
     'maxSameMuscleInRow': maxSameMuscleInRow,
+    'replaceAllMinDiff': replaceAllMinDiff,
+    'derivedStep': derivedStep.toJson(),
     'antagonisticPairs': [for (final pair in antagonisticPairs) pair.toJson()],
   };
 }

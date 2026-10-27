@@ -231,21 +231,20 @@ void main() {
     );
   });
 
-  test('普通计划可从内联索引直接 show_plan，仍经过门禁', () async {
+  test('未完成任务节点时直接 show_plan 必须被拒', () async {
     final client = FakeLlmClient([
       (LlmRequest request) {
         expect(request.messages.first.content, contains('s-figure4｜'));
         return _tools([
-          _tool('plan_0', AgentTools.showPlan, planOf(okEnvelope())),
+          _tool('plan_0', AgentTools.showPlan, {'plan_id': 'missing', 'note': '开始训练。'}),
         ], text: '安排了十分钟开胯。');
       },
     ], latency: Duration.zero);
     final result = await agent(
-      client,
+      client, maxResubmits: 0,
     ).send('在家有瑜伽垫十分钟，排个开胯计划', context: const CoachContext(level: 1));
-    expect(result.status, TurnStatus.ok);
-    expect(result.plan, isNotNull);
-    expect(result.steps, lessThanOrEqualTo(4));
+    expect(result.plan, isNull);
+    expect(result.records.first.issueCodes, contains('wrong_task_type'));
     expect(result.steps, 1);
     expect(result.reads, isEmpty);
     expect(client.requests, hasLength(1));
@@ -271,18 +270,18 @@ void main() {
     expect(result.plan, isNull);
   });
 
-  test('展示直接 show_actions，多个详情也能同一步批量读取', () async {
+  test('未完成节点的 show_actions 被拒，问答仍可批量读取详情', () async {
     final show = FakeLlmClient([
       _tools([
         _tool('show_0', AgentTools.showActions, {
-          'items': [
-            {'actionId': 's-figure4'},
-          ],
+          'ids': ['s-figure4'],
+          'note': '试试这个动作。',
         }),
       ]),
     ], latency: Duration.zero);
-    final shown = await agent(show).send('看看4字拉伸');
-    expect(shown.status, TurnStatus.ok);
+    final shown = await agent(show, maxResubmits: 0).send('看看4字拉伸');
+    expect(shown.actions, isNull);
+    expect(shown.records.first.issueCodes, contains('wrong_task_type'));
     expect(shown.steps, 1);
     expect(shown.reads, isEmpty);
 
@@ -313,21 +312,21 @@ void main() {
     for (final id in ['invented-action', 's-butterfly']) {
       final client = FakeLlmClient([
         _tools([
-          _tool('bad_0', AgentTools.showActions, {
-            'items': [
-              {'actionId': id},
-            ],
-          }),
+          _tool('bad_0', AgentTools.getAction, {'ids': [id]}),
         ]),
+        (LlmRequest request) {
+          final feedback = jsonDecode(request.messages.last.content) as Map;
+          expect(feedback['code'], 'incompatible_actions');
+          return '当前动作不可用。';
+        },
       ], latency: Duration.zero);
       final result = await agent(
         client,
         profile: restricted,
         maxResubmits: 0,
       ).send('展示动作');
-      expect(result.status, TurnStatus.fallback);
+      expect(result.status, TurnStatus.ok);
       expect(result.actions, isNull);
-      expect(result.issues, isNotEmpty);
     }
   });
 

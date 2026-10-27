@@ -645,6 +645,10 @@ class CoachConversationController {
         planState: explicit ?? stored,
         focusHint: focus,
         goalHint: goal,
+        restoredUserTurns: [
+          for (final message in messages.take(planIndex))
+            if (message.isUser) message.text,
+        ],
       );
     }
     _publish(

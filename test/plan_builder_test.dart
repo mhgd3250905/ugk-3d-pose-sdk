@@ -160,17 +160,30 @@ void main() {
   });
 
   test(
-    'unseen, incompatible and unnecessary extra actions are rejected atomically',
+    'unseen actions are rejected and searched compatible extras join picks',
     () {
       final request = r3Draft();
       final original = state(seen: {'h-step-jack'});
       final unseen = builder.draft(original, request, newPlanId: 'p');
       expect(unseen.error!['code'], 'incompatible_action');
+      expect(unseen.error!['fix'], contains('search_actions'));
       expect(unseen.state.plans, isEmpty);
       final full = state(picks: r3.sublist(0, r3.length - 1));
       final extra = builder.draft(full, request, newPlanId: 'p');
-      expect(extra.error!['code'], 'extra_actions_not_needed');
-      expect(extra.state.plans, isEmpty);
+      expect(extra.ok, isTrue, reason: '${extra.error}');
+      expect(extra.state.picks, r3);
+      expect(
+        extra.changes.where((change) => change.id == 'actions'),
+        hasLength(1),
+      );
+      expect(
+        extra.changes.singleWhere((change) => change.id == 'actions').status,
+        'done',
+      );
+      expect(
+        extra.changes.singleWhere((change) => change.id == 'actions').stamp,
+        contains('${r3.length}'),
+      );
     },
   );
 

@@ -15,15 +15,15 @@
 新建 lib/src/agent/session_state.dart，定义 CoachSessionState，可以 toJson/fromJson，并并入现有 CoachPlanState 的保存和恢复（005dd9d 那套）。字段如下：
 • userTurns：本会话每条用户消息的原文和序号。
 • task：{type: qa|recommend|plan, nodes:[{id, status: pending|current|done|updated, stamp, doneAtTurn}], reused}
-• params：每项都是 {value, source: user|host|preselect|default, quote?, turn}。包含的项：scene（枚举由当前 profile 与目录实际支持的场景生成；outdoor 等目录和宿主支持后启用）、goal（练什么，用 body.* / purpose.* 编码的数组）、equipment（equip.* 编码的数组，空数组表示徒手）、minutes（整数）、level（1–3）、limits（伤痛限制编码的数组，空数组表示无）。host 只由代码从 CoachContext 写入，模型不得指定。
-• seenActionIds：本任务里 search_actions 返回过的动作 id 集合。
+• params：每项都是 {value, source: user|host|preselect|default|derived, quote?, turn}。derived 仅限 minutes，并记录 direction 和完整 basedOn 原来源。包含的项：scene（枚举由当前 profile 与目录实际支持的场景生成；outdoor 等目录和宿主支持后启用）、goal（练什么，用 body.* / purpose.* 编码的数组）、equipment（equip.* 编码的数组，空数组表示徒手）、minutes（整数）、level（1–3）、limits（伤痛限制编码的数组，空数组表示无）。host 只由代码从 CoachContext 写入，模型不得指定。
+• seenActionIds：同一计划从首次生成到后续修改期间 search_actions 返回过的动作 id 集合，包含从推荐复用的部分；随 planState 保存恢复，新开无关任务时清空。
 • picks：动作节点选中的动作 id。
 • plans：plan_id → [{version, plan, estimateSec, fitLog, check: null|{ok, errors}}]
 测试：序列化往返无损；恢复后的状态与保存前完全一致。
 
 ======== 第 2 步：set_params（记账，并拦住编造的条件） ========
 新增工具 set_params。schema 如下：
-{ "fields": { "scene"|"goal"|"equipment"|"minutes"|"level"|"limits": { "value": ..., "source": "user"|"preselect"|"default", "quote": "用户原话片段，可选" } } }
+{ "fields": { "scene"|"goal"|"equipment"|"minutes"|"level"|"limits": { "value": ..., "source": "user"|"preselect"|"default"|"derived", "quote": "用户原话片段，可选", "direction": "shorter|longer，仅 derived minutes" } } }
 所有枚举值都写进 schema 的 enum。
 scene enum 随当前 profile 与目录支持生成，现有计划卡场景校验保持不变。用户在户外时，不能擅自记成 home 或 gym：先说明暂时没有专门的户外动作，调用 ask_user 提供可选场景；用户选定后以 source=user 和该次回答的 quote 记账。用户坚持只要户外时，说明暂时无法提供并结束任务。
 代码校验（任何一条不过，整次调用就失败，并按第 10 步的格式报错）：
@@ -33,6 +33,7 @@ scene enum 随当前 profile 与目录支持生成，现有计划卡场景校验
 4. 如果一项的旧值是 user 或 host，就不能用 default 或 preselect 去覆盖它。
 5. host 优先级等同 user，参数节点视为已确认，提示词不得再问。用户在对话里用带 quote 的 source=user 可以覆盖 host 的时长等条件；器械仍只减不加，新增加的器械必须来自新的用户原话。
 6. 安全类只能收紧，不能放宽：host 给的 limits 和现有 safety avoid，模型与用户只能增加，不能删除；需要放宽时只能由宿主重新传入。创建会话或宿主在会话中更新 CoachContext 时，代码将其中场景、器械、时长、水平及伤痛限制写入账本；变化触发第 3 步的参数更新流程。公开接口不变，planState 保存及恢复 host 来源。
+7. 用户仅要求相对调整时，模型可对 minutes 使用 derived，并提供最新用户消息中的 quote 和 direction=shorter|longer；代码不解析原话含义。新值必须符合方向、profile.planRules.derivedStep（默认变化 20%–50%）及 profile 时长范围，并为 5 分钟的整数倍。报错给出可选范围。账本记录 derived 及完整 basedOn 旧值与来源；具体数字由用户明确给出时仍使用 user。
 成功时返回当前完整的 params。如果参数节点已经 done，就按第 3 步的“参数更新”规则处理。
 profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有垫子/椅子/墙/砖”的器械默认。器械的默认值一律是徒手。
 测试：用 R2 的数据。用户只说了“有瑜伽垫”，之后没有新消息时，模型想把墙和砖加进来，必须被拒绝。quote 不在原话里时被拒绝。用 default 覆盖 user 时被拒绝。
@@ -49,7 +50,7 @@ profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有�
   review：当前版本的 check_plan 已通过。stamp 例：“安全、时长、器材、均衡、重点都通过”。
   output：由 show_* 成功时自动打卡，不允许对它调用 check。
 • 顺序门禁：只能 check 当前节点。如果 check 的节点不对，报错里要写明当前节点是哪个。
-• 参数更新：如果参数节点已经 done，之后 set_params 或宿主更新 CoachContext 改变了参数，代码会：重写参数节点的 stamp 并把状态设为 updated；把已完成的 actions、planning、review 重置为 pending；从 picks 里去掉不再符合新参数的动作；把当前节点设为 actions。节点不增、不删、不调序。每次状态变化都发出节点事件。
+• 参数更新：如果参数节点已经 done，之后 set_params 或宿主更新 CoachContext 改变参数，重写参数 stamp 并标为 updated。只改变时长时保留 picks 和已完成 actions，从 planning 重新开始；场景、器械、伤痛、目标或水平变化时，重置 actions 及后续节点并移除不合规 picks，从 actions 重新开始。每次状态变化发节点事件。derived 时长的 stamp 说明相对要求和原时长，不标为用户直接说出的数字。
 • ask_user 在任何节点都可以用。用户回答后，从当前节点继续。
 测试：用 R3 的数据。参数节点已完成后，用户回答“初学”，模型 set_params(level=1)，此时参数节点的 stamp 应变成“初学（你说的）”，后续节点应被重置。另外测：跳节点被拒绝；picks 里有没搜到过的 id 时被拒绝；picks 里有需要垫子的动作、而用户是徒手时被拒绝。
 
@@ -64,9 +65,10 @@ profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有�
 
 ======== 第 5 步：draft_plan（教练定结构，助理填数、配时长） ========
 新建 lib/src/agent/plan_builder.dart。估时复用 plan_validator 里现有的估时函数，保证口径一致。
-• schema：{ "plan_id"?: string, "title": string, "blocks": [ { "kind": "warmup"|"main"|"cooldown", "rounds"?: int, "items": [ { "id": string, "sets"?: int, "reps"?: int, "seconds"?: int } ] } ] }。不传 plan_id 就新建计划，传了就生成该计划的新版本。
+• schema：{ "plan_id"?: string, "operation"?: "edit"|"replace_all", "title": string, "blocks": [ { "kind": "warmup"|"main"|"cooldown", "rounds"?: int, "items": [ { "id": string, "sets"?: int, "reps"?: int, "seconds"?: int } ] } ] }。首次计划不得传 operation；修改已交付计划必须指定 operation 并沿用同一 plan_id。check_plan 失败后同一轮返工不算新修改。
+• 用户要求整体换一套时模型使用 replace_all，局部调整使用 edit。replace_all 仅比较上次 show_plan 实际交付版本的 main 动作 ID：新 main 中不在旧 main 的比例至少为 profile.planRules.replaceAllMinDiff（默认 0.5），热身和收尾不计。失败仍保存版本，返回 replace_too_similar、比例和合规候选；候选不足建议先搜索。edit 不限制差异比例。实际交付版本随 state 和 planState 恢复。
 • 旧卡片 goal 由各 profile 的有序 legacyGoalMap 从账本 params.goal 和计划结构确定，模型不能传入或覆盖。依次匹配：拉伸/放松 purpose→relax；灵活性/活动度 purpose→mobility；热身 purpose 且只有 warmup 块→warmup；收尾 purpose 且只有 cooldown 块→cooldown；body 目标仅核心→core；body 跨上肢、下肢、核心至少两个大区或含全身编码→fullbody；力量 purpose 或其余单一部位 body→strength；未命中→fullbody。编码采用目录实际值，各 profile 可按业务语义调整顺序；具体映射由配置提供，代码不写死。返回结果包含 legacyGoal；完整目标和 focus 核对仍以账本编码为准。
-• 各项只能从 picks 里取。只有当时长不够时，才允许使用 seenActionIds 里符合 params 的其他动作。
+• 草稿动作只需同时满足：已在 seenActionIds 中，且在 draft_plan 时仍符合当前场景、器械、伤痛和 profile 范围。未搜索或不合规的拒绝，并建议先用 search_actions。草稿使用的新动作由代码加入 picks，重写 actions stamp、保持该节点 done，并发一次节点更新事件。首次 check(actions) 的最少数量和合规门禁不变。
 • 缺省的剂量用目录默认值补齐。模型给的剂量如果超出目录范围，就夹到范围内，并记入 fitLog。
 • 自动配时长：目标 T = params.minutes × 60。如果估时不在 T ±10% 以内，就按下面的顺序调整，每调一次重算一次，进入 ±5% 就停：
   1) main 块的 rounds，在 1–4 之间调；

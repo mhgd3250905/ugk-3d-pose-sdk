@@ -45,12 +45,57 @@ http.Response _response(Map<String, Object?> message) => http.Response.bytes(
 void main() {
   final catalog = loadCatalog();
   final profile = loadProfile('hiplab');
-  final plan = planOf(okEnvelope())..remove('source');
   final actions = {
     'items': [
       {'actionId': 's-figure4'},
     ],
   };
+
+  const v2Ids = ['h-sumo-pry', 'n-squat-shift', 'h-squat'];
+  List<Map<String, Object?>> setup(String type, {bool parameters = true}) => [
+    _tool('start-$type', 'start_task', {'type': type}),
+    _tool('understand-$type', 'check', {'node': 'understand'}),
+    if (parameters)
+      _tool('params-$type', 'set_params', {
+        'fields': {
+          'scene': {'value': 'home', 'source': 'user', 'quote': '在家'},
+          'equipment': {'value': <String>[], 'source': 'user', 'quote': '徒手'},
+          'goal': {
+            'value': ['body.inner_thigh'],
+            'source': 'user',
+            'quote': '大腿内侧',
+          },
+          if (type == 'plan')
+            'minutes': {'value': 5, 'source': 'user', 'quote': '5分钟'},
+        },
+      }),
+    _tool('parameters-$type', 'check', {'node': 'parameters'}),
+    for (var i = 0; i < v2Ids.length; i++)
+      _tool('search-$type-$i', 'search_actions', {
+        'tags': <String>[],
+        'keywords': catalog[v2Ids[i]]!.name.of('zh'),
+      }),
+  ];
+  List<Map<String, Object?>> actionsAndDraft() => [
+    _tool('select', 'check', {'node': 'actions', 'picks': v2Ids}),
+    _tool('draft', 'draft_plan', {
+      'title': '拉伸计划',
+      'blocks': [
+        {
+          'kind': 'main',
+          'items': [
+            for (final id in v2Ids) {'id': id},
+          ],
+        },
+      ],
+    }),
+    _tool('planning', 'check', {'node': 'planning'}),
+  ];
+  Map<String, dynamic> toolResult(Map<dynamic, dynamic> body, String id) {
+    final messages = (body['messages'] as List).cast<Map<String, dynamic>>();
+    final message = messages.singleWhere((m) => m['tool_call_id'] == id);
+    return jsonDecode(message['content'] as String) as Map<String, dynamic>;
+  }
 
   test('LlmMessage 序列化仅 assistant 回传 reasoning，正文与 toString 不混入推理', () {
     const reasoning = 'transport-only-reasoning';
@@ -85,88 +130,190 @@ void main() {
     }
   });
 
-  test(
-    'HTTP 请求体：Agent read / remember / check_plan / show_plan 与跨轮纯文字、show_actions 保留推理',
-    () async {
-      final replies = [
-        _message('', 'read-reasoning', [
-          _tool('r1', 'read', {'path': 'action-library/SKILL.md'}),
-          _tool('r2', 'read', {'path': 'user-memory/SKILL.md'}),
-        ]),
-        _message('', 'remember-reasoning', [
-          _tool('m1', 'remember', {'kind': 'level', 'text': '新手'}),
-          _tool('r3', 'read', {
-            'path': 'action-library/index/muscle/glute-max.md',
-          }),
-        ]),
-        _message('', 'check-reasoning', [_tool('p1', 'check_plan', plan)]),
-        _message('排好了。', 'plan-reasoning', [_tool('p2', 'show_plan', plan)]),
-        _message('可以先了解动作。', 'plain-reasoning'),
-        _message('这个动作可以看看。', 'actions-reasoning', [
-          _tool('a1', 'show_actions', actions),
-        ]),
-        _message('好的。', 'last-reasoning'),
-      ];
-      final expected = <List<String>>[
-        [],
-        ['read-reasoning'],
-        ['read-reasoning', 'remember-reasoning'],
-        ['read-reasoning', 'remember-reasoning', 'check-reasoning'],
-        ['plan-reasoning'],
-        ['plan-reasoning', 'plain-reasoning'],
-        ['plan-reasoning', 'plain-reasoning', 'actions-reasoning'],
-      ];
-      var step = 0;
-      final client = OpenAiCompatibleClient(
-        config: LlmConfig.ugkWorker.copyWith(maxRetries: 0),
-        httpClient: MockClient((request) async {
-          final body = jsonDecode(request.body) as Map;
-          final assistants = (body['messages'] as List)
-              .cast<Map<String, dynamic>>()
-              .where((m) => m['role'] == 'assistant');
-          expect(
-            assistants.map((m) => m['reasoning_content']),
-            expected[step],
-            reason: 'request ${step + 1}',
-          );
-          expect(body['tools'], isNotEmpty);
-          return _response(replies[step++]);
-        }),
-      );
-      final store = InMemoryUserMemoryStore();
-      final agent = CoachAgent(
-        client: client,
-        catalog: () => catalog,
-        profile: profile,
-        memoryStore: store,
-      );
-      addTearDown(client.close);
-      addTearDown(agent.dispose);
-      final result = await agent.send('新手，在家用瑜伽垫安排 10 分钟睡前开胯计划，请检查后提交');
-      expect(result.status, TurnStatus.ok);
-      expect(result.steps, 4);
-      expect(result.plan, isNotNull);
-      expect(result.text, contains('10分钟'));
-      expect(result.text, contains(catalog.taxonomy.equipmentLabel('mat')));
-      expect(result.text, isNot(contains('reasoning')));
-      expect(result.records.map((r) => r.outcome), [
-        CallOutcome.toolStep,
-        CallOutcome.toolStep,
-        CallOutcome.toolStep,
-        CallOutcome.passed,
-      ]);
-      expect((await agent.memory()).single.text, '新手');
-      expect((await agent.send('明白了')).status, TurnStatus.ok);
-      expect((await agent.send('看看动作')).actions, isNotNull);
-      expect((await agent.send('谢谢')).status, TurnStatus.ok);
-      expect(step, 7);
-    },
-  );
+  test('HTTP 请求体：Agent 在 v2 工具链与跨轮交付中保留推理', () async {
+    final expected = <List<String>>[
+      [],
+      ['read-reasoning'],
+      ['read-reasoning', 'remember-reasoning'],
+      ['read-reasoning', 'remember-reasoning', 'setup-reasoning'],
+      [
+        'read-reasoning',
+        'remember-reasoning',
+        'setup-reasoning',
+        'draft-reasoning',
+      ],
+      [
+        'read-reasoning',
+        'remember-reasoning',
+        'setup-reasoning',
+        'draft-reasoning',
+        'check-reasoning',
+      ],
+      ['plan-reasoning'],
+      ['plan-reasoning', 'plain-reasoning'],
+      ['plan-reasoning', 'plain-reasoning', 'recommend-reasoning'],
+      ['plan-reasoning', 'plain-reasoning', 'actions-reasoning'],
+    ];
+    var step = 0;
+    late String planId;
+    final client = OpenAiCompatibleClient(
+      config: LlmConfig.ugkWorker.copyWith(maxRetries: 0),
+      httpClient: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map;
+        final assistants = (body['messages'] as List)
+            .cast<Map<String, dynamic>>()
+            .where((m) => m['role'] == 'assistant');
+        expect(
+          assistants.map((m) => m['reasoning_content']),
+          expected[step],
+          reason: 'request ${step + 1}',
+        );
+        expect(body['tools'], isNotEmpty);
+        final reply = switch (step++) {
+          0 => _message('', 'read-reasoning', [
+            _tool('r1', 'read', {'path': 'action-library/SKILL.md'}),
+            _tool('r2', 'read', {'path': 'user-memory/SKILL.md'}),
+          ]),
+          1 => _message('', 'remember-reasoning', [
+            _tool('m1', 'remember', {'kind': 'level', 'text': '新手'}),
+          ]),
+          2 => _message('', 'setup-reasoning', setup('plan')),
+          3 => _message('', 'draft-reasoning', actionsAndDraft()),
+          4 => () {
+            final result = toolResult(body, 'draft');
+            expect(result['ok'], isTrue, reason: '$result');
+            planId = result['plan_id'] as String;
+            return _message('', 'check-reasoning', [
+              _tool('check-plan', 'check_plan', {'plan_id': planId}),
+            ]);
+          }(),
+          5 => () {
+            expect(toolResult(body, 'check-plan')['ok'], isTrue);
+            return _message('正文应被忽略', 'plan-reasoning', [
+              _tool('review', 'check', {'node': 'review'}),
+              _tool('show-plan', 'show_plan', {
+                'plan_id': planId,
+                'note': '先舒缓地活动。',
+              }),
+            ]);
+          }(),
+          6 => _message('可以先了解动作。', 'plain-reasoning'),
+          7 => _message(
+            '',
+            'recommend-reasoning',
+            setup('recommend', parameters: false),
+          ),
+          8 => _message('正文应被忽略', 'actions-reasoning', [
+            _tool('select-actions', 'check', {
+              'node': 'actions',
+              'picks': v2Ids,
+            }),
+            _tool('show-actions', 'show_actions', {
+              'ids': v2Ids,
+              'note': '可以看看这些动作。',
+            }),
+          ]),
+          _ => _message('好的。', 'last-reasoning'),
+        };
+        return _response(reply);
+      }),
+    );
+    final store = InMemoryUserMemoryStore();
+    final agent = CoachAgent(
+      client: client,
+      catalog: () => catalog,
+      profile: profile,
+      memoryStore: store,
+      maxRequestRetries: 0,
+    );
+    addTearDown(client.close);
+    addTearDown(agent.dispose);
+    final result = await agent.send('新手，在家徒手，5分钟训练大腿内侧');
+    expect(
+      result.status,
+      TurnStatus.ok,
+      reason: '${result.error}; ${result.issues}',
+    );
+    expect(result.steps, 6);
+    expect(result.plan, isNotNull);
+    expect(result.text, '先舒缓地活动。');
+    expect(result.text, isNot(contains('reasoning')));
+    expect(result.records.map((r) => r.outcome), [
+      CallOutcome.toolStep,
+      CallOutcome.toolStep,
+      CallOutcome.toolStep,
+      CallOutcome.toolStep,
+      CallOutcome.toolStep,
+      CallOutcome.passed,
+    ]);
+    expect((await agent.memory()).single.text, '新手');
+    expect((await agent.send('明白了')).status, TurnStatus.ok);
+    expect((await agent.send('看看动作')).actions, isNotNull);
+    expect((await agent.send('谢谢')).status, TurnStatus.ok);
+    expect(step, 10);
+  });
 
   for (final useAgent in [true, false]) {
     test(
       'HTTP 请求体：${useAgent ? 'Agent' : 'Session'} 门禁重交回传被拒和最终历史的推理',
       () async {
+        if (useAgent) {
+          final replies = [
+            _message('', 'setup-reasoning', setup('recommend')),
+            _message('原始内容', 'rejected-reasoning', [
+              _tool('select', 'check', {'node': 'actions', 'picks': v2Ids}),
+              _tool('bad', 'show_actions', {
+                'ids': ['unknown-action'],
+                'note': '先看看。',
+              }),
+            ]),
+            _message('原始正文', 'accepted-reasoning', [
+              _tool('ok', 'show_actions', {'ids': v2Ids, 'note': '动作演示。'}),
+            ]),
+            _message('好的', 'next-reasoning'),
+          ];
+          final expected = [
+            <String>[],
+            ['setup-reasoning'],
+            ['setup-reasoning', 'rejected-reasoning'],
+            ['accepted-reasoning'],
+          ];
+          var step = 0;
+          final client = OpenAiCompatibleClient(
+            config: LlmConfig.ugkWorker.copyWith(maxRetries: 0),
+            httpClient: MockClient((request) async {
+              final body = jsonDecode(request.body) as Map;
+              final assistants = (body['messages'] as List)
+                  .cast<Map<String, dynamic>>()
+                  .where((m) => m['role'] == 'assistant');
+              expect(
+                assistants.map((m) => m['reasoning_content']),
+                expected[step],
+              );
+              if (step == 2) {
+                expect(toolResult(body, 'bad')['code'], 'unpicked_actions');
+              }
+              return _response(replies[step++]);
+            }),
+          );
+          final agent = CoachAgent(
+            client: client,
+            catalog: () => catalog,
+            profile: profile,
+            maxRequestRetries: 0,
+            enableUserMemory: false,
+          );
+          addTearDown(client.close);
+          addTearDown(agent.dispose);
+          final result = await agent.send('在家徒手推荐大腿内侧动作');
+          expect(result.status, TurnStatus.ok, reason: '${result.error}');
+          expect(result.submissions, 2);
+          expect(result.text, '动作演示。');
+          expect(result.actions, isNotNull);
+          expect((await agent.send('谢谢')).status, TurnStatus.ok);
+          expect(step, 4);
+          return;
+        }
         final replies = [
           _message('原始内容', 'rejected-reasoning', [
             _tool('bad', 'show_actions', {
@@ -227,21 +374,21 @@ void main() {
   }
 
   test('记忆从未开启：读库、自检、最终历史的 reasoning_content 完整回传', () async {
-    final replies = [
-      _message('', 'library-reasoning', [
-        _tool('read', 'read', {'path': 'action-library/SKILL.md'}),
-      ]),
-      _message('', 'checking-reasoning', [_tool('check', 'check_plan', plan)]),
-      _message('排好了。', 'final-reasoning', [_tool('plan', 'show_plan', plan)]),
-      _message('好。', null),
-    ];
     final expected = <List<String>>[
       [],
       ['library-reasoning'],
-      ['library-reasoning', 'checking-reasoning'],
+      ['library-reasoning', 'setup-reasoning'],
+      ['library-reasoning', 'setup-reasoning', 'draft-reasoning'],
+      [
+        'library-reasoning',
+        'setup-reasoning',
+        'draft-reasoning',
+        'checking-reasoning',
+      ],
       ['final-reasoning'],
     ];
     var step = 0;
+    late String planId;
     final client = OpenAiCompatibleClient(
       config: LlmConfig.ugkWorker.copyWith(maxRetries: 0),
       httpClient: MockClient((request) async {
@@ -251,7 +398,30 @@ void main() {
             .where((m) => m['role'] == 'assistant');
         expect(assistants.map((m) => m['reasoning_content']), expected[step]);
         expect(request.body, isNot(contains('user-memory')));
-        return _response(replies[step++]);
+        final reply = switch (step++) {
+          0 => _message('', 'library-reasoning', [
+            _tool('read', 'read', {'path': 'action-library/SKILL.md'}),
+          ]),
+          1 => _message('', 'setup-reasoning', setup('plan')),
+          2 => _message('', 'draft-reasoning', actionsAndDraft()),
+          3 => () {
+            final draft = toolResult(body, 'draft');
+            expect(draft['ok'], isTrue, reason: '$draft');
+            planId = draft['plan_id'] as String;
+            return _message('', 'checking-reasoning', [
+              _tool('check-plan', 'check_plan', {'plan_id': planId}),
+            ]);
+          }(),
+          4 => () {
+            expect(toolResult(body, 'check-plan')['ok'], isTrue);
+            return _message('', 'final-reasoning', [
+              _tool('review', 'check', {'node': 'review'}),
+              _tool('plan', 'show_plan', {'plan_id': planId, 'note': '轻柔开始。'}),
+            ]);
+          }(),
+          _ => _message('好。', null),
+        };
+        return _response(reply);
       }),
     );
     final agent = CoachAgent(
@@ -259,12 +429,13 @@ void main() {
       catalog: () => catalog,
       profile: profile,
       enableUserMemory: false,
+      maxRequestRetries: 0,
     );
     addTearDown(client.close);
     addTearDown(agent.dispose);
-    expect((await agent.send('在家用瑜伽垫安排 10 分钟睡前开胯计划，请检查后提交')).plan, isNotNull);
+    expect((await agent.send('在家徒手，5分钟训练大腿内侧')).plan, isNotNull);
     expect((await agent.send('谢谢')).status, TurnStatus.ok);
-    expect(step, 4);
+    expect(step, 6);
   });
 
   for (final useAgent in [true, false]) {
@@ -282,17 +453,31 @@ void main() {
           ]) => _message(content, null, calls)..addAll(mode.value);
           final replies = [
             message('', [
-              useAgent
-                  ? _tool('read-empty', 'read', {
-                      'path': 'action-library/SKILL.md',
-                    })
-                  : _tool('rejected-empty', 'show_actions', {
-                      'items': [
-                        {'actionId': 'unknown-action'},
-                      ],
-                    }),
+              if (useAgent) ...[
+                _tool('read-empty', 'read', {
+                  'path': 'action-library/SKILL.md',
+                }),
+                ...setup('recommend'),
+              ] else
+                _tool('rejected-empty', 'show_actions', {
+                  'items': [
+                    {'actionId': 'unknown-action'},
+                  ],
+                }),
             ]),
-            message('动作演示', [_tool('show-empty', 'show_actions', actions)]),
+            message('动作演示', [
+              if (useAgent) ...[
+                _tool('select-empty', 'check', {
+                  'node': 'actions',
+                  'picks': v2Ids,
+                }),
+                _tool('show-empty', 'show_actions', {
+                  'ids': v2Ids,
+                  'note': '动作演示。',
+                }),
+              ] else
+                _tool('show-empty', 'show_actions', actions),
+            ]),
             message('好。'),
             message('继续。'),
           ];
@@ -325,6 +510,7 @@ void main() {
             catalog: () => catalog,
             profile: profile,
             enableUserMemory: false,
+            maxRequestRetries: 0,
           );
           final session = CoachSession(
             client: client,
@@ -335,7 +521,10 @@ void main() {
           addTearDown(agent.dispose);
           Future<CoachTurnResult> send(String input) =>
               useAgent ? agent.send(input) : session.send(input);
-          expect((await send('看动作')).actions, isNotNull);
+          expect(
+            (await send(useAgent ? '在家徒手推荐大腿内侧动作' : '看动作')).actions,
+            isNotNull,
+          );
           expect((await send('谢谢')).status, TurnStatus.ok);
           expect((await send('再说一句')).status, TurnStatus.ok);
           expect(step, 4);

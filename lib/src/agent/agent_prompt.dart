@@ -48,18 +48,18 @@ abstract final class AgentTools {
     bool includeCheckPlan = true,
     CoachSessionState? sessionState,
   }) {
-    final shows = CoachTools.build(profile, catalog, idEnum: false);
     final kinds = [for (final k in MemoryKind.values) k.name];
     final tags = ActionTags(profile, catalog);
     final equipmentCodes = SessionParams(
       tags,
     ).equipmentCodes(sessionState ?? CoachSessionState());
-    Map<String, Object?> parameter(Map<String, Object?> value) => {
+    Map<String, Object?> parameter(Map<String, Object?> value, {bool derived = false}) => {
       'type': 'object',
       'properties': {
         'value': value,
-        'source': {'type': 'string', 'enum': SessionParams.sources.toList()},
+        'source': {'type': 'string', 'enum': [for (final source in SessionParams.sources) if (derived || source != 'derived') source]},
         'quote': {'type': 'string', 'maxLength': 30},
+        if (derived) 'direction': {'type': 'string', 'enum': ['shorter', 'longer']},
       },
       'required': ['value', 'source'],
       'additionalProperties': false,
@@ -171,11 +171,12 @@ abstract final class AgentTools {
       ),
       const LlmTool(
         name: draftPlan,
-        description: '编排计划结构；剂量按目录补齐或调整，并按目标时长配平。',
+        description: '修改已交付计划时沿用当前任务，整体换一套用 replace_all，局部调整用 edit。',
         parameters: {
           'type': 'object',
           'properties': {
             'plan_id': {'type': 'string'},
+            'operation': {'type': 'string', 'enum': ['edit', 'replace_all']},
             'title': {'type': 'string'},
             'blocks': {
               'type': 'array',
@@ -214,7 +215,7 @@ abstract final class AgentTools {
       LlmTool(
         name: setParams,
         description:
-            '记录结构化条件；user 引用本次原话，preselect 仅用已保存习惯，default 明示默认。host 由宿主写入。',
+            '记录结构化条件；user 引用本次原话，preselect 仅用已保存习惯，default 明示默认。相对时长用 derived、原话和 direction；host 由宿主写入。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -229,7 +230,7 @@ abstract final class AgentTools {
                 }),
                 'goal': parameter(codes(tags.goalCodes)),
                 'equipment': parameter(codes(equipmentCodes)),
-                'minutes': parameter({'type': 'integer', 'minimum': 1}),
+                'minutes': parameter({'type': 'integer', 'minimum': 1}, derived: true),
                 'level': parameter({
                   'type': 'integer',
                   'enum': [1, 2, 3],
@@ -248,12 +249,42 @@ abstract final class AgentTools {
           description: '按账本中的当前条件核对指定计划的最新版本。',
           parameters: {
             'type': 'object',
-            'properties': {'plan_id': {'type': 'string'}},
+            'properties': {
+              'plan_id': {'type': 'string'},
+            },
             'required': ['plan_id'],
             'additionalProperties': false,
           },
         ),
-      ...shows,
+      const LlmTool(
+        name: showActions,
+        description: '交付已选动作卡；note 用一两句说明安排思路。',
+        parameters: {
+          'type': 'object',
+          'properties': {
+            'ids': {
+              'type': 'array',
+              'items': {'type': 'string'},
+            },
+            'note': {'type': 'string', 'minLength': 1, 'maxLength': 120},
+          },
+          'required': ['ids', 'note'],
+          'additionalProperties': false,
+        },
+      ),
+      const LlmTool(
+        name: showPlan,
+        description: '交付已通过核对的最新计划卡；note 用一两句说明安排思路。',
+        parameters: {
+          'type': 'object',
+          'properties': {
+            'plan_id': {'type': 'string'},
+            'note': {'type': 'string', 'minLength': 1, 'maxLength': 120},
+          },
+          'required': ['plan_id', 'note'],
+          'additionalProperties': false,
+        },
+      ),
       const LlmTool(
         name: askUser,
         description: '由模型决定是否需要澄清。调用后暂停，用户回答后继续；不要重问已有条件。',

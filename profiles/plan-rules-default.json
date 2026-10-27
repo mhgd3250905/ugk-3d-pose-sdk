@@ -4,5 +4,7 @@
   "exemptWarmupForPureStretch": true,
   "focusRatio": 0.5,
   "maxSameMuscleInRow": 3,
+  "replaceAllMinDiff": 0.5,
+  "derivedStep": {"min": 0.2, "max": 0.5},
   "antagonisticPairs": []
 }

@@ -11,6 +11,10 @@ void main() {
   final exempt = config['exemptWarmupForPureStretch'];
   final focus = config['focusRatio'];
   final maxSame = config['maxSameMuscleInRow'];
+  final replaceDiff = config['replaceAllMinDiff'];
+  final derivedStep = config['derivedStep'];
+  final derivedMin = derivedStep is Map ? derivedStep['min'] : null;
+  final derivedMax = derivedStep is Map ? derivedStep['max'] : null;
   final pairs = config['antagonisticPairs'];
   if (warmup is! int ||
       warmup < 0 ||
@@ -23,6 +27,17 @@ void main() {
       focus > 1 ||
       maxSame is! int ||
       maxSame < 1 ||
+      replaceDiff is! num ||
+      !replaceDiff.isFinite ||
+      replaceDiff < 0 ||
+      replaceDiff > 1 ||
+      derivedMin is! num ||
+      !derivedMin.isFinite ||
+      derivedMin <= 0 ||
+      derivedMax is! num ||
+      !derivedMax.isFinite ||
+      derivedMax < derivedMin ||
+      derivedMax > 1 ||
       pairs is! List) {
     throw const FormatException('Invalid default plan rules');
   }
@@ -54,6 +69,9 @@ void main() {
     'const defaultExemptWarmupForPureStretch = $exempt;\n'
     'const defaultFocusRatio = ${focus.toDouble()};\n'
     'const defaultMaxSameMuscleInRow = $maxSame;\n'
+    'const defaultReplaceAllMinDiff = ${replaceDiff.toDouble()};\n'
+    'const defaultDerivedStepMin = ${derivedMin.toDouble()};\n'
+    'const defaultDerivedStepMax = ${derivedMax.toDouble()};\n'
     'const defaultAntagonisticPairs = <AntagonistPair>[${expressions.join(', ')}];\n',
   );
 }

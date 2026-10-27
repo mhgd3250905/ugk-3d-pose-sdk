@@ -4,6 +4,7 @@ library;
 import 'dart:math' as math;
 
 import '../catalog/catalog.dart';
+import '../plan/plan_codec.dart';
 import '../plan/training_plan.dart';
 import '../profile/coach_profile.dart';
 import 'agent_task.dart';
@@ -20,6 +21,7 @@ class DraftResult {
     this.structure = const [],
     this.fitLog = const [],
     this.legacyGoal,
+    this.changes = const [],
     this.error,
   });
   final CoachSessionState state;
@@ -29,6 +31,7 @@ class DraftResult {
   final List<Map<String, Object?>> structure;
   final List<String> fitLog;
   final String? legacyGoal;
+  final List<CoachNodeState> changes;
   final Map<String, Object?>? error;
   bool get ok => error == null;
   Map<String, Object?> toJson() => {
@@ -54,6 +57,7 @@ class PlanBuilder {
     CoachSessionState state,
     Map<String, Object?> arguments, {
     required String newPlanId,
+    String language = 'zh',
   }) {
     DraftResult fail(
       String code,
@@ -83,10 +87,128 @@ class PlanBuilder {
       );
     }
     final task = state.task;
-    final current = task?.nodes
+    final replacementThreshold = profile.planRules.replaceAllMinDiff;
+    if (!replacementThreshold.isFinite ||
+        replacementThreshold < 0 ||
+        replacementThreshold > 1) {
+      return fail(
+        'invalid_profile',
+        'planRules.replaceAllMinDiff',
+        '0 到 1 的有限数',
+        replacementThreshold,
+        '修正 profile 的换一套阈值。',
+      );
+    }
+    final suppliedOperation = arguments['operation'];
+    if (suppliedOperation != null &&
+        (suppliedOperation is! String ||
+            !{'edit', 'replace_all'}.contains(suppliedOperation))) {
+      return fail(
+        'invalid_operation',
+        'operation',
+        'edit 或 replace_all',
+        suppliedOperation,
+        '选择 edit 或 replace_all。',
+      );
+    }
+    final deliveredId = state.lastDeliveredPlanId;
+    final deliveredVersion = state.lastDeliveredVersion;
+    final currentTurn = state.userTurns.isEmpty ? 0 : state.userTurns.last.turn;
+    final deliveredVersions = deliveredId == null
+        ? const <CoachPlanVersion>[]
+        : state.plans[deliveredId] ?? const <CoachPlanVersion>[];
+    final delivered = deliveredVersions
+        .where((v) => v.version == deliveredVersion)
+        .firstOrNull;
+    if (suppliedOperation != null &&
+        (deliveredId == null || delivered == null)) {
+      return fail(
+        'no_delivered_plan',
+        'operation',
+        '已有交付计划',
+        suppliedOperation,
+        '首次计划不要指定修改操作。',
+      );
+    }
+    final activeVersions = state.activePlanId == null
+        ? const <CoachPlanVersion>[]
+        : state.plans[state.activePlanId] ?? const <CoachPlanVersion>[];
+    final latest = activeVersions.isEmpty ? null : activeVersions.last;
+    final sameTurnDraft =
+        latest != null &&
+        latest.createdAtTurn == currentTurn &&
+        state.activePlanId == deliveredId &&
+        latest.version != deliveredVersion;
+    final sameTurnRepair = sameTurnDraft && latest.check?['ok'] == false;
+    if (sameTurnDraft &&
+        suppliedOperation != null &&
+        suppliedOperation != latest.operation) {
+      return fail(
+        'operation_conflict',
+        'operation',
+        latest.operation,
+        suppliedOperation,
+        '同轮修复沿用原修改操作。',
+      );
+    }
+    final operation =
+        suppliedOperation as String? ??
+        (sameTurnRepair ? latest.operation : null);
+    final suppliedId = arguments['plan_id'];
+    final completed =
+        task?.type == 'plan' &&
+        task!.nodes.isNotEmpty &&
+        task.nodes.every((n) => n.status == 'done' || n.status == 'updated');
+    final referencesDelivered =
+        deliveredId != null && suppliedId == deliveredId;
+    if (suppliedOperation == null &&
+        !sameTurnRepair &&
+        (completed ||
+            referencesDelivered ||
+            (deliveredId != null && state.activePlanId == deliveredId))) {
+      return fail(
+        'operation_required',
+        'operation',
+        'edit 或 replace_all',
+        null,
+        '修改已交付计划时指定操作。',
+      );
+    }
+    if (operation != null && suppliedId != null && suppliedId != deliveredId) {
+      return fail(
+        'invalid_plan_id',
+        'plan_id',
+        deliveredId,
+        suppliedId,
+        '修改已交付计划时使用原计划 ID。',
+      );
+    }
+    CoachSessionState working = state;
+    final changes = <CoachNodeState>[];
+    if (completed && operation != null) {
+      final nodes = <CoachNodeState>[];
+      for (final node in task.nodes) {
+        final status = node.id == 'planning'
+            ? 'current'
+            : (node.id == 'review' || node.id == 'output')
+            ? 'pending'
+            : node.status;
+        final next = status == node.status
+            ? node
+            : node.copyWith(
+                status: status,
+                clearStamp: true,
+                clearDoneAtTurn: true,
+              );
+        nodes.add(next);
+        if (!identical(next, node)) changes.add(next);
+      }
+      working = state.copyWith(task: task.copyWith(nodes: nodes));
+    }
+    final current = working.task?.nodes
         .where((node) => node.status == 'current')
         .firstOrNull;
-    if (task?.type != 'plan' || current?.id != 'planning') {
+    if (working.task?.type != 'plan' || current?.id != 'planning') {
       return fail(
         'wrong_node',
         'node',
@@ -97,9 +219,8 @@ class PlanBuilder {
     }
     final title = arguments['title'];
     final rawBlocks = arguments['blocks'];
-    final suppliedId = arguments['plan_id'];
     if (arguments.keys.any(
-          (k) => !{'plan_id', 'title', 'blocks'}.contains(k),
+          (k) => !{'plan_id', 'title', 'blocks', 'operation'}.contains(k),
         ) ||
         title is! String ||
         title.trim().isEmpty ||
@@ -114,9 +235,13 @@ class PlanBuilder {
         '提供计划标题、结构和可选的已有计划 ID。',
       );
     }
-    final id = suppliedId as String? ?? newPlanId;
+    final id = operation != null
+        ? deliveredId!
+        : suppliedId as String? ?? newPlanId;
     if ((suppliedId != null && !state.plans.containsKey(id)) ||
-        (suppliedId == null && (id.isEmpty || state.plans.containsKey(id)))) {
+        (operation == null &&
+            suppliedId == null &&
+            (id.isEmpty || state.plans.containsKey(id)))) {
       return fail(
         'invalid_plan_id',
         'plan_id',
@@ -179,7 +304,7 @@ class PlanBuilder {
             'blocks[$bi].items[$ii].id',
             '已搜索且符合条件的动作',
             actionId,
-            '选择已搜索并符合当前条件的动作。',
+            '先用 search_actions 搜索，再选择符合当前条件的动作。',
           );
         }
         if (!state.picks.contains(actionId)) extras.add(actionId);
@@ -287,23 +412,6 @@ class PlanBuilder {
 
     double estimate(List<_DraftBlock> source) =>
         _duration.estimateSeconds(asPlan(source), catalog);
-    if (extras.isNotEmpty) {
-      final baseline = [
-        for (final b in blocks)
-          if (b.items.any((i) => !extras.contains(i.drill.id)))
-            b.cloneWithout(extras),
-      ];
-      _fit(baseline, target, estimate, <String>[]);
-      if (estimate(baseline) >= target * .9) {
-        return fail(
-          'extra_actions_not_needed',
-          'blocks.items.id',
-          '仅时长不足时可加入已搜索的其他动作',
-          extras.toList(),
-          '只使用 picks；或在配时仍不足时加入已搜索动作。',
-        );
-      }
-    }
     _fit(blocks, target, estimate, log);
     final plan = asPlan(blocks);
     final seconds = _duration.estimateSeconds(plan, catalog);
@@ -316,8 +424,16 @@ class PlanBuilder {
       plan: plan.toJson(),
       estimateSec: seconds,
       fitLog: log,
+      createdAtTurn: currentTurn,
+      operation: operation,
     );
-    final next = state.copyWith(
+    if (extras.isNotEmpty) {
+      final updated = gate.addDraftPicks(working, extras, language: language);
+      if (!updated.ok) return DraftResult(state, error: updated.error);
+      working = updated.state;
+      changes.addAll(updated.changes);
+    }
+    final next = working.copyWith(
       plans: {
         ...state.plans,
         id: [...previous, saved],
@@ -329,7 +445,55 @@ class PlanBuilder {
         {'kind': b.kind, 'rounds': b.rounds, 'items': b.items.length},
     ];
     Map<String, Object?>? error;
-    if ((seconds - target).abs() > target * .1) {
+    if (operation == 'replace_all') {
+      final oldPlan = const PlanCodec().decode(delivered!.plan);
+      final oldMain = <String>{
+        for (final block in oldPlan.blocks)
+          if (block.type == BlockType.main || block.type == BlockType.circuit)
+            for (final item in block.items)
+              if (item.segments.isEmpty)
+                item.exerciseId
+              else
+                for (final segment in item.segments) segment.exerciseId,
+      };
+      final newMain = <String>{
+        for (final block in blocks)
+          if (block.kind == 'main')
+            for (final item in block.items) item.drill.id,
+      };
+      final different = newMain.difference(oldMain);
+      final ratio = newMain.isEmpty ? 0.0 : different.length / newMain.length;
+      if (newMain.isEmpty || ratio < replacementThreshold) {
+        final percentage = (replacementThreshold * 100).toStringAsFixed(2);
+        final formattedPercentage = percentage.endsWith('.00')
+            ? percentage.substring(0, percentage.length - 3)
+            : percentage;
+        final candidates = [
+          for (final candidate in state.seenActionIds)
+            if (!oldMain.contains(candidate) &&
+                !newMain.contains(candidate) &&
+                gate.actionProblem(state, candidate) == null)
+              candidate,
+        ];
+        final needed = math.max(
+          1,
+          (replacementThreshold * newMain.length - different.length).ceil(),
+        );
+        error = {
+          ...nodeError(
+            'replace_too_similar',
+            'blocks.main',
+            '≥ $formattedPercentage% 不同',
+            '${different.length}/${newMain.length} 不同',
+            candidates.length < needed
+                ? '替换至少 $needed 个主体动作；候选不足，先搜索更多合规动作。'
+                : '替换至少 $needed 个主体动作。',
+          ),
+          'candidates': candidates,
+        };
+      }
+    }
+    if (error == null && (seconds - target).abs() > target * .1) {
       final count = blocks.fold<int>(0, (sum, b) => sum + b.items.length);
       final mean = count == 0 ? target : seconds / count;
       final change = ((target - seconds).abs() / mean).ceil();
@@ -360,6 +524,7 @@ class PlanBuilder {
       fitLog: List.unmodifiable(log),
       legacyGoal: legacyGoal,
       error: error,
+      changes: List.unmodifiable(changes),
     );
   }
 

@@ -75,6 +75,130 @@ void main() {
     return value;
   }
 
+  List<Object> planFlow({
+    required Map<String, Object?> fields,
+    bool bodyweight = false,
+    bool oversized = false,
+    bool undersized = false,
+  }) {
+    final warmup = ['n-pelvis-circle'];
+    final main = bodyweight
+        ? ['n-pelvis-circle', 'n-squat-shift', 'h-squat', 'h-sumo-pry']
+        : ['h-knee-hug', 'h-sumo-pry', 's-figure4', 's-kneel-hipflex'];
+    final cooldown = [bodyweight ? 'h-sumo-pry' : 's-butterfly'];
+    final ids = {...warmup, ...main, ...cooldown}.toList();
+    LlmToolCall call(String id, String name, Object args) =>
+        LlmToolCall(id: 'flow-$id', name: name, arguments: jsonEncode(args));
+    LlmResponse batch(List<LlmToolCall> calls) => LlmResponse(
+      content: '',
+      toolCalls: calls,
+      finishReason: 'tool_calls',
+      model: 'fake',
+    );
+    Map<String, dynamic> feedback(LlmRequest request, String id) =>
+        jsonDecode(
+              request.messages
+                  .singleWhere((m) => m.toolCallId == 'flow-$id')
+                  .content,
+            )
+            as Map<String, dynamic>;
+    late String planId;
+    return [
+      batch([
+        call('start', AgentTools.startTask, {'type': 'plan'}),
+        call('understand', AgentTools.check, {'node': 'understand'}),
+        call('params', AgentTools.setParams, {'fields': fields}),
+        call('parameters', AgentTools.check, {'node': 'parameters'}),
+        for (var i = 0; i < ids.length; i++)
+          call('search$i', AgentTools.searchActions, {
+            'tags': <String>[],
+            'keywords': catalog[ids[i]]!.name.of('en'),
+          }),
+      ]),
+      (LlmRequest request) {
+        expect(feedback(request, 'params')['ok'], isTrue);
+        expect(feedback(request, 'parameters')['ok'], isTrue);
+        for (var i = 0; i < ids.length; i++) {
+          final search = feedback(request, 'search$i');
+          expect(search['ok'], isTrue);
+          expect(
+            (search['items'] as List).map((e) => (e as Map)['id']),
+            contains(ids[i]),
+          );
+        }
+        return batch([
+          call('actions', AgentTools.check, {'node': 'actions', 'picks': ids}),
+          call('draft', AgentTools.draftPlan, {
+            'title': '髋部训练',
+            'blocks': [
+              if (!undersized)
+                {
+                  'kind': 'warmup',
+                  'items': [
+                    for (final id in warmup) {'id': id},
+                  ],
+                },
+              {
+                'kind': 'main',
+                'items': [
+                  for (final id in undersized ? main.take(1) : main)
+                    {
+                      'id': id,
+                      if (oversized && id == main.first) 'sets': 999,
+                      if (undersized) 'sets': 1,
+                      if (undersized) 'seconds': 10,
+                    },
+                ],
+              },
+              if (!undersized)
+                {
+                  'kind': 'cooldown',
+                  'items': [
+                    for (final id in cooldown) {'id': id},
+                  ],
+                },
+            ],
+          }),
+        ]);
+      },
+      (LlmRequest request) {
+        expect(feedback(request, 'actions')['ok'], isTrue);
+        final draft = feedback(request, 'draft');
+        expect(draft['ok'], isTrue, reason: '$draft');
+        if (oversized) {
+          expect((draft['fitLog'] as List).join(' '), contains('夹到'));
+        }
+        planId = draft['plan_id'] as String;
+        return batch([
+          call('planning', AgentTools.check, {'node': 'planning'}),
+          call('check', AgentTools.checkPlan, {'plan_id': planId}),
+        ]);
+      },
+      (LlmRequest request) {
+        final checked = feedback(request, 'check');
+        if (undersized) {
+          expect(checked['ok'], isFalse);
+          expect(checked['code'], 'plan_check_failed');
+          return '无法提供合适方案。';
+        }
+        expect(checked['ok'], isTrue, reason: '$checked');
+        return batch([
+          call('review', AgentTools.check, {'node': 'review'}),
+        ]);
+      },
+      if (!undersized)
+        (LlmRequest request) {
+          expect(feedback(request, 'review')['ok'], isTrue);
+          return batch([
+            call('show', AgentTools.showPlan, {
+              'plan_id': planId,
+              'note': '按你的条件安排髋部训练。',
+            }),
+          ]);
+        },
+    ];
+  }
+
   TrainingParameters infer(
     String text, [
     CoachContext context = const CoachContext(),
@@ -90,10 +214,23 @@ void main() {
             'equipment': userValue(['equip.mat'], '瑜伽垫'),
             'minutes': userValue(10, '10 分钟'),
           }),
-          tool(AgentTools.showPlan, plan()),
+          ...planFlow(
+            fields: {
+              'goal': userValue(['purpose.stretch'], '放松'),
+            },
+            oversized: true,
+          ),
         ]);
         final result = await chat.send('在家，有瑜伽垫，10 分钟，排个髋部放松计划');
         expect(result!.plan, isNotNull);
+        final plan = result.plan!.plan;
+        expect(
+          const PlanDuration().estimateSeconds(plan, catalog),
+          inInclusiveRange(540, 660),
+        );
+        final item = plan.items.firstWhere((i) => i.exerciseId == 'h-knee-hug');
+        final range = catalog['h-knee-hug']!.doseRange.sets!;
+        expect(item.sets, inInclusiveRange(range.min, range.max));
         expect(result.question, isNull);
         expect(chat.agent.turnCount, 1);
         expect(chat.agent.sessionState.params['equipment']!.value, [
@@ -112,7 +249,11 @@ void main() {
             setParams({
               'equipment': userValue(['equip.mat'], '瑜伽垫'),
             }),
-            tool(AgentTools.showPlan, plan()),
+            ...planFlow(
+              fields: {
+                'goal': userValue(['purpose.stretch'], '放松'),
+              },
+            ),
           ]);
           final first = await chat.send('在家，10 分钟，排个髋部放松计划');
           expect(first!.question!.fields.map((f) => f.key), ['equipment']);
@@ -139,7 +280,11 @@ void main() {
             'equipment': userValue(['equip.mat'], '瑜伽垫'),
             'minutes': userValue(10, '10 分钟'),
           }),
-          tool(AgentTools.showPlan, plan()),
+          ...planFlow(
+            fields: {
+              'goal': userValue(['purpose.stretch'], '放松'),
+            },
+          ),
         ]);
         final first = await chat.send('帮我排个髋部放松训练组');
         expect(first!.question!.fields, hasLength(3));
@@ -153,31 +298,6 @@ void main() {
         expect(chat.state.pendingQuestion, isNull);
       });
       test('skip: produces default bodyweight plan on next turn', () async {
-        final bodyweight = plan()..['equipment'] = <String>[];
-        bodyweight['targetMinutes'] = 12;
-        bodyweight['blocks'] = [
-          {
-            'type': 'main',
-            'items': [
-              {
-                'exerciseId': 'h-squat',
-                'mode': 'reps',
-                'sets': 3,
-                'reps': 12,
-                'perSide': false,
-                'restSeconds': 30,
-              },
-              {
-                'exerciseId': 'n-pelvis-circle',
-                'mode': 'time',
-                'sets': 4,
-                'workSeconds': 120,
-                'perSide': false,
-                'restSeconds': 20,
-              },
-            ],
-          },
-        ];
         final chat = conversation([
           tool(AgentTools.askUser, form(['scene', 'equipment', 'minutes'])),
           setParams({
@@ -185,7 +305,12 @@ void main() {
             'equipment': defaultValue(<String>[]),
             'minutes': defaultValue(12),
           }),
-          tool(AgentTools.showPlan, bodyweight),
+          ...planFlow(
+            fields: {
+              'goal': defaultValue(['purpose.mobility']),
+            },
+            bodyweight: true,
+          ),
         ]);
         await chat.send('帮我排个训练组');
         final result = await chat.skipQuestion(chat.state.pendingQuestion!.id);
@@ -232,6 +357,7 @@ void main() {
   test(
     'skip defaults are enforced, rather than admitting undeclared gear or a different duration',
     () async {
+      var filtered = false;
       final chat = conversation([
         tool(AgentTools.askUser, form(['scene', 'equipment', 'minutes'])),
         setParams({
@@ -239,13 +365,32 @@ void main() {
           'equipment': defaultValue(<String>[]),
           'minutes': defaultValue(12),
         }),
-        tool(AgentTools.showPlan, plan()),
-        '无法提供该方案',
+        tool(AgentTools.searchActions, {
+          'tags': <String>[],
+          'keywords': catalog['s-figure4']!.name.of('en'),
+        }),
+        (LlmRequest request) {
+          final search = jsonDecode(request.messages.last.content) as Map;
+          expect(search['ok'], isTrue);
+          expect(
+            (search['items'] as List).map((item) => (item as Map)['id']),
+            isNot(contains('s-figure4')),
+          );
+          expect(
+            (search['filter'] as Map)['hiddenEquipmentCount'],
+            greaterThan(0),
+          );
+          filtered = true;
+          return '没有符合当前条件的这个动作。';
+        },
       ]);
       await chat.send('帮我做个训练组');
       final result = await chat.skipQuestion(chat.state.pendingQuestion!.id);
       expect(result!.plan, isNull);
       expect(result.question, isNull);
+      expect(filtered, isTrue, reason: '${result.error} ${result.issues}');
+      expect(chat.agent.sessionState.params['equipment']!.value, isEmpty);
+      expect(chat.agent.sessionState.params['minutes']!.value, 12);
     },
   );
 
@@ -295,44 +440,92 @@ void main() {
     expect(result.plan, isNull);
   });
   test(
-    'final admission rejects equipment, scene, duration label and actual dose conflicts',
+    'search enforces equipment and scene before a card can be delivered',
     () async {
-      for (final text in ['在家徒手10分钟做计划', '在办公室有瑜伽垫10分钟做计划', '在家有瑜伽垫20分钟做计划']) {
+      for (final example in [
+        (
+          text: '在家徒手10分钟做计划',
+          scene: 'home',
+          sceneQuote: '在家',
+          equipment: <String>[],
+          equipmentQuote: '徒手',
+          forbidden: 's-figure4',
+        ),
+        (
+          text: '在办公室有瑜伽垫10分钟做计划',
+          scene: 'office',
+          sceneQuote: '办公室',
+          equipment: ['equip.mat'],
+          equipmentQuote: '瑜伽垫',
+          forbidden: 's-figure4',
+        ),
+      ]) {
+        var filtered = false;
         final chat = conversation([
-          tool(AgentTools.showPlan, plan()),
-          '无法提供合适方案',
+          setParams({
+            'scene': userValue(example.scene, example.sceneQuote),
+            'equipment': userValue(example.equipment, example.equipmentQuote),
+            'minutes': userValue(10, '10分钟'),
+          }),
+          tool(AgentTools.searchActions, {
+            'tags': <String>[],
+            'keywords': catalog[example.forbidden]!.name.of('en'),
+          }),
+          (LlmRequest request) {
+            final search = jsonDecode(request.messages.last.content) as Map;
+            expect(search['ok'], isTrue);
+            expect(
+              (search['items'] as List).map((item) => (item as Map)['id']),
+              isNot(contains(example.forbidden)),
+              reason: example.text,
+            );
+            filtered = true;
+            return '没有符合当前条件的这个动作。';
+          },
         ]);
-        final result = await chat.send(text);
-        expect(result!.plan, isNull, reason: text);
+        final result = await chat.send(example.text);
+        expect(result!.plan, isNull, reason: example.text);
+        expect(filtered, isTrue, reason: '${result.error} ${result.issues}');
       }
-      final tooShort = plan();
-      tooShort['blocks'] = [
-        {
-          'type': 'main',
-          'items': [
-            {
-              'exerciseId': 'h-knee-hug',
-              'mode': 'time',
-              'sets': 1,
-              'workSeconds': 10,
-              'perSide': false,
-              'restSeconds': 0,
-            },
-          ],
-        },
-      ];
+    },
+  );
+  test(
+    'short draft is resized but rejected when required structure is missing',
+    () async {
       final chat = conversation([
-        tool(AgentTools.showPlan, tooShort),
-        '无法提供方案',
+        tool(AgentTools.askUser, {'question': '想练什么？', 'mode': 'text'}),
+        ...planFlow(
+          fields: {
+            'scene': userValue('home', '在家'),
+            'equipment': userValue(['equip.mat'], '瑜伽垫'),
+            'minutes': userValue(10, '10分钟'),
+            'goal': userValue(['purpose.stretch'], '拉伸'),
+          },
+          undersized: true,
+        ),
       ]);
-      final result = await chat.send('在家有瑜伽垫10分钟做计划');
+      final first = await chat.send('在家有瑜伽垫10分钟做计划');
+      expect(first!.question, isNotNull);
+      final result = await chat.answerText(
+        chat.state.pendingQuestion!.id,
+        '拉伸',
+      );
       expect(result!.plan, isNull);
+      final versions = chat.agent.sessionState.plans.values.single;
+      expect(versions.single.estimateSec, inInclusiveRange(540, 660));
+      expect(versions.single.check?['ok'], isFalse);
     },
   );
   test(
     'known host conditions are recorded and model may answer without a form',
     () async {
-      final chat = conversation([tool(AgentTools.showPlan, plan())]);
+      final chat = conversation([
+        ...planFlow(
+          fields: {
+            'goal': userValue(['purpose.stretch'], '放松'),
+          },
+        ),
+      ]);
       final result = await chat.send(
         '帮我排个髋部放松训练计划',
         context: const CoachContext(

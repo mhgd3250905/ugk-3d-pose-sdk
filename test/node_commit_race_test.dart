@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:test/test.dart';
 import 'package:ugk_coach/src/agent/agent_task.dart';
 import 'package:ugk_coach/src/agent/node_gates.dart';
+import 'package:ugk_coach/src/agent/output_gate.dart';
 import 'package:ugk_coach/src/agent/session_params.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
@@ -88,17 +89,17 @@ void main() {
       id: 'show',
       name: AgentTools.showActions,
       arguments: jsonEncode({
-        'items': [
-          {'actionId': 'h-squat'},
-        ],
+        'ids': ['h-squat'],
+        'note': '可以从这个动作开始。',
       }),
     );
-    final legacyCheck = ToolGate(
-      catalog: catalog,
-      profile: profile,
-    ).check('可以从这个动作开始。', [call], context: context);
-    expect(legacyCheck.ok, isTrue, reason: '${legacyCheck.errors}');
-    expect(legacyCheck.actions, isNotNull);
+    final output = OutputGate(profile, catalog).prepare(
+      checked.state,
+      AgentTools.showActions,
+      jsonDecode(call.arguments),
+    );
+    expect(output.ok, isTrue, reason: '${output.error}');
+    expect(output.actions!.single.id, 'h-squat');
     final client = FakeLlmClient([
       LlmResponse(
         content: '可以从这个动作开始。',

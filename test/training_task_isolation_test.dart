@@ -65,6 +65,121 @@ void main() {
     return a;
   }
 
+  List<Object> planFlow({
+    required String prefix,
+    required Map<String, Object?> fields,
+    required List<String> main,
+    List<String> warmup = const [],
+    List<String> cooldown = const [],
+    bool rejectFocus = false,
+  }) {
+    final ids = [...warmup, ...main, ...cooldown];
+    LlmToolCall call(String id, String name, Object args) =>
+        LlmToolCall(id: '$prefix-$id', name: name, arguments: jsonEncode(args));
+    LlmResponse batch(List<LlmToolCall> values) => LlmResponse(
+      content: '',
+      toolCalls: values,
+      finishReason: 'tool_calls',
+      model: 'fake',
+    );
+    Map<String, dynamic> feedback(LlmRequest req, String id) =>
+        jsonDecode(
+              req.messages
+                  .singleWhere((m) => m.toolCallId == '$prefix-$id')
+                  .content,
+            )
+            as Map<String, dynamic>;
+    late String planId;
+    return [
+      batch([
+        call('start', AgentTools.startTask, {'type': 'plan'}),
+        call('understand', AgentTools.check, {'node': 'understand'}),
+        call('params', AgentTools.setParams, {'fields': fields}),
+        call('parameters', AgentTools.check, {'node': 'parameters'}),
+        for (var i = 0; i < ids.length; i++)
+          call('search$i', AgentTools.searchActions, {
+            'tags': <String>[],
+            'keywords': catalog[ids[i]]!.name.of('en'),
+          }),
+      ]),
+      (LlmRequest request) {
+        expect(feedback(request, 'params')['ok'], isTrue);
+        expect(feedback(request, 'parameters')['ok'], isTrue);
+        for (var i = 0; i < ids.length; i++) {
+          final search = feedback(request, 'search$i');
+          expect(search['ok'], isTrue, reason: '$search');
+          expect(
+            (search['items'] as List).map((e) => (e as Map)['id']),
+            contains(ids[i]),
+          );
+        }
+        return batch([
+          call('actions', AgentTools.check, {'node': 'actions', 'picks': ids}),
+          call('draft', AgentTools.draftPlan, {
+            'title': '训练方案',
+            'blocks': [
+              if (warmup.isNotEmpty)
+                {
+                  'kind': 'warmup',
+                  'items': [
+                    for (final id in warmup) {'id': id},
+                  ],
+                },
+              {
+                'kind': 'main',
+                'items': [
+                  for (final id in main) {'id': id},
+                ],
+              },
+              if (cooldown.isNotEmpty)
+                {
+                  'kind': 'cooldown',
+                  'items': [
+                    for (final id in cooldown) {'id': id},
+                  ],
+                },
+            ],
+          }),
+        ]);
+      },
+      (LlmRequest request) {
+        expect(feedback(request, 'actions')['ok'], isTrue);
+        final draft = feedback(request, 'draft');
+        expect(draft['ok'], isTrue, reason: '$draft');
+        planId = draft['plan_id'] as String;
+        return batch([
+          call('planning', AgentTools.check, {'node': 'planning'}),
+          call('review-plan', AgentTools.checkPlan, {'plan_id': planId}),
+        ]);
+      },
+      (LlmRequest request) {
+        final check = feedback(request, 'review-plan');
+        if (rejectFocus) {
+          expect(check['ok'], isFalse);
+          expect(
+            (check['errors'] as List).map((e) => (e as Map)['code']),
+            contains('plan_focus_body'),
+          );
+          return '无法提供合适方案。';
+        }
+        expect(check['ok'], isTrue, reason: '$check');
+        return batch([
+          call('review', AgentTools.check, {'node': 'review'}),
+        ]);
+      },
+      if (!rejectFocus)
+        (LlmRequest request) {
+          expect(feedback(request, 'review')['ok'], isTrue);
+          return batch([
+            call('show', AgentTools.showPlan, {
+              'plan_id': planId,
+              'note': '按你的条件安排训练。',
+            }),
+          ]);
+        },
+    ];
+  }
+
   test('new focus retains host conditions and safety restrictions', () async {
     final client = FakeLlmClient([
       '已记录条件。',
@@ -395,86 +510,192 @@ void main() {
     },
   );
 
-  test(
-    'a shorter edit preserves scene and gear without locking old duration',
-    () async {
-      final first = planOf(okEnvelope())..remove('source');
-      final shorter = planOf(okEnvelope())
-        ..remove('source')
-        ..['targetMinutes'] = 5;
-      final blocks = shorter['blocks']! as List;
-      blocks.removeAt(0);
-      final mainItems = ((blocks.first as Map)['items']! as List);
-      mainItems.removeRange(2, mainItems.length);
-      final client = FakeLlmClient([
-        _tool(AgentTools.showPlan, first),
-        (LlmRequest request) {
-          final system = request.messages.first.content;
-          expect(system, contains('目标时长必须小于10分钟'));
-          expect(system, contains('减少实际估时'));
-          expect(system, isNot(contains('"minutes":10')));
-          expect(system, contains('"scene":"home"'));
-          return _tool(AgentTools.showPlan, shorter);
-        },
-      ]);
-      final a = agent(client);
-      final original = await a.send('在家有瑜伽垫10分钟做开髋训练计划');
-      expect(original.plan, isNotNull);
-      final result = await a.send('短一点');
-      expect(result.question, isNull);
-      expect(result.plan?.plan.targetMinutes, 5);
-      expect(result.plan?.plan.scene, 'home');
-      expect(a.lastConfirmedForm?['minutes'], ['5 分钟']);
-    },
-  );
-
-  test('a longer edit requires a larger target without asking again', () async {
-    final first = planOf(okEnvelope())..remove('source');
-    final longer = planOf(okEnvelope())
-      ..remove('source')
-      ..['targetMinutes'] = 15;
-    final blocks = longer['blocks']! as List;
-    final items = ((blocks[1] as Map)['items']! as List);
-    (items[1] as Map)['sets'] = 4;
-    (items[3] as Map)['sets'] = 3;
-    final client = FakeLlmClient([
-      _tool(AgentTools.showPlan, first),
-      (LlmRequest request) {
-        final system = request.messages.first.content;
-        expect(system, contains('目标时长必须大于10分钟'));
-        expect(system, isNot(contains('"minutes":10')));
-        return _tool(AgentTools.showPlan, longer);
+  for (final shorter in [true, false]) {
+    test(
+      shorter
+          ? 'a shorter edit preserves scene and gear without locking old duration'
+          : 'a longer edit requires a larger target without asking again',
+      () async {
+        final target = shorter ? 5 : 15;
+        final quote = shorter ? '短一点' : '长一点';
+        final direction = shorter ? 'shorter' : 'longer';
+        const main = [
+          'h-9090-liftoff',
+          'n-windshield',
+          's-9090',
+          'h-butterfly-active',
+        ];
+        late String planId;
+        final client = FakeLlmClient([
+          ...planFlow(
+            prefix: 'relative-initial',
+            fields: {
+              'scene': _user('home', '在家'),
+              'equipment': _user(['equip.mat'], '瑜伽垫'),
+              'minutes': _user(10, '10分钟'),
+              'goal': _user(['purpose.mobility'], '开髋'),
+            },
+            warmup: ['n-pelvis-circle'],
+            main: main,
+            cooldown: ['s-figure4'],
+          ),
+          _set({
+            'minutes': {
+              'value': target,
+              'source': 'derived',
+              'quote': quote,
+              'direction': direction,
+            },
+          }),
+          (LlmRequest request) {
+            final update = jsonDecode(request.messages.last.content) as Map;
+            expect(update['ok'], isTrue, reason: '$update');
+            return _tool(AgentTools.draftPlan, {
+              'plan_id': planId,
+              'operation': 'edit',
+              'title': '开髋训练',
+              'blocks': [
+                if (!shorter)
+                  {
+                    'kind': 'warmup',
+                    'items': [
+                      {'id': 'n-pelvis-circle'},
+                    ],
+                  },
+                {
+                  'kind': 'main',
+                  'items': [
+                    for (final id in main) {'id': id},
+                  ],
+                },
+                if (!shorter)
+                  {
+                    'kind': 'cooldown',
+                    'items': [
+                      {'id': 's-figure4'},
+                    ],
+                  },
+              ],
+            });
+          },
+          (LlmRequest request) {
+            final draft = jsonDecode(request.messages.last.content) as Map;
+            expect(draft['ok'], isTrue, reason: '$draft');
+            return _tool(AgentTools.check, {'node': 'planning'});
+          },
+          (LlmRequest request) {
+            final planning = jsonDecode(request.messages.last.content) as Map;
+            expect(planning['ok'], isTrue, reason: '$planning');
+            return _tool(AgentTools.checkPlan, {'plan_id': planId});
+          },
+          (LlmRequest request) {
+            final checked = jsonDecode(request.messages.last.content) as Map;
+            expect(checked['ok'], isTrue, reason: '$checked');
+            return _tool(AgentTools.check, {'node': 'review'});
+          },
+          (LlmRequest request) {
+            final reviewed = jsonDecode(request.messages.last.content) as Map;
+            expect(reviewed['ok'], isTrue, reason: '$reviewed');
+            return _tool(AgentTools.showPlan, {
+              'plan_id': planId,
+              'note': '按你的要求调整训练。',
+            });
+          },
+        ]);
+        final coach = agent(client);
+        final original = await coach.send('在家有瑜伽垫10分钟做开髋训练计划');
+        expect(
+          original.plan,
+          isNotNull,
+          reason: '${original.error} ${original.issues}',
+        );
+        planId = original.plan!.plan.id;
+        final result = await coach.send(quote);
+        expect(result.question, isNull);
+        expect(
+          result.plan,
+          isNotNull,
+          reason: '${result.error} ${result.issues}',
+        );
+        expect(result.plan!.plan.id, planId);
+        expect(result.plan!.plan.targetMinutes, target);
+        expect(result.plan!.plan.scene, 'home');
+        expect(coach.sessionState.params['equipment']!.value, ['equip.mat']);
+        final minutes = coach.sessionState.params['minutes']!;
+        expect(
+          (minutes.value, minutes.source, minutes.quote, minutes.direction),
+          (target, 'derived', quote, direction),
+        );
+        expect(minutes.basedOn?.value, 10);
+        expect(coach.sessionState.params['goal']!.value, ['purpose.mobility']);
+        if (shorter) expect(coach.lastConfirmedForm?['minutes'], ['5 分钟']);
+        final before = const PlanDuration().estimateSeconds(
+          original.plan!.plan,
+          catalog,
+        );
+        final after = const PlanDuration().estimateSeconds(
+          result.plan!.plan,
+          catalog,
+        );
+        expect(shorter ? after < before : after > before, isTrue);
+        expect(after, inInclusiveRange(target * 60 * .9, target * 60 * 1.1));
       },
-    ]);
-    final a = agent(client);
-    expect((await a.send('在家有瑜伽垫10分钟做开髋训练计划')).plan, isNotNull);
-    final result = await a.send('长一点');
-    expect(result.question, isNull);
-    expect(result.plan?.plan.targetMinutes, 15);
-  });
+    );
+  }
 
   test('explicit plan with an explanation request remains planning', () async {
-    final a = agent(
-      FakeLlmClient([
-        _tool(AgentTools.showPlan, planOf(okEnvelope())..remove('source')),
-      ]),
+    final coach = agent(
+      FakeLlmClient(
+        planFlow(
+          prefix: 'explain',
+          fields: {
+            'scene': _user('home', '在家'),
+            'equipment': _user(['equip.mat'], '瑜伽垫'),
+            'minutes': _user(10, '10分钟'),
+            'goal': _user(['purpose.mobility'], '髋部训练'),
+          },
+          warmup: ['n-pelvis-circle'],
+          main: [
+            'h-9090-liftoff',
+            'n-windshield',
+            's-9090',
+            'h-butterfly-active',
+          ],
+          cooldown: ['s-figure4'],
+        ),
+      ),
     );
-    final result = await a.send('在家有瑜伽垫10分钟给我做个髋部训练计划，并说明怎么练');
+    final result = await coach.send('在家有瑜伽垫10分钟给我做个髋部训练计划，并说明怎么练');
     expect(result.question, isNull);
-    expect(result.plan, isNotNull);
+    expect(result.plan, isNotNull, reason: '${result.error} ${result.issues}');
   });
 
   test('model plan must include the reliable requested focus', () async {
-    final data = planOf(okEnvelope())..remove('source');
-    final blocks = data['blocks']! as List;
-    final items = ((blocks[1] as Map)['items']! as List);
-    items.removeWhere((item) => (item as Map)['exerciseId'] == 's-butterfly');
     final a = agent(
-      FakeLlmClient([_tool(AgentTools.showPlan, data), '无法提供合适方案。']),
+      FakeLlmClient(
+        planFlow(
+          prefix: 'focus',
+          fields: {
+            'scene': _user('home', '在家'),
+            'equipment': _user(['equip.mat'], '瑜伽垫'),
+            'minutes': _user(10, '10分钟'),
+            'goal': _user(['body.inner_thigh'], '大腿内侧'),
+          },
+          warmup: ['n-pelvis-circle'],
+          main: ['h-knee-hug', 's-figure4', 'n-windshield', 's-kneel-hipflex'],
+          cooldown: ['s-butterfly'],
+          rejectFocus: true,
+        ),
+      ),
     );
     final result = await a.send('在家有瑜伽垫10分钟做大腿内侧训练计划');
     expect(result.plan, isNull);
-    expect(result.records.first.issueCodes, contains('focus_conflict'));
+    final check = a.sessionState.plans.values.single.single.check!;
+    expect(check['ok'], isFalse);
+    expect(
+      (check['errors'] as List).map((e) => (e as Map)['code']),
+      contains('plan_focus_body'),
+    );
   });
 
   test(
@@ -511,11 +732,133 @@ void main() {
             ],
           },
         ];
-      final a = agent(FakeLlmClient([_tool(AgentTools.showPlan, data)]));
-      final result = await a.send('在家有瑜伽垫5分钟做训练计划');
-      expect(result.plan, isNotNull);
-      expect(result.text, contains('器械：徒手'));
-      expect(result.text, isNot(contains('瑜伽垫')));
+      final session = CoachSession(
+        client: FakeLlmClient([_tool(AgentTools.showPlan, data)]),
+        catalog: () => catalog,
+        profile: profile,
+      );
+      final result = await session.send(
+        '在家有瑜伽垫5分钟做训练计划',
+        context: const CoachContext(
+          scene: 'home',
+          equipment: {'mat'},
+          minutes: 5,
+        ),
+      );
+      expect(result.plan, isNotNull, reason: '${result.issues}');
+      final segment = result.plan!.plan.items.single.segments.single;
+      expect(segment.exerciseId, 'h-squat');
+      expect(segment.reps, 12);
+      expect(result.plan!.plan.items.single.exerciseId, 'n-windshield');
+      final sixMinute = {...data, 'targetMinutes': 6};
+      final secondSession = CoachSession(
+        client: FakeLlmClient([_tool(AgentTools.showPlan, sixMinute)]),
+        catalog: () => catalog,
+        profile: profile,
+      );
+      final prior = await secondSession.send(
+        '在家有瑜伽垫6分钟做训练计划',
+        context: const CoachContext(
+          scene: 'home',
+          equipment: {'mat'},
+          minutes: 6,
+        ),
+      );
+      expect(prior.plan, isNotNull, reason: '${prior.issues}');
+      final legacy = prior.plan!;
+      final planId = legacy.plan.id;
+      final estimate = const PlanDuration().estimateSeconds(
+        legacy.plan,
+        catalog,
+      );
+      final state = CoachSessionState(
+        task: CoachTaskState(
+          type: 'plan',
+          reused: false,
+          nodes: [
+            for (final id in [
+              'understand',
+              'parameters',
+              'actions',
+              'planning',
+            ])
+              CoachNodeState(id: id, status: 'done', stamp: '已完成'),
+            const CoachNodeState(id: 'review', status: 'current'),
+            const CoachNodeState(id: 'output', status: 'pending'),
+          ],
+        ),
+        params: {
+          'scene': CoachParamValue(value: 'home', source: 'host', turn: 0),
+          'equipment': CoachParamValue(
+            value: ['equip.mat'],
+            source: 'host',
+            turn: 0,
+          ),
+          'minutes': CoachParamValue(value: 6, source: 'host', turn: 0),
+          'goal': CoachParamValue(
+            value: ['purpose.strength'],
+            source: 'host',
+            turn: 0,
+          ),
+          'level': CoachParamValue(value: 1, source: 'host', turn: 0),
+          'limits': CoachParamValue(value: <String>[], source: 'host', turn: 0),
+        },
+        seenActionIds: {'h-squat'},
+        picks: ['h-squat'],
+        activePlanId: planId,
+        plans: {
+          planId: [
+            CoachPlanVersion(
+              version: 1,
+              plan: legacy.plan.toJson(),
+              estimateSec: estimate,
+              fitLog: [],
+            ),
+          ],
+        },
+      );
+      final client = FakeLlmClient([
+        _tool(AgentTools.checkPlan, {'plan_id': planId}),
+        (LlmRequest request) {
+          final checked = jsonDecode(request.messages.last.content) as Map;
+          expect(checked['ok'], isTrue, reason: '$checked');
+          return _tool(AgentTools.check, {'node': 'review'});
+        },
+        (LlmRequest request) {
+          final reviewed = jsonDecode(request.messages.last.content) as Map;
+          expect(reviewed['ok'], isTrue);
+          return _tool(AgentTools.showPlan, {
+            'plan_id': planId,
+            'note': '按原计划练习。',
+          });
+        },
+      ]);
+      final coach = agent(client);
+      coach.restorePlan(
+        legacy,
+        planState: CoachPlanState(
+          planId: planId,
+          context: const CoachContext(
+            scene: 'home',
+            equipment: {'mat'},
+            minutes: 6,
+          ),
+          sessionState: state,
+        ),
+      );
+      final restored = await coach.send('继续这份计划');
+      expect(
+        restored.plan,
+        isNotNull,
+        reason: '${restored.error} ${restored.issues}',
+      );
+      expect(restored.text, '按原计划练习。');
+      expect(restored.plan!.plan.toJson(), legacy.plan.toJson());
+      expect(restored.plan!.plan.items.single.exerciseId, 'n-windshield');
+      expect(
+        restored.plan!.plan.items.single.segments.single.toJson(),
+        segment.toJson(),
+      );
     },
   );
 
@@ -551,33 +894,25 @@ void main() {
   });
 
   test('retry retains safety exclusions when the host omits them', () async {
-    final data = planOf(okEnvelope())
-      ..remove('source')
-      ..['targetMinutes'] = 5
-      ..['equipment'] = <String>[]
-      ..['blocks'] = [
-        {
-          'id': 'b',
-          'name': '主训练',
-          'type': 'main',
-          'rounds': 1,
-          'restBetweenRoundsSeconds': 0,
-          'items': [
-            {
-              'exerciseId': 'h-sumo-pry',
-              'mode': 'time',
-              'sets': 6,
-              'workSeconds': 45,
-              'perSide': false,
-              'restSeconds': 10,
-            },
-          ],
-        },
-      ];
+    var rejected = false;
     final client = FakeLlmClient([
       const LlmException(LlmErrorKind.network, 'offline'),
-      _tool(AgentTools.showPlan, data),
-      '无法提供安全方案。',
+      _set({
+        'scene': _user('home', '在家'),
+        'equipment': _user(<String>[], '徒手'),
+        'minutes': _user(5, '5分钟'),
+        'goal': _user(['body.inner_thigh'], '大腿内侧'),
+      }),
+      _tool(AgentTools.getAction, {
+        'ids': ['h-sumo-pry'],
+      }),
+      (LlmRequest request) {
+        final feedback = jsonDecode(request.messages.last.content) as Map;
+        expect(feedback['code'], 'incompatible_actions');
+        expect((feedback['actual'] as Map)['h-sumo-pry'], '触及伤痛限制');
+        rejected = true;
+        return '无法提供安全方案。';
+      },
     ]);
     final a = agent(client);
     expect(
@@ -589,7 +924,8 @@ void main() {
     );
     final retry = await a.send('重试');
     expect(retry.plan, isNull);
-    expect(retry.records.first.issueCodes, contains(IssueCodes.avoid));
+    expect(rejected, isTrue, reason: '${retry.error} ${retry.issues}');
+    expect(a.sessionState.params['limits']!.value, contains('limit.knee'));
   });
 
   test('red flags persist across tasks until an explicit correction', () async {

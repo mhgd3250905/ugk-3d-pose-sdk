@@ -236,7 +236,10 @@ void main() {
       coach.restorePlan(admitted, planState: unrelated);
       expect(coach.sessionState.userTurns, isEmpty);
       expect(coach.sessionState.task, isNull);
-      expect(coach.sessionState.params, isEmpty);
+      expect(coach.sessionState.params['goal'], isNull);
+      expect(coach.sessionState.params['scene']!.value, admitted.plan.scene);
+      expect(coach.sessionState.params['minutes']!.value, admitted.plan.targetMinutes);
+      expect(coach.sessionState.params.values.every((p) => p.source == 'host'), isTrue);
     },
   );
 

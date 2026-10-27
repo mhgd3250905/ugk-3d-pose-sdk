@@ -21,18 +21,24 @@ class CoachParamValue {
     required this.source,
     this.quote,
     required this.turn,
+    this.direction,
+    this.basedOn,
   }) : value = _freeze(value);
 
   final Object? value;
   final String source;
   final String? quote;
   final int turn;
+  final String? direction;
+  final CoachParamValue? basedOn;
 
   Map<String, Object?> toJson() => {
     'value': _thaw(value),
     'source': source,
     if (quote != null) 'quote': quote,
     'turn': turn,
+    if (direction != null) 'direction': direction,
+    if (basedOn != null) 'basedOn': basedOn!.toJson(),
   };
 
   factory CoachParamValue.fromJson(Map<String, Object?> json) =>
@@ -41,6 +47,10 @@ class CoachParamValue {
         source: json['source'] as String,
         quote: json['quote'] as String?,
         turn: json['turn'] as int,
+        direction: json['direction'] as String?,
+        basedOn: json['basedOn'] == null
+            ? null
+            : CoachParamValue.fromJson(_map(json['basedOn'])),
       );
 }
 
@@ -127,6 +137,8 @@ class CoachPlanVersion {
     required this.estimateSec,
     required List<String> fitLog,
     Map<String, Object?>? check,
+    this.createdAtTurn,
+    this.operation,
   }) : plan = _freezeMap(plan),
        fitLog = List.unmodifiable(fitLog),
        check = check == null ? null : _freezeMap(check);
@@ -136,6 +148,8 @@ class CoachPlanVersion {
   final num estimateSec;
   final List<String> fitLog;
   final Map<String, Object?>? check;
+  final int? createdAtTurn;
+  final String? operation;
 
   Map<String, Object?> toJson() => {
     'version': version,
@@ -143,6 +157,8 @@ class CoachPlanVersion {
     'estimateSec': estimateSec,
     'fitLog': List<String>.of(fitLog),
     'check': _thaw(check),
+    if (createdAtTurn != null) 'createdAtTurn': createdAtTurn,
+    if (operation != null) 'operation': operation,
   };
 
   factory CoachPlanVersion.fromJson(Map<String, Object?> json) =>
@@ -152,6 +168,8 @@ class CoachPlanVersion {
         estimateSec: json['estimateSec'] as num,
         fitLog: (json['fitLog'] as List<Object?>).cast<String>(),
         check: json['check'] == null ? null : _map(json['check']),
+        createdAtTurn: json['createdAtTurn'] as int?,
+        operation: json['operation'] as String?,
       );
 }
 
@@ -168,6 +186,9 @@ class CoachSessionState {
     List<String> picks = const [],
     Map<String, List<CoachPlanVersion>> plans = const {},
     this.activePlanId,
+    this.lastDeliveredPlanId,
+    this.lastDeliveredVersion,
+    this.lastDeliveredTurn,
     this.legacyPlanFallback = false,
     Map<String, Object?> hostValues = const {},
   }) : userTurns = List.unmodifiable(userTurns),
@@ -189,6 +210,9 @@ class CoachSessionState {
 
   /// Current draft plan, independent of retained previous task plans.
   final String? activePlanId;
+  final String? lastDeliveredPlanId;
+  final int? lastDeliveredVersion;
+  final int? lastDeliveredTurn;
 
   /// True only for restored snapshots written before activePlanId existed.
   final bool legacyPlanFallback;
@@ -207,6 +231,10 @@ class CoachSessionState {
     Map<String, List<CoachPlanVersion>>? plans,
     String? activePlanId,
     bool clearActivePlanId = false,
+    String? lastDeliveredPlanId,
+    int? lastDeliveredVersion,
+    int? lastDeliveredTurn,
+    bool clearLastDelivered = false,
     Map<String, Object?>? hostValues,
   }) => CoachSessionState(
     userTurns: userTurns ?? this.userTurns,
@@ -216,6 +244,15 @@ class CoachSessionState {
     picks: picks ?? this.picks,
     plans: plans ?? this.plans,
     activePlanId: clearActivePlanId ? null : activePlanId ?? this.activePlanId,
+    lastDeliveredPlanId: clearLastDelivered
+        ? null
+        : lastDeliveredPlanId ?? this.lastDeliveredPlanId,
+    lastDeliveredVersion: clearLastDelivered
+        ? null
+        : lastDeliveredVersion ?? this.lastDeliveredVersion,
+    lastDeliveredTurn: clearLastDelivered
+        ? null
+        : lastDeliveredTurn ?? this.lastDeliveredTurn,
     legacyPlanFallback: clearActivePlanId || activePlanId != null
         ? false
         : legacyPlanFallback,
@@ -246,6 +283,10 @@ class CoachSessionState {
     },
     if (!legacyPlanFallback || activePlanId != null)
       'activePlanId': activePlanId,
+    if (lastDeliveredPlanId != null) 'lastDeliveredPlanId': lastDeliveredPlanId,
+    if (lastDeliveredVersion != null)
+      'lastDeliveredVersion': lastDeliveredVersion,
+    if (lastDeliveredTurn != null) 'lastDeliveredTurn': lastDeliveredTurn,
     if (hostValues.isNotEmpty) 'hostValues': _thaw(hostValues),
   };
 
@@ -274,6 +315,9 @@ class CoachSessionState {
             ],
         },
         activePlanId: json['activePlanId'] as String?,
+        lastDeliveredPlanId: json['lastDeliveredPlanId'] as String?,
+        lastDeliveredVersion: json['lastDeliveredVersion'] as int?,
+        lastDeliveredTurn: json['lastDeliveredTurn'] as int?,
         legacyPlanFallback: !json.containsKey('activePlanId'),
         hostValues: _map(json['hostValues'] ?? const {}),
       );

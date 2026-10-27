@@ -9,11 +9,19 @@ import 'session_state.dart';
 import 'user_memory.dart';
 
 class ParamMutation {
-  const ParamMutation._(this.state, this.error, this.changedFields);
+  const ParamMutation._(
+    this.state,
+    this.error,
+    this.changedFields,
+    this.valueChangedFields,
+  );
 
   final CoachSessionState state;
   final Map<String, Object?>? error;
   final Set<String> changedFields;
+
+  /// Fields whose structured value changed, excluding provenance-only writes.
+  final Set<String> valueChangedFields;
   bool get ok => error == null;
 
   Map<String, Object?> toJson() =>
@@ -40,7 +48,7 @@ class SessionParams {
     'level',
     'limits',
   };
-  static const sources = {'user', 'preselect', 'default'};
+  static const sources = {'user', 'preselect', 'default', 'derived'};
 
   /// Profile scenes that have at least one matching scoped catalogue action.
   /// The profile's accepted scenes and posture rules are the same rules used
@@ -112,6 +120,7 @@ class SessionParams {
     }
     final next = Map<String, CoachParamValue>.of(state.params);
     final changed = <String>{};
+    final valueChanged = <String>{};
     for (final entry in rawFields.entries) {
       final name = entry.key;
       if (name is! String || !fields.contains(name)) {
@@ -127,7 +136,11 @@ class SessionParams {
       final raw = entry.value;
       if (raw is! Map<Object?, Object?> ||
           raw.keys.any(
-            (key) => key != 'value' && key != 'source' && key != 'quote',
+            (key) =>
+                key != 'value' &&
+                key != 'source' &&
+                key != 'quote' &&
+                key != 'direction',
           ) ||
           !raw.containsKey('value') ||
           !raw.containsKey('source')) {
@@ -151,8 +164,109 @@ class SessionParams {
           'fields.$name.source',
           sources.toList(),
           source,
-          '从 user、preselect、default 中选择来源。',
+          '从 user、preselect、default 中选择来源；相对时长可使用 derived。',
         );
+      }
+      final direction = raw['direction'];
+      if (source == 'derived' && name != 'minutes') {
+        return _failure(
+          state,
+          'invalid_source',
+          'fields.$name.source',
+          'derived 仅用于 minutes',
+          source,
+          '其他参数使用 user、preselect 或 default。',
+        );
+      }
+      if (source != 'derived' && direction != null) {
+        return _failure(
+          state,
+          'invalid_direction',
+          'fields.$name.direction',
+          '仅 derived 时长需要 direction',
+          direction,
+          '移除 direction 或提供 derived 时长。',
+        );
+      }
+      if (source == 'derived' && !{'shorter', 'longer'}.contains(direction)) {
+        return _failure(
+          state,
+          'invalid_direction',
+          'fields.minutes.direction',
+          ['shorter', 'longer'],
+          direction,
+          '提供 shorter 或 longer。',
+        );
+      }
+      if (source == 'derived') {
+        if (old?.value is! int || (old!.value! as int) <= 0) {
+          return _failure(
+            state,
+            'derived_missing_baseline',
+            'fields.minutes',
+            '已设置的正整数时长',
+            old?.value,
+            '先设置明确的基准时长。',
+          );
+        }
+        final range = tags.profile.planRules.derivedStep;
+        final allowedMinutes = tags.profile.limits.minutes;
+        if (!range.min.isFinite ||
+            !range.max.isFinite ||
+            range.min <= 0 ||
+            range.max < range.min ||
+            range.max > 1 ||
+            allowedMinutes.min <= 0 ||
+            allowedMinutes.max < allowedMinutes.min) {
+          return _failure(
+            state,
+            'invalid_derived_config',
+            'profile.planRules.derivedStep',
+            '0 < min ≤ max ≤ 1 且 profile 时长范围有效',
+            range.toJson(),
+            '修正派生比例和 profile 时长范围。',
+          );
+        }
+        final base = old.value! as int;
+        final low = direction == 'shorter'
+            ? base * (1 - range.max)
+            : base * (1 + range.min);
+        final high = direction == 'shorter'
+            ? base * (1 - range.min)
+            : base * (1 + range.max);
+        final minValue = (((low - 1e-9) / 5).ceil() * 5).clamp(
+          allowedMinutes.min,
+          allowedMinutes.max + 5,
+        );
+        final maxValue = (((high + 1e-9) / 5).floor() * 5).clamp(
+          allowedMinutes.min - 5,
+          allowedMinutes.max,
+        );
+        // Profile endpoints need not themselves be multiples of five.
+        final first = ((minValue + 4) ~/ 5) * 5;
+        final last = (maxValue ~/ 5) * 5;
+        final rounded = value is int && value > 0
+            ? ((value + 2) ~/ 5) * 5
+            : null;
+        if (value is! int ||
+            rounded == null ||
+            first > last ||
+            rounded < first ||
+            rounded > last ||
+            (direction == 'shorter' ? rounded >= base : rounded <= base)) {
+          final allowed = first <= last
+              ? '$first–$last 分钟（5 分钟间隔）'
+              : '无符合条件的 5 分钟倍数';
+          return _failure(
+            state,
+            'derived_out_of_range',
+            'fields.minutes.value',
+            allowed,
+            {'input': value, 'rounded': rounded},
+            first <= last ? '选择 $allowed，或询问用户明确时长。' : '当前基准无可用派生时长，请询问用户明确时长。',
+          );
+        }
+        effectiveValue = rounded;
       }
       final valueIssue = _valueError(name, value, state);
       if (valueIssue != null) {
@@ -177,7 +291,7 @@ class SessionParams {
           '提供一段实际用户原话。',
         );
       }
-      if (source == 'user') {
+      if (source == 'user' || source == 'derived') {
         if (quote is! String ||
             quote.runes.length > 30 ||
             _normalize(quote).isEmpty) {
@@ -206,7 +320,21 @@ class SessionParams {
         }
         sourceTurn = matching.last.turn;
       }
-      if ((old?.source == 'user' || old?.source == 'host') &&
+      if (source == 'derived' &&
+          (sourceTurn <= old!.turn ||
+              sourceTurn != state.userTurns.last.turn)) {
+        return _failure(
+          state,
+          'derived_quote_not_new',
+          'fields.minutes.quote',
+          '上次设置后且属于当前轮的用户消息',
+          quote,
+          '引用当前轮、且在上次时长设置之后的用户原话。',
+        );
+      }
+      if ((old?.source == 'user' ||
+              old?.source == 'host' ||
+              old?.source == 'derived') &&
           (source == 'default' || source == 'preselect')) {
         return _failure(
           state,
@@ -230,7 +358,7 @@ class SessionParams {
           '引用宿主更新之后用户明确提供的新条件。',
         );
       }
-      if (old?.source == 'user' &&
+      if ((old?.source == 'user' || old?.source == 'derived') &&
           source == 'user' &&
           sourceTurn < old!.turn &&
           !_same(old.value, value)) {
@@ -320,13 +448,19 @@ class SessionParams {
         source: source,
         quote: quote as String?,
         turn: sourceTurn,
+        direction: source == 'derived' ? direction as String : null,
+        basedOn: source == 'derived' ? old : null,
       );
       changed.add(name);
+      if (old == null || !_same(old.value, effectiveValue)) {
+        valueChanged.add(name);
+      }
     }
     return ParamMutation._(
       state.copyWith(params: next),
       null,
       Set.unmodifiable(changed),
+      Set.unmodifiable(valueChanged),
     );
   }
 
@@ -358,6 +492,7 @@ class SessionParams {
       ]..sort();
     }
     final changed = <String>{};
+    final valueChanged = <String>{};
     final turn = state.userTurns.isEmpty ? 0 : state.userTurns.last.turn;
     for (final entry in host.entries) {
       final name = entry.key;
@@ -402,12 +537,14 @@ class SessionParams {
         if (old == null || old.source != 'host' || !_same(old.value, value)) {
           changed.add(name);
         }
+        if (old == null || !_same(old.value, value)) valueChanged.add(name);
       }
     }
     return ParamMutation._(
       state.copyWith(params: next, hostValues: hostValues),
       null,
       Set.unmodifiable(changed),
+      Set.unmodifiable(valueChanged),
     );
   }
 
@@ -486,12 +623,17 @@ class SessionParams {
     Object? expected,
     Object? actual,
     String fix,
-  ) => ParamMutation._(state, {
-    'ok': false,
-    'code': code,
-    'field': field,
-    'expected': expected,
-    'actual': actual,
-    'fix': fix,
-  }, const {});
+  ) => ParamMutation._(
+    state,
+    {
+      'ok': false,
+      'code': code,
+      'field': field,
+      'expected': expected,
+      'actual': actual,
+      'fix': fix,
+    },
+    const {},
+    const {},
+  );
 }

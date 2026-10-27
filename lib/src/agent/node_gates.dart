@@ -135,9 +135,7 @@ class NodeGates {
         warnings.addAll(_unknownLimitWarnings(state));
         warnings.addAll(_unknownActionWarnings(selected));
         next = state.copyWith(picks: selected);
-        stamp = en
-            ? 'Selected ${selected.length} actions'
-            : '选了 ${selected.length} 个动作';
+        stamp = _actionsStamp(selected.length, en);
       case 'planning':
       case 'review':
         final version = _version(state, planId);
@@ -181,10 +179,95 @@ class NodeGates {
     return _advance(next, stamp, warnings: warnings);
   }
 
+  /// Adds already searched, currently compatible draft actions to completed
+  /// picks; the task never passes through a second actions-check stage.
+  NodeResult addDraftPicks(
+    CoachSessionState state,
+    Iterable<String> ids, {
+    String language = 'zh',
+  }) {
+    final additions = <String>[];
+    final seen = state.picks.toSet();
+    for (final id in ids) {
+      if (seen.add(id)) additions.add(id);
+    }
+    if (additions.isEmpty) return NodeResult(state);
+    final task = state.task;
+    final index = task?.nodes.indexWhere((node) => node.id == 'actions') ?? -1;
+    if (task?.type != 'plan' ||
+        index < 0 ||
+        task!.nodes[index].status != 'done') {
+      return NodeResult(
+        state,
+        error: nodeError(
+          'actions_not_complete',
+          'task.actions',
+          '已完成的计划动作节点',
+          index < 0 ? null : task?.nodes[index].status,
+          '先完成动作节点再补充草稿动作。',
+        ),
+      );
+    }
+    final unseen = additions
+        .where((id) => !state.seenActionIds.contains(id))
+        .toList();
+    if (unseen.isNotEmpty) {
+      return NodeResult(
+        state,
+        error: nodeError(
+          'unseen_actions',
+          'picks',
+          '已搜索的动作 ID',
+          unseen,
+          '先搜索动作再添加到计划。',
+        ),
+      );
+    }
+    final incompatible = {
+      for (final id in additions) id: ?actionProblem(state, id),
+    };
+    if (incompatible.isNotEmpty) {
+      return NodeResult(
+        state,
+        error: nodeError(
+          'incompatible_actions',
+          'picks',
+          '符合当前条件的动作',
+          incompatible,
+          '替换不符合当前条件的动作。',
+        ),
+      );
+    }
+    final picks = [...state.picks, ...additions];
+    final nodes = List<CoachNodeState>.of(task.nodes);
+    nodes[index] = nodes[index].copyWith(
+      stamp: _actionsStamp(
+        picks.length,
+        language.toLowerCase().startsWith('en'),
+      ),
+    );
+    return NodeResult(
+      state.copyWith(
+        task: task.copyWith(nodes: nodes),
+        picks: picks,
+      ),
+      changes: [nodes[index]],
+      warnings: [
+        ..._unknownLimitWarnings(state),
+        ..._unknownActionWarnings(additions),
+      ],
+    );
+  }
+
+  String _actionsStamp(int count, bool en) =>
+      en ? 'Selected $count actions' : '选了 $count 个动作';
+
   /// Applies the step-three reset after an already committed parameter change.
   NodeResult parametersChanged(
     CoachSessionState state, {
     String language = 'zh',
+    Set<String>? changedFields,
+    Set<String>? valueChangedFields,
   }) {
     final task = state.task;
     if (task == null) return NodeResult(state);
@@ -194,6 +277,17 @@ class NodeGates {
       return NodeResult(state);
     }
     final actionIndex = task.nodes.indexWhere((n) => n.id == 'actions');
+    final actualChanges = valueChangedFields ?? changedFields;
+    final planningIndex = task.nodes.indexWhere((n) => n.id == 'planning');
+    final preserveActions =
+        task.type == 'plan' &&
+        actualChanges != null &&
+        actualChanges.length == 1 &&
+        actualChanges.contains('minutes') &&
+        actionIndex >= 0 &&
+        planningIndex > actionIndex &&
+        {'done', 'updated'}.contains(task.nodes[actionIndex].status);
+    final restartIndex = preserveActions ? planningIndex : actionIndex;
     final nodes = List<CoachNodeState>.of(task.nodes);
     final changes = <CoachNodeState>[];
     nodes[paramIndex] = nodes[paramIndex].copyWith(
@@ -202,8 +296,14 @@ class NodeGates {
       doneAtTurn: _turn(state),
     );
     changes.add(nodes[paramIndex]);
-    for (var i = actionIndex; i < nodes.length; i++) {
-      final status = i == actionIndex ? 'current' : 'pending';
+    if (actualChanges != null && actualChanges.isEmpty) {
+      return NodeResult(
+        state.copyWith(task: task.copyWith(nodes: nodes)),
+        changes: List.unmodifiable(changes),
+      );
+    }
+    for (var i = restartIndex; i < nodes.length; i++) {
+      final status = i == restartIndex ? 'current' : 'pending';
       if (nodes[i].status != status ||
           nodes[i].stamp != null ||
           nodes[i].doneAtTurn != null) {
@@ -228,14 +328,18 @@ class NodeGates {
                     plan: entry.value[i].plan,
                     estimateSec: entry.value[i].estimateSec,
                     fitLog: entry.value[i].fitLog,
+                    createdAtTurn: entry.value[i].createdAtTurn,
+                    operation: entry.value[i].operation,
                   )
                 else
                   entry.value[i],
             ],
         },
-        picks: state.picks
-            .where((id) => actionProblem(state, id) == null)
-            .toList(),
+        picks: preserveActions
+            ? state.picks
+            : state.picks
+                  .where((id) => actionProblem(state, id) == null)
+                  .toList(),
       ),
       changes: List.unmodifiable(changes),
       warnings: [
@@ -395,6 +499,18 @@ class NodeGates {
       final param = state.params[key];
       if (param == null) continue;
       final value = param.value;
+      if (key == 'minutes' &&
+          param.source == 'derived' &&
+          param.basedOn != null) {
+        final quote = param.quote ?? '';
+        final oldValue = param.basedOn!.value;
+        parts.add(
+          en
+              ? '$value min (adjusted as you said “$quote”, previously $oldValue min)'
+              : '$value 分钟（按你说的“$quote”调整，原 $oldValue 分钟）',
+        );
+        continue;
+      }
       final label = switch (key) {
         'scene' =>
           (en

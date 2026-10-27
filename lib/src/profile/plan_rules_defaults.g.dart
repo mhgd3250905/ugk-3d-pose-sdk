@@ -9,4 +9,7 @@ const defaultCooldownFromMinutes = 9;
 const defaultExemptWarmupForPureStretch = true;
 const defaultFocusRatio = 0.5;
 const defaultMaxSameMuscleInRow = 3;
+const defaultReplaceAllMinDiff = 0.5;
+const defaultDerivedStepMin = 0.2;
+const defaultDerivedStepMax = 0.5;
 const defaultAntagonisticPairs = <AntagonistPair>[];

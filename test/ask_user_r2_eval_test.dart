@@ -8,107 +8,6 @@ import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
 
-Map<String, Object?> _item(
-  String id,
-  String mode, {
-  int sets = 1,
-  int? reps,
-  int? seconds,
-  bool perSide = false,
-  int rest = 0,
-}) => {
-  'exerciseId': id,
-  'mode': mode,
-  'sets': sets,
-  'reps': ?reps,
-  'workSeconds': ?seconds,
-  'perSide': perSide,
-  'restSeconds': rest,
-};
-
-Map<String, Object?> _plan({
-  required String scene,
-  required int minutes,
-  required String goal,
-  required List<String> equipment,
-  required List<Map<String, Object?>> items,
-}) => {
-  'schemaVersion': 1,
-  'title': '训练方案',
-  'summary': '按所选条件安排动作',
-  'goal': goal,
-  'scene': scene,
-  'level': 1,
-  'targetMinutes': minutes,
-  'equipment': equipment,
-  'blocks': [
-    {'id': 'main', 'name': '训练', 'type': 'main', 'items': items},
-  ],
-};
-
-Map<String, Object?> _hipPlan({bool short = false}) => _plan(
-  scene: 'home',
-  minutes: short ? 5 : 10,
-  goal: 'relax',
-  equipment: ['mat'],
-  items: [
-    _item('s-kneel-hipflex', 'time', seconds: short ? 60 : 120, perSide: true),
-    _item(
-      's-butterfly',
-      'time',
-      sets: short ? 1 : 3,
-      seconds: 120,
-      rest: short ? 0 : 30,
-    ),
-  ],
-);
-
-Map<String, Object?> _corePlan() => _plan(
-  scene: 'home',
-  minutes: 20,
-  goal: 'core',
-  equipment: [],
-  items: [
-    _item('erectors-A', 'time', sets: 4, seconds: 120, rest: 20),
-    _item('obliques-A', 'reps', sets: 3, reps: 30, perSide: true, rest: 20),
-  ],
-);
-
-Map<String, Object?> _officePlan() => _plan(
-  scene: 'office',
-  minutes: 10,
-  goal: 'relax',
-  equipment: ['chair', 'wall'],
-  items: [
-    _item('h-chair-lat', 'time', sets: 2, seconds: 120, rest: 30),
-    _item('h-wall-calf', 'time', sets: 1, seconds: 120, perSide: true),
-  ],
-);
-
-Map<String, Object?> _defaultPlan() => _plan(
-  scene: 'home',
-  minutes: 15,
-  goal: 'fullbody',
-  equipment: [],
-  items: [
-    _item('erectors-A', 'time', sets: 4, seconds: 120, rest: 20),
-    _item('h-squat', 'reps', sets: 3, reps: 30, rest: 20),
-  ],
-);
-
-LlmResponse _show(Map<String, Object?> plan) => LlmResponse(
-  content: '',
-  toolCalls: [
-    LlmToolCall(
-      id: 'scripted-show',
-      name: AgentTools.showPlan,
-      arguments: jsonEncode(plan),
-    ),
-  ],
-  finishReason: 'tool_calls',
-  model: 'fake',
-);
-
 var _scriptSequence = 0;
 LlmResponse _tool(String name, Object arguments) => LlmResponse(
   content: '',
@@ -203,6 +102,111 @@ void main() {
     return controller;
   }
 
+  List<Object> planFlow({
+    required String prefix,
+    required Map<String, Object?> fields,
+    required List<String> main,
+    List<String> warmup = const [],
+    List<String> cooldown = const [],
+  }) {
+    final ids = [...warmup, ...main, ...cooldown];
+    LlmToolCall call(String id, String name, Object args) =>
+        LlmToolCall(id: '$prefix-$id', name: name, arguments: jsonEncode(args));
+    LlmResponse batch(List<LlmToolCall> values) => LlmResponse(
+      content: '',
+      toolCalls: values,
+      finishReason: 'tool_calls',
+      model: 'fake',
+    );
+    Map<String, dynamic> feedback(LlmRequest req, String id) =>
+        jsonDecode(
+              req.messages
+                  .singleWhere((m) => m.toolCallId == '$prefix-$id')
+                  .content,
+            )
+            as Map<String, dynamic>;
+    late String planId;
+    return [
+      batch([
+        call('start', AgentTools.startTask, {'type': 'plan'}),
+        call('understand', AgentTools.check, {'node': 'understand'}),
+        call('params', AgentTools.setParams, {'fields': fields}),
+        call('parameters', AgentTools.check, {'node': 'parameters'}),
+        for (var i = 0; i < ids.length; i++)
+          call('search$i', AgentTools.searchActions, {
+            'tags': <String>[],
+            'keywords': catalog[ids[i]]!.name.of('en'),
+          }),
+      ]),
+      (LlmRequest request) {
+        expect(feedback(request, 'params')['ok'], isTrue);
+        expect(feedback(request, 'parameters')['ok'], isTrue);
+        for (var i = 0; i < ids.length; i++) {
+          final search = feedback(request, 'search$i');
+          expect(search['ok'], isTrue, reason: '$search');
+          expect(
+            (search['items'] as List).map((e) => (e as Map)['id']),
+            contains(ids[i]),
+          );
+        }
+        return batch([
+          call('actions', AgentTools.check, {'node': 'actions', 'picks': ids}),
+          call('draft', AgentTools.draftPlan, {
+            'title': '训练方案',
+            'blocks': [
+              if (warmup.isNotEmpty)
+                {
+                  'kind': 'warmup',
+                  'items': [
+                    for (final id in warmup) {'id': id},
+                  ],
+                },
+              {
+                'kind': 'main',
+                'items': [
+                  for (final id in main) {'id': id},
+                ],
+              },
+              if (cooldown.isNotEmpty)
+                {
+                  'kind': 'cooldown',
+                  'items': [
+                    for (final id in cooldown) {'id': id},
+                  ],
+                },
+            ],
+          }),
+        ]);
+      },
+      (LlmRequest request) {
+        expect(feedback(request, 'actions')['ok'], isTrue);
+        final draft = feedback(request, 'draft');
+        expect(draft['ok'], isTrue, reason: '$draft');
+        planId = draft['plan_id'] as String;
+        return batch([
+          call('planning', AgentTools.check, {'node': 'planning'}),
+          call('review-plan', AgentTools.checkPlan, {'plan_id': planId}),
+        ]);
+      },
+      (LlmRequest request) {
+        final check = feedback(request, 'review-plan');
+        expect(check['ok'], isTrue, reason: '$check');
+        return batch([
+          call('review', AgentTools.check, {'node': 'review'}),
+        ]);
+      },
+      (LlmRequest request) {
+        expect(feedback(request, 'review')['ok'], isTrue);
+        return batch([
+          call('show', AgentTools.showPlan, {
+            'plan_id': planId,
+            'note': '按你的条件安排训练。',
+          }),
+        ]);
+      },
+    ];
+  }
+
   group('r2 multi-turn offline scripted protocol; no real model calls', () {
     test('fixture identifies all six distinct cases', () {
       expect(fixture['mode'], 'offline-scripted-protocol');
@@ -221,12 +225,18 @@ void main() {
       () async {
         const id = 'new_focus_previous_preselected';
         final client = FakeLlmClient([
-          _setParams({
-            'scene': _user('home', '在家'),
-            'equipment': _user(['equip.mat'], '瑜伽垫'),
-            'minutes': _user(10, '10分钟'),
-          }),
-          _show(_hipPlan()),
+          ...planFlow(
+            prefix: 'hip',
+            fields: {
+              'scene': _user('home', '在家'),
+              'equipment': _user(['equip.mat'], '瑜伽垫'),
+              'minutes': _user(10, '10分钟'),
+              'goal': _user(['purpose.stretch'], '放松'),
+            },
+            warmup: ['n-pelvis-circle'],
+            main: ['h-knee-hug', 'h-sumo-pry', 's-figure4', 's-kneel-hipflex'],
+            cooldown: ['s-butterfly'],
+          ),
           _askText('肩颈主要是僵硬，还是活动时有不适？'),
           _askText('有没有疼痛或其他运动限制？'),
           '明白，出现不适时请停下休息。',
@@ -273,14 +283,97 @@ void main() {
       'shorter adjustment does not ask and changes the actual target',
       () async {
         const id = 'adjust_shorter';
+        late String planId;
+        const main = [
+          'h-knee-hug',
+          'h-sumo-pry',
+          's-figure4',
+          's-kneel-hipflex',
+        ];
         final controller = chat(
-          FakeLlmClient([_show(_hipPlan()), _show(_hipPlan(short: true))]),
+          FakeLlmClient([
+            ...planFlow(
+              prefix: 'relative-initial',
+              fields: {
+                'scene': _user('home', '在家'),
+                'equipment': _user(['equip.mat'], '瑜伽垫'),
+                'minutes': _user(10, '10分钟'),
+                'goal': _user(['purpose.stretch'], '放松'),
+              },
+              warmup: ['n-pelvis-circle'],
+              main: main,
+              cooldown: ['s-butterfly'],
+            ),
+            _setParams({
+              'minutes': {
+                'value': 5,
+                'source': 'derived',
+                'quote': '短一点',
+                'direction': 'shorter',
+              },
+            }),
+            (LlmRequest request) {
+              final update = jsonDecode(request.messages.last.content) as Map;
+              expect(update['ok'], isTrue, reason: '$update');
+              return _tool(AgentTools.draftPlan, {
+                'plan_id': planId,
+                'operation': 'edit',
+                'title': '髋部放松',
+                'blocks': [
+                  {
+                    'kind': 'main',
+                    'items': [
+                      for (final item in main) {'id': item},
+                    ],
+                  },
+                ],
+              });
+            },
+            (LlmRequest request) {
+              final draft = jsonDecode(request.messages.last.content) as Map;
+              expect(draft['ok'], isTrue, reason: '$draft');
+              return _tool(AgentTools.check, {'node': 'planning'});
+            },
+            (LlmRequest request) {
+              final planning = jsonDecode(request.messages.last.content) as Map;
+              expect(planning['ok'], isTrue, reason: '$planning');
+              return _tool(AgentTools.checkPlan, {'plan_id': planId});
+            },
+            (LlmRequest request) {
+              final checked = jsonDecode(request.messages.last.content) as Map;
+              expect(checked['ok'], isTrue, reason: '$checked');
+              return _tool(AgentTools.check, {'node': 'review'});
+            },
+            (LlmRequest request) {
+              final reviewed = jsonDecode(request.messages.last.content) as Map;
+              expect(reviewed['ok'], isTrue, reason: '$reviewed');
+              return _tool(AgentTools.showPlan, {
+                'plan_id': planId,
+                'note': '按你的要求缩短训练。',
+              });
+            },
+          ]),
         );
         final first = await controller.send(turn(id, 0));
         expect(first!.plan, isNotNull);
+        planId = first.plan!.plan.id;
         final next = await controller.send(turn(id, 1));
         expect(next!.question, isNull);
         expect(next.plan, isNotNull);
+        final minutes = controller.agent.sessionState.params['minutes']!;
+        expect(
+          (minutes.value, minutes.source, minutes.quote, minutes.direction),
+          (5, 'derived', '短一点', 'shorter'),
+        );
+        expect(minutes.basedOn?.value, 10);
+        expect(controller.agent.sessionState.params['goal']!.value, [
+          'purpose.stretch',
+        ]);
+        expect(controller.agent.sessionState.params['scene']!.value, 'home');
+        expect(controller.agent.sessionState.params['equipment']!.value, [
+          'equip.mat',
+        ]);
+        expect(next.plan!.plan.id, planId);
         expect(
           next.plan!.plan.targetMinutes,
           lessThan(first.plan!.plan.targetMinutes),
@@ -301,7 +394,22 @@ void main() {
       'complete home bodyweight twenty-minute core request goes straight to plan',
       () async {
         const id = 'complete_home_core';
-        final controller = chat(FakeLlmClient([_show(_corePlan())]));
+        final controller = chat(
+          FakeLlmClient(
+            planFlow(
+              prefix: 'core',
+              fields: {
+                'scene': _user('home', '在家'),
+                'equipment': _user(<String>[], '徒手'),
+                'minutes': _user(20, '20分钟'),
+                'goal': _user(['body.core'], '核心'),
+              },
+              warmup: ['h-step-jack', 'n-pelvis-circle'],
+              main: ['erectors-A', 'obliques-A', 'h-squat', 'h-good-morning'],
+              cooldown: ['o-stand-sidebend', 'h-bilateral-upper-back-hug'],
+            ),
+          ),
+        );
         final result = await controller.send(turn(id, 0));
         expect(result!.question, isNull);
         expect(
@@ -322,7 +430,7 @@ void main() {
         );
         expect(
           const PlanDuration().estimateSeconds(plan, catalog) / 60,
-          inInclusiveRange(15, 25),
+          inInclusiveRange(18, 22),
         );
       },
     );
@@ -338,7 +446,20 @@ void main() {
             'equipment': _user(['equip.chair', 'equip.wall'], '椅子/凳子、墙'),
             'minutes': _user(10, '10 分钟'),
           }),
-          _show(_officePlan()),
+          ...planFlow(
+            prefix: 'office',
+            fields: {
+              'goal': _user(['purpose.stretch'], '拉伸'),
+            },
+            warmup: ['o-stand-sidebend'],
+            main: [
+              'h-chair-lat',
+              'h-wall-calf',
+              'n-wide-fold',
+              'o-seated-fig4',
+            ],
+            cooldown: ['o-seated-ham'],
+          ),
         ]);
         final controller = chat(client);
         final first = await controller.send(turn(id, 0));
@@ -392,7 +513,20 @@ void main() {
           'minutes': _default(15),
           'level': _default(1),
         }),
-        _show(_defaultPlan()),
+        ...planFlow(
+          prefix: 'default',
+          fields: {
+            'goal': _default(['purpose.strength']),
+          },
+          warmup: ['h-step-jack', 'n-pelvis-circle'],
+          main: [
+            'h-squat',
+            'h-good-morning',
+            'h-kneeling-pushup',
+            'erectors-A',
+          ],
+          cooldown: ['o-stand-sidebend', 'h-bilateral-upper-back-hug'],
+        ),
       ]);
       final controller = chat(client);
       final first = await controller.send(turn(id, 0));
@@ -403,7 +537,7 @@ void main() {
       expect(result!.question, isNull);
       expect(result.plan, isNotNull);
       expect(controller.state.pendingQuestion, isNull);
-      expect(client.requests, hasLength(3));
+      expect(client.requests.length, greaterThan(3));
       expect(controller.agent.sessionState.params['equipment']!.value, isEmpty);
       expect(
         controller.agent.sessionState.params['equipment']!.source,

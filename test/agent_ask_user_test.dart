@@ -32,13 +32,6 @@ Map<String, Object?> _choice({bool? multiple}) => {
 };
 Map<String, Object?> _plan() => planOf(okEnvelope())..remove('source');
 LlmResponse _showPlan() => _tools([_call(AgentTools.showPlan, _plan())]);
-LlmResponse _showActions() => _tools([
-  _call(AgentTools.showActions, {
-    'items': [
-      {'actionId': 's-figure4'},
-    ],
-  }),
-]);
 
 /// Every model batch is followed by one acknowledgement per tool call.
 void _expectToolProtocol(List<LlmMessage> messages) {
@@ -382,13 +375,86 @@ void main() {
     test(
       'successful action delivery clears a pending question counter',
       () async {
-        final coach = agent(FakeLlmClient([_ask(_text()), _showActions()]));
+        late List<String> selectedIds;
+        final coach = agent(
+          FakeLlmClient([
+            _ask(_text()),
+            _tools([
+              _call(AgentTools.startTask, {'type': 'recommend'}),
+              _call(AgentTools.check, {'node': 'understand'}),
+              _call(AgentTools.check, {'node': 'parameters'}),
+            ]),
+            (LlmRequest request) {
+              final rejection =
+                  jsonDecode(request.messages.last.content) as Map;
+              expect(rejection['code'], 'missing_parameters');
+              return _ask(_text('想做什么动作，有什么器材？'));
+            },
+            _tools([
+              _call(AgentTools.setParams, {
+                'fields': {
+                  'goal': {
+                    'value': ['purpose.stretch'],
+                    'source': 'user',
+                    'quote': '拉伸',
+                  },
+                  'equipment': {
+                    'value': ['equip.mat'],
+                    'source': 'user',
+                    'quote': '瑜伽垫',
+                  },
+                },
+              }),
+              _call(AgentTools.check, {'node': 'parameters'}),
+              _call(AgentTools.searchActions, {
+                'tags': ['purpose.stretch'],
+              }),
+            ]),
+            (LlmRequest request) {
+              final search = jsonDecode(request.messages.last.content) as Map;
+              selectedIds = (search['items'] as List)
+                  .take(3)
+                  .map((item) => (item as Map)['id'] as String)
+                  .toList();
+              expect(selectedIds, hasLength(3));
+              return _tools([
+                _call(AgentTools.check, {
+                  'node': 'actions',
+                  'picks': selectedIds,
+                }),
+              ]);
+            },
+            (LlmRequest request) {
+              final state = jsonDecode(request.messages.last.content) as Map;
+              expect(state['ok'], isTrue);
+              final task = state['task'] as Map;
+              expect(
+                ((task['nodes'] as List).last as Map)['status'],
+                'current',
+              );
+              return _tools([
+                _call(AgentTools.showActions, {
+                  'ids': selectedIds,
+                  'note': '先看看这些拉伸动作。',
+                }),
+              ]);
+            },
+          ], latency: Duration.zero),
+        );
         final first = await coach.send('帮我排个训练组');
         expect(first.question, isNotNull);
         expect(coach.questionsAsked, 1);
-        final result = await coach.send('看看动作');
+        final second = await coach.send('看看动作');
+        expect(second.question, isNotNull);
+        expect(second.actions, isNull);
+        expect(coach.sessionState.params.containsKey('goal'), isFalse);
+        final result = await coach.send('有瑜伽垫，想做拉伸');
         expect(result.question, isNull);
-        expect(result.actions, isNotNull);
+        expect(
+          result.actions,
+          isNotNull,
+          reason: '${result.error} ${result.issues}',
+        );
         expect(coach.questionsAsked, 0);
       },
     );

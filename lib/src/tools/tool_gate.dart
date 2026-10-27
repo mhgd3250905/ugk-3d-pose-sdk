@@ -15,6 +15,8 @@ library;
 
 import 'dart:convert';
 
+import '../agent/output_gate.dart';
+import '../agent/session_state.dart';
 import '../catalog/catalog.dart';
 import '../llm/llm_types.dart';
 import '../plan/coach_context.dart';
@@ -86,6 +88,21 @@ class GateResult {
   );
 }
 
+/// A validated card and the state transition to commit only on delivery.
+class AgentOutputResult {
+  const AgentOutputResult({
+    required this.state,
+    this.card,
+    this.changes = const [],
+    this.error,
+  });
+  final CoachSessionState state;
+  final GateResult? card;
+  final List<CoachNodeState> changes;
+  final Map<String, Object?>? error;
+  bool get ok => error == null;
+}
+
 class ToolGate {
   ToolGate({
     required this.catalog,
@@ -111,6 +128,47 @@ class ToolGate {
     extraRules: extraRules,
     enforceDrillDoseRange: enforceDrillDoseRange,
   );
+
+  /// Agent v2 output path; all model-facing fields are checked before either
+  /// a private card constructor or an output transition is made available.
+  AgentOutputResult checkAgentOutput(
+    CoachSessionState state,
+    String tool,
+    Object? arguments, {
+    String language = 'zh',
+  }) {
+    final prepared = OutputGate(
+      profile,
+      catalog,
+    ).prepare(state, tool, arguments, language: language);
+    if (!prepared.ok) {
+      return AgentOutputResult(state: state, error: prepared.error);
+    }
+    final warnings = [
+      for (final text in prepared.warnings)
+        PlanIssue.warning('unverified_limit', text),
+    ];
+    final plan = prepared.plan == null
+        ? null
+        : ValidatedPlan._(prepared.plan!, warnings);
+    final actions = prepared.actions == null
+        ? null
+        : ValidatedActions._([
+            for (final drill in prepared.actions!)
+              ValidatedAction._(drill, null),
+          ], warnings);
+    return AgentOutputResult(
+      state: prepared.nodeResult!.state,
+      changes: prepared.nodeResult!.changes,
+      card: GateResult._(
+        text: prepared.note,
+        plan: plan,
+        actions: actions,
+        warnings: warnings,
+        toolName: tool,
+      ),
+    );
+  }
 
   /// 判定一次模型回复。
   GateResult check(

@@ -1,7 +1,7 @@
 {
  "id": "hiplab",
  "minActions": 3,
- "planRules": {"warmupFromMinutes":9,"cooldownFromMinutes":9,"exemptWarmupForPureStretch":true,"focusRatio":0.5,"maxSameMuscleInRow":3,"antagonisticPairs":[]},
+ "planRules": {"warmupFromMinutes":9,"cooldownFromMinutes":9,"exemptWarmupForPureStretch":true,"focusRatio":0.5,"maxSameMuscleInRow":3,"replaceAllMinDiff":0.5,"derivedStep":{"min":0.2,"max":0.5},"antagonisticPairs":[]},
  "legacyGoalMap": [
   {"anyOf":["purpose.stretch"],"goal":"relax"},
   {"anyOf":["purpose.mobility"],"goal":"mobility"},

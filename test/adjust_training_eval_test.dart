@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
+import 'support_v2_plan_flow.dart';
 
 // This suite exercises the real CoachAgent/Controller and the released
 // Pose-Hub catalog. FakeLlmClient supplies scripted model replies; passing it
@@ -149,42 +150,6 @@ Map<String, Object?> _bodyweight({String scene = 'home'}) => _plan(
         ],
 );
 
-var _sequence = 0;
-Map<String, Object?> _user(Object value, String quote) => {
-  'value': value,
-  'source': 'user',
-  'quote': quote,
-};
-LlmResponse _set(Map<String, Object?> fields) => LlmResponse(
-  content: '',
-  toolCalls: [
-    LlmToolCall(
-      id: 'adjust-params-${_sequence++}',
-      name: AgentTools.setParams,
-      arguments: jsonEncode({'fields': fields}),
-    ),
-  ],
-  finishReason: 'tool_calls',
-  model: 'fake',
-);
-LlmResponse _initialFacts() => _set({
-  'scene': _user('home', '在家'),
-  'equipment': _user(['equip.mat'], '瑜伽垫'),
-  'minutes': _user(10, '10分钟'),
-});
-LlmResponse _show(Map<String, Object?> plan) => LlmResponse(
-  content: '这里是调整后的方案。',
-  toolCalls: [
-    LlmToolCall(
-      id: 'adjust-eval-${_sequence++}',
-      name: AgentTools.showPlan,
-      arguments: jsonEncode(plan),
-    ),
-  ],
-  finishReason: 'tool_calls',
-  model: 'fake',
-);
-
 void main() {
   final fixture =
       jsonDecode(File('eval/cases/adjust_training_r2.json').readAsStringSync())
@@ -288,12 +253,10 @@ void main() {
     test(
       '${sample.$1}: explicit time overrides the previous 10-minute target',
       () async {
+        final flow = ScriptedV2PlanFlow(catalog);
         final client = FakeLlmClient([
-          _initialFacts(),
-          _show(_initialPlan()),
-          _set({'minutes': _user(sample.$2, '${sample.$2} 分钟')}),
-          _show(_initialPlan()),
-          _show(sample.$3()),
+          ...flow.initial(),
+          ...flow.changeMinutes(sample.$2, '${sample.$2} 分钟'),
         ]);
         final c = controller(client);
         await begin(c, sample.$1);
@@ -321,15 +284,9 @@ void main() {
           lessThanOrEqualTo(.10),
         );
         expect(
-          client.requests,
-          hasLength(5),
+          flow.stalePlanError,
+          'nodes_incomplete',
           reason: 'old-target plan must be rejected and corrected',
-        );
-        expect(
-          client.requests.last.messages
-              .where((m) => m.role == LlmRole.tool)
-              .any((m) => m.content.contains('targetMinutes')),
-          isTrue,
         );
         expect(c.agent.lastConfirmedForm?['minutes'], [
           sample.$2 == 20 ? '20+ 分钟' : '${sample.$2} 分钟',
@@ -345,14 +302,15 @@ void main() {
     test(
       '${sample.$1}: actual direction is respected within 10% of target',
       () async {
+        final flow = ScriptedV2PlanFlow(catalog);
         final c = controller(
           FakeLlmClient([
-            _initialFacts(),
-            _show(_initialPlan()),
-            _set({
-              'minutes': _user(sample.$3 ? 5 : 19, sample.$3 ? '短一点' : '长一点'),
-            }),
-            _show(sample.$2()),
+            ...flow.initial(),
+            ...flow.changeMinutes(
+              sample.$3 ? 5 : 15,
+              sample.$3 ? '短一点' : '长一点',
+              direction: sample.$3 ? 'shorter' : 'longer',
+            ),
           ]),
         );
         final previous = await begin(c, sample.$1);
@@ -374,7 +332,12 @@ void main() {
         final before = duration.estimateSeconds(previous, catalog) / 60;
         final after = duration.estimateSeconds(plan, catalog) / 60;
         expect(after, sample.$3 ? lessThan(before) : greaterThan(before));
-        expect(plan.targetMinutes, sample.$3 ? lessThan(10) : greaterThan(10));
+        expect(plan.targetMinutes, sample.$3 ? 5 : 15);
+        expect(c.agent.sessionState.params['minutes']!.source, 'derived');
+        expect(
+          c.agent.sessionState.params['minutes']!.quote,
+          sample.$3 ? '短一点' : '长一点',
+        );
         expect(
           (after - plan.targetMinutes).abs() / plan.targetMinutes,
           lessThanOrEqualTo(.10),
@@ -391,15 +354,10 @@ void main() {
     ('switch_scene_bodyweight', 'office'),
   ]) {
     test('${sample.$1}: new conditions replace the previous values', () async {
+      final flow = ScriptedV2PlanFlow(catalog);
       final client = FakeLlmClient([
-        _initialFacts(),
-        _show(_initialPlan()),
-        _set({
-          if (sample.$2 == 'office') 'scene': _user('office', '办公室'),
-          'equipment': _user(<String>[], '徒手'),
-        }),
-        _show(_initialPlan()),
-        _show(_bodyweight(scene: sample.$2)),
+        ...flow.initial(),
+        ...flow.changeToBodyweight(office: sample.$2 == 'office'),
       ]);
       final c = controller(client);
       await begin(c, sample.$1);
@@ -426,10 +384,14 @@ void main() {
         isTrue,
       );
       expect(
-        client.requests,
-        hasLength(5),
+        flow.stalePlanError,
+        'nodes_incomplete',
         reason: 'old mat plan must be rejected',
       );
+      final check = c.agent.sessionState.plans[flow.planId]!.last.check!;
+      final rules = check['rules']! as Map<String, Object?>;
+      expect((rules['focus_body']! as Map<String, Object?>)['ok'], isTrue);
+      expect((rules['focus_purpose']! as Map<String, Object?>)['ok'], isTrue);
       expect(c.agent.lastConfirmedForm?['equipment'], ['徒手']);
     });
   }
@@ -437,15 +399,11 @@ void main() {
   test(
     'retry after a failed explicit adjustment keeps the new 7-minute conditions',
     () async {
+      final flow = ScriptedV2PlanFlow(catalog);
       final client = FakeLlmClient([
-        _initialFacts(),
-        _show(_initialPlan()),
+        ...flow.initial(),
         const LlmException(LlmErrorKind.network, 'offline'),
-        _set({'minutes': _user(7, '7 分钟')}),
-        // A stale retry response must be rejected against the pending edit,
-        // even though the last successfully delivered plan is still 10 min.
-        _show(_initialPlan()),
-        _show(_sevenMinutes()),
+        ...flow.changeMinutes(7, '7 分钟'),
       ]);
       final c = controller(client);
       await begin(c, 'shorten_to_7');
@@ -463,12 +421,18 @@ void main() {
       expect(retried.plan!.plan.targetMinutes, 7);
       expect(retried.plan!.plan.equipment, ['mat']);
       expect(c.agent.lastConfirmedForm?['minutes'], ['7 分钟']);
-      expect(client.requests, hasLength(6));
-      expect(client.requests[3].messages.last.content, contains('缩短到 7 分钟'));
+      expect(
+        client.requests.any(
+          (request) => request.messages.any(
+            (message) => message.content.contains('缩短到 7 分钟'),
+          ),
+        ),
+        isTrue,
+      );
       expect(
         client.requests.last.messages
             .where((m) => m.role == LlmRole.tool)
-            .any((m) => m.content.contains('targetMinutes')),
+            .any((m) => m.content.contains('nodes_incomplete')),
         isTrue,
       );
     },

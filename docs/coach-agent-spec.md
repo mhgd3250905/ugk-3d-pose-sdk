@@ -78,10 +78,10 @@ profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有�
 • equipment：所有动作所需器械的并集必须是 params.equipment 的子集。这里直接读 params，不再让模型传 equipment 参数。
 • duration：估时在 T ±10% 以内。
 • structure：minutes 达到 planRules.warmupFromMinutes 时必须有 warmup 块，达到 cooldownFromMinutes 时必须有 cooldown 块。如果是纯拉伸目标，可以在 planRules 里设置不要求热身。
-• focus：main 块里至少有 planRules.focusRatio（默认 0.5）的动作命中 params.goal 的部位编码。
+• focus：将 params.goal 分为 bodyGoals（body.*）和 purposeGoals（purpose.*）。有 bodyGoals 时，main 块至少有 planRules.focusRatio（默认 0.5）的动作命中任一 bodyGoals；同时有 purposeGoals 时，另行计算至少 focusRatio 的动作命中任一 purposeGoals。只有 purposeGoals 时，按 purposeGoals 计算。命中以目录标签包含对应编码为准，不看名称；分别计算、分别报错，expected 写明目标组及比例（如“main ≥ 50% 含 purpose.stretch”），actual 写实际命中数（如“2/6”），candidates 列可替换的合规动作。goal 为空时 plan 参数节点不能完成。用户给出哪类目标就按哪类核对，不为凑规则追问，也不跳过核对。
 • balance：同一主要部位连续不超过 planRules.maxSameMuscleInRow（默认 3）个；同一块里不能有重复动作；如果 planRules 配置了拮抗对（例如核心的前侧对后侧），就要求两侧都有。
 • 结果记入该版本的 check 字段。成功时只返回一句汇总。失败时每条错误都按第 10 步的格式写，并给出可以替换的候选 id。
-测试：每条规则至少有一个通过的用例和一个失败的用例。
+测试：每条规则至少有一个通过的用例和一个失败的用例。focus 的只有 purpose、只有 body、两者都有三种情况各有一个通过及一个失败用例。
 
 ======== 第 7 步：show_actions / show_plan（说明里不再写数字） ========
 改造 lib/src/tools/tool_gate.dart 和 coach_agent.dart 里有关展示的部分。

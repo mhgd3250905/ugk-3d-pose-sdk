@@ -409,7 +409,7 @@ class CoachConversationController {
       }
       if (!current()) return null;
       final pending = agent.send(
-        text,
+        input,
         context: context,
         cancel: token,
         confirmedForm: confirmedForm,

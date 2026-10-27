@@ -34,6 +34,7 @@ import '../usage/usage.dart';
 import '../util/clock.dart';
 import 'agent_prompt.dart';
 import 'agent_resilience.dart';
+import 'session_state.dart';
 import 'skill_files.dart';
 import 'training_confirmation.dart';
 import 'training_parameters.dart';
@@ -51,6 +52,7 @@ class CoachPlanState {
     this.focus,
     this.goal,
     this.relativeDurationPolicy,
+    this.sessionState,
   });
 
   final String planId;
@@ -59,6 +61,9 @@ class CoachPlanState {
   final String? goal;
   final bool? relativeDurationPolicy;
 
+  /// Structured session snapshot; absent in older persisted plan states.
+  final CoachSessionState? sessionState;
+
   Map<String, Object?> toJson() => {
     'planId': planId,
     'context': context.toJson(),
@@ -66,6 +71,7 @@ class CoachPlanState {
     if (goal != null) 'goal': goal,
     if (relativeDurationPolicy != null)
       'relativeDurationPolicy': relativeDurationPolicy,
+    if (sessionState != null) 'sessionState': sessionState!.toJson(),
   };
 
   factory CoachPlanState.fromJson(Map<String, dynamic> json) {
@@ -91,6 +97,11 @@ class CoachPlanState {
       goal: json['goal'] is String ? json['goal'] as String : null,
       relativeDurationPolicy: json['relativeDurationPolicy'] is bool
           ? json['relativeDurationPolicy'] as bool
+          : null,
+      sessionState: json['sessionState'] is Map
+          ? CoachSessionState.fromJson(
+              (json['sessionState'] as Map).cast<String, Object?>(),
+            )
           : null,
     );
   }
@@ -278,6 +289,7 @@ class CoachAgent {
   Stream<AgentEvent> get events => _events.stream;
 
   final List<LlmMessage> _history = [];
+  CoachSessionState _sessionState = CoachSessionState();
   // 只追踪曾看过用户记忆的响应；记忆从未开启的工具推理必须完整回传。
   final Set<LlmMessage> _memoryReasoning = {};
   int _turns = 0;
@@ -313,6 +325,9 @@ class CoachAgent {
   SkillFiles? _files;
 
   List<LlmMessage> get history => List.unmodifiable(_history);
+
+  /// Immutable structured state, including original accepted user messages.
+  CoachSessionState get sessionState => _sessionState;
   int get turnCount => _turns;
 
   /// 本次任务已成功交付的澄清问题数；跨 send 保留，成功交付计划/动作卡或 reset 时清零。
@@ -342,6 +357,7 @@ class CoachAgent {
       focus: _planFocus,
       goal: _planGoal,
       relativeDurationPolicy: _relativeDurationPolicy,
+      sessionState: _sessionState,
     );
   }
 
@@ -355,6 +371,7 @@ class CoachAgent {
   }) {
     final plan = admitted.plan;
     final stored = planState?.planId == plan.id ? planState : null;
+    _sessionState = stored?.sessionState ?? CoachSessionState();
     final saved = stored?.context;
     final context = CoachContext(
       scene: saved?.scene ?? plan.scene,
@@ -505,6 +522,7 @@ class CoachAgent {
   void reset() {
     _generation++;
     _history.clear();
+    _sessionState = CoachSessionState();
     _memoryReasoning.clear();
     _turns = 0;
     _questionsAsked = 0;
@@ -663,8 +681,24 @@ class CoachAgent {
     _planningFailure = false;
     final gen = _generation;
     _busyGen = gen;
+    final previousSession = _sessionState;
+    _sessionState = _sessionState.appendUserTurn(userText);
     try {
-      return await _run(turnId, text, context, cancel, gen, confirmedForm);
+      final result = await _run(
+        turnId,
+        text,
+        context,
+        cancel,
+        gen,
+        confirmedForm,
+      );
+      if (result.status == TurnStatus.cancelled && _generation == gen) {
+        _sessionState = previousSession;
+      }
+      return result;
+    } on Object {
+      if (_generation == gen) _sessionState = previousSession;
+      rethrow;
     } finally {
       if (_busyGen == gen) _busyGen = null;
     }

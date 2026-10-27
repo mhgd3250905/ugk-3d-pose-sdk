@@ -1,249 +1,148 @@
-# 教练 Agent 重建规格
-
-状态：**规格已整理，待开哥确认；尚未开始重建代码。**
-
-日期：2026-10-27（Asia/Shanghai）。工作目录：`E:\AII-3D\3D-Pose-SDK`。工作分支：`codex/coach-agent-todo`。开工基线：`72afa369aa02969b5d9ab2e3040979f7fd8f223f`。
-
-## 0. 防跑偏规则与阶段边界
-
-本节为本次工作的最高优先规则。
-
-1. 第一步只提交本文件 `docs/coach-agent-spec.md`，回报后等开哥确认再写代码。之后以本文件为教练 Agent 重建的唯一依据。旧文档、旧测试与现有实现只用于了解现状，不能覆盖本规格。
-2. 任何与规格不同的做法，包括为速度、成本、测试通过而预注入内容、合并步骤、加代码规则，必须先停下回报原因和方案，开哥同意后才能做。不得把实现方便、模型表现或历史行为当作自行变更规格的授权。
-3. 将第 13 节的架构约束写成自动测试，并入全量测试。此项在规格确认后的实现阶段完成，本次文档提交不新增测试代码。
-4. 每次回报必须包含：规格逐条对照表（已实现／未实现／有偏离）、真实模型评测的对话原文与节点打卡记录、每步耗时与 token。没有运行真实评测时明确记录“未运行、无样本”，不得以离线回放冒充真实评测。
-5. 所有 SDK 工作在上述目录进行，不再新建 worktree。不合 main、不打 tag、不推送。
-6. 规格提交后停下等待开哥确认；不提前实现工具、状态机、索引、提示词、自动测试或 UI。
-
-## 1. 背景与重建目标
-
-以下历史背景由开哥提供，本次规格整理没有重新测量历史请求体：
-
-- `ugk_coach 0.3.0`（`1f8be6e`）曾是技能渐进披露的循环 Agent。
-- `0.3.3`（`fc5e456`）提速后，计划流程变成约 1 步，当前首轮请求约 47KB。
-- 之后又叠加了 `ask_user`、门禁和追问规则，导致对话忽略上下文、变笨。
-- 中午“新规划只有本句明确内容算已知、最多一轮追问”的规则作废。
-
-重建目标：回到真正的循环 Agent，并按任务类型走固定待办节点。
-
-## 2. 规格 1：循环
-
-采用 pi 式 Agent 循环：**调模型 → 执行工具 → 追加结果 → 继续，直到输出。**
-
-- 不限追问轮数。
-- 仅保留技术保护：步数上限、超时、空转防护、重试。
-- 不得为了速度、成本或测试通过，把多次模型与工具交互预先压成一步，或由代码代替模型判断任务语义。
-
-## 3. 规格 2：第一轮上下文与渐进披露
-
-第一轮上下文只包含：
-
-- 角色与底线。
-- 技能索引：每个技能一行描述。
-- 当前计划摘要。
-- 最近对话。
-- 上次习惯：只作预选。
-
-第一轮**不含动作目录条目和技能全文**，不能把它们换个名称塞进工具描述、系统消息、预载详情或其他请求字段。
-
-技能按需加载：`ask`、`pose-hub 动作大全`、`计划编排`。当前会话中用户已经说过的条件与“上次习惯只作预选”是不同来源，不能混为一谈。
-
-首轮实际请求体须满足第 13 节的 `≤12KB` 约束；不能仅测提示词字符数，漏掉工具定义和其他实际发送内容。
-
-## 4. 规格 3：三类对话
-
-三类对话**由模型判断**。
-
-| 对话类型 | 固定待办节点 | 最终输出 |
-|---|---|---|
-| 问答闲聊（范围内） | 无节点 | 直接回答 |
-| 动作推荐 | 理解问题 → 搜集参数 → 搜集动作 → 汇总输出 | `show_actions`，附“排成计划” |
-| 组装计划 | 理解问题 → 搜集参数 → 搜集动作 → 规划方案 → 核对方案 → 汇总输出 | `show_plan` |
-
-从动作推荐点“排成计划”进入组装计划时，前三节点沿用已有结果，不重复搜集已有信息或伪装成重新执行。
-
-## 5. 规格 4：节点打卡
-
-- 模型调用 `start_task(类型)`。
-- 节点由代码按类型生成；模型不可增删或调序。
-- 每完成一个节点，模型调用 `check(节点, 一句结果)`。
-- 节点未打完就调用 `show_actions`／`show_plan`，一律打回。
-- 已知可跳过，但仍须打卡并写理由，例如“办公室 · 椅子、墙 · 10 分钟，你刚说的”。
-- 每次打卡产生事件供 UI 显示，事件必须反映真实阶段，不能用定时器或固定文案伪造阶段进展。
-- 核对失败回到规划节点，遵循规格 7 指定的返工路径；这不授权模型任意调整节点顺序。
-
-## 6. 规格 5：搜集参数
-
-需要理解的参数：**场景、练什么、器材、时长、伤痛限制。**
-
-- 本次会话说过的都算已知。
-- 缺的由模型决定是否 `ask_user`，不由 SDK 关键词或正则代替决定。
-- `ask_user` 时循环暂停；用户回答后从该节点继续。
-- 不设追问轮数上限，不保留“只能一轮”或旧的任务提问次数上限。
-- 用户催促或说“随便”时，用预选／默认，并在打卡中写明采用了哪些预选或默认。
-- 不重复追问已经知道的信息，不把习惯、默认值或推测说成用户已经确认的事实。
-
-## 7. 规格 6：搜集动作
-
-动作大全采用树形结构：**目的 → 部位 → 姿态／场景 → 动作。**
-
-- `search_actions(标签枚举, 关键词)` 返回精简行：`id`、名称、标签、一句话；每次 `≤20` 条。
-- `get_action(id)` 获取详情。
-- 标签使用统一编码，例如 `scene.office`、`equip.chair`、`body.inner_thigh`。
-- 由模型把任意语言映射到统一编码。
-- 关键词匹配动作名称和多语言别名，作为兜底。
-- 索引由 `tool/posehub_pack.py` 打包时生成，随目录发布；SDK 本地离线检索。
-
-动作名称／别名的关键词检索是本条明确要求的检索能力，不能借此在 SDK 中重新加入对话意图判断规则。
-
-## 8. 规格 7：规划与核对
-
-- 编排技能讲清热身—主体—收尾、剂量、时长换算。
-- 核对使用 `check_plan`，检查安全、时长、器材、均衡、是否符合重点。
-- 核对不过就回到规划节点，再规划、再核对；不能绕过核对直接汇总交付。
-
-## 9. 规格 8：输出
-
-- 计划一律以卡片交付，配 1–2 句说明。
-- 数字和器材取自计划数据。
-- 保留现有文字与卡片数字／器材一致性门禁。
-- 动作推荐通过 `show_actions` 交付，附“排成计划”。
-- 范围内的问答闲聊直接回答，不为普通问答强行建立任务节点或生成计划。
-
-## 10. 规格 9：推理与耗时
-
-- 去掉提示词里所有限制思考或回答长度的语句。
-- 按链路支持开启推理；不得为提速、降成本而私自关闭、压短或伪造推理。
-- 计划交付的“1–2 句说明”按规格 8 保留，不扩展成对所有思考或回答的全局长度限制。
-- 回报单次模型调用的 P50／P90 耗时；如可能超过 40 秒，必须写明。
-- 中转 Worker 现约 40 秒会出现 502，由开哥另行处理；不能以本轮修改 Worker 或偷换 Agent 流程的方式绕过。
-
-推理协议支持、调用耗时和真实模型质量分别取证，不能只凭协议字段存在就声称推理效果或响应速度通过验收。
-
-## 11. 规格 10：等待气泡
-
-作用范围：`ugk_coach_ui`，替代现有单行等待气泡。
-
-- 纵向节点列表。
-- 已完成：打勾 + 一句结果。
-- 当前节点：脉动点 + 轻量轮换文案。
-- 未开始：灰色。
-- 打勾时连线生长，下一节点淡入。
-- 完成后折叠为一行“已完成 N 步 · X 秒”，可展开。
-- 保留取消，支持浅色／深色。
-- 视觉精致，不要大块等待卡。
-- 节点状态和完成结果来自规格 4 的真实事件；当前节点的轻量轮换文案不得冒充新的节点完成事件。
-
-## 12. 必须保留的接口与行为
-
-| 保留项 | 要求 |
-|---|---|
-| 宿主公开接口 | `CoachAssistant`／`CoachSession` 及事件流、计划卡数据结构保持兼容。如必须改，先列出改动报批。新增节点事件以新增字段／事件方式提供。现有 `CoachAgent`／`CoachConversationController` 接入也需核对，不能借重建破坏现有宿主调用。 |
-| `42bc4eb` | 调整计划时，新时长／器械／场景覆盖旧条件。 |
-| `005dd9d` | `restoreHistory` 恢复计划条件；`planState?.toJson()` 保存／恢复。 |
-| `cc03d4a` | “换一套”沿用场景／器械／时长／重点，至少一半动作不同。 |
-| 计划一致性 | 保留文字与卡片数字／器材一致性门禁。 |
-| 安全底线 | 保留范围外／伤病提示及已有安全行为。 |
-| 既有测试 | 上述保留行为的已有测试继续通过，不能为了删除旧意图机制而一并删除这些行为的验证。 |
-
-其余与本规格冲突的模型外意图判断、追问轮数限制、结果改写规则，必须列为“拟删除”，等开哥确认后才实施。
-
-## 13. 验收标准
-
-### 13.1 架构约束自动测试
-
-以下约束必须写成自动测试，并入全量测试：
-
-| 编号 | 约束 | 必须验证的事实 |
-|---|---|---|
-| A1 | 第一轮请求体 `≤12KB`，且不含动作目录条目 | 检查实际序列化请求体；技能索引保持每项一行，不预注入动作目录或技能全文。 |
-| A2 | 节点未打完的 `show_*` 必被打回 | 固定节点顺序、逐节点打卡及未完成时的交付拒绝均有测试；不能仅测试提示词文字。 |
-| A3 | SDK 代码中没有关键词／正则意图判断，没有追问轮数上限 | 核对实现和行为；不能只移走规则文件名、换成另一组词或把一轮改成另一个次数。保留本规格要求的离线关键词检索与安全底线，不把它们包装成意图判断后门。 |
-| A4 | 计划类输出必须是卡片 | 计划请求不能以纯文字作为完成交付；同时验证问答类不走节点、不被强行转成计划。 |
-
-新增测试不得通过预注入答案、动作目录、完整技能或额外语义规则制造通过。测试可以采用确定性工具协议回放验证架构，但必须与真实模型评测明确区分。
-
-### 13.2 真实模型评测
-
-每组均报对话原文、节点打卡记录、每步耗时与 token：
-
-| 编号 | 输入／连续操作 |
-|---|---|
-| R1 | “坐了挺久 我想拉伸一下” → “你帮我安排一个计划吧” |
-| R2 | “我想针对大腿内侧进行拉伸” |
-| R3 | “在家徒手 20 分钟练核心” |
-| R4 | “推荐几个练肩的哑铃动作” → 点“排成计划” |
-| R5 | “深蹲膝盖响正常吗” |
-| R6 | 英文 “I sit all day, help me stretch” |
-
-合格标准：
-
-- 理解上下文，不重复追问已知信息。
-- 节点全部打卡且顺序正确。
-- 动作符合场景／部位／器材。
-- 计划时长与要求偏差 `≤10%`。
-- 问答类不走节点。
-
-### 13.3 回报证据格式
-
-每次回报均给出规格 1–10、必须保留项、架构约束与真实评测的逐条对照状态：已实现／未实现／有偏离。现状与目标不一致须说明，不能把已发现的冲突当作已获准的偏离方案。
-
-真实评测记录至少能对应到：案例、用户与助手的对话原文、工具调用和结果、任务类型、节点顺序、每次 `check` 的一句结果及事件、暂停／续接／返工、每步耗时、每次模型调用耗时与 token、总耗时和 P50／P90。上游未提供的 token 字段明确记为未知，不编造；不要将内部推理字段当作面向用户的对话正文。
-
-未运行真实模型时：`modelCalls=0`，对话原文／节点记录／调用耗时／P50／P90 为“无样本”，不报告模型质量通过。本次仅规格阶段属于此情况。
-
-## 14. 现有代码落点（只读核对，未实施改动）
-
-以下是当前基线的定位，不能代替规格，也不是新增实现方案或公开 API 变更批准。
-
-| 目标 | 当前落点 | 规格确认后的工作边界 |
-|---|---|---|
-| 模型与工具循环、事件 | `lib/src/agent/coach_agent.dart` 的 `CoachAgent`、`_run()`、`AgentEvent`／`AgentEventKind`；`lib/src/agent/agent_resilience.dart` | 保留技术保护，接入固定任务节点与真实事件；不能用代码语义规则代替模型。 |
-| 工具定义与首轮提示词 | `lib/src/agent/agent_prompt.dart` 的 `AgentTools`、`AgentPromptBuilder.system()`；`prompts/agent_kernel.md` | 新增规格明确的工具；首轮仅最小上下文与技能索引，删除冲突的预注入与快路径。 |
-| 按需技能与资源 | `lib/src/agent/skill_files.dart`；`skills/action-library/SKILL.md`、`skills/action-coaching/SKILL.md`、`skills/plan-training/SKILL.md`；`tool/embed_prompts.dart`、`lib/src/prompt/prompts.g.dart` | 按需提供 ask、Pose-Hub 动作大全、计划编排。当前没有独立 ask 技能文件。嵌入生成物未来须与源文件一致，但本提交不生成或改写。 |
-| 动作目录、索引打包与读取 | `tool/posehub_pack.py`；`lib/src/catalog/pose_hub_app_test_pack.dart`、`catalog.dart`、`catalog_repository.dart` | 打包生成统一标签与树形检索索引，随目录发布，SDK 离线执行搜索与详情读取。 |
-| 条件与历史恢复 | `coach_agent.dart` 的 `CoachPlanState`、`planStateFor()`、`restorePlan()`；`lib/src/agent/coach_conversation_controller.dart` 的 `restoreHistory()` | 保留当前计划摘要、条件持久化与恢复行为，替换冲突的自然语言意图推断。 |
-| 计划准入与一致性 | `lib/src/tools/tool_gate.dart`、`lib/src/plan/plan_validator.dart`、`lib/src/agent/training_parameters.dart` 的 `validate()` | 保留安全、数字、器材等数据约束；按新规格实施核对与 `≤10%` 时长验收，不通过语义硬规则篡改用户意图。 |
-| 公开接口与卡片 | `lib/ugk_coach.dart`、`lib/src/assistant/coach_assistant.dart`、`lib/src/tools/coach_session.dart`、`lib/src/plan/training_plan.dart`；`packages/ugk_coach_ui/lib/src/models.dart`、`plan_card.dart` | 保持现有宿主调用与卡片数据兼容；必要变更单独报批。 |
-| 等待气泡 | `packages/ugk_coach_ui/lib/src/message_widgets.dart` 的 `CoachTypingBubble` | 按规格 10 替换为由真实节点事件驱动的轻量纵向列表。 |
-
-## 15. 冲突规则清单：拟删除／拟替换，待确认后执行
-
-本表只记录现有冲突；本提交不删除任何规则或代码，也不授权新增另一组模型外规则。
-
-| 编号 | 状态 | 当前行为与位置 | 确认后的目标；必须保留的部分 |
-|---|---|---|---|
-| D1 | **拟删除** | `coach_agent.dart` 的 `_run()` 用关键词／`RegExp`／`contains` 区分新规划、调整、讲解、闲聊、换一套及显式自检；`training_confirmation.dart` 的 `trainingFocus()`／`trainingGoal()` 做语义提取。 | 任务类型和自然语言理解交给模型；保留调整覆盖与换一套的结果要求，不保留词表实现。 |
-| D2 | **拟删除** | `training_parameters.dart` 的 `TrainingParameters.infer()` 用正则解析场景、器械、分钟和“跳过”；`_run()` 的 `startsNewPlan`／`cleanContext` 只保留当前一句事实。 | 当前会话说过的都算已知；由模型理解参数与默认选择。结构化数据校验和安全限制不随之删除。 |
-| D3 | **拟删除** | `CoachAgent.maxQuestionsPerTask = 1`、`questionsAsked` 的业务上限、`AgentPromptBuilder.system()` 中“已问 x/1 轮”；`TrainingParameters.resolved()` 和内核提示中的满额强制默认。旧文档另有 3 次上限的过时描述。 | 不设追问轮数上限；模型决定是否询问；催促／“随便”时按规格记录默认。技术性的步数、超时、空转、重试不当作追问上限删除。 |
-| D4 | **拟删除** | `_run()` 在调用模型前用 `buildTrainingConfirmation()` 生成固定三项确认卡；`agent_kernel.md`、`plan-training/SKILL.md` 中“新规划只看本句、历史仅预选、最多一轮”。 | 删除抢先判断意图并强制确认的流程；保留兼容的 `ask_user` 问题 DTO／交互能力，是否询问由模型决定。 |
-| D5 | **拟删除** | `AgentPromptBuilder.system()` 注入 `files.fastPaths`、`files.compactIndex`、`files.preloadDetails(userText)`；`SkillFiles` 对应生成内容。 | 删除首轮动作条目、技能正文快路径和预载详情；保留按需资源提供能力。 |
-| D6 | **拟删除** | `prompts/agent_kernel.md` 与动作／编排技能中“无需再读”“直接从紧凑索引排课”“不必先 check_plan”等快路径规则。 | 按任务固定节点执行；技能按需读；规划必须核对，不过回规划。 |
-| D7 | **拟删除／替换** | `_run()` 用 `_planSummary()` 覆盖成功计划的模型文字，及用拒绝词正则决定 `missing_plan` 的模型外结果判定。 | 去掉与规格冲突的整体改写／意图判定；保留计划必须卡片交付、数字／器材来自计划数据及一致性门禁。 |
-| D8 | **拟删除** | 当前 `agent_kernel.md` 的“长度适中／询问轮简短”等泛化长度风格约束；旧入口 `prompts/kernel.md`、`prompts/kernel_v3.md` 中的回答字数与“思考保持简短”等限制；对应嵌入文本。 | 审计并移除所有限制思考或回答长度的提示语；保留规格 8 对计划交付的 1–2 句说明要求及安全底线。 |
-| D9 | **拟替换** | `TrainingParameters.validate()`、Agent 内核和编排技能中现有实际时长偏差 25% 的口径，以及相对调整的旧例外。 | 以本规格的时长验收与规划核对为依据；不得继续将旧 25% 口径报告成 `≤10%` 已通过，或自行加入新例外。 |
-
-当前代码中“有安全红旗检查／数据约束”并不等于可以继续保留任务意图词表。反之，移除意图判断也不等于获准移除安全底线。
-
-## 16. 既有测试的保留与冲突迁移
-
-规格确认后的实现必须保留并继续验证：
-
-- `test/adjust_training_eval_test.dart`、`test/plan_adjustment_retry_test.dart`：调整条件覆盖、重试后的正确条件。
-- `test/restore_plan_history_eval_test.dart`：恢复计划与条件、`planState` 保存／恢复。
-- `test/swap_training_eval_test.dart`：换一套沿用条件、重点和至少一半新动作。
-- `test/training_parameter_consistency_test.dart` 等一致性测试：文字、计划数字、器材与实际数据一致。
-- `test/agent_test.dart`、`test/agent_resilience_test.dart`、`test/agent_reasoning_resilience_test.dart` 及现有门禁／安全测试中的技术保护、安全与协议兼容验证。
-- `packages/ugk_coach_ui/test/` 中现有卡片、布局和交互回归。
-
-`test/training_parameters_test.dart`、`test/agent_ask_user_test.dart`、`test/training_task_isolation_test.dart`、`test/agent_fast_path_test.dart`，以及恢复／换一套测试中的部分断言，含有旧追问上限、仅看本句、预载快路径或模型外判断的期望。**这些冲突断言拟按本规格迁移，不整文件删除，不连带删除其中的安全、恢复、编辑和门禁回归。** 本次规格提交不修改任何测试。
-
-## 17. 本次提交的交付状态
-
-- 先前准备已完成：`72afa36` 只把指定 3 处改为 `return await`，提交消息为 `fix(coach): await returns inside try blocks`；修复后 `ugk_coach` 全量 601 项测试及静态分析通过。
-- 两个 Flutter 包在上一轮准备检查中：`ugk_coach_ui` 79 项、`ugk_trainer` 332 项测试通过，静态分析通过。这是既有代码的验证，**不是本规格的实现或真实模型验收**。
-- 已从 r2 建立并切到 `codex/coach-agent-todo`；指定 8 个 detached 审查 worktree 已备份校验并移除，main、media-cache、coach-agent-reasoning、SmartFit 的 sdk-coach-ui worktree 未动。
-- 本次只新增本规格文档，不实施 D1–D9，不改提示词、工具、测试或 UI。
-- 规格 1–10 重建、架构约束自动测试、六组真实模型评测均待开哥确认后开展。
-- 本次真实模型评测调用数为 0；对话原文、节点打卡、每步模型耗时、token、P50／P90 均无评测样本。不能以文档核对或历史离线测试代替。
-- 文档提交并回报后，等待开哥确认再写代码。
+# 教练 Agent v2 实施规格
+
+本文件依据开哥批准的《教练 Agent v2 实施手册》第 0 节与第 1–11 步编写；按该手册执行，手册替代 v1 的冲突要求。
+
+## 0. 总原则
+
+把模型当成“教练”，代码当成“助理”。
+• 教练（模型）只做四件事：听懂用户、决定要不要追问、挑动作和定计划结构、写 1–2 句说明。
+• 助理（代码）负责其余所有事：记住用户条件并标来源、按条件筛动作、填剂量、算时长并配平、判定每一步是否完成、生成打卡文字、压缩上下文。
+• 模型可能犯的错，要在它出错的那一个工具调用上当场拦下，不能拖到 show_* 才打回。
+• 代码不解析模型写的自然语言。不用正则去抓数字或器械名，也不做关键词意图判断。代码只看工具参数里的结构化字段。
+• 保持不变：pi 式循环；三类任务和固定节点顺序；由模型判断任务类型；不限追问轮数；新会话首包 ≤12KB 且不含动作目录；计划以卡片交付；“排成计划”复用前三个节点；42bc4eb、005dd9d、cc03d4a 的行为和测试；安全底线；对宿主的公开接口和事件流保持兼容，只允许新增字段。
+
+======== 第 1 步：会话状态（助理的账本） ========
+新建 lib/src/agent/session_state.dart，定义 CoachSessionState，可以 toJson/fromJson，并并入现有 CoachPlanState 的保存和恢复（005dd9d 那套）。字段如下：
+• userTurns：本会话每条用户消息的原文和序号。
+• task：{type: qa|recommend|plan, nodes:[{id, status: pending|current|done|updated, stamp, doneAtTurn}], reused}
+• params：每项都是 {value, source: user|preselect|default, quote?, turn}。包含的项：scene（枚举：home/office/gym/outdoor）、goal（练什么，用 body.* / purpose.* 编码的数组）、equipment（equip.* 编码的数组，空数组表示徒手）、minutes（整数）、level（1–3）、limits（伤痛限制编码的数组，空数组表示无）。
+• seenActionIds：本任务里 search_actions 返回过的动作 id 集合。
+• picks：动作节点选中的动作 id。
+• plans：plan_id → [{version, plan, estimateSec, fitLog, check: null|{ok, errors}}]
+测试：序列化往返无损；恢复后的状态与保存前完全一致。
+
+======== 第 2 步：set_params（记账，并拦住编造的条件） ========
+新增工具 set_params。schema 如下：
+{ "fields": { "scene"|"goal"|"equipment"|"minutes"|"level"|"limits": { "value": ..., "source": "user"|"preselect"|"default", "quote": "用户原话片段，可选" } } }
+所有枚举值都写进 schema 的 enum。
+代码校验（任何一条不过，整次调用就失败，并按第 10 步的格式报错）：
+1. source=user 时必须带 quote。把 quote 和 userTurns 里的每条消息都去掉空白和标点、转成小写后，quote 必须是其中某条消息的子串。quote 长度 ≤30 字。这是在核对来源，不是在判断意图。
+2. 器械只减不加：如果新的 equipment 比当前多出了器械，那么 source 必须是 user，且 quote 必须来自上次设置之后的新用户消息。
+3. source=default 的 equipment 只能是空数组（徒手）。source=preselect 只能使用 user_memory 里保存的习惯值。
+4. 如果一项的旧值是 user，就不能用 default 或 preselect 去覆盖它。
+成功时返回当前完整的 params。如果参数节点已经 done，就按第 3 步的“参数更新”规则处理。
+profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有垫子/椅子/墙/砖”的器械默认。器械的默认值一律是徒手。
+测试：用 R2 的数据。用户只说了“有瑜伽垫”，之后没有新消息时，模型想把墙和砖加进来，必须被拒绝。quote 不在原话里时被拒绝。用 default 覆盖 user 时被拒绝。
+
+======== 第 3 步：节点门禁与打卡（每一步由代码把关） ========
+改造 lib/src/agent/agent_task.dart，并新建 lib/src/agent/node_gates.dart。
+• start_task(type, reuse?)：由代码生成节点。recommend 的节点是 understand → parameters → actions → output；plan 的节点是 understand → parameters → actions → planning → review → output。reuse=true 只在上一个任务是 recommend 且已经 show_actions 时允许，前三个节点和 picks 沿用。
+• check(node, picks?)：模型只是请求完成某个节点。代码按下表判定。通过时由代码生成 stamp（打卡文字），模型不提供打卡文字：
+  understand：task 已创建。stamp 例：“要一份 20 分钟的计划”，或“要推荐动作”。
+  parameters：plan 类必须有 scene、goal、minutes；recommend 类必须有 goal。各项都已经过 set_params 写入。equipment、level、limits 如果没设置，代码在打卡时自动补 default。stamp 例：“居家（你说的）· 徒手（你说的）· 20 分钟（你说的）· 初学（你说的）· 无伤痛（默认）”。这里 user 写成“你说的”，preselect 写成“上次习惯”，default 写成“默认”。英文会话用英文模板。
+  actions：picks 至少 3 个（阈值放在 profile 里）；每个 id 都在 seenActionIds 里；每个都满足 params 的器械、场景和伤痛限制。stamp 例：“选了 10 个核心动作，都不用器材”。
+  planning：已有当前版本的 plan（来自 draft_plan）。stamp 例：“热身 3 · 主体 5×3 轮 · 收尾 2，约 20 分钟”。
+  review：当前版本的 check_plan 已通过。stamp 例：“安全、时长、器材、均衡、重点都通过”。
+  output：由 show_* 成功时自动打卡，不允许对它调用 check。
+• 顺序门禁：只能 check 当前节点。如果 check 的节点不对，报错里要写明当前节点是哪个。
+• 参数更新：如果参数节点已经 done，之后 set_params 又改变了参数，代码会：重写参数节点的 stamp 并把状态设为 updated；把已完成的 actions、planning、review 重置为 pending；从 picks 里去掉不再符合新参数的动作；把当前节点设为 actions。节点不增、不删、不调序。每次状态变化都发出节点事件。
+• ask_user 在任何节点都可以用。用户回答后，从当前节点继续。
+测试：用 R3 的数据。参数节点已完成后，用户回答“初学”，模型 set_params(level=1)，此时参数节点的 stamp 应变成“初学（你说的）”，后续节点应被重置。另外测：跳节点被拒绝；picks 里有没搜到过的 id 时被拒绝；picks 里有需要垫子的动作、而用户是徒手时被拒绝。
+
+======== 第 4 步：search_actions / get_action（助理先筛好再递给教练） ========
+改造 lib/src/agent/action_search.dart。
+• search_actions(tags[], keywords?, limit≤20)：tags 的全部合法值写进 schema 的 enum（从目录生成）。这样类似 purpose.warmup 这种不存在的标签就传不进来。如果业务上需要“热身”，就在目录里加上对应的编码。
+• 代码自动用 params 做硬过滤：动作所需器械必须是 params.equipment 的子集；场景要匹配；不能与 limits 禁忌冲突；必须在 profile scope 内。如果还没设置器械，就按徒手过滤，并在结果里写明 filter.equipment=徒手(默认)。
+• 每行返回：id、名称、主要部位编码、器械编码、姿态/场景、剂量模式（reps|seconds）、默认剂量、剂量范围、单组估时（秒）、一句话简介。一行控制在约 200 字节以内。返回的 id 都加入 seenActionIds。
+• 结果末尾加一行：“已按 居家/徒手/无伤痛 过滤，另有 N 个需要器材的动作未显示”。这样模型知道可以问用户有没有器材，但拿不到这些动作。
+• get_action(ids[]，最多 10 个)：批量返回要领和禁忌。提示词里写明“大多数情况不需要调用”。
+测试：传入非法标签会被 schema 拒绝；徒手时不会返回任何需要器械的动作；单行大小在上限内。
+
+======== 第 5 步：draft_plan（教练定结构，助理填数、配时长） ========
+新建 lib/src/agent/plan_builder.dart。估时复用 plan_validator 里现有的估时函数，保证口径一致。
+• schema：{ "plan_id"?: string, "title": string, "blocks": [ { "kind": "warmup"|"main"|"cooldown", "rounds"?: int, "items": [ { "id": string, "sets"?: int, "reps"?: int, "seconds"?: int } ] } ] }。不传 plan_id 就新建计划，传了就生成该计划的新版本。
+• 各项只能从 picks 里取。只有当时长不够时，才允许使用 seenActionIds 里符合 params 的其他动作。
+• 缺省的剂量用目录默认值补齐。模型给的剂量如果超出目录范围，就夹到范围内，并记入 fitLog。
+• 自动配时长：目标 T = params.minutes × 60。如果估时不在 T ±10% 以内，就按下面的顺序调整，每调一次重算一次，进入 ±5% 就停：
+  1) main 块的 rounds，在 1–4 之间调；
+  2) main 块各项的 sets，在目录范围内调；
+  3) main 块各项的 reps 或 seconds，在目录范围内调；
+  4) warmup 和 cooldown 的秒数，在目录范围内调。
+  如果全部调到极限仍然不在 ±10% 以内：仍然保存这一版，但返回 ok=false、code=duration_unfit，并写明差多少秒、建议加或减几个动作（用差值除以平均单项耗时，向上取整），再列出可以加的候选 id。
+• 返回：plan_id、version、estimateMinutes（保留一位小数）、结构摘要、fitLog（例如“主体由 2 轮加到 3 轮”）。不要把完整计划 JSON 原样回传。
+测试：用 R3 的结构，模型只给 rounds=2 时，代码应自动配到 20 分钟 ±10%。另测：只给 3 个动作却要 30 分钟时，返回 duration_unfit 和加动作建议；剂量超出范围时被夹住。
+
+======== 第 6 步：check_plan(plan_id)（全部用能直接算的规则） ========
+改造 lib/src/plan/plan_validator.dart。规则的阈值放在 profiles/*.json 新增的 planRules 里，代码里不写死。每条规则都要返回通过或失败，以及具体数值：
+• safety：任何一项动作都不能触发 limits 对应的禁忌；保留现有安全底线。
+• equipment：所有动作所需器械的并集必须是 params.equipment 的子集。这里直接读 params，不再让模型传 equipment 参数。
+• duration：估时在 T ±10% 以内。
+• structure：minutes 达到 planRules.warmupFromMinutes 时必须有 warmup 块，达到 cooldownFromMinutes 时必须有 cooldown 块。如果是纯拉伸目标，可以在 planRules 里设置不要求热身。
+• focus：main 块里至少有 planRules.focusRatio（默认 0.5）的动作命中 params.goal 的部位编码。
+• balance：同一主要部位连续不超过 planRules.maxSameMuscleInRow（默认 3）个；同一块里不能有重复动作；如果 planRules 配置了拮抗对（例如核心的前侧对后侧），就要求两侧都有。
+• 结果记入该版本的 check 字段。成功时只返回一句汇总。失败时每条错误都按第 10 步的格式写，并给出可以替换的候选 id。
+测试：每条规则至少有一个通过的用例和一个失败的用例。
+
+======== 第 7 步：show_actions / show_plan（说明里不再写数字） ========
+改造 lib/src/tools/tool_gate.dart 和 coach_agent.dart 里有关展示的部分。
+• show_actions(ids[], note) 和 show_plan(plan_id, note)：note 写在工具参数里，就是卡片上方那 1–2 句说明。模型在这次调用里写的 content 正文不再作为说明使用。上一轮四个计划场景的“缺少说明”被拒，就是因为说明写在哪里不明确。
+• 门禁只检查：除 output 外的节点都已 done；show_plan 的 plan_id 是最新版本且 check_plan 已通过；show_actions 的 ids 都在 picks 里；note 非空，句末标点（。！？.!?）不超过 2 个，长度不超过 120 字。
+• 删除 narrative_minutes、narrative_equipment、plan_description 等所有对说明文字做解析的门禁，以及小数分钟的修补代码。卡片数据自己显示时长、动作数和器材。提示词里写明：note 里不要写时长、动作数和器材，只写思路。
+• show_* 成功后，代码给 output 节点打卡并结束本轮。不再把卡片结果回传给模型、让它再说一遍。
+• “换一套”等现有行为改为通过 state 实现，原有测试必须继续通过。
+测试：节点未完成时 show_* 被拒绝：plan_id 指向旧版本时被拒绝；note 超过 2 句时被拒绝；说明里写“20.3 分钟”或英文单词 block 时不再被拒绝。
+
+======== 第 8 步：一次回复里可以执行多个工具（减少来回） ========
+改造 coach_agent.dart 的 _run。这个函数现在约 1300 行，请按工具拆成各自的 handler 文件，循环本身只保留“调用模型 → 执行工具 → 追加结果”。
+• 模型一次回复里发出的多个 tool_calls，按顺序逐个执行，后一个能看到前一个改动过的 state。
+• 如果其中一个失败，同一次回复里排在它后面的调用一律不执行，返回 {ok:false, code:"skipped_after_error", actual:"第 N 个调用失败"}。
+• 提示词里给出推荐的合并方式：start_task + check(understand) + set_params + check(parameters) 可以放在同一次回复里；check(actions, picks) 可以和 draft_plan、check(planning)、check_plan、check(review)、show_plan 放在同一次回复里。节点仍然一个一个打卡，只是不用每次都等一轮模型。
+• ask_user 必须是一次回复里的最后一个调用。
+• UI 节点事件仍然是每打一次卡发一次。
+测试：用假模型（fake_llm_client）在一次回复里发出 6 个调用，应该全部按顺序生效；第 3 个失败时，第 4–6 个被跳过。
+
+======== 第 9 步：上下文压缩与恢复 ========
+新建 lib/src/agent/context_compactor.dart。
+• 每次请求都由三部分组成：系统提示（角色和底线、技能索引）；一条“当前状态”消息，由代码从 state 生成，内容为 task 及各节点 stamp、params 及来源、picks 的 id 和名称、当前 plan 的版本摘要；以及对话记录。
+• 归档规则：一个节点 done 以后，属于该节点的 search_actions、get_action、draft_plan、check_plan 工具结果，在之后的请求里都替换成“[已归档，见当前状态]”，但保留 tool_call_id 的对应关系。已经被后来成功调用取代的失败结果，也压成一行。start_task 返回的技能正文一直保留到任务结束。
+• 任务结束后，下一轮只保留用户和助手的可见正文，以及“当前状态”。
+• 恢复会话：完整计划留在 state 里，请求里只放计划摘要和 plan_id。恢复会话的首包同样 ≤12KB。
+• 去掉模型自己 ls/read 技能的开头两轮：start_task 的结果里直接返回该任务类型需要的技能正文（recommend 返回 ask + action-library，plan 返回 ask + action-library + plan-training）。问答类不调用 start_task，仍然按索引按需 read。新会话首包仍然不含技能正文。
+测试：用 R3 的十动作计划和一个 15 个动作、带分段的合法计划（先用 check_plan 验证合法）。恢复首包 ≤12KB，且至少有 2KB 余量。按 R3 的调用序列重放时，每次请求 ≤40KB。
+
+======== 第 10 步：统一报错格式与提示词 ========
+• 所有工具失败都返回同一种格式：{"ok":false,"code":"...","field":"...","expected":"具体值","actual":"具体值","fix":"一句可以直接执行的建议","candidates"?:[...]}。禁止出现“见 message”“按期望改正”这类写法。加一条测试，扫描所有错误构造处，确保没有这些字样。
+• prompts/agent_kernel.md：删掉旧的工具说明和所有长度限制。写清楚八件事：
+  1) 先判断是问答、推荐还是计划；问答直接回答；
+  2) 用户说过的条件用 set_params(source=user, quote=原话) 记下；没说过的不要编；
+  3) 器材没说就按徒手；只有当徒手明显会让计划变差，而且搜索结果提示“有 N 个需要器材的动作未显示”时，才去问用户；
+  4) 不要重复问“当前状态”里已经有的东西；
+  5) 可以在同一次回复里按顺序发多个工具，并给出推荐的合并方式；
+  6) 排计划时只定结构和动作，时长交给 draft_plan 去配；
+  7) note 只写思路，不写数字和器材；
+  8) 报错时按 fix 的建议改。
+• skills/ask、action-library、plan-training：与上面保持一致，并删掉与之冲突的旧说法。均衡和热身的硬性规则以 planRules 为准，技能里只保留讲解。
+
+======== 第 11 步：评测 ========
+• runner 记录每次响应的模型标签。如果响应模型与配置的模型不一致（例如出现带 free 的标签），这一例标为作废，并在回报里写明。Worker 渠道由开哥固定，你不要改 Worker。
+• 链路沿用上一轮：api.uuugk.win、deepseek-v4-flash-0731、UGK_APP_KEY 环境变量。六组案例和模拟回答都与上一轮相同，每组跑 1 次。
+• 验收线：
+  计划类单轮 ≤8 次模型调用，单轮耗时 ≤60 秒，单次请求 ≤40KB；
+  推荐类单轮 ≤5 次调用，耗时 ≤25 秒；
+  show_* 被拒绝 0 次；
+  所有动作和计划所需器械都是用户确认的器械或徒手；
+  不重复追问已知信息；
+  参数节点的 stamp 与最终计划一致；
+  计划时长在 ±10% 以内；
+  问答类不走节点。
+• 离线全量测试和严格静态分析都必须通过。还要保留并通过以下架构测试：首包 ≤12KB；首包无动作目录；代码里无关键词/正则意图判断；无追问轮数上限；计划必须以卡片交付。
+
+## 与 v1 的差异
+
+- v1 由模型写节点结果；v2 由结构化状态、节点门禁和代码生成的 stamp 负责打卡与参数更新。
+- v1 由模型提供完整计划并调用 check_plan；v2 由模型选择动作与结构，draft_plan 填剂量、配平时长，check_plan 按 profile 的 planRules 检查版本。
+- v1 按需加载技能；v2 首包只给技能索引，start_task 在任务开始后返回该类型所需技能正文，问答仍按需 read。
+- v1 工具逐轮推进；v2 允许同一次模型回复中的工具按顺序执行、失败后跳过后续调用，并保留逐节点真实事件。
+- v1 以说明数字和器材一致性门禁校验模型正文；v2 使用工具参数 note，卡片显示数据，删除对说明自然语言的数字及器材解析。
+- v2 新增参数来源账本、动作硬过滤、上下文压缩、统一可操作错误和明确的逐轮性能／模型标签验收。
+- pi 循环、模型判断任务类型、固定节点、无限业务追问、首包预算、计划卡和宿主兼容及既有保留行为继续保留；阶段二离线索引与阶段三等待 UI 仍在阶段一验收后进行。

@@ -32,6 +32,7 @@ import '../tools/coach_session.dart';
 import '../tools/tool_gate.dart';
 import '../usage/usage.dart';
 import '../util/clock.dart';
+import 'action_search.dart';
 import 'action_tags.dart';
 import 'agent_prompt.dart';
 import 'agent_resilience.dart';
@@ -1812,8 +1813,41 @@ class CoachAgent {
               _parameterTask =
                   parameterTask || question.mode == AskUserMode.form;
               _turns++;
+              // Preserve the complete tool exchange so the next user answer
+              // can continue from the actual search results. Sanitize private
+              // memory per batch: IDs may be reused by later tool calls.
+              final resumable = <LlmMessage>[];
+              for (var i = 0; i < turnMsgs.length;) {
+                final message = turnMsgs[i++];
+                final batch = <LlmMessage>[message];
+                if (message.role == LlmRole.assistant) {
+                  while (i < turnMsgs.length &&
+                      turnMsgs[i].role == LlmRole.tool) {
+                    batch.add(turnMsgs[i++]);
+                  }
+                }
+                final privateIds = <String>{
+                  for (final tool in message.toolCalls)
+                    if (memResultIds.contains(tool.id) &&
+                        (tool.name == AgentTools.remember ||
+                            tool.name == AgentTools.forget ||
+                            (tool.name == AgentTools.read &&
+                                SkillFiles.normalize(
+                                  _arg(tool, 'path') ?? '',
+                                ).startsWith('${SkillFiles.userMemory}/'))))
+                      tool.id,
+                };
+                resumable.addAll(
+                  _withoutMemory(
+                    batch,
+                    privateIds,
+                    privateReasoning: memoryReasoning,
+                  ),
+                );
+              }
               _history
                 ..add(userMsg)
+                ..addAll(resumable)
                 ..add(
                   assistant(
                     response,
@@ -1865,6 +1899,73 @@ class CoachAgent {
         // Host settings may change while the model request is in flight.
         context = ledgerContext(context);
         switch (t.name) {
+          case AgentTools.searchActions || AgentTools.getAction:
+            Object? args;
+            try {
+              args = jsonDecode(t.arguments);
+            } on FormatException {
+              args = null;
+            }
+            final searchCall = t.name == AgentTools.searchActions;
+            final keys = searchCall ? {'tags', 'keywords', 'limit'} : {'ids'};
+            final listKey = searchCall ? 'tags' : 'ids';
+            if (args is! Map ||
+                args.keys.any((key) => key is! String || !keys.contains(key)) ||
+                args[listKey] is! List ||
+                (args[listKey] as List).any((value) => value is! String) ||
+                (args[listKey] as List).toSet().length !=
+                    (args[listKey] as List).length ||
+                (searchCall &&
+                    args['keywords'] != null &&
+                    args['keywords'] is! String) ||
+                (searchCall &&
+                    args['limit'] != null &&
+                    args['limit'] is! int)) {
+              results[t.id] = jsonEncode(
+                nodeError(
+                  'invalid_arguments',
+                  'arguments',
+                  searchCall
+                      ? '{tags: string[], keywords?: string, limit?: 1–20}'
+                      : '{ids: 1–10 unique strings}',
+                  args,
+                  '使用工具 schema 中的字段和值。',
+                ),
+              );
+              continue;
+            }
+            final search = ActionSearch(
+              profile,
+              cat,
+              minPicks: profile.minActions,
+            );
+            final found = searchCall
+                ? search.search(
+                    _sessionState,
+                    tags: (args['tags'] as List).cast<String>(),
+                    keywords: args['keywords'] as String? ?? '',
+                    limit: args['limit'] as int? ?? 20,
+                    language: context.language,
+                  )
+                : search.getActions(
+                    _sessionState,
+                    (args['ids'] as List).cast<String>(),
+                    language: context.language,
+                  );
+            if (found.ok) {
+              if (searchCall) {
+                fresh =
+                    found.state.seenActionIds.length >
+                        _sessionState.seenActionIds.length ||
+                    fresh;
+                _sessionState = found.state;
+              } else {
+                for (final id in (args['ids'] as List).cast<String>()) {
+                  if (readSet.add('get_action:$id')) fresh = true;
+                }
+              }
+            }
+            results[t.id] = jsonEncode(found.toJson());
           case AgentTools.startTask || AgentTools.check:
             Object? args;
             try {
@@ -1974,6 +2075,20 @@ class CoachAgent {
             results[t.id] = jsonEncode(update.toJson());
           case AgentTools.read:
             final path = SkillFiles.normalize(_arg(t, 'path') ?? '');
+            if (_sessionState.task != null &&
+                path.startsWith('${SkillFiles.actionLibrary}/') &&
+                path != '${SkillFiles.actionLibrary}/SKILL.md') {
+              results[t.id] = jsonEncode(
+                nodeError(
+                  'use_action_search',
+                  'path',
+                  'search_actions 或 get_action',
+                  path,
+                  '通过动作工具读取按当前条件过滤的数据。',
+                ),
+              );
+              continue;
+            }
             emit(AgentEventKind.reading, step: step, path: path);
             if (path.startsWith('${SkillFiles.userMemory}/')) {
               memResultIds.add(t.id);
@@ -1998,6 +2113,20 @@ class CoachAgent {
             }
           case AgentTools.ls:
             final dir = SkillFiles.normalize(_arg(t, 'dir') ?? '');
+            if (_sessionState.task != null &&
+                (dir == SkillFiles.actionLibrary ||
+                    dir.startsWith('${SkillFiles.actionLibrary}/'))) {
+              results[t.id] = jsonEncode(
+                nodeError(
+                  'use_action_search',
+                  'dir',
+                  'search_actions 或 get_action',
+                  dir,
+                  '通过动作工具检索按当前条件过滤的数据。',
+                ),
+              );
+              continue;
+            }
             emit(AgentEventKind.listing, step: step, path: dir);
             final l = fs.ls(dir);
             results[t.id] = l == null ? '没有这个目录：$dir' : l.join('\n');

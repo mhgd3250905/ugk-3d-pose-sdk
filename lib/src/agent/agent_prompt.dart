@@ -29,6 +29,8 @@ abstract final class AgentTools {
   static const setParams = 'set_params';
   static const startTask = 'start_task';
   static const check = 'check';
+  static const searchActions = 'search_actions';
+  static const getAction = 'get_action';
   static const checkPlan = 'check_plan';
   static const showActions = CoachTools.showActions;
   static const showPlan = CoachTools.showPlan;
@@ -132,6 +134,38 @@ abstract final class AgentTools {
             'dir': {'type': 'string'},
           },
           'required': ['dir'],
+          'additionalProperties': false,
+        },
+      ),
+      LlmTool(
+        name: searchActions,
+        description: '按目录标签与关键词搜索动作，自动按当前场景、器材和伤痛限制过滤。',
+        parameters: {
+          'type': 'object',
+          'properties': {
+            'tags': codes(tags.tags),
+            'keywords': {'type': 'string'},
+            'limit': {'type': 'integer', 'minimum': 1, 'maximum': 20},
+          },
+          'required': ['tags'],
+          'additionalProperties': false,
+        },
+      ),
+      const LlmTool(
+        name: getAction,
+        description: '批量查看动作要领与禁忌；大多数情况不需要调用。',
+        parameters: {
+          'type': 'object',
+          'properties': {
+            'ids': {
+              'type': 'array',
+              'items': {'type': 'string'},
+              'minItems': 1,
+              'maxItems': 10,
+              'uniqueItems': true,
+            },
+          },
+          'required': ['ids'],
           'additionalProperties': false,
         },
       ),

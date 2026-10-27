@@ -45,7 +45,9 @@ void main() {
             if (tool.name != AgentTools.askUser &&
                 tool.name != AgentTools.setParams &&
                 tool.name != AgentTools.startTask &&
-                tool.name != AgentTools.check)
+                tool.name != AgentTools.check &&
+                tool.name != AgentTools.searchActions &&
+                tool.name != AgentTools.getAction)
               {'name': tool.name, 'parameters': tool.parameters},
         ]);
         expect(sha256.convert(utf8.encode(tools)).toString(), entry.value);

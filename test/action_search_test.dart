@@ -1,0 +1,307 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:test/test.dart';
+import 'package:ugk_coach/src/agent/action_search.dart';
+import 'package:ugk_coach/src/agent/session_state.dart';
+import 'package:ugk_coach/src/catalog/catalog.dart';
+import 'package:ugk_coach/src/catalog/pose_hub_app_test_pack.dart';
+import 'package:ugk_coach/src/profile/coach_profile.dart';
+
+import 'support.dart';
+
+void main() {
+  final catalog = loadCatalog();
+  final profile = loadProfile('smartfit');
+  final search = ActionSearch(profile, catalog, minPicks: 3);
+  CoachParamValue param(Object value) =>
+      CoachParamValue(value: value, source: 'host', turn: 0);
+
+  test('reject invalid tags and bounds without mutating state', () {
+    final state = CoachSessionState();
+    expect(
+      search.search(state, tags: ['purpose.warmup']).error!['code'],
+      'invalid_tags',
+    );
+    expect(search.search(state, limit: 21).error!['code'], 'invalid_limit');
+    expect(search.search(state, limit: 0).error!['code'], 'invalid_limit');
+    expect(state.seenActionIds, isEmpty);
+  });
+
+  test(
+    'bodyweight default filters equipment and records only returned ids',
+    () {
+      final state = CoachSessionState();
+      final result = search.search(state, limit: 20);
+      expect(result.ok, isTrue);
+      expect(result.items.length, inInclusiveRange(1, 20));
+      expect(result.filter['equipment'], '徒手（默认）');
+      expect(result.filter['hiddenEquipmentCount'], greaterThan(0));
+      for (final row in result.items) {
+        expect(
+          catalog[row['id'] as String]!.equipment.where((e) => e != 'none'),
+          isEmpty,
+        );
+        expect((row['data'] as List)[1], isEmpty);
+        expect(row.keys, containsAll(['id', 'name', 'summary', 'data']));
+        expect(row['data'], hasLength(8));
+      }
+      expect(
+        result.state.seenActionIds,
+        result.items.map((r) => r['id']).toSet(),
+      );
+      expect(state.seenActionIds, isEmpty);
+    },
+  );
+
+  test(
+    'real catalogue rows are compact and default-dose time has both sides',
+    () {
+      final result = search.search(CoachSessionState(), limit: 20);
+      final lengths = result.items
+          .map((row) => utf8.encode(jsonEncode(row)).length)
+          .toList();
+      expect(lengths.every((n) => n <= 240), isTrue, reason: '$lengths');
+      final byId = {for (final row in result.items) row['id']: row};
+      expect((byId['h-squat']!['data'] as List)[7], 48);
+      expect((byId['h-side-leg-raise']!['data'] as List)[7], 101);
+      expect(
+        result.items.every((row) => (row['summary'] as String).isNotEmpty),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'every published profile action has a compact nonempty Chinese and English search row',
+    () {
+      const root = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+      final manifest =
+          jsonDecode(File('$root/catalog.json').readAsStringSync())
+              as Map<String, Object?>;
+      final canonical =
+          jsonDecode(File('$root/catalog/catalog.json').readAsStringSync())
+              as Map<String, Object?>;
+      final published = PoseHubAppTestCatalog.fromJson(
+        manifest,
+        semanticCatalog: canonical,
+      ).toAiCatalog();
+      final failures = <String>[];
+      final measurements = <({String key, int bytes})>[];
+      var tested = 0;
+      var equipmentTested = 0;
+      for (final profileId in ['smartfit', 'hiplab', 'flarelab']) {
+        final p = loadProfile(profileId);
+        final finder = ActionSearch(p, published, minPicks: 3);
+        final allEquipment = <String>{
+          for (final drill in p.scope(published))
+            for (final raw in drill.equipment)
+              ?finder.gate.tags.equipmentCode(raw),
+        }.toList();
+        final state = CoachSessionState(
+          params: {'equipment': param(allEquipment)},
+        );
+        for (final drill in p.scope(published)) {
+          for (final language in ['zh', 'en']) {
+            final result = finder.search(
+              state,
+              keywords: drill.name.of(language),
+              language: language,
+            );
+            final candidates = result.items;
+            final rows = candidates
+                .where((row) => row['id'] == drill.id)
+                .toList();
+            if (rows.length != 1) {
+              failures.add(
+                '$profileId/$language/${drill.id}: 无法通过名称获取唯一行，匹配数 ${rows.length}',
+              );
+              continue;
+            }
+            tested++;
+            if (drill.equipment.isNotEmpty &&
+                !drill.equipment.every((item) => item == 'none')) {
+              equipmentTested++;
+            }
+            final row = rows.single;
+            final data = row['data']! as List<Object?>;
+            final format = result.format;
+            final body = data[0] as int?;
+            if (body != null) {
+              final code = (format['body']! as List<String>)[body];
+              expect(finder.gate.tags.forAction(drill), contains(code));
+            }
+            expect(
+              (data[1]! as List<Object?>)
+                  .map((v) => (format['equipment']! as List<String>)[v! as int])
+                  .toList(),
+              [
+                for (final raw in drill.equipment)
+                  ?finder.gate.tags.equipmentCode(raw),
+              ],
+            );
+            expect(
+              (format['position']! as List<String>)[data[2]! as int],
+              drill.position,
+            );
+            expect(
+              (data[3]! as List<Object?>)
+                  .map((v) => (format['scene']! as List<String>)[v! as int])
+                  .toList(),
+              drill.scenes,
+            );
+            expect(
+              (format['mode']! as List<String>)[data[4]! as int],
+              drill.defaultDose.mode == DoseMode.reps ? 'reps' : 'seconds',
+            );
+            final bytes = utf8.encode(jsonEncode(row)).length;
+            measurements.add((
+              key: '$profileId/$language/${drill.id}',
+              bytes: bytes,
+            ));
+            final summary = row['summary'];
+            if (summary is! String || summary.trim().isEmpty) {
+              failures.add(
+                '$profileId/$language/${drill.id}: $bytes 字节，summary=$summary',
+              );
+            }
+          }
+        }
+      }
+      expect(tested, greaterThan(0));
+      expect(equipmentTested, greaterThan(0));
+      measurements.sort((a, b) => a.bytes.compareTo(b.bytes));
+      final p50 = measurements[(measurements.length * .5).ceil() - 1].bytes;
+      final p90 = measurements[(measurements.length * .9).ceil() - 1].bytes;
+      final max = measurements.last;
+      // This distribution is useful for checking the request budget in CI.
+      // ignore: avoid_print
+      print(
+        'search row bytes: count=$tested equipment=$equipmentTested p50=$p50 p90=$p90 max=${max.bytes} (${max.key}) over240=${measurements.where((m) => m.bytes > 240).length}',
+      );
+      // ignore: avoid_print
+      print(
+        'rows over 240 bytes: ${measurements.where((m) => m.bytes > 240).map((m) => '${m.key}=${m.bytes}').join(', ')}',
+      );
+      expect(p50, lessThanOrEqualTo(200));
+      expect(p90, lessThanOrEqualTo(230));
+      expect(max.bytes, lessThanOrEqualTo(280));
+      expect(
+        measurements.where((m) => m.bytes > 240).length,
+        lessThanOrEqualTo((tested * .05).ceil()),
+      );
+      expect(failures, isEmpty, reason: failures.join('\n'));
+    },
+  );
+
+  test('matching tags, scene, equipment and known injury are all enforced', () {
+    final state = CoachSessionState(
+      params: {
+        'scene': param('office'),
+        'equipment': param(<String>[]),
+        'limits': param(['limit.knee']),
+      },
+    );
+    final result = search.search(state, tags: ['body.core']);
+    expect(result.ok, isTrue);
+    for (final row in result.items) {
+      final id = row['id'] as String;
+      expect(search.gate.tags.forActionId(id), contains('body.core'));
+      expect(search.gate.actionProblem(state, id), isNull);
+      expect(catalog[id]!.cautions, isNot(contains('膝')));
+    }
+  });
+
+  test('get_action rejects unsafe or unknown ids and caps at ten', () {
+    final state = CoachSessionState();
+    final mat = profile
+        .scope(catalog)
+        .firstWhere((d) => d.equipment.contains('mat'));
+    expect(
+      search.getActions(state, [mat.id]).error!['code'],
+      'incompatible_actions',
+    );
+    expect(search.getActions(state, ['not-in-catalog']).ok, isFalse);
+    expect(search.getActions(state, []).ok, isFalse);
+    expect(
+      search.getActions(state, List.generate(11, (i) => 'id$i')).ok,
+      isFalse,
+    );
+    final ids = search
+        .search(state, limit: 2)
+        .items
+        .map((r) => r['id'] as String)
+        .toList();
+    final details = search.getActions(state, ids);
+    expect(details.ok, isTrue);
+    expect(details.state.seenActionIds, isEmpty);
+    expect(
+      details.items.first.keys,
+      containsAll(['id', 'name', 'cues', 'cautions', 'contraindications']),
+    );
+  });
+
+  test('localized aliases match without interpreting surrounding messages', () {
+    final base = catalog.drills.first;
+    final drill = Drill(
+      id: 'custom',
+      name: base.name,
+      category: base.category,
+      position: base.position,
+      unilateral: base.unilateral,
+      level: base.level,
+      defaultDose: base.defaultDose,
+      raw: const {
+        'aliases': {
+          'en': ['unusual widget'],
+          'zh': ['特别动作'],
+        },
+        'trainingSemantics': {
+          'unknownFields': [
+            {'field': 'contraindications'},
+          ],
+        },
+      },
+    );
+    final customCatalog = Catalog(
+      version: catalog.version,
+      drills: [drill],
+      taxonomy: catalog.taxonomy,
+    );
+    final custom = ActionSearch(
+      const CoachProfile(id: 'all', appName: 'all'),
+      customCatalog,
+      minPicks: 3,
+    );
+    final result = custom.search(
+      CoachSessionState(),
+      keywords: 'UNUSUAL WIDGET',
+      language: 'en',
+    );
+    expect(result.items.single['id'], 'custom');
+    expect(result.warnings.single, contains('contraindications'));
+    expect(
+      custom.search(CoachSessionState(), keywords: '特别动作').items,
+      hasLength(1),
+    );
+    expect(
+      custom.search(CoachSessionState(), keywords: '不相关的句子').items,
+      isEmpty,
+    );
+  });
+
+  test('unknown host limit is retained and explicitly reported', () {
+    final code = search.gate.tags.limitCode('特殊伤痛')!;
+    final state = CoachSessionState(
+      params: {
+        'limits': param([code]),
+      },
+      hostValues: {
+        'limitsOpaque': [code],
+      },
+    );
+    final result = search.search(state, limit: 1);
+    expect(result.state.params['limits']!.value, [code]);
+    expect(result.warnings.single, contains('不能确认其安全性'));
+  });
+}

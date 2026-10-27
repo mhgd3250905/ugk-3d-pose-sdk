@@ -291,6 +291,7 @@ class CoachAgent {
   // The last admitted plan is the only reliable baseline for relative time
   // adjustments. Failed submissions never replace it.
   double? _lastAdmittedPlanSeconds;
+  Set<String>? _lastAdmittedExerciseIds;
   bool _relativeDurationPolicy = false;
   String? _pendingAdjustment;
   CoachContext? _taskSafetyContext;
@@ -379,6 +380,7 @@ class CoachAgent {
         trainingGoal('${plan.title} ${plan.summary}');
     _lastConfirmedForm = trainingSelections(context, cat);
     _lastAdmittedPlanSeconds = actual;
+    _lastAdmittedExerciseIds = Set.unmodifiable(plan.exerciseIds);
     _relativeDurationPolicy =
         stored?.relativeDurationPolicy ??
         (plan.targetMinutes > 0 &&
@@ -455,6 +457,7 @@ class CoachAgent {
       admitted.plan,
       _catalog(),
     );
+    _lastAdmittedExerciseIds = Set.unmodifiable(admitted.plan.exerciseIds);
     _turns++;
     _history
       ..add(const LlmMessage.user('用预设方案'))
@@ -510,6 +513,7 @@ class CoachAgent {
     _pendingConfirmation = null;
     _confirmedPlanContext = null;
     _lastAdmittedPlanSeconds = null;
+    _lastAdmittedExerciseIds = null;
     _relativeDurationPolicy = false;
     _pendingAdjustment = null;
     _taskSafetyContext = null;
@@ -789,13 +793,24 @@ class CoachAgent {
         (text.contains('训练') && !onlyExplanation);
     final newFocus = (asksFocusTraining || changesFocus) && focus != _planFocus;
     final newGoal = asksGoalTraining && goal != _planGoal;
+    // Standalone replacement requests refer to the admitted current card;
+    // they must not turn unrelated chat or an unconfirmed task into a plan.
+    final swapsPlan =
+        _lastAdmittedExerciseIds != null &&
+        !onlyExplanation &&
+        !newFocus &&
+        !newGoal &&
+        RegExp(
+          r'换(?:一套|另一套|套|一组|另一组|组|个计划|个方案|(?:个别的|一个别的|个其他的|个不一样的)(?!\s*(?:动作|器械|哑铃|椅子|瑜伽垫|装备|姿势)))|再来(?:一套|一组|一份)',
+        ).hasMatch(text);
     final changesCurrent =
         !newGoal &&
         !newFocus &&
-        (revision ||
+        (swapsPlan ||
+            revision ||
             (_planParameterMessages.isNotEmpty &&
                 RegExp(
-                  r'短一点|短一些|短些|更短|长一点|长一些|长些|更长|难一点|简单一点|轻一点|换掉|换成|换到|改成|改为|改到|调整一下|缩短|延长|加长|(?:加|增|减|降)(?:到|至|为)',
+                  r'短一点|短一些|短些|更短|长一点|长一些|长些|更长|难一点|简单一点|轻一点|换掉|换成|换到|换(?:一个|个)(?:别的)?(?:动作|哑铃|椅子|瑜伽垫)|改成|改为|改到|调整一下|缩短|延长|加长|(?:加|增|减|降)(?:到|至|为)',
                 ).hasMatch(text)));
     final parameterTask =
         !redFlag &&
@@ -885,6 +900,7 @@ class CoachAgent {
     final adjustsDuration = shortensPlan || lengthensPlan;
     final oldDuration = prior?.minutes;
     final oldPlanSeconds = _lastAdmittedPlanSeconds;
+    final oldExerciseIds = _lastAdmittedExerciseIds;
     final carryRelativeDurationPolicy =
         _relativeDurationPolicy &&
         changesCurrent &&
@@ -930,6 +946,18 @@ class CoachAgent {
         if (!parameterTask)
           (plan, catalog, context) => [
             const PlanIssue('plan_not_requested', '当前请求不应生成训练计划'),
+          ],
+        if (swapsPlan && oldExerciseIds != null && oldExerciseIds.isNotEmpty)
+          (plan, catalog, context) => [
+            if (plan.exerciseIds.isNotEmpty &&
+                plan.exerciseIds.difference(oldExerciseIds).length * 2 <
+                    plan.exerciseIds.length)
+              const PlanIssue(
+                'plan_too_similar',
+                '新方案的动作与上一套太相似',
+                path: 'blocks',
+                fix: '保持原条件和重点，优先选择上一套未使用过的安全动作；至少一半动作须是新动作。',
+              ),
           ],
         if (adjustsDuration && oldDuration != null)
           (plan, catalog, context) => [
@@ -989,23 +1017,29 @@ class CoachAgent {
         memorySummary: summary,
         userText: text,
         questionsAsked: questionsAsked,
-        trainingParameters: redFlag
-            ? '# 安全优先\n本次或先前提到的严重症状尚未明确纠正，'
-                  '不要推荐或生成训练，建议停止训练并咨询专业医疗人员。'
-            : adjustsDuration && oldDuration != null
-            ? '# 本次训练调整\n'
-                  '当前已确认条件：${jsonEncode(context.toJson())}\n'
-                  '用户要求${shortensPlan ? '短' : '长'}一点，目标时长必须${shortensPlan ? '小于' : '大于'}$oldDuration分钟；'
-                  '按方向调整实际训练量，${shortensPlan ? '减少' : '增加'}实际估时，不因标注时长与估时偏差重问或拒绝。'
-                  '沿用未修改的场景、器械和安全条件，不重新追问。'
-            : parameters.prompt(
-                    profile,
-                    clarificationFinished:
-                        questionsAsked >= maxQuestionsPerTask,
-                  ) +
-                  (carryRelativeDurationPolicy
-                      ? '\n上一方案时长来自相对调整；沿用其目标时长，不将目标与估时的25%偏差作为拒绝条件。'
-                      : ''),
+        trainingParameters:
+            (redFlag
+                ? '# 安全优先\n本次或先前提到的严重症状尚未明确纠正，'
+                      '不要推荐或生成训练，建议停止训练并咨询专业医疗人员。'
+                : adjustsDuration && oldDuration != null
+                ? '# 本次训练调整\n'
+                      '当前已确认条件：${jsonEncode(context.toJson())}\n'
+                      '用户要求${shortensPlan ? '短' : '长'}一点，目标时长必须${shortensPlan ? '小于' : '大于'}$oldDuration分钟；'
+                      '按方向调整实际训练量，${shortensPlan ? '减少' : '增加'}实际估时，不因标注时长与估时偏差重问或拒绝。'
+                      '沿用未修改的场景、器械和安全条件，不重新追问。'
+                : parameters.prompt(
+                        profile,
+                        clarificationFinished:
+                            questionsAsked >= maxQuestionsPerTask,
+                      ) +
+                      (carryRelativeDurationPolicy
+                          ? '\n上一方案时长来自相对调整；沿用其目标时长，不将目标与估时的25%偏差作为拒绝条件。'
+                          : '')) +
+            (!redFlag && swapsPlan && oldExerciseIds != null
+                ? '\n用户要求换一套，沿用已有场景、器械、时长和重点，不再追问。'
+                      '上一套动作：${oldExerciseIds.join('、')}。'
+                      '优先选择未使用过的安全动作，至少一半动作须为新动作。'
+                : ''),
       );
     }
 
@@ -1145,6 +1179,7 @@ class CoachAgent {
                   _pendingConfirmation = null;
                   _lastConfirmedForm = null;
                   _lastAdmittedPlanSeconds = null;
+                  _lastAdmittedExerciseIds = null;
                   _relativeDurationPolicy = false;
                   _pendingAdjustment = null;
                   _planFocus = focus ?? goal;
@@ -1160,6 +1195,9 @@ class CoachAgent {
                           _relativeDurationPolicy);
                   _lastAdmittedPlanSeconds = const PlanDuration()
                       .estimateSeconds(plan.plan, cat);
+                  _lastAdmittedExerciseIds = Set.unmodifiable(
+                    plan.plan.exerciseIds,
+                  );
                   _pendingAdjustment = null;
                 }
                 if (parameterTask) {

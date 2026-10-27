@@ -1,6 +1,6 @@
 name: ugk_coach_ui
 description: Injectable Flutter conversation, clarification and training routine widgets.
-version: 0.3.0
+version: 0.3.1
 repository: https://github.com/mhgd3250905/ugk-3d-pose-sdk
 publish_to: none
 

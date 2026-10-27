@@ -1,4 +1,4 @@
-# ugk_coach_ui 0.3.0
+# ugk_coach_ui 0.3.1
 
 `0.3.0` 沿用已选定的扁平实色配色，仅优化套路卡标题留白和透明人物首图尺寸，新增一次补齐训练参数的分组问答 `form`。页面、内容卡片、抬升控件三个层级、1px 低对比描边和轻固定阴影继续使用；颜色仍来自注入的 `CoachUiColors` / `CoachMediaPalette`，提供浅深默认值与完整 `copyWith`。从 0.1.x 升级仍需完成下方迁移；旧穷举 `CoachQuestionMode` 分支须新增 `form`。
 
@@ -10,14 +10,14 @@
 
 ## 安装
 
-固定 tag 为 `ugk_coach_ui-v0.3.0`；开哥已批准与 coach 0.7.0 / trainer 0.5.0 一同交付。旧 tag 保持，仓库内验证也可使用本地 path 依赖。[本轮改动与证据](../../docs/feedback-r1-part1.md)。
+固定 tag 为 `ugk_coach_ui-v0.3.1`。旧 tag 保持，仓库内验证也可使用本地 path 依赖。[0.3.0 改动与证据](../../docs/feedback-r1-part1.md)。
 
 ```yaml
 ugk_coach_ui:
   git:
     url: https://github.com/mhgd3250905/ugk-3d-pose-sdk.git
     path: packages/ugk_coach_ui
-    ref: ugk_coach_ui-v0.3.0
+    ref: ugk_coach_ui-v0.3.1
 ```
 
 ```dart
@@ -42,7 +42,7 @@ import 'package:ugk_coach_ui/ugk_coach_ui.dart';
 | `CoachChatList` / `CoachChatEntry` | 输入按时间正序的行快照及内容 widget；内部反向列表保证最新消息在底部。接收 App 所有的 `ScrollController`、时间标签 builder、输入栏占高、typing widget 和初始已读 ID 集合。顶部渐隐取自主题 `background`；`topInset`（默认 0）仅增加列表内容顶部留白，`fadeTop`（默认 true）控制原有顶部渐隐。 |
 | `CoachMessageBubble` / `CoachBubbleData` | 文字、用户/助理角色、可选标题、选项与已选索引；`optionsActive` 控制可答状态，`onOption` 回传索引。可替换 `optionBuilder`。 |
 | `CoachQuestionBubble` / `CoachQuestionData` / `CoachQuestionMode` | `text`、`choice` 或 `form`。旧单选立即回答、多选确认继续使用；form 通过 `CoachQuestionField` 按缺项分组，器械可多选，附“直接出方案”。接收 `enabled`、`onTextAnswer`、`onChoiceAnswer` 及分组回答回调；`answered`、`answeredChoices` 用于历史展示。宿主将其答案交回 coach 会话控制器。 |
-| `CoachPlanCard` | 接收 `CoachRoutine`、`CoachExerciseLibrary`、`saved`、`landing`；可选 `cutoutTopInset` 指定 cutout 在外卡坐标中的顶部位置。`onStart(CoachOriginRect)`、`onSave()`、`onOpen()` 全由 App 执行。紧凑单动作 130px，普通多动作 240px，透明人物多动作 288px；保留展开/收起与减弱动态效果。展开标题 top/left 均22px，标题/副信息间隔5px。 |
+| `CoachPlanCard` | 接收 `CoachRoutine`、`CoachExerciseLibrary`、`saved`、`landing`；可选 `cutoutTopInset` 调整 cutout 顶部位置，`surfaceTopInset` 指明自定义卡面从外框顶边向下的距离。`onStart(CoachOriginRect)`、`onSave()`、`onOpen()` 全由 App 执行。紧凑单动作 130px，普通多动作 240px，透明人物多动作卡面 300px；非横向内容另预留 58px 顶部空间，明显横向的内容保持在卡面内。保留展开/收起与减弱动态效果。展开标题相对卡面 top/left 均23px，标题/副信息间隔5px。 |
 | `CoachRoutine` / `CoachRoutineItem` | 预先本地化的标题、总时长、器械/水平/元信息、调整说明和剂量；`detailDose` 可表达循环内单组或一组多段摘要。无网络/训练引擎依赖。 |
 | `CoachExerciseLibrary` / `CoachExercise` / `CoachMediaPalette` | App 可信动作目录的 ID、名称、分类、提示词、主题匹配的 asset 路径、可选动态/静态 cutout 与媒体底色/文字色。路径由 App 解析，勿直接采用模型提供的路径。 |
 | `CoachUiTheme` / `CoachUiStyle` | 按 widget 子树注入 `colors`、`typography`、`strings`、`builders`；各 App 或并列聊天视图可使用不同主题，无全局可变配色。未注入时使用 Flutter Material Theme。 |
@@ -71,12 +71,12 @@ final builders = CoachUiBuilders(
       semanticLabel: request.semanticLabel,
     );
   },
-  // surface 可将背景面向下留 14dp；保留传入 padding 和 child 几何。
+  // 自定义 surface 保留传入 padding 和 child 几何。
 );
 // CoachPlanCard(..., cutoutTopInset: 0);
 ```
 
-`buildBoundedAsset` 与 `verifiedBounds` 属于宿主实现，以上为组合示意。`cutoutTopInset: 0` 让人物触及外卡顶部，仅允许图像进入既有内边距；不会增加卡片总高度、移动按钮或让图像越出外卡。把宿主背景面下移 12–16dp 后，人物可露出背景面上沿。扩展命中区域仅覆盖既有顶部内边距，并调用 `onOpen`；展开/开始按钮仍维持原坐标和优先级。非 cutout 卡不受该参数影响。负值、NaN 和无穷值不受支持。
+`buildBoundedAsset` 与 `verifiedBounds` 属于宿主实现，以上为组合示意。多动作透明首图可从卡面上沿向上延伸，并在卡片布局内预留 58dp，避免相邻卡片互相覆盖；明显横向的内容保持在卡面内，不预留出框空间。`cutoutTopInset` 可将首图向下移动。卡片会对首帧 alpha 可见范围做低分辨率采样和缓存：非横向素材按留白小幅放大（最多 15%），横向素材按可见内容适配展示区，保留空间给按钮和标题。这衡量的是整张前景，包含道具和阴影，并不识别人物姿势。若宿主的 `media` 已按边界裁剪或自行缩放素材，可传 `adaptCutoutScale: false`；素材不可测时使用原尺寸和默认出框布局。测量结果在动画期间保持稳定，首图与飞行静帧使用同一位置和对齐方式，顶部预留区域也可点击打开详情。单动作卡的 `cutoutTopInset` 仍表示距卡面顶部的距离。旧宿主若同时使用 `cutoutTopInset: 0` 和自定义 surface，默认按其原先的 14dp 卡面下移计算展开标题；其他自定义 surface 应传入实际的 `surfaceTopInset`，未下移时传 `0`。负值、NaN 和无穷值不受支持。
 
 ## 内容滚入透明系统状态栏
 

@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
@@ -14,7 +16,7 @@ import 'primitives.dart';
 ///
 /// * one move → [_ExerciseBody], 130 px at default text size: a square preview on the left,
 ///   name · dose · one cue on the right, tags on the bottom line;
-/// * a set → [_SetBody], 240 px (288 px with a cutout): the first move as the hero with title,
+/// * a set → [_SetBody], 240 px (300 px with a cutout): the first move as the hero with title,
 ///   duration and move count over it, one bottom row with the other moves
 ///   as thumbnails (as many as fit, then +N).
 ///
@@ -42,9 +44,15 @@ class CoachPlanCard extends StatefulWidget {
     required this.onOpen,
     this.landing = false,
     this.cutoutTopInset,
+    this.surfaceTopInset,
+    this.adaptCutoutScale = true,
   }) : assert(
          cutoutTopInset == null ||
              (cutoutTopInset >= 0 && cutoutTopInset < double.infinity),
+       ),
+       assert(
+         surfaceTopInset == null ||
+             (surfaceTopInset >= 0 && surfaceTopInset < double.infinity),
        );
 
   final CoachRoutine plan;
@@ -52,10 +60,20 @@ class CoachPlanCard extends StatefulWidget {
   /// A card that just arrived: its cover settles from 1.04 to 1 (M7).
   final bool landing;
 
-  /// Optional cutout image top in outer-card coordinates. Null preserves the
-  /// original placement. Zero allows a host-cropped figure to reach the card's
-  /// top through its existing padding, without moving text or controls.
+  /// Optional downward offset for a cutout. A multi-move card reserves space
+  /// above its surface for the first figure; zero keeps that overhang. On a
+  /// single-move card the value remains an inset from the surface's top.
   final double? cutoutTopInset;
+
+  /// Top inset of a host-drawn surface, if its visible face begins below its
+  /// layout bounds. Pass zero for a custom surface without such an inset.
+  /// Null supports the original raised-surface convention when an explicit
+  /// zero cutout inset and a custom surface builder are supplied together.
+  final double? surfaceTopInset;
+
+  /// Fit horizontal foregrounds and gently enlarge smaller upright cutouts.
+  /// Disable when a host media builder already crops or scales its assets.
+  final bool adaptCutoutScale;
   final CoachExerciseLibrary library;
   final bool saved;
 
@@ -69,7 +87,7 @@ class CoachPlanCard extends StatefulWidget {
   /// Compact card heights at the default text size.
   static const exerciseHeight = 130.0;
   static const setHeight = 240.0;
-  static const cutoutSetHeight = 288.0;
+  static const cutoutSetHeight = 300.0;
 
   @override
   State<CoachPlanCard> createState() => _PlanCardState();
@@ -356,10 +374,148 @@ class _AtStart extends Animatable<double> {
   double transform(double t) => t <= 0 ? 1 : 0;
 }
 
+/// Visible first-frame bounds, including props and shadows. This is a visual
+/// size estimate, not a classification of the exercise or its pose.
+class _CutoutBounds {
+  const _CutoutBounds(
+    this.top,
+    this.height,
+    this.left,
+    this.right,
+    this.bottom,
+    this.aspect,
+  );
+  final double top;
+  final double height;
+  final double left;
+  final double right;
+  final double bottom;
+  final double aspect;
+
+  double get width => right - left;
+
+  /// Wide foregrounds include landscape poses, equipment and shadows.
+  bool get horizontal => width * aspect >= height * 1.6;
+
+  double get scale => math.min(
+    1 / math.max(.01, 1 - top),
+    (1 + (.85 - height) * .5).clamp(1.0, 1.15),
+  );
+}
+
+/// Reuse the same resolved asset image as the normal precache, then sample a
+/// small copy. Cache by the provider's resolved key (including its bundle),
+/// not by path alone: different hosts may supply different assets at a path.
+class _CutoutBoundsCache {
+  static const _sampleSize = 64;
+  static const _capacity = 128;
+  static final _cache = <Object, Future<_CutoutBounds?>>{};
+
+  static Future<_CutoutBounds?> read(
+    AssetImage provider,
+    ImageConfiguration configuration,
+  ) async {
+    try {
+      final key = await provider.obtainKey(configuration);
+      if (_cache[key] case final cached?) return await cached;
+      if (_cache.length >= _capacity) _cache.remove(_cache.keys.first);
+      final pending = _measure(provider, configuration);
+      _cache[key] = pending;
+      final result = await pending;
+      if (result == null && identical(_cache[key], pending)) _cache.remove(key);
+      return result;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<_CutoutBounds?> _measure(
+    AssetImage provider,
+    ImageConfiguration configuration,
+  ) async {
+    final stream = provider.resolve(configuration);
+    final frame = Completer<ui.Image?>();
+    late final ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (info, _) {
+        if (!frame.isCompleted) frame.complete(info.image.clone());
+        info.dispose();
+      },
+      onError: (Object _, StackTrace? _) {
+        if (!frame.isCompleted) frame.complete(null);
+      },
+    );
+    stream.addListener(listener);
+    ui.Image? original;
+    try {
+      original = await frame.future.timeout(
+        const Duration(milliseconds: 400),
+        onTimeout: () => null,
+      );
+    } finally {
+      stream.removeListener(listener);
+    }
+    if (original == null) return null;
+    ui.Image? sample;
+    ui.Picture? picture;
+    try {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      canvas.drawImageRect(
+        original,
+        Rect.fromLTWH(
+          0,
+          0,
+          original.width.toDouble(),
+          original.height.toDouble(),
+        ),
+        const Rect.fromLTWH(0, 0, 64, 64),
+        Paint()..filterQuality = FilterQuality.low,
+      );
+      picture = recorder.endRecording();
+      sample = await picture.toImage(_sampleSize, _sampleSize);
+      final data = await sample.toByteData(format: ui.ImageByteFormat.rawRgba);
+      if (data == null) return null;
+      var top = _sampleSize;
+      var bottom = -1;
+      var left = _sampleSize;
+      var right = -1;
+      for (var y = 0; y < _sampleSize; y++) {
+        for (var x = 0; x < _sampleSize; x++) {
+          if (data.getUint8((y * _sampleSize + x) * 4 + 3) >= 32) {
+            top = math.min(top, y);
+            bottom = math.max(bottom, y);
+            left = math.min(left, x);
+            right = math.max(right, x);
+          }
+        }
+      }
+      if (bottom < top) return null;
+      return _CutoutBounds(
+        math.max(0, top - 1) / _sampleSize,
+        (bottom - top + 1) / _sampleSize,
+        math.max(0, left - 1) / _sampleSize,
+        math.min(_sampleSize, right + 2) / _sampleSize,
+        math.min(_sampleSize, bottom + 2) / _sampleSize,
+        original.width / original.height,
+      );
+    } catch (_) {
+      return null;
+    } finally {
+      sample?.dispose();
+      picture?.dispose();
+      original.dispose();
+    }
+  }
+}
+
 class _PlanCardState extends State<CoachPlanCard>
     with SingleTickerProviderStateMixin {
   final _card = GlobalKey();
   static const _inset = 6.0;
+  // A real layout reservation keeps the next card's figure clear of this
+  // card, even while the surface and its hero animate independently.
+  static const _cutoutOverhang = 58.0;
 
   late final AnimationController _expand = AnimationController(
     vsync: this,
@@ -379,15 +535,33 @@ class _PlanCardState extends State<CoachPlanCard>
   /// cover meanwhile (no WebP frame decoding during the move).
   bool _moving = false;
   bool _precached = false;
+  _CutoutBounds? _heroBounds;
+  _CutoutBounds? _deferredBounds;
+  bool _heroBoundsPending = false;
+  bool _hasDeferredBounds = false;
+  int _heroBoundsRevision = 0;
+  ImageConfiguration? _heroBoundsConfiguration;
+  String? _heroBoundsAsset;
 
   void _onStatus(AnimationStatus s) {
     final moving = s == AnimationStatus.forward || s == AnimationStatus.reverse;
-    if (moving != _moving && mounted) setState(() => _moving = moving);
+    if (!mounted) return;
+    if (moving != _moving || (!moving && _hasDeferredBounds)) {
+      setState(() {
+        _moving = moving;
+        if (!moving && _hasDeferredBounds) {
+          _heroBounds = _deferredBounds;
+          _heroBoundsPending = false;
+          _hasDeferredBounds = false;
+        }
+      });
+    }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _resolveHeroBounds();
     if (_precached) return;
     _precached = true;
     // Decode every thumbnail (and the still cutouts) up front, so the first
@@ -406,13 +580,74 @@ class _PlanCardState extends State<CoachPlanCard>
   }
 
   @override
+  void didUpdateWidget(CoachPlanCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _resolveHeroBounds();
+  }
+
+  void _resolveHeroBounds() {
+    final items = widget.plan.items;
+    CoachExercise? cover;
+    if (widget.adaptCutoutScale && items.length > 1) {
+      for (final item in items) {
+        if (widget.library.tryGet(item.exerciseId) case final exercise?) {
+          cover = exercise;
+          break;
+        }
+      }
+    }
+    final asset = cover?.cutout == null
+        ? null
+        : cover!.stillCutout ?? cover.cutout!;
+    final configuration = createLocalImageConfiguration(context);
+    if (asset == _heroBoundsAsset &&
+        configuration == _heroBoundsConfiguration) {
+      return;
+    }
+    _heroBoundsAsset = asset;
+    _heroBoundsConfiguration = configuration;
+    final revision = ++_heroBoundsRevision;
+    final animating = _expand.isAnimating;
+    if (!animating) _heroBounds = null;
+    _deferredBounds = null;
+    _hasDeferredBounds = animating && asset == null;
+    _heroBoundsPending = !animating && asset != null;
+    if (asset == null) return;
+    unawaited(
+      _CutoutBoundsCache.read(AssetImage(asset), configuration)
+          .timeout(const Duration(milliseconds: 400), onTimeout: () => null)
+          .then((bounds) {
+            if (!mounted || revision != _heroBoundsRevision) return;
+            if (_expand.isAnimating) {
+              _deferredBounds = bounds;
+              _hasDeferredBounds = true;
+              return;
+            }
+            setState(() {
+              _heroBounds = bounds;
+              _heroBoundsPending = false;
+            });
+          }),
+    );
+  }
+
+  @override
   void dispose() {
     _expand.dispose();
     super.dispose();
   }
 
   void _toggle() {
-    setState(() => _expanded = !_expanded);
+    setState(() {
+      // A host may already have a visible renderer while its asset probe is
+      // still pending. Begin the flight with the stable fallback immediately;
+      // a later result is cached for future cards, not applied mid-flight.
+      if (_heroBoundsPending) {
+        _heroBoundsPending = false;
+        _heroBoundsRevision++;
+      }
+      _expanded = !_expanded;
+    });
     if (!_expand.isAnimating) _back = !_expanded;
     if (CoachMotion.reduced(context)) {
       _expand.animateTo(
@@ -490,7 +725,24 @@ class _PlanCardState extends State<CoachPlanCard>
       p.title,
       _Header.titleStyle,
     );
-    final headerH = _Header.heightFor(context, headerTitleH, meta);
+    // The original host cutout contract paired an explicit zero inset with a
+    // surface face lowered by 14 px. Hosts with another surface geometry can
+    // supply it explicitly; the ordinary SDK surface starts at zero.
+    final surfaceTopInset =
+        widget.surfaceTopInset ??
+        (fused &&
+                widget.cutoutTopInset == 0 &&
+                CoachUiTheme.of(context).builders.surface != null
+            ? 14.0
+            : 0.0);
+    final horizontalCutout = fused && (_heroBounds?.horizontal ?? false);
+    final overhang = fused && !horizontalCutout ? _cutoutOverhang : 0.0;
+    final headerH = _Header.heightFor(
+      context,
+      headerTitleH,
+      meta,
+      surfaceTopInset,
+    );
 
     // Resolve text exactly as the rows paint it. The same row measurements
     // determine natural height, thumbnail destinations and no-crossing bands.
@@ -550,16 +802,75 @@ class _PlanCardState extends State<CoachPlanCard>
             heroH - CoachSpace.x1 - fusedTitleRoom,
           )
         : Rect.fromLTWH(0, 0, innerW, heroH);
-    final cutoutTop = widget.cutoutTopInset == null
+    final cutoutTop = fused
+        ? (widget.cutoutTopInset ?? 0) +
+              (horizontalCutout ? surfaceTopInset : -_cutoutOverhang) -
+              _inset
+        : widget.cutoutTopInset == null
         ? null
         : widget.cutoutTopInset! - _inset;
     if (fused && cutoutTop != null) {
-      heroFrom = Rect.fromLTRB(
-        heroFrom.left,
-        math.min(cutoutTop, heroFrom.bottom),
-        heroFrom.right,
-        heroFrom.bottom,
-      );
+      final top = math.min(cutoutTop, heroFrom.bottom);
+      final bounds = _heroBounds;
+      if (horizontalCutout && bounds != null) {
+        // Fill the display band with the measured foreground, rather than
+        // its transparent square. Keep all of it below the toggle and above
+        // the title, including any props and shadow.
+        final area = Rect.fromLTRB(
+          CoachSpace.x4,
+          math.min(
+            top + _ExpandToggle.heightFor(context) + _Header.padding + 8,
+            heroFrom.bottom,
+          ),
+          innerW - CoachSpace.x4,
+          heroFrom.bottom,
+        );
+        if (area.width > 0 && area.height > 0) {
+          final visibleWidth = math.max(.01, bounds.width * bounds.aspect);
+          final visibleHeight = math.max(.01, bounds.bottom - bounds.top);
+          final imageHeight = math.min(
+            math.min(area.width / visibleWidth, area.height / visibleHeight),
+            innerW * 2.2,
+          );
+          final imageWidth = imageHeight * bounds.aspect;
+          heroFrom = Rect.fromLTWH(
+            area.center.dx - (bounds.left + bounds.right) * imageWidth / 2,
+            area.center.dy - (bounds.top + bounds.bottom) * imageHeight / 2,
+            imageWidth,
+            imageHeight,
+          );
+        }
+      } else {
+        heroFrom = Rect.fromLTRB(
+          heroFrom.left,
+          top,
+          heroFrom.right,
+          heroFrom.bottom,
+        );
+        // Extra height grows upward; the measured transparent margin keeps
+        // visible pixels inside the reserve, even for non-square images.
+        final drawnHeight = bounds == null
+            ? heroFrom.height
+            : math.min(heroFrom.height, heroFrom.width / bounds.aspect);
+        final safeTopScale = bounds == null
+            ? 1.0
+            : heroFrom.height /
+                  math.max(.01, heroFrom.height - drawnHeight * bounds.top);
+        final scale = math.min(
+          math.min(bounds?.scale ?? 1, innerW / heroFrom.width),
+          safeTopScale,
+        );
+        if (scale > 1) {
+          final w = heroFrom.width * scale;
+          final h = heroFrom.height * scale;
+          heroFrom = Rect.fromLTWH(
+            heroFrom.center.dx - w / 2,
+            heroFrom.bottom - h,
+            w,
+            h,
+          );
+        }
+      }
     }
     final heroTo = rowSlot(0) & const Size.square(_MoveRow.thumbSize);
     Rect flyerRect(int k, double e) {
@@ -629,11 +940,6 @@ class _PlanCardState extends State<CoachPlanCard>
             ],
             more: more,
             landing: widget.landing,
-            still: _moving,
-            cutoutBounds: fused ? heroFrom : null,
-            cutoutAlignment: cutoutTop == null
-                ? Alignment.center
-                : Alignment.topCenter,
             thumbs: stripThumbs,
             // The hero leaves its place at once: a flyer carries it into
             // row 1 (reduced motion: it fades with the rest of the body).
@@ -775,6 +1081,7 @@ class _PlanCardState extends State<CoachPlanCard>
     );
 
     final Widget content;
+    Widget? cutoutLayer;
     if (single) {
       content = Stack(
         clipBehavior: cutoutTop != null && moves.firstOrNull?.cutout != null
@@ -812,7 +1119,7 @@ class _PlanCardState extends State<CoachPlanCard>
       // A set unfolds into header + list: the folded body leaves (its hero
       // flies into row 1, the strip into rows 2…), and one lerped height
       // clips the whole card; nothing in the rows is rebuilt per frame.
-      final heroLayer = reduced
+      final heroLayer = reduced || fused
           ? const SizedBox.shrink()
           : AnimatedBuilder(
               animation: _expand,
@@ -830,6 +1137,54 @@ class _PlanCardState extends State<CoachPlanCard>
                 );
               },
             );
+      if (fused) {
+        final surfaceOffset = const Offset(_inset, _inset);
+        cutoutLayer = Positioned.fill(
+          child: IgnorePointer(
+            child: Opacity(
+              opacity: _heroBoundsPending ? 0 : 1,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned.fromRect(
+                    rect: heroFrom.shift(surfaceOffset),
+                    child: FadeTransition(
+                      key: const ValueKey('plan-hero'),
+                      opacity: stripThumbs,
+                      child: RepaintBoundary(
+                        child: _Media(
+                          exercise: cover,
+                          landing: widget.landing,
+                          cutout: true,
+                          still: _moving,
+                          cutoutAlignment: Alignment.topCenter,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (!reduced)
+                    AnimatedBuilder(
+                      animation: _expand,
+                      builder: (context, _) {
+                        final t = _expand.value;
+                        if (t <= 0 || t >= 1) return const SizedBox.shrink();
+                        return _heroFlyer(
+                          cover: cover,
+                          fused: true,
+                          stage: stage,
+                          from: heroFrom.shift(surfaceOffset),
+                          to: heroTo.shift(surfaceOffset),
+                          e: timeline.fly(0, t, _back),
+                          scrim: _Timeline.title(t, _back),
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
       final titleLayer = AnimatedBuilder(
         animation: _expand,
         builder: (context, child) {
@@ -952,6 +1307,7 @@ class _PlanCardState extends State<CoachPlanCard>
                 key: const ValueKey('plan-header'),
                 height: headerH,
                 titleLineHeight: headerTitleH,
+                surfaceTopInset: surfaceTopInset,
                 title: p.title,
                 meta: meta,
                 openKey: ValueKey('plan-open-${p.id}'),
@@ -978,8 +1334,13 @@ class _PlanCardState extends State<CoachPlanCard>
     // The stable wrapper preserves the card and its padding hit region.
     {
       card = Stack(
+        clipBehavior: Clip.none,
         children: [
           card,
+          // The surface builder may clip its child to rounded bounds. Keep
+          // both the cutout and its flyer outside that subtree so only the
+          // card face and its ordinary contents are clipped.
+          ?cutoutLayer,
           // The figure can paint in the original padding. Keep that visible
           // strip tappable without covering controls, whose top is _inset.
           if (cutoutTop != null &&
@@ -994,8 +1355,8 @@ class _PlanCardState extends State<CoachPlanCard>
                       right: single
                           ? width - _inset - (CoachPlanCard.exerciseHeight - 12)
                           : width - _inset - heroFrom.right,
-                      top: widget.cutoutTopInset!,
-                      height: -cutoutTop,
+                      top: math.max(0, cutoutTop + _inset),
+                      height: _inset - math.max(0, cutoutTop + _inset),
                       child: GestureDetector(
                         key: const ValueKey('plan-cutout-padding-hit'),
                         behavior: HitTestBehavior.translucent,
@@ -1011,9 +1372,40 @@ class _PlanCardState extends State<CoachPlanCard>
 
     return Align(
       alignment: Alignment.centerLeft,
-      child: RepaintBoundary(
-        key: const ValueKey('plan-card-paint-boundary'),
-        child: SizedBox(key: _card, width: width, child: card),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          AnimatedPadding(
+            duration: reduced
+                ? Duration.zero
+                : const Duration(milliseconds: 160),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.only(top: overhang),
+            child: RepaintBoundary(
+              key: const ValueKey('plan-card-paint-boundary'),
+              child: SizedBox(key: _card, width: width, child: card),
+            ),
+          ),
+          if (fused && !horizontalCutout)
+            AnimatedBuilder(
+              animation: _expand,
+              builder: (context, _) => _expand.value != 0
+                  ? const SizedBox.shrink()
+                  : Positioned(
+                      left: _inset + heroFrom.left,
+                      right: width - _inset - heroFrom.right,
+                      top: 0,
+                      height: overhang,
+                      child: GestureDetector(
+                        key: const ValueKey('plan-cutout-overhang-hit'),
+                        behavior: HitTestBehavior.translucent,
+                        excludeFromSemantics: true,
+                        onTap: widget.onOpen,
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+            ),
+        ],
       ),
     );
   }
@@ -1065,9 +1457,7 @@ class _PlanCardState extends State<CoachPlanCard>
                       still: true,
                       landing: false,
                       fit: BoxFit.contain,
-                      alignment: widget.cutoutTopInset == null
-                          ? Alignment.center
-                          : Alignment.topCenter,
+                      alignment: Alignment.topCenter,
                     ),
                   ),
                 ),
@@ -1232,6 +1622,7 @@ class _Header extends StatelessWidget {
     super.key,
     required this.height,
     required this.titleLineHeight,
+    required this.surfaceTopInset,
     required this.title,
     required this.meta,
     required this.openKey,
@@ -1243,6 +1634,7 @@ class _Header extends StatelessWidget {
   });
   final double height;
   final double titleLineHeight;
+  final double surfaceTopInset;
   final String title;
   final String meta;
   final Key openKey;
@@ -1252,8 +1644,8 @@ class _Header extends StatelessWidget {
   final bool reduced;
   final Widget toggle;
 
-  // Together with the surface's 6 px inset, title top/left are both 22 px.
-  static const padding = 16.0;
+  // Together with the surface's 6 px inset, title top/left are both 23 px.
+  static const padding = 17.0;
   static const gap = 5.0;
   static const bottom = 12.0;
   static const titleStyle = TextStyle(
@@ -1284,8 +1676,10 @@ class _Header extends StatelessWidget {
     BuildContext context,
     double titleLineHeight,
     String meta,
+    double surfaceTopInset,
   ) =>
       padding +
+      surfaceTopInset +
       math.max(
         titleLineHeight + gap + lineHeight(context, meta, metaStyle),
         _ExpandToggle.heightFor(context),
@@ -1295,8 +1689,17 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
     height: height,
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(padding, padding, 0, bottom),
+    child: AnimatedBuilder(
+      animation: progress,
+      builder: (context, child) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          padding,
+          padding + surfaceTopInset * progress.value,
+          0,
+          bottom,
+        ),
+        child: child,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1859,11 +2262,7 @@ class _SetBody extends StatelessWidget {
     required this.hero,
     required this.chip,
     this.landing = false,
-    this.still = false,
-    this.cutoutBounds,
-    this.cutoutAlignment = Alignment.center,
   });
-  final bool still;
   final CoachExercise? cover;
   final List<CoachExercise?> shown;
   final int more;
@@ -1871,8 +2270,6 @@ class _SetBody extends StatelessWidget {
   final Animation<double> hero;
   final Animation<double> chip;
   final bool landing;
-  final Rect? cutoutBounds;
-  final Alignment cutoutAlignment;
 
   static const stripHeight = 52.0;
   static const stripTop = 6.0;
@@ -1898,25 +2295,10 @@ class _SetBody extends StatelessWidget {
       children: [
         Expanded(
           child: FadeTransition(
-            key: const ValueKey('plan-hero'),
+            key: fused ? null : const ValueKey('plan-hero'),
             opacity: hero,
             child: fused
-                ? Stack(
-                    fit: StackFit.expand,
-                    clipBehavior: Clip.none,
-                    children: [
-                      Positioned.fromRect(
-                        rect: cutoutBounds!,
-                        child: _Media(
-                          exercise: cover,
-                          landing: landing,
-                          cutout: true,
-                          still: still,
-                          cutoutAlignment: cutoutAlignment,
-                        ),
-                      ),
-                    ],
-                  )
+                ? const SizedBox.expand()
                 : ClipRRect(
                     borderRadius: BorderRadius.circular(CoachRadius.lg - 6),
                     child: Stack(

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 — 2026-10-27
+
+- Restore the multi-action cutout above the card face and reserve layout space during expansion and collapse. Use cached first-frame alpha bounds to enlarge smaller upright artwork by up to 15% and fit clearly horizontal artwork to the card's display band without crossing its top edge. Keep the image and its flying still on the same path and leave adjacent cards clear.
+- Give expanded titles 23 px of clearance from the visible card face, including the established host surface with a 14 px top inset. Custom surfaces can provide their own `surfaceTopInset`; a custom surface with no inset should pass zero.
+
 ## 0.3.0 — 2026-10-26
 
 - Give expanded routine headers 22 px outer-card top/left clearance, 5 px title/meta spacing, 12 px muted metadata and collapse-button alignment with the first title line. Preserve complete wrapping of large Chinese dose text and shared animation measurements.

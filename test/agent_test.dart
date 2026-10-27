@@ -497,7 +497,7 @@ void main() {
       expect(r.status, TurnStatus.ok);
       expect(c.requests.first.tools.map((t) => t.name), isNot(contains('remember')));
       expect(c.requests.first.messages.first.content, isNot(contains('想劈叉')));
-      expect(c.requests[1].messages.last.content, contains('没有工具'));
+      expect((jsonDecode(c.requests[1].messages.last.content) as Map<String, Object?>)['code'], 'unknown_tool');
       expect(store.entries.map((e) => e.text), ['想劈叉']);
       // 运行时打开
       a.enableUserMemory = true;

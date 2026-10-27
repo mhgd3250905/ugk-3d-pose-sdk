@@ -239,6 +239,9 @@ class PlanBuilder {
         ? deliveredId!
         : suppliedId as String? ?? newPlanId;
     if ((suppliedId != null && !state.plans.containsKey(id)) ||
+        (suppliedId != null &&
+            state.plans[id]?.isEmpty == true &&
+            id != state.activePlanId) ||
         (operation == null &&
             suppliedId == null &&
             (id.isEmpty || state.plans.containsKey(id)))) {
@@ -435,7 +438,12 @@ class PlanBuilder {
     }
     final next = working.copyWith(
       plans: {
-        ...state.plans,
+        for (final entry in state.plans.entries)
+          if (!(suppliedId == null &&
+              operation == null &&
+              entry.key == state.activePlanId &&
+              entry.value.isEmpty))
+            entry.key: entry.value,
         id: [...previous, saved],
       },
       activePlanId: id,

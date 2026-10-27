@@ -31,22 +31,27 @@ import '../tools/coach_session.dart';
 import '../tools/tool_gate.dart';
 import '../usage/usage.dart';
 import '../util/clock.dart';
-import 'action_search.dart';
 import 'action_tags.dart';
 import 'agent_prompt.dart';
 import 'agent_resilience.dart';
 import 'agent_task.dart';
+import 'batch_handler.dart';
 import 'node_gates.dart';
-import 'plan_builder.dart';
-import 'plan_checker.dart';
 import 'session_params.dart';
 import 'session_state.dart';
 import 'skill_files.dart';
+import 'skill_tool_handler.dart';
+import 'structured_tool_handler.dart';
+import 'terminal_tool_handler.dart';
 import 'training_confirmation.dart';
 import 'training_parameters.dart';
 import 'user_memory.dart';
 
 export 'agent_resilience.dart';
+
+part 'memory_tool_handler.dart';
+part 'ask_commit_handler.dart';
+part 'output_commit_handler.dart';
 
 /// Persist alongside a delivered plan card to restore its planning conditions.
 /// [planId] binds the snapshot to that exact card. A snapshot for another plan
@@ -1793,432 +1798,116 @@ class CoachAgent {
         break;
       }
 
-      // ask_user 是终止工具：先整批预检，不能执行旁边的 read / 记忆等工具再发问题。
-      // 非法参数和互斥错误仍作为每个 tool_call 的结果回给模型自行修正。
-      final asks = res.toolCalls
-          .where((t) => t.name == AgentTools.askUser)
-          .toList();
-      if (asks.isNotEmpty) {
-        submissions++;
-        final issues = <PlanIssue>[];
-        if (res.toolCalls.length != 1) {
-          issues.add(
-            const PlanIssue(
-              IssueCodes.multipleTools,
-              'ask_user 每轮只能问一次，且不能与 show_plan / show_actions 或其他工具一起调用',
-              path: 'tool_calls',
-              expected: '仅一个 ask_user，或移除 ask_user 后交付方案',
-              actual: '同批多个工具',
-              fix: '本轮只保留一个 ask_user；询问轮不要读动作库或执行其他工具。',
-            ),
-          );
-        }
-        final checked = AskUserGate.check(asks.first.arguments);
-        issues.addAll(checked.errors);
-        if (issues.isEmpty) {
-          final question = checked.question!;
-          calls.add(
-            _Call.ok(
-              step,
-              res,
-              rejected == 0 ? CallOutcome.passed : CallOutcome.rewritten,
-              retry: tag,
-            ),
-          );
-          return done(
-            TurnStatus.ok,
-            rejected == 0 ? TurnOutcome.model : TurnOutcome.rewritten,
-            step,
-            text: question.question,
-            question: question,
-            commit: () {
-              _questionsAsked = questionsAsked + 1;
-              _pendingConfirmation = question;
-              _parameterTask =
-                  parameterTask || question.mode == AskUserMode.form;
-              _turns++;
-              // Preserve the complete tool exchange so the next user answer
-              // can continue from the actual search results. Sanitize private
-              // memory per batch: IDs may be reused by later tool calls.
-              final resumable = <LlmMessage>[];
-              for (var i = 0; i < turnMsgs.length;) {
-                final message = turnMsgs[i++];
-                final batch = <LlmMessage>[message];
-                if (message.role == LlmRole.assistant) {
-                  while (i < turnMsgs.length &&
-                      turnMsgs[i].role == LlmRole.tool) {
-                    batch.add(turnMsgs[i++]);
-                  }
-                }
-                final privateIds = <String>{
-                  for (final tool in message.toolCalls)
-                    if (memResultIds.contains(tool.id) &&
-                        (tool.name == AgentTools.remember ||
-                            tool.name == AgentTools.forget ||
-                            (tool.name == AgentTools.read &&
-                                SkillFiles.normalize(
-                                  _arg(tool, 'path') ?? '',
-                                ).startsWith('${SkillFiles.userMemory}/'))))
-                      tool.id,
-                };
-                resumable.addAll(
-                  _withoutMemory(
-                    batch,
-                    privateIds,
-                    privateReasoning: memoryReasoning,
-                  ),
-                );
-              }
-              _history
-                ..add(userMsg)
-                ..addAll(resumable)
-                ..add(
-                  assistant(
-                    response,
-                    content: question.question,
-                    history: true,
-                  ),
-                )
-                ..add(
-                  LlmMessage.tool(
-                    asks.single.id,
-                    jsonEncode({
-                      'ok': true,
-                      'asked': true,
-                      'awaitingUser': true,
-                    }),
-                  ),
-                );
-            },
-          );
-        }
-        calls.add(
-          _Call.ok(
-            step,
-            res,
-            CallOutcome.rejected,
-            retry: tag,
-            codes: [for (final issue in issues) issue.code],
-          ),
-        );
-        lastErrors = issues;
-        if (++rejected > maxResubmits) break;
-        final feedback = _feedback(
-          issues,
-          remaining: 1 + maxResubmits - rejected,
-        );
-        turnMsgs.add(assistant(res));
-        for (final call in res.toolCalls) {
-          turnMsgs.add(LlmMessage.tool(call.id, feedback));
-        }
-        continue;
-      }
-
-      // 先执行中间工具，再判最终 show_*。
-      final results = <String, String>{};
+      // Execute the batch in order; a failed call blocks every later call.
+      final batch = ToolBatch();
+      final structured = StructuredToolHandler(profile, cat,
+          newPlanId: () => _ids.next('plan'), extraRules: extraRules,
+          enforceDrillDoseRange: enforceDrillDoseRange);
+      final skills = SkillToolHandler(fs, readSet, reads, listed);
+      final terminal = TerminalToolHandler(gate);
+      final results = batch.results;
+      final orderedResults = <String>[];
+      final callIds = <String>{};
       final pendingCompress = <String, CompressibleResult>{};
-      final finals = <LlmToolCall>[];
+      AgentOutputResult? terminalOutput;
+      AskUserQuestion? terminalQuestion;
+      bool terminalRejected = false;
       var fresh = false;
-      for (final t in res.toolCalls) {
+      for (var toolIndex = 0; toolIndex < res.toolCalls.length; toolIndex++) {
+        final t = res.toolCalls[toolIndex];
+        if (batch.failed) {
+          batch.skipped(t.id);
+          orderedResults.add(results[t.id]!);
+          continue;
+        }
+        if (!callIds.add(t.id)) {
+          orderedResults.add(jsonEncode(nodeError('duplicate_tool_call_id', 'tool_calls[$toolIndex].id',
+              '每个 tool_call_id 唯一', t.id, '为每个工具调用提供不同的 ID。')));
+          batch.mark(toolIndex + 1, t.id, failure: true);
+          continue;
+        }
         // Host settings may change while the model request is in flight.
         context = ledgerContext(context);
+        bool? toolFailure;
         switch (t.name) {
           case AgentTools.draftPlan:
-            Object? args;
-            try {
-              args = jsonDecode(t.arguments);
-            } on FormatException {
-              args = null;
+            final handled = structured.draft(_sessionState, t.arguments, context.language);
+            _sessionState = handled.state;
+            if (handled.changes.isNotEmpty) {
+              _emitNodeChanges(turnId, NodeResult(handled.state, changes: handled.changes));
             }
-            if (args is! Map || args.keys.any((key) => key is! String)) {
-              results[t.id] = jsonEncode(nodeError(
-                'invalid_arguments', 'arguments',
-                '包含 title、blocks 和可选 plan_id 的 JSON 对象',
-                args, '按 draft_plan schema 提供结构化计划。',
-              ));
-              continue;
-            }
-            final draft = PlanBuilder(profile, cat, minPicks: profile.minActions)
-                .draft(_sessionState, args.cast<String, Object?>(),
-                    newPlanId: _ids.next('plan'), language: context.language);
-            // Duration and replacement errors retain a version to repair.
-            if (draft.planId != null) {
-              _sessionState = draft.state;
-              if (draft.changes.isNotEmpty) {
-                _emitNodeChanges(turnId, NodeResult(draft.state, changes: draft.changes));
-              }
-              fresh = true;
-            }
-            results[t.id] = jsonEncode(draft.toJson());
+            fresh = fresh || handled.fresh;
+            results[t.id] = handled.response;
           case AgentTools.searchActions || AgentTools.getAction:
-            Object? args;
-            try {
-              args = jsonDecode(t.arguments);
-            } on FormatException {
-              args = null;
+            final handled = structured.search(_sessionState, t.name, t.arguments, context.language);
+            _sessionState = handled.state;
+            fresh = fresh || handled.fresh;
+            for (final id in handled.accessed) {
+              if (readSet.add('get_action:$id')) fresh = true;
             }
-            final searchCall = t.name == AgentTools.searchActions;
-            final keys = searchCall ? {'tags', 'keywords', 'limit'} : {'ids'};
-            final listKey = searchCall ? 'tags' : 'ids';
-            if (args is! Map ||
-                args.keys.any((key) => key is! String || !keys.contains(key)) ||
-                args[listKey] is! List ||
-                (args[listKey] as List).any((value) => value is! String) ||
-                (args[listKey] as List).toSet().length !=
-                    (args[listKey] as List).length ||
-                (searchCall &&
-                    args['keywords'] != null &&
-                    args['keywords'] is! String) ||
-                (searchCall &&
-                    args['limit'] != null &&
-                    args['limit'] is! int)) {
-              results[t.id] = jsonEncode(
-                nodeError(
-                  'invalid_arguments',
-                  'arguments',
-                  searchCall
-                      ? '{tags: string[], keywords?: string, limit?: 1–20}'
-                      : '{ids: 1–10 unique strings}',
-                  args,
-                  '使用工具 schema 中的字段和值。',
-                ),
-              );
-              continue;
-            }
-            final search = ActionSearch(
-              profile,
-              cat,
-              minPicks: profile.minActions,
-            );
-            final found = searchCall
-                ? search.search(
-                    _sessionState,
-                    tags: (args['tags'] as List).cast<String>(),
-                    keywords: args['keywords'] as String? ?? '',
-                    limit: args['limit'] as int? ?? 20,
-                    language: context.language,
-                  )
-                : search.getActions(
-                    _sessionState,
-                    (args['ids'] as List).cast<String>(),
-                    language: context.language,
-                  );
-            if (found.ok) {
-              if (searchCall) {
-                fresh =
-                    found.state.seenActionIds.length >
-                        _sessionState.seenActionIds.length ||
-                    fresh;
-                _sessionState = found.state;
-              } else {
-                for (final id in (args['ids'] as List).cast<String>()) {
-                  if (readSet.add('get_action:$id')) fresh = true;
-                }
-              }
-            }
-            results[t.id] = jsonEncode(found.toJson());
+            results[t.id] = handled.response;
           case AgentTools.startTask || AgentTools.check:
-            Object? args;
-            try {
-              args = jsonDecode(t.arguments);
-            } on FormatException {
-              args = null;
+            final handled = structured.task(_sessionState, t.name, t.arguments, context.language);
+            _sessionState = handled.state;
+            if (handled.changes.isNotEmpty) {
+              _emitNodeChanges(turnId, NodeResult(handled.state, changes: handled.changes));
             }
-            if (args is! Map ||
-                args.keys.any((key) => key is! String) ||
-                (t.name == AgentTools.startTask &&
-                    (args['type'] is! String ||
-                        (args['reuse'] != null && args['reuse'] is! bool) ||
-                        args.keys.any(
-                          (key) => key != 'type' && key != 'reuse',
-                        ))) ||
-                (t.name == AgentTools.check &&
-                    (args['node'] is! String ||
-                        (args['picks'] != null &&
-                            (args['picks'] is! List ||
-                                (args['picks'] as List).any(
-                                  (v) => v is! String,
-                                ))) ||
-                        args.keys.any(
-                          (key) => key != 'node' && key != 'picks',
-                        )))) {
-              results[t.id] = jsonEncode(
-                nodeError(
-                  'invalid_arguments',
-                  'arguments',
-                  t.name == AgentTools.startTask
-                      ? '{type: recommend|plan, reuse?: bool}'
-                      : '{node: fixed node, picks?: string[]}',
-                  args,
-                  '使用工具 schema 中的字段和值。',
-                ),
-              );
-              continue;
-            }
-            final nodes = t.name == AgentTools.startTask
-                ? AgentTask.start(
-                    _sessionState,
-                    args['type'] as String,
-                    reuse: args['reuse'] as bool? ?? false,
-                  )
-                : NodeGates(profile, cat, minPicks: profile.minActions).check(
-                    _sessionState,
-                    args['node'] as String,
-                    picks: (args['picks'] as List?)?.cast<String>(),
-                    language: context.language,
-                  );
-            if (nodes.ok) {
-              _sessionState = nodes.state;
-              _emitNodeChanges(turnId, nodes);
-              fresh = true;
-            }
-            results[t.id] = jsonEncode(
-              nodes.error ??
-                  {
-                    'ok': true,
-                    'task': nodes.state.task?.toJson(),
-                    if (nodes.warnings.isNotEmpty) 'warnings': nodes.warnings,
-                  },
-            );
+            fresh = fresh || handled.fresh;
+            results[t.id] = handled.response;
           case AgentTools.setParams:
             Object? args;
             try {
               args = jsonDecode(t.arguments);
             } on FormatException {
-              results[t.id] = jsonEncode({
-                'ok': false,
-                'code': 'invalid_json',
-                'field': 'arguments',
-                'expected': '合法 JSON 对象',
-                'actual': '无效 JSON',
-                'fix': '提供包含 fields 的合法 JSON 对象。',
-              });
-              continue;
+              results[t.id] = jsonEncode(nodeError('invalid_json', 'arguments',
+                  '合法 JSON 对象', '无效 JSON', '提供包含 fields 的合法 JSON 对象。'));
+              break;
             }
             List<MemoryEntry> savedMemory = const [];
             if (memoryOn && memoryAllowed()) {
-              try {
-                savedMemory = await memory();
-              } on Object {
-                savedMemory = const [];
-              }
+              try { savedMemory = await memory(); } on Object { savedMemory = const []; }
             }
             if (dead()) return cancelled(step);
             if (!memoryAllowed()) savedMemory = const [];
-            final update = SessionParams(
-              ActionTags(profile, cat),
-            ).set(_sessionState, args, memory: savedMemory);
-            if (update.ok) {
-              _sessionState = update.state;
-              context = ledgerContext(context);
-              if (update.changedFields.isNotEmpty) {
-                final nodes = NodeGates(
-                  profile,
-                  cat,
-                  minPicks: profile.minActions,
-                ).parametersChanged(_sessionState, language: context.language, changedFields: update.changedFields, valueChangedFields: update.valueChangedFields);
-                _sessionState = nodes.state;
-                _emitNodeChanges(turnId, nodes);
-                fresh = true;
-                _pendingConfirmation = null;
-              }
+            final handled = structured.setParams(_sessionState, args, context.language, savedMemory);
+            _sessionState = handled.state;
+            context = ledgerContext(context);
+            if (handled.changes.isNotEmpty) {
+              _emitNodeChanges(turnId, NodeResult(handled.state, changes: handled.changes));
             }
-            results[t.id] = jsonEncode(update.toJson());
-          case AgentTools.read:
-            final path = SkillFiles.normalize(_arg(t, 'path') ?? '');
-            if (_sessionState.task != null &&
-                path.startsWith('${SkillFiles.actionLibrary}/') &&
-                path != '${SkillFiles.actionLibrary}/SKILL.md') {
-              results[t.id] = jsonEncode(
-                nodeError(
-                  'use_action_search',
-                  'path',
-                  'search_actions 或 get_action',
-                  path,
-                  '通过动作工具读取按当前条件过滤的数据。',
-                ),
-              );
-              continue;
-            }
-            emit(AgentEventKind.reading, step: step, path: path);
-            if (path.startsWith('${SkillFiles.userMemory}/')) {
-              memResultIds.add(t.id);
-            }
-            final before = readSet.length;
-            final isDir = fs.read(path) == null && fs.ls(path) != null;
-            results[t.id] = _read(fs, path, readSet, reads);
-            if (isDir) {
-              // 目录 read 与 ls 共用目录去重 / 新信息 / 压缩跟踪。
-              if (listed.add(path)) fresh = true;
-              pendingCompress[t.id] = CompressibleResult(
-                t.id,
-                '已列目录 $path（略，需要可再 ls）',
-              );
-            } else if (readSet.length > before) {
+            if (handled.fresh) {
               fresh = true;
-              pendingCompress[t.id] = CompressibleResult(
-                t.id,
-                '已读 $path（内容已省略以节省上下文，需要可再 read）',
-                path: path,
-              );
+              _pendingConfirmation = null;
             }
-          case AgentTools.ls:
-            final dir = SkillFiles.normalize(_arg(t, 'dir') ?? '');
-            if (_sessionState.task != null &&
-                (dir == SkillFiles.actionLibrary ||
-                    dir.startsWith('${SkillFiles.actionLibrary}/'))) {
-              results[t.id] = jsonEncode(
-                nodeError(
-                  'use_action_search',
-                  'dir',
-                  'search_actions 或 get_action',
-                  dir,
-                  '通过动作工具检索按当前条件过滤的数据。',
-                ),
-              );
-              continue;
+            results[t.id] = handled.response;
+          case AgentTools.read || AgentTools.ls:
+            final read = t.name == AgentTools.read;
+            final path = SkillFiles.normalize(_arg(t, read ? 'path' : 'dir') ?? '');
+            if (!skills.blocked(path, read: read, hasTask: _sessionState.task != null)) {
+              emit(read ? AgentEventKind.reading : AgentEventKind.listing, step: step, path: path);
+              if (dead()) return cancelled(step);
+              if (read && path.startsWith('${SkillFiles.userMemory}/')) memResultIds.add(t.id);
             }
-            emit(AgentEventKind.listing, step: step, path: dir);
-            final l = fs.ls(dir);
-            results[t.id] = l == null ? '没有这个目录：$dir' : l.join('\n');
-            if (l != null) {
-              if (listed.add(dir)) fresh = true;
-              pendingCompress[t.id] = CompressibleResult(
-                t.id,
-                '已列目录 $dir（略，需要可再 ls）',
-              );
-            }
+            final handled = skills.execute(t.id, path, read: read, hasTask: _sessionState.task != null);
+            results[t.id] = handled.response;
+            toolFailure = handled.failed;
+            fresh = fresh || handled.fresh;
+            if (handled.compressible != null) pendingCompress[t.id] = handled.compressible!;
           case AgentTools.checkPlan:
             emit(AgentEventKind.checking, step: step);
-            Object? args;
-            try {
-              args = jsonDecode(t.arguments);
-            } on FormatException {
-              args = null;
+            if (dead()) return cancelled(step);
+            final handled = structured.checkPlan(_sessionState, t.arguments);
+            _sessionState = handled.state;
+            if (handled.changes.isNotEmpty) {
+              _emitNodeChanges(turnId, NodeResult(handled.state, changes: handled.changes));
             }
-            if (args is! Map || args.keys.any((key) => key != 'plan_id') ||
-                args['plan_id'] is! String || (args['plan_id'] as String).isEmpty) {
-              results[t.id] = jsonEncode(nodeError(
-                'invalid_arguments', 'arguments', '{plan_id: nonempty string}',
-                args, '提供当前计划的 plan_id。',
-              ));
-              continue;
-            }
-            final checked = PlanChecker(profile, cat,
-                    minPicks: profile.minActions,
-                    extraRules: extraRules,
-                    enforceDrillDoseRange: enforceDrillDoseRange)
-                .check(_sessionState, args['plan_id'] as String);
-            _sessionState = checked.state;
-            if (checked.changes.isNotEmpty) {
-              _emitNodeChanges(turnId, NodeResult(checked.state, changes: checked.changes));
-            }
-            if (checked.error == null) fresh = true;
-            results[t.id] = jsonEncode(checked.toJson());
+            fresh = fresh || handled.fresh;
+            results[t.id] = handled.response;
           case AgentTools.remember || AgentTools.forget when memoryOn:
             final kindName = _arg(t, 'kind');
             final memoryEpoch = turnMemoryEpoch;
             emit(AgentEventKind.memory, step: step, path: kindName);
+            if (dead()) return cancelled(step);
             memResultIds.add(t.id);
             fresh = true;
             var memoryTimedOut = false;
@@ -2258,14 +1947,30 @@ class CoachAgent {
               reason = FallbackReason.timeout;
               break agentSteps;
             }
+          case AgentTools.askUser:
+            final handled = terminal.ask(t.arguments, toolIndex + 1, res.toolCalls.length);
+            terminalRejected = handled.rejected;
+            terminalQuestion = handled.question;
+            results[t.id] = handled.response;
           case AgentTools.showActions || AgentTools.showPlan:
             attemptedOutput = true;
-            finals.add(t);
+            final handled = terminal.show(_sessionState, t.name, t.arguments,
+                language: context.language, redFlag: redFlag);
+            terminalRejected = handled.rejected;
+            terminalOutput = handled.output;
+            results[t.id] = handled.response;
           default:
-            results[t.id] = jsonEncode({
-              'ok': false,
-              'error': '没有工具「${t.name}」，只能用已提供的工具',
-            });
+            results[t.id] = jsonEncode(nodeError('unknown_tool', 'tool', '已提供的工具', t.name, '使用当前工具列表中的名称。'));
+        }
+        if (dead()) return cancelled(step);
+        batch.mark(toolIndex + 1, t.id, failure: toolFailure);
+        orderedResults.add(results[t.id]!);
+        if (terminalOutput != null) {
+          for (var later = toolIndex + 1; later < res.toolCalls.length; later++) {
+            batch.skippedAfterCompletion(res.toolCalls[later].id, toolIndex + 1);
+            orderedResults.add(results[res.toolCalls[later].id]!);
+          }
+          break;
         }
       }
       if (leaked) {
@@ -2281,13 +1986,52 @@ class CoachAgent {
         break;
       }
 
-      if (finals.isEmpty) {
-        calls.add(_Call.ok(step, res, retry: tag, CallOutcome.toolStep));
+      if (terminalQuestion != null) {
+        submissions++;
+        final question = terminalQuestion;
+        calls.add(_Call.ok(step, res,
+          rejected == 0 ? CallOutcome.passed : CallOutcome.rewritten, retry: tag));
+        return done(
+          TurnStatus.ok,
+          rejected == 0 ? TurnOutcome.model : TurnOutcome.rewritten,
+          step,
+          text: question.question,
+          question: question,
+          commit: () => _commitAsk(
+            question: question,
+            questionsAsked: questionsAsked,
+            parameterTask: parameterTask,
+            userMessage: userMsg,
+            turnMessages: turnMsgs,
+            assistantMessage: assistant(response, content: question.question, history: true),
+            calls: response.toolCalls,
+            results: orderedResults,
+            memoryResultIds: memResultIds,
+            privateReasoning: memoryReasoning,
+          ),
+        );
+      }
+
+      if (terminalOutput == null) {
+        if (terminalRejected) {
+          submissions++;
+          final detail = jsonDecode(orderedResults[batch.firstFailure! - 1]) as Map;
+          lastErrors = [PlanIssue('${detail['code']}', '${detail['fix']}')];
+          calls.add(_Call.ok(step, res, retry: tag,
+              CallOutcome.rejected, codes: [for (final issue in lastErrors) issue.code]));
+          if (++rejected > maxResubmits) {
+            break;
+          }
+        } else {
+          calls.add(_Call.ok(step, res, retry: tag, CallOutcome.toolStep));
+        }
         turnMsgs.add(assistant(res));
-        for (final t in res.toolCalls) {
-          final m = LlmMessage.tool(t.id, results[t.id]!);
+        for (var i = 0; i < res.toolCalls.length; i++) {
+          final t = res.toolCalls[i];
+          final m = LlmMessage.tool(t.id, orderedResults[i]);
           turnMsgs.add(m);
-          final c = pendingCompress[t.id];
+          final c = res.toolCalls.indexWhere((call) => call.id == t.id) == i
+              ? pendingCompress[t.id] : null;
           if (c != null) compressible[m] = c;
         }
         // 防空转：连续相同的工具调用（同名同参数）或连续无新信息。
@@ -2320,62 +2064,8 @@ class CoachAgent {
         continue;
       }
 
-      if (redFlag) {
-        submissions++;
-        lastErrors = const [
-          PlanIssue('safety_no_actions', '存在未排除的安全风险，不能交付训练动作或计划'),
-        ];
-        calls.add(
-          _Call.ok(
-            step,
-            res,
-            CallOutcome.rejected,
-            codes: const ['safety_no_actions'],
-          ),
-        );
-        if (++rejected > maxResubmits) break;
-        final feedback = _feedback(
-          lastErrors,
-          remaining: 1 + maxResubmits - rejected,
-        );
-        turnMsgs.add(assistant(res));
-        for (final call in res.toolCalls) {
-          turnMsgs.add(LlmMessage.tool(call.id, results[call.id] ?? feedback));
-        }
-        continue;
-      }
       submissions++;
-      Object? outputArgs;
-      try {
-        outputArgs = finals.length == 1 ? jsonDecode(finals.single.arguments) : null;
-      } on FormatException {
-        outputArgs = null;
-      }
-      final output = finals.length == 1
-          ? gate.checkAgentOutput(_sessionState, finals.single.name, outputArgs,
-              language: context.language)
-          : AgentOutputResult(state: _sessionState, error: nodeError(
-              'multiple_outputs', 'tool_calls', '一个交付工具', finals.length,
-              '只调用一个交付工具。'));
-      if (!output.ok) {
-        final issue = output.error!;
-        calls.add(
-          _Call.ok(
-            step,
-            res,
-            retry: tag,
-            CallOutcome.rejected,
-            codes: [issue['code'] as String],
-          ),
-        );
-        lastErrors = [PlanIssue(issue['code'] as String, issue['fix'] as String)];
-        if (++rejected > maxResubmits) break;
-        turnMsgs.add(assistant(res));
-        for (final call in res.toolCalls) {
-          turnMsgs.add(LlmMessage.tool(call.id, results[call.id] ?? jsonEncode(issue)));
-        }
-        continue;
-      }
+      final output = terminalOutput;
       final g = output.card!;
       if (g.ok) {
         var admittedTask = _sessionState.task;
@@ -2399,51 +2089,19 @@ class CoachAgent {
           commitValid: () =>
               identical(_sessionState.task, admittedTask) &&
               _hostSafetyRevision == admittedSafetyRevision,
-          commit: () {
-            _sessionState = output.state;
-            if (g.plan != null) {
-              final deliveredId = g.plan!.plan.id;
-              final deliveredVersions = _sessionState.plans[deliveredId];
-              if (deliveredVersions != null && deliveredVersions.isNotEmpty) {
-                _sessionState = _sessionState.copyWith(
-                  lastDeliveredPlanId: deliveredId,
-                  lastDeliveredVersion: deliveredVersions.last.version,
-                  lastDeliveredTurn: _sessionState.userTurns.isEmpty
-                      ? 0 : _sessionState.userTurns.last.turn,
-                );
-              }
-            }
-            admittedTask = _sessionState.task;
-            _emitNodeChanges(turnId, NodeResult(_sessionState, changes: output.changes));
-            if (dead() || _hostSafetyRevision != admittedSafetyRevision ||
-                !identical(_sessionState.task, admittedTask)) {
-              return;
-            }
-            _pendingConfirmation = null;
-            if (g.plan != null) {
-              _confirmedPlanContext = CoachContext(
-                scene: context.scene,
-                equipment: context.equipment,
-                minutes: g.plan!.plan.targetMinutes,
-                avoid: context.avoid,
-                level: context.level,
-                goal: context.goal,
-                language: context.language,
-                notes: context.notes,
-              );
-              _lastConfirmedForm = trainingSelections(
-                _confirmedPlanContext!,
-                cat,
-              );
-            }
-            _questionsAsked = 0;
-            _parameterTask = false;
-            _turns++;
-            _history
-              ..add(userMsg)
-              ..add(assistant(response, content: g.text,
-                  toolCalls: const [], history: true));
-          },
+          commit: () => _commitOutput(
+            output: output,
+            card: g,
+            safetyRevision: admittedSafetyRevision,
+            turnId: turnId,
+            context: context,
+            catalog: cat,
+            dead: dead,
+            updateAdmittedTask: (task) => admittedTask = task,
+            userMessage: userMsg,
+            visibleAssistant: () => assistant(response, content: g.text,
+                toolCalls: const [], history: true),
+          ),
         );
       }
       calls.add(
@@ -2457,12 +2115,13 @@ class CoachAgent {
       );
       lastErrors = g.errors;
       if (++rejected > maxResubmits) break;
-      final fb = _feedback(g.errors, remaining: 1 + maxResubmits - rejected);
       turnMsgs.add(assistant(res));
-      for (final t in res.toolCalls) {
-        final m = LlmMessage.tool(t.id, results[t.id] ?? fb);
+      for (var i = 0; i < res.toolCalls.length; i++) {
+        final t = res.toolCalls[i];
+        final m = LlmMessage.tool(t.id, orderedResults[i]);
         turnMsgs.add(m);
-        final c = pendingCompress[t.id];
+        final c = res.toolCalls.indexWhere((call) => call.id == t.id) == i
+            ? pendingCompress[t.id] : null;
         if (c != null) compressible[m] = c;
       }
     }
@@ -2554,83 +2213,6 @@ class CoachAgent {
       // 参数坏了按缺失处理。
     }
     return null;
-  }
-
-  static String _read(
-    SkillFiles fs,
-    String path,
-    Set<String> readSet,
-    List<String> reads,
-  ) {
-    final text = fs.read(path);
-    if (text == null) {
-      final l = fs.ls(path);
-      if (l != null) return '$path 是目录，包含：\n${l.join('\n')}';
-      return '没有这个文件：$path。入口见系统提示里的技能列表，可用 ls 查看目录。';
-    }
-    if (!readSet.add(path)) return '（已读过 $path，见前文）';
-    reads.add(path);
-    return text;
-  }
-
-  static String _memoryError(String code) => jsonEncode({
-    'ok': false,
-    'error': code,
-    'message': '记忆未确认保存成功，不要向用户确认已记下或已忘记。',
-  });
-
-  Future<String> _memoryOp(
-    LlmToolCall t, {
-    required bool Function() valid,
-    required int epoch,
-  }) async {
-    final kindName = _arg(t, 'kind');
-    final kind = MemoryKind.values.where((k) => k.name == kindName).firstOrNull;
-    final text = _arg(t, 'text');
-    late List<MemoryEntry> Function(List<MemoryEntry>) update;
-    if (t.name == AgentTools.remember) {
-      if (kind == null || text == null || text.trim().isEmpty) {
-        return jsonEncode({
-          'ok': false,
-          'error':
-              'remember 需要 kind（${MemoryKind.values.map((k) => k.name).join('/')}）和 text',
-        });
-      }
-      final at = _clock().toUtc();
-      update = (m) => UserMemoryOps.remember(
-        m,
-        MemoryEntry(kind, text, at: at),
-        memoryLimits,
-      );
-    } else {
-      if (kind == null && (text == null || text.trim().isEmpty)) {
-        return jsonEncode({'ok': false, 'error': 'forget 需要 kind 或 text'});
-      }
-      update = (m) => UserMemoryOps.forget(m, kind: kind, text: text);
-    }
-    try {
-      return await _queueMemory(() async {
-        if (!valid()) return _memoryError('cancelled');
-        final before = List<MemoryEntry>.of(await memory());
-        if (!valid()) return _memoryError('cancelled');
-        final next = update(before);
-        await memoryStore.save(next);
-        if (!valid()) {
-          // store 的 Future 不可取消。迟到写入仍占有队列，恢复未确认前的快照，
-          // clearMemory 已递增 epoch 时以当前清空意图为准，再放行后续写入。
-          await memoryStore.save(
-            epoch == _memEpoch
-                ? before
-                : List<MemoryEntry>.of(_memory ?? const []),
-          );
-          return _memoryError('cancelled');
-        }
-        _memory = next;
-        return jsonEncode({'ok': true});
-      });
-    } on Object {
-      return _memoryError('memory_save_failed');
-    }
   }
 
   /// show_* 被打回时回给模型的结果（改法换成 Agent 口径：id 来自读到的文件）。

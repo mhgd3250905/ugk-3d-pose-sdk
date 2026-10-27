@@ -10,28 +10,26 @@ description: 排一份能直接开练的训练计划，或修改上一份计划
 - 有缺项时由模型决定是否 ask_user，回答后继续；不限追问轮数，不重复问已知条件。默认器材为徒手，不臆造身体状况。
 - 调整当前计划沿用未修改的条件，用户明确给出的新场景、器械或时长覆盖原值，不再次询问；动作问题或闲聊只回答。
 - “换一套”“换个别的”“再来一套”在已有计划时是整套调整：保留场景、器械、时长和重点，优先选上一套未使用的安全动作，至少一半动作须为新动作；有新部位或目标时按新规划处理。单独换一个动作不适用整套替换规则。
-信息足够后直接从紧凑索引筛选，按默认剂量组成完整计划交付 show_plan，不必先 read 技能、索引或逐条详情，也不必先 check_plan。check_plan 仅当前工具列表提供时可用，用于用户明确要求检查/自检或提交被门禁打回后修正；不要为了估时反复自检。修改仍提交完整新计划，最终门禁照常校验。
+信息足够后通过 search_actions 搜索动作，check(actions, picks) 后用 draft_plan 生成草稿，依次完成 check(planning)、check_plan 和 check(review)，最后用 show_plan 交付。动作详情需要时才调用 get_action。
+同一回复可以按顺序合并多个调用：已知条件时合并 start_task、check(understand)、set_params、check(parameters)；动作已选时合并 check(actions, picks)、draft_plan、check(planning)、check_plan、check(review)、show_plan，计划 ID 使用 start_task 返回的 plan_id。某个调用失败后本批后续调用会跳过；ask_user 必须放在回复的最后。
 - 红旗情况只给就医建议，不排课。普通不适写入 avoid（词表：{{cautions}}），排除注意标签相交或命中禁忌的动作；safetyNotes 写不适加重就停止。
 - 结构按 warmup→main/circuit→cooldown；8分钟内可1–2块。动作全计划不重复；难度不高于用户水平，单侧左右都做。
-- show_plan 顶层直接填 schemaVersion=1、title（≤12字）、summary、goal（{{goals}}）、scene（{{sceneIds}}）、level、targetMinutes、blocks，按需 equipment/avoid/notes/safetyNotes，不包 plan。块填 type/items；循环块 rounds≥2、items.sets=1。
-- 每项填 exerciseId/mode/sets/perSide/restSeconds；mode=reps填reps，mode=time填workSeconds，与索引一致。索引剂量 mode:组×次数或秒@休息秒；每项 perSide 严格拷贝索引：1→true、0→false，不能根据动作名称、单腿或交替做法自行猜测，剂量指每侧。拿不准用默认剂量；硬限：{{limits}}。
-- equipment 填动作实际用到的器械 id，徒手用空数组；只用本次确认可用器械，不从“在家”推断有垫子、椅子或哑铃。在动作安全、场景与重点匹配前提下，优先选择能用到用户所选器械的动作。按场景过滤，办公室不排着地动作。场所规则：
-{{sceneRules}}
-- 时长粗算：每组次数×3秒或workSeconds，单侧×2，加休息，换动作约15秒。用户明确分钟数时实际估时与要求偏差不超过 25%；仅要求短一点或长一点时，实际估时相对原方案变短或变长，不套用 25% 规则。按目标调整组数/动作，不靠省休息硬凑。门禁会校验，失败按返回错误修正；文字中的时长和器械必须与计划实际数据一致。
+- 草稿指定标题、块结构和已搜索动作，剂量和目标时长由 draft_plan 按目录配平；核对用 check_plan(plan_id)，卡片由 show_plan(plan_id, note) 交付。
+- 只使用本次明确可用的器械，器械未确认按徒手搜索；场景及伤痛限制以账本和工具返回为准。
 <!-- fast-path:end -->
 
 ## 步骤
 1. 先判断本轮任务；会话内用户说过的条件与宿主条件都已知。保护部位和水平仍遵循可信安全上下文。
 2. 缺参数时由模型决定是否询问，不限制追问轮数；收到回答后继续，不重复询问已知条件。
-3. 信息足够或已结束询问后，直接从系统紧凑索引选动作；只在编排需要时补查资料，询问轮不查动作库。
-4. 按下面原则编排完整计划；用户明确要求检查或被门禁打回后，且工具列表提供 check_plan 时才可用它辅助修正，不反复估时。
-5. 调 show_plan 交付，简短说明排法和理由；使用本次确认结果，选择“按默认来”采用默认值时，用一句话说明假设。
+3. 用 search_actions 搜索符合已知条件的动作并完成动作节点。
+4. 用 draft_plan 编排并完成规划节点，再用 check_plan 核对；不通过则根据反馈修改草稿。
+5. 核对节点通过后用 show_plan(plan_id, note) 交付计划卡。
 
 ## 先问再排的规则
 - 本次会话中已给出的场景、器械、时长以及宿主条件算已知；长期记忆只作为预选，不能当作本次用户确认。
 - 是否询问由模型判断，回答按用户实际表达理解；用户接受默认时写明默认，不编造不存在的事实。
 - 已确认的条件不重复询问；器材未给出时默认徒手。
-- 修改当前计划沿用现有条件；动作问题、闲聊不生成计划。其他必要的旧版 ask_user 澄清与 show_plan / show_actions 不能同轮调用。
+- 修改当前计划沿用现有条件；动作问题、闲聊不生成计划。ask_user 必须是本次回复中的最后一个调用。
 
 ## 编排原则
 - 结构：热身（warmup）→ 主训练（main 或 circuit）→ 放松（cooldown），热身块不能排在放松块之后；8 分钟以内可以只有 1–2 块。
@@ -42,17 +40,8 @@ description: 排一份能直接开练的训练计划，或修改上一份计划
 - 用户点名的动作库里没有：用最接近的库内动作代替，在 notes 写「X 库里没有，用 Y 代替」；没有合适替代就纯文字说明。
 
 ## 参数规则（违反会被打回）
-- 参数顶层直接是计划字段：schemaVersion=1、title（≤12 字）、summary、goal（{{goals}}）、scene（{{sceneIds}}）、level、targetMinutes、blocks，可选 equipment、avoid、notes、safetyNotes；不要再包一层 {"plan": …}。
-- 每个块：type（warmup/main/circuit/cooldown）、items；循环块 rounds ≥ 2、items 的 sets 写 1。
-- 每个动作：exerciseId、mode、sets、perSide、restSeconds，以及 reps（mode=reps）或 workSeconds（mode=time）。
-- 剂量单位：mode 必须与动作默认剂量一致：「次」→ mode=reps 填 reps；「秒」→ mode=time 填 workSeconds。数值在动作的剂量范围内调，拿不准就用默认。
-- 单侧动作 perSide=true（reps / workSeconds 指每侧），其余 false。
-- 不重复：同一动作在整个计划里只出现一次，要多做就加 sets。
-- 硬限：{{limits}}。
-- 场所与器械：
-{{sceneRules}}
-  - equipment 列出所有动作用到的器械 id；用户说没器械时只用徒手动作。用户选择器械时，在安全、场景与重点匹配前提下优先安排用到所选器械的动作；不能把未使用的器械当成实际器械。
-- 时长估算口径：每组用时 ≈ 次数 × 约 3 秒或计时秒数，单侧 ×2，加组间休息，每换一个动作约 15 秒；用户明确分钟数时，实际估时与要求偏差须在 25% 内。相对调整仅比较与原计划的方向，不使用 25% 规则。文字中的分钟和器械不得与计划实际数据矛盾。
+- draft_plan 提供标题、计划块和已搜索动作；SDK 根据目录剂量和当前目标时长补齐、配平，并通过 check_plan 核对。
+- show_plan 提供计划 ID 和简短思路说明；计划数字和器械由卡片数据呈现。
 
 ## 多轮修改
-用户明确指向已有计划提修改（换动作、加减时长、调整强度）：沿用未修改的条件，本句明确的新场景、器械和时长覆盖旧值；在上一份计划基础上改，用 show_plan 提交完整新计划，不要只给差异；用户提出与当前主题不同的新部位或新目标时按新规划处理。check_plan 仍只在当前工具列表提供且符合上述检查条件时使用。
+用户明确指向已有计划提修改（换动作、加减时长、调整强度）：沿用未修改的条件，本句明确的新场景、器械和时长覆盖旧值；在上一份计划基础上通过 draft_plan 修改，核对通过后用 show_plan 交付；用户提出与当前主题不同的新部位或新目标时按新规划处理。

@@ -258,38 +258,62 @@ void main() {
       _expectToolProtocol(client.requests.last.messages);
     });
     for (final sideTool in [AgentTools.read, AgentTools.remember]) {
-      test(
-        'ask with $sideTool rejects whole batch before side effects',
-        () async {
-          final store = InMemoryUserMemoryStore();
-          final side = sideTool == AgentTools.read
-              ? _call(sideTool, {'path': 'action-library/SKILL.md'})
-              : _call(sideTool, {'kind': 'goal', 'text': '想劈叉'});
-          final client = FakeLlmClient([
-            _tools([side, _call(AgentTools.askUser, _text())]),
-            '可以慢慢练习。',
-          ]);
-          final coach = agent(client, memory: true, store: store);
-          final events = <AgentEvent>[];
-          coach.events.listen(events.add);
-          final result = await coach.send('请讲解这个动作');
-          expect(result.status, TurnStatus.ok);
-          expect(result.question, isNull);
-          expect(result.records.first.outcome, CallOutcome.rejected);
-          expect(result.reads, isEmpty);
+      test('ask after $sideTool preserves its result and pauses', () async {
+        final store = InMemoryUserMemoryStore();
+        final side = sideTool == AgentTools.read
+            ? _call(sideTool, {'path': 'action-library/SKILL.md'})
+            : _call(sideTool, {'kind': 'goal', 'text': '想劈叉'});
+        final client = FakeLlmClient([
+          _tools([side, _call(AgentTools.askUser, _text())]),
+          '可以慢慢练习。',
+        ]);
+        final coach = agent(client, memory: true, store: store);
+        final events = <AgentEvent>[];
+        final subscription = coach.events.listen(events.add);
+        final result = await coach.send('我想劈叉，请讲解这个动作');
+        await subscription.cancel();
+        expect(result.status, TurnStatus.ok);
+        expect(result.question?.question, '准备花多久？');
+        expect(result.records.first.outcome, CallOutcome.passed);
+        expect(coach.questionsAsked, 1);
+        if (sideTool == AgentTools.read) {
+          expect(result.reads, contains('action-library/SKILL.md'));
           expect(store.entries, isEmpty);
           expect(
-            events.where(
-              (e) =>
-                  e.kind == AgentEventKind.reading ||
-                  e.kind == AgentEventKind.memory,
-            ),
+            events.where((e) => e.kind == AgentEventKind.reading),
+            hasLength(1),
+          );
+        } else {
+          expect(result.reads, isEmpty);
+          expect(store.entries.map((e) => e.text), ['想劈叉']);
+          expect(
+            events.where((e) => e.kind == AgentEventKind.memory),
+            hasLength(1),
+          );
+        }
+        expect(
+          events.where((e) => e.kind == AgentEventKind.askUser),
+          hasLength(1),
+        );
+        final resumed = await coach.send('十分钟');
+        expect(resumed.status, TurnStatus.ok);
+        _expectToolProtocol(client.requests.last.messages);
+        final replies = client.requests.last.messages.where(
+          (m) => m.toolCallId == side.id,
+        );
+        if (sideTool == AgentTools.read) {
+          expect(replies, hasLength(1));
+        } else {
+          // Memory-tool messages are deliberately removed from persisted history.
+          expect(replies, isEmpty);
+          expect(
+            client.requests.last.messages
+                .expand((m) => m.toolCalls)
+                .where((call) => call.id == side.id),
             isEmpty,
           );
-          expect(coach.questionsAsked, 0);
-          _expectToolProtocol(client.requests.last.messages);
-        },
-      );
+        }
+      });
     }
     test(
       'malformed ask exhaustion emits no question and preserves budget',

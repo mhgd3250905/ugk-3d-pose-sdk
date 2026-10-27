@@ -205,6 +205,53 @@ void main() {
     },
   );
 
+  test('a reserved active plan ID receives its first draft version', () {
+    final reserved = state().copyWith(
+      plans: {'reserved': []},
+      activePlanId: 'reserved',
+    );
+    final result = builder.draft(reserved, {
+      ...r3Draft(),
+      'plan_id': 'reserved',
+    }, newPlanId: 'unused');
+    expect(result.ok, isTrue, reason: '${result.error}');
+    expect((result.planId, result.version), ('reserved', 1));
+    expect(result.state.plans['reserved'], hasLength(1));
+  });
+
+  test(
+    'omitting the reserved ID creates a new plan and keeps nonempty history',
+    () {
+      final previous = builder.draft(state(), r3Draft(), newPlanId: 'history');
+      expect(previous.ok, isTrue, reason: '${previous.error}');
+      final reserved = state().copyWith(
+        plans: {...previous.state.plans, 'reserved': []},
+        activePlanId: 'reserved',
+      );
+      final result = builder.draft(reserved, r3Draft(), newPlanId: 'fresh');
+      expect(result.ok, isTrue, reason: '${result.error}');
+      expect((result.planId, result.version), ('fresh', 1));
+      expect(result.state.plans, isNot(contains('reserved')));
+      expect(
+        result.state.plans['history']!.single.toJson(),
+        previous.state.plans['history']!.single.toJson(),
+      );
+    },
+  );
+
+  test('an unrelated empty plan is not an active reservation', () {
+    final unrelated = state().copyWith(
+      plans: {'active': [], 'unrelated': []},
+      activePlanId: 'active',
+    );
+    final result = builder.draft(unrelated, {
+      ...r3Draft(),
+      'plan_id': 'unrelated',
+    }, newPlanId: 'unused');
+    expect(result.error!['code'], 'invalid_plan_id');
+    expect(result.state.toJson(), unrelated.toJson());
+  });
+
   test('node checks refuse another plan id when active plan is set', () {
     final first = builder.draft(state(), r3Draft(), newPlanId: 'p1');
     final old = first.state.plans['p1']!.single;

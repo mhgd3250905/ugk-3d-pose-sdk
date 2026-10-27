@@ -102,20 +102,42 @@ void main() {
         calls([
           call('start', 'start_task', {'type': 'plan'}),
           call('skip', 'check', {'node': 'parameters'}),
+          call('skipped-understand', 'check', {'node': 'understand'}),
+        ]),
+        calls([
           call('stamp', 'check', {'node': 'understand', 'stamp': '伪造'}),
+        ]),
+        calls([
           call('planId', 'check', {'node': 'understand', 'planId': 'p'}),
+        ]),
+        calls([
           call('right', 'check', {'node': 'understand'}),
         ]),
         ask(),
       ], latency: Duration.zero);
       final coach = agent(client);
+      final events = <AgentEvent>[];
+      coach.events.listen(events.add);
       await coach.send('安排计划');
       expect(result(client, 'skip')['code'], 'wrong_node');
       expect(result(client, 'skip')['expected'], 'understand');
+      expect(
+        result(client, 'skipped-understand')['code'],
+        'skipped_after_error',
+      );
       expect(result(client, 'stamp')['code'], 'invalid_arguments');
       expect(result(client, 'planId')['code'], 'invalid_arguments');
       expect(result(client, 'right')['ok'], isTrue);
       expect(coach.sessionState.task!.nodes.first.stamp, isNot('伪造'));
+      expect(
+        events.where(
+          (event) =>
+              event.kind == AgentEventKind.node &&
+              event.node?.id == 'understand' &&
+              event.node?.status == 'done',
+        ),
+        hasLength(1),
+      );
     },
   );
 

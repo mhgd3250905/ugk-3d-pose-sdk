@@ -151,33 +151,71 @@ void main() {
     },
   );
 
-  test('invalid tag, limit and IDs are rejected in runtime feedback', () async {
-    final client = FakeLlmClient([
-      _calls([
-        _call('tag', 'search_actions', {
-          'tags': ['purpose.warmup'],
-        }),
-        _call('too-large', 'search_actions', {'tags': <String>[], 'limit': 21}),
-        _call('zero', 'search_actions', {'tags': <String>[], 'limit': 0}),
-        _call('empty', 'get_action', {'ids': <String>[]}),
-        _call('many', 'get_action', {
-          'ids': [for (var i = 0; i < 11; i++) 'id$i'],
-        }),
-        _call('duplicate', 'get_action', {
-          'ids': ['a', 'a'],
-        }),
-      ]),
-      _ask('ask'),
-    ], latency: Duration.zero);
-    final coach = agent(client);
-    await coach.send('推荐运动');
-    final request = client.requests.last;
-    expect(_feedback(request, 'tag')['code'], 'invalid_tags');
-    expect(_feedback(request, 'too-large')['code'], 'invalid_limit');
-    expect(_feedback(request, 'zero')['code'], 'invalid_limit');
-    expect(_feedback(request, 'empty')['code'], 'invalid_ids');
-    expect(_feedback(request, 'many')['code'], 'invalid_ids');
-    expect(_feedback(request, 'duplicate')['ok'], isFalse);
-    expect(coach.sessionState.seenActionIds, isEmpty);
-  });
+  final invalidCases = [
+    (
+      id: 'tag',
+      name: 'search_actions',
+      args: <String, Object?>{
+        'tags': ['purpose.warmup'],
+      },
+      code: 'invalid_tags',
+    ),
+    (
+      id: 'too-large',
+      name: 'search_actions',
+      args: <String, Object?>{'tags': <String>[], 'limit': 21},
+      code: 'invalid_limit',
+    ),
+    (
+      id: 'zero',
+      name: 'search_actions',
+      args: <String, Object?>{'tags': <String>[], 'limit': 0},
+      code: 'invalid_limit',
+    ),
+    (
+      id: 'empty',
+      name: 'get_action',
+      args: <String, Object?>{'ids': <String>[]},
+      code: 'invalid_ids',
+    ),
+    (
+      id: 'many',
+      name: 'get_action',
+      args: <String, Object?>{
+        'ids': [for (var i = 0; i < 11; i++) 'id$i'],
+      },
+      code: 'invalid_ids',
+    ),
+    (
+      id: 'duplicate',
+      name: 'get_action',
+      args: <String, Object?>{
+        'ids': ['a', 'a'],
+      },
+      code: 'invalid_arguments',
+    ),
+  ];
+  for (final invalid in invalidCases) {
+    test(
+      '${invalid.id} rejects invalid input and skips later search',
+      () async {
+        final client = FakeLlmClient([
+          _calls([
+            _call(invalid.id, invalid.name, invalid.args),
+            _call('skipped-search', 'search_actions', {'tags': <String>[]}),
+          ]),
+          _ask('ask'),
+        ], latency: Duration.zero);
+        final coach = agent(client);
+        await coach.send('推荐运动');
+        final request = client.requests.last;
+        expect(_feedback(request, invalid.id)['code'], invalid.code);
+        expect(
+          _feedback(request, 'skipped-search')['code'],
+          'skipped_after_error',
+        );
+        expect(coach.sessionState.seenActionIds, isEmpty);
+      },
+    );
+  }
 }

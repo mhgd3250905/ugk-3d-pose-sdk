@@ -289,8 +289,10 @@ void main() {
         isNotNull,
         reason: '${result.error}; ${result.issues}',
       );
-      expect(coach.sessionState.plans, isEmpty);
-      expect(coach.sessionState.activePlanId, isNull);
+      final reserved = coach.sessionState.activePlanId;
+      expect(reserved, isNotNull);
+      expect(coach.sessionState.plans.keys, [reserved]);
+      expect(coach.sessionState.plans[reserved], isEmpty);
       expect(
         coach.sessionState.task!.nodes
             .singleWhere((n) => n.status == 'current')

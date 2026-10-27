@@ -41,6 +41,26 @@ class _NamedTickScript extends _NamedScript {
   }
 }
 
+/// [_NamedScript] plus each exercise's first coaching line, which waits
+/// behind the name as a pending coach cue.
+class _NamedCoachScript extends SessionScript {
+  _NamedCoachScript(VoiceSource source) : super(source: source);
+
+  @override
+  List<VoiceCue> cues(
+    SessionPhase phase, {
+    double planSeconds = 0,
+    bool bySkip = false,
+  }) {
+    final id = phase.exerciseId;
+    if (id == null) return [];
+    return [
+      VoiceCue(0, [?source.drill(id, DrillLine.name)], CuePriority.call),
+      VoiceCue(0, [?source.drill(id, DrillLine.cue1)], CuePriority.coach),
+    ];
+  }
+}
+
 const _ids = ['h-squat', 'w-dead-bug', 'h-couch-stretch', 's-figure4'];
 
 Future<RecordingOutput> _pumpPlayer(
@@ -240,4 +260,39 @@ void main() {
     expect(_announced(output), ['w-dead-bug']);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets(
+    'a coaching line still waiting when the burst moved on is not lost',
+    (tester) async {
+      final output = await _pumpPlayer(
+        tester,
+        scriptBuilder: (source, _) => _NamedCoachScript(source),
+      );
+      final cue1 = smartSource().drill('w-dead-bug', DrillLine.cue1);
+      final cue1Asset = smartSource().asset(cue1!, lang: 'zh');
+      await _tap(tester, 'skip'); // → w-dead-bug: name plays, cue1 waits
+      await tester.pump(const Duration(milliseconds: 50));
+      await _tap(tester, 'skip'); // → h-couch-stretch, cancels waiting cue1
+      await tester.pump(const Duration(milliseconds: 50));
+      await _tap(tester, 'prev'); // back to w-dead-bug
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(
+        output.spoken.any((clips) => clips.contains(cue1Asset)),
+        isTrue,
+        reason: 'cue1 never reached the output and must not be deduplicated',
+      );
+      final name = smartSource().asset(
+        smartSource().drill('w-dead-bug', DrillLine.name)!,
+        lang: 'zh',
+      );
+      expect(
+        output.spoken.where((clips) => clips.contains(name)).length,
+        1,
+        reason: 'the name the leading switch spoke stays deduplicated',
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 }

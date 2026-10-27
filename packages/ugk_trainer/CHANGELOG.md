@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Manual skip/previous announcements are leading-edge: a single switch, or the first switch of a burst, speaks immediately instead of after 150 ms. Further switches within 150 ms of the last one are merged, the window restarting on each tap; only the final stop speaks, and returning to the action the burst already announced stays silent. Only the cues the leading switch actually submitted as playable are deduplicated on that return: counts, chimes and other cues it had not reached still play, a switch made while sound was off is not treated as announced, and toggling sound clears the record. Disposal still cancels the pending window; the training clock, media handoff and other cues are unchanged.
+- Manual skip/previous announcements are leading-edge: a single switch, or the first switch of a burst, speaks immediately instead of after 150 ms. Further switches within 150 ms of the last one are merged, the window restarting on each tap; only the final stop speaks, and returning to the action the burst already announced stays silent. Only the cues the voice queue actually started playing for that action during the leading switch are deduplicated on that return (a coaching line still waiting behind the name when the next switch cancelled it is spoken again; `VoiceQueue` gains an optional `onPlayed` callback): counts, chimes and other cues it had not reached still play, a switch made while sound was off is not treated as announced, and toggling sound clears the record. Disposal still cancels the pending window; the training clock, media handoff and other cues are unchanged.
 
 ## 0.5.0 — 2026-10-26
 

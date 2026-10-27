@@ -365,13 +365,15 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   /// Phase index the burst's first switch already announced.
   int? _navigationAnnounced;
 
-  /// Cues the leading switch actually handed to the queue as playable, by
-  /// [_cueKey]. Only these are deduplicated when the burst settles back on
-  /// [_navigationAnnounced]; counts and chimes still pending are kept.
+  /// Cues the queue really started playing for [_navigationAnnounced], by
+  /// [_cueKey], from the leading switch until the burst moves on. Only these
+  /// are deduplicated when the burst settles back on [_navigationAnnounced];
+  /// counts, chimes and lines that were still waiting (then cancelled by the
+  /// next switch) are kept.
   Set<String>? _navigationAnnouncedCues;
 
-  /// Collects [_cueKey]s while the leading switch speaks.
-  Set<String>? _navigationRecording;
+  /// True only during the leading switch's own [_tick].
+  bool _navigationLeadingTick = false;
   final _mediaHost = GlobalKey();
   Future<void>? _audioEnding;
   bool _audioEnded = false;
@@ -498,6 +500,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       output: _voice.output,
       lib: _voice.source,
       settings: _soundSettings,
+      onPlayed: _onCuePlayed,
     );
     if (_voice.settings.voice || _voice.settings.chimes) {
       unawaited(_voice.output.begin());
@@ -554,18 +557,19 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   static String _cueKey(VoiceCue c) =>
       '${c.at}|${c.priority.name}|${c.clips.join('+')}';
 
-  /// Whether [cue] has anything the queue would play with current settings.
-  bool _playable(VoiceCue cue) {
-    final s = _queue.settings;
-    return (s.voice && cue.voiceClips.isNotEmpty) ||
-        (s.chimes && cue.chimes.isNotEmpty);
+  /// [VoiceQueue.onPlayed]: records what the leading switch really played.
+  void _onCuePlayed(VoiceCue cue) {
+    if (_navigationCoalescing || _paused || _engine.done) return;
+    // The leading tick may still cross a zero-length phase; its index is
+    // taken once that tick is over.
+    if (!_navigationLeadingTick && _navigationAnnounced != _engine.index) {
+      return;
+    }
+    _navigationAnnouncedCues?.add(_cueKey(cue));
   }
 
   void _submit(Iterable<FiredCue> fired, double t) {
     for (final f in fired) {
-      if (_navigationRecording case final rec? when _playable(f.cue)) {
-        rec.add(_cueKey(f.cue));
-      }
       _queue.submit(f.cue, t);
       if (f.cue.subtitle != null) _subtitle = f.cue.subtitle;
     }
@@ -733,6 +737,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       output: _voice.output,
       lib: _voice.source,
       settings: _soundSettings,
+      onPlayed: _onCuePlayed,
     );
     _endedAt = null;
     _subtitle = null;
@@ -871,20 +876,24 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     }
     _subtitle = null;
     _syncProgress(_t);
-    final record = leading && settleVoice;
-    if (record) _navigationRecording = <String>{};
-    _tick();
-    final spoken = _navigationRecording;
-    _navigationRecording = null;
-    // Remember only what was really submitted as playable speech/chimes: a
-    // muted or paused switch announced nothing and must not be deduplicated.
-    if (record &&
-        spoken != null &&
-        spoken.isNotEmpty &&
-        !_paused &&
-        !_engine.done) {
+    // A leading switch records what the queue really plays for its phase
+    // (see [_onCuePlayed]) until the burst moves on or settles. A muted or
+    // paused switch plays nothing, so nothing of it is deduplicated.
+    final record = leading && settleVoice && !_paused && !_engine.done;
+    if (record) {
       _navigationAnnounced = _engine.index;
-      _navigationAnnouncedCues = spoken;
+      _navigationAnnouncedCues = <String>{};
+      _navigationLeadingTick = true;
+    }
+    _tick();
+    _navigationLeadingTick = false;
+    if (record && _navigationAnnounced != null) {
+      if (_paused || _engine.done) {
+        _navigationAnnounced = null;
+        _navigationAnnouncedCues = null;
+      } else {
+        _navigationAnnounced = _engine.index;
+      }
     }
     setState(() {});
   }

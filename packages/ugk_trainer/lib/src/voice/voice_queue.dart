@@ -127,9 +127,12 @@ class SpokenLine {
 }
 
 class _Pending {
-  _Pending(this.cue, this.deadline);
+  _Pending(this.cue, this.deadline, this.source);
   final VoiceCue cue;
   final double deadline;
+
+  /// The cue as submitted, before clips the source lacks were trimmed.
+  final VoiceCue source;
 }
 
 /// Puts cues on the air one at a time (#13): never two voices at once, a
@@ -141,7 +144,12 @@ class _Pending {
 /// Times are seconds on any monotonic clock the caller uses consistently
 /// (the player passes active session time; the assessment wall time).
 class VoiceQueue {
-  VoiceQueue({required this.output, required this.lib, required this.settings});
+  VoiceQueue({
+    required this.output,
+    required this.lib,
+    required this.settings,
+    this.onPlayed,
+  });
 
   final VoiceOutput output;
   final VoiceSource lib;
@@ -150,6 +158,12 @@ class VoiceQueue {
   final List<(double, String)> chimeLog = [];
   SpokenLine? _current;
   final List<_Pending> _pending = [];
+
+  /// Called with a submitted cue (as passed to [submit]) once it has really
+  /// been handed to [output]: when its speech starts, or, for a cue with no
+  /// speech under the current settings, when its chimes sound. A line that
+  /// only waited and was dropped or cancelled is never reported.
+  void Function(VoiceCue cue)? onPlayed;
 
   String get lang => settings.language;
 
@@ -168,20 +182,26 @@ class VoiceQueue {
   bool _busy(double now) => _current != null && now < _current!.end - .02;
 
   void submit(VoiceCue cue, double now) {
+    var chimed = false;
     if (settings.chimes) {
       for (final c in cue.chimes) {
         if (lib.has(c, lang: lang)) {
           chimeLog.add((now, c));
           output.chime(lib.asset(c, lang: lang));
+          chimed = true;
         }
       }
     }
-    if (!settings.voice) return;
-    final clips = cue.voiceClips.where((c) => lib.has(c, lang: lang)).toList();
-    if (clips.isEmpty) return;
+    final clips = settings.voice
+        ? cue.voiceClips.where((c) => lib.has(c, lang: lang)).toList()
+        : const <String>[];
+    if (clips.isEmpty) {
+      if (chimed) onPlayed?.call(cue);
+      return;
+    }
     final trimmed = VoiceCue(cue.at, clips, cue.priority);
     if (!_busy(now)) {
-      _start(trimmed, now);
+      _start(trimmed, now, cue);
       return;
     }
     final cur = _current!;
@@ -197,16 +217,16 @@ class VoiceQueue {
       // queue's clock, so "nearly done" here is still sounding on device.
       if (cur.end - now > tailGrace) {
         _cut(now);
-        _start(trimmed, now);
+        _start(trimmed, now, cue);
       } else {
         // The output plays the newcomer after the tail: predict it there,
         // so the air stays busy until it has really been said (PR #24
         // review F24-1).
-        _start(trimmed, cur.end);
+        _start(trimmed, cur.end, cue);
       }
       return;
     }
-    _pending.add(_Pending(trimmed, now + _wait(trimmed.priority)));
+    _pending.add(_Pending(trimmed, now + _wait(trimmed.priority), cue));
   }
 
   /// Call often (every timer tick): starts a waiting line when the air is free.
@@ -217,10 +237,10 @@ class VoiceQueue {
       (a, b) => b.cue.priority.index.compareTo(a.cue.priority.index),
     );
     final next = _pending.removeAt(0);
-    _start(next.cue, now);
+    _start(next.cue, now, next.source);
   }
 
-  void _start(VoiceCue cue, double now) {
+  void _start(VoiceCue cue, double now, VoiceCue source) {
     final line = SpokenLine(
       now,
       cue.clips,
@@ -230,6 +250,7 @@ class VoiceQueue {
     _current = line;
     log.add(line);
     output.speak([for (final c in cue.clips) lib.asset(c, lang: lang)]);
+    onPlayed?.call(source);
   }
 
   void _cut(double now) {

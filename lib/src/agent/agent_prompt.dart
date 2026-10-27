@@ -49,7 +49,6 @@ abstract final class AgentTools {
     CoachSessionState? sessionState,
   }) {
     final shows = CoachTools.build(profile, catalog, idEnum: false);
-    final plan = shows.firstWhere((t) => t.name == showPlan);
     final kinds = [for (final k in MemoryKind.values) k.name];
     final tags = ActionTags(profile, catalog);
     final equipmentCodes = SessionParams(
@@ -244,11 +243,15 @@ abstract final class AgentTools {
         },
       ),
       if (includeCheckPlan)
-        LlmTool(
+        const LlmTool(
           name: checkPlan,
-          description:
-              '可选自检：仅当前工具列表提供时可用，供用户明确要求检查或提交被门禁打回后使用，参数与 show_plan 相同。普通排课先 show_plan，不为估时反复自检；最终门禁照常校验。',
-          parameters: plan.parameters,
+          description: '按账本中的当前条件核对指定计划的最新版本。',
+          parameters: {
+            'type': 'object',
+            'properties': {'plan_id': {'type': 'string'}},
+            'required': ['plan_id'],
+            'additionalProperties': false,
+          },
         ),
       ...shows,
       const LlmTool(

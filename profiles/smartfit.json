@@ -1,6 +1,7 @@
 {
  "id": "smartfit",
  "minActions": 3,
+ "planRules": {"warmupFromMinutes":9,"cooldownFromMinutes":9,"exemptWarmupForPureStretch":true,"focusRatio":0.5,"maxSameMuscleInRow":3,"antagonisticPairs":[]},
  "legacyGoalMap": [
   {"anyOf":["purpose.stretch"],"goal":"relax"},
   {"anyOf":["purpose.mobility"],"goal":"mobility"},

@@ -5,9 +5,11 @@ import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
 
-LlmResponse tool(String name, Object args) => LlmResponse(
+LlmResponse tool(String id, String name, Object args) => LlmResponse(
   content: '',
-  toolCalls: [LlmToolCall(id: 'call', name: name, arguments: jsonEncode(args))],
+  toolCalls: [LlmToolCall(id: id, name: name, arguments: jsonEncode(args))],
+  finishReason: 'tool_calls',
+  model: 'fake',
 );
 
 void main() {
@@ -19,132 +21,111 @@ void main() {
       catalog: () => catalog,
       profile: custom ?? profile,
       enableUserMemory: false,
+      maxRequestRetries: 0,
     );
     addTearDown(instance.dispose);
     return instance;
   }
 
   bool hasCheck(LlmRequest request) =>
-      request.tools.any((tool) => tool.name == AgentTools.checkPlan);
+      request.tools.any((entry) => entry.name == AgentTools.checkPlan);
+  Map<String, dynamic> feedback(LlmRequest request, String id) =>
+      jsonDecode(
+            request.messages.singleWhere((m) => m.toolCallId == id).content,
+          )
+          as Map<String, dynamic>;
 
   test(
-    'ordinary planning offers direct submission without optional self-check',
+    'check_plan is available for different messages without intent matching',
     () async {
-      final client = FakeLlmClient([
-        (LlmRequest request) {
-          expect(hasCheck(request), isFalse);
-          expect(
-            request.tools.map((tool) => tool.name),
-            contains(AgentTools.showPlan),
-          );
-          return tool(AgentTools.showPlan, planOf(okEnvelope()));
-        },
-      ]);
-      final result = await agent(client).send(
+      for (final prompt in [
         '在家有瑜伽垫十分钟做开胯计划',
-        context: const CoachContext(
-          scene: 'home',
-          equipment: {'mat'},
-          minutes: 10,
-          level: 1,
-        ),
-      );
-      expect(result.status, TurnStatus.ok);
-      expect(result.plan, isNotNull);
-      expect(result.steps, 1);
-    },
-  );
-
-  test(
-    'a rejected submission unlocks self-check while the final gate remains enforced',
-    () async {
-      final client = FakeLlmClient([
-        (LlmRequest request) {
-          expect(hasCheck(request), isFalse);
-          return tool(AgentTools.showActions, {
-            'items': [
-              {'actionId': 'invented-id'},
-            ],
-          });
-        },
-        (LlmRequest request) {
-          expect(hasCheck(request), isTrue);
-          expect(request.messages.last.content, contains('unknown_exercise'));
-          return tool(AgentTools.checkPlan, planOf(okEnvelope()));
-        },
-        (LlmRequest request) {
-          expect(hasCheck(request), isTrue);
-          final checked =
-              jsonDecode(request.messages.last.content) as Map<String, dynamic>;
-          expect(checked['ok'], isTrue);
-          return tool(AgentTools.showPlan, planOf(okEnvelope()));
-        },
-      ]);
-      final result = await agent(client).send(
-        '在家有瑜伽垫十分钟做计划',
-        context: const CoachContext(
-          scene: 'home',
-          equipment: {'mat'},
-          minutes: 10,
-          level: 1,
-        ),
-      );
-      expect(result.status, TurnStatus.ok);
-      expect(result.records.first.issueCodes, contains('unknown_exercise'));
-      expect(result.steps, 3);
-      expect(result.plan, isNotNull);
-    },
-  );
-
-  test('an ordinary read does not unlock self-check', () async {
-    final client = FakeLlmClient([
-      tool(AgentTools.read, {'path': 'plan-training/SKILL.md'}),
-      (LlmRequest request) {
-        expect(hasCheck(request), isFalse);
-        return '无法提供方案。';
-      },
-    ]);
-    expect((await agent(client).send('在家有瑜伽垫十分钟排个计划')).status, TurnStatus.ok);
-    expect(client.requests, hasLength(2));
-  });
-
-  test(
-    'explicit plan checks and App-specific skills retain initial check_plan',
-    () async {
-      for (final prompt in ['先检查这个计划', 'Please review my plan', '校验一下这个计划']) {
+        '先检查这个计划',
+        'Please review my plan',
+        '深蹲膝盖响正常吗',
+      ]) {
         final client = FakeLlmClient([
-          (LlmRequest request) {
-            expect(hasCheck(request), isTrue);
-            return '无法检查，请把计划发来。';
-          },
-        ]);
-        expect(
-          (await agent(client).send('在家有瑜伽垫十分钟，$prompt')).status,
-          TurnStatus.ok,
-        );
+          tool('ask', AgentTools.askUser, {
+            'question': '请问还有什么要求？',
+            'mode': 'text',
+          }),
+        ], latency: Duration.zero);
+        expect((await agent(client).send(prompt)).status, TurnStatus.ok);
         expect(client.requests, hasLength(1));
+        expect(hasCheck(client.requests.single), isTrue, reason: prompt);
       }
-      final custom = CoachProfile.fromJson({
-        ...profile.toJson(),
-        'skills': [
-          {
-            'name': 'app-routine',
-            'description': 'App-specific routine',
-            'content': 'Use check_plan before delivery.',
-          },
-        ],
-      });
-      final client = FakeLlmClient([
-        (LlmRequest request) {
-          expect(hasCheck(request), isTrue);
-          return '无法提供，按 App 专属流程执行。';
-        },
-      ]);
-      expect(
-        (await agent(client, custom: custom).send('在家有瑜伽垫十分钟安排训练')).status,
-        TurnStatus.ok,
-      );
-      expect(client.requests, hasLength(1));
     },
   );
+
+  test(
+    'check_plan remains available after a read and rejects missing or extra fields',
+    () async {
+      final client = FakeLlmClient([
+        tool('read', AgentTools.read, {'path': 'plan-training/SKILL.md'}),
+        tool('missing', AgentTools.checkPlan, {}),
+        tool('extra', AgentTools.checkPlan, {
+          'plan_id': 'p',
+          'equipment': ['mat'],
+        }),
+        tool('ask', AgentTools.askUser, {
+          'question': '请问还有什么要求？',
+          'mode': 'text',
+        }),
+      ], latency: Duration.zero);
+      final result = await agent(client).send('在家有瑜伽垫十分钟排个计划');
+      expect(result.status, TurnStatus.ok);
+      expect(client.requests, hasLength(4));
+      expect(client.requests.every(hasCheck), isTrue);
+      expect(
+        feedback(client.requests[2], 'missing')['code'],
+        'invalid_arguments',
+      );
+      expect(
+        feedback(client.requests[3], 'extra')['code'],
+        'invalid_arguments',
+      );
+    },
+  );
+
+  test(
+    'rejected unknown action stays rejected and check_plan remains available',
+    () async {
+      final client = FakeLlmClient([
+        tool('bad', AgentTools.showActions, {
+          'items': [
+            {'actionId': 'invented-id'},
+          ],
+        }),
+        tool('check', AgentTools.checkPlan, {'plan_id': 'missing'}),
+        '目录里没有这个动作。',
+      ], latency: Duration.zero);
+      final result = await agent(client).send('展示动作');
+      expect(result.status, TurnStatus.ok);
+      expect(result.actions, isNull);
+      expect(client.requests.every(hasCheck), isTrue);
+      expect(result.records.first.issueCodes, contains('unknown_exercise'));
+      expect(feedback(client.requests[2], 'check')['ok'], isFalse);
+    },
+  );
+
+  test('App-specific skills retain the same check_plan availability', () async {
+    final custom = CoachProfile.fromJson({
+      ...profile.toJson(),
+      'skills': [
+        {
+          'name': 'app-routine',
+          'description': 'App-specific routine',
+          'content': 'Use check_plan before delivery.',
+        },
+      ],
+    });
+    final client = FakeLlmClient([
+      '无法提供，按 App 专属流程执行。',
+    ], latency: Duration.zero);
+    expect(
+      (await agent(client, custom: custom).send('在家有瑜伽垫十分钟安排训练')).status,
+      TurnStatus.ok,
+    );
+    expect(hasCheck(client.requests.single), isTrue);
+  });
 }

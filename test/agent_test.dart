@@ -314,36 +314,70 @@ void main() {
   });
 
   group('check_plan', () {
-    test('合法计划返回 ok、估算时长与差值；坏 id 返回错误', () async {
-      final bad = _okPlan();
-      (((bad['blocks']! as List)[0] as Map)['items'] as List)[0] = {
-        'exerciseId': 'nope',
-        'mode': 'reps',
-        'sets': 1,
-        'reps': 8,
-        'perSide': false,
-        'restSeconds': 10,
-      };
+    test('当前计划核对成功；坏 plan_id 返回具体错误并产生 checking 事件', () async {
+      const ids = ['h-sumo-pry', 'n-squat-shift', 's-butterfly'];
+      late String planId;
       final c = FakeLlmClient([
-        _tools([_call('check_plan', bad)]),
         _tools([
-          _call('check_plan', {'plan': _okPlan()}),
+          _call('start_task', {'type': 'plan'}),
+          _call('check', {'node': 'understand'}),
+          _call('set_params', {'fields': {
+            'scene': {'value': _okPlan()['scene'], 'source': 'user', 'quote': '在家'},
+            'equipment': {'value': ['equip.mat'], 'source': 'user', 'quote': '瑜伽垫'},
+            'goal': {'value': ['body.inner_thigh'], 'source': 'user', 'quote': '大腿内侧'},
+            'minutes': {'value': 5, 'source': 'user', 'quote': '5分钟'},
+          }}),
+          _call('check', {'node': 'parameters'}),
+          for (final id in ids)
+            _call('search_actions', {'tags': <String>[], 'keywords': catalog[id]!.name.of('zh')}),
         ]),
-        _tools([_call('show_plan', _okPlan())], '给你排了 10 分钟。'),
-      ]);
+        (LlmRequest request) {
+          final searchResults = request.messages.where((m) => m.role == LlmRole.tool)
+              .map((m) => m.content).where((v) => v.contains('"items"'))
+              .map((v) => jsonDecode(v) as Map).toList();
+          expect(searchResults, hasLength(3));
+          for (var i = 0; i < ids.length; i++) {
+            expect((searchResults[i]['items'] as List).map((e) => (e as Map)['id']), contains(ids[i]));
+          }
+          return _tools([
+            _call('check', {'node': 'actions', 'picks': ids}),
+            _call('draft_plan', {
+              'title': '大腿内侧训练',
+              'blocks': [{'kind': 'main', 'items': [for (final id in ids) {'id': id}]}],
+            }),
+            _call('check', {'node': 'planning'}),
+          ]);
+        },
+        (LlmRequest request) {
+          final replies = request.messages.where((m) => m.role == LlmRole.tool).toList();
+          final draft = jsonDecode(replies[replies.length - 2].content) as Map;
+          expect(draft['ok'], isTrue, reason: '$draft');
+          planId = draft['plan_id'] as String;
+          expect((jsonDecode(replies.last.content) as Map)['ok'], isTrue);
+          return _tools([_call('check_plan', {'plan_id': '不存在的计划'})]);
+        },
+        (LlmRequest request) {
+          final invalid = jsonDecode(request.messages.last.content) as Map;
+          expect(invalid['ok'], isFalse);
+          expect(invalid['code'], 'invalid_plan_id');
+          expect(invalid['field'], 'plan_id');
+          expect(invalid['actual'], '不存在的计划');
+          return _tools([_call('check_plan', {'plan_id': planId})]);
+        },
+        (LlmRequest request) {
+          final checked = jsonDecode(request.messages.last.content) as Map;
+          expect(checked['ok'], isTrue, reason: '$checked');
+          expect(checked['summary'], isA<String>());
+          return _tools([_call('ask_user', {'question': '还有其他要求吗？', 'mode': 'text'})]);
+        },
+      ], latency: Duration.zero);
       final events = <AgentEventKind>[];
-      final a = agent(c)..events.listen((e) => events.add(e.kind));
-      final r = await a.send('在家有瑜伽垫，10分钟排个睡前开胯训练计划');
-      expect(r.status, TurnStatus.ok);
-      expect(r.plan, isNotNull);
-      final first = jsonDecode(c.requests[1].messages.last.content) as Map;
-      expect(first['ok'], false);
-      expect(jsonEncode(first['errors']), contains('unknown_exercise'));
-      final second = jsonDecode(c.requests[2].messages.last.content) as Map;
-      expect(second['ok'], true);
-      expect(second['targetMinutes'], 10);
-      expect(second['estimatedMinutes'], isA<num>());
-      expect(second['diffMinutes'], closeTo((second['estimatedMinutes'] as num) - 10, 0.11));
+      final a = agent(c, memory: false)..events.listen((e) => events.add(e.kind));
+      addTearDown(a.dispose);
+      final r = await a.send('在家有瑜伽垫，5分钟练大腿内侧');
+      expect(r.question, isNotNull, reason: '${r.error}; ${r.issues}');
+      final version = a.sessionState.plans[planId]!.last;
+      expect(version.check!['ok'], isTrue);
       expect(events.where((e) => e == AgentEventKind.checking).length, 2);
     });
   });

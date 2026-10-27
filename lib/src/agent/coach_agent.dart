@@ -22,7 +22,6 @@ import '../llm/cancel_token.dart';
 import '../llm/llm_client.dart';
 import '../llm/llm_types.dart';
 import '../plan/coach_context.dart';
-import '../plan/plan_codec.dart';
 import '../plan/plan_issue.dart';
 import '../plan/plan_validator.dart';
 import '../plan/training_plan.dart';
@@ -39,6 +38,7 @@ import 'agent_resilience.dart';
 import 'agent_task.dart';
 import 'node_gates.dart';
 import 'plan_builder.dart';
+import 'plan_checker.dart';
 import 'session_params.dart';
 import 'session_state.dart';
 import 'skill_files.dart';
@@ -1303,10 +1303,6 @@ class CoachAgent {
     final readSet = <String>{};
     var submissions = 0;
     var rejected = 0;
-    final explicitlyChecksPlan = RegExp(
-      r'检查|校验|自检|验证|\b(?:check|validate|review)\b',
-      caseSensitive: false,
-    ).hasMatch(text);
     List<PlanIssue> lastErrors = const [];
     FallbackReason reason = FallbackReason.invalidOutput;
     Object? error;
@@ -1459,8 +1455,7 @@ class CoachAgent {
           cat,
           memory: memoryOn,
           sessionState: _sessionState,
-          includeCheckPlan:
-              rejected > 0 || explicitlyChecksPlan || profile.skills.isNotEmpty,
+          includeCheckPlan: true,
         );
         fixedTokens =
             estimateTokens(system) +
@@ -2164,13 +2159,28 @@ class CoachAgent {
             }
           case AgentTools.checkPlan:
             emit(AgentEventKind.checking, step: step);
-            fresh = true;
-            final r = _checkPlan(t, gate, context, cat);
-            if (r == null) {
-              leaked = true;
-            } else {
-              results[t.id] = r;
+            Object? args;
+            try {
+              args = jsonDecode(t.arguments);
+            } on FormatException {
+              args = null;
             }
+            if (args is! Map || args.keys.any((key) => key != 'plan_id') ||
+                args['plan_id'] is! String || (args['plan_id'] as String).isEmpty) {
+              results[t.id] = jsonEncode(nodeError(
+                'invalid_arguments', 'arguments', '{plan_id: nonempty string}',
+                args, '提供当前计划的 plan_id。',
+              ));
+              continue;
+            }
+            final checked = PlanChecker(profile, cat, minPicks: profile.minActions)
+                .check(_sessionState, args['plan_id'] as String);
+            _sessionState = checked.state;
+            if (checked.changes.isNotEmpty) {
+              _emitNodeChanges(turnId, NodeResult(checked.state, changes: checked.changes));
+            }
+            if (checked.error == null) fresh = true;
+            results[t.id] = jsonEncode(checked.toJson());
           case AgentTools.remember || AgentTools.forget when memoryOn:
             final kindName = _arg(t, 'kind');
             final memoryEpoch = turnMemoryEpoch;
@@ -2554,68 +2564,6 @@ class CoachAgent {
     if (!readSet.add(path)) return '（已读过 $path，见前文）';
     reads.add(path);
     return text;
-  }
-
-  /// check_plan：复用门禁校验 + SDK 估算时长。返回 null 表示参数里有暗号（整轮回落）。
-  String? _checkPlan(
-    LlmToolCall t,
-    ToolGate gate,
-    CoachContext ctx,
-    Catalog cat,
-  ) {
-    Object? args;
-    try {
-      args = jsonDecode(t.arguments);
-    } on FormatException catch (e) {
-      return jsonEncode({
-        'ok': false,
-        'errors': [
-          {
-            'path': 'arguments',
-            'code': IssueCodes.invalidJson,
-            'fix': ToolGate.fixFor(IssueCodes.invalidJson),
-            'message': e.message,
-          },
-        ],
-      });
-    }
-    // 自检宽容一层包装：{"plan": {...}}。
-    if (args is Map && args.length == 1 && args['plan'] is Map) {
-      args = args['plan'];
-    }
-    final argText = jsonEncode(args);
-    final g = gate.check('', [
-      LlmToolCall(id: t.id, name: AgentTools.showPlan, arguments: argText),
-    ], context: ctx);
-    if (g.leaked) return null;
-    double? est;
-    int? target;
-    if (args is Map) {
-      final decoded = const PlanCodec().decodeStrict(
-        args.cast<String, Object?>(),
-        scene: ctx.scene,
-        level: ctx.level,
-        minutes: ctx.minutes,
-      );
-      final p = decoded.plan;
-      if (p != null) {
-        est = const PlanDuration().estimateSeconds(p, cat) / 60;
-        target = p.targetMinutes;
-      }
-    }
-    final ok = g.errors.isEmpty;
-    return jsonEncode({
-      'ok': ok,
-      if (!ok) 'errors': [for (final e in g.errors) _issueJson(e)],
-      if (g.warnings.isNotEmpty)
-        'warnings': [for (final w in g.warnings) w.message],
-      'estimatedMinutes': ?est == null ? null : (est * 10).round() / 10,
-      'targetMinutes': ?target,
-      'diffMinutes': ?(est == null || target == null)
-          ? null
-          : ((est - target) * 10).round() / 10,
-      'next': ok ? '没有错误：用 show_plan 提交同样的参数（时长差太大可先调整）。' : '逐条改完再 check_plan。',
-    });
   }
 
   static String _memoryError(String code) => jsonEncode({

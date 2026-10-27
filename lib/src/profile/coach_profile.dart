@@ -4,6 +4,7 @@ library;
 
 import '../catalog/catalog.dart';
 import '../util/json.dart';
+import 'plan_rules_defaults.g.dart';
 
 /// 动作筛选：ids / idPrefixes / apps / tags / categories 取并集（全空 = 全库），再减 exclude。
 class DrillSelector {
@@ -200,6 +201,98 @@ class ProfileSkill {
   };
 }
 
+/// Two catalogue body-code groups that should both appear when configured.
+class AntagonistPair {
+  const AntagonistPair({required this.first, required this.second});
+
+  final List<String> first;
+  final List<String> second;
+
+  static AntagonistPair? tryParse(Object? raw) {
+    final json = asMap(raw);
+    if (raw is! Map || json['first'] is! List || json['second'] is! List) return null;
+    if ((json['first'] as List).any((item) => item is! String || item.isEmpty) ||
+        (json['second'] as List).any((item) => item is! String || item.isEmpty)) {
+      return null;
+    }
+    final first = asStringList(json['first']);
+    final second = asStringList(json['second']);
+    if (first.isEmpty || second.isEmpty) return null;
+    return AntagonistPair(first: first, second: second);
+  }
+
+  Map<String, Object?> toJson() => {'first': first, 'second': second};
+}
+
+/// Configurable plan checks. The nine-minute thresholds preserve the existing
+/// guidance that plans of eight minutes or less may have only one or two blocks.
+class PlanRules {
+  const PlanRules({
+    this.warmupFromMinutes = defaultWarmupFromMinutes,
+    this.cooldownFromMinutes = defaultCooldownFromMinutes,
+    this.exemptWarmupForPureStretch = defaultExemptWarmupForPureStretch,
+    this.focusRatio = defaultFocusRatio,
+    this.maxSameMuscleInRow = defaultMaxSameMuscleInRow,
+    this.antagonisticPairs = defaultAntagonisticPairs,
+  });
+
+  final int warmupFromMinutes;
+  final int cooldownFromMinutes;
+  final bool exemptWarmupForPureStretch;
+  final double focusRatio;
+  final int maxSameMuscleInRow;
+  final List<AntagonistPair> antagonisticPairs;
+
+  factory PlanRules.fromJson(Object? raw) {
+    if (raw != null && raw is! Map) throw const FormatException('planRules must be an object');
+    final json = asMap(raw);
+    const defaults = PlanRules();
+    int nonNegative(String key, int fallback, {bool positive = false}) {
+      if (!json.containsKey(key)) return fallback;
+      final value = asInt(json[key]);
+      if (value == null || value < (positive ? 1 : 0)) {
+        throw FormatException('$key must be ${positive ? 'a positive' : 'a non-negative'} integer');
+      }
+      return value;
+    }
+    final ratio = json.containsKey('focusRatio') ? asDouble(json['focusRatio']) : defaults.focusRatio;
+    if (ratio == null || !ratio.isFinite || ratio < 0 || ratio > 1) {
+      throw const FormatException('focusRatio must be between 0 and 1');
+    }
+    final exemption = json.containsKey('exemptWarmupForPureStretch')
+        ? asBool(json['exemptWarmupForPureStretch'])
+        : defaults.exemptWarmupForPureStretch;
+    if (exemption == null) throw const FormatException('exemptWarmupForPureStretch must be boolean');
+    final rawPairs = json['antagonisticPairs'];
+    if (json.containsKey('antagonisticPairs') && rawPairs is! List) {
+      throw const FormatException('antagonisticPairs must be an array');
+    }
+    final pairs = <AntagonistPair>[];
+    for (final value in asList(rawPairs)) {
+      final pair = AntagonistPair.tryParse(value);
+      if (pair == null) throw const FormatException('antagonisticPairs entries require nonempty first and second string arrays');
+      pairs.add(pair);
+    }
+    return PlanRules(
+      warmupFromMinutes: nonNegative('warmupFromMinutes', defaults.warmupFromMinutes),
+      cooldownFromMinutes: nonNegative('cooldownFromMinutes', defaults.cooldownFromMinutes),
+      exemptWarmupForPureStretch: exemption,
+      focusRatio: ratio,
+      maxSameMuscleInRow: nonNegative('maxSameMuscleInRow', defaults.maxSameMuscleInRow, positive: true),
+      antagonisticPairs: json.containsKey('antagonisticPairs') ? pairs : defaults.antagonisticPairs,
+    );
+  }
+
+  Map<String, Object?> toJson() => {
+    'warmupFromMinutes': warmupFromMinutes,
+    'cooldownFromMinutes': cooldownFromMinutes,
+    'exemptWarmupForPureStretch': exemptWarmupForPureStretch,
+    'focusRatio': focusRatio,
+    'maxSameMuscleInRow': maxSameMuscleInRow,
+    'antagonisticPairs': [for (final pair in antagonisticPairs) pair.toJson()],
+  };
+}
+
 class CoachProfile {
   const CoachProfile({
     required this.id,
@@ -213,6 +306,7 @@ class CoachProfile {
     this.goals = const ['relax', 'mobility', 'strength', 'core', 'fullbody', 'warmup', 'cooldown'],
     this.limits = const PlanLimits(),
     this.minActions = 3,
+    this.planRules = const PlanRules(),
     this.legacyGoalMap = const [],
     this.assetApps = const [],
     this.vars = const {},
@@ -243,6 +337,9 @@ class CoachProfile {
 
   /// Minimum distinct actions required for an action node.
   final int minActions;
+
+  /// Structured plan validation thresholds.
+  final PlanRules planRules;
 
   /// Ordered structured-to-legacy goal rules, including an explicit fallback.
   final List<Map<String, Object?>> legacyGoalMap;
@@ -282,6 +379,7 @@ class CoachProfile {
       goals: j['goals'] == null ? const CoachProfile(id: '', appName: '').goals : asStringList(j['goals']),
       limits: PlanLimits.fromJson(j['limits']),
       minActions: asInt(j['minActions']) ?? 3,
+      planRules: PlanRules.fromJson(j['planRules']),
       legacyGoalMap: [for (final rule in asList(j['legacyGoalMap'])) asMap(rule)],
       assetApps: asStringList(j['assetApps']),
       vars: {for (final e in asMap(j['vars']).entries) if (e.value is String) e.key: e.value! as String},
@@ -301,6 +399,7 @@ class CoachProfile {
     'goals': goals,
     'limits': limits.toJson(),
     'minActions': minActions,
+    'planRules': planRules.toJson(),
     if (legacyGoalMap.isNotEmpty) 'legacyGoalMap': legacyGoalMap,
     if (assetApps.isNotEmpty) 'assetApps': assetApps,
     if (vars.isNotEmpty) 'vars': vars,

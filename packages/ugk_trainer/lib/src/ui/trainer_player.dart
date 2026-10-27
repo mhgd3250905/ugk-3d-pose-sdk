@@ -365,11 +365,14 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   /// Phase index the burst's first switch already announced.
   int? _navigationAnnounced;
 
-  /// Cues the queue really started playing for [_navigationAnnounced], by
-  /// [_cueKey], from the leading switch until the burst moves on. Only these
-  /// are deduplicated when the burst settles back on [_navigationAnnounced];
-  /// counts, chimes and lines that were still waiting (then cancelled by the
-  /// next switch) are kept.
+  /// The phase's announcement (its [CuePriority.call] cue, the action name /
+  /// start call), by [_cueKey], once the voice output confirmed it really
+  /// started playing for [_navigationAnnounced] – from the leading switch
+  /// until the burst moves on. Only this is deduplicated when the burst
+  /// settles back on [_navigationAnnounced], and only its speech: its chimes,
+  /// counts, coaching lines and every other cue are played again as usual.
+  /// A call that was only submitted or still waiting (then cancelled by the
+  /// next switch) is never recorded, so it is spoken again.
   Set<String>? _navigationAnnouncedCues;
 
   /// True only during the leading switch's own [_tick].
@@ -500,7 +503,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       output: _voice.output,
       lib: _voice.source,
       settings: _soundSettings,
-      onPlayed: _onCuePlayed,
+      onStarted: _onCueStarted,
     );
     if (_voice.settings.voice || _voice.settings.chimes) {
       unawaited(_voice.output.begin());
@@ -557,8 +560,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   static String _cueKey(VoiceCue c) =>
       '${c.at}|${c.priority.name}|${c.clips.join('+')}';
 
-  /// [VoiceQueue.onPlayed]: records what the leading switch really played.
-  void _onCuePlayed(VoiceCue cue) {
+  /// [VoiceQueue.onStarted]: the output confirmed [cue] really started.
+  /// Records the leading switch's announcement (see
+  /// [_navigationAnnouncedCues]); may arrive after the switch's own tick.
+  void _onCueStarted(VoiceCue cue) {
+    if (cue.priority != CuePriority.call) return;
+    if (_disposed || !mounted) return;
     if (_navigationCoalescing || _paused || _engine.done) return;
     // The leading tick may still cross a zero-length phase; its index is
     // taken once that tick is over.
@@ -737,7 +744,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       output: _voice.output,
       lib: _voice.source,
       settings: _soundSettings,
-      onPlayed: _onCuePlayed,
+      onStarted: _onCueStarted,
     );
     _endedAt = null;
     _subtitle = null;
@@ -876,9 +883,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     }
     _subtitle = null;
     _syncProgress(_t);
-    // A leading switch records what the queue really plays for its phase
-    // (see [_onCuePlayed]) until the burst moves on or settles. A muted or
-    // paused switch plays nothing, so nothing of it is deduplicated.
+    // A leading switch records whether the output really started its
+    // phase's announcement (see [_onCueStarted]) until the burst moves on
+    // or settles. A muted or paused switch plays nothing, so nothing of it
+    // is deduplicated.
     final record = leading && settleVoice && !_paused && !_engine.done;
     if (record) {
       _navigationAnnounced = _engine.index;
@@ -912,13 +920,21 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       // The engine may naturally cross a zero-length rest while settling.
       _engine.update(t);
       if (!_engine.done && _engine.index == announced && !_paused) {
-        // Back on the phase this burst already announced: drop only the
-        // cues the leading switch really spoke; counts, chimes and any other
-        // cue it had not reached yet still play.
+        // Back on the phase this burst already announced: do not say its
+        // announcement again if the output confirmed it really started.
+        // Its chimes, counts, coaching lines and every other cue play as
+        // usual.
         final keep = <FiredCue>[];
         for (final f in _runner.update(t)) {
-          if (announcedCues.remove(_cueKey(f.cue))) {
+          if (f.cue.priority == CuePriority.call &&
+              announcedCues.remove(_cueKey(f.cue))) {
             if (f.cue.subtitle != null) _subtitle = f.cue.subtitle;
+            final chimes = f.cue.chimes;
+            if (chimes.isNotEmpty) {
+              keep.add(
+                FiredCue(f.time, VoiceCue(f.cue.at, chimes, f.cue.priority)),
+              );
+            }
           } else {
             keep.add(f);
           }

@@ -1,5 +1,6 @@
 // Ported from HipLab@99fcc83 lib/hip/voice/voice_line_controller.dart
-// (10-19 Android voice fix + PR #24 review). Unchanged.
+// (10-19 Android voice fix + PR #24 review). Changes: [speak] can report
+// when the line really starts (ugk_trainer PR #7).
 import 'dart:async';
 
 import 'package:clock/clock.dart';
@@ -129,7 +130,12 @@ class VoiceLineController {
     }
   }
 
-  Future<void> speak(List<String> assets) {
+  /// Plays [assets] after every line asked for before. [onStarted] runs
+  /// once, when the platform player is told to play this line: after the
+  /// lines before it ended, after its clips loaded, and only if no
+  /// [stopSpeech] / [abandon] dropped it and it was not skipped as stale.
+  /// A line that never gets that far never calls it.
+  Future<void> speak(List<String> assets, {void Function()? onStarted}) {
     if (!isActive()) return Future<void>.value();
     _release?.cancel();
     final gen = ++_generation;
@@ -138,7 +144,14 @@ class VoiceLineController {
     _cut = false;
     final prev = _line;
     final asked = clock.now();
-    final line = _queued(gen, epoch, cut ? null : prev, asked, assets);
+    final line = _queued(
+      gen,
+      epoch,
+      cut ? null : prev,
+      asked,
+      assets,
+      onStarted,
+    );
     _line = line;
     return line;
   }
@@ -149,6 +162,7 @@ class VoiceLineController {
     Future<void>? prev,
     DateTime asked,
     List<String> assets,
+    void Function()? onStarted,
   ) async {
     if (prev != null) {
       // Wait for the line before (its load and its tail) instead of
@@ -163,10 +177,15 @@ class VoiceLineController {
       onSkip?.call(assets);
       return;
     }
-    await _play(gen, epoch, assets);
+    await _play(gen, epoch, assets, onStarted);
   }
 
-  Future<void> _play(int gen, int epoch, List<String> assets) async {
+  Future<void> _play(
+    int gen,
+    int epoch,
+    List<String> assets,
+    void Function()? onStarted,
+  ) async {
     Future<void>? playback;
     try {
       // Serialize preparation as well as focus: an old delayed load must
@@ -191,6 +210,8 @@ class VoiceLineController {
         // Attach error handling immediately, before the serial callback
         // yields: an immediately failing player must not become unhandled.
         playback = _step(p.playVoiceToEnd);
+        // The line really starts here, not when it was asked for.
+        _report(onStarted);
       });
       await playback;
     } on Object {
@@ -198,6 +219,15 @@ class VoiceLineController {
     }
     if (!_current(gen)) return;
     _scheduleRelease(gen);
+  }
+
+  static void _report(void Function()? onStarted) {
+    if (onStarted == null) return;
+    try {
+      onStarted();
+    } on Object {
+      /* a listener must never stop the line */
+    }
   }
 
   void _scheduleRelease(int gen) {

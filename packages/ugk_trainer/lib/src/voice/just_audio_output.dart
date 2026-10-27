@@ -41,7 +41,11 @@ import 'voice_queue.dart';
 /// interruptions are OS features that tests cannot exercise) – see
 /// docs/ios-setup-and-release.md.
 class JustAudioVoiceOutput
-    implements VoiceOutput, InterruptibleVoiceOutput, VoicePlatform {
+    implements
+        VoiceOutput,
+        StartReportingVoiceOutput,
+        InterruptibleVoiceOutput,
+        VoicePlatform {
   /// [keepAliveAsset] overrides must contain truly silent samples. Android
   /// plays the track at normal player volume so it counts as active playback;
   /// the bundled zero-sample asset supplies the silence.
@@ -338,8 +342,20 @@ class JustAudioVoiceOutput
   }
 
   @override
-  Future<void> speak(List<String> assets) async {
-    final request = ++_speechRequest;
+  Future<void> speak(List<String> assets) => _speak(assets, null);
+
+  @override
+  Future<void> speakReportingStart(
+    List<String> assets,
+    void Function() onStarted,
+  ) => _speak(assets, onStarted);
+
+  Future<void> _speak(List<String> assets, void Function()? onStarted) async {
+    // Only a stop / interruption / end drops a line waiting here. A newer
+    // line no longer supersedes it: two lines asked for in the same turn
+    // (a tail let through by VoiceQueue.tailGrace) both play, in order, as
+    // VoiceLineController promises (ugk_trainer PR #7).
+    final request = _speechRequest;
     final generation = _sessionGeneration;
     await _beginning;
     if (!_current(generation) ||
@@ -347,7 +363,7 @@ class JustAudioVoiceOutput
         _session == null) {
       return;
     }
-    await _lines.speak(assets);
+    await _lines.speak(assets, onStarted: onStarted);
   }
 
   @override

@@ -252,6 +252,39 @@ void main() {
     await output.dispose();
   });
 
+  test('lines asked for in one turn all play in order and report their '
+      'real start; a line stopped before its turn never does', () async {
+    final events = <String>[];
+    final voice = _Player(events, autoComplete: false);
+    final output = JustAudioVoiceOutput.forTesting(
+      voice: voice,
+      chime: _Player(events),
+      keepAlive: _Player(events),
+      session: () async => _Session(events),
+    );
+    await output.begin();
+    final started = <String>[];
+    final firstPlaying = Completer<void>();
+    voice.playingStarted.add(firstPlaying);
+    final a = output.speakReportingStart(['a'], () => started.add('a'));
+    final b = output.speakReportingStart(['b'], () => started.add('b'));
+    await firstPlaying.future;
+    await Future<void>.delayed(Duration.zero);
+    expect(started, ['a'], reason: 'b is asked for but waits behind a');
+    final secondPlaying = Completer<void>();
+    voice.playingStarted.add(secondPlaying);
+    voice.complete();
+    await secondPlaying.future;
+    await Future<void>.delayed(Duration.zero);
+    expect(started, ['a', 'b']);
+    final c = output.speakReportingStart(['c'], () => started.add('c'));
+    await output.stopSpeech();
+    await Future.wait([a, b, c]);
+    expect(started, ['a', 'b']);
+    expect(events.where((e) => e == 'play').length, 2);
+    await output.dispose();
+  });
+
   test('unawaited stop then next line cannot pause the new count', () async {
     final events = <String>[];
     final voice = _Player(events, autoComplete: false);

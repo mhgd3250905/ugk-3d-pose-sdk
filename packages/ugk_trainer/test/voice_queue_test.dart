@@ -221,4 +221,43 @@ void main() {
       expect(output.spoken, isEmpty);
     });
   });
+
+  group('PR #7 review 3: a start is what the output confirms', () {
+    test('a line queued behind a tail is reported only once it starts, '
+        'and never after cancelAll dropped it', () {
+      final source = smartSource();
+      final probe = SerialVoiceProbe.forSource(source);
+      final reported = <String>[];
+      final q = VoiceQueue(
+        output: probe,
+        lib: source,
+        settings: const VoiceSettings(),
+        onStarted: (cue) => reported.add(cue.clips.join('+')),
+      );
+      q.submit(const VoiceCue(0, ['chime.start', 'p.go'], CuePriority.call), 0);
+      expect(reported, ['chime.start+p.go']);
+      // p.go (673 ms) has < tailGrace left: the count follows it.
+      q.submit(const VoiceCue(.1, ['n.1'], CuePriority.count), .1);
+      expect(probe.submitted, hasLength(2));
+      expect(probe.started, hasLength(1));
+      expect(reported, ['chime.start+p.go'], reason: 'submitted, not started');
+      q.cancelAll(.12);
+      expect(probe.started, hasLength(1));
+      expect(reported, ['chime.start+p.go']);
+    });
+
+    test('an output that cannot confirm a start reports nothing', () {
+      final source = smartSource();
+      final reported = <VoiceCue>[];
+      final q = VoiceQueue(
+        output: const MutedVoiceOutput(),
+        lib: source,
+        settings: const VoiceSettings(),
+        onStarted: reported.add,
+      );
+      q.submit(const VoiceCue(0, ['chime.start', 'p.go'], CuePriority.call), 0);
+      q.submit(const VoiceCue(0, ['chime.tick'], CuePriority.count), 1);
+      expect(reported, isEmpty);
+    });
+  });
 }

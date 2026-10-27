@@ -35,6 +35,7 @@ import '../util/clock.dart';
 import 'agent_prompt.dart';
 import 'agent_resilience.dart';
 import 'skill_files.dart';
+import 'training_confirmation.dart';
 import 'training_parameters.dart';
 import 'user_memory.dart';
 
@@ -227,6 +228,17 @@ class CoachAgent {
   int _turns = 0;
   int _questionsAsked = 0;
   bool _parameterTask = false;
+  // Only messages belonging to the current plan contribute its parameters.
+  // Chat history remains intact for the model and the conversation UI.
+  final List<String> _planParameterMessages = [];
+  AskUserQuestion? _pendingConfirmation;
+  CoachContext? _confirmedPlanContext;
+  CoachContext? _taskSafetyContext;
+  String? _planFocus;
+  String? _planGoal;
+  Map<String, List<String>>? _lastConfirmedForm;
+  bool _safetyBlocked = false;
+  bool _planningFailure = false;
   int _generation = 0;
   int? _busyGen;
 
@@ -244,6 +256,97 @@ class CoachAgent {
 
   /// 本次任务已成功交付的澄清问题数；跨 send 保留，成功交付计划/动作卡或 reset 时清零。
   int get questionsAsked => _questionsAsked;
+
+  /// The three conditions last confirmed for the active planning task.
+  /// Failure and retry preserve this snapshot; a new task or reset clears it.
+  Map<String, List<String>>? get lastConfirmedForm => _lastConfirmedForm;
+
+  /// The still-active local confirmation, including while unrelated chat is
+  /// handled. Successful answer, a replacement task, or reset clears it.
+  AskUserQuestion? get pendingConfirmation => _pendingConfirmation;
+
+  /// Explicitly replaces protected body areas after host/user confirmation.
+  /// Merely omitting [CoachContext.avoid] never clears prior protection and
+  /// this does not override a separate unresolved red-flag safety state.
+  void replaceSafetyAvoid(Set<String> avoid) {
+    final nextAvoid = Set<String>.unmodifiable(avoid);
+    CoachContext replace(CoachContext c) => CoachContext(
+      scene: c.scene,
+      equipment: c.equipment,
+      minutes: c.minutes,
+      avoid: nextAvoid,
+      level: c.level,
+      goal: c.goal,
+      language: c.language,
+      notes: c.notes,
+    );
+    _taskSafetyContext = replace(_taskSafetyContext ?? const CoachContext());
+    if (_confirmedPlanContext != null) {
+      _confirmedPlanContext = replace(_confirmedPlanContext!);
+    }
+  }
+
+  /// Explicitly invalidate an unanswered confirmation. A previously confirmed
+  /// snapshot is retained so that a failed generation remains retryable.
+  void dismissConfirmation() {
+    if (_pendingConfirmation == null) return;
+    _pendingConfirmation = null;
+    _questionsAsked = 0;
+    _parameterTask = false;
+    if (_confirmedPlanContext == null) {
+      _planParameterMessages.clear();
+      _planFocus = null;
+      _planGoal = null;
+    }
+  }
+
+  /// True only when a host-provided preset both targets this task's verified
+  /// focus and passes the same catalog, safety and confirmed-condition gate.
+  bool canOfferPreset(TrainingPlan plan) =>
+      _planningFailure && !isBusy && !isFull && _admitPreset(plan) != null;
+
+  /// Delivers a preset only after the user has explicitly selected it.
+  /// Unknown or mismatched focus and any gate failure return null.
+  CoachTurnResult? requestPreset(TrainingPlan plan) {
+    if (!_planningFailure || isBusy || isFull) return null;
+    final admitted = _admitPreset(plan);
+    if (admitted == null) return null;
+    final text = _planSummary(admitted.plan, _catalog());
+    _questionsAsked = 0;
+    _parameterTask = false;
+    _planningFailure = false;
+    _turns++;
+    _history
+      ..add(const LlmMessage.user('用预设方案'))
+      ..add(LlmMessage.assistant(text, reasoning: ''));
+    return CoachTurnResult(
+      turnId: _ids.next('turn'),
+      status: TurnStatus.fallback,
+      text: text,
+      plan: admitted,
+    );
+  }
+
+  ValidatedPlan? _admitPreset(TrainingPlan plan) {
+    final context = _confirmedPlanContext;
+    if (_safetyBlocked || context == null || _planFocus == null) return null;
+    final catalog = _catalog();
+    if (!presetMatchesFocus(plan, catalog, _planFocus)) return null;
+    final parameters = TrainingParameters.infer(
+      [''],
+      context,
+      catalog,
+      profile,
+    );
+    return ToolGate(
+      catalog: catalog,
+      profile: profile,
+      canary: prompts.canary,
+      extraRules: [...extraRules, parameters.validate],
+      enforceDrillDoseRange: enforceDrillDoseRange,
+    ).admitTemplate(plan, context);
+  }
+
   int get historyChars => _history.fold(0, (n, m) => n + _chars(m));
   bool get isBusy => _busyGen == _generation;
   bool get isFull =>
@@ -257,6 +360,15 @@ class CoachAgent {
     _turns = 0;
     _questionsAsked = 0;
     _parameterTask = false;
+    _planParameterMessages.clear();
+    _pendingConfirmation = null;
+    _confirmedPlanContext = null;
+    _taskSafetyContext = null;
+    _planFocus = null;
+    _planGoal = null;
+    _lastConfirmedForm = null;
+    _safetyBlocked = false;
+    _planningFailure = false;
     _resetSig.complete();
     _resetSig = Completer<void>();
   }
@@ -384,6 +496,7 @@ class CoachAgent {
     String userText, {
     CoachContext context = const CoachContext(),
     CancelToken? cancel,
+    Map<String, List<String>>? confirmedForm,
   }) async {
     final turnId = _ids.next('turn');
     final text = userText.trim();
@@ -394,10 +507,11 @@ class CoachAgent {
     if (isFull) {
       return CoachTurnResult(turnId: turnId, status: TurnStatus.limitReached);
     }
+    _planningFailure = false;
     final gen = _generation;
     _busyGen = gen;
     try {
-      return await _run(turnId, text, context, cancel, gen);
+      return await _run(turnId, text, context, cancel, gen, confirmedForm);
     } finally {
       if (_busyGen == gen) _busyGen = null;
     }
@@ -409,6 +523,7 @@ class CoachAgent {
     CoachContext context,
     CancelToken? cancel,
     int gen,
+    Map<String, List<String>>? confirmedForm,
   ) async {
     bool dead() => gen != _generation || (cancel?.isCancelled ?? false);
     // 清除记忆也作废本轮先前请求取得的记忆操作；下一轮才重新允许记忆。
@@ -448,34 +563,175 @@ class CoachAgent {
     final turnWatch = Stopwatch()..start();
 
     final cat = _catalog();
-    final parameters = TrainingParameters.infer(
-      [
-        ..._history.where((m) => m.role == LlmRole.user).map((m) => m.content),
-        text,
-      ],
-      context,
-      cat,
-      profile,
-    );
-    final explicitPlan = RegExp(
+    final suppliedContext = context;
+    final focus = trainingFocus(text);
+    final goal = trainingGoal(text);
+    final newRedFlag = hasTrainingRedFlag(text);
+    final correctsRedFlag =
+        !newRedFlag &&
+        RegExp(
+          r'(?:之前|刚才|上次).{0,18}(?:误报|说错|误会|搞错|弄错)|(?:误报|说错|误会|搞错|弄错).{0,18}(?:之前|刚才|上次)',
+        ).hasMatch(text) &&
+        RegExp(r'没有|并无|不存在|不是|无').hasMatch(text);
+    final redFlag = newRedFlag || (_safetyBlocked && !correctsRedFlag);
+    final hasPlanWords = RegExp(
       r'训练组|计划|方案|排课|(?:一套|一组|一份).*(?:训练|动作|拉伸|放松)|\b(?:plan|routine|workout)\b',
       caseSensitive: false,
     ).hasMatch(text);
+    final trainingDomain =
+        RegExp(r'训练|锻炼|健身|运动|拉伸|放松|热身|瑜伽|徒手|器械|哑铃|弹力带|开胯|肌群').hasMatch(text) ||
+        focus != null ||
+        goal != null;
+    final explicitPlan = hasPlanWords && trainingDomain;
     final explainingAction = RegExp(
-      r'怎么做|如何做|怎么练|如何练|讲解|要领|姿势|区别|展示|看看|找动作',
+      r'怎么做|如何做|怎么练|如何练|怎么放松|如何放松|讲解|要领|姿势|区别|展示|看看|找动作|是什么|为什么',
     ).hasMatch(text);
-    final parameterTask =
-        _parameterTask ||
+    final explicitlyCreatesPlan =
+        explicitPlan &&
+        RegExp(r'(?:做|排|制定|生成|设计|安排|创建|编排).{0,18}(?:计划|训练组|方案)').hasMatch(text);
+    final onlyExplanation = explainingAction && !explicitlyCreatesPlan;
+    final revision = RegExp(
+      r'(?:这个|这套|这份|上个|上一|原来|之前|刚才|现有|当前|原方案|原计划).{0,20}(?:改|换|调整|缩短|延长|增加|减少|替换)|(?:改|调整|修改|优化|更换|替换|缩短|延长).{0,20}(?:这个|这套|这份|上个|原来|之前|刚才|现有|当前|方案|计划|训练组)',
+    ).hasMatch(text);
+    final explicitlyNew = RegExp(
+      r'新(?:的|建|做|排|制定|生成|一套|一份)|另外|再(?:做|排|生成|来|设计)|重新(?:做|排|生成|制定|设计)',
+    ).hasMatch(text);
+    final asksFocusTraining =
+        focus != null &&
+        RegExp(r'练|训练|锻炼|放松|拉伸|热身').hasMatch(text) &&
+        !onlyExplanation;
+    final asksGoalTraining =
+        goal != null &&
+        RegExp(r'想|要|练|训练|锻炼|改善|提升|增加|增强|减|燃|塑形').hasMatch(text) &&
+        !onlyExplanation;
+    final asksRoutine =
+        RegExp(
+          r'(?:排|做|给我|来|制定|设计|编排).{0,24}(?:开胯|拉伸|热身|放松|锻炼|运动|力量|训练)',
+        ).hasMatch(text) &&
+        !onlyExplanation;
+    final answerFacts = TrainingParameters.infer(
+      [text],
+      const CoachContext(),
+      cat,
+      profile,
+    );
+    final answersConfirmation =
+        answerFacts.missing.length < 3 ||
+        answerFacts.skipped ||
+        RegExp(r'按默认来|直接出方案|默认就好|不确定|你决定').hasMatch(text);
+    final changesFocus =
+        focus != null &&
+        focus != _planFocus &&
+        _planParameterMessages.isNotEmpty &&
+        RegExp(r'换|改|变成|改成|想|练|做').hasMatch(text) &&
+        !onlyExplanation;
+    final retry = RegExp(r'^(?:再)?(?:重试|重新尝试|再试一次)').hasMatch(text);
+    final wantsPlan =
         explicitPlan ||
-        (text.contains('训练') && !explainingAction);
+        asksFocusTraining ||
+        asksGoalTraining ||
+        asksRoutine ||
+        changesFocus ||
+        (text.contains('训练') && !onlyExplanation);
+    final newFocus = (asksFocusTraining || changesFocus) && focus != _planFocus;
+    final newGoal = asksGoalTraining && goal != _planGoal;
+    final changesCurrent =
+        !newGoal &&
+        !newFocus &&
+        (revision ||
+            (_planParameterMessages.isNotEmpty &&
+                RegExp(r'短一点|长一点|难一点|简单一点|轻一点|换掉|换成|调整一下').hasMatch(text)));
+    final parameterTask =
+        !redFlag &&
+        ((wantsPlan && !onlyExplanation) ||
+            (changesCurrent && _planParameterMessages.isNotEmpty) ||
+            (retry && _confirmedPlanContext != null) ||
+            confirmedForm != null ||
+            (_parameterTask && !onlyExplanation && answersConfirmation));
+    final startsNewPlan =
+        parameterTask &&
+        wantsPlan &&
+        !changesCurrent &&
+        confirmedForm == null &&
+        (!_parameterTask || explicitlyNew || newFocus || newGoal);
+    final questionsAsked = startsNewPlan ? 0 : _questionsAsked;
+    // A new planning task cannot silently inherit stale environment settings.
+    // Other context, especially safety screening, remains unchanged.
+    final safety = _taskSafetyContext ?? _confirmedPlanContext;
+    final cleanContext = CoachContext(
+      avoid: {...?safety?.avoid, ...context.avoid},
+      level: context.level ?? safety?.level,
+      goal: context.goal ?? (startsNewPlan ? null : safety?.goal),
+      language: context.language,
+      notes: {...?safety?.notes, ...context.notes}.toList(),
+    );
+    final prior = startsNewPlan ? null : _confirmedPlanContext;
+    final parameterContext = parameterTask
+        ? (prior == null
+              ? cleanContext
+              : CoachContext(
+                  scene: prior.scene,
+                  equipment: prior.equipment,
+                  minutes: prior.minutes,
+                  avoid: cleanContext.avoid,
+                  level: cleanContext.level,
+                  goal: cleanContext.goal,
+                  language: cleanContext.language,
+                  notes: cleanContext.notes,
+                ))
+        : context;
+    final typedConfirmed = confirmedForm == null
+        ? null
+        : (_pendingConfirmation == null
+              ? null
+              : confirmedTrainingContext(
+                  _pendingConfirmation!,
+                  confirmedForm,
+                  parameterContext,
+                  cat,
+                ));
+    if (confirmedForm != null && typedConfirmed == null) {
+      return CoachTurnResult(
+        turnId: turnId,
+        status: TurnStatus.error,
+        error: const FormatException('Invalid training confirmation'),
+      );
+    }
+    final parameters = TrainingParameters.infer(
+      typedConfirmed != null
+          ? const ['']
+          : parameterTask
+          ? [if (!startsNewPlan) ..._planParameterMessages, text]
+          : [text],
+      typedConfirmed ?? parameterContext,
+      cat,
+      profile,
+    );
     // Only explicit facts constrain admission. Defaults guide generation and
     // are explained to the user; they do not turn guesses into user facts.
     context = parameterTask
         ? parameters.resolved(
             profile,
-            clarificationFinished: _questionsAsked >= maxQuestionsPerTask,
+            clarificationFinished: questionsAsked >= maxQuestionsPerTask,
           )
         : parameters.context;
+    final shortensPlan =
+        changesCurrent && RegExp(r'短一点|短些|更短|缩短|少一点时间').hasMatch(text);
+    final lengthensPlan =
+        changesCurrent && RegExp(r'长一点|长些|更长|延长|多一点时间').hasMatch(text);
+    final adjustsDuration = shortensPlan || lengthensPlan;
+    final oldDuration = context.minutes;
+    if (adjustsDuration && oldDuration != null) {
+      context = CoachContext(
+        scene: context.scene,
+        equipment: context.equipment,
+        avoid: context.avoid,
+        level: context.level,
+        goal: context.goal,
+        language: context.language,
+        notes: context.notes,
+      );
+    }
     final gate = ToolGate(
       catalog: cat,
       profile: profile,
@@ -483,8 +739,49 @@ class CoachAgent {
       extraRules: [
         ...extraRules,
         parameters.validate,
+        if (parameterTask)
+          (plan, catalog, context) => [
+            if (planTouchesFocus(
+                  plan,
+                  catalog,
+                  startsNewPlan ? focus ?? goal : _planFocus ?? focus ?? goal,
+                ) ==
+                false)
+              const PlanIssue(
+                'focus_conflict',
+                '训练动作没有覆盖用户的重点部位',
+                path: 'blocks',
+              ),
+          ],
+        if (!parameterTask)
+          (plan, catalog, context) => [
+            const PlanIssue('plan_not_requested', '当前请求不应生成训练计划'),
+          ],
+        if (adjustsDuration && oldDuration != null)
+          (plan, catalog, context) => [
+            if ((shortensPlan && plan.targetMinutes >= oldDuration) ||
+                (lengthensPlan && plan.targetMinutes <= oldDuration))
+              PlanIssue(
+                IssueCodes.contextConflict,
+                '调整后的训练时长与用户要求不符',
+                path: 'targetMinutes',
+                expected: '${shortensPlan ? '少于' : '多于'} $oldDuration 分钟',
+                actual: '${plan.targetMinutes} 分钟',
+              ),
+            if (plan.targetMinutes > 0 &&
+                ((const PlanDuration().estimateSeconds(plan, catalog) / 60 -
+                                plan.targetMinutes)
+                            .abs() /
+                        plan.targetMinutes) >
+                    .25)
+              const PlanIssue(
+                IssueCodes.contextConflict,
+                '调整后的实际训练时长与计划目标不符',
+                path: 'blocks',
+              ),
+          ],
         if (parameterTask &&
-            _questionsAsked == 0 &&
+            questionsAsked == 0 &&
             !parameters.skipped &&
             parameters.missing.isNotEmpty)
           (plan, catalog, context) => [
@@ -516,11 +813,20 @@ class CoachAgent {
         memory: memoryOn,
         memorySummary: summary,
         userText: text,
-        questionsAsked: _questionsAsked,
-        trainingParameters: parameters.prompt(
-          profile,
-          clarificationFinished: _questionsAsked >= maxQuestionsPerTask,
-        ),
+        questionsAsked: questionsAsked,
+        trainingParameters: redFlag
+            ? '# 安全优先\n本次或先前提到的严重症状尚未明确纠正，'
+                  '不要推荐或生成训练，建议停止训练并咨询专业医疗人员。'
+            : adjustsDuration && oldDuration != null
+            ? '# 本次训练调整\n'
+                  '当前已确认条件：${jsonEncode(context.toJson())}\n'
+                  '用户要求${shortensPlan ? '短' : '长'}一点，目标时长必须${shortensPlan ? '小于' : '大于'}$oldDuration分钟；'
+                  '按新目标调整实际训练量，估算时长偏差不超过25%。'
+                  '场景、器械和安全条件不变，不重新追问。'
+            : parameters.prompt(
+                profile,
+                clarificationFinished: questionsAsked >= maxQuestionsPerTask,
+              ),
       );
     }
 
@@ -628,19 +934,118 @@ class CoachAgent {
         issues: status == TurnStatus.ok ? const [] : lastErrors,
         reason: reason,
         error: status == TurnStatus.ok ? null : error,
+        isPlanningFailure: parameterTask && status == TurnStatus.error,
         leaked: leaked,
         submissions: submissions,
         steps: step,
         reads: reads,
         dead: dead,
-        commit: commit,
+        commit:
+            (commit == null &&
+                !(parameterTask &&
+                    (typedConfirmed != null ||
+                        (_pendingConfirmation != null && !startsNewPlan) ||
+                        (startsNewPlan &&
+                            (parameters.missing.isEmpty ||
+                                parameters.skipped)))))
+            ? null
+            : () {
+                if (startsNewPlan &&
+                    (commit != null ||
+                        parameters.missing.isEmpty ||
+                        parameters.skipped)) {
+                  _questionsAsked = 0;
+                  _parameterTask = false;
+                  _planParameterMessages.clear();
+                  _confirmedPlanContext = null;
+                  _pendingConfirmation = null;
+                  _lastConfirmedForm = null;
+                  _planFocus = focus ?? goal;
+                  _planGoal = goal;
+                }
+                commit?.call();
+                if (parameterTask) {
+                  _planParameterMessages.add(text);
+                  _taskSafetyContext = cleanContext;
+                }
+                if (parameterTask &&
+                    (typedConfirmed != null ||
+                        (_pendingConfirmation != null && !startsNewPlan) ||
+                        (startsNewPlan &&
+                            (parameters.missing.isEmpty ||
+                                parameters.skipped)))) {
+                  _confirmedPlanContext = context;
+                  _lastConfirmedForm = trainingSelections(context, cat);
+                  _pendingConfirmation = null;
+                }
+              },
         beforeCommit: question == null
             ? null
             : () =>
                   emit(AgentEventKind.askUser, step: step, question: question),
       );
+      if (!dead() && redFlag && r.status != TurnStatus.cancelled) {
+        _safetyBlocked = true;
+      }
+      if (!dead() && correctsRedFlag && r.status != TurnStatus.cancelled) {
+        _safetyBlocked = false;
+      }
+      if (!dead()) _planningFailure = r.isPlanningFailure;
       emit(AgentEventKind.done, step: step, status: r.status);
       return r;
+    }
+
+    // The confirmation is local and deterministic: a model cannot silently
+    // omit a missing condition or promote an old suggestion into a fact.
+    if (startsNewPlan && parameters.missing.isNotEmpty && !parameters.skipped) {
+      final memoryTexts = memoryOn && memoryAllowed()
+          ? [for (final entry in _memory ?? const <MemoryEntry>[]) entry.text]
+          : const <String>[];
+      final previous = TrainingParameters.infer(
+        [
+          ...memoryTexts,
+          ..._history
+              .where((m) => m.role == LlmRole.user)
+              .map((m) => m.content),
+          '',
+        ],
+        CoachContext(
+          scene: suppliedContext.scene ?? _confirmedPlanContext?.scene,
+          equipment:
+              suppliedContext.equipment ?? _confirmedPlanContext?.equipment,
+          minutes: suppliedContext.minutes ?? _confirmedPlanContext?.minutes,
+          avoid: suppliedContext.avoid,
+          level: suppliedContext.level,
+          goal: suppliedContext.goal,
+          language: suppliedContext.language,
+          notes: suppliedContext.notes,
+        ),
+        cat,
+        profile,
+      );
+      final question = buildTrainingConfirmation(
+        current: parameters,
+        previous: previous,
+        catalog: cat,
+        profile: profile,
+        focus: focus ?? goal,
+      );
+      return done(
+        TurnStatus.ok,
+        TurnOutcome.preflight,
+        0,
+        text: question.question,
+        question: question,
+        commit: () {
+          _questionsAsked = 1;
+          _parameterTask = true;
+          _pendingConfirmation = question;
+          _turns++;
+          _history
+            ..add(userMsg)
+            ..add(LlmMessage.assistant(question.question, reasoning: ''));
+        },
+      );
     }
 
     var step = 0;
@@ -896,6 +1301,24 @@ class CoachAgent {
           leaked = true;
           break;
         }
+        if (g.ok &&
+            parameterTask &&
+            !RegExp(
+              r'无法|不能|不建议|不适合|请就医|建议就医|咨询医生|联系医生|求医|cannot|unable',
+              caseSensitive: false,
+            ).hasMatch(g.text)) {
+          lastErrors = const [PlanIssue('missing_plan', '训练计划未生成')];
+          error = StateError('Plan was not generated');
+          calls.add(
+            _Call.ok(
+              step,
+              res,
+              CallOutcome.rejected,
+              codes: const ['missing_plan'],
+            ),
+          );
+          break;
+        }
         if (g.ok) {
           calls.add(
             _Call.ok(
@@ -962,6 +1385,11 @@ class CoachAgent {
       if (asks.isNotEmpty) {
         submissions++;
         final issues = <PlanIssue>[];
+        if (!parameterTask) {
+          issues.add(
+            const PlanIssue('clarification_not_requested', '当前请求不应追问训练计划条件'),
+          );
+        }
         if (res.toolCalls.length != 1) {
           issues.add(
             const PlanIssue(
@@ -974,7 +1402,7 @@ class CoachAgent {
             ),
           );
         }
-        if (_questionsAsked >= maxQuestionsPerTask) {
+        if (questionsAsked >= maxQuestionsPerTask) {
           issues.add(
             const PlanIssue(
               'ask_limit',
@@ -1062,7 +1490,7 @@ class CoachAgent {
             text: question.question,
             question: question,
             commit: () {
-              _questionsAsked++;
+              _questionsAsked = questionsAsked + 1;
               _parameterTask =
                   parameterTask || question.mode == AskUserMode.form;
               _turns++;
@@ -1266,6 +1694,31 @@ class CoachAgent {
         continue;
       }
 
+      if (redFlag &&
+          finals.any((call) => call.name == AgentTools.showActions)) {
+        submissions++;
+        lastErrors = const [
+          PlanIssue('safety_no_actions', '存在未排除的安全风险，不能展示训练动作'),
+        ];
+        calls.add(
+          _Call.ok(
+            step,
+            res,
+            CallOutcome.rejected,
+            codes: const ['safety_no_actions'],
+          ),
+        );
+        if (++rejected > maxResubmits) break;
+        final feedback = _feedback(
+          lastErrors,
+          remaining: 1 + maxResubmits - rejected,
+        );
+        turnMsgs.add(assistant(res));
+        for (final call in res.toolCalls) {
+          turnMsgs.add(LlmMessage.tool(call.id, results[call.id] ?? feedback));
+        }
+        continue;
+      }
       submissions++;
       final g = gate.check(
         res.content,
@@ -1299,11 +1752,27 @@ class CoachAgent {
           TurnStatus.ok,
           rejected == 0 ? TurnOutcome.model : TurnOutcome.rewritten,
           step,
-          text: g.text,
+          text: g.plan == null ? g.text : _planSummary(g.plan!.plan, cat),
           plan: g.plan,
           actions: g.actions,
           warnings: g.warnings,
           commit: () {
+            if (parameterTask && g.plan != null && !startsNewPlan) {
+              _confirmedPlanContext = CoachContext(
+                scene: context.scene,
+                equipment: context.equipment,
+                minutes: g.plan!.plan.targetMinutes,
+                avoid: context.avoid,
+                level: context.level,
+                goal: context.goal,
+                language: context.language,
+                notes: context.notes,
+              );
+              _lastConfirmedForm = trainingSelections(
+                _confirmedPlanContext!,
+                cat,
+              );
+            }
             _questionsAsked = 0;
             _parameterTask = false;
             _turns++;
@@ -1355,6 +1824,11 @@ class CoachAgent {
     if (dead()) {
       return cancelled(step);
     }
+    // A failed planning task must not silently invoke a preset. The host may
+    // present an explicit, separately validated preset action instead.
+    if (parameterTask || redFlag) {
+      return done(TurnStatus.error, TurnOutcome.error, step);
+    }
     final fbFn = fallback;
     if (fbFn == null) return done(TurnStatus.error, TurnOutcome.error, step);
     try {
@@ -1371,6 +1845,10 @@ class CoachAgent {
         return await cancelled(step);
       }
       final plan = r.plan == null ? null : gate.admitTemplate(r.plan!, context);
+      if (r.plan != null && plan == null) {
+        error = StateError('Fallback plan did not pass admission');
+        return await done(TurnStatus.error, TurnOutcome.error, step);
+      }
       return await done(
         TurnStatus.fallback,
         TurnOutcome.fallback,
@@ -1398,6 +1876,21 @@ class CoachAgent {
   }
 
   // ---- 工具执行 ----
+
+  static String _planSummary(TrainingPlan plan, Catalog catalog) {
+    final used = <String>{
+      for (final item in plan.items)
+        for (final id
+            in item.segments.isEmpty
+                ? [item.exerciseId]
+                : item.segments.map((segment) => segment.exerciseId))
+          ...?catalog[id]?.equipment,
+    }..remove('none');
+    final gear = used.isEmpty
+        ? '徒手'
+        : used.map(catalog.taxonomy.equipmentLabel).join('、');
+    return '已按${plan.targetMinutes}分钟安排，器械：$gear。';
+  }
 
   static String? _arg(LlmToolCall t, String key) {
     try {
@@ -1649,6 +2142,7 @@ class CoachAgent {
     List<PlanIssue> issues = const [],
     FallbackReason? reason,
     Object? error,
+    bool isPlanningFailure = false,
     bool leaked = false,
     int submissions = 0,
     int steps = 0,
@@ -1687,6 +2181,7 @@ class CoachAgent {
           : null,
       leaked: leaked,
       error: error,
+      isPlanningFailure: isPlanningFailure,
       records: records,
       steps: steps,
       reads: List.unmodifiable(reads),

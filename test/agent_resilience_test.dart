@@ -99,7 +99,7 @@ void main() {
     final a = agent(c, requestTimeout: const Duration(milliseconds: 40));
     final events = <AgentEvent>[];
     a.events.listen(events.add);
-    final r = await a.send('练臀');
+    final r = await a.send('展示臀部动作');
     expect(r.status, TurnStatus.ok);
     expect(c.requests.length, 3);
     expect(r.steps, 2);
@@ -210,7 +210,7 @@ void main() {
     final a = agent(c);
     final events = <AgentEvent>[];
     a.events.listen(events.add);
-    final r = await a.send('练臀');
+    final r = await a.send('展示臀部动作');
     expect(r.status, TurnStatus.ok);
     expect(delays, isEmpty);
     final last = c.requests.last.messages;
@@ -228,7 +228,7 @@ void main() {
       _read('action-library/SKILL.md'),
       _showActions(['s-figure4']),
     ]);
-    final r = await agent(c, contextBudgetTokens: 1, keepRecentSteps: 1).send('练臀');
+    final r = await agent(c, contextBudgetTokens: 1, keepRecentSteps: 1).send('展示臀部动作');
     expect(r.status, TurnStatus.ok);
     final third = c.requests[2].messages.where((m) => m.role == LlmRole.tool).toList();
     expect(third.first.content, startsWith('已读 action-library/SKILL.md（'));
@@ -242,7 +242,7 @@ void main() {
 
   test('相同工具调用空转：提示一次，再犯回落', () async {
     final c = FakeLlmClient([for (var i = 0; i < 6; i++) _read('action-library/SKILL.md')]);
-    final r = await agent(c).send('练臀');
+    final r = await agent(c).send('展示臀部动作');
     expect(r.status, TurnStatus.fallback);
     expect(r.error, isA<AgentStalled>());
     expect(c.requests.length, 4);
@@ -332,7 +332,7 @@ void main() {
       _read('action-library/index/scene'),
       _showActions(['s-figure4']),
     ]);
-    final r = await agent(c).send('练臀');
+    final r = await agent(c).send('展示臀部动作');
     expect(r.status, TurnStatus.ok);
     expect(r.error, isNull);
     expect(c.requests.length, 5);
@@ -350,7 +350,7 @@ void main() {
         ]),
       ],
     ]);
-    final r = await agent(c).send('练臀');
+    final r = await agent(c).send('展示臀部动作');
     expect(r.status, TurnStatus.fallback);
     expect((r.error as AgentStalled).why, 'no_new_info');
     expect(c.requests.length, 5);
@@ -367,7 +367,7 @@ void main() {
       _read('action-library/SKILL.md'),
       _showActions(['s-figure4']),
     ]);
-    final r = await agent(c, contextBudgetTokens: 1, keepRecentSteps: 1).send('练臀');
+    final r = await agent(c, contextBudgetTokens: 1, keepRecentSteps: 1).send('展示臀部动作');
     expect(r.status, TurnStatus.ok);
     final third = c.requests[2].messages.where((m) => m.role == LlmRole.tool).toList();
     expect(third.first.content, startsWith('已读 action-library/SKILL.md（'));

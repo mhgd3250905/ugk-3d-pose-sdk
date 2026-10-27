@@ -34,19 +34,140 @@ LlmResponse _choiceQuestion({bool multiple = false}) =>
 LlmResponse _plan() =>
     _tool(AgentTools.showPlan, planOf(okEnvelope())..remove('source'));
 
+/// A scripted agent boundary for controller lifecycle tests. This does not
+/// test CoachAgent intent policy: question payloads still go through the real
+/// AskUserGate and plans through ToolGate before reaching the controller.
+/// Real-agent intent behavior is covered separately by the r2 protocol tests.
+class _ControllerAgent extends CoachAgent {
+  _ControllerAgent(this.fake, Catalog catalog, CoachProfile profile)
+    : _catalog = catalog,
+      _profile = profile,
+      super(
+        client: fake,
+        catalog: () => catalog,
+        profile: profile,
+        enableUserMemory: false,
+        maxRequestRetries: 0,
+      );
+
+  final FakeLlmClient fake;
+  final Catalog _catalog;
+  final CoachProfile _profile;
+  final _controllerEvents = StreamController<AgentEvent>.broadcast(sync: true);
+  final _controllerHistory = <LlmMessage>[];
+  int _controllerTurns = 0;
+  int _epoch = 0;
+  bool _controllerBusy = false;
+
+  @override
+  Stream<AgentEvent> get events => _controllerEvents.stream;
+  @override
+  List<LlmMessage> get history => List.unmodifiable(_controllerHistory);
+  @override
+  int get turnCount => _controllerTurns;
+  @override
+  bool get isBusy => _controllerBusy;
+
+  @override
+  void reset() {
+    _epoch++;
+    _controllerTurns = 0;
+    _controllerHistory.clear();
+    _controllerBusy = false;
+    super.reset();
+  }
+
+  @override
+  Future<void> dispose() async {
+    await _controllerEvents.close();
+    await super.dispose();
+  }
+
+  @override
+  Future<CoachTurnResult> send(
+    String userText, {
+    CoachContext context = const CoachContext(),
+    CancelToken? cancel,
+    Map<String, List<String>>? confirmedForm,
+  }) async {
+    final id = 'controller-${_controllerTurns + 1}';
+    if (userText.length > maxInputChars) {
+      return CoachTurnResult(turnId: id, status: TurnStatus.inputTooLong);
+    }
+    if (_controllerBusy) {
+      return CoachTurnResult(turnId: id, status: TurnStatus.busy);
+    }
+    final epoch = _epoch;
+    _controllerBusy = true;
+    try {
+      final request = LlmRequest(
+        messages: [..._controllerHistory, LlmMessage.user(userText)],
+      );
+      final response = await Future.any<LlmResponse?>([
+        fake.complete(request, cancel: cancel),
+        if (cancel != null) cancel.whenCancelled.then((_) => null),
+      ]);
+      if (response == null ||
+          epoch != _epoch ||
+          (cancel?.isCancelled ?? false)) {
+        return CoachTurnResult(turnId: id, status: TurnStatus.cancelled);
+      }
+      AskUserQuestion? question;
+      ValidatedPlan? plan;
+      if (response.toolCalls.isNotEmpty) {
+        final call = response.toolCalls.single;
+        if (call.name == AgentTools.askUser) {
+          final checked = AskUserGate.check(call.arguments);
+          if (!checked.ok) {
+            throw StateError('Invalid scripted question: ${checked.errors}');
+          }
+          question = checked.question!;
+          _controllerEvents.add(
+            AgentEvent(id, AgentEventKind.askUser, question: question),
+          );
+        } else if (call.name == AgentTools.showPlan) {
+          final checked = ToolGate(
+            catalog: _catalog,
+            profile: _profile,
+          ).check('', [call], context: context);
+          if (!checked.ok || checked.plan == null) {
+            throw StateError('Invalid scripted plan: ${checked.errors}');
+          }
+          plan = checked.plan;
+        } else {
+          throw StateError('Unexpected scripted tool: ${call.name}');
+        }
+      }
+      _controllerTurns++;
+      _controllerHistory
+        ..add(LlmMessage.user(userText))
+        ..add(LlmMessage.assistant(response.content));
+      return CoachTurnResult(
+        turnId: id,
+        status: TurnStatus.ok,
+        text: question?.question ?? response.content,
+        question: question,
+        plan: plan,
+      );
+    } on LlmException catch (error) {
+      return CoachTurnResult(
+        turnId: id,
+        status: TurnStatus.error,
+        error: error,
+      );
+    } finally {
+      if (epoch == _epoch) _controllerBusy = false;
+    }
+  }
+}
+
 void main() {
   final catalog = loadCatalog();
   final profile = loadProfile('hiplab');
 
   CoachConversationController controller(FakeLlmClient client) {
     final value = CoachConversationController(
-      agent: CoachAgent(
-        client: client,
-        catalog: () => catalog,
-        profile: profile,
-        enableUserMemory: false,
-        maxRequestRetries: 0,
-      ),
+      agent: _ControllerAgent(client, catalog, profile),
     );
     addTearDown(value.dispose);
     return value;
@@ -118,12 +239,7 @@ void main() {
         '收到',
         '收到',
       ]);
-      final agent = CoachAgent(
-        client: client,
-        catalog: () => catalog,
-        profile: profile,
-        enableUserMemory: false,
-      );
+      final agent = _ControllerAgent(client, catalog, profile);
       final conversation = CoachConversationController(
         agent: agent,
         choiceSeparator: ', ',
@@ -358,6 +474,9 @@ void main() {
       expect(conversation.state.admittedPlans, isEmpty);
       expect(conversation.state.pendingQuestion, isNull);
       expect(conversation.state.isWaiting, isFalse);
+      expect(conversation.state.messages.last.isFailure, isTrue);
+      expect(conversation.state.messages.last.text, isEmpty);
+      expect(conversation.state.messages.last.copyWith().isFailure, isTrue);
     },
   );
 

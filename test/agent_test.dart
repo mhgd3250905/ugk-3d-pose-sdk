@@ -206,7 +206,7 @@ void main() {
       final a = agent(c);
       final events = <AgentEvent>[];
       a.events.listen(events.add);
-      final r = await a.send('练臀有哪些动作？');
+      final r = await a.send('看看有哪些臀部动作？');
       expect(r.status, TurnStatus.ok);
       expect(r.actions!.items.map((i) => i.id), ['s-figure4', 'h-knee-hug']);
       expect(r.steps, 3);
@@ -240,16 +240,39 @@ void main() {
     test('步数超限回落', () async {
       final c = FakeLlmClient([for (var i = 0; i < 3; i++) _read('action-library/details/s-figure4.md')]);
       final a = agent(c, maxSteps: 3, fallback: (req) => const SessionFallbackReply('模板回复'));
-      final r = await a.send('排个计划');
+      // Action guidance may use a safe text fallback; it must actually enter
+      // the model loop instead of stopping at the local planning preflight.
+      final r = await a.send('讲解一下这个动作怎么做');
       expect(r.status, TurnStatus.fallback);
       expect(r.text, '模板回复');
       expect(r.error, isA<AgentStepLimitExceeded>());
       expect(c.requests.length, 3);
+
+      // A fully specified planning request hits the same limit but cannot
+      // silently replace the requested plan with an arbitrary fallback.
+      var fallbackCalls = 0;
+      final planClient = FakeLlmClient([
+        for (var i = 0; i < 3; i++) _read('action-library/details/s-figure4.md'),
+      ]);
+      final planner = agent(
+        planClient,
+        maxSteps: 3,
+        fallback: (_) {
+          fallbackCalls++;
+          return const SessionFallbackReply('模板回复');
+        },
+      );
+      final failedPlan = await planner.send('在家有瑜伽垫，10分钟排个训练计划');
+      expect(failedPlan.status, TurnStatus.error);
+      expect(failedPlan.plan, isNull);
+      expect(failedPlan.error, isA<AgentStepLimitExceeded>());
+      expect(planClient.requests, hasLength(3));
+      expect(fallbackCalls, 0);
     });
 
     test('网络错回落；没配回落返回 error', () async {
       final a = agent(FakeLlmClient([const LlmException(LlmErrorKind.network, 'down')]));
-      final r = await a.send('排个计划');
+      final r = await a.send('在家有瑜伽垫，10分钟排个训练计划');
       expect(r.status, TurnStatus.error);
       expect(r.fallbackReason, FallbackReason.offline);
       expect(a.history, isEmpty);
@@ -310,7 +333,7 @@ void main() {
       ]);
       final events = <AgentEventKind>[];
       final a = agent(c)..events.listen((e) => events.add(e.kind));
-      final r = await a.send('睡前开胯 10 分钟');
+      final r = await a.send('在家有瑜伽垫，10分钟排个睡前开胯训练计划');
       expect(r.status, TurnStatus.ok);
       expect(r.plan, isNotNull);
       final first = jsonDecode(c.requests[1].messages.last.content) as Map;

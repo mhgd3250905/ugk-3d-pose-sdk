@@ -5,9 +5,15 @@
 
 三个 App（托马斯 FlareLab、开胯 HipLab、智能健身 SmartFit）共用一个 AI 训练助理：模型只能用 Pose-Hub 统一动作目录里的动作，按固定 JSON 输出动作 id + 剂量；App 校验通过后渲染成套路卡，可保存、可直接跟练。本目录是 Python 侧的校验器与评测，Dart 侧实现在 `lib/`（`PlanValidator`、`PromptBuilder`）。
 
-## Agent 单轮补齐参数（R1 part1）
+## SmartFit r2 多轮追问协议
 
-`cases/ask_user.json` 和 `../tool/eval_ask_user.dart` 覆盖真实 `OpenAiCompatibleClient → CoachAgent` 路径。当前最多1轮form，已有信息不重问；包含信息全、缺1项、缺3项、用户跳过四类，以及原始bboy、自由输入、App上下文和预算案例。`test/training_parameters_test.dart` 为独立确定性多轮协议回放，使用脚本响应而非真实模型，不计作模型质量评测。
+`cases/ask_user_r2.json` 记录六个验收场景，`../test/ask_user_r2_eval_test.dart` 使用随包真实 Pose-Hub 目录、`CoachAgent` 和 `CoachConversationController` 回放多轮协议。响应由 `FakeLlmClient` 预先编排，覆盖确认卡、上次值预选、修改当前计划、条件完整直接出方案、真实器械与时长、接受默认、失败隔离；确认卡阶段额外断言没有模型请求。执行 `dart test test/ask_user_r2_eval_test.dart`。
+
+该测试不发网络请求、没有真实模型调用，也不能证明模型会主动选择合适的动作、文本或重试策略；本文件的真实模型评测需另用已授权的网络配置执行，并单独记录版本与结果。不要把离线协议通过标作真实模型通过。
+
+## Agent 真实模型追问评测（r2）
+
+`cases/ask_user.json` 和 `../tool/eval_ask_user.dart` 覆盖真实 `OpenAiCompatibleClient → CoachAgent` 路径。新规划只将本句明确的三项条件视为已知；缺项时由 SDK 本地生成包含三项的确认卡，历史值仅作为“上次”预选，最多确认一轮。用例包括新重点、调整已有计划、条件完整直接出方案、接受默认与自由输入。`test/training_parameters_test.dart` 为独立确定性多轮协议回放，使用脚本响应而非真实模型，不计作模型质量评测。
 
 ```powershell
 dart run tool/eval_ask_user.dart --dry

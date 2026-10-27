@@ -2,6 +2,7 @@
 
 ## 0.4.0 — 2026-10-27
 
+- Add an opt-in training confirmation card with a focus chip, labelled previous selections, scene-filtered equipment, a primary generate action and a collapsed answer summary. Add a failure bubble with retry and a preset action only for a verified focus match.
 - Use theme-coloured thumbnail stages and prefer the host-provided transparent still for routine strips, expanded rows, and animated landing points; keep the poster fallback when no still is supplied.
 - Replace the large waiting card with a compact animated bubble. Hosts can map real agent events and supply rotating text by phase; the existing progress label remains supported. Event and first-frame wiring remain host responsibilities.
 

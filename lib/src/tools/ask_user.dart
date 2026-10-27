@@ -14,16 +14,38 @@ class AskUserField {
     required this.label,
     required List<String> options,
     this.multiple = false,
-  }) : options = List.unmodifiable(options);
+    List<String> preselected = const [],
+    List<String> previousSelections = const [],
+    Map<String, List<String>> optionsByScene = const {},
+  }) : options = List.unmodifiable(options),
+       preselected = List.unmodifiable(preselected),
+       previousSelections = List.unmodifiable(previousSelections),
+       optionsByScene = Map.unmodifiable({
+         for (final entry in optionsByScene.entries)
+           entry.key: List<String>.unmodifiable(entry.value),
+       });
   final String key;
   final String label;
   final List<String> options;
   final bool multiple;
+
+  /// Initial selections for a confirmation card. Values must be in [options].
+  final List<String> preselected;
+
+  /// The selections that are suggestions from an earlier task, not confirmed
+  /// facts for this task. An empty list means no previous suggestion.
+  final List<String> previousSelections;
+
+  /// Allowed options by localized scene label, used for equipment only.
+  final Map<String, List<String>> optionsByScene;
   Map<String, Object?> toJson() => {
     'key': key,
     'label': label,
     'options': options,
     'multiple': multiple,
+    if (preselected.isNotEmpty) 'preselected': preselected,
+    if (previousSelections.isNotEmpty) 'previousSelections': previousSelections,
+    if (optionsByScene.isNotEmpty) 'optionsByScene': optionsByScene,
   };
 }
 
@@ -33,9 +55,16 @@ class AskUserQuestion {
     this.mode,
     List<String> options,
     this.multiple,
-    List<AskUserField> fields,
-  ) : options = List.unmodifiable(options),
-      fields = List.unmodifiable(fields);
+    List<AskUserField> fields, {
+    this.isConfirmation = false,
+    this.focus,
+    Map<String, List<String>> defaultSelections = const {},
+  }) : options = List.unmodifiable(options),
+       fields = List.unmodifiable(fields),
+       defaultSelections = Map.unmodifiable({
+         for (final entry in defaultSelections.entries)
+           entry.key: List<String>.unmodifiable(entry.value),
+       });
 
   final String question;
   final AskUserMode mode;
@@ -44,7 +73,44 @@ class AskUserQuestion {
   final List<String> options;
   final bool multiple;
   final List<AskUserField> fields;
-  String get skipLabel => '直接出方案';
+  final bool isConfirmation;
+  final String? focus;
+  final Map<String, List<String>> defaultSelections;
+  String get skipLabel => isConfirmation ? '按默认来' : '直接出方案';
+
+  /// Builds the SDK's locally generated training-condition confirmation.
+  /// App and model inputs must still go through the ordinary answer gate.
+  factory AskUserQuestion.confirmation({
+    required String question,
+    required List<AskUserField> fields,
+    String? focus,
+    required Map<String, List<String>> defaultSelections,
+  }) {
+    final keys = fields.map((field) => field.key).toSet();
+    if (question.trim().isEmpty ||
+        fields.length != 3 ||
+        keys.length != 3 ||
+        !keys.containsAll(const {'scene', 'equipment', 'minutes'}) ||
+        fields.any(
+          (field) =>
+              field.preselected.any((v) => !field.options.contains(v)) ||
+              field.previousSelections.any(
+                (v) => !field.preselected.contains(v),
+              ),
+        )) {
+      throw ArgumentError('Invalid training confirmation');
+    }
+    return AskUserQuestion._(
+      question.trim(),
+      AskUserMode.form,
+      const [],
+      false,
+      fields,
+      isConfirmation: true,
+      focus: focus,
+      defaultSelections: defaultSelections,
+    );
+  }
 
   Map<String, Object?> toJson() => {
     'question': question,
@@ -57,6 +123,9 @@ class AskUserQuestion {
       'fields': [for (final field in fields) field.toJson()],
       'skipLabel': skipLabel,
     },
+    if (isConfirmation) 'isConfirmation': true,
+    if (focus != null) 'focus': focus,
+    if (defaultSelections.isNotEmpty) 'defaultSelections': defaultSelections,
   };
 }
 

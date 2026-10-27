@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "description": "SmartFit r2 #5: scripted offline CoachAgent/Controller multi-turn protocol evaluation. Fake model replies; no network model calls and no claim about real-model quality.",
+  "mode": "offline-scripted-protocol",
+  "cases": [
+    {
+      "id": "new_focus_previous_preselected",
+      "title": "已有计划后新部位须确认三项，并预选上次值",
+      "profile": "smartfit",
+      "turns": [
+        {
+          "role": "user",
+          "text": "在家有瑜伽垫，10分钟做髋部放松"
+        },
+        {
+          "role": "user",
+          "text": "再做一组肩颈放松"
+        }
+      ],
+      "expect": {
+        "confirmation": true,
+        "fields": [
+          "scene",
+          "equipment",
+          "minutes"
+        ],
+        "previousPreselected": {
+          "scene": [
+            "家里"
+          ],
+          "equipment": [
+            "瑜伽垫"
+          ],
+          "minutes": [
+            "10 分钟"
+          ]
+        },
+        "noModelCallForConfirmation": true
+      }
+    },
+    {
+      "id": "adjust_shorter",
+      "title": "已有计划短一点，无需再次追问",
+      "profile": "smartfit",
+      "turns": [
+        {
+          "role": "user",
+          "text": "在家有瑜伽垫，10分钟做髋部放松"
+        },
+        {
+          "role": "user",
+          "text": "短一点"
+        }
+      ],
+      "expect": {
+        "confirmation": false,
+        "plan": true,
+        "maxNewQuestions": 0
+      }
+    },
+    {
+      "id": "complete_home_core",
+      "title": "家里徒手20分钟核心条件完整直接出方案",
+      "profile": "smartfit",
+      "turns": [
+        {
+          "role": "user",
+          "text": "在家徒手20分钟练核心"
+        }
+      ],
+      "expect": {
+        "confirmation": false,
+        "plan": true,
+        "scene": "home",
+        "targetMinutes": 20,
+        "allowedEquipment": [],
+        "goal": "core"
+      }
+    },
+    {
+      "id": "office_chair_wall",
+      "title": "办公室椅子墙壁10分钟，真实用器械与估时",
+      "profile": "smartfit",
+      "turns": [
+        {
+          "role": "user",
+          "text": "帮我做一组拉伸训练"
+        },
+        {
+          "role": "user",
+          "answerForm": {
+            "scene": [
+              "办公室"
+            ],
+            "equipment": [
+              "椅子/凳子",
+              "墙"
+            ],
+            "minutes": [
+              "10 分钟"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "confirmation": false,
+        "plan": true,
+        "scene": "office",
+        "targetMinutes": 10,
+        "allowedEquipment": [
+          "chair",
+          "wall"
+        ],
+        "usesAny": [
+          "chair",
+          "wall"
+        ],
+        "estimatedMinutes": [
+          8,
+          12
+        ],
+        "firstConfirmation": true
+      }
+    },
+    {
+      "id": "accept_defaults",
+      "title": "按默认来直接生成，最多一张确认卡",
+      "profile": "smartfit",
+      "turns": [
+        {
+          "role": "user",
+          "text": "帮我安排一个训练计划"
+        },
+        {
+          "role": "user",
+          "text": "按默认来"
+        }
+      ],
+      "expect": {
+        "firstConfirmation": true,
+        "afterConfirmation": false,
+        "plan": true
+      }
+    },
+    {
+      "id": "safe_failure",
+      "title": "模型失败只产生失败气泡，内部错误不外露",
+      "profile": "smartfit",
+      "turns": [
+        {
+          "role": "user",
+          "text": "在家徒手20分钟练核心"
+        }
+      ],
+      "expect": {
+        "plan": false,
+        "failureMessage": true,
+        "noRawErrors": true
+      }
+    }
+  ]
+}

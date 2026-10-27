@@ -80,17 +80,20 @@ void main() {
         expect(chat.agent.turnCount, 1);
       });
       test(
-        'one missing: asks only equipment and uses grouped answer',
+        'one missing: confirmation shows all conditions and uses grouped answer',
         () async {
-          final chat = conversation([
-            tool(AgentTools.askUser, form(['equipment'])),
-            tool(AgentTools.showPlan, plan()),
-          ]);
+          final chat = conversation([tool(AgentTools.showPlan, plan())]);
           final first = await chat.send('在家，10 分钟，排个髋部放松计划');
-          expect(first!.question!.fields.map((f) => f.key), ['equipment']);
+          expect(first!.question!.fields.map((f) => f.key), [
+            'scene',
+            'equipment',
+            'minutes',
+          ]);
           final id = chat.state.pendingQuestion!.id;
           final result = await chat.answerForm(id, {
+            'scene': ['家里'],
             'equipment': ['瑜伽垫'],
+            'minutes': ['10 分钟'],
           });
           expect(result!.plan, isNotNull);
           expect(chat.agent.turnCount, 2);
@@ -104,10 +107,7 @@ void main() {
         },
       );
       test('three missing: all groups in one round, no follow-up', () async {
-        final chat = conversation([
-          tool(AgentTools.askUser, form(['scene', 'equipment', 'minutes'])),
-          tool(AgentTools.showPlan, plan()),
-        ]);
+        final chat = conversation([tool(AgentTools.showPlan, plan())]);
         final first = await chat.send('帮我排个髋部放松训练组');
         expect(first!.question!.fields, hasLength(3));
         final result = await chat.answerForm(chat.state.pendingQuestion!.id, {
@@ -145,10 +145,7 @@ void main() {
             ],
           },
         ];
-        final chat = conversation([
-          tool(AgentTools.askUser, form(['scene', 'equipment', 'minutes'])),
-          tool(AgentTools.showPlan, bodyweight),
-        ]);
+        final chat = conversation([tool(AgentTools.showPlan, bodyweight)]);
         await chat.send('帮我排个训练组');
         final result = await chat.skipQuestion(chat.state.pendingQuestion!.id);
         expect(result!.plan, isNotNull);
@@ -165,7 +162,7 @@ void main() {
   );
 
   test(
-    'missing three but premature show_plan is repaired into one complete form',
+    'missing three returns a complete local confirmation before model generation',
     () async {
       for (final request in ['帮我做个训练组', '帮我推荐一套全身训练']) {
         final chat = conversation([
@@ -175,12 +172,12 @@ void main() {
         final result = await chat.send(request);
         expect(result!.plan, isNull);
         expect(result.question!.fields, hasLength(3));
-        expect(result.records.first.outcome, CallOutcome.rejected);
+        expect(result.records, isEmpty);
       }
     },
   );
   test(
-    'legacy one-field ask cannot consume the only round when three training parameters are missing',
+    'local confirmation does not consume a model question when three parameters are missing',
     () async {
       final chat = conversation([
         tool(AgentTools.askUser, {
@@ -193,17 +190,13 @@ void main() {
       final result = await chat.send('帮我做个训练组');
       expect(result!.question!.mode, AskUserMode.form);
       expect(chat.agent.questionsAsked, 1);
-      expect(result.records.first.outcome, CallOutcome.rejected);
+      expect(result.records, isEmpty);
     },
   );
   test(
     'skip defaults are enforced, rather than admitting undeclared gear or a different duration',
     () async {
-      final chat = conversation([
-        tool(AgentTools.askUser, form(['scene', 'equipment', 'minutes'])),
-        tool(AgentTools.showPlan, plan()),
-        '按默认重新安排',
-      ]);
+      final chat = conversation([tool(AgentTools.showPlan, plan()), '无法提供该方案']);
       await chat.send('帮我做个训练组');
       final result = await chat.skipQuestion(chat.state.pendingQuestion!.id);
       expect(result!.plan, isNull);
@@ -236,34 +229,33 @@ void main() {
       expect(changed.context.minutes, 5);
     },
   );
-  test(
-    'known training parameters do not suppress clarification for ordinary action search',
-    () async {
-      final chat = conversation([
-        tool(AgentTools.askUser, {
-          'question': '想放松哪个部位？',
-          'mode': 'choice',
-          'options': ['肩颈', '髋部'],
-        }),
-      ]);
-      final result = await chat.send(
-        '帮我找个放松动作',
-        context: const CoachContext(
-          scene: 'home',
-          equipment: {'mat'},
-          minutes: 10,
-        ),
-      );
-      expect(result!.question!.mode, AskUserMode.choice);
-    },
-  );
+  test('ordinary action search cannot ask training clarification', () async {
+    final chat = conversation([
+      tool(AgentTools.askUser, {
+        'question': '想放松哪个部位？',
+        'mode': 'choice',
+        'options': ['肩颈', '髋部'],
+      }),
+      '先告诉我需要哪个动作。',
+    ]);
+    final result = await chat.send(
+      '帮我找个放松动作',
+      context: const CoachContext(
+        scene: 'home',
+        equipment: {'mat'},
+        minutes: 10,
+      ),
+    );
+    expect(result!.question, isNull);
+    expect(result.plan, isNull);
+  });
   test(
     'final admission rejects equipment, scene, duration label and actual dose conflicts',
     () async {
-      for (final text in ['在家徒手10分钟', '在办公室有瑜伽垫10分钟', '在家有瑜伽垫20分钟']) {
+      for (final text in ['在家徒手10分钟做计划', '在办公室有瑜伽垫10分钟做计划', '在家有瑜伽垫20分钟做计划']) {
         final chat = conversation([
           tool(AgentTools.showPlan, plan()),
-          '没有合适方案',
+          '无法提供合适方案',
         ]);
         final result = await chat.send(text);
         expect(result!.plan, isNull, reason: text);
@@ -284,8 +276,11 @@ void main() {
           ],
         },
       ];
-      final chat = conversation([tool(AgentTools.showPlan, tooShort), '重新安排']);
-      final result = await chat.send('在家有瑜伽垫10分钟');
+      final chat = conversation([
+        tool(AgentTools.showPlan, tooShort),
+        '无法提供方案',
+      ]);
+      final result = await chat.send('在家有瑜伽垫10分钟做计划');
       expect(result!.plan, isNull);
     },
   );
@@ -324,15 +319,19 @@ void main() {
       for (final value in bad) {
         expect(AskUserGate.check(jsonEncode(value)).ok, isFalse);
       }
-      final unknown = form(['equipment']);
-      ((unknown['fields'] as List).single as Map)['options'] = ['徒手', '虚构器械'];
-      final chat = conversation([
-        tool(AgentTools.askUser, unknown),
-        tool(AgentTools.askUser, form(['equipment'])),
-      ]);
+      final chat = conversation([]);
+      final question = (await chat.send('在家10分钟做个训练组'))!.question!;
+      final equipment = question.fields.firstWhere(
+        (field) => field.key == 'equipment',
+      );
+      expect(equipment.options, isNot(contains('虚构器械')));
       expect(
-        (await chat.send('在家10分钟做个训练组'))!.question!.fields.single.options,
-        ['徒手', '瑜伽垫'],
+        await chat.answerForm(chat.state.pendingQuestion!.id, {
+          'scene': ['家里'],
+          'equipment': ['虚构器械'],
+          'minutes': ['10 分钟'],
+        }),
+        isNull,
       );
     },
   );

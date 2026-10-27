@@ -63,9 +63,7 @@ void main() {
     expect(msg.content, 'visible');
     expect(msg.toString(), isNot(contains(reasoning)));
     expect(
-      const LlmMessage.assistant(
-        'visible',
-      ).toJson()['reasoning_content'],
+      const LlmMessage.assistant('visible').toJson()['reasoning_content'],
       '',
     );
     expect(
@@ -144,11 +142,12 @@ void main() {
       );
       addTearDown(client.close);
       addTearDown(agent.dispose);
-      final result = await agent.send('新手，睡前开胯 10 分钟');
+      final result = await agent.send('新手，在家用瑜伽垫安排 10 分钟睡前开胯计划，请检查后提交');
       expect(result.status, TurnStatus.ok);
       expect(result.steps, 4);
       expect(result.plan, isNotNull);
-      expect(result.text, '排好了。');
+      expect(result.text, contains('10分钟'));
+      expect(result.text, contains(catalog.taxonomy.equipmentLabel('mat')));
       expect(result.text, isNot(contains('reasoning')));
       expect(result.records.map((r) => r.outcome), [
         CallOutcome.toolStep,
@@ -263,7 +262,7 @@ void main() {
     );
     addTearDown(client.close);
     addTearDown(agent.dispose);
-    expect((await agent.send('睡前开胯 10 分钟')).plan, isNotNull);
+    expect((await agent.send('在家用瑜伽垫安排 10 分钟睡前开胯计划，请检查后提交')).plan, isNotNull);
     expect((await agent.send('谢谢')).status, TurnStatus.ok);
     expect(step, 4);
   });

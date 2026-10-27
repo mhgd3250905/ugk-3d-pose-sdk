@@ -18,4 +18,5 @@ export 'src/primitives.dart'
 export 'src/message_widgets.dart';
 export 'src/chat_list.dart';
 export 'src/question_bubble.dart';
+export 'src/failure_bubble.dart';
 export 'src/plan_card.dart';

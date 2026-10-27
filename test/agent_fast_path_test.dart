@@ -240,10 +240,9 @@ void main() {
         ], text: '安排了十分钟开胯。');
       },
     ], latency: Duration.zero);
-    final result = await agent(client).send(
-      '排十分钟居家开胯',
-      context: const CoachContext(scene: 'home', level: 1, minutes: 10),
-    );
+    final result = await agent(
+      client,
+    ).send('在家有瑜伽垫十分钟，排个开胯计划', context: const CoachContext(level: 1));
     expect(result.status, TurnStatus.ok);
     expect(result.plan, isNotNull);
     expect(result.steps, lessThanOrEqualTo(4));

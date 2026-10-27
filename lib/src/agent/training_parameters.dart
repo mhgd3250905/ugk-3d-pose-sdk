@@ -111,9 +111,13 @@ class TrainingParameters {
               continue;
             }
             final denied = aliases.any(
-              (label) => RegExp(
-                '(?:没(?:有|带)?|不用|不带|不需要|不想用|无)\\s*(?:任何|那个|这[个些])?${RegExp.escape(label)}',
-              ).hasMatch(clause),
+              (label) =>
+                  RegExp(
+                    '(?:没(?:有|带)?|不用|不使用|不再用|不带|不需要|不想用|无)\\s*(?:任何|那个|这[个些])?${RegExp.escape(label)}',
+                  ).hasMatch(clause) ||
+                  RegExp(
+                    '${RegExp.escape(label)}\\s*(?:不用(?:了)?|不要(?:了)?|没有了|不再用|移除|去掉|删掉)',
+                  ).hasMatch(clause),
             );
             if (denied) {
               excluded.add(entry.key);
@@ -123,12 +127,20 @@ class TrainingParameters {
           }
         }
         if (found.isNotEmpty) {
-          equipment = found..removeAll(excluded);
+          final replaces = RegExp(
+            r'只(?:能|要)?(?:用|使用|有)|仅(?:用|使用|有)|改(?:为|成)|换(?:为|成)',
+          ).hasMatch(message);
+          final adds = RegExp(
+            r'增加|再加|加上|加(?:一个|一把|一张|个|把|张|些)|添加|加入|另加|多加',
+          ).hasMatch(message);
+          equipment = adds && !replaces && equipment != null
+              ? ({...equipment, ...found}..removeAll(excluded))
+              : (found..removeAll(excluded));
         } else if (excluded.isNotEmpty && equipment != null) {
           equipment = {...equipment}..removeAll(excluded);
         }
       }
-      skipped = RegExp(r'直接出|跳过|不确定|你决定|随便').hasMatch(message);
+      skipped = RegExp(r'直接出|按默认来|跳过|不确定|你决定|随便').hasMatch(message);
     }
     return TrainingParameters._(
       supplied.copyWith(scene: scene, equipment: equipment, minutes: minutes),
@@ -157,14 +169,16 @@ class TrainingParameters {
       profile,
       clarificationFinished: clarificationFinished,
     );
-    return '# 本次训练参数（只补缺项，一次完成）\n'
-        '仅请求训练组/计划或继续未完成的排课任务时适用；找动作、讲解动作不为补齐这些条件而提问。\n'
-        '已知：${jsonEncode(current.toJson())}\n'
-        '仍缺：${clarificationFinished || skipped ? '无；使用上述默认值直接生成' : missing.join('、')}。'
-        '从用户原话、前轮回答和 App 上下文可推断的不再问。\n'
+    return '# 本次训练参数\n'
+        '本段仅适用于生成或调整训练组；动作搜索、讲解和安全筛查不使用这三项追问规则。\n'
+        '当前条件：${jsonEncode(current.toJson())}\n'
+        '仍缺：${clarificationFinished || skipped ? '无；使用用户确认或接受的默认值' : missing.join('、')}。'
+        '新训练只以本次需求为准，历史条件仅作为可更改建议；缺项由 SDK 展示三项确认卡。'
+        '用户本次已明确全部条件或已确认后，直接根据这些条件生成，不再重复询问。\n'
         '器械选项只能来自当前库：${jsonEncode(['徒手', ...equipmentLabels.values])}。'
-        '一次 form 可同时询问缺少的 scene/equipment/minutes；有“直接出方案”。'
-        '已知或默认 equipment 为 [] 时，只选择不需要器械的动作；不额外假设家中有垫、椅或哑铃。';
+        '已知或默认 equipment 为 [] 时，只选择不需要器械的动作；不额外假设家中有垫、椅或哑铃。'
+        '用户选了器械时，优先选择适合训练目标、可使用所选器械的动作；不可为了使用器械牺牲目标或安全。'
+        '计划 equipment 必须只列实际动作所需器械，包括椅、墙和垫；纯徒手用空列表，不要列出未使用的可用器械。';
   }
 
   Iterable<PlanIssue> validate(
@@ -173,6 +187,18 @@ class TrainingParameters {
     CoachContext effective,
   ) sync* {
     if (effective.minutes case final target?) {
+      // This rule also runs for admitted fallback templates, which do not
+      // pass through ToolGate's raw model-output checks.
+      if (plan.targetMinutes != target) {
+        yield PlanIssue(
+          IssueCodes.contextConflict,
+          '计划时长与已确认的时长不符',
+          path: 'targetMinutes',
+          expected: '$target',
+          actual: '${plan.targetMinutes}',
+          fix: '按已确认的时长重新安排训练',
+        );
+      }
       final estimated =
           const PlanDuration().estimateSeconds(plan, catalog) / 60;
       if ((estimated - target).abs() / target > .25) {
@@ -188,10 +214,40 @@ class TrainingParameters {
     }
     final allowed = effective.equipment;
     if (allowed == null) return;
+    // This field describes equipment used by the plan, not all equipment
+    // the user owns. A subset is therefore valid; unconfirmed gear is not.
+    final unconfirmed = plan.equipment
+        .where((id) => id != 'none' && !allowed.contains(id))
+        .toSet();
+    if (unconfirmed.isNotEmpty) {
+      yield PlanIssue(
+        IssueCodes.equipment,
+        '计划声明了用户未提供的器械',
+        path: 'equipment',
+        expected: (allowed.toList()..sort()).join('/'),
+        actual: (unconfirmed.toList()..sort()).join('/'),
+        fix: '只声明用户实际可用的器械',
+      );
+    }
+    final used = <String>{};
+    var unknownAction = false;
     for (var bi = 0; bi < plan.blocks.length; bi++) {
       final block = plan.blocks[bi];
       for (var ii = 0; ii < block.items.length; ii++) {
         final item = block.items[ii];
+        // Segments replace the parent work dose in the trainer. Report the
+        // equipment for the exercises that will actually be performed.
+        final performed = item.segments.isEmpty
+            ? [item.exerciseId]
+            : item.segments.map((segment) => segment.exerciseId);
+        for (final id in performed) {
+          final drill = catalog[id];
+          if (drill == null) {
+            unknownAction = true; // The validator reports the unknown ID.
+          } else {
+            used.addAll(drill.equipment.where((id) => id != 'none'));
+          }
+        }
         for (final id in [
           item.exerciseId,
           ...item.segments.map((s) => s.exerciseId).whereType<String>(),
@@ -214,6 +270,20 @@ class TrainingParameters {
             );
           }
         }
+      }
+    }
+    if (!unknownAction) {
+      final declared = plan.equipment.where((id) => id != 'none').toSet();
+      if (used.difference(declared).isNotEmpty ||
+          declared.difference(used).isNotEmpty) {
+        yield PlanIssue(
+          IssueCodes.equipment,
+          '计划声明器械与实际动作所需器械不一致',
+          path: 'equipment',
+          expected: (used.toList()..sort()).join('/'),
+          actual: (declared.toList()..sort()).join('/'),
+          fix: '按动作实际所需器械填写 equipment，未用到的不要写',
+        );
       }
     }
   }

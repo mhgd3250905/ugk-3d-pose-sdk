@@ -37,17 +37,24 @@ void main() {
       );
       addTearDown(client.close);
       final catalog = loadCatalog();
+      var fallbackCalled = false;
       final agent = CoachAgent(
         client: client,
         profile: loadProfile('hiplab'),
         catalog: () => catalog,
         enableUserMemory: false,
         maxRequestRetries: 0,
-        fallback: (_) => const SessionFallbackReply('template'),
+        fallback: (_) {
+          fallbackCalled = true;
+          return const SessionFallbackReply('template');
+        },
       );
       addTearDown(agent.dispose);
-      final result = await agent.send('训练建议');
-      expect(result.status, TurnStatus.fallback);
+      // Complete planning conditions let the request reach the client; a
+      // failed plan now returns an error without automatically using a preset.
+      final result = await agent.send('在家徒手 15 分钟安排一组训练');
+      expect(result.status, TurnStatus.error);
+      expect(fallbackCalled, isFalse);
       final record = result.records.single;
       expect(record.errorKind, 'badResponse');
       expect(record.finishReason, 'content_filter');

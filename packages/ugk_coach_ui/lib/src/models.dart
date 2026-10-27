@@ -131,10 +131,22 @@ class CoachQuestionField {
     required this.label,
     required this.options,
     this.multiple = false,
+    this.initialSelections = const [],
+    this.previousSelections = const [],
+    this.optionsByScene = const {},
   });
   final String key, label;
   final List<String> options;
   final bool multiple;
+
+  /// Values already known for this request; unknown options are ignored.
+  final List<String> initialSelections;
+
+  /// Previously used values among [initialSelections], labelled “上次”.
+  final List<String> previousSelections;
+
+  /// Equipment options by scene; empty means that no filter was supplied.
+  final Map<String, List<String>> optionsByScene;
 }
 
 /// UI-only snapshot. The App validates and submits answers to its agent.
@@ -150,6 +162,12 @@ class CoachQuestionData {
     this.answeredChoices = const [],
     this.fields = const [],
     this.skipLabel = '直接出方案',
+    this.showSkip = true,
+    this.submitLabel,
+    this.answeredForm = const {},
+    this.isConfirmation = false,
+    this.focus,
+    this.defaultSelections = const {},
   });
   final String id;
   final String question;
@@ -160,6 +178,18 @@ class CoachQuestionData {
   final List<String> answeredChoices;
   final List<CoachQuestionField> fields;
   final String skipLabel;
+  final bool showSkip;
+  final String? submitLabel;
+
+  /// Confirmed form values for restoring an answered conversation card.
+  final Map<String, List<String>> answeredForm;
+
+  /// Opt in to the compact training-condition confirmation card.
+  final bool isConfirmation;
+  final String? focus;
+
+  /// Effective defaults for the summary after “按默认来”.
+  final Map<String, List<String>> defaultSelections;
 }
 
 typedef CoachOriginRect = Rect? Function();

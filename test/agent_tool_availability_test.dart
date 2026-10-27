@@ -41,7 +41,7 @@ void main() {
         },
       ]);
       final result = await agent(client).send(
-        '排个十分钟居家开胯计划',
+        '在家有瑜伽垫十分钟做开胯计划',
         context: const CoachContext(
           scene: 'home',
           equipment: {'mat'},
@@ -81,7 +81,7 @@ void main() {
         },
       ]);
       final result = await agent(client).send(
-        '排个十分钟计划',
+        '在家有瑜伽垫十分钟做计划',
         context: const CoachContext(
           scene: 'home',
           equipment: {'mat'},
@@ -101,23 +101,28 @@ void main() {
       tool(AgentTools.read, {'path': 'plan-training/SKILL.md'}),
       (LlmRequest request) {
         expect(hasCheck(request), isFalse);
-        return '可以按入门难度安排。';
+        return '无法提供方案。';
       },
     ]);
-    expect((await agent(client).send('排个计划')).status, TurnStatus.ok);
+    expect((await agent(client).send('在家有瑜伽垫十分钟排个计划')).status, TurnStatus.ok);
+    expect(client.requests, hasLength(2));
   });
 
   test(
     'explicit plan checks and App-specific skills retain initial check_plan',
     () async {
-      for (final prompt in ['先检查这个计划', 'Please review my plan', '校验一下']) {
+      for (final prompt in ['先检查这个计划', 'Please review my plan', '校验一下这个计划']) {
         final client = FakeLlmClient([
           (LlmRequest request) {
             expect(hasCheck(request), isTrue);
-            return '请把计划发来。';
+            return '无法检查，请把计划发来。';
           },
         ]);
-        expect((await agent(client).send(prompt)).status, TurnStatus.ok);
+        expect(
+          (await agent(client).send('在家有瑜伽垫十分钟，$prompt')).status,
+          TurnStatus.ok,
+        );
+        expect(client.requests, hasLength(1));
       }
       final custom = CoachProfile.fromJson({
         ...profile.toJson(),
@@ -132,13 +137,14 @@ void main() {
       final client = FakeLlmClient([
         (LlmRequest request) {
           expect(hasCheck(request), isTrue);
-          return '按 App 专属流程执行。';
+          return '无法提供，按 App 专属流程执行。';
         },
       ]);
       expect(
-        (await agent(client, custom: custom).send('安排训练')).status,
+        (await agent(client, custom: custom).send('在家有瑜伽垫十分钟安排训练')).status,
         TurnStatus.ok,
       );
+      expect(client.requests, hasLength(1));
     },
   );
 }

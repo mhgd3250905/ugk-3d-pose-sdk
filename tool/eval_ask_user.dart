@@ -41,17 +41,68 @@ Evidence excludes keys, headers, device IDs, raw prompts and reasoning.
   final fixtureFile = File('eval/cases/ask_user.json');
   final fixture = jsonDecode(await fixtureFile.readAsString()) as Json;
   final selected = arg('--cases')?.split(',').toSet();
+  if (fixture['schemaVersion'] != 2 || fixture['cases'] is! List) {
+    throw const FormatException('Expected ask-user fixture schema version 2');
+  }
   final cases = (fixture['cases'] as List).cast<Json>();
   final ids = {for (final c in cases) c['id'] as String};
+  if (ids.length != cases.length || ids.any((id) => id.trim().isEmpty)) {
+    throw const FormatException('Case IDs must be nonempty and unique');
+  }
   if (selected != null && !ids.containsAll(selected)) {
     throw ArgumentError('Unknown case ID');
   }
   for (final c in cases) {
     if (c['message'] is! String ||
-        c['first'] is! String ||
+        !['question', 'plan'].contains(c['first']) ||
         c['expect'] is! Map ||
-        !['choice', 'text', 'form'].contains(c['response'])) {
+        !['choice', 'text', 'form', 'skip'].contains(c['response']) ||
+        (c['setup'] != null &&
+            (c['setup'] is! List ||
+                (c['setup'] as List).any((s) => s is! String))) ||
+        (c['select'] != null &&
+            (c['select'] is! Map ||
+                (c['select'] as Map).entries.any(
+                  (entry) =>
+                      !['scene', 'equipment', 'minutes'].contains(entry.key) ||
+                      entry.value is! List ||
+                      (entry.value as List).any((value) => value is! String),
+                )))) {
       throw FormatException('Invalid fixture ${c['id']}');
+    }
+    if (c['profile'] is! String ||
+        !RegExp(r'^[a-z0-9_-]+$').hasMatch(c['profile'] as String) ||
+        !File('profiles/${c['profile']}.json').existsSync() ||
+        (c['expectedFields'] != null &&
+            (c['expectedFields'] is! List ||
+                (c['expectedFields'] as List).any(
+                  (key) => !['scene', 'equipment', 'minutes'].contains(key),
+                ))) ||
+        (c['expectedPreviousFields'] != null &&
+            (c['expectedPreviousFields'] is! List ||
+                (c['expectedPreviousFields'] as List).any(
+                  (key) => !['scene', 'equipment', 'minutes'].contains(key),
+                ))) ||
+        (c['expectedPreselected'] != null &&
+            (c['expectedPreselected'] is! Map ||
+                (c['expectedPreselected'] as Map).entries.any(
+                  (entry) =>
+                      !['scene', 'equipment', 'minutes'].contains(entry.key) ||
+                      entry.value is! List ||
+                      (entry.value as List).any((value) => value is! String),
+                )))) {
+      throw FormatException('Invalid fixture fields for ${c['id']}');
+    }
+    if (c['select'] case final Map<String, dynamic> selections) {
+      for (final patterns in selections.values) {
+        for (final pattern in (patterns as List).cast<String>()) {
+          try {
+            RegExp(pattern);
+          } on FormatException {
+            throw FormatException('Invalid selection pattern in ${c['id']}');
+          }
+        }
+      }
     }
   }
   final chosen = cases
@@ -163,7 +214,7 @@ Evidence excludes keys, headers, device IDs, raw prompts and reasoning.
     'limitations': [
       '每例单次运行，不代表稳定成功率或延迟保证。',
       'SDK 真实模型路径；未经过 App UI 或 App 额外计划校验。',
-      '一轮上限的恶意重复调用另由离线门禁测试验证；本评测记录模型实际是否耗尽预算。',
+      '本地确认卡由 SDK 确定性生成，不计作模型调用；复杂失败/预设策略另由离线门禁测试验证。',
     ],
   };
   await _json(File('${output.path}/summary.json'), report);
@@ -259,22 +310,42 @@ Future<Json> _runCase(Json c, LlmClient raw, Catalog catalog) async {
   final failures = <String>[];
   final turns = <Json>[];
   final expected = Map<String, dynamic>.from(c['expect'] as Map);
-  final known = <String>{
-    if (context.scene != null) 'scene',
-    if (context.minutes != null) 'duration',
-    if (context.level != null) 'level',
-    if (context.avoid.isNotEmpty) 'pain',
-  };
   var text = c['message'] as String;
   var questions = 0, clickedAnswers = 0;
   TrainingPlan? finalPlan;
+  TrainingPlan? setupPlan;
+  Map<String, List<String>>? confirmedForm;
   String finalText = '';
   final watch = Stopwatch()..start();
   try {
+    for (final initial in (c['setup'] as List? ?? []).cast<String>()) {
+      events.clear();
+      final before = client.calls.length;
+      final result = await agent.send(initial, context: context);
+      setupPlan = result.plan?.plan;
+      turns.add({
+        'stage': 'setup',
+        'user': initial,
+        'status': result.status.name,
+        'question': result.question?.toJson(),
+        'plan': setupPlan?.toJson(),
+        'calls': client.calls.sublist(before),
+      });
+      if (result.status != TurnStatus.ok || setupPlan == null) {
+        failures.add('setup must produce a validated plan');
+        break;
+      }
+    }
+    final setupCallCount = client.calls.length;
     for (var turn = 0; turn < 5; turn++) {
       events.clear();
       final before = client.calls.length;
-      final result = await agent.send(text, context: context);
+      final result = await agent.send(
+        text,
+        context: context,
+        confirmedForm: confirmedForm,
+      );
+      confirmedForm = null;
       final question = result.question;
       final plan = result.plan?.plan;
       final calls = client.calls.sublist(before);
@@ -326,8 +397,12 @@ Future<Json> _runCase(Json c, LlmClient raw, Catalog catalog) async {
         if (result.reads.isNotEmpty) {
           failures.add('question turn read a skill or library file');
         }
-        if (result.steps != 1 || calls.length != 1) {
-          failures.add('question turn must finish in one model call');
+        if (question.isConfirmation &&
+            (result.steps != 0 || calls.isNotEmpty)) {
+          failures.add('SDK confirmation must not invoke the model');
+        } else if (!question.isConfirmation &&
+            (result.steps != 1 || calls.length != 1)) {
+          failures.add('legacy model question must finish in one model call');
         }
         if (agent.questionsAsked != questions) {
           failures.add('question counter mismatch');
@@ -347,37 +422,55 @@ Future<Json> _runCase(Json c, LlmClient raw, Catalog catalog) async {
                   .toSet()
                   .difference(question.fields.map((field) => field.key).toSet())
                   .isNotEmpty) {
-            failures.add('form must contain exactly the missing fields');
+            failures.add('form fields do not match the case expectation');
           }
         }
         final topic = _topic(question.question, question.options);
-        if (known.contains(topic)) {
-          failures.add('repeated known topic: $topic');
+        if (c['expectedPreselected'] case final Map<dynamic, dynamic> values) {
+          for (final entry in values.entries) {
+            final field = question.fields
+                .where((f) => f.key == entry.key)
+                .firstOrNull;
+            if (field == null ||
+                !field.preselected.toSet().containsAll(
+                  (entry.value as List).cast<String>(),
+                )) {
+              failures.add('missing preselected ${entry.key}');
+            }
+          }
+        }
+        if (c['expectedPreviousFields'] case final List<dynamic> previous) {
+          for (final key in previous) {
+            final field = question.fields
+                .where((f) => f.key == key)
+                .firstOrNull;
+            if (field == null || field.previousSelections.isEmpty) {
+              failures.add('missing previous suggestion for $key');
+            }
+          }
         }
         if ((c['response'] == 'choice' || c['response'] == 'form') &&
             question.mode == AskUserMode.form) {
-          final answers = <String>[];
-          for (final field in question.fields) {
-            final topic = switch (field.key) {
-              'minutes' => 'duration',
-              'equipment' => 'equipment',
-              _ => 'scene',
-            };
-            final choice = _choice(field.options, field.multiple, topic);
-            final label = choice.join('、');
-            answers.add('${field.label}：$label');
-            _facts(expected, label, topic);
-            known.add(topic);
-          }
-          text = answers.join('；');
+          final answers = _selectForm(
+            question,
+            c['select'] as Map<String, dynamic>?,
+            failures,
+          );
+          if (answers == null) break;
+          _formFacts(expected, answers, catalog);
+          text = _naturalForm(answers);
+          confirmedForm = question.isConfirmation ? answers : null;
           clickedAnswers++;
+        } else if (c['response'] == 'skip' && question.isConfirmation) {
+          confirmedForm = question.defaultSelections;
+          _formFacts(expected, confirmedForm, catalog);
+          text = '按默认来';
         } else if (c['response'] == 'choice' &&
             question.mode == AskUserMode.choice) {
           final choice = _choice(question.options, question.multiple, topic);
           text = choice.join('、');
           clickedAnswers++;
           _facts(expected, text, topic);
-          known.add(topic);
         } else {
           text = c['answer'] as String? ?? _answer(topic);
           if (c['answerFacts'] case final Map<String, dynamic> facts) {
@@ -385,7 +478,6 @@ Future<Json> _runCase(Json c, LlmClient raw, Catalog catalog) async {
           }
           if (c['answer'] == null) {
             _facts(expected, text, topic);
-            known.add(topic);
           }
         }
         if (questions > (expected['maxQuestions'] as int? ?? 1)) {
@@ -415,6 +507,14 @@ Future<Json> _runCase(Json c, LlmClient raw, Catalog catalog) async {
       failures.add('no final validated plan');
     } else {
       _assertPlan(finalPlan, finalText, catalog, expected, questions, failures);
+      if (client.calls.length == setupCallCount) {
+        failures.add('final plan was not generated by the real model');
+      }
+      if (c['shorterThanSetup'] == true &&
+          (setupPlan == null ||
+              finalPlan.targetMinutes >= setupPlan.targetMinutes)) {
+        failures.add('modified plan is not shorter than the setup plan');
+      }
     }
   } finally {
     watch.stop();
@@ -445,6 +545,96 @@ CoachContext _context(Json j) => CoachContext(
   goal: j['goal'] as String?,
   notes: (j['notes'] as List? ?? []).cast<String>(),
 );
+
+Map<String, List<String>>? _selectForm(
+  AskUserQuestion question,
+  Map<String, dynamic>? selectors,
+  List<String> failures,
+) {
+  final result = <String, List<String>>{};
+  for (final key in ['scene', 'equipment', 'minutes']) {
+    final field = question.fields
+        .where((field) => field.key == key)
+        .firstOrNull;
+    if (field == null) {
+      failures.add('confirmation lacks $key');
+      return null;
+    }
+    var available = field.options;
+    if (key == 'equipment' && field.optionsByScene.isNotEmpty) {
+      final scene = result['scene']?.firstOrNull;
+      final allowed = field.optionsByScene[scene] ?? const <String>[];
+      available = available.where(allowed.contains).toList();
+    }
+    if (available.isEmpty) {
+      failures.add('no scene-compatible $key option');
+      return null;
+    }
+    final patterns = (selectors?[key] as List?)?.cast<String>();
+    final selected = <String>[];
+    if (patterns != null) {
+      for (final pattern in patterns) {
+        final match = available.where(RegExp(pattern).hasMatch).firstOrNull;
+        if (match == null) {
+          failures.add('no scene-compatible $key option for $pattern');
+          return null;
+        }
+        if (!selected.contains(match)) selected.add(match);
+      }
+    } else {
+      selected.addAll(field.preselected.where(available.contains));
+      if (selected.isEmpty) {
+        selected.addAll(
+          _choice(
+            available,
+            field.multiple,
+            key == 'minutes' ? 'duration' : key,
+          ),
+        );
+      }
+    }
+    if (selected.isEmpty ||
+        (!field.multiple && selected.length != 1) ||
+        (key == 'equipment' &&
+            selected.contains('徒手') &&
+            selected.length != 1)) {
+      failures.add('invalid $key selection');
+      return null;
+    }
+    result[key] = selected;
+  }
+  return result;
+}
+
+String _naturalForm(Map<String, List<String>> answers) {
+  final gear = answers['equipment']!;
+  return [
+    answers['scene']!.single,
+    gear.length == 1 && gear.first == '徒手' ? '徒手' : '有${gear.join('和')}',
+    answers['minutes']!.single,
+  ].join('，');
+}
+
+void _formFacts(
+  Json expected,
+  Map<String, List<String>> answers,
+  Catalog catalog,
+) {
+  final scene = answers['scene']?.firstOrNull;
+  final sceneId = {'家里': 'home', '办公室': 'office', '健身房': 'gym'}[scene];
+  if (sceneId != null) expected['scene'] = sceneId;
+  final minuteText = answers['minutes']?.firstOrNull ?? '';
+  final minutes = int.tryParse(
+    RegExp(r'\d+').firstMatch(minuteText)?.group(0) ?? '',
+  );
+  if (minutes != null) expected['minutes'] = [minutes, minutes];
+  final selected = answers['equipment'] ?? const <String>[];
+  expected['equipmentAllowed'] = [
+    'none',
+    for (final entry in catalog.taxonomy.equipment.entries)
+      if (selected.contains(entry.value)) entry.key,
+  ];
+}
 
 String _topic(String question, List<String> options) {
   if (RegExp('多久|多长|分钟|时长|时间').hasMatch(question)) return 'duration';
@@ -535,6 +725,47 @@ void _assertPlan(
   int questions,
   List<String> failures,
 ) {
+  if (p.targetMinutes > 0) {
+    final actual = const PlanDuration().estimateSeconds(p, catalog) / 60;
+    if ((actual - p.targetMinutes).abs() / p.targetMinutes > .25) {
+      failures.add('estimated duration differs from target by over 25%');
+    }
+    for (final match in RegExp(r'(\d+)\s*分钟').allMatches(text)) {
+      if (int.parse(match.group(1)!) != p.targetMinutes) {
+        failures.add('response duration disagrees with plan');
+      }
+    }
+  }
+  final usedEquipment = <String>{
+    for (final item in p.items)
+      for (final id in [
+        item.exerciseId,
+        ...item.segments
+            .map((segment) => segment.exerciseId)
+            .whereType<String>(),
+      ])
+        ...?catalog[id]?.equipment,
+  }..remove('none');
+  final declaredEquipment = p.equipment.toSet()..remove('none');
+  if (declaredEquipment.difference(usedEquipment).isNotEmpty ||
+      usedEquipment.difference(declaredEquipment).isNotEmpty) {
+    failures.add('plan equipment does not match actual actions');
+  }
+  for (final entry in catalog.taxonomy.equipment.entries) {
+    if (entry.value.isNotEmpty &&
+        text.contains(entry.value) &&
+        !usedEquipment.contains(entry.key)) {
+      failures.add('response mentions unused equipment ${entry.key}');
+    }
+  }
+  if (usedEquipment.isNotEmpty && text.contains('徒手')) {
+    failures.add('response says bodyweight despite equipment use');
+  }
+  if (e['mustUseEquipmentAnyOf'] case final List<dynamic> required) {
+    if (usedEquipment.intersection(required.cast<String>().toSet()).isEmpty) {
+      failures.add('no selected equipment used by the plan');
+    }
+  }
   if (e['scene'] != null && p.scene != e['scene']) {
     failures.add('scene did not use user answer');
   }
@@ -586,6 +817,7 @@ void _assertPlan(
         caseSensitive: false,
       ),
       'core' => RegExp('腹|核心|躯干|abdom|core|oblique', caseSensitive: false),
+      'inner-thigh' => RegExp('内收|大腿内侧|adductor', caseSensitive: false),
       _ => RegExp(focus as String),
     };
     if (!pattern.hasMatch(targets)) {

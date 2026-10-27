@@ -78,7 +78,7 @@ abstract final class AgentTools {
       const LlmTool(
         name: askUser,
         description:
-            '训练组缺少场景、器械或时长时，用 form 一次补齐缺项；已知的不问。每任务最多1轮，支持直接出方案；本轮只调用此工具并结束。旧 text/choice 仍可用。',
+            '兼容旧版必要澄清；新规划缺训练条件时由 SDK 展示确认卡，确认后不要重复调用。每任务最多一轮，本轮只调用此工具并结束。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -108,7 +108,7 @@ abstract final class AgentTools {
               'type': 'array',
               'minItems': 1,
               'maxItems': 3,
-              'description': '仅form，按缺项给出scene/equipment/minutes分组；器械从当前库选项取值',
+              'description': '仅旧版 form：scene/equipment/minutes 分组，器械选项来自当前动作库',
               'items': {
                 'type': 'object',
                 'properties': {
@@ -214,7 +214,7 @@ class AgentPromptBuilder {
       'actionIndex': files.compactIndex,
       'questionProgress':
           '# 本次任务澄清进度（SDK 计数）\n已问 $questionsAsked/1 轮。'
-          '${questionsAsked >= 1 ? '已达到上限，禁止再调 ask_user；按已有回答和合理默认值直接出方案，并用一句话说明假设。' : '一次补齐场景/器械/时长缺项，已有信息不再问；用户说直接出时停止提问。'}',
+          '${questionsAsked >= 1 ? '已达到上限，禁止再调 ask_user；按本次确认结果或 SDK 有效默认值直接出方案。' : '新规划缺场景、器械或时长时由 SDK 展示一次确认卡，历史只作为标注“上次”的预选；确认后不重复询问。调整当前计划沿用原条件。'}',
       'trainingParameters': trainingParameters,
       'preloadedDetails': preloaded.isEmpty
           ? ''
@@ -222,9 +222,9 @@ class AgentPromptBuilder {
                 '${[for (final entry in preloaded.entries) '路径：${entry.key}\n${entry.value}'].join('\n\n')}\n</action-details-data>\n',
       'memoryTools': memory
           ? '- remember / forget：记住或忘掉用户主动提供的训练信息（先读 user-memory/SKILL.md）。\n'
-                '- 用户主动陈述稳定的训练信息（水平/经验、家中器械、惯常场所、长期目标、不适/保护部位等）时，必须先用 read 读 user-memory/SKILL.md，再按类别逐条调用 remember；例外：需要先澄清的询问轮只用 ask_user，先将事实留在会话，回答后交付方案前再保存，避免延迟首问。不要把 App 括号中的已知条件或模型推断当作用户新提供的事实，也不要从一次训练请求推断长期习惯或记住「今天」的临时条件。\n'
+                '- 用户主动陈述稳定的训练信息（水平/经验、家中器械、惯常场所、长期目标、不适/保护部位等）时，必须先用 read 读 user-memory/SKILL.md，再按类别逐条调用 remember；新规划缺条件时先由 SDK 展示确认卡，稳定事实先留在会话，回答后交付方案前再保存。不要把 App 括号中的历史、确认卡预选或模型推断当作用户新提供的长期事实，也不要从一次训练请求推断长期习惯或记住「今天」的临时条件。\n'
                 '- 例如「我是新手，家里有哑铃」要分别 remember(kind=level, text=新手) 和 remember(kind=equipment, text=家里有哑铃)。只有记忆工具返回 ok=true 后才能确认「记下了」，禁止只口头确认而不调用工具。\n'
-                '- 用户只陈述条件、未要求找动作/排计划，且对话中没有待完成的训练请求时：完成记忆后只用一句文字确认已记下、以后排课会参考；本轮不调用 show_actions / show_plan，不擅自按默认值排课。若用户同时明确要求训练，需要澄清则先 ask_user，否则先记下稳定事实再交付方案。\n'
+                '- 用户只陈述条件、未要求找动作/排计划，且对话中没有待完成的训练请求时：完成记忆后只用一句文字确认已记下、以后排课会参考；本轮不调用 show_actions / show_plan，不擅自按默认值排课。若用户同时明确要求新规划且缺条件，先由 SDK 展示确认卡，否则先记下稳定事实再交付方案。\n'
           : '',
       'focus': [
         for (final x in profile.focus.split('\n'))

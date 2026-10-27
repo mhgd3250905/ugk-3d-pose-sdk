@@ -5,6 +5,7 @@ import 'dart:async';
 
 import '../llm/cancel_token.dart';
 import '../plan/coach_context.dart';
+import '../plan/training_plan.dart';
 import '../tools/ask_user.dart';
 import '../tools/coach_session.dart';
 import '../tools/tool_gate.dart';
@@ -24,10 +25,17 @@ class CoachConversationMessage {
     this.question,
     this.questionAnswered = false,
     List<String> answeredChoices = const [],
+    Map<String, List<String>> answeredForm = const {},
     this.plan,
     this.actions,
     this.turnId,
-  }) : answeredChoices = List.unmodifiable(answeredChoices);
+    this.isFailure = false,
+    this.isPlanningFailure = false,
+  }) : answeredChoices = List.unmodifiable(answeredChoices),
+       answeredForm = Map.unmodifiable({
+         for (final entry in answeredForm.entries)
+           entry.key: List<String>.unmodifiable(entry.value),
+       });
 
   final String id;
   final DateTime at;
@@ -36,14 +44,25 @@ class CoachConversationMessage {
   final AskUserQuestion? question;
   final bool questionAnswered;
   final List<String> answeredChoices;
+
+  /// Confirmed selections retained for the collapsed confirmation summary.
+  final Map<String, List<String>> answeredForm;
   final ValidatedPlan? plan;
   final ValidatedActions? actions;
   final String? turnId;
+
+  /// A failed turn for the host to render as a failure bubble. Exception
+  /// details remain in state.error and are never copied into display text.
+  final bool isFailure;
+
+  /// Distinguishes a failed planning request from a failed explanation/chat.
+  final bool isPlanningFailure;
 
   CoachConversationMessage copyWith({
     String? text,
     bool? questionAnswered,
     List<String>? answeredChoices,
+    Map<String, List<String>>? answeredForm,
   }) => CoachConversationMessage(
     id: id,
     at: at,
@@ -52,9 +71,12 @@ class CoachConversationMessage {
     question: question,
     questionAnswered: questionAnswered ?? this.questionAnswered,
     answeredChoices: answeredChoices ?? this.answeredChoices,
+    answeredForm: answeredForm ?? this.answeredForm,
     plan: plan,
     actions: actions,
     turnId: turnId,
+    isFailure: isFailure,
+    isPlanningFailure: isPlanningFailure,
   );
 }
 
@@ -126,6 +148,43 @@ class CoachConversationController {
       _state.pendingQuestion?.id == questionId &&
       !_state.pendingQuestion!.questionAnswered;
 
+  /// A preset can be offered only after a failed turn and only if the agent
+  /// verifies both the requested focus and all confirmed plan constraints.
+  bool canOfferPreset(TrainingPlan plan) =>
+      !_disposed &&
+      !_state.isWaiting &&
+      _state.lastResult?.status == TurnStatus.error &&
+      _state.lastResult!.isPlanningFailure &&
+      agent.canOfferPreset(plan);
+
+  /// Explicit user action; the plan is checked again before being displayed.
+  CoachTurnResult? requestPreset(TrainingPlan plan) {
+    if (!canOfferPreset(plan)) return null;
+    final result = agent.requestPreset(plan);
+    if (result?.plan == null) return null;
+    final messages = List<CoachConversationMessage>.of(_state.messages)
+      ..add(
+        CoachConversationMessage(
+          id: _nextId(),
+          at: _clock(),
+          isUser: true,
+          text: '用预设方案',
+          turnId: result!.turnId,
+        ),
+      )
+      ..add(
+        CoachConversationMessage(
+          id: _nextId(),
+          at: _clock(),
+          text: result.text,
+          plan: result.plan,
+          turnId: result.turnId,
+        ),
+      );
+    _publish(CoachConversationState._(messages: messages, lastResult: result));
+    return result;
+  }
+
   /// Validates selection and returns labels in their original option order.
   /// Invalid, stale or currently submitting answers return null.
   String? choiceText(String questionId, List<String> selected) {
@@ -193,29 +252,81 @@ class CoachConversationController {
       return Future.value();
     }
     final lines = <String>[];
+    final orderedAnswers = <String, List<String>>{};
     for (final field in question.fields) {
       final selected = answers[field.key] ?? const <String>[];
+      final scene = answers['scene'];
+      final sceneOptions = field.optionsByScene;
       if (selected.isEmpty ||
           selected.toSet().length != selected.length ||
           (!field.multiple && selected.length != 1) ||
           selected.any((value) => !field.options.contains(value)) ||
           (field.key == 'equipment' &&
               selected.contains('徒手') &&
-              selected.length > 1)) {
+              selected.length > 1) ||
+          (question.isConfirmation &&
+              field.key == 'equipment' &&
+              sceneOptions.isNotEmpty &&
+              (scene == null ||
+                  scene.length != 1 ||
+                  !sceneOptions.containsKey(scene.single) ||
+                  selected.any(
+                    (option) => !sceneOptions[scene.single]!.contains(option),
+                  )))) {
         return Future.value();
       }
-      lines.add(
-        '${field.label}：${field.options.where(selected.contains).join(choiceSeparator)}',
-      );
+      final ordered = field.options.where(selected.contains).toList();
+      orderedAnswers[field.key] = ordered;
+      lines.add('${field.label}：${ordered.join(choiceSeparator)}');
     }
-    return _send(lines.join('；'), context: context, cancel: cancel);
+    return _send(
+      question.isConfirmation
+          ? _naturalFormText(orderedAnswers)
+          : lines.join('；'),
+      context: context,
+      cancel: cancel,
+      formAnswers: orderedAnswers,
+      confirmedForm: question.isConfirmation ? orderedAnswers : null,
+    );
+  }
+
+  String _naturalFormText(Map<String, List<String>> answers) {
+    final scene = answers['scene']?.firstOrNull;
+    final equipment = answers['equipment'] ?? const <String>[];
+    final minutes = answers['minutes']?.firstOrNull;
+    String naturalEquipment() {
+      if (equipment.isEmpty) return '';
+      if (equipment.length == 1 && equipment.first == '徒手') return '徒手';
+      if (equipment.length == 1) return '有${equipment.single}';
+      return '有${equipment.take(equipment.length - 1).join('、')}和${equipment.last}';
+    }
+
+    return [
+      ?scene,
+      if (equipment.isNotEmpty) naturalEquipment(),
+      ?minutes,
+    ].join('，');
   }
 
   Future<CoachTurnResult?> skipQuestion(
     String questionId, {
     CoachContext context = const CoachContext(),
     CancelToken? cancel,
-  }) => answerText(questionId, '直接出方案', context: context, cancel: cancel);
+  }) {
+    if (!canAnswer(questionId)) return Future.value();
+    final question = _state.pendingQuestion!.question!;
+    return _send(
+      question.skipLabel,
+      context: context,
+      cancel: cancel,
+      formAnswers: question.isConfirmation
+          ? question.defaultSelections
+          : const {},
+      confirmedForm: question.isConfirmation
+          ? question.defaultSelections
+          : null,
+    );
+  }
 
   /// Sends ordinary input, or a free-text answer to the current question.
   ///
@@ -232,6 +343,8 @@ class CoachConversationController {
     required CoachContext context,
     CancelToken? cancel,
     List<String> choices = const [],
+    Map<String, List<String>> formAnswers = const {},
+    Map<String, List<String>>? confirmedForm,
   }) async {
     final text = input.trim();
     if (_disposed || _state.isWaiting || text.isEmpty) return null;
@@ -242,6 +355,19 @@ class CoachConversationController {
     final generation = _generation;
     final token = CancelToken();
     final question = _state.pendingQuestion;
+    final originalMessages = _state.messages;
+    final confirmationSubmitted =
+        question?.question?.isConfirmation == true && confirmedForm != null;
+    final submittedMessages = confirmationSubmitted
+        ? (_closedMessages(question!.id, formAnswers: formAnswers)..add(
+            CoachConversationMessage(
+              id: _nextId(),
+              at: _clock(),
+              isUser: true,
+              text: text,
+            ),
+          ))
+        : originalMessages;
     _active = token;
     bool current() =>
         !_disposed &&
@@ -257,7 +383,7 @@ class CoachConversationController {
     }
     _publish(
       CoachConversationState._(
-        messages: _state.messages,
+        messages: submittedMessages,
         pendingQuestion: question,
         isWaiting: true,
       ),
@@ -274,7 +400,12 @@ class CoachConversationController {
         }
       }
       if (!current()) return null;
-      final pending = agent.send(text, context: context, cancel: token);
+      final pending = agent.send(
+        text,
+        context: context,
+        cancel: token,
+        confirmedForm: confirmedForm,
+      );
       _agentPending = pending;
       final result = await pending;
       if (!current()) return null;
@@ -287,25 +418,43 @@ class CoachConversationController {
         _active = null;
         _publish(
           CoachConversationState._(
-            messages: _state.messages,
-            pendingQuestion: _state.pendingQuestion,
+            messages: confirmationSubmitted
+                ? originalMessages
+                : _state.messages,
+            pendingQuestion: question,
             lastResult: result,
             error: result.error,
           ),
         );
         return result;
       }
-      final messages = _closedMessages(question?.id, choices: choices);
+      final closedForm = question?.question?.isConfirmation == true
+          ? agent.lastConfirmedForm ?? formAnswers
+          : formAnswers;
+      final keepsConfirmation =
+          question?.question?.isConfirmation == true &&
+          identical(agent.pendingConfirmation, question!.question);
+      final messages = keepsConfirmation
+          ? List<CoachConversationMessage>.of(originalMessages)
+          : confirmationSubmitted
+          ? List<CoachConversationMessage>.of(_state.messages)
+          : _closedMessages(
+              question?.id,
+              choices: choices,
+              formAnswers: closedForm,
+            );
       final at = _clock();
-      messages.add(
-        CoachConversationMessage(
-          id: _nextId(),
-          at: at,
-          isUser: true,
-          text: text,
-          turnId: result.turnId,
-        ),
-      );
+      if (!confirmationSubmitted || keepsConfirmation) {
+        messages.add(
+          CoachConversationMessage(
+            id: _nextId(),
+            at: at,
+            isUser: true,
+            text: text,
+            turnId: result.turnId,
+          ),
+        );
+      }
       final admittedQuestion = result.status == TurnStatus.ok
           ? result.question
           : null;
@@ -317,18 +466,25 @@ class CoachConversationController {
         plan: result.plan,
         actions: result.actions,
         turnId: result.turnId,
+        isFailure:
+            result.status == TurnStatus.error ||
+            result.status == TurnStatus.limitReached,
+        isPlanningFailure: result.isPlanningFailure,
       );
       if (assistant.text.isNotEmpty ||
           assistant.question != null ||
           assistant.plan != null ||
-          assistant.actions != null) {
+          assistant.actions != null ||
+          assistant.isFailure) {
         messages.add(assistant);
       }
       _active = null;
       _publish(
         CoachConversationState._(
           messages: messages,
-          pendingQuestion: admittedQuestion == null ? null : assistant,
+          pendingQuestion: admittedQuestion == null
+              ? (keepsConfirmation ? question : null)
+              : assistant,
           lastResult: result,
           error: result.error,
         ),
@@ -337,9 +493,36 @@ class CoachConversationController {
     } on Object catch (error) {
       if (current()) {
         _active = null;
+        final keepsConfirmation =
+            question?.question?.isConfirmation == true &&
+            identical(agent.pendingConfirmation, question!.question);
+        final messages = keepsConfirmation
+            ? List<CoachConversationMessage>.of(originalMessages)
+            : confirmationSubmitted
+            ? List<CoachConversationMessage>.of(_state.messages)
+            : _closedMessages(question?.id);
+        if (!confirmationSubmitted || keepsConfirmation) {
+          messages.add(
+            CoachConversationMessage(
+              id: _nextId(),
+              at: _clock(),
+              isUser: true,
+              text: text,
+            ),
+          );
+        }
+        messages.add(
+          CoachConversationMessage(
+            id: _nextId(),
+            at: _clock(),
+            isFailure: true,
+            isPlanningFailure: question?.question?.isConfirmation == true,
+          ),
+        );
         _publish(
           CoachConversationState._(
-            messages: _closedMessages(question?.id),
+            messages: messages,
+            pendingQuestion: keepsConfirmation ? question : null,
             error: error,
           ),
         );
@@ -354,6 +537,9 @@ class CoachConversationController {
   /// Closes a live question when an App-only route consumes the interaction.
   void invalidateQuestion() {
     if (_disposed || _state.pendingQuestion == null) return;
+    if (_state.pendingQuestion!.question?.isConfirmation == true) {
+      agent.dismissConfirmation();
+    }
     _publish(
       CoachConversationState._(
         messages: _closedMessages(_state.pendingQuestion?.id),
@@ -368,6 +554,7 @@ class CoachConversationController {
   void cancel() {
     if (_disposed) return;
     _cancel();
+    agent.dismissConfirmation();
     _publish(
       CoachConversationState._(
         messages: _closedMessages(_state.pendingQuestion?.id),
@@ -424,10 +611,15 @@ class CoachConversationController {
   List<CoachConversationMessage> _closedMessages(
     String? questionId, {
     List<String> choices = const [],
+    Map<String, List<String>> formAnswers = const {},
   }) => [
     for (final message in _state.messages)
       if (message.id == questionId && message.question != null)
-        message.copyWith(questionAnswered: true, answeredChoices: choices)
+        message.copyWith(
+          questionAnswered: true,
+          answeredChoices: choices,
+          answeredForm: formAnswers,
+        )
       else
         message,
   ];

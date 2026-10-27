@@ -67,7 +67,8 @@ class SessionFallbackRequest {
   final Object? error;
 }
 
-/// 回落回复。[plan] 也要过门禁（[ToolGate.admitTemplate]），不合格就只给文字。
+/// 回落回复。[plan] 也要过门禁（[ToolGate.admitTemplate]）。
+/// CoachAgent 拒绝不合格计划并返回失败；纯文字回落保持可用。
 class SessionFallbackReply {
   const SessionFallbackReply(this.text, {this.plan});
   final String text;
@@ -93,6 +94,7 @@ class CoachTurnResult {
     this.records = const [],
     this.steps = 0,
     this.reads = const [],
+    this.isPlanningFailure = false,
   });
 
   final String turnId;
@@ -120,6 +122,8 @@ class CoachTurnResult {
   /// 回复里出现提示词暗号（已丢弃）。
   final bool leaked;
   final Object? error;
+  /// True only for a failed planning turn, never ordinary chat or safety.
+  final bool isPlanningFailure;
   final List<UsageRecord> records;
 
   /// Agent 版：本轮调模型的步数（0.2 会话为 0）。

@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "description": "R1 part1: one-round grouped clarification; real-model runner and dry fixture checks are separate from deterministic protocol tests.",
+  "schemaVersion": 2,
+  "description": "R2: deterministic one-card confirmation plus real-model generation. Dry mode validates fixture structure only.",
   "cases": [
     {
       "id": "bboy_choice",
@@ -80,7 +80,7 @@
     },
     {
       "id": "known_context",
-      "title": "筛查和 App 上下文已有条件不再问",
+      "title": "旧 App 上下文只预选，不代替本轮确认",
       "profile": "smartfit",
       "message": "我明天练托马斯之前需要放松，给我排个方案。",
       "context": {
@@ -98,8 +98,8 @@
           "用户筛查已完成：没有红旗症状；膝盖偶有不适需保护，肩颈和髋屈肌紧绷。"
         ]
       },
-      "first": "plan",
-      "response": "text",
+      "first": "question",
+      "response": "form",
       "expect": {
         "scene": "home",
         "minutes": [
@@ -119,9 +119,31 @@
           "warmup",
           "mobility"
         ],
-        "minQuestions": 0,
-        "maxQuestions": 0
-      }
+        "minQuestions": 1,
+        "maxQuestions": 1,
+        "requireChoiceAnswer": true
+      },
+      "expectedFields": [
+        "scene",
+        "equipment",
+        "minutes"
+      ],
+      "expectedPreselected": {
+        "scene": [
+          "家里"
+        ],
+        "equipment": [
+          "瑜伽垫"
+        ],
+        "minutes": [
+          "12 分钟"
+        ]
+      },
+      "expectedPreviousFields": [
+        "scene",
+        "equipment",
+        "minutes"
+      ]
     },
     {
       "id": "direct_after_question",
@@ -184,13 +206,15 @@
     },
     {
       "id": "parameters_missing_one",
-      "title": "缺器械只问器械",
+      "title": "缺器械时三项确认并预选本句已知值",
       "profile": "smartfit",
       "message": "在家，10 分钟练核心",
       "first": "question",
       "response": "form",
       "expectedFields": [
-        "equipment"
+        "scene",
+        "equipment",
+        "minutes"
       ],
       "expect": {
         "scene": "home",
@@ -201,6 +225,14 @@
         "minQuestions": 1,
         "maxQuestions": 1,
         "requireChoiceAnswer": true
+      },
+      "expectedPreselected": {
+        "scene": [
+          "家里"
+        ],
+        "minutes": [
+          "10 分钟"
+        ]
       }
     },
     {
@@ -223,17 +255,16 @@
     },
     {
       "id": "parameters_skip",
-      "title": "用户跳过后直接使用合理默认值",
+      "title": "按默认来：使用 SDK 结构化默认值出方案",
       "profile": "smartfit",
       "message": "帮我做个全身训练组",
       "first": "question",
-      "response": "text",
+      "response": "skip",
       "expectedFields": [
         "scene",
         "equipment",
         "minutes"
       ],
-      "answer": "直接出方案",
       "expect": {
         "minQuestions": 1,
         "maxQuestions": 1,
@@ -241,6 +272,111 @@
           "none"
         ],
         "assumptions": true
+      }
+    },
+    {
+      "id": "r2_new_focus_previous",
+      "title": "已有肩颈计划后新部位重新确认三项，旧值标上次",
+      "profile": "smartfit",
+      "setup": [
+        "在办公室，只有椅子和墙，10 分钟，帮我安排一套肩颈放松计划"
+      ],
+      "message": "我想针对大腿内侧进行拉伸",
+      "first": "question",
+      "response": "form",
+      "expectedFields": [
+        "scene",
+        "equipment",
+        "minutes"
+      ],
+      "expectedPreselected": {
+        "scene": [
+          "办公室"
+        ],
+        "equipment": [
+          "椅子/凳子",
+          "墙"
+        ],
+        "minutes": [
+          "10 分钟"
+        ]
+      },
+      "expectedPreviousFields": [
+        "scene",
+        "equipment",
+        "minutes"
+      ],
+      "select": {
+        "scene": [
+          "办公室"
+        ],
+        "equipment": [
+          "椅子",
+          "墙"
+        ],
+        "minutes": [
+          "10"
+        ]
+      },
+      "expect": {
+        "scene": "office",
+        "minutes": [
+          10,
+          10
+        ],
+        "minQuestions": 1,
+        "maxQuestions": 1,
+        "requireChoiceAnswer": true,
+        "mustUseEquipmentAnyOf": [
+          "chair",
+          "wall"
+        ],
+        "focus": [
+          "inner-thigh"
+        ]
+      }
+    },
+    {
+      "id": "r2_adjust_shorter",
+      "title": "调整当前计划：短一点不追问并实际缩短",
+      "profile": "smartfit",
+      "setup": [
+        "在办公室，只有椅子和墙，15 分钟，帮我安排一套肩颈放松计划"
+      ],
+      "message": "短一点",
+      "first": "plan",
+      "response": "text",
+      "shorterThanSetup": true,
+      "expect": {
+        "scene": "office",
+        "minQuestions": 0,
+        "maxQuestions": 0
+      }
+    },
+    {
+      "id": "r2_full_bodyweight",
+      "title": "本句条件完整：在家徒手20分钟练核心直接出",
+      "profile": "smartfit",
+      "message": "在家徒手 20 分钟练核心",
+      "first": "plan",
+      "response": "text",
+      "expect": {
+        "scene": "home",
+        "minutes": [
+          20,
+          20
+        ],
+        "equipmentAllowed": [
+          "none"
+        ],
+        "goals": [
+          "core"
+        ],
+        "focus": [
+          "core"
+        ],
+        "minQuestions": 0,
+        "maxQuestions": 0
       }
     }
   ]

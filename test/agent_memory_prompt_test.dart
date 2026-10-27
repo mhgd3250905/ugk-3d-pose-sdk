@@ -74,8 +74,9 @@ void main() {
       expect(system, contains('只有记忆工具返回 ok=true 后才能确认'));
       expect(system, contains('未要求找动作/排计划，且对话中没有待完成的训练请求'));
       expect(system, contains('本轮不调用 show_actions / show_plan'));
-      expect(system, contains('若用户同时明确要求训练，需要澄清则先 ask_user'));
-      expect(system, contains('回答后交付方案前再保存，避免延迟首问'));
+      expect(system, contains('若用户同时明确要求新规划且缺条件，先由 SDK 展示确认卡'));
+      expect(system, contains('回答后交付方案前再保存'));
+      expect(system, contains('确认卡预选或模型推断当作用户新提供的长期事实'));
       expect(system, contains('不要从一次训练请求推断长期习惯'));
       expect(system, contains('长期提升力量'));
     },

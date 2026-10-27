@@ -98,6 +98,12 @@ CoachChatList(
 
 ## 接入 ask_user
 
+确认训练条件时，宿主将 `AskUserQuestion.isConfirmation`、`focus`、`defaultSelections` 分别映射到 `CoachQuestionData` 同名字段；每个 `AskUserField` 的 `preselected` 映射到 `CoachQuestionField.initialSelections`，`previousSelections`、`optionsByScene` 同名映射。`optionsByScene` 来自 SDK 结合动作库/场景规则提供的可信选项；宿主不得根据模型自由文本增加器械或将上次偏好当成当前已确认的事实。选场景后器械按该表过滤，徒手互斥，历史值标注“上次”。
+
+确认卡使用 `CoachQuestionMode.form`，按 `onFormAnswer` 提交实际选择，`onSkip` 对应 agent 的跳过操作。仅宿主发布 `answered: true` 且传入实际 `answeredForm` 后才收起成单行摘要；回调的 `Future<void>` 完成不代表条件已接受。`defaultSelections` 必须是 SDK 提供的有效默认值；恢复历史时同样传入实际提交值。组件不会调用 agent 或验证计划；不认识的预选值不显示。普通 form 仍使用原有外观和回调。
+
+规划失败消息可由 `CoachConversationMessage.isPlanningFailure` 映射为 `CoachFailureBubble(onRetry: ...)`；默认文案是“网络不太稳，方案没生成出来”，不要展示 `state.error` 的内部细节。非规划失败及会话上限可通过 `isFailure` 使用适合场景的文案。重试调用同一个 controller 的 `send('重试')`，已确认条件由 Agent 保留。先用 `conversation.canOfferPreset(candidate)` 检查可信预设，通过时才传入 `presetMatchesFocus: true`；点击后调用 `conversation.requestPreset(candidate)` 重新校验并交付，不能仅凭名称判断匹配。组件只呈现文案和回调，不自动发请求；回调执行期间禁用所有动作以避免重复提交，浅色/深色均使用当前 `CoachUiTheme`。
+
 会话状态可使用 `ugk_coach` 的纯 Dart [`CoachConversationController`](../../docs/coach-conversation-controller.md)。本包不依赖 coach/controller；宿主应按自己的已核实版本独立接入，不从 UI 版本推断另一个包的发布状态。
 
 App 把构造好的一个 agent 交给 controller，并监听 `state`。controller 负责等 `send` 返回后才启用已过门禁的问题、单选/多选校验与排序、同步锁定提交、旧问题失效、取消与新对话；App 不再另存一套“当前可答问题”的状态。agent 进度事件仅用于显示进度，不直接启用询问气泡。

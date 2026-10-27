@@ -1,5 +1,11 @@
 # Changelog
 
+## coach 0.8.0 — 2026-10-27 (candidate)
+
+- Isolate scene, equipment and duration for each new planning request. Previous values are offered only as labelled suggestions on an explicit confirmation card; edits to the current plan retain its confirmed conditions.
+- Admit plans against the confirmed conditions and actual catalog equipment, and expose structured confirmation and failure information to hosts. A failed generation never automatically presents an unrelated preset as a completed plan.
+- Provide an explicit confirmation-card and failure-bubble integration path in `ugk_coach_ui`; host applications remain responsible for mapping the DTOs and callbacks.
+
 ## coach 0.7.0 / trainer 0.5.0 / coach_ui 0.3.0 — 2026-10-26
 
 - Start the shared trainer immediately with unchanged bundled alpha-WebP standing images. Video preparation, host verification, cache lookup and quiet backoff retries run independently of clocks and speech; dissolve the poster over 180 ms after a composed video frame. Add ordered, current-first preparation with at most two active actions and next-action priority during rest.

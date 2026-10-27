@@ -52,6 +52,23 @@ abstract class InterruptibleVoiceOutput {
   Future<void> reactivate();
 }
 
+/// Optional extra of a [VoiceOutput]: tells when a line has really started.
+///
+/// [VoiceOutput.speak] only submits a line; the output may still play an
+/// earlier line first, load the clips, or drop the line when [VoiceOutput.
+/// stopSpeech] comes before it got its turn. An output that can tell
+/// implements this, and [VoiceQueue.onStarted] is driven by it alone.
+abstract class StartReportingVoiceOutput {
+  /// Same as [VoiceOutput.speak], and calls [onStarted] once, at the moment
+  /// the platform player is told to play this line (its turn came, its
+  /// clips loaded, nothing stopped it). A line that is dropped, stopped,
+  /// skipped as stale or fails to load before that never calls it.
+  Future<void> speakReportingStart(
+    List<String> assets,
+    void Function() onStarted,
+  );
+}
+
 /// Silent output (voice and chimes off, or widget tests).
 class MutedVoiceOutput implements VoiceOutput {
   const MutedVoiceOutput();
@@ -127,9 +144,12 @@ class SpokenLine {
 }
 
 class _Pending {
-  _Pending(this.cue, this.deadline);
+  _Pending(this.cue, this.deadline, this.source);
   final VoiceCue cue;
   final double deadline;
+
+  /// The cue as submitted, before clips the source lacks were trimmed.
+  final VoiceCue source;
 }
 
 /// Puts cues on the air one at a time (#13): never two voices at once, a
@@ -141,7 +161,12 @@ class _Pending {
 /// Times are seconds on any monotonic clock the caller uses consistently
 /// (the player passes active session time; the assessment wall time).
 class VoiceQueue {
-  VoiceQueue({required this.output, required this.lib, required this.settings});
+  VoiceQueue({
+    required this.output,
+    required this.lib,
+    required this.settings,
+    this.onStarted,
+  });
 
   final VoiceOutput output;
   final VoiceSource lib;
@@ -150,6 +175,18 @@ class VoiceQueue {
   final List<(double, String)> chimeLog = [];
   SpokenLine? _current;
   final List<_Pending> _pending = [];
+
+  /// Called with a submitted cue (as passed to [submit]) when [output]
+  /// confirms its speech really started (see [StartReportingVoiceOutput]).
+  /// Submitting, queueing behind a tail or calling [VoiceOutput.speak] is
+  /// not a start: a line still waiting in the output when [cancelAll] or a
+  /// takeover stops it is never reported. An output that cannot confirm
+  /// starts never reports anything, and chimes are never reported.
+  void Function(VoiceCue cue)? onStarted;
+
+  /// Bumped whenever the output is told to stop: a start confirmation that
+  /// comes back for an older request is ignored.
+  int _stopEpoch = 0;
 
   String get lang => settings.language;
 
@@ -181,7 +218,7 @@ class VoiceQueue {
     if (clips.isEmpty) return;
     final trimmed = VoiceCue(cue.at, clips, cue.priority);
     if (!_busy(now)) {
-      _start(trimmed, now);
+      _start(trimmed, now, cue);
       return;
     }
     final cur = _current!;
@@ -197,16 +234,16 @@ class VoiceQueue {
       // queue's clock, so "nearly done" here is still sounding on device.
       if (cur.end - now > tailGrace) {
         _cut(now);
-        _start(trimmed, now);
+        _start(trimmed, now, cue);
       } else {
         // The output plays the newcomer after the tail: predict it there,
         // so the air stays busy until it has really been said (PR #24
         // review F24-1).
-        _start(trimmed, cur.end);
+        _start(trimmed, cur.end, cue);
       }
       return;
     }
-    _pending.add(_Pending(trimmed, now + _wait(trimmed.priority)));
+    _pending.add(_Pending(trimmed, now + _wait(trimmed.priority), cue));
   }
 
   /// Call often (every timer tick): starts a waiting line when the air is free.
@@ -217,10 +254,10 @@ class VoiceQueue {
       (a, b) => b.cue.priority.index.compareTo(a.cue.priority.index),
     );
     final next = _pending.removeAt(0);
-    _start(next.cue, now);
+    _start(next.cue, now, next.source);
   }
 
-  void _start(VoiceCue cue, double now) {
+  void _start(VoiceCue cue, double now, VoiceCue source) {
     final line = SpokenLine(
       now,
       cue.clips,
@@ -229,13 +266,24 @@ class VoiceQueue {
     );
     _current = line;
     log.add(line);
-    output.speak([for (final c in cue.clips) lib.asset(c, lang: lang)]);
+    final assets = [for (final c in cue.clips) lib.asset(c, lang: lang)];
+    final out = output;
+    final report = onStarted;
+    if (report != null && out is StartReportingVoiceOutput) {
+      final epoch = _stopEpoch;
+      (out as StartReportingVoiceOutput).speakReportingStart(assets, () {
+        if (epoch == _stopEpoch) report(source);
+      });
+    } else {
+      output.speak(assets);
+    }
   }
 
   void _cut(double now) {
     final cur = _current;
     if (cur != null && now < cur.end) cur.cutAt = now;
     _current = null;
+    _stopEpoch++;
     output.stopSpeech();
   }
 
@@ -255,6 +303,7 @@ class VoiceQueue {
       line.cutAt ??= now < line.start ? line.start : now;
     }
     _current = null;
+    _stopEpoch++;
     output.stopSpeech();
   }
 }

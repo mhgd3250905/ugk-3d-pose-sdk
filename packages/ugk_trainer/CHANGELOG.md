@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Manual skip/previous announcements are leading-edge: a single switch, or the first switch of a burst, speaks immediately instead of after 150 ms. Further switches within 150 ms of the last one are merged, the window restarting on each tap; only the final stop speaks. Returning to the action the burst's first switch announced does not repeat that action's announcement (its `CuePriority.call` start line), and only when the voice output confirmed the line really started playing; its chimes, counts, coaching lines and every other cue play again as usual. A line that was only submitted or still waiting behind another (then cancelled by the next switch), a switch made while sound was off or paused, and an output that cannot confirm starts are never treated as announced; toggling sound clears the record. Disposal still cancels the pending window; the training clock, media handoff and other cues are unchanged.
+- Voice start confirmation: new optional `StartReportingVoiceOutput.speakReportingStart` (implemented by `JustAudioVoiceOutput`), `VoiceLineController.speak(onStarted:)` (called when the platform player is told to play the line, after earlier lines and its load, never for a stopped or skipped line) and `VoiceQueue.onStarted`.
+- `JustAudioVoiceOutput`: a line asked for while an earlier one still waits for the session no longer drops that earlier line; only a stop, interruption or end does, so lines asked for in the same turn all play in order. A line's wait now counts from when it was asked for, including time spent waiting for audio-session initialization: once the session is ready, a line more than `VoiceLineController.staleAfter` (3 s) late with a newer line already asked for behind it is skipped without playing or reporting a start (the controller's existing backlog rule), so a slow initialization no longer plays an outdated call before the current count. `VoiceLineController.speak` takes an optional `asked` time for this.
+
 ## 0.5.0 — 2026-10-26
 
 - Remove the SDK preparation-page / clock gate from training. Keep original bundled standing images visible offline and dissolve them over 180 ms once a video frame is composed; failures retry quietly and do not interrupt timing or speech.

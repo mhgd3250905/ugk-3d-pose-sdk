@@ -2,6 +2,7 @@
 // test/hip/hip_voice_test.dart (and SmartFit@e8981ee test/voice_session_test.dart
 // RecordingVoiceOutput); fixtures are copies of HipLab assets/voice/manifest.json,
 // five HipLab action kits and five SmartFit drill packs (pack.json only).
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -107,7 +108,10 @@ PlanItem timed(
   restSeconds: rest,
 );
 
-class RecordingOutput implements VoiceOutput {
+/// Records every line as spoken the moment it is asked for: models an output
+/// that starts each line at once (replacing whatever played). For an output
+/// that plays lines one after another, use [SerialVoiceProbe].
+class RecordingOutput implements VoiceOutput, StartReportingVoiceOutput {
   final spoken = <List<String>>[];
   final chimes = <String>[];
   int stops = 0;
@@ -118,7 +122,100 @@ class RecordingOutput implements VoiceOutput {
   @override
   Future<void> speak(List<String> assets) async => spoken.add([...assets]);
   @override
+  Future<void> speakReportingStart(
+    List<String> assets,
+    void Function() onStarted,
+  ) async {
+    spoken.add([...assets]);
+    onStarted();
+  }
+
+  @override
   Future<void> stopSpeech() async => stops++;
+  @override
+  Future<void> chime(String asset) async => chimes.add(asset);
+  @override
+  set volume(double v) {}
+}
+
+/// A [VoiceOutput] that behaves like the real VoiceLineController: lines play
+/// one after another in the order asked for, each for its recorded length;
+/// [stopSpeech] cuts the line on air and drops every line still waiting.
+/// Keeps [submitted] (asked for) apart from [started] (really began), and
+/// reports a start only when a line really begins (PR #7 review 3).
+class SerialVoiceProbe implements VoiceOutput, StartReportingVoiceOutput {
+  SerialVoiceProbe(this.secondsOf);
+
+  /// Probe for a [DrillPackVoiceSource] (`<root>/<pack>/voice/<lang>/<line>.m4a`).
+  factory SerialVoiceProbe.forSource(
+    VoiceSource source, {
+    String lang = 'zh',
+  }) => SerialVoiceProbe((asset) {
+    final parts = asset.split('/');
+    final line = parts.last.replaceAll(RegExp(r'\.m4a$'), '');
+    final pack = parts.length >= 4 ? parts[parts.length - 4] : '';
+    final key = pack == DrillPackVoiceSource.commonPackId
+        ? line
+        : DrillPackVoiceSource.lineKey(pack, line);
+    return source.seconds(key, lang: lang);
+  });
+
+  final double Function(String asset) secondsOf;
+  final submitted = <List<String>>[];
+  final started = <List<String>>[];
+  final chimes = <String>[];
+  int stops = 0;
+  final _waiting = <(List<String>, void Function()?)>[];
+  Timer? _onAir;
+
+  /// Alias of [started], so helpers written for [RecordingOutput] read what
+  /// was really heard.
+  List<List<String>> get spoken => started;
+
+  @override
+  Future<void> begin() async {}
+  @override
+  Future<void> end() async => _drop();
+  @override
+  Future<void> speak(List<String> assets) async => _ask(assets, null);
+  @override
+  Future<void> speakReportingStart(
+    List<String> assets,
+    void Function() onStarted,
+  ) async => _ask(assets, onStarted);
+
+  void _ask(List<String> assets, void Function()? onStarted) {
+    submitted.add([...assets]);
+    _waiting.add(([...assets], onStarted));
+    if (_onAir == null) _next();
+  }
+
+  void _next() {
+    if (_waiting.isEmpty) return;
+    final (assets, onStarted) = _waiting.removeAt(0);
+    started.add(assets);
+    onStarted?.call();
+    final seconds =
+        assets.fold(0.0, (s, a) => s + secondsOf(a)) +
+        .06 * (assets.length - 1).clamp(0, 99);
+    _onAir = Timer(Duration(microseconds: (seconds * 1e6).round()), () {
+      _onAir = null;
+      _next();
+    });
+  }
+
+  void _drop() {
+    _onAir?.cancel();
+    _onAir = null;
+    _waiting.clear();
+  }
+
+  @override
+  Future<void> stopSpeech() async {
+    stops++;
+    _drop();
+  }
+
   @override
   Future<void> chime(String asset) async => chimes.add(asset);
   @override

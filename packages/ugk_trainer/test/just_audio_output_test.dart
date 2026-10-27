@@ -3,6 +3,7 @@
 import 'dart:async';
 
 import 'package:audio_session/audio_session.dart';
+import 'package:clock/clock.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:ugk_trainer/ugk_trainer.dart';
@@ -154,7 +155,125 @@ class _LoopPlayer extends _Player {
   }
 }
 
+/// Records the clip names of every line loaded into the voice player.
+class _NamedPlayer extends _Player {
+  _NamedPlayer(super.events);
+  final loaded = <String>[];
+  @override
+  Future<Duration?> setAudioSources(
+    List<AudioSource> audioSources, {
+    bool preload = true,
+    int? initialIndex,
+    Duration? initialPosition,
+    ShuffleOrder? shuffleOrder,
+  }) {
+    for (final s in audioSources) {
+      loaded.add((s as UriAudioSource).uri.pathSegments.last);
+    }
+    return super.setAudioSources(audioSources);
+  }
+}
+
+/// A real [VoiceQueue] on a [JustAudioVoiceOutput] whose [AudioSession]
+/// initialization is held by [session] (PR #7 fourth review).
+({JustAudioVoiceOutput output, VoiceQueue queue, _NamedPlayer voice})
+_gatedQueue(Completer<AudioSession> session, List<String> started) {
+  final events = <String>[];
+  final voice = _NamedPlayer(events);
+  final output = JustAudioVoiceOutput.forTesting(
+    voice: voice,
+    chime: _Player(events),
+    keepAlive: _Player(events),
+    session: () => session.future,
+  );
+  final queue = VoiceQueue(
+    output: output,
+    lib: ManifestVoiceSource(
+      {
+        'zh': {'p.go': 800, 'n.1': 464},
+      },
+      const {},
+      const {},
+      const {},
+    ),
+    settings: const VoiceSettings(chimes: false),
+    onStarted: (cue) => started.add(cue.clips.join('+')),
+  );
+  return (output: output, queue: queue, voice: voice);
+}
+
 void main() {
+  group('slow audio initialization (PR #7 fourth review)', () {
+    test('a call that went stale while the session initialized is dropped '
+        'once a newer count is asked for: only the count plays and only it '
+        'reports a start', () async {
+      var now = DateTime(2026, 10, 27, 10);
+      await withClock(Clock(() => now), () async {
+        final session = Completer<AudioSession>();
+        final started = <String>[];
+        final t = _gatedQueue(session, started);
+        final beginning = t.output.begin();
+        t.queue.submit(const VoiceCue(0, ['p.go'], CuePriority.call), 0);
+        await Future<void>.delayed(Duration.zero);
+        // Training time runs on; the audio session is still initializing.
+        now = now.add(const Duration(milliseconds: 3200));
+        t.queue.submit(const VoiceCue(0, ['n.1'], CuePriority.count), 3.2);
+        await Future<void>.delayed(Duration.zero);
+        expect(t.voice.loaded, isEmpty);
+        session.complete(_Session([]));
+        await beginning;
+        await pumpEventQueue();
+        expect(t.voice.loaded, ['n.1.m4a']);
+        expect(started, ['n.1']);
+        await t.output.dispose();
+      });
+    });
+
+    test('a short initialization delay keeps the adjacent call and first '
+        'count: both play in order and both report their start', () async {
+      var now = DateTime(2026, 10, 27, 10);
+      await withClock(Clock(() => now), () async {
+        final session = Completer<AudioSession>();
+        final started = <String>[];
+        final t = _gatedQueue(session, started);
+        final beginning = t.output.begin();
+        t.queue.submit(const VoiceCue(0, ['p.go'], CuePriority.call), 0);
+        // The count lands in the call's last 0.3 s (≤ tailGrace): queued
+        // behind it, not cut.
+        t.queue.submit(const VoiceCue(0, ['n.1'], CuePriority.count), .5);
+        await Future<void>.delayed(Duration.zero);
+        now = now.add(const Duration(milliseconds: 500));
+        expect(t.voice.loaded, isEmpty);
+        session.complete(_Session([]));
+        await beginning;
+        await pumpEventQueue();
+        expect(t.voice.loaded, ['p.go.m4a', 'n.1.m4a']);
+        expect(started, ['p.go', 'n.1']);
+        await t.output.dispose();
+      });
+    });
+
+    test('a stale line with nothing newer behind it still plays (same rule '
+        'as the controller backlog)', () async {
+      var now = DateTime(2026, 10, 27, 10);
+      await withClock(Clock(() => now), () async {
+        final session = Completer<AudioSession>();
+        final started = <String>[];
+        final t = _gatedQueue(session, started);
+        final beginning = t.output.begin();
+        t.queue.submit(const VoiceCue(0, ['p.go'], CuePriority.call), 0);
+        await Future<void>.delayed(Duration.zero);
+        now = now.add(const Duration(milliseconds: 3200));
+        session.complete(_Session([]));
+        await beginning;
+        await pumpEventQueue();
+        expect(t.voice.loaded, ['p.go.m4a']);
+        expect(started, ['p.go']);
+        await t.output.dispose();
+      });
+    });
+  });
+
   test('unplugging stops both players and releases music focus', () async {
     final events = <String>[];
     final noisy = StreamController<void>.broadcast(sync: true);
@@ -248,6 +367,39 @@ void main() {
       await line;
       expect(voice.playing, isFalse);
     }
+    expect(events.where((e) => e == 'play').length, 2);
+    await output.dispose();
+  });
+
+  test('lines asked for in one turn all play in order and report their '
+      'real start; a line stopped before its turn never does', () async {
+    final events = <String>[];
+    final voice = _Player(events, autoComplete: false);
+    final output = JustAudioVoiceOutput.forTesting(
+      voice: voice,
+      chime: _Player(events),
+      keepAlive: _Player(events),
+      session: () async => _Session(events),
+    );
+    await output.begin();
+    final started = <String>[];
+    final firstPlaying = Completer<void>();
+    voice.playingStarted.add(firstPlaying);
+    final a = output.speakReportingStart(['a'], () => started.add('a'));
+    final b = output.speakReportingStart(['b'], () => started.add('b'));
+    await firstPlaying.future;
+    await Future<void>.delayed(Duration.zero);
+    expect(started, ['a'], reason: 'b is asked for but waits behind a');
+    final secondPlaying = Completer<void>();
+    voice.playingStarted.add(secondPlaying);
+    voice.complete();
+    await secondPlaying.future;
+    await Future<void>.delayed(Duration.zero);
+    expect(started, ['a', 'b']);
+    final c = output.speakReportingStart(['c'], () => started.add('c'));
+    await output.stopSpeech();
+    await Future.wait([a, b, c]);
+    expect(started, ['a', 'b']);
     expect(events.where((e) => e == 'play').length, 2);
     await output.dispose();
   });

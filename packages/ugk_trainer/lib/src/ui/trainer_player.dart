@@ -354,7 +354,29 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   TrainingHold? _hold;
   Timer? _timer;
   Timer? _terminalAudio;
+
+  /// Quiet window after a manual skip/previous. The first switch of a burst
+  /// speaks at once; later switches inside the window only restart it.
   Timer? _navigationVoice;
+
+  /// A later switch landed inside the window: hold speech until it settles.
+  bool _navigationCoalescing = false;
+
+  /// Phase index the burst's first switch already announced.
+  int? _navigationAnnounced;
+
+  /// The phase's announcement (its [CuePriority.call] cue, the action name /
+  /// start call), by [_cueKey], once the voice output confirmed it really
+  /// started playing for [_navigationAnnounced] – from the leading switch
+  /// until the burst moves on. Only this is deduplicated when the burst
+  /// settles back on [_navigationAnnounced], and only its speech: its chimes,
+  /// counts, coaching lines and every other cue are played again as usual.
+  /// A call that was only submitted or still waiting (then cancelled by the
+  /// next switch) is never recorded, so it is spoken again.
+  Set<String>? _navigationAnnouncedCues;
+
+  /// True only during the leading switch's own [_tick].
+  bool _navigationLeadingTick = false;
   final _mediaHost = GlobalKey();
   Future<void>? _audioEnding;
   bool _audioEnded = false;
@@ -481,6 +503,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       output: _voice.output,
       lib: _voice.source,
       settings: _soundSettings,
+      onStarted: _onCueStarted,
     );
     if (_voice.settings.voice || _voice.settings.chimes) {
       unawaited(_voice.output.begin());
@@ -534,6 +557,24 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   SessionResult _result() =>
       _recorder.finish(_engine, activeSeconds: _endedAt ?? _t);
 
+  static String _cueKey(VoiceCue c) =>
+      '${c.at}|${c.priority.name}|${c.clips.join('+')}';
+
+  /// [VoiceQueue.onStarted]: the output confirmed [cue] really started.
+  /// Records the leading switch's announcement (see
+  /// [_navigationAnnouncedCues]); may arrive after the switch's own tick.
+  void _onCueStarted(VoiceCue cue) {
+    if (cue.priority != CuePriority.call) return;
+    if (_disposed || !mounted) return;
+    if (_navigationCoalescing || _paused || _engine.done) return;
+    // The leading tick may still cross a zero-length phase; its index is
+    // taken once that tick is over.
+    if (!_navigationLeadingTick && _navigationAnnounced != _engine.index) {
+      return;
+    }
+    _navigationAnnouncedCues?.add(_cueKey(cue));
+  }
+
   void _submit(Iterable<FiredCue> fired, double t) {
     for (final f in fired) {
       _queue.submit(f.cue, t);
@@ -544,7 +585,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   void _tick() {
     if (_disposed || !mounted || (_paused && !_engine.done)) return;
     final t = _t;
-    if (_navigationVoice != null) {
+    if (_navigationCoalescing) {
       // Navigation settles only presentation and speech, never the clock.
       // Do not mark intermediate runner cues fired before the final target.
       _engine.update(t);
@@ -680,6 +721,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _terminalAudio = null;
     _navigationVoice?.cancel();
     _navigationVoice = null;
+    _navigationCoalescing = false;
+    _navigationAnnounced = null;
+    _navigationAnnouncedCues = null;
     // End the previous owner's delayed close before acquiring a new one.
     // The shared output stays open; no old route can end the new session.
     _hold?.release();
@@ -700,6 +744,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       output: _voice.output,
       lib: _voice.source,
       settings: _soundSettings,
+      onStarted: _onCueStarted,
     );
     _endedAt = null;
     _subtitle = null;
@@ -816,23 +861,90 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _after(void Function() change, {bool settleVoice = false}) {
+    // Leading edge: a switch outside a running window speaks immediately.
+    // Switches inside it are merged and only the final target speaks.
+    final leading = !settleVoice || _navigationVoice == null;
     _navigationVoice?.cancel();
     _navigationVoice = null;
+    _navigationCoalescing = !leading;
+    if (leading) {
+      _navigationAnnounced = null;
+      _navigationAnnouncedCues = null;
+    }
     _queue.cancelAll(_t);
     change();
     if (settleVoice && !_engine.done) {
-      _navigationVoice = Timer(DrillMediaHandoff.defaultSettleDelay, () {
-        _navigationVoice = null;
-        if (_disposed || !mounted || _paused) return;
-        // The engine may naturally cross a zero-length rest while settling.
-        // The latest timer owns navigation; speak the phase that is current.
-        _tick();
-      });
+      _navigationVoice = Timer(
+        DrillMediaHandoff.defaultSettleDelay,
+        _settleNavigationVoice,
+      );
+    } else {
+      _navigationCoalescing = false;
     }
     _subtitle = null;
     _syncProgress(_t);
+    // A leading switch records whether the output really started its
+    // phase's announcement (see [_onCueStarted]) until the burst moves on
+    // or settles. A muted or paused switch plays nothing, so nothing of it
+    // is deduplicated.
+    final record = leading && settleVoice && !_paused && !_engine.done;
+    if (record) {
+      _navigationAnnounced = _engine.index;
+      _navigationAnnouncedCues = <String>{};
+      _navigationLeadingTick = true;
+    }
     _tick();
+    _navigationLeadingTick = false;
+    if (record && _navigationAnnounced != null) {
+      if (_paused || _engine.done) {
+        _navigationAnnounced = null;
+        _navigationAnnouncedCues = null;
+      } else {
+        _navigationAnnounced = _engine.index;
+      }
+    }
     setState(() {});
+  }
+
+  void _settleNavigationVoice() {
+    _navigationVoice = null;
+    final coalesced = _navigationCoalescing;
+    final announced = _navigationAnnounced;
+    final announcedCues = _navigationAnnouncedCues;
+    _navigationCoalescing = false;
+    _navigationAnnounced = null;
+    _navigationAnnouncedCues = null;
+    if (_disposed || !mounted) return;
+    if (coalesced && announced != null && announcedCues != null) {
+      final t = _t;
+      // The engine may naturally cross a zero-length rest while settling.
+      _engine.update(t);
+      if (!_engine.done && _engine.index == announced && !_paused) {
+        // Back on the phase this burst already announced: do not say its
+        // announcement again if the output confirmed it really started.
+        // Its chimes, counts, coaching lines and every other cue play as
+        // usual.
+        final keep = <FiredCue>[];
+        for (final f in _runner.update(t)) {
+          if (f.cue.priority == CuePriority.call &&
+              announcedCues.remove(_cueKey(f.cue))) {
+            if (f.cue.subtitle != null) _subtitle = f.cue.subtitle;
+            final chimes = f.cue.chimes;
+            if (chimes.isNotEmpty) {
+              keep.add(
+                FiredCue(f.time, VoiceCue(f.cue.at, chimes, f.cue.priority)),
+              );
+            }
+          } else {
+            keep.add(f);
+          }
+        }
+        _submit(keep, t);
+      }
+    }
+    if (_paused) return;
+    // The latest timer owns navigation; speak the phase that is current.
+    _tick();
   }
 
   void _skip() => _after(() => _runner.skip(_t), settleVoice: true);
@@ -857,6 +969,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   void _toggleSound() {
     _queue.cancelAll(_t);
+    // What a navigation burst "already announced" depends on the sound state;
+    // never let it suppress speech after sound is switched.
+    _navigationAnnounced = null;
+    _navigationAnnouncedCues = null;
     _soundEnabled = !_soundEnabled;
     _queue.settings = _soundSettings;
     _voice.output.volume = _soundEnabled ? _voice.settings.volume : 0;

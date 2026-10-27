@@ -6,6 +6,7 @@
 import 'dart:async';
 
 import 'package:audio_session/audio_session.dart';
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart'
     show
         TargetPlatform,
@@ -41,7 +42,11 @@ import 'voice_queue.dart';
 /// interruptions are OS features that tests cannot exercise) – see
 /// docs/ios-setup-and-release.md.
 class JustAudioVoiceOutput
-    implements VoiceOutput, InterruptibleVoiceOutput, VoicePlatform {
+    implements
+        VoiceOutput,
+        StartReportingVoiceOutput,
+        InterruptibleVoiceOutput,
+        VoicePlatform {
   /// [keepAliveAsset] overrides must contain truly silent samples. Android
   /// plays the track at normal player volume so it counts as active playback;
   /// the bundled zero-sample asset supplies the silence.
@@ -93,6 +98,10 @@ class JustAudioVoiceOutput
   late final VoiceLineController _lines;
   int _playGeneration = 0;
   int _speechRequest = 0;
+
+  /// Bumped by every line asked for: tells a line waiting for the session
+  /// whether a newer one was asked for behind it.
+  int _speechAsk = 0;
   Future<void>? _voicePlayback;
 
   final AudioPlayer _voice;
@@ -338,16 +347,40 @@ class JustAudioVoiceOutput
   }
 
   @override
-  Future<void> speak(List<String> assets) async {
-    final request = ++_speechRequest;
+  Future<void> speak(List<String> assets) => _speak(assets, null);
+
+  @override
+  Future<void> speakReportingStart(
+    List<String> assets,
+    void Function() onStarted,
+  ) => _speak(assets, onStarted);
+
+  Future<void> _speak(List<String> assets, void Function()? onStarted) async {
+    // Only a stop / interruption / end drops a line waiting here. A newer
+    // line no longer supersedes it: two lines asked for in the same turn
+    // (a tail let through by VoiceQueue.tailGrace) both play, in order, as
+    // VoiceLineController promises (ugk_trainer PR #7).
+    final request = _speechRequest;
     final generation = _sessionGeneration;
+    final ask = ++_speechAsk;
+    // The line's wait starts now, not when the session is ready: the
+    // training clock does not wait for audio initialization.
+    final asked = clock.now();
     await _beginning;
     if (!_current(generation) ||
         request != _speechRequest ||
         _session == null) {
       return;
     }
-    await _lines.speak(assets);
+    // The controller's backlog rule, applied to the time spent waiting for
+    // the session: a line more than staleAfter late with a newer line
+    // already asked for behind it is skipped, never started or reported.
+    if (ask != _speechAsk &&
+        clock.now().difference(asked) > _lines.staleAfter) {
+      _lines.onSkip?.call(assets);
+      return;
+    }
+    await _lines.speak(assets, onStarted: onStarted, asked: asked);
   }
 
   @override

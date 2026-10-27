@@ -366,7 +366,7 @@ void main() {
   }
 
   testWidgets(
-    'rapid navigation speaks only the final target and does not wait the training clock',
+    'rapid navigation speaks the first switch at once, then only the final target, without waiting the training clock',
     (tester) async {
       final output = RecordingOutput();
       await tester.pumpWidget(
@@ -396,24 +396,22 @@ void main() {
       output.spoken.clear();
       output.chimes.clear();
       await tester.tap(find.byKey(const ValueKey('skip')));
+      await tester.pump();
+      // Leading edge: the first switch of a burst speaks immediately.
+      expect(
+        output.spoken.expand((clips) => clips).join(' '),
+        contains('w-dead-bug'),
+      );
+      final leading = output.spoken.length;
       await tester.pump(const Duration(milliseconds: 100));
-      expect(output.spoken, isEmpty);
-      expect(output.chimes, isEmpty);
       await tester.tap(find.byKey(const ValueKey('skip')));
       await tester.pump(const Duration(milliseconds: 149));
-      expect(output.spoken, isEmpty);
-      expect(output.chimes, isEmpty);
+      expect(output.spoken.length, leading);
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump();
-      expect(output.spoken, isNotEmpty);
-      expect(
-        output.spoken.expand((clips) => clips).join(' '),
-        contains('h-couch-stretch'),
-      );
-      expect(
-        output.spoken.expand((clips) => clips).join(' '),
-        isNot(contains('w-dead-bug')),
-      );
+      final settled = output.spoken.skip(leading).expand((clips) => clips);
+      expect(settled.join(' '), contains('h-couch-stretch'));
+      expect(settled.join(' '), isNot(contains('w-dead-bug')));
       await tester.pump(const Duration(seconds: 1));
       expect(
         find.text('29'),

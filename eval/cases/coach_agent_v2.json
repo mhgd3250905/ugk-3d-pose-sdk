@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "description": "The original R1-R6 inputs from the approved coach-agent specification. Only subsequent user replies and the R4 host click are simulated; all assistant responses and tool execution come from the real SDK/model path.",
+  "profile": "smartfit",
+  "cases": [
+    {
+      "id": "R1",
+      "messages": ["坐了挺久 我想拉伸一下", "你帮我安排一个计划吧"],
+      "simulatedClarificationReply": "我在办公室，只有椅子和墙，想放松肩颈和髋部，大约10分钟。目前没有伤病、疼痛或其他运动限制。",
+      "expectedFinal": "plan",
+      "review": ["Later planning uses the earlier sitting/stretching context.", "Already supplied office, equipment, duration and safety facts are not asked again."]
+    },
+    {
+      "id": "R2",
+      "messages": ["我想针对大腿内侧进行拉伸"],
+      "simulatedClarificationReply": "在家，有瑜伽垫，想拉伸大腿内侧，10分钟。目前没有伤病、疼痛或其他运动限制。",
+      "expectedFinal": "actions-or-plan",
+      "review": ["The returned catalog actions actually target the inner thigh.", "No invented equipment or unsupported actions."]
+    },
+    {
+      "id": "R3",
+      "messages": ["在家徒手 20 分钟练核心"],
+      "simulatedClarificationReply": "初学者，在家徒手，没有垫子或其他器材，20分钟练核心。目前没有伤病、疼痛或其他运动限制。",
+      "expectedFinal": "plan",
+      "expectedScene": "home",
+      "expectedEquipment": [],
+      "expectedMinutes": 20,
+      "review": ["Core focus is reflected in the performed actions.", "Known home/bodyweight/20-minute facts are not asked again."]
+    },
+    {
+      "id": "R4",
+      "messages": ["推荐几个练肩的哑铃动作"],
+      "simulatedClarificationReply": "在家，有一对哑铃，初学者，主要练肩，可以安排10分钟。目前没有伤病、疼痛或其他运动限制。",
+      "expectedFirstFinal": "actions",
+      "hostAction": {
+        "label": "排成计划",
+        "entryPoint": "CoachConversationController.send",
+        "message": "把刚才推荐的动作排成计划"
+      },
+      "expectedFinal": "plan",
+      "review": ["The host action sends an ordinary user message on the same real controller.", "The model requests reuse; prior node results are reused without a seeded task or fabricated check.", "Shoulder focus and available dumbbells survive promotion."]
+    },
+    {
+      "id": "R5",
+      "messages": ["深蹲膝盖响正常吗"],
+      "simulatedClarificationReply": "只是偶尔有响声，没有疼痛、肿胀、卡住或受伤，也没有其他运动限制。",
+      "expectedFinal": "text-without-task",
+      "review": ["An in-scope health/exercise question is answered without forced task nodes or a training plan.", "The answer distinguishes painless sounds from symptoms that warrant stopping and assessment."]
+    },
+    {
+      "id": "R6",
+      "messages": ["I sit all day, help me stretch"],
+      "simulatedClarificationReply": "I am in an office with a chair and wall. I want to stretch my shoulders, neck and hips for about ten minutes. I have no pain, injuries or other exercise restrictions.",
+      "expectedFinal": "actions-or-plan",
+      "review": ["English intent and parameters map to the same catalog encodings.", "The assistant does not invent restrictions or repeat known facts."]
+    }
+  ]
+}

@@ -82,7 +82,11 @@ void main() {
         context: const CoachContext(equipment: {}),
       );
       expect(first.question, isNotNull);
-      expect(first.reads, contains('action-library/SKILL.md'));
+      expect(
+        first.reads,
+        isEmpty,
+        reason: 'start_task already supplied the full skill',
+      );
       final beforeQuestion = client.requests[2];
       final originalSearch = client.requests[1].messages
           .singleWhere((m) => m.toolCallId == 'search')
@@ -109,7 +113,18 @@ void main() {
         searchResult,
       );
       final read = resumed.messages.singleWhere((m) => m.toolCallId == 'read');
-      expect(read.content, contains('action-library'));
+      expect(read.content, '[已在 start_task 结果中]');
+      final start =
+          jsonDecode(
+                resumed.messages
+                    .singleWhere((m) => m.toolCallId == 'start')
+                    .content,
+              )
+              as Map<String, dynamic>;
+      expect(
+        (start['skills'] as Map<String, dynamic>)['action-library'],
+        SkillFiles.build(profile, catalog).read('action-library/SKILL.md'),
+      );
       expect(resumed.messages.last.role, LlmRole.user);
       expectProtocol(resumed.messages);
     },

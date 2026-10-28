@@ -22,6 +22,39 @@ EvaluationRecord _event(
 };
 
 void main() {
+  for (final sample in {
+    'R2': 'recommend',
+    'R3': 'plan',
+    'R4': 'recommend',
+    'R6': 'recommend',
+  }.entries) {
+    test(
+      '${sample.key} cancelled final snapshot keeps successful start_task event classification',
+      () {
+        final events = <EvaluationRecord>[
+          {
+            ..._event(1, 10, sample.value),
+            'kind': 'node',
+            'node': {'id': 'understand', 'status': 'current'},
+          },
+          {'turn': 1, 'caseElapsedMs': 90, 'kind': 'done', 'task': null},
+        ];
+        final calls = <EvaluationRecord>[
+          {'turn': 1, 'caseElapsedMs': 1, 'taskAtRequest': null},
+          {
+            'turn': 1,
+            'caseElapsedMs': 20,
+            'taskAtRequest': _task(sample.value),
+          },
+        ];
+        expect(
+          evaluationTurnTaskType(turn: 1, events: events, calls: calls),
+          sample.value,
+        );
+      },
+    );
+  }
+
   test(
     'cancelled recommendation retains observed 5-call and 25-second limits',
     () {

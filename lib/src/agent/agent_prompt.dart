@@ -21,7 +21,7 @@ import 'skill_files.dart';
 import 'user_memory.dart';
 
 /// Agent 内核修订号。改 `prompts/agent_kernel.md` 或 `skills/` 语义时手动加一。
-const agentKernelRevision = 5;
+const agentKernelRevision = 6;
 
 abstract final class AgentTools {
   static const read = 'read';

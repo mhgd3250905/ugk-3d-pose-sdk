@@ -418,7 +418,7 @@ void main() {
         (message) => message.content == '有什么限制吗？',
       );
       expect(question.toolCalls, isEmpty);
-      expect(question.reasoning, isNull);
+      expect(question.reasoning, '内部推理');
       expect(result.any((message) => message.toolCallId == 'ask'), isFalse);
       expect(result.any((message) => message.content == '未展示的中间内容'), isFalse);
       expect(result.any((message) => message.content == '未展示的失败提问'), isFalse);

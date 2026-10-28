@@ -18,7 +18,7 @@ void main() {
   final catalog = loadCatalog();
   final profile = loadProfile('hiplab');
 
-  Future<({String result, CoachAgent agent})> probe(
+  Future<({String result, CoachAgent agent, String startContent})> probe(
     String name,
     Map<String, Object?> arguments,
   ) async {
@@ -46,7 +46,11 @@ void main() {
     final toolResult = lastRequest.messages.singleWhere(
       (m) => m.toolCallId == 'probe',
     );
-    return (result: toolResult.content, agent: agent);
+    return (
+      result: toolResult.content,
+      agent: agent,
+      startContent: start.content,
+    );
   }
 
   for (final path in [
@@ -105,7 +109,12 @@ void main() {
     final response = await probe(AgentTools.read, {'path': path});
     final original = response.agent.files(catalog).read(path);
     expect(original, isNotNull);
-    expect(response.result, original);
+    expect(response.result, '[已在 start_task 结果中]');
+    final start = jsonDecode(response.startContent) as Map<String, dynamic>;
+    expect(
+      (start['skills'] as Map<String, dynamic>)['action-library'],
+      original,
+    );
     expect(response.agent.sessionState.seenActionIds, isEmpty);
   });
 }

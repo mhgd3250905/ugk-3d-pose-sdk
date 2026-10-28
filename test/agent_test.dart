@@ -293,7 +293,7 @@ void main() {
           .where((m) => m.role == LlmRole.tool)
           .map((m) => m.content)
           .toList();
-      expect(third.last, contains('已读过'));
+      expect(third.last, '[已在前文 read 中]');
       expect(
         events.where((e) => e.kind != AgentEventKind.node).map((e) => e.kind),
         [

@@ -129,7 +129,53 @@ void main() {
     }
   });
 
-  test('HTTP 请求体：Agent 进行中保留推理，交付后仅保留可见历史', () async {
+  test('thinking 请求附带 tools 时，跨用户消息保留纯问答的推理', () async {
+    var step = 0;
+    final client = OpenAiCompatibleClient(
+      config: LlmConfig.ugkWorker.copyWith(
+        maxRetries: 0,
+        extraBody: {
+          'thinking': {'type': 'enabled'},
+        },
+      ),
+      httpClient: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map;
+        expect(body['tools'], isNotEmpty);
+        expect(body['thinking'], {'type': 'enabled'});
+        final assistants = (body['messages'] as List)
+            .cast<Map<String, Object?>>()
+            .where((message) => message['role'] == 'assistant');
+        if (step++ == 0) {
+          expect(assistants, isEmpty);
+          return _response(_message('可以先轻柔活动。', 'plain-turn-reasoning'));
+        }
+        expect(assistants, hasLength(1));
+        expect(assistants.single['content'], '可以先轻柔活动。');
+        expect(assistants.single['reasoning_content'], 'plain-turn-reasoning');
+        expect(assistants.single.containsKey('tool_calls'), isFalse);
+        return _response(_message('按舒适范围活动。', 'next-turn-reasoning'));
+      }),
+    );
+    final agent = CoachAgent(
+      client: client,
+      catalog: () => catalog,
+      profile: profile,
+      enableUserMemory: false,
+      maxRequestRetries: 0,
+    );
+    addTearDown(client.close);
+    addTearDown(agent.dispose);
+    final first = await agent.send('久坐之后可以轻柔活动吗？');
+    expect(first.status, TurnStatus.ok);
+    expect(first.text, '可以先轻柔活动。');
+    final second = await agent.send('需要注意什么？');
+    expect(second.status, TurnStatus.ok);
+    expect(second.text, '按舒适范围活动。');
+    expect(agent.sessionState.task, isNull);
+    expect(step, 2);
+  });
+
+  test('HTTP 请求体：Agent 保留进行中及交付后可见历史的原始推理', () async {
     final expected = <List<String>>[
       [],
       ['read-reasoning'],
@@ -148,10 +194,10 @@ void main() {
         'draft-reasoning',
         'check-reasoning',
       ],
-      [''],
-      ['', ''],
-      ['', '', 'recommend-reasoning'],
-      ['', '', ''],
+      ['plan-reasoning'],
+      ['plan-reasoning', 'plain-reasoning'],
+      ['plan-reasoning', 'plain-reasoning', 'recommend-reasoning'],
+      ['plan-reasoning', 'plain-reasoning', 'actions-reasoning'],
     ];
     var step = 0;
     late String planId;
@@ -286,7 +332,7 @@ void main() {
             <String>[],
             ['setup-reasoning'],
             ['setup-reasoning', 'rejected-reasoning'],
-            [''],
+            ['accepted-reasoning'],
           ];
           var step = 0;
           final client = OpenAiCompatibleClient(
@@ -383,7 +429,7 @@ void main() {
     );
   }
 
-  test('记忆从未开启：进行中推理完整回传，交付后的推理被移除', () async {
+  test('记忆从未开启：进行中及交付后保留的历史推理完整回传', () async {
     final expected = <List<String>>[
       [],
       ['library-reasoning'],
@@ -395,7 +441,7 @@ void main() {
         'draft-reasoning',
         'checking-reasoning',
       ],
-      [''],
+      ['final-reasoning'],
     ];
     var step = 0;
     late String planId;

@@ -116,7 +116,7 @@ const kernelV3Markdown = r'''你是「{{appName}}」里的 AI 训练助理，只
 App 已知的本轮条件（场所、器械、保护部位、水平、时长等）会放在用户消息开头的括号里，以它为准；括号后面才是用户原话。
 ''';
 
-const agentKernelMarkdownHash = '46c2b073';
+const agentKernelMarkdownHash = '991a3a20';
 const builtinSkillsHash = '4db3ea49';
 
 /// Agent 版第 1 层系统提示词（0.3）。
@@ -127,6 +127,8 @@ const agentKernelMarkdown = r'''你是「{{appName}}」的训练助理，遵守 
 排计划只定结构和动作，draft_plan 配时长。note 只写思路，不写数字和器材。错误按 fix 改。
 同批工具顺序执行，失败后其余跳过；ask_user 排最后；show_* 成功即结束。
 可合并 start_task + check(understand) + set_params + check(parameters)；或 check(actions, picks) + draft_plan + check(planning) + check_plan + check(review) + show_plan。使用 start_task 返回的 plan_id。
+
+推荐和计划任务直接调用 start_task，所需技能随结果返回，不要先 read；问答类按需 read。
 
 # 技能索引
 {{skills}}

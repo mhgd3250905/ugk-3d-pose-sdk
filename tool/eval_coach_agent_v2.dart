@@ -12,6 +12,7 @@ import 'package:http/io_client.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'eval_reasoning_stats.dart';
+import 'eval_thinking_mode.dart';
 import 'eval_turn_budget.dart';
 
 typedef Json = Map<String, Object?>;
@@ -19,8 +20,8 @@ typedef Json = Map<String, Object?>;
 Future<void> main(List<String> args) async {
   if (args.contains('--help')) {
     stdout.writeln('''
-dart run tool/eval_coach_agent_v2.dart --dry [--cases R1,R2] [--out DIR]
-dart run tool/eval_coach_agent_v2.dart [--cases R1,R2] [--out DIR]
+dart run tool/eval_coach_agent_v2.dart --dry [--thinking on|off] [--cases R1,R2] [--out DIR]
+dart run tool/eval_coach_agent_v2.dart [--thinking on|off] [--cases R1,R2] [--out DIR]
 
 Uses the existing UGK Worker route and an existing identity. Environment:
 Fixed route: https://api.uuugk.win/v1 and deepseek-v4-flash-0731.
@@ -28,7 +29,8 @@ UGK_APP_KEY must be supplied through the environment; UGK_DEVICE_ID or
 UGK_DEVICE_FILE must identify the existing authorized evaluation device.
 No alternate bearer route, model or newly generated device is used.
 SSL_CERT_FILE optionally adds a trusted CA. UGK_EVAL_GAP_SECONDS spaces cases.
-Thinking is explicitly requested; the configured generation budget is retained.
+Thinking defaults to on; on sends thinking.type=enabled, off sends disabled.
+The configured generation budget is retained.
 --dry checks fixtures only (modelCalls=0); it does not evaluate model quality.
 Evidence excludes credentials, headers, endpoint URLs, system prompt text and
 reasoning text. Public messages, tool calls/results, raw usage availability,
@@ -57,6 +59,7 @@ Future<void> _main(List<String> args) async {
     return args[at + 1];
   }
 
+  final thinkingMode = parseEvaluationThinkingMode(argument('--thinking'));
   const fixturePath = 'eval/cases/coach_agent_v2.json';
   final fixtureFile = File(fixturePath);
   final fixture = _map(jsonDecode(await fixtureFile.readAsString()));
@@ -92,6 +95,9 @@ Future<void> _main(List<String> args) async {
   if (args.contains('--dry')) {
     await _writeJson(File('${output.path}/summary.json'), {
       'mode': 'fixture-validation-only',
+      'thinkingMode': thinkingMode.name,
+      'thinkingRequestType': thinkingMode.protocolType,
+      'thinkingRequested': thinkingMode == EvaluationThinkingMode.on,
       'modelCalls': 0,
       'modelQualityPassed': null,
       'cases': cases.map((item) => item['id']).toList(),
@@ -103,7 +109,9 @@ Future<void> _main(List<String> args) async {
       'p50Ms': null,
       'p90Ms': null,
     });
-    stdout.writeln('Fixture validation complete; modelCalls=0.');
+    stdout.writeln(
+      'Fixture validation complete; thinking=${thinkingMode.name}; modelCalls=0.',
+    );
     return;
   }
 
@@ -120,10 +128,7 @@ Future<void> _main(List<String> args) async {
     baseUrl: requiredBaseUrl,
     model: requiredModel,
     maxRetries: 0,
-    extraBody: {
-      ...LlmConfig.ugkWorker.extraBody,
-      'thinking': {'type': 'enabled'},
-    },
+    extraBody: {...LlmConfig.ugkWorker.extraBody, ...thinkingMode.extraBody},
   );
   redactor.secrets.add(config.baseUrl);
   final security = SecurityContext(withTrustedRoots: true);
@@ -184,6 +189,7 @@ Future<void> _main(List<String> args) async {
           wire,
           catalog,
           profile,
+          thinkingMode,
           redactor,
           (record) => append({'case': id, ...record}),
         );
@@ -229,7 +235,9 @@ Future<void> _main(List<String> args) async {
     'requestedModel': config.model,
     'endpointSha256': sha256.convert(utf8.encode(config.baseUrl)).toString(),
     'authType': auth.runtimeType.toString(),
-    'thinkingRequested': true,
+    'thinkingRequested': thinkingMode == EvaluationThinkingMode.on,
+    'thinkingMode': thinkingMode.name,
+    'thinkingRequestType': thinkingMode.protocolType,
     'maxTokens': config.maxTokens,
     'httpClientRetries': config.maxRetries,
     'sourceSha256': sourceBefore,
@@ -255,7 +263,7 @@ Future<void> _main(List<String> args) async {
       'Supplementary user facts and the R4 click are scripted simulations, not model outputs.',
       'User replies enter only after real results, using the same public controller.send path.',
       'No task, skill, catalog row, model response or tool result is injected into agent history.',
-      'Reasoning is requested and protocol replay is untouched; reasoning text is not evidence prose.',
+      'Thinking mode is explicit and protocol replay is untouched; reasoning text is not evidence prose.',
       'Usage fields absent from upstream are null/unknown, never inferred as zero.',
       'Task-event intervals are observed wall-clock intervals, not isolated tool execution timings.',
       'The existing Worker may return 502 around 40 seconds; no Worker or alternate route is modified.',
@@ -285,6 +293,7 @@ Future<Json> _runCase(
   EvaluationWireClient wire,
   Catalog catalog,
   CoachProfile profile,
+  EvaluationThinkingMode thinkingMode,
   EvaluationRedactor redactor,
   void Function(Json) append,
 ) async {
@@ -343,6 +352,7 @@ Future<Json> _runCase(
     final user = <String, Object?>{
       'recordType': 'user-input',
       'turn': currentTurn,
+      'thinkingMode': thinkingMode.name,
       'origin': origin,
       'simulated': origin != 'approved-original',
       'text': text,
@@ -355,6 +365,7 @@ Future<Json> _runCase(
     final plan = result?.plan?.plan;
     final turn = <String, Object?>{
       'turn': currentTurn,
+      'thinkingMode': thinkingMode.name,
       'origin': origin,
       'simulated': origin != 'approved-original',
       'user': text,
@@ -603,6 +614,7 @@ Future<Json> _runCase(
   }
   return {
     'id': scenario['id'],
+    'thinkingMode': thinkingMode.name,
     'originalInputs': scenario['messages'],
     'simulatedSupplementaryUserFacts': true,
     'modelCalls': wire.calls.length,
@@ -655,6 +667,7 @@ class EvaluationWireClient extends http.BaseClient {
       'taskAtRequest': taskAtRequest,
       'at': DateTime.now().toUtc().toIso8601String(),
       'requestBytes': body.length,
+      'thinkingMode': evaluationRequestThinkingMode(decoded),
       'reasoningReplay': reasoningReplayStats(decoded),
       'requestSha256': sha256.convert(body).toString(),
       'request': publicEvaluationRequest(decoded, redactor),
@@ -814,14 +827,14 @@ String _summaryTable(List<Json> results, Json statistics) {
     )
     ..writeln()
     ..writeln(
-      '| Case | Turn | Task | Validity | Calls | Time ms | Max request B | Tokens | Replayed reasoning B | Model |',
+      '| Case | Turn | Thinking | Task | Validity | Calls | Time ms | Max request B | Tokens | Replayed reasoning B | Model |',
     )
-    ..writeln('|---|---:|---|---|---:|---:|---:|---:|---:|---|');
+    ..writeln('|---|---:|---|---|---|---:|---:|---:|---:|---:|---|');
   for (final result in results) {
     for (final turn in _list(result['turns']).map(_map)) {
       final stats = _map(turn['callStatistics']);
       output.writeln(
-        '| ${result['id']} | ${turn['turn']} | ${turn['activityTaskType'] ?? 'qa'} | '
+        '| ${result['id']} | ${turn['turn']} | ${turn['thinkingMode'] ?? result['thinkingMode'] ?? 'unknown'} | ${turn['activityTaskType'] ?? 'qa'} | '
         '${result['caseValidity']} | ${stats['modelCalls']} | ${turn['elapsedMs']} | '
         '${stats['maxRequestBytes']} | ${_map(stats['totalTokens'])['knownTotal'] ?? 'unknown'} | '
         '${stats['reasoningReplayUtf8Bytes']} | ${stats['responseModels']} |',
@@ -984,7 +997,9 @@ double? _percentile(List<double> values, double fraction) {
 String _transcript(Json result) {
   const pretty = JsonEncoder.withIndent('  ');
   final output = StringBuffer()
-    ..writeln('# ${result['id']} real model transcript')
+    ..writeln(
+      '# ${result['id']} real model transcript — thinking ${result['thinkingMode'] ?? 'unknown'}',
+    )
     ..writeln()
     ..writeln(
       'Additional user replies and the host click are simulations. Assistant/tool output is real.',
@@ -1023,7 +1038,7 @@ String _transcript(Json result) {
         ..writeln('### HTTP call ${call['call']}')
         ..writeln()
         ..writeln(
-          'Request bytes: ${call['requestBytes']}; replayed reasoning UTF-8 bytes: ${_map(call['reasoningReplay'])['totalUtf8Bytes']}; elapsed: ${call['elapsedMs']} ms; HTTP: ${call['httpStatus']}; model: ${_map(call['response'])['model']}',
+          'Thinking: ${call['thinkingMode']}; request bytes: ${call['requestBytes']}; replayed reasoning UTF-8 bytes: ${_map(call['reasoningReplay'])['totalUtf8Bytes']}; elapsed: ${call['elapsedMs']} ms; HTTP: ${call['httpStatus']}; model: ${_map(call['response'])['model']}',
         )
         ..writeln()
         ..writeln('```json')
@@ -1083,6 +1098,7 @@ Future<String> _sourceFingerprint() async {
     File('pubspec.yaml'),
     File('tool/eval_coach_agent_v2.dart'),
     File('tool/eval_reasoning_stats.dart'),
+    File('tool/eval_thinking_mode.dart'),
     File('tool/eval_turn_budget.dart'),
     File('eval/cases/coach_agent_v2.json'),
   ]..sort((a, b) => a.path.compareTo(b.path));

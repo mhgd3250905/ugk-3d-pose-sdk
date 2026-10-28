@@ -5,8 +5,9 @@ extension TaskToolHandler on StructuredToolHandler {
     CoachSessionState state,
     String tool,
     String raw,
-    String language,
-  ) {
+    String language, {
+    SkillDisclosures? disclosures,
+  }) {
     final args = _decode(raw);
     if (args is! Map ||
         args.keys.any((key) => key is! String) ||
@@ -36,6 +37,8 @@ extension TaskToolHandler on StructuredToolHandler {
       );
     }
     Map<String, String>? taskSkills;
+    final fullSkills = <String>{};
+    final requiredSkills = <String>{};
     if (tool == AgentTools.startTask &&
         {'recommend', 'plan'}.contains(args['type'])) {
       final names = <String>[
@@ -60,9 +63,20 @@ extension TaskToolHandler on StructuredToolHandler {
           ),
         );
       }
-      taskSkills = {
-        for (final name in names) name: files!.read('$name/SKILL.md')!,
-      };
+      requiredSkills.addAll(
+        SkillDisclosures.requiredFor(args['type'] as String),
+      );
+      taskSkills = {};
+      for (final name in names) {
+        final path = '$name/SKILL.md';
+        final source = disclosures?.sources[path];
+        taskSkills[name] = switch (source) {
+          SkillSource.read => SkillDisclosures.readReference,
+          SkillSource.startTask => SkillDisclosures.startReference,
+          null => files!.read(path)!,
+        };
+        if (source == null) fullSkills.add(path);
+      }
     }
     final result = tool == AgentTools.startTask
         ? AgentTask.start(
@@ -104,6 +118,8 @@ extension TaskToolHandler on StructuredToolHandler {
       ),
       changes: result.ok ? result.changes : const [],
       fresh: result.ok,
+      fullSkills: result.ok ? fullSkills : const {},
+      requiredSkills: result.ok ? requiredSkills : const {},
     );
   }
 }

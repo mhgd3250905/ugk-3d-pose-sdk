@@ -112,7 +112,7 @@ void main() {
         }
         expect(
           request.messages.singleWhere((m) => m.toolCallId == 'read').content,
-          contains('action-library'),
+          '[已在 start_task 结果中]',
         );
         return calls([ask()]);
       },

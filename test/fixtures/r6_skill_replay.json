@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 1,
+  "mode": "offline-public-tools-with-synthetic-reasoning",
+  "description": "Public R6 assistant content and tool-call sequence are replayed through the current real CoachAgent and tools. Reasoning text was excluded from public evidence; synthetic placeholders preserve recorded UTF-8, character and available JSON-value byte counts. This is neither an exact original-request replay nor a new model-quality evaluation. No HTTP request is made.",
+  "sourceArtifact": "coach-agent-v2-real-step11-20261028-218f7f0-run1/R6.json",
+  "sourceCaseValidity": "invalid-model-mismatch",
+  "sourceResponseModels": [
+    "deepseek-v4-flash-0731",
+    "deepseek-v4-flash-0731",
+    "deepseek-v4-flash-0731",
+    "deepseek-v4-flash-0731",
+    "deepseek-v4-flash-0731",
+    "deepseek-flash"
+  ],
+  "profile": "smartfit",
+  "user": "I sit all day, help me stretch",
+  "requestLimitBytes": 40960,
+  "stopAfterRecordedResponses": 6,
+  "responses": [
+    {
+      "call": 1,
+      "model": "deepseek-v4-flash-0731",
+      "finishReason": "tool_calls",
+      "content": null,
+      "toolCalls": [
+        {
+          "id": "chatcmpl-tool-a0c61476fd382e61",
+          "type": "function",
+          "function": {
+            "name": "read",
+            "arguments": "{\"path\": \"action-library/SKILL.md\"}"
+          }
+        },
+        {
+          "id": "chatcmpl-tool-abac56d19a7671b9",
+          "type": "function",
+          "function": {
+            "name": "read",
+            "arguments": "{\"path\": \"plan-training/SKILL.md\"}"
+          }
+        }
+      ],
+      "reasoning": {
+        "synthetic": true,
+        "originalTextAvailable": false,
+        "fieldPresent": true,
+        "characters": 913,
+        "utf8Bytes": 955,
+        "jsonValueBytes": 973,
+        "jsonMeasurement": "next recorded actual request"
+      },
+      "recordedRequestBytes": 12088
+    },
+    {
+      "call": 2,
+      "model": "deepseek-v4-flash-0731",
+      "finishReason": "tool_calls",
+      "content": null,
+      "toolCalls": [
+        {
+          "id": "chatcmpl-tool-9905e1a8572d84af",
+          "type": "function",
+          "function": {
+            "name": "read",
+            "arguments": "{\"path\": \"ask/SKILL.md\"}"
+          }
+        }
+      ],
+      "reasoning": {
+        "synthetic": true,
+        "originalTextAvailable": false,
+        "fieldPresent": true,
+        "characters": 1323,
+        "utf8Bytes": 1361,
+        "jsonValueBytes": 1377,
+        "jsonMeasurement": "next recorded actual request"
+      },
+      "recordedRequestBytes": 20747
+    },
+    {
+      "call": 3,
+      "model": "deepseek-v4-flash-0731",
+      "finishReason": "tool_calls",
+      "content": null,
+      "toolCalls": [
+        {
+          "id": "chatcmpl-tool-8642ee6826d63a4c",
+          "type": "function",
+          "function": {
+            "name": "start_task",
+            "arguments": "{\"type\": \"recommend\"}"
+          }
+        },
+        {
+          "id": "chatcmpl-tool-8c38e6a9b8f09dfc",
+          "type": "function",
+          "function": {
+            "name": "check",
+            "arguments": "{\"node\": \"understand\"}"
+          }
+        },
+        {
+          "id": "chatcmpl-tool-be26033730562bbd",
+          "type": "function",
+          "function": {
+            "name": "set_params",
+            "arguments": "{\"fields\": {\"goal\": {\"value\": [\"purpose.stretch\"], \"source\": \"user\", \"quote\": \"help me stretch\"}}}"
+          }
+        }
+      ],
+      "reasoning": {
+        "synthetic": true,
+        "originalTextAvailable": false,
+        "fieldPresent": true,
+        "characters": 3450,
+        "utf8Bytes": 3612,
+        "jsonValueBytes": 3670,
+        "jsonMeasurement": "next recorded actual request"
+      },
+      "recordedRequestBytes": 23533
+    },
+    {
+      "call": 4,
+      "model": "deepseek-v4-flash-0731",
+      "finishReason": "tool_calls",
+      "content": null,
+      "toolCalls": [
+        {
+          "id": "chatcmpl-tool-9c699f6d84fc4c92",
+          "type": "function",
+          "function": {
+            "name": "check",
+            "arguments": "{\"node\": \"parameters\"}"
+          }
+        },
+        {
+          "id": "chatcmpl-tool-b3f5d95149ff0bc5",
+          "type": "function",
+          "function": {
+            "name": "search_actions",
+            "arguments": "{\"tags\": [\"purpose.stretch\", \"level.1\"], \"limit\": 20}"
+          }
+        }
+      ],
+      "reasoning": {
+        "synthetic": true,
+        "originalTextAvailable": false,
+        "fieldPresent": true,
+        "characters": 421,
+        "utf8Bytes": 427,
+        "jsonValueBytes": 431,
+        "jsonMeasurement": "next recorded actual request"
+      },
+      "recordedRequestBytes": 35029
+    },
+    {
+      "call": 5,
+      "model": "deepseek-v4-flash-0731",
+      "finishReason": "tool_calls",
+      "content": null,
+      "toolCalls": [
+        {
+          "id": "chatcmpl-tool-a9c13d6ebfb309fc",
+          "type": "function",
+          "function": {
+            "name": "search_actions",
+            "arguments": "{\"tags\": [\"purpose.stretch\"], \"limit\": 20}"
+          }
+        },
+        {
+          "id": "chatcmpl-tool-abd4be19349993d3",
+          "type": "function",
+          "function": {
+            "name": "search_actions",
+            "arguments": "{\"tags\": [\"purpose.mobility\", \"level.1\"], \"limit\": 15}"
+          }
+        }
+      ],
+      "reasoning": {
+        "synthetic": true,
+        "originalTextAvailable": false,
+        "fieldPresent": true,
+        "characters": 399,
+        "utf8Bytes": 407,
+        "jsonValueBytes": 411,
+        "jsonMeasurement": "next recorded actual request"
+      },
+      "recordedRequestBytes": 39546
+    },
+    {
+      "call": 6,
+      "model": "deepseek-flash",
+      "finishReason": "tool_calls",
+      "content": "",
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_4x3WHeUV49mIQJFifX209943",
+          "type": "function",
+          "function": {
+            "name": "search_actions",
+            "arguments": "{\"limit\": 15, \"tags\": [\"purpose.stretch\", \"body.hip_flexors\"]}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_YgNjE51kGMzYti9beKto0506",
+          "type": "function",
+          "function": {
+            "name": "search_actions",
+            "arguments": "{\"keywords\": \"hip flexor lunge chest stretch 胸部 髋屈肌 拉伸\", \"limit\": 15, \"tags\": [\"purpose.stretch\"]}"
+          }
+        }
+      ],
+      "reasoning": {
+        "synthetic": true,
+        "originalTextAvailable": false,
+        "fieldPresent": true,
+        "characters": 1582,
+        "utf8Bytes": 1756,
+        "jsonValueBytes": null,
+        "jsonMeasurement": "not recorded: no following request"
+      },
+      "recordedRequestBytes": 43265
+    }
+  ],
+  "enableUserMemory": true,
+  "contextLanguage": "zh",
+  "requestedModel": "deepseek-v4-flash-0731",
+  "thinking": "enabled",
+  "maxTokens": 6000
+}

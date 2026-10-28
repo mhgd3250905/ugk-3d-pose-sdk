@@ -7,6 +7,7 @@ import '../catalog/catalog.dart';
 import '../llm/llm_types.dart';
 import 'agent_prompt.dart';
 import 'session_state.dart';
+import 'skill_disclosure.dart';
 
 class ContextCompactor {
   const ContextCompactor();
@@ -34,6 +35,31 @@ class ContextCompactor {
     ];
     final combined = [...history, ...turnMessages];
     final paired = _pairs(combined);
+    // Once a successful task makes an earlier skill read irrelevant, do
+    // not revive that raw result if a later task needs the skill again.
+    final skillStarts = <({int index, Set<String> required})>[];
+    for (final entry in paired.entries) {
+      if (entry.value.name != AgentTools.startTask ||
+          !_ok(combined[entry.key].content)) {
+        continue;
+      }
+      final type = _arguments(entry.value)['type'];
+      if (type != 'recommend' && type != 'plan') continue;
+      skillStarts.add((
+        index: entry.key,
+        required: SkillDisclosures.requiredFor(type as String),
+      ));
+    }
+    final unrelatedReads = <int>{};
+    for (final entry in paired.entries) {
+      final path = SkillDisclosures.readPath(entry.value);
+      if (path == null || !path.endsWith('/SKILL.md')) continue;
+      if (skillStarts.any(
+        (start) => start.index > entry.key && !start.required.contains(path),
+      )) {
+        unrelatedReads.add(entry.key);
+      }
+    }
     // Results from the latest model batch are visible in full exactly once.
     // A later assistant response proves a model call has consumed them, even
     // across user turns and before the actions node is completed.
@@ -80,7 +106,9 @@ class ContextCompactor {
         } else if (message.role == LlmRole.assistant &&
             message.content.isNotEmpty &&
             (message.toolCalls.isEmpty || askedMessages.contains(index))) {
-          messages.add(LlmMessage.assistant(message.content));
+          messages.add(
+            LlmMessage.assistant(message.content, reasoning: message.reasoning),
+          );
         }
         continue;
       }
@@ -89,6 +117,15 @@ class ContextCompactor {
         continue;
       }
       final call = paired[index];
+      if (unrelatedReads.contains(index)) {
+        messages.add(
+          LlmMessage.tool(
+            message.toolCallId!,
+            SkillDisclosures.unrelatedArchive,
+          ),
+        );
+        continue;
+      }
       final node = switch (call?.name) {
         AgentTools.searchActions || AgentTools.getAction => 'actions',
         AgentTools.draftPlan => 'planning',

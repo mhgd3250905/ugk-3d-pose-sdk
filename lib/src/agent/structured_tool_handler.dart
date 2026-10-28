@@ -16,6 +16,7 @@ import 'plan_builder.dart';
 import 'plan_checker.dart';
 import 'session_params.dart';
 import 'session_state.dart';
+import 'skill_disclosure.dart';
 import 'skill_files.dart';
 import 'user_memory.dart';
 
@@ -32,12 +33,16 @@ class StructuredToolResult {
     this.changes = const [],
     this.fresh = false,
     this.accessed = const [],
+    this.fullSkills = const {},
+    this.requiredSkills = const {},
   });
   final CoachSessionState state;
   final String response;
   final List<CoachNodeState> changes;
   final bool fresh;
   final List<String> accessed;
+  final Set<String> fullSkills;
+  final Set<String> requiredSkills;
 }
 
 class StructuredToolHandler {

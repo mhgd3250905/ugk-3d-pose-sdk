@@ -41,6 +41,7 @@ import 'node_gates.dart';
 import 'plan_checker.dart';
 import 'session_params.dart';
 import 'session_state.dart';
+import 'skill_disclosure.dart';
 import 'skill_files.dart';
 import 'skill_tool_handler.dart';
 import 'structured_tool_handler.dart';
@@ -1078,6 +1079,7 @@ class CoachAgent {
       prompts.userMessage(profile, cat, context, text),
     );
     final turnMsgs = <LlmMessage>[];
+    var lastRequestMessages = <LlmMessage>[];
     // 与记忆相关的工具结果（读 user-memory/ 文件、remember / forget）：关闭记忆后在后续请求里替换。
     final memResultIds = <String>{};
     final memoryReasoning = <LlmMessage>{};
@@ -1239,6 +1241,11 @@ class CoachAgent {
           keepRecent: force ? 1 : keepRecentSteps,
           compressible: compressible,
           force: force,
+          protectedPaths:
+              _sessionState.task != null &&
+                  _sessionState.task!.nodes.lastOrNull?.status != 'done'
+              ? SkillDisclosures.requiredFor(_sessionState.task!.type)
+              : const {},
         );
         // 压掉的文件允许再读全文。
         readSet.removeAll(freed);
@@ -1305,6 +1312,7 @@ class CoachAgent {
           tools: tools,
           toolChoice: 'auto',
         );
+        lastRequestMessages = req.messages;
         final turnLimited = left < requestTimeout;
         final child = CancelToken();
         var timedOut = false;
@@ -1554,6 +1562,19 @@ class CoachAgent {
       final terminal = TerminalToolHandler(gate);
       final results = batch.results;
       final orderedResults = <String>[];
+      final disclosuresByIndex = <int, SkillDisclosureMessage>{};
+      final batchCalls = res.toolCalls;
+      LlmMessage resultMessage(int index, String result) {
+        final record = disclosuresByIndex[index];
+        return record ?? LlmMessage.tool(batchCalls[index].id, result);
+      }
+
+      SkillDisclosures visibleDisclosures() => SkillDisclosures.fromMessages([
+        ...lastRequestMessages,
+        LlmMessage.assistant('', toolCalls: batchCalls),
+        for (var i = 0; i < orderedResults.length; i++)
+          resultMessage(i, orderedResults[i]),
+      ]);
       final callIds = <String>{};
       final pendingCompress = <String, CompressibleResult>{};
       AgentOutputResult? terminalOutput;
@@ -1628,7 +1649,16 @@ class CoachAgent {
               t.name,
               t.arguments,
               context.language,
+              disclosures: visibleDisclosures(),
             );
+            if (handled.requiredSkills.isNotEmpty) {
+              disclosuresByIndex[toolIndex] = SkillDisclosureMessage(
+                t.id,
+                handled.response,
+                fullSkills: handled.fullSkills,
+                requiredSkills: handled.requiredSkills,
+              );
+            }
             _sessionState = handled.state;
             if (t.name == AgentTools.startTask && handled.fresh) {
               _questionsAsked = 0;
@@ -1705,7 +1735,15 @@ class CoachAgent {
               path,
               read: true,
               hasTask: _sessionState.task != null,
+              disclosures: visibleDisclosures(),
             );
+            if (handled.fullRead) {
+              disclosuresByIndex[toolIndex] = SkillDisclosureMessage(
+                t.id,
+                handled.response,
+                fullRead: true,
+              );
+            }
             results[t.id] = handled.response;
             toolFailure = handled.failed;
             fresh = fresh || handled.fresh;
@@ -1860,6 +1898,10 @@ class CoachAgent {
             ),
             calls: response.toolCalls,
             results: orderedResults,
+            resultMessages: [
+              for (var i = 0; i < orderedResults.length; i++)
+                resultMessage(i, orderedResults[i]),
+            ],
             memoryResultIds: memResultIds,
             privateReasoning: memoryReasoning,
           ),
@@ -1890,7 +1932,7 @@ class CoachAgent {
         turnMsgs.add(assistant(res));
         for (var i = 0; i < res.toolCalls.length; i++) {
           final t = res.toolCalls[i];
-          final m = LlmMessage.tool(t.id, orderedResults[i]);
+          final m = resultMessage(i, orderedResults[i]);
           turnMsgs.add(m);
           final c = res.toolCalls.indexWhere((call) => call.id == t.id) == i
               ? pendingCompress[t.id]
@@ -1985,7 +2027,7 @@ class CoachAgent {
       turnMsgs.add(assistant(res));
       for (var i = 0; i < res.toolCalls.length; i++) {
         final t = res.toolCalls[i];
-        final m = LlmMessage.tool(t.id, orderedResults[i]);
+        final m = resultMessage(i, orderedResults[i]);
         turnMsgs.add(m);
         final c = res.toolCalls.indexWhere((call) => call.id == t.id) == i
             ? pendingCompress[t.id]

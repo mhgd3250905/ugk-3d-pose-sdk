@@ -9,6 +9,7 @@ extension _AskCommitHandler on CoachAgent {
     required LlmMessage assistantMessage,
     required List<LlmToolCall> calls,
     required List<String> results,
+    required List<LlmMessage> resultMessages,
     required Set<String> memoryResultIds,
     required Set<LlmMessage> privateReasoning,
   }) {
@@ -18,8 +19,7 @@ extension _AskCommitHandler on CoachAgent {
     final pending = <LlmMessage>[
       ...turnMessages,
       assistantMessage,
-      for (var i = 0; i < calls.length; i++)
-        LlmMessage.tool(calls[i].id, results[i]),
+      ...resultMessages,
     ];
     final resumable = <LlmMessage>[];
     for (var i = 0; i < pending.length;) {

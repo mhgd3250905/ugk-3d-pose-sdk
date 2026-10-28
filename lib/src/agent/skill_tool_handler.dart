@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'agent_resilience.dart';
 import 'agent_task.dart';
+import 'skill_disclosure.dart';
 import 'skill_files.dart';
 
 class SkillToolResult {
@@ -13,11 +14,13 @@ class SkillToolResult {
     this.failed = false,
     this.fresh = false,
     this.compressible,
+    this.fullRead = false,
   });
   final String response;
   final bool failed;
   final bool fresh;
   final CompressibleResult? compressible;
+  final bool fullRead;
 }
 
 class SkillToolHandler {
@@ -40,6 +43,7 @@ class SkillToolHandler {
     String path, {
     required bool read,
     required bool hasTask,
+    SkillDisclosures? disclosures,
   }) {
     if (blocked(path, read: read, hasTask: hasTask)) {
       return SkillToolResult(
@@ -75,11 +79,23 @@ class SkillToolHandler {
     }
     final text = files.read(path);
     if (text != null) {
+      if (path.endsWith('/SKILL.md') && disclosures != null) {
+        final source = disclosures.sources[path];
+        if (source == SkillSource.startTask) {
+          return const SkillToolResult(SkillDisclosures.startReference);
+        }
+        if (source == SkillSource.read) {
+          return const SkillToolResult(SkillDisclosures.readReference);
+        }
+        // A compacted or unrelated read is no longer full model context.
+        readSet.remove(path);
+      }
       if (!readSet.add(path)) return SkillToolResult('（已读过 $path，见前文）');
       reads.add(path);
       return SkillToolResult(
         text,
         fresh: true,
+        fullRead: true,
         compressible: CompressibleResult(
           callId,
           '已读 $path（内容已省略以节省上下文，需要可再 read）',

@@ -6,6 +6,8 @@
 同批工具顺序执行，失败后其余跳过；ask_user 排最后；show_* 成功即结束。
 可合并 start_task + check(understand) + set_params + check(parameters)；或 check(actions, picks) + draft_plan + check(planning) + check_plan + check(review) + show_plan。使用 start_task 返回的 plan_id。
 
+推荐和计划任务直接调用 start_task，所需技能随结果返回，不要先 read；问答类按需 read。
+
 # 技能索引
 {{skills}}
 {{memoryTools}}

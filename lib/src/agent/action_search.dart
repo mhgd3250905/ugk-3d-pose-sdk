@@ -213,7 +213,11 @@ class ActionSearch {
     final items = [
       for (final drill in selected)
         state.seenActionIds.contains(drill.id)
-            ? <String, Object?>{'id': drill.id, 'doseMode': _doseMode(drill)}
+            ? <String, Object?>{
+                'id': drill.id,
+                'doseMode': _doseMode(drill),
+                'level': drill.level,
+              }
             : _row(drill, language),
     ];
     return ActionSearchResult(
@@ -249,7 +253,7 @@ class ActionSearch {
 
   /// Only previously returned IDs are disclosed, in their first-seen order.
   /// Recheck the current ledger on every composition, including after changes.
-  List<List<String?>> candidateRows(
+  List<List<Object?>> candidateRows(
     CoachSessionState state, {
     String language = 'zh',
   }) => [
@@ -260,6 +264,7 @@ class ActionSearch {
           catalog[id]!.name.of(language),
           _primaryBody(catalog[id]!),
           _doseMode(catalog[id]!),
+          catalog[id]!.level,
         ],
   ].take(40).toList(growable: false);
 
@@ -294,6 +299,7 @@ class ActionSearch {
           {
             'id': drill.id,
             'name': drill.name.of(language),
+            'level': drill.level,
             'cues': drill.cues[language] ?? drill.cues['zh'] ?? <String>[],
             'cautions': drill.cautions,
             'contraindications': drill.contraindications,
@@ -354,6 +360,7 @@ class ActionSearch {
       'id': drill.id,
       'name': drill.name.of(language),
       'doseMode': _doseMode(drill),
+      'level': drill.level,
       'summary': firstSentence,
       'data': [
         body == null ? null : _bodies.indexOf(body),

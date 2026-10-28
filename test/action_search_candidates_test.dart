@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:test/test.dart';
 import 'package:ugk_coach/src/agent/action_search.dart';
+import 'package:ugk_coach/src/agent/append_only_context.dart';
 import 'package:ugk_coach/src/agent/context_compactor.dart';
 import 'package:ugk_coach/src/agent/session_state.dart';
 import 'package:ugk_coach/src/catalog/catalog.dart';
@@ -18,6 +19,7 @@ void main() {
     String id, {
     List<String> equipment = const [],
     List<String> cautions = const [],
+    int level = 1,
   }) => Drill(
     id: id,
     name: LocalizedText({'zh': '动作$id', 'en': 'Action $id'}),
@@ -28,7 +30,7 @@ void main() {
     scenes: const ['home'],
     position: 'standing',
     unilateral: false,
-    level: 1,
+    level: level,
     defaultDose: const Dose(
       mode: DoseMode.time,
       sets: 1,
@@ -80,8 +82,12 @@ void main() {
       expect(current['picks'], isEmpty);
       final rows = current['candidates'] as List;
       expect(rows, hasLength(40));
-      expect(rows.first, ['a44', 'Action a44', 'body.abs', 'seconds']);
-      expect(rows.last, ['a5', 'Action a5', 'body.abs', 'seconds']);
+      expect(rows.first, ['a44', 'Action a44', 'body.abs', 'seconds', 1]);
+      expect(rows.last, ['a5', 'Action a5', 'body.abs', 'seconds', 1]);
+      expect(
+        current['format'],
+        contains('candidates=[id,name,body,doseMode,level]'),
+      );
       expect(state.seenActionIds.toList(), seen.toList());
     },
   );
@@ -119,7 +125,7 @@ void main() {
         },
       );
       expect(summary(changed, catalog)['candidates'], [
-        ['free', 'Action free', 'body.abs', 'seconds'],
+        ['free', 'Action free', 'body.abs', 'seconds', 1],
       ]);
       expect(
         summary(
@@ -136,6 +142,51 @@ void main() {
         ),
       );
       expect(summary(done, catalog).containsKey('candidates'), isFalse);
+    },
+  );
+
+  test(
+    'candidate information carries catalogue levels without restricting advanced actions',
+    () {
+      final catalog = Catalog(
+        version: 'levels',
+        taxonomy: fixture.taxonomy,
+        drills: [drill('beginner'), drill('advanced', level: 3)],
+      );
+      final search = ActionSearch(profile, catalog, minPicks: 3);
+      final first = search.search(active(), language: 'en');
+      expect(first.items.map((row) => [row['id'], row['level']]), [
+        ['beginner', 1],
+        ['advanced', 3],
+      ]);
+      final repeated = search.search(first.state, language: 'en');
+      expect(repeated.items.map((row) => row['level']), [1, 3]);
+      final rows = search.candidateRows(repeated.state, language: 'en');
+      expect(rows.map((row) => row.last), [1, 3]);
+      final tail = AppendOnlyContext.stateMessage(
+        state: repeated.state,
+        catalog: catalog,
+        profile: profile,
+        language: 'en',
+      );
+      final current =
+          jsonDecode(
+                tail.content.substring(AppendOnlyContext.statePrefix.length),
+              )
+              as Map<String, Object?>;
+      expect(
+        current['format'],
+        contains('candidates=[id,name,body,doseMode,level]'),
+      );
+      expect(current['candidates'], rows);
+      expect(
+        search.getActions(repeated.state, ['advanced']).items.single['level'],
+        3,
+      );
+      final saved = CoachSessionState.fromJson(
+        jsonDecode(jsonEncode(repeated.state.toJson())) as Map<String, Object?>,
+      );
+      expect(search.candidateRows(saved, language: 'en'), rows);
     },
   );
 

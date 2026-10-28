@@ -21,7 +21,7 @@ import 'skill_files.dart';
 import 'user_memory.dart';
 
 /// Agent 内核修订号。改 `prompts/agent_kernel.md` 或 `skills/` 语义时手动加一。
-const agentKernelRevision = 11;
+const agentKernelRevision = 12;
 
 abstract final class AgentTools {
   static const read = 'read';
@@ -148,7 +148,7 @@ abstract final class AgentTools {
       LlmTool(
         name: searchActions,
         description:
-            '先 start_task；purpose/body/pose/level 同类或、跨类且；按场景、器材、伤痛过滤。默认不加 level，仅用户说明水平或 limits 需要时加。',
+            '先start_task；purpose/body/pose/level同类或跨类且；场景/器材/伤痛过滤。默认初学低难度，明示进阶才选高难度；level仅明示水平或limits需要时加。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -180,7 +180,7 @@ abstract final class AgentTools {
       ),
       const LlmTool(
         name: draftPlan,
-        description: '按标题、分块与动作 ID 配时、排序和核对；剂量与轮数由代码算，交付用 show_plan。',
+        description: '标题/分块/ID配时排序核对；代码算剂量轮数。note不写动作剂量，看卡片；show_plan交付。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -303,7 +303,7 @@ abstract final class AgentTools {
         ),
       LlmTool(
         name: showActions,
-        description: '交付动作卡并自动打卡，1 个也可；每项须命中目标部位。note 用一两句说明思路，超长截断。',
+        description: '交付动作卡自动打卡；1个可，须命中目标部位。note一两句思路/要领，不写剂量，看卡片；超长截断。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -323,7 +323,7 @@ abstract final class AgentTools {
       ),
       LlmTool(
         name: showPlan,
-        description: '交付已通过核对的最新计划卡；note 用一两句说明安排思路。',
+        description: '交付已核对最新计划卡；note同show_actions。',
         parameters: {
           'type': 'object',
           'properties': {

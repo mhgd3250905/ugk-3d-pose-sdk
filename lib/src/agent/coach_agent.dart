@@ -992,6 +992,7 @@ class CoachAgent {
                 .where((tag) => tag.startsWith('body.'))
                 .firstOrNull,
             catalog[id]!.defaultDose.mode == DoseMode.reps ? 'reps' : 'seconds',
+            catalog[id]!.level,
           ],
     ];
     final previousQuestion = pendingAtStart == null

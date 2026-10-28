@@ -13,6 +13,7 @@ import 'package:ugk_coach/src/agent/node_gates.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'eval_api_config.dart';
+import 'eval_context_config.dart';
 import 'eval_context_stats.dart';
 import 'eval_quality.dart';
 import 'eval_reasoning_stats.dart';
@@ -47,6 +48,7 @@ local coach.local.apikey.txt file is read. No Worker or device headers are used.
 SSL_CERT_FILE optionally adds a trusted CA. UGK_EVAL_GAP_SECONDS spaces cases.
 Thinking defaults to on; on sends thinking.type=enabled, off sends disabled.
 The configured generation budget is retained.
+--context-soft-on-bytes N overrides only the evaluation thinking-on soft budget.
 --dry checks fixtures only (modelCalls=0); it does not evaluate model quality.
 Evidence excludes credentials, headers, endpoint URLs, system prompt text and
 reasoning text. Public messages, tool calls/results, raw usage availability,
@@ -76,6 +78,9 @@ Future<void> _main(List<String> args) async {
   }
 
   final thinkingMode = parseEvaluationThinkingMode(argument('--thinking'));
+  final contextBudgetConfig = evaluationContextBudget(
+    softOnBytes: argument('--context-soft-on-bytes'),
+  );
   const fixturePath = 'eval/cases/coach_agent_v2.json';
   final fixtureFile = File(fixturePath);
   final fixture = _map(jsonDecode(await fixtureFile.readAsString()));
@@ -115,7 +120,7 @@ Future<void> _main(List<String> args) async {
       'thinkingRequestType': thinkingMode.protocolType,
       'thinkingRequested': thinkingMode == EvaluationThinkingMode.on,
       'modelCalls': 0,
-      'contextBudgetConfig': const ContextBudgetConfig().toJson(),
+      'contextBudgetConfig': contextBudgetConfig.toJson(),
       'modelQualityPassed': null,
       'cases': cases.map((item) => item['id']).toList(),
       'fixtureSha256': sha256
@@ -187,6 +192,7 @@ Future<void> _main(List<String> args) async {
         IOClient(HttpClient(context: security)),
         redactor,
         (record) => append({'case': id, ...record}),
+        contextBudgetConfig: contextBudgetConfig,
       );
       final client = OpenAiCompatibleClient(
         config: config,
@@ -253,7 +259,7 @@ Future<void> _main(List<String> args) async {
     'thinkingRequestType': thinkingMode.protocolType,
     'maxTokens': config.maxTokens,
     'httpClientRetries': config.maxRetries,
-    'contextBudgetConfig': const ContextBudgetConfig().toJson(),
+    'contextBudgetConfig': contextBudgetConfig.toJson(),
     'sourceSha256': sourceBefore,
     'sourceUnchangedDuringRun': sourceUnchanged,
     'fixtureSha256': sha256.convert(await fixtureFile.readAsBytes()).toString(),
@@ -352,6 +358,7 @@ Future<Json> _runCase(
   };
   final controller = CoachConversationController(agent: agent);
   wire.onModelMismatch = controller.cancel;
+  wire.onBadRequest = controller.cancel;
   final watch = Stopwatch()..start();
   final turns = <Json>[];
   final events = <Json>[];
@@ -603,6 +610,7 @@ Future<Json> _runCase(
     watch.stop();
     await subscription.cancel();
     wire.onModelMismatch = null;
+    wire.onBadRequest = null;
     wire.contextDiagnosticsProvider = null;
     await controller.dispose();
     await agent.dispose();
@@ -782,6 +790,9 @@ class EvaluationWireClient extends http.BaseClient {
   /// An invalid model route stops this case without rerunning it.
   void Function()? onModelMismatch;
 
+  /// A protocol 400 ends the evaluation immediately, without SDK fallback.
+  void Function()? onBadRequest;
+
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     if (request is! http.Request) {
@@ -843,6 +854,7 @@ class EvaluationWireClient extends http.BaseClient {
         record['cacheObservation'] = evaluationCacheObservation(null);
       }
       append(record);
+      if (response.statusCode == 400) onBadRequest?.call();
       if (record['modelMatchesRequest'] == false) onModelMismatch?.call();
       return http.StreamedResponse(
         Stream<List<int>>.value(bytes),
@@ -1204,6 +1216,7 @@ Future<String> _sourceFingerprint() async {
     File('pubspec.yaml'),
     File('tool/eval_coach_agent_v2.dart'),
     File('tool/eval_api_config.dart'),
+    File('tool/eval_context_config.dart'),
     File('tool/eval_context_stats.dart'),
     File('tool/eval_quality.dart'),
     File('tool/eval_reasoning_stats.dart'),

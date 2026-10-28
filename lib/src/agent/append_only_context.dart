@@ -207,6 +207,7 @@ class AppendOnlyContext {
                 'id': item['id'],
                 if (item['name'] is String) 'name': item['name'],
                 if (item['doseMode'] is String) 'doseMode': item['doseMode'],
+                if (item['level'] is int) 'level': item['level'],
               },
         ],
       'note': '已消费工具结果已折叠；当前事实见末尾系统生成状态。',
@@ -265,7 +266,7 @@ class AppendOnlyContext {
     } else {
       summary = {
         'format':
-            'task=[type,reused,nodes];nodes=[id,status,stamp,doneAtTurn];picks=[id,name];candidates=[id,name,body,doseMode]',
+            'task=[type,reused,nodes];nodes=[id,status,stamp,doneAtTurn];picks=[id,name];candidates=[id,name,body,doseMode,level]',
         'task': task == null
             ? null
             : [

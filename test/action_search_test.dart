@@ -99,7 +99,7 @@ void main() {
     expect(repeated.ok, isTrue);
     expect(repeated.items, [
       for (final row in first.items)
-        {'id': row['id'], 'doseMode': row['doseMode']},
+        {'id': row['id'], 'doseMode': row['doseMode'], 'level': row['level']},
     ]);
     expect(repeated.summary, contains('以下 3 个之前已返回，仅列 id'));
     expect(repeated.state.seenActionIds, first.state.seenActionIds);
@@ -147,7 +147,7 @@ void main() {
     final repeated = search.search(restored.sessionState!, limit: 3);
     expect(repeated.items, [
       for (final row in first.items)
-        {'id': row['id'], 'doseMode': row['doseMode']},
+        {'id': row['id'], 'doseMode': row['doseMode'], 'level': row['level']},
     ]);
     expect(repeated.summary, contains('以下 3 个之前已返回，仅列 id'));
     expect(repeated.state.seenActionIds, first.state.seenActionIds);

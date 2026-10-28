@@ -196,13 +196,13 @@ void main() {
       );
       final repeat = search.search(first.state, tags: ['purpose.stretch']);
       expect(repeat.items, [
-        {'id': 'stretch-abs', 'doseMode': 'reps'},
-        {'id': 'timed', 'doseMode': 'seconds'},
+        {'id': 'stretch-abs', 'doseMode': 'reps', 'level': 2},
+        {'id': 'timed', 'doseMode': 'seconds', 'level': 1},
       ]);
       final candidates = search.candidateRows(repeat.state, language: 'en');
       expect(candidates, [
-        ['stretch-abs', 'Action stretch-abs', 'body.abs', 'reps'],
-        ['timed', 'Action timed', 'body.abs', 'seconds'],
+        ['stretch-abs', 'Action stretch-abs', 'body.abs', 'reps', 2],
+        ['timed', 'Action timed', 'body.abs', 'seconds', 1],
       ]);
     },
   );

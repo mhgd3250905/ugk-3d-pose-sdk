@@ -35,9 +35,9 @@ class ContextCompactor {
     final summary = _summary(state, catalog, language, profile);
     final candidateIds = <String>{
       for (final row
-          in summary['candidates'] as List<List<String?>>? ??
-              const <List<String?>>[])
-        row.first!,
+          in summary['candidates'] as List<List<Object?>>? ??
+              const <List<Object?>>[])
+        row.first! as String,
     };
     final messages = <LlmMessage>[
       system,
@@ -670,7 +670,7 @@ class ContextCompactor {
     }
     return {
       'format':
-          'task=[type,reused,nodes];nodes=[id,status,stamp,doneAtTurn];picks=[id,name];candidates=[id,name,body,doseMode]',
+          'task=[type,reused,nodes];nodes=[id,status,stamp,doneAtTurn];picks=[id,name];candidates=[id,name,body,doseMode,level]',
       'task': task == null
           ? null
           : [

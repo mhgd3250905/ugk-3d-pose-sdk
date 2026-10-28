@@ -69,6 +69,48 @@ void main() {
     );
   }
 
+  test('first request directs notes to card dosage and general cues', () async {
+    final client = FakeLlmClient(['你好。'], latency: Duration.zero);
+    final coach = CoachAgent(
+      client: client,
+      catalog: () => catalog,
+      profile: loadProfile('smartfit'),
+      enableUserMemory: false,
+      maxRequestRetries: 0,
+    );
+    addTearDown(coach.dispose);
+    await coach.send('坐了挺久，我想拉伸一下');
+    final tools = client.requests.single.tools;
+    final draft = tools.singleWhere((tool) => tool.name == 'draft_plan');
+    final actions = tools.singleWhere((tool) => tool.name == 'show_actions');
+    final plan = tools.singleWhere((tool) => tool.name == 'show_plan');
+    expect(draft.description, contains('note不写动作剂量，看卡片'));
+    expect(actions.description, contains('note一两句思路/要领，不写剂量，看卡片'));
+    expect(plan.description, contains('note同show_actions'));
+  });
+
+  test(
+    'first request prefers beginner difficulty unless advanced is explicit',
+    () async {
+      final client = FakeLlmClient(['你好。'], latency: Duration.zero);
+      final coach = CoachAgent(
+        client: client,
+        catalog: () => catalog,
+        profile: loadProfile('smartfit'),
+        enableUserMemory: false,
+        maxRequestRetries: 0,
+      );
+      addTearDown(coach.dispose);
+      await coach.send('我想针对大腿内侧进行拉伸');
+      final search = client.requests.single.tools.singleWhere(
+        (tool) => tool.name == 'search_actions',
+      );
+      expect(search.description, contains('默认初学低难度'));
+      expect(search.description, contains('明示进阶才选高难度'));
+      expect(search.description, contains('level仅明示水平或limits需要时加'));
+    },
+  );
+
   test(
     'first request keeps the user words and memory as a preselection',
     () async {

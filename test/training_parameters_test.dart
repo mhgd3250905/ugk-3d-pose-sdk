@@ -363,14 +363,14 @@ void main() {
         }),
         tool(AgentTools.searchActions, {
           'tags': <String>[],
-          'keywords': catalog['s-figure4']!.name.of('en'),
+          'keywords': catalog['h-band-hip-ir']!.name.of('en'),
         }),
         (LlmRequest request) {
           final search = jsonDecode(request.messages.last.content) as Map;
           expect(search['ok'], isTrue);
           expect(
             (search['items'] as List).map((item) => (item as Map)['id']),
-            isNot(contains('s-figure4')),
+            isNot(contains('h-band-hip-ir')),
           );
           expect(
             (search['filter'] as Map)['hiddenEquipmentCount'],
@@ -486,7 +486,7 @@ void main() {
           sceneQuote: '在家',
           equipment: <String>[],
           equipmentQuote: '徒手',
-          forbidden: 's-figure4',
+          forbidden: 'h-band-hip-ir',
         ),
         (
           text: '在办公室有瑜伽垫10分钟做计划',

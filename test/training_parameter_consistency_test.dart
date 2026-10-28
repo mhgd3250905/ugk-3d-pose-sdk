@@ -132,25 +132,42 @@ void main() {
     },
   );
 
-  test('plan gear may be a subset but unconfirmed gear is rejected', () {
-    final subset = review(makePlan(equipment: ['mat']), confirmed);
-    expect(subset.ok, isTrue, reason: '${subset.errors}');
-    final declaration = review(
-      makePlan(equipment: ['mat', 'dumbbell']),
-      confirmed,
-    );
-    expect(declaration.ok, isFalse);
-    expect((declaration.rules['card_conditions'] as Map)['ok'], isFalse);
-    final missing = review(
-      makePlan(),
-      const CoachContext(scene: 'home', equipment: {'chair'}, minutes: 10),
-    );
-    expect(missing.ok, isFalse);
-    expect(
-      (missing.rules['equipment'] as Map)['actual'],
-      contains('equip.mat'),
-    );
-  });
+  test(
+    'plan gear may be a subset but explicitly excluded gear is rejected',
+    () {
+      final subset = review(makePlan(equipment: ['mat']), confirmed);
+      expect(subset.ok, isTrue, reason: '${subset.errors}');
+      final declaration = review(
+        makePlan(equipment: ['mat', 'dumbbell']),
+        confirmed,
+      );
+      expect(declaration.ok, isFalse);
+      expect((declaration.rules['card_conditions'] as Map)['ok'], isFalse);
+      final source = stateFor(
+        const CoachContext(scene: 'home', equipment: {'chair'}, minutes: 10),
+      ).appendUserTurn('这次不用瑜伽垫');
+      final excluded = SessionParams(ActionTags(profile, catalog)).set(source, {
+        'fields': {
+          'equipment_exclude': {
+            'value': ['equip.mat'],
+            'source': 'user',
+            'quote': '不用瑜伽垫',
+          },
+        },
+      });
+      expect(excluded.ok, isTrue, reason: '${excluded.error}');
+      final missing = PlanChecker(
+        profile,
+        catalog,
+        minPicks: 3,
+      ).validateTemplate(excluded.state, makePlan());
+      expect(missing.ok, isFalse);
+      expect(
+        (missing.rules['equipment'] as Map)['actual'],
+        contains('equip.mat'),
+      );
+    },
+  );
 
   test(
     'unknown parameters stay unknown and cannot silently authorize a plan',

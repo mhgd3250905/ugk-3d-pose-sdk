@@ -101,10 +101,19 @@ void main() {
       final searchResult = beforeQuestion.messages
           .singleWhere((m) => m.toolCallId == 'search')
           .content;
-      expect(searchResult, startsWith('[已归档] 返回：'));
+      expect(searchResult, '[已归档，候选见当前状态 candidates]');
+      final current =
+          jsonDecode(
+                beforeQuestion.messages[1].content.substring('当前状态：'.length),
+              )
+              as Map<String, dynamic>;
+      final candidates = (current['candidates'] as List).cast<List<Object?>>();
       for (final row in data['items'] as List) {
-        expect(searchResult, contains((row as Map)['id']));
-        expect(searchResult, contains(row['name']));
+        final item = row as Map;
+        final candidate = candidates.singleWhere(
+          (value) => value.first == item['id'],
+        );
+        expect(candidate[1], item['name']);
       }
       await coach.send('没有其他要求');
       final resumed = client.requests[3];
@@ -203,9 +212,13 @@ void main() {
       final searchResult = resumed.messages.singleWhere(
         (m) => m.toolCallId == 'shared',
       );
-      expect(searchResult.content, startsWith('[已归档] 返回：'));
+      expect(searchResult.content, '[已归档，候选见当前状态 candidates]');
+      final current =
+          jsonDecode(resumed.messages[1].content.substring('当前状态：'.length))
+              as Map<String, dynamic>;
+      final candidates = (current['candidates'] as List).cast<List<Object?>>();
       for (final id in ids) {
-        expect(searchResult.content, contains(id));
+        expect(candidates.map((row) => row.first), contains(id));
       }
       expectProtocol(resumed.messages);
     },

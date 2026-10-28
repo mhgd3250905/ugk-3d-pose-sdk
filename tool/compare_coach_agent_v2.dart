@@ -101,7 +101,16 @@ ComparisonJson _equipmentQuality(List<ComparisonJson> turns) {
     final rawAllowed = parameter['value'];
     final facts = _records(turn['actionFacts']);
     final deliveredIds = _deliveredIds(turn);
-    final allowed = _list(rawAllowed).whereType<String>().toSet();
+    final ambient = _list(
+      turn['ambientEquipmentCodes'],
+    ).whereType<String>().toSet();
+    final excluded = _list(
+      _map(_map(turn['params'])['equipment_exclude'])['value'],
+    ).whereType<String>().toSet();
+    final allowed = {
+      ..._list(rawAllowed).whereType<String>(),
+      ...ambient,
+    }.difference(excluded);
     final required = <String>{
       for (final fact in facts)
         for (final id in _list(fact['equipment']).whereType<String>())
@@ -116,7 +125,7 @@ ComparisonJson _equipmentQuality(List<ComparisonJson> turns) {
         (source == 'user' ||
             source == 'host' ||
             (source == 'default' || source == 'preselect') &&
-                allowed.isEmpty) &&
+                _list(rawAllowed).isEmpty) &&
         facts.isNotEmpty &&
         deliveredIds.isNotEmpty &&
         facts.map((fact) => fact['id']).toSet().containsAll(deliveredIds) &&
@@ -132,6 +141,9 @@ ComparisonJson _equipmentQuality(List<ComparisonJson> turns) {
       'turn': turn['turn'],
       'ledgerSource': source,
       'allowedCodes': rawAllowed,
+      'ambientCodes': ambient.toList()..sort(),
+      'excludedCodes': excluded.toList()..sort(),
+      'effectiveAllowedCodes': allowed.toList()..sort(),
       'requiredCodes': required.toList()..sort(),
       'withinConfirmedLedger': compliant,
       'status': compliant == null
@@ -233,6 +245,7 @@ ComparisonJson _case(ComparisonJson value) {
     'modelMismatches': value['modelMismatches'],
     'metrics': {
       'modelCalls': value['modelCalls'],
+      'searchActionsRequested': statistics['searchActionsRequested'],
       'elapsedMs': value['elapsedMs'],
       'maxRequestBytes':
           statistics['maxRequestBytes'] ??
@@ -328,9 +341,9 @@ String thinkingComparisonMarkdown(ComparisonJson comparison) {
     )
     ..writeln()
     ..writeln(
-      '| 案例 | Thinking | Task | 有效性 | 调用 | 耗时 ms | 最大请求 B | 已知 token | 时长误差 | 器械 | 重复追问 | 参数 stamp |',
+      '| 案例 | Thinking | Task | 有效性 | 调用 | 搜索发起 | 耗时 ms | 最大请求 B | 已知 token | 时长误差 | 器械 | 重复追问 | 参数 stamp |',
     )
-    ..writeln('|---|---|---|---|---:|---:|---:|---:|---|---|---|---|');
+    ..writeln('|---|---|---|---|---:|---:|---:|---:|---:|---|---|---|---|');
   for (final entry in _records(comparison['cases'])) {
     for (final mode in ['on', 'off']) {
       final item = _map(entry[mode]);
@@ -348,7 +361,7 @@ String thinkingComparisonMarkdown(ComparisonJson comparison) {
         item['dialogue'],
       ).map((turn) => turn['task']).toSet().join(' → ');
       output.writeln(
-        '| ${entry['id']} | $mode | ${taskTypes.isEmpty ? 'unknown' : taskTypes} | ${item['caseValidity']} | ${metrics['modelCalls'] ?? 'unknown'} | ${metrics['elapsedMs'] ?? 'unknown'} | ${metrics['maxRequestBytes'] ?? 'unknown'} | ${metrics['tokensKnownTotal'] ?? 'unknown'} | $durationErrors (${duration['status']}) | ${_map(quality['equipmentCompliance'])['status']} | manual_review | manual_review |',
+        '| ${entry['id']} | $mode | ${taskTypes.isEmpty ? 'unknown' : taskTypes} | ${item['caseValidity']} | ${metrics['modelCalls'] ?? 'unknown'} | ${metrics['searchActionsRequested'] ?? 'unknown'} | ${metrics['elapsedMs'] ?? 'unknown'} | ${metrics['maxRequestBytes'] ?? 'unknown'} | ${metrics['tokensKnownTotal'] ?? 'unknown'} | $durationErrors (${duration['status']}) | ${_map(quality['equipmentCompliance'])['status']} | manual_review | manual_review |',
       );
     }
   }

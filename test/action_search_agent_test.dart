@@ -115,8 +115,14 @@ void main() {
         final data = row['data'] as List;
         final encoded = (data[equipmentIndex] as List).cast<int>();
         final equipment = [for (final index in encoded) equipmentCodes[index]];
-        expect(equipment, isEmpty);
-        expect(catalog[row['id'] as String]!.equipment, isEmpty);
+        expect(
+          equipment,
+          everyElement(isIn(['equip.mat', 'equip.wall', 'equip.chair'])),
+        );
+        expect(
+          catalog[row['id'] as String]!.equipment,
+          everyElement(isIn(['mat', 'wall', 'chair'])),
+        );
       }
       detailOnly = profile
           .scope(catalog)
@@ -144,7 +150,7 @@ void main() {
         client.requests.last.messages
             .singleWhere((message) => message.toolCallId == 'detail')
             .content,
-        '[已归档，见当前状态]',
+        '[已归档] 已查看要领：$detailOnly',
       );
       expect(_feedback(client.requests.last, 'check')['ok'], isTrue);
       expect(coach.sessionState.seenActionIds, returned.toSet());

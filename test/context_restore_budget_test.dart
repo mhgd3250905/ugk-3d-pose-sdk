@@ -534,6 +534,14 @@ void main() {
             .encode(jsonEncode(serializer.buildBody(request)))
             .length;
         print('STRESS request=$i bytes=$size');
+        if (i >= 2 && i <= 5) {
+          final current =
+              jsonDecode(request.messages[1].content.substring('当前状态：'.length))
+                  as Map;
+          expect(current['picks'], isEmpty);
+          expect(current['candidates'], isNotEmpty);
+          expect((current['candidates'] as List).length, lessThanOrEqualTo(40));
+        }
         expect(
           size,
           lessThanOrEqualTo(40 * 1024),

@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
+import 'package:ugk_coach/src/agent/node_gates.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'eval_api_config.dart';
@@ -17,6 +18,19 @@ import 'eval_thinking_mode.dart';
 import 'eval_turn_budget.dart';
 
 typedef Json = Map<String, Object?>;
+
+CoachContext evaluationCaseContext(Json scenario) =>
+    CoachContext(language: scenario['locale'] as String? ?? 'zh');
+
+bool evaluationNodesComplete(List<Json> nodes, List<String> expected) =>
+    jsonEncode(nodes.map((node) => node['id']).toList()) ==
+        jsonEncode(expected) &&
+    nodes.every(
+      (node) =>
+          {'done', 'updated'}.contains(node['status']) &&
+          node['stamp'] is String &&
+          (node['stamp'] as String).trim().isNotEmpty,
+    );
 
 Future<void> main(List<String> args) async {
   if (args.contains('--help')) {
@@ -350,13 +364,17 @@ Future<Json> _runCase(
       'turn': currentTurn,
       'thinkingMode': thinkingMode.name,
       'origin': origin,
+      'locale': evaluationCaseContext(scenario).language,
       'simulated': origin != 'approved-original',
       'text': text,
       'at': DateTime.now().toUtc().toIso8601String(),
       'caseElapsedMs': watch.elapsedMilliseconds,
     };
     append(user);
-    final result = await controller.send(text);
+    final result = await controller.send(
+      text,
+      context: evaluationCaseContext(scenario),
+    );
     turnWatch.stop();
     final plan = result?.plan?.plan;
     final turn = <String, Object?>{
@@ -412,6 +430,11 @@ Future<Json> _runCase(
       'params': agent.sessionState.params.map(
         (key, value) => MapEntry(key, value.toJson()),
       ),
+      'ambientEquipmentCodes': NodeGates(
+        profile,
+        catalog,
+        minPicks: profile.minActions,
+      ).ambientEquipment(agent.sessionState).toList()..sort(),
       'legacyGoal': plan?.goal,
       'task': agent.sessionState.task?.toJson(),
       'activityTaskType': evaluationTurnTaskType(
@@ -564,14 +587,7 @@ Future<Json> _runCase(
           ]
         : ['understand', 'parameters', 'actions', 'output'];
     final nodes = _list(task['nodes']).map(_map).toList();
-    if (jsonEncode(nodes.map((node) => node['id']).toList()) !=
-            jsonEncode(expected) ||
-        nodes.any(
-          (node) =>
-              node['status'] != 'done' ||
-              node['stamp'] is! String ||
-              (node['stamp'] as String).trim().isEmpty,
-        )) {
+    if (!evaluationNodesComplete(nodes, expected)) {
       failures.add(
         'turn ${turn['turn']} card lacks completed fixed nodes and stamps',
       );
@@ -927,6 +943,14 @@ Json _callStatistics(List<Json> calls) {
 
   return {
     'modelCalls': calls.length,
+    'searchActionsRequested': calls.fold<int>(
+      0,
+      (total, call) =>
+          total +
+          _responseToolNames(
+            call,
+          ).where((name) => name == 'search_actions').length,
+    ),
     'responseModels': calls
         .map((call) => _map(call['response'])['model'])
         .toSet()

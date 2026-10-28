@@ -44,6 +44,7 @@ class SessionParams {
     'scene',
     'goal',
     'equipment',
+    'equipment_exclude',
     'minutes',
     'level',
     'limits',
@@ -165,6 +166,16 @@ class SessionParams {
           sources.toList(),
           source,
           '从 user、preselect、default 中选择来源；相对时长可使用 derived。',
+        );
+      }
+      if (name == 'equipment_exclude' && source != 'user') {
+        return _failure(
+          state,
+          'invalid_source',
+          'fields.equipment_exclude.source',
+          'user',
+          source,
+          '明确排除环境物时，引用用户本轮原话并使用 user 来源。',
         );
       }
       final direction = raw['direction'];
@@ -319,6 +330,34 @@ class SessionParams {
           );
         }
         sourceTurn = matching.last.turn;
+      }
+      if (name == 'equipment_exclude') {
+        final wanted = (value! as List<Object?>).cast<String>().toSet();
+        final previous = old == null
+            ? <String>{}
+            : (old.value! as List<Object?>).cast<String>().toSet();
+        if (!wanted.containsAll(previous)) {
+          return _failure(
+            state,
+            'equipment_exclude_cannot_relax',
+            'fields.equipment_exclude.value',
+            previous.toList(),
+            wanted.toList(),
+            '保留已经明确排除的物品，只能追加排除。',
+          );
+        }
+        if (wanted.difference(previous).isNotEmpty &&
+            (sourceTurn != state.userTurns.last.turn ||
+                sourceTurn <= (old?.turn ?? 0))) {
+          return _failure(
+            state,
+            'equipment_exclude_quote_not_new',
+            'fields.equipment_exclude.quote',
+            '上次排除设置之后的本轮用户原话',
+            quote,
+            '引用用户本轮明确排除物品的原话。',
+          );
+        }
       }
       if (source == 'derived' &&
           (sourceTurn <= old!.turn ||
@@ -561,7 +600,7 @@ class SessionParams {
     }
     final valid = switch (name) {
       'goal' => tags.goalCodes,
-      'equipment' => equipmentCodes(state),
+      'equipment' || 'equipment_exclude' => equipmentCodes(state),
       'limits' => tags.limitCodes,
       _ => const <String>[],
     };

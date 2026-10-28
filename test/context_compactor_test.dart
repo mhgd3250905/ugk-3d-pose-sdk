@@ -186,7 +186,7 @@ void main() {
         'draft',
       ]);
       expect(tools[0].content, contains('技能正文'));
-      expect(tools[1].content, ContextCompactor.archived);
+      expect(tools[1].content, '[已归档] 本次未返回动作。');
       expect(tools[3].content, '[已归档] 返回：action-2 动作二');
       expect(tools[4].content, contains('未完成'));
       expect(history[3].content, contains('[1]'));

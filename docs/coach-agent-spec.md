@@ -169,3 +169,14 @@ profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有�
 - reasoning按DeepSeek现行官方Thinking Mode的tools分支执行：所有仍发送的assistant历史均保留原reasoning_content，包括用户新消息之后及未实际调用工具的消息。该规则与“新用户消息后清空”的预期不同；按开哥授权以文档为准，原文和链接见补充报告。当前用户轮的推理不删；既有记忆关闭脱敏优先保留。
 - runner增加--thinking on|off，固定Worker/model/device不变；开关各自新会话跑原六例，每组一次。只有开哥通知Worker已修好后才执行真实对照，目前只做dry及离线测试。
 - Task列以真实SDK任务事件/请求时活动任务分类，取消回滚不能改成qa。对照记录调用、耗时、最大请求、token、计划时长偏差/器械合规及待人工审阅的重复追问/参数stamp语义，不凭缺失交付判通过。
+
+## 2026-10-28 真实评测后六项整改（本节优先于旧条款）
+
+1. 三个 profile 按场景提供 ambientEquipment：home/gym 为 mat、wall、chair，office 为 chair、wall。用户明确指定未知场景只用 wall，单列 ambientEquipmentUnknown=[equip.wall]（给出的三个场景列表数学交集也含 chair，本实现遵循明确指定的 wall）。有效器械为账本 equipment 加环境物再减 equipment_exclude。徒手代表不需额外携带器械。equipment_exclude 仅准 user 来源及本轮新原话，只累计排除、不增加可用器械；保存恢复保留，变化重置动作依赖。搜索、草稿、核对、交付及回落计划共用同一规则。打卡展示当前可用环境物。
+2. 进行中的当前状态增加 candidates=[id,本地化名称,主部位编码]，仅含本任务已搜索、当前仍合规的动作，按首次出现顺序、最多40条。参数变化时重新过滤。动作归档保留ID/名称或明确指向实际非空candidates；结束任务仍使用精简状态。保持新会话/恢复首包≤12,288 B及正常/压力序列每包≤40,960 B，不缩工具说明或删除推理来满足预算。
+3. 搜索少于3条且hiddenEquipmentCount≥5时提示缺失器械数量及前两种器械，并建议必要时ask_user；同任务连续两次无新动作时提示从现有candidates选择并check(actions)，不阻断。计数保存恢复，新任务/复用转计划时清零。
+4. 尚无交付计划时，draft_plan忽略合法operation并回执note“首份计划，已忽略 operation”；修改已交付计划的operation规则继续保留。已完成推荐且参数未变，start_task(plan)省略reuse时默认复用；显式false重启。参数变化的节点重置仍阻止复用，不检查用户文字。
+5. 回复语言使用宿主CoachContext.language（locale），系统明确“用 {locale} 语言回复用户”；R6评测传en。节点部位/器械使用目录本地化名称，缺翻译使用可读名称而非编码。中文ask_user长度限制不变；英文按单词计，label≤6词、choice选项≤12词、form选项≤24词。
+6. runner把updated视为已完成节点，仍核对固定顺序和非空stamp；器械评测计入环境物与排除项。逐例记录模型发起search_actions次数（含同批较早失败后被跳过的请求，与实际工具回执另行核对）。真实链路为https://ai.uuugk.win/v1、deepseek-flash、Bearer key（UGK_API_KEY优先，本地API Key行兜底），只接受完全相同的响应标签；旧Worker/model/device评测条款作废，SDK App默认配置不改。
+
+单测落点：ambient_equipment_test、action_search_candidates_test、context_*_replay/restore_budget_test、task_defaults_test、plan_operation_test、locale_tool_labels_test、eval_node_completion_test、eval_locale_wire_budget_test。JSON Schema预算压缩只去掉同类型primitive enum已隐含的冗余type，不改枚举允许值、说明或校验边界；enum等字面量不递归修改。

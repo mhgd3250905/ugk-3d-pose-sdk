@@ -106,13 +106,23 @@ void main() {
     );
   }
 
-  test('first plan rejects operation; later modification requires it', () {
+  test('first plan ignores operation; later modification requires it', () {
     final first = builder.draft(
       ready(),
       draft(oldMain, operation: 'edit'),
       newPlanId: 'new',
     );
-    expect(first.error!['code'], 'no_delivered_plan');
+    expect(first.ok, isTrue, reason: '${first.error}');
+    expect(first.toJson()['note'], '首份计划，已忽略 operation');
+    expect(first.state.plans['new']!.last.operation, isNull);
+    final replaceFirst = builder.draft(
+      ready(),
+      draft(oldMain, operation: 'replace_all'),
+      newPlanId: 'first',
+    );
+    expect(replaceFirst.ok, isTrue, reason: '${replaceFirst.error}');
+    expect(replaceFirst.toJson()['note'], '首份计划，已忽略 operation');
+    expect(replaceFirst.state.plans['first']!.last.operation, isNull);
     final prior = delivered();
     final absent = builder.draft(prior, draft(oldMain), newPlanId: 'new');
     expect(absent.error!['code'], 'operation_required');
@@ -351,6 +361,12 @@ void main() {
             value: <String>[],
             source: 'user',
             turn: 2,
+          ),
+          'equipment_exclude': CoachParamValue(
+            value: ['equip.mat'],
+            source: 'user',
+            turn: 2,
+            quote: '不用垫子',
           ),
         },
       );

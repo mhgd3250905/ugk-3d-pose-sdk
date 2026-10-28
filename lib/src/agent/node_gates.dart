@@ -373,6 +373,33 @@ class NodeGates {
     );
   }
 
+  /// Environmental items are configured per scene and can only be removed by
+  /// explicit user exclusions, never added through the exclusion field.
+  Set<String> ambientEquipment(CoachSessionState state) {
+    final scene = state.params['scene']?.value as String?;
+    final configured = scene == null
+        ? profile.ambientEquipmentUnknown
+        : profile.ambientEquipment[scene] ?? const <String>{};
+    final excluded =
+        (state.params['equipment_exclude']?.value as List<Object?>? ?? const [])
+            .cast<String>()
+            .toSet();
+    return Set.unmodifiable(configured.difference(excluded));
+  }
+
+  /// Shared admission rule for search, drafts, node checks and plan checks.
+  Set<String> effectiveEquipment(CoachSessionState state) => Set.unmodifiable(
+    {
+      ...((state.params['equipment']?.value as List<Object?>?) ?? const [])
+          .cast<String>(),
+      ...ambientEquipment(state),
+    }.difference(
+      (state.params['equipment_exclude']?.value as List<Object?>? ?? const [])
+          .cast<String>()
+          .toSet(),
+    ),
+  );
+
   /// Null means catalogue fields do not show a conflict; unknown safety data is
   /// separately returned in warnings and is never represented as verified.
   String? actionProblem(CoachSessionState state, String id) {
@@ -380,10 +407,7 @@ class NodeGates {
     if (drill == null || !profile.select.matches(drill)) {
       return '不在目录或 profile 范围';
     }
-    final equipment =
-        ((state.params['equipment']?.value as List<Object?>?) ?? const [])
-            .cast<String>()
-            .toSet();
+    final equipment = effectiveEquipment(state);
     for (final raw in drill.equipment) {
       if (raw == 'none') continue;
       final code = tags.equipmentCode(raw);
@@ -492,6 +516,7 @@ class NodeGates {
       'scene',
       'goal',
       'equipment',
+      'equipment_exclude',
       'minutes',
       'level',
       'limits',
@@ -499,6 +524,7 @@ class NodeGates {
       final param = state.params[key];
       if (param == null) continue;
       final value = param.value;
+      if (key == 'equipment_exclude' && (value as List).isEmpty) continue;
       if (key == 'minutes' &&
           param.source == 'derived' &&
           param.basedOn != null) {
@@ -529,13 +555,19 @@ class NodeGates {
               '$value',
         'equipment' =>
           (value as List).isEmpty
-              ? (en ? 'Bodyweight' : '徒手')
+              ? _bodyweightLabel(state, en)
               : value
-                    .map((v) {
-                      final id = tags.equipmentId(v as String) ?? v;
-                      return en ? id : catalog.taxonomy.equipmentLabel(id);
-                    })
+                    .map(
+                      (v) => tags.localizedLabel(v as String, en ? 'en' : 'zh'),
+                    )
                     .join(en ? ', ' : '、'),
+        'equipment_exclude' =>
+          (en ? 'Excluded: ' : '不使用：') +
+              (value as List)
+                  .map(
+                    (v) => tags.localizedLabel(v as String, en ? 'en' : 'zh'),
+                  )
+                  .join(en ? ', ' : '、'),
         'limits' =>
           (value as List).isEmpty
               ? (en ? 'No restrictions' : '无伤痛')
@@ -578,17 +610,15 @@ class NodeGates {
   }
 
   String _goalLabel(String code, bool en) {
-    final dot = code.indexOf('.');
-    if (dot < 0) return code;
-    final kind = code.substring(0, dot);
-    final id = code.substring(dot + 1);
-    if (en) return id.replaceAll('_', ' ');
-    if (kind == 'body') {
-      final lookup = id == 'inner_thigh' ? 'adductors' : id;
-      return catalog.taxonomy.muscleGroups[lookup] ??
-          catalog.taxonomy.categories[lookup] ??
-          id;
-    }
-    return catalog.taxonomy.categories[id] ?? id;
+    return tags.localizedLabel(code, en ? 'en' : 'zh');
+  }
+
+  String _bodyweightLabel(CoachSessionState state, bool en) {
+    final available = ambientEquipment(state);
+    if (available.isEmpty) return en ? 'Bodyweight' : '徒手';
+    final labels = available
+        .map((code) => tags.localizedLabel(code, en ? 'en' : 'zh'))
+        .join(en ? ', ' : '/');
+    return en ? 'Bodyweight ($labels available)' : '徒手（可用$labels）';
   }
 }

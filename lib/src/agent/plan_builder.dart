@@ -22,6 +22,7 @@ class DraftResult {
     this.fitLog = const [],
     this.legacyGoal,
     this.changes = const [],
+    this.note,
     this.error,
   });
   final CoachSessionState state;
@@ -32,6 +33,7 @@ class DraftResult {
   final List<String> fitLog;
   final String? legacyGoal;
   final List<CoachNodeState> changes;
+  final String? note;
   final Map<String, Object?>? error;
   bool get ok => error == null;
   Map<String, Object?> toJson() => {
@@ -42,6 +44,7 @@ class DraftResult {
     if (legacyGoal != null) 'legacyGoal': legacyGoal,
     if (structure.isNotEmpty) 'structure': structure,
     if (fitLog.isNotEmpty) 'fitLog': fitLog,
+    if (note != null) 'note': note,
   };
 }
 
@@ -99,7 +102,7 @@ class PlanBuilder {
         '修正 profile 的换一套阈值。',
       );
     }
-    final suppliedOperation = arguments['operation'];
+    var suppliedOperation = arguments['operation'];
     if (suppliedOperation != null &&
         (suppliedOperation is! String ||
             !{'edit', 'replace_all'}.contains(suppliedOperation))) {
@@ -120,16 +123,9 @@ class PlanBuilder {
     final delivered = deliveredVersions
         .where((v) => v.version == deliveredVersion)
         .firstOrNull;
-    if (suppliedOperation != null &&
-        (deliveredId == null || delivered == null)) {
-      return fail(
-        'no_delivered_plan',
-        'operation',
-        '已有交付计划',
-        suppliedOperation,
-        '首次计划不要指定修改操作。',
-      );
-    }
+    final ignoredOperation =
+        suppliedOperation != null && (deliveredId == null || delivered == null);
+    if (ignoredOperation) suppliedOperation = null;
     final activeVersions = state.activePlanId == null
         ? const <CoachPlanVersion>[]
         : state.plans[state.activePlanId] ?? const <CoachPlanVersion>[];
@@ -531,6 +527,7 @@ class PlanBuilder {
       structure: List.unmodifiable(structure),
       fitLog: List.unmodifiable(log),
       legacyGoal: legacyGoal,
+      note: ignoredOperation ? '首份计划，已忽略 operation' : null,
       error: error,
       changes: List.unmodifiable(changes),
     );

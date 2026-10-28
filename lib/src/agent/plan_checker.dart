@@ -216,9 +216,7 @@ class PlanChecker {
       );
     }
     final goals = goalValue.cast<String>();
-    final equipment = (params['equipment']?.value as List<Object?>? ?? const [])
-        .cast<String>()
-        .toSet();
+    final equipment = gate.effectiveEquipment(state);
     final limits = (params['limits']?.value as List<Object?>? ?? const [])
         .cast<String>()
         .toSet();

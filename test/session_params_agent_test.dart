@@ -455,7 +455,7 @@ void main() {
       context: const CoachContext(scene: 'home', equipment: {}, minutes: 10),
     );
     expect(result.plan, isNotNull, reason: '${result.issues}; ${result.error}');
-    expect(result.plan!.plan.equipment, ['mat']);
+    expect(result.plan!.plan.equipment, ['mat', 'chair']);
     expect(coach.sessionState.params['equipment']!.value, ['equip.mat']);
   });
 

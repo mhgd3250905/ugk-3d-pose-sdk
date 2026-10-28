@@ -48,11 +48,7 @@ class AgentTask {
     'output',
   ];
 
-  static NodeResult start(
-    CoachSessionState state,
-    String type, {
-    bool reuse = false,
-  }) {
+  static NodeResult start(CoachSessionState state, String type, {bool? reuse}) {
     if (type != 'recommend' && type != 'plan') {
       return NodeResult(
         state,
@@ -66,6 +62,15 @@ class AgentTask {
       );
     }
     final previous = state.task;
+    reuse ??=
+        type == 'plan' &&
+        previous?.type == 'recommend' &&
+        previous!.nodes.length == recommendNodes.length &&
+        previous.nodes.last.id == 'output' &&
+        previous.nodes.last.status == 'done' &&
+        previous.nodes
+            .take(3)
+            .every((node) => node.status == 'done' || node.status == 'updated');
     if (reuse &&
         (type != 'plan' ||
             previous?.type != 'recommend' ||
@@ -104,6 +109,7 @@ class AgentTask {
       clearActivePlanId: true,
       picks: reuse ? state.picks : const [],
       seenActionIds: reuse ? state.seenActionIds : const {},
+      consecutiveEmptySearches: 0,
     );
     return NodeResult(next, changes: List.unmodifiable(nodes));
   }

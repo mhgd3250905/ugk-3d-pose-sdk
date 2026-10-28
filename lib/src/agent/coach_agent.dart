@@ -630,8 +630,11 @@ class CoachAgent {
     if (!checked.ok) return null;
     final params = _sessionState.params;
     final tags = ActionTags(profile, catalog);
-    final equipment = (params['equipment']?.value as List<Object?>? ?? const [])
-        .cast<String>();
+    final equipment = NodeGates(
+      profile,
+      catalog,
+      minPicks: profile.minActions,
+    ).effectiveEquipment(_sessionState);
     final limits = (params['limits']?.value as List<Object?>? ?? const [])
         .cast<String>();
     final context = CoachContext(
@@ -1054,6 +1057,7 @@ class CoachAgent {
         memory: memoryOn,
         memorySummary: summary,
         userText: text,
+        locale: context.language,
       );
     }
 
@@ -1224,6 +1228,7 @@ class CoachAgent {
           memory: memoryOn,
           sessionState: _sessionState,
           includeCheckPlan: true,
+          language: context.language,
         );
         fixedTokens =
             estimateTokens(system) +
@@ -1300,6 +1305,7 @@ class CoachAgent {
             system: LlmMessage.system(system),
             state: _sessionState,
             catalog: cat,
+            profile: profile,
             history: safeHistory,
             turnMessages: currentMessages,
             language: context.language,
@@ -1812,6 +1818,7 @@ class CoachAgent {
               t.arguments,
               toolIndex + 1,
               res.toolCalls.length,
+              language: context.language,
             );
             terminalRejected = handled.rejected;
             terminalQuestion = handled.question;

@@ -74,7 +74,7 @@ void main() {
         expect(plan.id, 'host-plan');
         expect(plan.exerciseIds, contains('s-butterfly'));
         expect(context.scene, 'home');
-        expect(context.equipment, {'mat'});
+        expect(context.equipment, {'mat', 'wall', 'chair'});
         expect(context.minutes, 10);
         return [
           const PlanIssue(
@@ -149,7 +149,7 @@ void main() {
       ruleCalls++;
       expect(actualCatalog, same(published));
       expect(plan.exerciseIds, contains('s-butterfly'));
-      expect(context.equipment, {'mat'});
+      expect(context.equipment, {'mat', 'wall', 'chair'});
       return [
         const PlanIssue(
           'host_safety',

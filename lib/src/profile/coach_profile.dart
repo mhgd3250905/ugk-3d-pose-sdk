@@ -343,6 +343,8 @@ class CoachProfile {
     this.planRules = const PlanRules(),
     this.legacyGoalMap = const [],
     this.bodyGroups = const {},
+    this.ambientEquipment = const {},
+    this.ambientEquipmentUnknown = const {},
     this.assetApps = const [],
     this.vars = const {},
     this.skills = const [],
@@ -382,6 +384,13 @@ class CoachProfile {
   /// Catalogue body-code hierarchy when the catalogue has no parent links.
   /// Keys are parents; values may contain leaf codes or further groups.
   final Map<String, List<String>> bodyGroups;
+
+  /// Environmental items available without bringing dedicated equipment.
+  /// Values use the same equip.* codes as the session parameter ledger.
+  final Map<String, Set<String>> ambientEquipment;
+
+  /// Conservative environmental availability before a scene is known.
+  final Set<String> ambientEquipmentUnknown;
 
   /// 素材来源优先级（[AssetResolver.appOrder]），空 = `[id, 'pose-hub']`。
   final List<String> assetApps;
@@ -424,6 +433,11 @@ class CoachProfile {
         for (final entry in asMap(j['bodyGroups']).entries)
           entry.key: asStringList(entry.value),
       },
+      ambientEquipment: {
+        for (final entry in asMap(j['ambientEquipment']).entries)
+          entry.key: asStringList(entry.value).toSet(),
+      },
+      ambientEquipmentUnknown: asStringList(j['ambientEquipmentUnknown']).toSet(),
       assetApps: asStringList(j['assetApps']),
       vars: {for (final e in asMap(j['vars']).entries) if (e.value is String) e.key: e.value! as String},
       skills: [for (final x in asList(j['skills'])) ?ProfileSkill.tryParse(x)],
@@ -445,6 +459,10 @@ class CoachProfile {
     'planRules': planRules.toJson(),
     if (legacyGoalMap.isNotEmpty) 'legacyGoalMap': legacyGoalMap,
     if (bodyGroups.isNotEmpty) 'bodyGroups': bodyGroups,
+    if (ambientEquipment.isNotEmpty)
+      'ambientEquipment': {for (final entry in ambientEquipment.entries) entry.key: entry.value.toList()},
+    if (ambientEquipmentUnknown.isNotEmpty)
+      'ambientEquipmentUnknown': ambientEquipmentUnknown.toList(),
     if (assetApps.isNotEmpty) 'assetApps': assetApps,
     if (vars.isNotEmpty) 'vars': vars,
     if (skills.isNotEmpty) 'skills': [for (final x in skills) x.toJson()],

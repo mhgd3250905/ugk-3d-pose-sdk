@@ -14,7 +14,7 @@ void main() {
   final gates = NodeGates(profile, catalog, minPicks: profile.minActions);
   final initialContext = const CoachContext(
     scene: 'home',
-    equipment: {'mat'},
+    equipment: {'mat', 'band'},
     minutes: 10,
     avoid: {},
   );
@@ -88,7 +88,10 @@ void main() {
         .take(2)
         .toList();
     expect(bodyweight, hasLength(2));
-    final ids = [mat.id, ...bodyweight.map((drill) => drill.id)];
+    final band = matching.firstWhere(
+      (drill) => drill.equipment.contains('band'),
+    );
+    final ids = [mat.id, ...bodyweight.map((drill) => drill.id), band.id];
     state = state.copyWith(seenActionIds: ids.toSet());
     final actions = gates.check(state, 'actions', picks: ids);
     expect(actions.ok, isTrue, reason: '${actions.error}');
@@ -148,15 +151,17 @@ void main() {
       final state = coach.sessionState;
       expect(state.params['equipment']!.value, isEmpty);
       expect(state.task!.nodes[1].status, 'updated');
-      expect(state.task!.nodes[1].stamp, contains('徒手（App 设置）'));
+      expect(state.task!.nodes[1].stamp, contains('徒手（可用'));
+      expect(state.task!.nodes[1].stamp, contains('（App 设置）'));
       expect(state.task!.nodes.skip(2).map((n) => n.status), [
         'current',
         'pending',
         'pending',
         'pending',
       ]);
-      expect(state.picks, hasLength(2));
-      expect(state.picks, isNot(contains(initial.picks.first)));
+      expect(state.picks, hasLength(3));
+      expect(state.picks, contains(initial.picks.first));
+      expect(state.picks, isNot(contains(initial.picks.last)));
       expect(state.plans[admitted.plan.id]!.last.check, isNull);
       final nodeEvents = events
           .where((e) => e.kind == AgentEventKind.node)

@@ -45,6 +45,41 @@ ComparisonJson _quality(ComparisonJson comparison, String field) =>
     ((_on(comparison)['quality'] as Map)[field] as Map).cast<String, Object?>();
 
 void main() {
+  test('ambient equipment is allowed but explicit exclusion still wins', () {
+    final on = _summary('on');
+    final turn = ((_firstCase(on)['turns'] as List).first as Map);
+    turn['actions'] = [
+      {'id': 'ambient-mat'},
+    ];
+    turn['params'] = {
+      'equipment': {'value': <String>[], 'source': 'default'},
+    };
+    turn['ambientEquipmentCodes'] = ['equip.mat'];
+    turn['actionFacts'] = [
+      {
+        'id': 'ambient-mat',
+        'equipment': ['mat'],
+      },
+    ];
+    expect(
+      _quality(
+        buildThinkingComparison(on, _summary('off')),
+        'equipmentCompliance',
+      )['status'],
+      'pass',
+    );
+    (turn['params'] as Map)['equipment_exclude'] = {
+      'value': ['equip.mat'],
+      'source': 'user',
+    };
+    expect(
+      _quality(
+        buildThinkingComparison(on, _summary('off')),
+        'equipmentCompliance',
+      )['status'],
+      'fail',
+    );
+  });
   test(
     'comparison reads six existing cases without mutation or model execution',
     () {

@@ -21,7 +21,6 @@ void main() {
           'type': 'object',
           'properties': {
             'type': {
-              'type': 'string',
               'enum': ['recommend', 'plan'],
             },
             'reuse': {'type': 'boolean'},
@@ -33,7 +32,6 @@ void main() {
           'type': 'object',
           'properties': {
             'node': {
-              'type': 'string',
               'enum': [
                 'understand',
                 'parameters',

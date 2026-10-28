@@ -49,6 +49,7 @@
     },
     {
       "id": "R6",
+      "locale": "en",
       "messages": ["I sit all day, help me stretch"],
       "simulatedClarificationReply": "I am in an office with a chair and wall. I want to stretch my shoulders, neck and hips for about ten minutes. I have no pain, injuries or other exercise restrictions.",
       "expectedFinal": "actions-or-plan",

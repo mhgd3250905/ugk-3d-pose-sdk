@@ -52,7 +52,8 @@ void main() {
       expect(ready.params['limits']!.value, isEmpty);
       final stamp = ready.task!.nodes[1].stamp!;
       expect(stamp, contains('居家（App 设置）'));
-      expect(stamp, contains('徒手（默认）'));
+      expect(stamp, contains('徒手（可用'));
+      expect(stamp, contains('墙'));
       expect(stamp, contains('20 分钟（你说的）'));
       expect(stamp, contains('初学（默认）'));
       expect(stamp, contains('无伤痛（默认）'));
@@ -72,17 +73,17 @@ void main() {
       gate.check(state, 'actions', picks: valid).error!['code'],
       'unseen_actions',
     );
-    final mat = profile
+    final extra = profile
         .scope(catalog)
-        .firstWhere((d) => d.equipment.contains('mat'));
-    state = state.copyWith(seenActionIds: {...valid, mat.id});
+        .firstWhere((d) => d.equipment.contains('dumbbell'));
+    state = state.copyWith(seenActionIds: {...valid, extra.id});
     final bad = gate.check(
       state,
       'actions',
-      picks: [valid[0], valid[1], mat.id],
+      picks: [valid[0], valid[1], extra.id],
     );
     expect(bad.error!['code'], 'incompatible_actions');
-    expect((bad.error!['actual'] as Map)[mat.id], '器械不符合');
+    expect((bad.error!['actual'] as Map)[extra.id], '器械不符合');
     final good = gate.check(state, 'actions', picks: valid);
     expect(good.ok, isTrue);
     expect(good.state.picks, valid);
@@ -148,6 +149,9 @@ void main() {
         .scope(catalog)
         .firstWhere((d) => d.equipment.contains('mat'));
     state = state.copyWith(picks: [mat.id]);
+    final params = Map<String, CoachParamValue>.of(state.params)
+      ..['equipment_exclude'] = param(['equip.mat']);
+    state = state.copyWith(params: params);
     final updated = gate.parametersChanged(state);
     expect(updated.state.picks, isEmpty);
   });

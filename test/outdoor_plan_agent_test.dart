@@ -194,7 +194,9 @@ void main() {
       (n) => n.id == 'parameters',
     );
     expect(parameterNode.stamp, contains('居家（你说的）'));
-    expect(parameterNode.stamp, contains('徒手（你说的）'));
+    expect(parameterNode.stamp, contains('徒手（可用'));
+    expect(parameterNode.stamp, contains('墙'));
+    expect(parameterNode.stamp, contains('（你说的）'));
     expect(
       coach.sessionState.task!.nodes.map((n) => n.status),
       everyElement('done'),

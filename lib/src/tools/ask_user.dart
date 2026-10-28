@@ -58,9 +58,11 @@ class AskUserQuestion {
     List<AskUserField> fields, {
     this.isConfirmation = false,
     this.focus,
+    String language = 'zh',
     Map<String, List<String>> defaultSelections = const {},
   }) : options = List.unmodifiable(options),
        fields = List.unmodifiable(fields),
+       _language = language,
        defaultSelections = Map.unmodifiable({
          for (final entry in defaultSelections.entries)
            entry.key: List<String>.unmodifiable(entry.value),
@@ -69,14 +71,17 @@ class AskUserQuestion {
   final String question;
   final AskUserMode mode;
 
-  /// text 时为空；choice 时为 2–6 个、每个不超过 12 个 Unicode 码点的选项。
+  /// text 时为空；choice 为 2–6 项。中文每项最多 12 个码点，英文最多 12 词。
   final List<String> options;
   final bool multiple;
   final List<AskUserField> fields;
   final bool isConfirmation;
   final String? focus;
+  final String _language;
   final Map<String, List<String>> defaultSelections;
-  String get skipLabel => isConfirmation ? '按默认来' : '直接出方案';
+  String get skipLabel => _language.toLowerCase().startsWith('en')
+      ? (isConfirmation ? 'Use defaults' : 'Show suggestions')
+      : (isConfirmation ? '按默认来' : '直接出方案');
 
   /// Builds the SDK's locally generated training-condition confirmation.
   /// App and model inputs must still go through the ordinary answer gate.
@@ -84,6 +89,7 @@ class AskUserQuestion {
     required String question,
     required List<AskUserField> fields,
     String? focus,
+    String language = 'zh',
     required Map<String, List<String>> defaultSelections,
   }) {
     final keys = fields.map((field) => field.key).toSet();
@@ -108,6 +114,7 @@ class AskUserQuestion {
       fields,
       isConfirmation: true,
       focus: focus,
+      language: language,
       defaultSelections: defaultSelections,
     );
   }
@@ -139,7 +146,11 @@ class AskUserGateResult {
 
 abstract final class AskUserGate {
   /// 只校验，不修补 JSON、字段类型、选项或模式；错误沿用 Agent 的工具重交机制。
-  static AskUserGateResult check(String arguments) {
+  static AskUserGateResult check(String arguments, {String language = 'zh'}) {
+    final english = language.toLowerCase().startsWith('en');
+    int length(String value) => english
+        ? value.trim().split(RegExp(r'\s+')).length
+        : value.runes.length;
     final errors = <PlanIssue>[];
     void issue(String path, String expected, String actual, {String? code}) {
       errors.add(
@@ -213,12 +224,12 @@ abstract final class AskUserGate {
         }
         for (var i = 0; i < values.length; i++) {
           final value = values[i];
-          if (value is! String ||
-              value.trim().isEmpty ||
-              value.runes.length > 12) {
+          if (value is! String || value.trim().isEmpty || length(value) > 12) {
             issue(
               'options[$i]',
-              '非空字符串，每个最多 12 个 Unicode 码点',
+              english
+                  ? 'Nonempty option, at most 12 words'
+                  : '非空字符串，每个最多 12 个 Unicode 码点',
               '${value.runtimeType}',
             );
           } else {
@@ -240,8 +251,9 @@ abstract final class AskUserGate {
       for (final key in ['options', 'multiple']) {
         if (raw.containsKey(key)) issue(key, 'form 使用 fields', '字段存在');
       }
-      if (raw.containsKey('skipLabel') && raw['skipLabel'] != '直接出方案') {
-        issue('skipLabel', '直接出方案', '${raw['skipLabel']}');
+      final skipLabel = english ? 'Show suggestions' : '直接出方案';
+      if (raw.containsKey('skipLabel') && raw['skipLabel'] != skipLabel) {
+        issue('skipLabel', skipLabel, '${raw['skipLabel']}');
       }
       final values = raw['fields'];
       if (values is! List || values.isEmpty || values.length > 3) {
@@ -270,14 +282,18 @@ abstract final class AskUserGate {
           }
           if (label is! String ||
               label.trim().isEmpty ||
-              label.runes.length > 20) {
-            issue('fields[$i].label', '1–20 字标签', '$label');
+              length(label) > (english ? 6 : 20)) {
+            issue(
+              'fields[$i].label',
+              english ? '1–6 word label' : '1–20 字标签',
+              '$label',
+            );
           }
           if (choices is! List ||
               choices.length < 2 ||
               choices.length > 64 ||
               choices.any(
-                (x) => x is! String || x.trim().isEmpty || x.runes.length > 24,
+                (x) => x is! String || x.trim().isEmpty || length(x) > 24,
               ) ||
               choices.toSet().length != choices.length) {
             issue('fields[$i].options', '2–64 个不重复的短选项', '$choices');
@@ -310,6 +326,7 @@ abstract final class AskUserGate {
               options,
               raw['multiple'] == true,
               fields,
+              language: language,
             )
           : null,
       errors,

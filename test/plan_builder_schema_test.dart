@@ -11,7 +11,9 @@ void main() {
     'type': 'object',
     'properties': {
       'plan_id': {'type': 'string'},
-      'operation': {'type': 'string', 'enum': ['edit', 'replace_all']},
+      'operation': {
+        'enum': ['edit', 'replace_all'],
+      },
       'title': {'type': 'string'},
       'blocks': {
         'type': 'array',
@@ -19,7 +21,6 @@ void main() {
           'type': 'object',
           'properties': {
             'kind': {
-              'type': 'string',
               'enum': ['warmup', 'main', 'cooldown'],
             },
             'rounds': {'type': 'integer'},

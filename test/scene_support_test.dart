@@ -154,7 +154,9 @@ void main() {
       );
       expect(parameters.status, 'done');
       expect(parameters.stamp, contains('居家（你说的）'));
-      expect(parameters.stamp, contains('徒手（你说的）'));
+      expect(parameters.stamp, contains('徒手（可用'));
+      expect(parameters.stamp, contains('墙'));
+      expect(parameters.stamp, contains('（你说的）'));
     },
   );
 

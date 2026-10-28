@@ -150,7 +150,11 @@ void main() {
         'unpicked_actions',
       );
       final noMat = base.copyWith(
-        params: {...base.params, 'equipment': param(<String>[])},
+        params: {
+          ...base.params,
+          'equipment': param(<String>[]),
+          'equipment_exclude': param(['equip.mat']),
+        },
       );
       expect(showActions(noMat).error!['code'], 'incompatible_actions');
       final knee = base.copyWith(
@@ -184,7 +188,11 @@ void main() {
     () {
       final base = state();
       final noMat = base.copyWith(
-        params: {...base.params, 'equipment': param(<String>[])},
+        params: {
+          ...base.params,
+          'equipment': param(<String>[]),
+          'equipment_exclude': param(['equip.mat']),
+        },
       );
       expect(showPlan(noMat).error!['code'], 'incompatible_actions');
       final duration = base.copyWith(

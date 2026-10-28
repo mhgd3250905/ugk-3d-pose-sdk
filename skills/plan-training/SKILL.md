@@ -6,7 +6,7 @@ description: 排一份能直接开练的训练计划，或修改上一份计划
 
 用户本会话和 App 设置里的条件都已知，不重复问；习惯仅作预选。用户明确给出的新场景、器材、目标和时长覆盖旧条件，伤痛限制只能收紧。未知条件不编造；器材未知按徒手。仅当徒手明显影响方案且搜索提示有需器材动作未显示时才询问器材。
 
-由模型判断任务。新建计划使用 start_task(plan)；从已交付推荐的“排成计划”入口使用 reuse=true，沿用前三节点。修改已交付计划沿用任务及 plan_id；整体换一套用 operation=replace_all，局部调整用 edit。第一份计划不传 operation。
+由模型判断任务。新建计划使用 start_task(plan)；完成推荐且参数未变时转计划默认复用前三节点，只有显式 reuse=false 才从头开始。修改已交付计划沿用任务及 plan_id；整体换一套用 operation=replace_all，局部调整用 edit。首份计划若误传 operation，代码会忽略并说明。
 
 先用 set_params 记条件及来源，用户值带原话 quote。相对时长用 source=derived、direction 和新用户原话；具体分钟数用 user。host 是 App 已确认条件，不重问，默认和预选不能覆盖。参数变化后的节点由代码处理；只改时长不重搜动作。
 

@@ -24,7 +24,7 @@ void main() {
       final properties = tool.parameters['properties']! as Map<String, Object?>;
       final tags = properties['tags']! as Map<String, Object?>;
       final items = tags['items']! as Map<String, Object?>;
-      final allowed = items['enum']! as List<String>;
+      final allowed = (items['enum']! as List).cast<String>();
 
       expect(allowed, ActionTags(profile, catalog).tags);
       expect(allowed, isNotEmpty);
@@ -32,7 +32,10 @@ void main() {
       expect(allowed, isNot(contains('body.not_in_catalog')));
       expect(tags['type'], 'array');
       expect(tags['uniqueItems'], isTrue);
-      expect(items['type'], 'string');
+      // Every permitted enum member is a string, so a separate primitive type
+      // adds no constraint to this schema.
+      expect(items.containsKey('type'), isFalse);
+      expect(allowed.every((value) => value.isNotEmpty), isTrue);
       expect(properties['keywords'], {'type': 'string'});
       expect(properties['limit'], {
         'type': 'integer',

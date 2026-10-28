@@ -244,6 +244,14 @@ void main() {
       for (var i = 0; i < client.requests.length; i++) {
         final request = client.requests[i];
         _protocol(request);
+        if (i >= 2) {
+          final current =
+              jsonDecode(request.messages[1].content.substring('当前状态：'.length))
+                  as Map;
+          expect(current['picks'], isEmpty);
+          expect(current['candidates'], isNotEmpty);
+          expect((current['candidates'] as List).length, lessThanOrEqualTo(40));
+        }
         expect(
           request.messages
               .expand((m) => m.toolCalls)

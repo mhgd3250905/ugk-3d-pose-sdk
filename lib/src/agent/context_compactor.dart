@@ -5,6 +5,8 @@ import 'dart:convert';
 
 import '../catalog/catalog.dart';
 import '../llm/llm_types.dart';
+import '../profile/coach_profile.dart';
+import 'action_search.dart';
 import 'agent_prompt.dart';
 import 'session_state.dart';
 import 'skill_disclosure.dart';
@@ -24,14 +26,20 @@ class ContextCompactor {
     required List<LlmMessage> history,
     List<LlmMessage> turnMessages = const [],
     String language = 'zh',
+    CoachProfile? profile,
     bool previousTaskFinished = false,
     Set<int> supersededFailureMessageIndexes = const {},
   }) {
+    final summary = _summary(state, catalog, language, profile);
+    final candidateIds = <String>{
+      for (final row
+          in summary['candidates'] as List<List<String?>>? ??
+              const <List<String?>>[])
+        row.first!,
+    };
     final messages = <LlmMessage>[
       system,
-      LlmMessage.system(
-        '当前状态：${jsonEncode(_summary(state, catalog, language))}',
-      ),
+      LlmMessage.system('当前状态：${jsonEncode(summary)}'),
     ];
     final combined = [...history, ...turnMessages];
     final paired = _pairs(combined);
@@ -145,33 +153,54 @@ class ContextCompactor {
               call.name == AgentTools.getAction) &&
           _ok(message.content);
       messages.add(
-        archive
-            ? LlmMessage.tool(message.toolCallId!, archived)
-            : oldActionBatch
+        (archive && node == 'actions') || oldActionBatch
             ? LlmMessage.tool(
                 message.toolCallId!,
-                _archiveActions(call, message.content),
+                _archiveActions(call, message.content, candidateIds),
               )
+            : archive
+            ? LlmMessage.tool(message.toolCallId!, archived)
             : message,
       );
     }
     return List.unmodifiable(messages);
   }
 
-  String _archiveActions(LlmToolCall call, String content) {
-    final data = jsonDecode(content) as Map;
+  String _archiveActions(
+    LlmToolCall call,
+    String content,
+    Set<String> candidateIds,
+  ) {
+    Map<Object?, Object?> data;
+    try {
+      final decoded = jsonDecode(content);
+      if (decoded is! Map<Object?, Object?>) {
+        return '[已归档] 先前动作查询已由后续结果替代。';
+      }
+      data = decoded;
+    } on FormatException {
+      return '[已归档] 先前动作查询已由后续结果替代。';
+    }
     final items = data['items'];
-    if (items is! List) return archived;
+    if (items is! List) return '[已归档] 先前动作查询已由后续结果替代。';
     final ids = <String>[];
+    final rawIds = <String>[];
     for (final item in items) {
       if (item is! Map || item['id'] is! String) continue;
       final id = item['id'] as String;
+      rawIds.add(id);
       final name = item['name'];
       ids.add(
         call.name == AgentTools.searchActions && name is String
             ? '$id $name'
             : id,
       );
+    }
+    if (rawIds.isEmpty) return '[已归档] 本次未返回动作。';
+    if (call.name == AgentTools.searchActions &&
+        candidateIds.isNotEmpty &&
+        candidateIds.containsAll(rawIds)) {
+      return '[已归档，候选见当前状态 candidates]';
     }
     return call.name == AgentTools.searchActions
         ? '[已归档] 返回：${ids.join('、')}'
@@ -279,6 +308,7 @@ class ContextCompactor {
     CoachSessionState state,
     Catalog catalog,
     String language,
+    CoachProfile? profile,
   ) {
     final planId = state.activePlanId;
     final versions = planId == null ? null : state.plans[planId];
@@ -330,7 +360,7 @@ class ContextCompactor {
     }
     return {
       'format':
-          'task=[type,reused,nodes];nodes=[id,status,stamp,doneAtTurn];picks=[id,name]',
+          'task=[type,reused,nodes];nodes=[id,status,stamp,doneAtTurn];picks=[id,name];candidates=[id,name,body]',
       'task': task == null
           ? null
           : [
@@ -348,6 +378,11 @@ class ContextCompactor {
       'picks': [
         for (final id in state.picks) [id, catalog[id]?.name.of(language)],
       ],
+      'candidates': ActionSearch(
+        profile ?? const CoachProfile(id: 'context', appName: 'context'),
+        catalog,
+        minPicks: profile?.minActions ?? 3,
+      ).candidateRows(state, language: language),
       if (planId != null)
         'plan': {
           'plan_id': planId,

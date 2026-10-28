@@ -15,13 +15,14 @@ import '../prompt/prompts.g.dart';
 import '../prompt/tool_prompt.dart';
 import '../tools/coach_tools.dart';
 import 'action_tags.dart';
+import 'node_gates.dart';
 import 'session_params.dart';
 import 'session_state.dart';
 import 'skill_files.dart';
 import 'user_memory.dart';
 
 /// Agent 内核修订号。改 `prompts/agent_kernel.md` 或 `skills/` 语义时手动加一。
-const agentKernelRevision = 6;
+const agentKernelRevision = 7;
 
 abstract final class AgentTools {
   static const read = 'read';
@@ -47,19 +48,46 @@ abstract final class AgentTools {
     required bool memory,
     bool includeCheckPlan = true,
     CoachSessionState? sessionState,
+    String language = 'zh',
   }) {
     final kinds = [for (final k in MemoryKind.values) k.name];
     final tags = ActionTags(profile, catalog);
+    final en = language.toLowerCase().startsWith('en');
+    final state = sessionState ?? CoachSessionState();
+    final excludable = {
+      for (final equipment in profile.ambientEquipment.values) ...equipment,
+      ...NodeGates(
+        profile,
+        catalog,
+        minPicks: profile.minActions,
+      ).effectiveEquipment(state),
+      ...((state.params['equipment_exclude']?.value as List<Object?>?) ??
+              const [])
+          .cast<String>(),
+    }.toList()..sort();
     final equipmentCodes = SessionParams(
       tags,
     ).equipmentCodes(sessionState ?? CoachSessionState());
-    Map<String, Object?> parameter(Map<String, Object?> value, {bool derived = false}) => {
+    Map<String, Object?> parameter(
+      Map<String, Object?> value, {
+      bool derived = false,
+    }) => {
       'type': 'object',
       'properties': {
         'value': value,
-        'source': {'type': 'string', 'enum': [for (final source in SessionParams.sources) if (derived || source != 'derived') source]},
+        'source': {
+          'type': 'string',
+          'enum': [
+            for (final source in SessionParams.sources)
+              if (derived || source != 'derived') source,
+          ],
+        },
         'quote': {'type': 'string', 'maxLength': 30},
-        if (derived) 'direction': {'type': 'string', 'enum': ['shorter', 'longer']},
+        if (derived)
+          'direction': {
+            'type': 'string',
+            'enum': ['shorter', 'longer'],
+          },
       },
       'required': ['value', 'source'],
       'additionalProperties': false,
@@ -69,7 +97,7 @@ abstract final class AgentTools {
       'items': {'type': 'string', 'enum': values},
       'uniqueItems': true,
     };
-    return [
+    final tools = [
       const LlmTool(
         name: startTask,
         description: '开始动作推荐或组装计划；只有完成推荐卡后才能复用节点。',
@@ -164,7 +192,10 @@ abstract final class AgentTools {
           'type': 'object',
           'properties': {
             'plan_id': {'type': 'string'},
-            'operation': {'type': 'string', 'enum': ['edit', 'replace_all']},
+            'operation': {
+              'type': 'string',
+              'enum': ['edit', 'replace_all'],
+            },
             'title': {'type': 'string'},
             'blocks': {
               'type': 'array',
@@ -218,7 +249,22 @@ abstract final class AgentTools {
                 }),
                 'goal': parameter(codes(tags.goalCodes)),
                 'equipment': parameter(codes(equipmentCodes)),
-                'minutes': parameter({'type': 'integer', 'minimum': 1}, derived: true),
+                'equipment_exclude': {
+                  ...parameter(codes(equipmentCodes)),
+                  'properties': {
+                    'value': codes(excludable),
+                    'source': {
+                      'type': 'string',
+                      'enum': ['user'],
+                    },
+                    'quote': {'type': 'string', 'maxLength': 30},
+                  },
+                  'required': ['value', 'source', 'quote'],
+                },
+                'minutes': parameter({
+                  'type': 'integer',
+                  'minimum': 1,
+                }, derived: true),
                 'level': parameter({
                   'type': 'integer',
                   'enum': [1, 2, 3],
@@ -273,7 +319,7 @@ abstract final class AgentTools {
           'additionalProperties': false,
         },
       ),
-      const LlmTool(
+      LlmTool(
         name: askUser,
         description: '由模型决定是否需要澄清。调用后暂停，用户回答后继续；不要重问已有条件。',
         parameters: {
@@ -290,7 +336,11 @@ abstract final class AgentTools {
             },
             'options': {
               'type': 'array',
-              'items': {'type': 'string', 'minLength': 1, 'maxLength': 12},
+              'items': {
+                'type': 'string',
+                'minLength': 1,
+                if (en) 'description': 'At most 12 words' else 'maxLength': 12,
+              },
               'minItems': 2,
               'maxItems': 6,
               'uniqueItems': true,
@@ -313,12 +363,21 @@ abstract final class AgentTools {
                     'type': 'string',
                     'enum': ['scene', 'equipment', 'minutes'],
                   },
-                  'label': {'type': 'string'},
+                  'label': {
+                    'type': 'string',
+                    if (en) 'description': 'At most 6 words',
+                  },
                   'options': {
                     'type': 'array',
                     'minItems': 2,
                     'maxItems': 64,
-                    'items': {'type': 'string', 'maxLength': 24},
+                    'items': {
+                      'type': 'string',
+                      if (en)
+                        'description': 'At most 24 words'
+                      else
+                        'maxLength': 24,
+                    },
                   },
                   'multiple': {'type': 'boolean'},
                 },
@@ -328,7 +387,7 @@ abstract final class AgentTools {
             },
             'skipLabel': {
               'type': 'string',
-              'enum': ['直接出方案'],
+              'enum': [en ? 'Show suggestions' : '直接出方案'],
             },
           },
           'required': ['question', 'mode'],
@@ -363,7 +422,47 @@ abstract final class AgentTools {
         ),
       ],
     ];
+    return [
+      for (final tool in tools)
+        LlmTool(
+          name: tool.name,
+          description: tool.description,
+          parameters: compactEnumSchema(tool.parameters),
+        ),
+    ];
   }
+}
+
+/// An enum of homogeneous primitives already enforces its primitive type.
+/// Removing only that redundant keyword preserves every accepted value and
+/// every description, including provenance and safety constraints.
+Map<String, Object?> compactEnumSchema(Map<String, Object?> schema) {
+  Object? visit(Object? value) {
+    if (value is List) return [for (final item in value) visit(item)];
+    if (value is! Map) return value;
+    final choices = value['enum'];
+    final type = value['type'];
+    final redundant =
+        choices is List &&
+        choices.isNotEmpty &&
+        choices.every(
+          (v) =>
+              type == 'string' && v is String ||
+              type == 'integer' && v is int ||
+              type == 'boolean' && v is bool ||
+              type == 'number' && v is num,
+        );
+    return <String, Object?>{
+      for (final entry in value.entries)
+        if (!(entry.key == 'type' && redundant))
+          entry.key as String:
+              const {'enum', 'const', 'default', 'examples'}.contains(entry.key)
+              ? entry.value
+              : visit(entry.value),
+    };
+  }
+
+  return visit(schema)! as Map<String, Object?>;
 }
 
 class AgentPromptBuilder {
@@ -390,11 +489,13 @@ class AgentPromptBuilder {
     String userText = '',
     int questionsAsked = 0,
     String trainingParameters = '',
+    String locale = 'zh',
   }) {
     final v = profile.vars;
     final labels = {'home': '居家', 'office': '办公室', 'gym': '健身房'};
     return PromptTemplate(kernel).render({
       'appName': profile.appName,
+      'locale': locale,
       'canary': canary,
       'defaultMinutes': v['defaultMinutes'] ?? '15',
       'defaultLevel': v['defaultLevel'] ?? '1',
@@ -411,9 +512,7 @@ class AgentPromptBuilder {
       'questionProgress': '',
       'trainingParameters': '',
       'preloadedDetails': '',
-      'memoryTools': memory
-          ? '- 记忆工具先读 user-memory/SKILL.md；成功后才确认。\n'
-          : '',
+      'memoryTools': memory ? '- 记忆工具先读 user-memory/SKILL.md；成功后才确认。\n' : '',
       'focus': [
         for (final x in profile.focus.split('\n'))
           if (x.trim().isNotEmpty) '- $x',

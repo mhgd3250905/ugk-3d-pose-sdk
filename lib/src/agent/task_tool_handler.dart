@@ -82,7 +82,7 @@ extension TaskToolHandler on StructuredToolHandler {
         ? AgentTask.start(
             state,
             args['type'] as String,
-            reuse: args['reuse'] as bool? ?? false,
+            reuse: args['reuse'] as bool?,
           )
         : NodeGates(profile, catalog, minPicks: profile.minActions).check(
             state,

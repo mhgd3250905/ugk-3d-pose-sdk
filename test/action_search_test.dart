@@ -30,7 +30,7 @@ void main() {
   });
 
   test(
-    'bodyweight default filters equipment and records only returned ids',
+    'bodyweight default allows ambient wall and records only returned ids',
     () {
       final state = CoachSessionState();
       final result = search.search(state, limit: 20);
@@ -41,9 +41,12 @@ void main() {
       for (final row in result.items) {
         expect(
           catalog[row['id'] as String]!.equipment.where((e) => e != 'none'),
-          isEmpty,
+          everyElement('wall'),
         );
-        expect((row['data'] as List)[1], isEmpty);
+        final returnedGear = ((row['data'] as List)[1] as List).map(
+          (index) => (result.format['equipment'] as List)[index as int],
+        );
+        expect(returnedGear, everyElement('equip.wall'));
         expect(row.keys, containsAll(['id', 'name', 'summary', 'data']));
         expect(row['data'], hasLength(8));
       }

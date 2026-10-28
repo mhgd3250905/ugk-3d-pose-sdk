@@ -257,7 +257,7 @@ void main() {
           _batch([
             _call('new-start', AgentTools.startTask, {
               'type': 'plan',
-              if (reuse) 'reuse': true,
+              'reuse': reuse,
             }),
           ]),
           (LlmRequest request) {

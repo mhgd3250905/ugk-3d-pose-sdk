@@ -107,12 +107,23 @@ class ActionSearch {
             ].any((s) => s.toLowerCase().contains(query)));
     final selected = <Drill>[];
     var hiddenGear = 0;
+    final hiddenEquipment = <String, int>{};
     for (final drill in _drills.where(matches)) {
       final problem = gate.actionProblem(state, drill.id);
       if (problem == null) {
         if (selected.length < limit) selected.add(drill);
       } else if (problem == '器械不符合' && _passesWithGear(state, drill)) {
         hiddenGear++;
+        for (final raw in drill.equipment) {
+          final code = gate.tags.equipmentCode(raw);
+          if (code != null && !gate.effectiveEquipment(state).contains(code)) {
+            hiddenEquipment.update(
+              code,
+              (count) => count + 1,
+              ifAbsent: () => 1,
+            );
+          }
+        }
       }
     }
     final en = language.toLowerCase().startsWith('en');
@@ -144,7 +155,7 @@ class ActionSearch {
     final repeated = selected
         .where((drill) => state.seenActionIds.contains(drill.id))
         .length;
-    final summary =
+    var summary =
         (en
             ? 'Filtered by $scene / $equipmentLabel / $limitsLabel; $hiddenGear matching actions need other equipment.'
             : '已按 $scene / $equipmentLabel / $limitsLabel 过滤，另有 $hiddenGear 个需要器材的动作未显示。') +
@@ -153,6 +164,33 @@ class ActionSearch {
             : en
             ? ' The following $repeated IDs were returned before.'
             : '以下 $repeated 个之前已返回，仅列 id。');
+    if (selected.length < 3 && hiddenGear >= 5) {
+      final codes = hiddenEquipment.keys.toList()
+        ..sort((a, b) {
+          final count = hiddenEquipment[b]!.compareTo(hiddenEquipment[a]!);
+          return count == 0 ? a.compareTo(b) : count;
+        });
+      final names = codes
+          .take(2)
+          .map((code) => gate.tags.localizedLabel(code, language))
+          .join(en ? ', ' : '、');
+      summary += en
+          ? ' Another $hiddenGear actions require $names; if their availability is unknown, ask once with ask_user.'
+          : '另有 $hiddenGear 个需要 $names，如果不确定用户有没有，可以用 ask_user 问一次。';
+    }
+    final emptySearches = selected.length == repeated
+        ? state.consecutiveEmptySearches + 1
+        : 0;
+    final next = state.copyWith(
+      seenActionIds: {...state.seenActionIds, for (final d in selected) d.id},
+      consecutiveEmptySearches: emptySearches,
+    );
+    if (emptySearches >= 2) {
+      final count = candidateRows(next, language: language).length;
+      summary += en
+          ? ' The candidate pool already has $count ${count == 1 ? 'action' : 'actions'}; choose from candidates and check(actions).'
+          : '候选池已有 $count 个，请从 candidates 中选择并 check(actions)。';
+    }
     final items = [
       for (final drill in selected)
         state.seenActionIds.contains(drill.id)
@@ -160,9 +198,7 @@ class ActionSearch {
             : _row(drill, language),
     ];
     return ActionSearchResult(
-      state.copyWith(
-        seenActionIds: {...state.seenActionIds, for (final d in selected) d.id},
-      ),
+      next,
       items: List.unmodifiable(items),
       filter: Map.unmodifiable(filter),
       format: {
@@ -190,6 +226,17 @@ class ActionSearch {
       warnings: List.unmodifiable(_warnings(state, selected)),
     );
   }
+
+  /// Only previously returned IDs are disclosed, in their first-seen order.
+  /// Recheck the current ledger on every composition, including after changes.
+  List<List<String?>> candidateRows(
+    CoachSessionState state, {
+    String language = 'zh',
+  }) => [
+    for (final id in state.seenActionIds)
+      if (gate.actionProblem(state, id) == null)
+        [id, catalog[id]!.name.of(language), _primaryBody(catalog[id]!)],
+  ].take(40).toList(growable: false);
 
   ActionSearchResult getActions(
     CoachSessionState state,
@@ -255,7 +302,6 @@ class ActionSearch {
   }
 
   Map<String, Object?> _row(Drill drill, String language) {
-    final tags = gate.tags.forAction(drill);
     final duration = const PlanDuration();
     final dose = drill.defaultDose;
     final value = dose.mode == DoseMode.reps
@@ -275,14 +321,7 @@ class ActionSearch {
           ?.toJson(),
       drill.doseRange.restSeconds?.toJson(),
     ];
-    final primary = drill.muscleGroups.isEmpty
-        ? null
-        : drill.muscleGroups.first;
-    final primaryCode = primary == null
-        ? null
-        : 'body.${primary == 'adductors' ? 'inner_thigh' : primary.replaceAll('-', '_')}';
-    final body =
-        primaryCode ?? tags.where((tag) => tag.startsWith('body.')).firstOrNull;
+    final body = _primaryBody(drill);
     final firstSentence =
         (drill.purpose.isNotEmpty ? drill.purpose : drill.name.of(language))
             .split(RegExp(r'[\r\n，；。！？,;!?]'))
@@ -310,6 +349,18 @@ class ActionSearch {
       ],
     };
     return Map.unmodifiable(row);
+  }
+
+  String? _primaryBody(Drill drill) {
+    final tags = gate.tags.forAction(drill);
+    final primary = drill.muscleGroups.isEmpty
+        ? null
+        : drill.muscleGroups.first;
+    final primaryCode = primary == null
+        ? null
+        : 'body.${primary == 'adductors' ? 'inner_thigh' : primary.replaceAll('-', '_')}';
+    return primaryCode ??
+        tags.where((tag) => tag.startsWith('body.')).firstOrNull;
   }
 
   List<String> _warnings(CoachSessionState state, Iterable<Drill> drills) => [

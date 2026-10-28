@@ -30,6 +30,12 @@ void main() {
     params: {
       'scene': CoachParamValue(value: 'home', source: 'host', turn: 0),
       'equipment': CoachParamValue(value: <String>[], source: 'host', turn: 0),
+      'equipment_exclude': CoachParamValue(
+        value: ['equip.mat'],
+        source: 'user',
+        quote: '不用垫子',
+        turn: 1,
+      ),
     },
     picks: ['h-squat', 'n-pelvis-circle', 'o-stand-sidebend'],
     seenActionIds: {

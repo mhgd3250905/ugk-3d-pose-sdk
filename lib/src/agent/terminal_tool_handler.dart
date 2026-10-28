@@ -25,7 +25,12 @@ class TerminalToolHandler {
   const TerminalToolHandler(this.gate);
   final ToolGate gate;
 
-  TerminalToolResult ask(String raw, int position, int count) {
+  TerminalToolResult ask(
+    String raw,
+    int position,
+    int count, {
+    String language = 'zh',
+  }) {
     if (position != count) {
       return TerminalToolResult(
         jsonEncode(
@@ -40,7 +45,7 @@ class TerminalToolHandler {
         rejected: true,
       );
     }
-    final checked = AskUserGate.check(raw);
+    final checked = AskUserGate.check(raw, language: language);
     if (!checked.ok) {
       return TerminalToolResult(
         jsonEncode({

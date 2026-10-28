@@ -103,6 +103,70 @@ class ActionTags {
   String? equipmentId(String code) =>
       _equipmentByCode[code] ?? _decodeRunes(code, _hostEquipmentPrefix);
 
+  /// User-facing dimension labels come from the catalogue, rather than its
+  /// reversible tool codes. Hyphenated source IDs and underscored codes share
+  /// the same lookup; a missing translation falls back to readable words.
+  String localizedLabel(String code, String language) {
+    final dot = code.indexOf('.');
+    final kind = dot < 0 ? '' : code.substring(0, dot);
+    final id = kind == 'equip'
+        ? equipmentId(code) ?? code.substring(dot + 1)
+        : dot < 0
+        ? code
+        : code.substring(dot + 1);
+    final sourceId = kind == 'body' && id == 'inner_thigh' ? 'adductors' : id;
+    final dimension = switch (kind) {
+      'body' => 'muscleGroups',
+      'purpose' => 'categories',
+      'equip' => 'equipment',
+      'scene' => 'scenes',
+      'pose' => 'positions',
+      _ => null,
+    };
+    final locale = language.toLowerCase().split(RegExp('[-_]')).first;
+    final taxonomy = catalog.raw['taxonomy'];
+    final values = taxonomy is Map ? taxonomy[dimension] : null;
+    Object? raw;
+    if (values is Map) {
+      for (final entry in values.entries) {
+        if (_part(entry.key.toString()) == _part(sourceId)) {
+          raw = entry.value;
+          break;
+        }
+      }
+    }
+    if (raw is Map) {
+      final translated = raw[language] ?? raw[locale];
+      if (translated is String && translated.trim().isNotEmpty) {
+        return translated.trim();
+      }
+    } else if (raw is String && raw.trim().isNotEmpty && locale == 'zh') {
+      return raw.trim();
+    }
+    if (locale == 'zh') {
+      final labels = switch (kind) {
+        'body' => catalog.taxonomy.muscleGroups,
+        'purpose' => catalog.taxonomy.categories,
+        'equip' => catalog.taxonomy.equipment,
+        'scene' => catalog.taxonomy.scenes,
+        'pose' => catalog.taxonomy.positions,
+        _ => const <String, String>{},
+      };
+      for (final entry in labels.entries) {
+        if (_part(entry.key) == _part(sourceId) && entry.value.isNotEmpty) {
+          return entry.value;
+        }
+      }
+      // Core can be a configured body group while its catalogue label is a
+      // category; keep that existing localized label when available.
+      final categoryLabel = catalog.taxonomy.categories[sourceId];
+      if (kind == 'body' && categoryLabel != null) {
+        return categoryLabel;
+      }
+    }
+    return id.replaceAll(RegExp('[_-]+'), ' ');
+  }
+
   /// Unknown host-supplied restrictions retain every Unicode code point.
   /// They need not occur in [limitCodes], which describes catalogue values.
   String? limitCode(String rawValue) {

@@ -24,6 +24,8 @@ class CoachExercise {
     this.cues = const [],
     this.cutout,
     this.stillCutout,
+    this.levelLabel = '',
+    this.equipmentLabel = '',
   });
   final String id;
   final String name;
@@ -33,6 +35,11 @@ class CoachExercise {
   final List<String> cues;
   final String? cutout;
   final String? stillCutout;
+
+  /// Localized catalogue facts; the recommendation never infers these from
+  /// the model's explanation. Existing routine adapters may leave them empty.
+  final String levelLabel;
+  final String equipmentLabel;
 }
 
 /// Trusted host media selected by the card, including its still during flight.

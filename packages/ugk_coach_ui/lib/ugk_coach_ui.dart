@@ -20,3 +20,4 @@ export 'src/chat_list.dart';
 export 'src/question_bubble.dart';
 export 'src/failure_bubble.dart';
 export 'src/plan_card.dart';
+export 'src/recommend_card.dart';

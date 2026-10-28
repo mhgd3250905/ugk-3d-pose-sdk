@@ -62,6 +62,41 @@ extension _AgentMemoryToolHandler on CoachAgent {
           );
           return _memoryError('cancelled');
         }
+        if (t.name == AgentTools.forget) {
+          for (final removed in before.where(
+            (old) => !next.any(
+              (item) => item.kind == old.kind && item.text == old.text,
+            ),
+          )) {
+            _snapshotForgottenTexts.add(removed.text);
+            final key = crypto.sha256
+                .convert(
+                  utf8.encode('${removed.kind.name}\u0000${removed.text}'),
+                )
+                .toString();
+            final turns = _snapshotMemoryOrigins.remove(key) ?? const <int>{};
+            _snapshotForgottenTurns.addAll(turns);
+            _snapshotForgottenTexts.addAll(
+              _sessionState.userTurns
+                  .where((turn) => turns.contains(turn.turn))
+                  .map((turn) => turn.text),
+            );
+            for (final turn in _completedLedger().turns.where(
+              (turn) => turns.contains(turn.turn),
+            )) {
+              if (turn.finalDeliveryText.isNotEmpty) {
+                _snapshotForgottenTexts.add(turn.finalDeliveryText);
+              }
+            }
+          }
+        } else if (text != null && _sessionState.userTurns.isNotEmpty) {
+          final key = crypto.sha256
+              .convert(utf8.encode('${kind!.name}\u0000${text.trim()}'))
+              .toString();
+          _snapshotMemoryOrigins
+              .putIfAbsent(key, () => {})
+              .add(_sessionState.userTurns.last.turn);
+        }
         _memory = next;
         return jsonEncode({'ok': true});
       });

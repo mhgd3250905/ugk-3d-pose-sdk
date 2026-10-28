@@ -154,12 +154,15 @@ class CoachUiStrings {
     this.answerHint = 'Type your answer',
     this.submitAnswer = 'Send answer',
     this.multipleHint = 'Choose one or more options',
+    this.planFromActions = 'Make a plan',
+    this.actionUnavailable = 'Action unavailable',
     this.planDetails = _details,
     this.timeLabel = _time,
   });
   final String expand, collapse, expandDetails, collapseDetails;
   final String save, saved, start, cancel, preparing, progressHint;
   final String answerHint, submitAnswer, multipleHint;
+  final String planFromActions, actionUnavailable;
   final String Function(String title) planDetails;
   final String Function(DateTime at, DateTime now) timeLabel;
   static String _details(String title) => 'Routine details: $title';

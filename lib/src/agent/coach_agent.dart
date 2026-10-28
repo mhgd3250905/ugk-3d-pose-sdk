@@ -32,9 +32,11 @@ import '../plan/training_plan.dart';
 import '../profile/coach_profile.dart';
 import '../tools/ask_user.dart';
 import '../tools/coach_session.dart';
+import '../tools/coach_tools.dart';
 import '../tools/tool_gate.dart';
 import '../usage/usage.dart';
 import '../util/clock.dart';
+import 'action_search.dart';
 import 'action_tags.dart';
 import 'agent_prompt.dart';
 import 'agent_resilience.dart';
@@ -46,6 +48,7 @@ import 'context_turn_ledger.dart';
 import 'node_gates.dart';
 import 'plan_checker.dart';
 import 'session_params.dart';
+import 'session_snapshot.dart';
 import 'session_state.dart';
 import 'skill_disclosure.dart';
 import 'skill_files.dart';
@@ -64,6 +67,7 @@ export 'context_budget.dart'
 part 'memory_tool_handler.dart';
 part 'ask_commit_handler.dart';
 part 'output_commit_handler.dart';
+part 'session_snapshot_handler.dart';
 
 /// Persist alongside a delivered plan card to restore its planning conditions.
 /// [planId] binds the snapshot to that exact card. A snapshot for another plan
@@ -161,6 +165,10 @@ enum AgentEventKind {
 
   /// 任务节点状态变更；[AgentEvent.task] 是变更后的任务快照。
   node,
+
+  /// A malformed or unsupported session snapshot used legacy restoration.
+  /// [AgentEvent.path] contains a non-sensitive reason code.
+  snapshotRestoreFallback,
 }
 
 /// 过程事件：供 App 显示进度（「正在查动作库…」）。作废的轮次（reset / 取消）不再发事件。
@@ -393,6 +401,13 @@ class CoachAgent {
 
   final List<LlmMessage> _history = [];
   final Set<LlmMessage> _contextCoveredHistory = HashSet.identity();
+  bool _snapshotResume = false;
+  CoachSessionSnapshot? _snapshotInterrupted;
+  AskUserQuestion? _snapshotTurnQuestion;
+  final Set<String> _snapshotLoadedSkills = {};
+  final Set<String> _snapshotForgottenTexts = {};
+  final Set<int> _snapshotForgottenTurns = {};
+  final Map<String, Set<int>> _snapshotMemoryOrigins = {};
   AppendOnlyContext? _modelContext;
   ({
     String catalog,
@@ -438,6 +453,37 @@ class CoachAgent {
 
   /// Immutable structured state, including original accepted user messages.
   CoachSessionState get sessionState => _sessionState;
+
+  /// Captures facts only, including a point-in-time interrupted in-flight turn.
+  CoachSessionSnapshot exportSession({
+    List<CoachRecommendationSnapshot> recommendations = const [],
+    String? pendingQuestionMessageId,
+    bool includePendingQuestion = true,
+  }) => _captureSessionSnapshot(
+    recommendations: recommendations,
+    pendingQuestionMessageId: pendingQuestionMessageId,
+    includePendingQuestion: includePendingQuestion,
+  );
+
+  /// Used by the owning conversation controller; no model call is made.
+  bool restoreSessionSnapshot(CoachSessionSnapshot snapshot) {
+    try {
+      return _restoreSessionSnapshot(snapshot);
+    } on Object {
+      _emitEvent(
+        AgentEvent(
+          _ids.next('restore'),
+          AgentEventKind.snapshotRestoreFallback,
+          path: 'invalid_snapshot',
+        ),
+      );
+      return false;
+    }
+  }
+
+  /// Re-admits a historical recommendation for display without changing state.
+  ValidatedActions? restoreRecommendation(CoachRecommendationSnapshot ref) =>
+      _restoreRecommendation(ref);
   int get turnCount => _turns;
 
   /// 本次任务已成功交付的澄清问题数；跨 send 保留，成功交付计划/动作卡或 reset 时清零。
@@ -733,6 +779,13 @@ class CoachAgent {
     _generation++;
     _history.clear();
     _contextCoveredHistory.clear();
+    _snapshotResume = false;
+    _snapshotInterrupted = null;
+    _snapshotTurnQuestion = null;
+    _snapshotLoadedSkills.clear();
+    _snapshotForgottenTexts.clear();
+    _snapshotForgottenTurns.clear();
+    _snapshotMemoryOrigins.clear();
     _modelContext = null;
     _modelEpochKey = null;
     _contextRequestDiagnostics.clear();
@@ -1135,6 +1188,8 @@ class CoachAgent {
         return CoachTurnResult(turnId: turnId, status: TurnStatus.cancelled);
       }
       rollbackSession = _sessionState;
+      _snapshotInterrupted = null;
+      _snapshotTurnQuestion = previousQuestion;
       _sessionState = _sessionState.appendUserTurn(userText);
       acceptedInput = true;
       final result = await _run(
@@ -1146,6 +1201,9 @@ class CoachAgent {
         confirmedForm,
       );
       if (result.status == TurnStatus.cancelled && _generation == gen) {
+        _snapshotInterrupted = _captureSessionSnapshot(
+          recommendations: const [],
+        );
         final before = _sessionState.task;
         _sessionState = rollback();
         _emitTaskRollback(turnId, before);
@@ -1157,6 +1215,11 @@ class CoachAgent {
       return result;
     } on Object {
       if (_generation == gen) {
+        if (acceptedInput) {
+          _snapshotInterrupted = _captureSessionSnapshot(
+            recommendations: const [],
+          );
+        }
         final before = _sessionState.task;
         _sessionState = acceptedInput
             ? rollback().appendUserTurn(userText)
@@ -1365,8 +1428,11 @@ class CoachAgent {
       hash: prompts.hash(system),
       catalog: cat.version,
     );
+    final restoringSnapshot = _snapshotResume;
     final userMsg = LlmMessage.user(
-      prompts.userMessage(profile, cat, context, text),
+      restoringSnapshot
+          ? _sessionState.userTurns.last.text
+          : prompts.userMessage(profile, cat, context, text),
     );
     final turnMsgs = <LlmMessage>[];
     var lastRequestMessages = <LlmMessage>[];
@@ -1577,10 +1643,11 @@ class CoachAgent {
                       privateReasoning: _memoryReasoning,
                     )
                   : _uncoveredHistory(ledger)),
-              summarySeed: ledger.turns.isEmpty
+              summarySeed: ledger.turns.isEmpty && !restoringSnapshot
                   ? null
                   : ledger.summaryMessage(),
             );
+        _snapshotResume = false;
         _modelEpochKey = key;
         _modelEpochCounter = _modelContext!.epoch;
       }
@@ -1679,6 +1746,11 @@ class CoachAgent {
         unawaited(resetSig.future.then((_) => child.cancel('reset')));
         final sw = Stopwatch()..start();
         try {
+          _snapshotLoadedSkills.addAll(
+            SkillDisclosures.fromMessages(
+              req.messages,
+            ).sources.keys.map((path) => path.replaceFirst('/SKILL.md', '')),
+          );
           final f = client.complete(req, cancel: child)..ignore();
           res = await Future.any<LlmResponse>([
             f,

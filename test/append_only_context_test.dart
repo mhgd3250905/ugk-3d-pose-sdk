@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:test/test.dart';
 import 'package:ugk_coach/src/agent/append_only_context.dart';
-import 'package:ugk_coach/src/agent/context_turn_ledger.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 const _system = '稳定 system\n"角色与底线" 🧭';

@@ -8,6 +8,8 @@ library;
 export 'src/agent/agent_prompt.dart';
 export 'src/agent/coach_agent.dart';
 export 'src/agent/coach_conversation_controller.dart';
+export 'src/agent/context_turn_ledger.dart';
+export 'src/agent/session_snapshot.dart';
 export 'src/agent/session_state.dart';
 export 'src/agent/skill_files.dart';
 export 'src/agent/user_memory.dart';

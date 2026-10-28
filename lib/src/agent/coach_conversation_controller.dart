@@ -11,11 +11,13 @@ import '../tools/ask_user.dart';
 import '../tools/coach_session.dart';
 import '../tools/tool_gate.dart';
 import 'coach_agent.dart';
+import 'session_snapshot.dart';
 
-/// A presentation/history snapshot. Only live controller results are answerable.
+/// Presentation/history; live or snapshot-restored questions are answerable.
 ///
 /// Apps own persistence and must re-admit stored plans/actions before supplying
-/// them to [CoachConversationController.restoreHistory]. This class never
+/// them to the legacy [CoachConversationController.restoreHistory]. New saves
+/// pair display messages with [CoachSessionSnapshot]. This class never
 /// serializes credentials, transport settings or the agent's tool history.
 class CoachConversationMessage {
   CoachConversationMessage({
@@ -69,18 +71,21 @@ class CoachConversationMessage {
     bool? questionAnswered,
     List<String>? answeredChoices,
     Map<String, List<String>>? answeredForm,
+    AskUserQuestion? question,
+    ValidatedActions? actions,
+    bool clearActions = false,
   }) => CoachConversationMessage(
     id: id,
     at: at,
     isUser: isUser,
     text: text ?? this.text,
-    question: question,
+    question: question ?? this.question,
     questionAnswered: questionAnswered ?? this.questionAnswered,
     answeredChoices: answeredChoices ?? this.answeredChoices,
     answeredForm: answeredForm ?? this.answeredForm,
     plan: plan,
     planState: planState,
-    actions: actions,
+    actions: clearActions ? null : actions ?? this.actions,
     turnId: turnId,
     isFailure: isFailure,
     isPlanningFailure: isPlanningFailure,
@@ -134,6 +139,7 @@ class CoachConversationController {
   Future<CoachTurnResult>? _agentPending;
   Future<void>? _disposal;
   bool _disposed = false;
+  bool _restoredPendingQuestion = false;
 
   CoachConversationState get state => _state;
 
@@ -368,7 +374,8 @@ class CoachConversationController {
     final token = CancelToken();
     final question = _state.pendingQuestion;
     final originalMessages = _state.messages;
-    final answerSubmitted = explicitAnswer && question != null;
+    final answerSubmitted =
+        (explicitAnswer || _restoredPendingQuestion) && question != null;
     final submittedMessages = answerSubmitted
         ? (_closedMessages(
             question.id,
@@ -503,6 +510,7 @@ class CoachConversationController {
         messages.add(assistant);
       }
       _active = null;
+      _restoredPendingQuestion = false;
       _publish(
         CoachConversationState._(
           messages: messages,
@@ -586,6 +594,7 @@ class CoachConversationController {
   void cancel() {
     if (_disposed) return;
     _cancel();
+    _restoredPendingQuestion = false;
     agent.dismissConfirmation();
     _publish(
       CoachConversationState._(
@@ -604,6 +613,7 @@ class CoachConversationController {
   void newConversation() {
     if (_disposed) return;
     _cancel();
+    _restoredPendingQuestion = false;
     agent.reset();
     _publish(CoachConversationState._());
   }
@@ -617,6 +627,7 @@ class CoachConversationController {
   }) {
     if (_disposed) return;
     _cancel();
+    _restoredPendingQuestion = false;
     agent.reset();
     final planIndex = messages.lastIndexWhere(
       (message) => message.plan != null,
@@ -653,6 +664,88 @@ class CoachConversationController {
             else
               message,
         ],
+      ),
+    );
+  }
+
+  /// Exports portable facts, independently of display-message persistence.
+  /// In-flight work is captured as interrupted and is never auto-replayed.
+  CoachSessionSnapshot exportSession() => agent.exportSession(
+    pendingQuestionMessageId: _state.pendingQuestion?.id,
+    includePendingQuestion:
+        _state.pendingQuestion != null &&
+        !_state.messages.any(
+          (message) =>
+              message.id == _state.pendingQuestion?.id &&
+              message.questionAnswered,
+        ),
+    recommendations: [
+      for (final message in _state.messages)
+        if (message.actions != null)
+          CoachRecommendationSnapshot(
+            messageId: message.id,
+            actionIds: message.actions!.items.map((item) => item.id).toList(),
+            note: message.text,
+          ),
+    ],
+  );
+
+  /// [messages] only populate the view. All model state comes from [snapshot].
+  /// Invalid snapshots fall back to legacy restoration and emit
+  /// [AgentEventKind.snapshotRestoreFallback] on [events].
+  void restoreSession(
+    CoachSessionSnapshot snapshot,
+    List<CoachConversationMessage> messages,
+  ) {
+    if (_disposed) return;
+    _cancel();
+    final generation = _generation;
+    if (!agent.restoreSessionSnapshot(snapshot)) {
+      if (!_disposed && _generation == generation) restoreHistory(messages);
+      return;
+    }
+    if (_disposed || _generation != generation) return;
+    final references = {
+      for (final ref in snapshot.recommendations) ref.messageId: ref,
+    };
+    final pending = snapshot.pendingQuestion;
+    final pendingId = pending == null
+        ? null
+        : snapshot.pendingQuestionMessageId ?? _nextId();
+    CoachConversationMessage? activeQuestion;
+    final restored = <CoachConversationMessage>[];
+    for (final message in messages) {
+      var next = message.question == null
+          ? message
+          : message.copyWith(questionAnswered: true);
+      final ref = references[message.id];
+      if (ref != null) {
+        final actions = agent.restoreRecommendation(ref);
+        next = next.copyWith(
+          text: ref.note,
+          actions: actions,
+          clearActions: actions == null,
+        );
+      }
+      if (pending != null && message.id == pendingId) {
+        next = next.copyWith(question: pending, questionAnswered: false);
+        activeQuestion = next;
+      }
+      restored.add(next);
+    }
+    if (pending != null && activeQuestion == null) {
+      activeQuestion = CoachConversationMessage(
+        id: pendingId!,
+        at: _clock(),
+        question: pending,
+      );
+      restored.add(activeQuestion);
+    }
+    _restoredPendingQuestion = pending != null;
+    _publish(
+      CoachConversationState._(
+        messages: restored,
+        pendingQuestion: activeQuestion,
       ),
     );
   }

@@ -38,6 +38,7 @@ import 'agent_task.dart';
 import 'batch_handler.dart';
 import 'context_compactor.dart';
 import 'node_gates.dart';
+import 'plan_checker.dart';
 import 'session_params.dart';
 import 'session_state.dart';
 import 'skill_files.dart';
@@ -45,7 +46,6 @@ import 'skill_tool_handler.dart';
 import 'structured_tool_handler.dart';
 import 'terminal_tool_handler.dart';
 import 'training_confirmation.dart';
-import 'training_parameters.dart';
 import 'user_memory.dart';
 
 export 'agent_resilience.dart';
@@ -202,9 +202,6 @@ class AgentStepLimitExceeded implements Exception {
 }
 
 class CoachAgent {
-  /// 一次任务最多一轮；同一表单可同时补齐多个条件。
-  static const maxQuestionsPerTask = 1;
-
   CoachAgent({
     required this.client,
     required Catalog Function() catalog,
@@ -387,23 +384,14 @@ class CoachAgent {
   final Set<LlmMessage> _memoryReasoning = {};
   int _turns = 0;
   int _questionsAsked = 0;
-  bool _parameterTask = false;
-  // Only messages belonging to the current plan contribute its parameters.
-  // Chat history remains intact for the model and the conversation UI.
-  final List<String> _planParameterMessages = [];
   AskUserQuestion? _pendingConfirmation;
   int _confirmationDismissRevision = 0;
   CoachContext? _confirmedPlanContext;
-  // The last admitted plan is the only reliable baseline for relative time
-  // adjustments. Failed submissions never replace it.
-  double? _lastAdmittedPlanSeconds;
   bool _relativeDurationPolicy = false;
-  String? _pendingAdjustment;
   CoachContext? _taskSafetyContext;
   String? _planFocus;
   String? _planGoal;
   Map<String, List<String>>? _lastConfirmedForm;
-  bool _safetyBlocked = false;
   bool _planningFailure = false;
   int _generation = 0;
   int? _busyGen;
@@ -483,25 +471,34 @@ class CoachAgent {
       // Older plan snapshots had no sourced ledger. The context supplied by
       // the host (or the legacy card fallback) remains available without
       // fabricating a user quote or guessing a structured goal.
-      final restored = SessionParams(ActionTags(profile, cat))
-          .applyHost(_sessionState, context);
+      final restored = SessionParams(
+        ActionTags(profile, cat),
+      ).applyHost(_sessionState, context);
       if (restored.ok) _sessionState = restored.state;
       for (final text in restoredUserTurns) {
         _sessionState = _sessionState.appendUserTurn(text);
       }
     }
-    if (stored?.sessionState == null && _sessionState.lastDeliveredPlanId == null) {
+    if (stored?.sessionState == null &&
+        _sessionState.lastDeliveredPlanId == null) {
       // Snapshots predating delivered-version tracking can still use the
       // admitted card as their actual previous delivery, without pretending
       // that newer task nodes were completed.
-      final versions = _sessionState.plans[plan.id] ?? const <CoachPlanVersion>[];
-      final matching = versions.where((v) => jsonEncode(v.plan) == jsonEncode(plan.toJson())).lastOrNull;
-      final previous = matching ?? CoachPlanVersion(
-        version: versions.isEmpty ? 1 : versions.map((v) => v.version).reduce(math.max) + 1,
-        plan: plan.toJson(),
-        estimateSec: const PlanDuration().estimateSeconds(plan, cat),
-        fitLog: const [],
-      );
+      final versions =
+          _sessionState.plans[plan.id] ?? const <CoachPlanVersion>[];
+      final matching = versions
+          .where((v) => jsonEncode(v.plan) == jsonEncode(plan.toJson()))
+          .lastOrNull;
+      final previous =
+          matching ??
+          CoachPlanVersion(
+            version: versions.isEmpty
+                ? 1
+                : versions.map((v) => v.version).reduce(math.max) + 1,
+            plan: plan.toJson(),
+            estimateSec: const PlanDuration().estimateSeconds(plan, cat),
+            fitLog: const [],
+          );
       _sessionState = _sessionState.copyWith(
         plans: {
           ..._sessionState.plans,
@@ -510,36 +507,26 @@ class CoachAgent {
         lastDeliveredPlanId: plan.id,
         lastDeliveredVersion: previous.version,
         lastDeliveredTurn: _sessionState.userTurns.isEmpty
-            ? 0 : _sessionState.userTurns.last.turn,
+            ? 0
+            : _sessionState.userTurns.last.turn,
       );
     }
-    final actual = const PlanDuration().estimateSeconds(plan, cat);
     _confirmedPlanContext = context;
     _taskSafetyContext = context;
-    _planFocus =
-        stored?.focus ??
-        focusHint ??
-        trainingFocus('${plan.title} ${plan.summary}');
-    _planGoal =
-        stored?.goal ??
-        goalHint ??
-        trainingGoal('${plan.title} ${plan.summary}');
+    _planFocus = stored?.focus ?? focusHint;
+    _planGoal = stored?.goal ?? goalHint;
     _lastConfirmedForm = trainingSelections(context, cat);
-    _lastAdmittedPlanSeconds = actual;
-    _relativeDurationPolicy =
-        stored?.relativeDurationPolicy ??
-        (plan.targetMinutes > 0 &&
-            (actual / 60 - plan.targetMinutes).abs() / plan.targetMinutes >
-                .25);
-    _planParameterMessages
-      ..clear()
-      ..add('已恢复的当前计划');
+    _relativeDurationPolicy = stored?.relativeDurationPolicy ?? false;
     if (restoredMessages.isNotEmpty) {
       _history.addAll(restoredMessages);
     } else {
-      _history.addAll(_sessionState.userTurns.map((turn) => LlmMessage.user(turn.text)));
+      _history.addAll(
+        _sessionState.userTurns.map((turn) => LlmMessage.user(turn.text)),
+      );
     }
-    _history.add(LlmMessage.assistant('已恢复当前计划：${plan.title}（${plan.id}）', reasoning: ''));
+    _history.add(
+      LlmMessage.assistant('已恢复当前计划：${plan.title}（${plan.id}）', reasoning: ''),
+    );
   }
 
   /// The still-active local confirmation, including while unrelated chat is
@@ -597,12 +584,6 @@ class CoachAgent {
     if (_pendingConfirmation == null) return;
     _pendingConfirmation = null;
     _questionsAsked = 0;
-    _parameterTask = false;
-    if (_confirmedPlanContext == null) {
-      _planParameterMessages.clear();
-      _planFocus = null;
-      _planGoal = null;
-    }
   }
 
   /// True only when a host-provided preset both targets this task's verified
@@ -618,14 +599,8 @@ class CoachAgent {
     if (admitted == null) return null;
     final text = _planSummary(admitted.plan, _catalog());
     _questionsAsked = 0;
-    _parameterTask = false;
     _planningFailure = false;
-    _pendingAdjustment = null;
     _relativeDurationPolicy = false;
-    _lastAdmittedPlanSeconds = const PlanDuration().estimateSeconds(
-      admitted.plan,
-      _catalog(),
-    );
     _turns++;
     _history
       ..add(const LlmMessage.user('用预设方案'))
@@ -639,29 +614,33 @@ class CoachAgent {
   }
 
   ValidatedPlan? _admitPreset(TrainingPlan plan) {
-    final context = _confirmedPlanContext;
-    // A preset checked against the old plan could contradict a failed edit.
-    if (_safetyBlocked ||
-        _pendingAdjustment != null ||
-        context == null ||
-        _planFocus == null) {
+    final task = _sessionState.task;
+    if (task?.type != 'plan' || task!.nodes.last.status == 'done') {
       return null;
     }
     final catalog = _catalog();
-    if (!presetMatchesFocus(plan, catalog, _planFocus)) return null;
-    final parameters = TrainingParameters.infer(
-      [''],
-      context,
-      catalog,
+    final checked = PlanChecker(
       profile,
-    );
-    return ToolGate(
-      catalog: catalog,
-      profile: profile,
-      canary: prompts.canary,
-      extraRules: [...extraRules, parameters.validate],
+      catalog,
+      minPicks: profile.minActions,
+      extraRules: extraRules,
       enforceDrillDoseRange: enforceDrillDoseRange,
-    ).admitTemplate(plan, context);
+    ).validateTemplate(_sessionState, plan);
+    if (!checked.ok) return null;
+    final params = _sessionState.params;
+    final tags = ActionTags(profile, catalog);
+    final equipment = (params['equipment']?.value as List<Object?>? ?? const [])
+        .cast<String>();
+    final limits = (params['limits']?.value as List<Object?>? ?? const [])
+        .cast<String>();
+    final context = CoachContext(
+      scene: params['scene']?.value as String?,
+      equipment: {for (final code in equipment) ?tags.equipmentId(code)},
+      minutes: params['minutes']?.value as int?,
+      level: params['level']?.value as int?,
+      avoid: {for (final code in limits) tags.limitValue(code) ?? code},
+    );
+    return gateFor(catalog).admitTemplate(plan, context);
   }
 
   int get historyChars => _history.fold(0, (n, m) => n + _chars(m));
@@ -679,18 +658,13 @@ class CoachAgent {
     _memoryReasoning.clear();
     _turns = 0;
     _questionsAsked = 0;
-    _parameterTask = false;
-    _planParameterMessages.clear();
     _pendingConfirmation = null;
     _confirmedPlanContext = null;
-    _lastAdmittedPlanSeconds = null;
     _relativeDurationPolicy = false;
-    _pendingAdjustment = null;
     _taskSafetyContext = null;
     _planFocus = null;
     _planGoal = null;
     _lastConfirmedForm = null;
-    _safetyBlocked = false;
     _planningFailure = false;
     _resetSig.complete();
     _resetSig = Completer<void>();
@@ -848,11 +822,14 @@ class CoachAgent {
         ).applyHost(rollbackSession, CoachContext(avoid: currentAvoid));
         return host.changedFields.isEmpty
             ? host.state
-            : NodeGates(
-                profile,
-                cat,
-                minPicks: profile.minActions,
-              ).parametersChanged(host.state, language: context.language, changedFields: host.changedFields, valueChangedFields: host.valueChangedFields).state;
+            : NodeGates(profile, cat, minPicks: profile.minActions)
+                  .parametersChanged(
+                    host.state,
+                    language: context.language,
+                    changedFields: host.changedFields,
+                    valueChangedFields: host.valueChangedFields,
+                  )
+                  .state;
       }
       return rollbackSession;
     }
@@ -875,7 +852,12 @@ class CoachAgent {
               profile,
               cat,
               minPicks: profile.minActions,
-            ).parametersChanged(host.state, language: context.language, changedFields: host.changedFields, valueChangedFields: host.valueChangedFields);
+            ).parametersChanged(
+              host.state,
+              language: context.language,
+              changedFields: host.changedFields,
+              valueChangedFields: host.valueChangedFields,
+            );
       _sessionState = nodes.state;
       if (nodes.changes.isNotEmpty) _emitNodeChanges(turnId, nodes);
       if (_generation != gen || (cancel?.isCancelled ?? false)) {
@@ -929,7 +911,8 @@ class CoachAgent {
     Map<String, List<String>>? confirmedForm,
   ) async {
     bool dead() => gen != _generation || (cancel?.isCancelled ?? false);
-    final previousTaskFinished = _sessionState.task?.nodes.lastOrNull?.status == 'done';
+    final previousTaskFinished =
+        _sessionState.task?.nodes.lastOrNull?.status == 'done';
     const compactor = ContextCompactor();
     // 清除记忆也作废本轮先前请求取得的记忆操作；下一轮才重新允许记忆。
     final turnMemoryEpoch = _memEpoch;
@@ -967,168 +950,58 @@ class CoachAgent {
 
     final turnWatch = Stopwatch()..start();
 
-    final originalText = text;
-    final retry = RegExp(r'^(?:再)?(?:重试|重新尝试|再试一次)').hasMatch(text);
-    // A failed edit must be retried with the same explicit conditions and
-    // relative direction, while the previously admitted plan stays intact.
-    if (retry && _pendingAdjustment != null) text = _pendingAdjustment!;
-    final requestedText = text;
     final cat = _catalog();
-    final focus = trainingFocus(text);
-    final goal = trainingGoal(text);
-    final newRedFlag = hasTrainingRedFlag(text);
-    final correctsRedFlag =
-        !newRedFlag &&
-        RegExp(
-          r'(?:之前|刚才|上次).{0,18}(?:误报|说错|误会|搞错|弄错)|(?:误报|说错|误会|搞错|弄错).{0,18}(?:之前|刚才|上次)',
-        ).hasMatch(text) &&
-        RegExp(r'没有|并无|不存在|不是|无').hasMatch(text);
-    final redFlag = newRedFlag || (_safetyBlocked && !correctsRedFlag);
-    final hasPlanWords = RegExp(
-      r'训练组|计划|方案|排课|(?:一套|一组|一份).*(?:训练|动作|拉伸|放松)|\b(?:plan|routine|workout)\b',
-      caseSensitive: false,
-    ).hasMatch(text);
-    final trainingDomain =
-        RegExp(r'训练|锻炼|健身|运动|拉伸|放松|热身|瑜伽|徒手|器械|哑铃|弹力带|开胯|肌群').hasMatch(text) ||
-        focus != null ||
-        goal != null;
-    final explicitPlan = hasPlanWords && trainingDomain;
-    final explainingAction = RegExp(
-      r'怎么做|如何做|怎么练|如何练|怎么放松|如何放松|讲解|要领|姿势|区别|展示|看看|找动作|是什么|为什么',
-    ).hasMatch(text);
-    final explicitlyCreatesPlan =
-        explicitPlan &&
-        RegExp(r'(?:做|排|制定|生成|设计|安排|创建|编排).{0,18}(?:计划|训练组|方案)').hasMatch(text);
-    final onlyExplanation = explainingAction && !explicitlyCreatesPlan;
-    final revision = RegExp(
-      r'(?:这个|这套|这份|上个|上一|原来|之前|刚才|现有|当前|原方案|原计划).{0,20}(?:改|换|调整|缩短|延长|增加|减少|替换)|(?:改|调整|修改|优化|更换|替换|缩短|延长).{0,20}(?:这个|这套|这份|上个|原来|之前|刚才|现有|当前|方案|计划|训练组)',
-    ).hasMatch(text);
-    final explicitlyNew = RegExp(
-      r'新(?:的|建|做|排|制定|生成|一套|一份)|另外|再(?:做|排|生成|来|设计)|重新(?:做|排|生成|制定|设计)',
-    ).hasMatch(text);
-    final asksFocusTraining =
-        focus != null &&
-        RegExp(r'练|训练|锻炼|放松|拉伸|热身').hasMatch(text) &&
-        !onlyExplanation;
-    final asksGoalTraining =
-        goal != null &&
-        RegExp(r'想|要|练|训练|锻炼|改善|提升|增加|增强|减|燃|塑形').hasMatch(text) &&
-        !onlyExplanation;
-    final asksRoutine =
-        RegExp(
-          r'(?:排|做|给我|来|制定|设计|编排).{0,24}(?:开胯|拉伸|热身|放松|锻炼|运动|力量|训练)',
-        ).hasMatch(text) &&
-        !onlyExplanation;
-    final answerFacts = TrainingParameters.infer(
-      [text],
-      const CoachContext(),
-      cat,
-      profile,
-    );
-    final answersConfirmation =
-        answerFacts.missing.length < 3 ||
-        answerFacts.skipped ||
-        RegExp(r'按默认来|直接出方案|默认就好|不确定|你决定').hasMatch(text);
-    final changesFocus =
-        focus != null &&
-        focus != _planFocus &&
-        _planParameterMessages.isNotEmpty &&
-        RegExp(r'换|改|变成|改成|想|练|做').hasMatch(text) &&
-        !onlyExplanation;
-    final wantsPlan =
-        explicitPlan ||
-        asksFocusTraining ||
-        asksGoalTraining ||
-        asksRoutine ||
-        changesFocus ||
-        (text.contains('训练') && !onlyExplanation);
-    final newFocus = (asksFocusTraining || changesFocus) && focus != _planFocus;
-    final newGoal = asksGoalTraining && goal != _planGoal;
-    final changesCurrent =
-        !newGoal &&
-        !newFocus &&
-        (revision ||
-            (_planParameterMessages.isNotEmpty &&
-                RegExp(
-                  r'短一点|短一些|短些|更短|长一点|长一些|长些|更长|难一点|简单一点|轻一点|换掉|换成|换到|换(?:一个|个)(?:别的)?(?:动作|哑铃|椅子|瑜伽垫)|改成|改为|改到|调整一下|缩短|延长|加长|(?:加|增|减|降)(?:到|至|为)',
-                ).hasMatch(text)));
-    final parameterTask =
-        !redFlag &&
-        ((wantsPlan && !onlyExplanation) ||
-            (changesCurrent && _planParameterMessages.isNotEmpty) ||
-            (retry && _confirmedPlanContext != null) ||
-            confirmedForm != null ||
-            (_parameterTask && !onlyExplanation && answersConfirmation));
-    final startsNewPlan =
-        parameterTask &&
-        wantsPlan &&
-        !changesCurrent &&
-        confirmedForm == null &&
-        (!_parameterTask || explicitlyNew || newFocus || newGoal);
-    final questionsAsked = startsNewPlan ? 0 : _questionsAsked;
-    // A new planning task cannot silently inherit stale environment settings.
-    // Other context, especially safety screening, remains unchanged.
-    final safety = _taskSafetyContext ?? _confirmedPlanContext;
-    final cleanContext = CoachContext(
-      avoid: {...?safety?.avoid, ...context.avoid},
-      level: context.level ?? safety?.level,
-      goal: context.goal ?? (startsNewPlan ? null : safety?.goal),
-      language: context.language,
-      notes: {...?safety?.notes, ...context.notes}.toList(),
-    );
-    final prior = startsNewPlan ? null : _confirmedPlanContext;
-    final parameterContext = parameterTask
-        ? (prior == null
-              ? cleanContext
-              : CoachContext(
-                  scene: prior.scene,
-                  equipment: prior.equipment,
-                  minutes: prior.minutes,
-                  avoid: cleanContext.avoid,
-                  level: cleanContext.level,
-                  goal: cleanContext.goal,
-                  language: cleanContext.language,
-                  notes: cleanContext.notes,
-                ))
-        : context;
-    final typedConfirmed = confirmedForm == null
-        ? null
-        : (_pendingConfirmation == null
-              ? null
-              : confirmedTrainingContext(
-                  _pendingConfirmation!,
-                  confirmedForm,
-                  parameterContext,
-                  cat,
-                ));
-    if (confirmedForm != null && typedConfirmed == null) {
-      return CoachTurnResult(
-        turnId: turnId,
-        status: TurnStatus.error,
-        error: const FormatException('Invalid training confirmation'),
-      );
+    final pending = _pendingConfirmation;
+    if (confirmedForm != null) {
+      final selected = pending == null
+          ? null
+          : confirmedTrainingContext(pending, confirmedForm, context, cat);
+      if (selected == null) {
+        return CoachTurnResult(
+          turnId: turnId,
+          status: TurnStatus.error,
+          error: const FormatException('Invalid training confirmation'),
+        );
+      }
+      final tags = ActionTags(profile, cat);
+      final defaults = text == pending!.skipLabel;
+      final quote = String.fromCharCodes(text.runes.take(30));
+      Map<String, Object?> field(Object value) => {
+        'value': value,
+        'source': defaults ? 'default' : 'user',
+        if (!defaults) 'quote': quote,
+      };
+      final mapped = SessionParams(tags).set(_sessionState, {
+        'fields': {
+          'scene': field(selected.scene!),
+          'equipment': field(
+            defaults
+                ? <String>[]
+                : [
+                    for (final id in selected.equipment!)
+                      ?tags.equipmentCode(id),
+                  ],
+          ),
+          'minutes': field(selected.minutes!),
+        },
+      });
+      if (!mapped.ok) {
+        return CoachTurnResult(
+          turnId: turnId,
+          status: TurnStatus.error,
+          error: FormatException(jsonEncode(mapped.error)),
+        );
+      }
+      final nodes = NodeGates(profile, cat, minPicks: profile.minActions)
+          .parametersChanged(
+            mapped.state,
+            changedFields: mapped.changedFields,
+            valueChangedFields: mapped.valueChangedFields,
+            language: context.language,
+          );
+      _sessionState = nodes.state;
+      if (nodes.changes.isNotEmpty) _emitNodeChanges(turnId, nodes);
     }
-    final parameters = TrainingParameters.infer(
-      typedConfirmed != null
-          ? const ['']
-          : parameterTask
-          ? [
-              if (!startsNewPlan && prior == null) ..._planParameterMessages,
-              text,
-            ]
-          : [text],
-      typedConfirmed ?? parameterContext,
-      cat,
-      profile,
-    );
-    // Only explicit facts constrain admission. Defaults guide generation and
-    // are explained to the user; they do not turn guesses into user facts.
-    context = parameterTask
-        ? parameters.resolved(
-            profile,
-            clarificationFinished: questionsAsked >= maxQuestionsPerTask,
-          )
-        : parameters.context;
     final tags = ActionTags(profile, cat);
     CoachContext ledgerContext(CoachContext previous) {
       final values = _sessionState.params;
@@ -1152,95 +1025,16 @@ class CoachAgent {
               },
         goal: previous.goal,
         language: previous.language,
-        notes: previous.notes,
+        notes: {
+          ...?_taskSafetyContext?.notes,
+          ...?_confirmedPlanContext?.notes,
+          ...previous.notes,
+        }.toList(),
       );
     }
 
     context = ledgerContext(context);
-    // An explicit duration takes precedence over the old value and is
-    // validated as an absolute request, even if the sentence says 缩短/延长.
-    final relativeDuration =
-        changesCurrent && answerFacts.context.minutes == null;
-    final shortensPlan =
-        relativeDuration && RegExp(r'短一点|短一些|短些|更短|缩短|少一点时间').hasMatch(text);
-    final lengthensPlan =
-        relativeDuration && RegExp(r'长一点|长一些|长些|更长|延长|加长|多一点时间').hasMatch(text);
-    final adjustsDuration = shortensPlan || lengthensPlan;
-    final oldDuration = prior?.minutes;
-    final oldPlanSeconds = _lastAdmittedPlanSeconds;
-    final carryRelativeDurationPolicy =
-        _relativeDurationPolicy &&
-        changesCurrent &&
-        answerFacts.context.minutes == null &&
-        !adjustsDuration;
-    if (adjustsDuration && oldDuration != null) {
-      context = CoachContext(
-        scene: context.scene,
-        equipment: context.equipment,
-        avoid: context.avoid,
-        level: context.level,
-        goal: context.goal,
-        language: context.language,
-        notes: context.notes,
-      );
-    }
-    final gate = ToolGate(
-      catalog: cat,
-      profile: profile,
-      canary: prompts.canary,
-      extraRules: [
-        ...extraRules,
-        (plan, catalog, effective) => parameters.validate(
-          plan,
-          catalog,
-          effective,
-          enforceDurationEstimate: !carryRelativeDurationPolicy,
-        ),
-        if (parameterTask)
-          (plan, catalog, context) => [
-            if (planTouchesFocus(
-                  plan,
-                  catalog,
-                  startsNewPlan ? focus ?? goal : _planFocus ?? focus ?? goal,
-                ) ==
-                false)
-              const PlanIssue(
-                'focus_conflict',
-                '训练动作没有覆盖用户的重点部位',
-                path: 'blocks',
-              ),
-          ],
-        if (!parameterTask)
-          (plan, catalog, context) => [
-            const PlanIssue('plan_not_requested', '当前请求不应生成训练计划'),
-          ],
-        if (adjustsDuration && oldDuration != null)
-          (plan, catalog, context) => [
-            if ((shortensPlan && plan.targetMinutes >= oldDuration) ||
-                (lengthensPlan && plan.targetMinutes <= oldDuration))
-              PlanIssue(
-                IssueCodes.contextConflict,
-                '调整后的训练时长与用户要求不符',
-                path: 'targetMinutes',
-                expected: '${shortensPlan ? '少于' : '多于'} $oldDuration 分钟',
-                actual: '${plan.targetMinutes} 分钟',
-              ),
-            if (oldPlanSeconds != null &&
-                ((shortensPlan &&
-                        const PlanDuration().estimateSeconds(plan, catalog) >=
-                            oldPlanSeconds) ||
-                    (lengthensPlan &&
-                        const PlanDuration().estimateSeconds(plan, catalog) <=
-                            oldPlanSeconds)))
-              const PlanIssue(
-                IssueCodes.contextConflict,
-                '调整后的实际训练时长未按要求变化',
-                path: 'blocks',
-              ),
-          ],
-      ],
-      enforceDrillDoseRange: enforceDrillDoseRange,
-    );
+    final gate = gateFor(cat);
     // 记忆开关、系统提示、工具、文件系统在每次调模型前按当前开关重建（运行时可切）。
     var memoryOn = memoryAllowed();
     var fs = files(cat);
@@ -1253,37 +1047,12 @@ class CoachAgent {
           summary = '';
         }
       }
-      final recorded = jsonEncode({
-        for (final entry in _sessionState.params.entries)
-          entry.key: entry.value.toJson(),
-      });
-      final training =
-          (redFlag
-              ? '# 安全优先\n本次或先前提到的严重症状尚未明确纠正，'
-                    '不要推荐或生成训练，建议停止训练并咨询专业医疗人员。'
-              : adjustsDuration && oldDuration != null
-              ? '# 本次训练调整\n'
-                    '当前已确认条件：${jsonEncode(context.toJson())}\n'
-                    '用户要求${shortensPlan ? '短' : '长'}一点，目标时长必须${shortensPlan ? '小于' : '大于'}$oldDuration分钟；'
-                    '按方向调整实际训练量，${shortensPlan ? '减少' : '增加'}实际估时，不因标注时长与估时偏差重问或拒绝。'
-                    '沿用未修改的场景、器械和安全条件，不重新追问。'
-              : parameters.prompt(
-                      profile,
-                      clarificationFinished:
-                          questionsAsked >= maxQuestionsPerTask,
-                    ) +
-                    (carryRelativeDurationPolicy
-                        ? '\n上一方案时长来自相对调整；沿用其目标时长，不将目标与估时的25%偏差作为拒绝条件。'
-                        : ''));
       return prompts.system(
         profile,
         fs,
         memory: memoryOn,
         memorySummary: summary,
         userText: text,
-        questionsAsked: questionsAsked,
-        trainingParameters:
-            '$training\n当前结构化会话条件：$recorded。host 为 App 已确认条件，不重复询问。',
       );
     }
 
@@ -1306,12 +1075,7 @@ class CoachAgent {
       catalog: cat.version,
     );
     final userMsg = LlmMessage.user(
-      prompts.userMessage(
-        profile,
-        cat,
-        context,
-        retry && text != originalText ? '重试：$text' : text,
-      ),
+      prompts.userMessage(profile, cat, context, text),
     );
     final turnMsgs = <LlmMessage>[];
     // 与记忆相关的工具结果（读 user-memory/ 文件、remember / forget）：关闭记忆后在后续请求里替换。
@@ -1341,6 +1105,8 @@ class CoachAgent {
     final readSet = <String>{};
     var submissions = 0;
     var attemptedOutput = false;
+    var attemptedPlanning =
+        _sessionState.task?.type == 'plan' && _pendingConfirmation != null;
     var rejected = 0;
     List<PlanIssue> lastErrors = const [];
     FallbackReason reason = FallbackReason.invalidOutput;
@@ -1394,80 +1160,44 @@ class CoachAgent {
         issues: status == TurnStatus.ok ? const [] : lastErrors,
         reason: reason,
         error: status == TurnStatus.ok ? null : error,
-        isPlanningFailure: parameterTask && status == TurnStatus.error,
+        isPlanningFailure:
+            attemptedPlanning &&
+            _sessionState.task?.type == 'plan' &&
+            _sessionState.task!.nodes.last.status != 'done' &&
+            status == TurnStatus.error,
         leaked: leaked,
         submissions: submissions,
         steps: step,
         reads: reads,
         dead: () => dead() || (commitValid != null && !commitValid()),
-        commit:
-            (commit == null &&
-                !(parameterTask &&
-                    (typedConfirmed != null ||
-                        (_pendingConfirmation != null && !startsNewPlan) ||
-                        (startsNewPlan &&
-                            (parameters.missing.isEmpty ||
-                                parameters.skipped)))))
+        commit: commit == null
             ? null
             : () {
-                if (startsNewPlan &&
-                    (commit != null ||
-                        parameters.missing.isEmpty ||
-                        parameters.skipped)) {
-                  _questionsAsked = 0;
-                  _parameterTask = false;
-                  _planParameterMessages.clear();
-                  _confirmedPlanContext = null;
-                  _lastConfirmedForm = null;
-                  _lastAdmittedPlanSeconds = null;
-                  _relativeDurationPolicy = false;
-                  _pendingAdjustment = null;
-                  _planFocus = focus ?? goal;
-                  _planGoal = goal;
-                }
-                commit?.call();
+                commit();
                 if (dead() || (commitValid != null && !commitValid())) return;
-                if (plan != null) {
-                  _relativeDurationPolicy =
-                      adjustsDuration ||
-                      (!startsNewPlan &&
-                          typedConfirmed == null &&
-                          answerFacts.context.minutes == null &&
-                          _relativeDurationPolicy);
-                  _lastAdmittedPlanSeconds = const PlanDuration()
-                      .estimateSeconds(plan.plan, cat);
-                  _pendingAdjustment = null;
+                final current = ledgerContext(context);
+                _taskSafetyContext = current;
+                if (_sessionState.params.isNotEmpty) {
+                  _confirmedPlanContext = current;
+                  _lastConfirmedForm = trainingSelections(current, cat);
                 }
-                if (parameterTask) {
-                  _planParameterMessages.add(requestedText);
-                  _taskSafetyContext = cleanContext;
-                }
-                if (question == null &&
-                    parameterTask &&
-                    (typedConfirmed != null ||
-                        (_pendingConfirmation != null && !startsNewPlan) ||
-                        (startsNewPlan &&
-                            (parameters.missing.isEmpty ||
-                                parameters.skipped)))) {
-                  _confirmedPlanContext = context;
-                  _lastConfirmedForm = trainingSelections(context, cat);
-                }
+                _relativeDurationPolicy =
+                    _sessionState.params['minutes']?.source == 'derived';
               },
         beforeCommit: question == null
             ? null
             : () =>
                   emit(AgentEventKind.askUser, step: step, question: question),
       );
-      if (!dead() && redFlag && r.status != TurnStatus.cancelled) {
-        _safetyBlocked = true;
+      if (!dead()) {
+        final current = ledgerContext(context);
+        _taskSafetyContext = current;
+        if (_sessionState.params.isNotEmpty) {
+          _confirmedPlanContext = current;
+          _lastConfirmedForm = trainingSelections(current, cat);
+        }
+        _planningFailure = r.isPlanningFailure;
       }
-      if (!dead() && correctsRedFlag && r.status != TurnStatus.cancelled) {
-        _safetyBlocked = false;
-      }
-      if (!dead() && changesCurrent && r.status == TurnStatus.error) {
-        _pendingAdjustment = requestedText;
-      }
-      if (!dead()) _planningFailure = r.isPlanningFailure;
       emit(AgentEventKind.done, step: step, status: r.status);
       return r;
     }
@@ -1542,12 +1272,20 @@ class CoachAgent {
         }
         compress();
         final safeHistory = memOff
-            ? _withoutMemory(_history, const {}, privateReasoning: _memoryReasoning)
+            ? _withoutMemory(
+                _history,
+                const {},
+                privateReasoning: _memoryReasoning,
+              )
             : _history;
         final currentMessages = <LlmMessage>[
           userMsg,
           ...(memOff
-              ? _withoutMemory(turnMsgs, memResultIds, privateReasoning: memoryReasoning)
+              ? _withoutMemory(
+                  turnMsgs,
+                  memResultIds,
+                  privateReasoning: memoryReasoning,
+                )
               : turnMsgs),
         ];
         final req = LlmRequest(
@@ -1559,7 +1297,10 @@ class CoachAgent {
             turnMessages: currentMessages,
             language: context.language,
             previousTaskFinished: previousTaskFinished,
-            supersededFailureMessageIndexes: compactor.supersededFailures(safeHistory, currentMessages),
+            supersededFailureMessageIndexes: compactor.supersededFailures(
+              safeHistory,
+              currentMessages,
+            ),
           ),
           tools: tools,
           toolChoice: 'auto',
@@ -1727,11 +1468,8 @@ class CoachAgent {
           break;
         }
         if (g.ok &&
-            parameterTask &&
-            !RegExp(
-              r'无法|不能|不建议|不适合|请就医|建议就医|咨询医生|联系医生|求医|cannot|unable',
-              caseSensitive: false,
-            ).hasMatch(g.text)) {
+            _sessionState.task?.type == 'plan' &&
+            _sessionState.task!.nodes.last.status != 'done') {
           lastErrors = const [PlanIssue('missing_plan', '训练计划未生成')];
           error = StateError('Plan was not generated');
           calls.add(
@@ -1804,9 +1542,14 @@ class CoachAgent {
 
       // Execute the batch in order; a failed call blocks every later call.
       final batch = ToolBatch();
-      final structured = StructuredToolHandler(profile, cat,
-          newPlanId: () => _ids.next('plan'), extraRules: extraRules,
-          enforceDrillDoseRange: enforceDrillDoseRange, files: fs);
+      final structured = StructuredToolHandler(
+        profile,
+        cat,
+        newPlanId: () => _ids.next('plan'),
+        extraRules: extraRules,
+        enforceDrillDoseRange: enforceDrillDoseRange,
+        files: fs,
+      );
       final skills = SkillToolHandler(fs, readSet, reads, listed);
       final terminal = TerminalToolHandler(gate);
       final results = batch.results;
@@ -1825,25 +1568,54 @@ class CoachAgent {
           continue;
         }
         if (!callIds.add(t.id)) {
-          orderedResults.add(jsonEncode(nodeError('duplicate_tool_call_id', 'tool_calls[$toolIndex].id',
-              '每个 tool_call_id 唯一', t.id, '为每个工具调用提供不同的 ID。')));
+          orderedResults.add(
+            jsonEncode(
+              nodeError(
+                'duplicate_tool_call_id',
+                'tool_calls[$toolIndex].id',
+                '每个 tool_call_id 唯一',
+                t.id,
+                '为每个工具调用提供不同的 ID。',
+              ),
+            ),
+          );
           batch.mark(toolIndex + 1, t.id, failure: true);
           continue;
         }
         // Host settings may change while the model request is in flight.
         context = ledgerContext(context);
         bool? toolFailure;
+        if (t.name == AgentTools.draftPlan ||
+            t.name == AgentTools.checkPlan ||
+            t.name == AgentTools.showPlan ||
+            (t.name == AgentTools.startTask && _arg(t, 'type') == 'plan') ||
+            (t.name == AgentTools.setParams &&
+                _sessionState.task?.type == 'plan')) {
+          attemptedPlanning = true;
+        }
         switch (t.name) {
           case AgentTools.draftPlan:
-            final handled = structured.draft(_sessionState, t.arguments, context.language);
+            final handled = structured.draft(
+              _sessionState,
+              t.arguments,
+              context.language,
+            );
             _sessionState = handled.state;
             if (handled.changes.isNotEmpty) {
-              _emitNodeChanges(turnId, NodeResult(handled.state, changes: handled.changes));
+              _emitNodeChanges(
+                turnId,
+                NodeResult(handled.state, changes: handled.changes),
+              );
             }
             fresh = fresh || handled.fresh;
             results[t.id] = handled.response;
           case AgentTools.searchActions || AgentTools.getAction:
-            final handled = structured.search(_sessionState, t.name, t.arguments, context.language);
+            final handled = structured.search(
+              _sessionState,
+              t.name,
+              t.arguments,
+              context.language,
+            );
             _sessionState = handled.state;
             fresh = fresh || handled.fresh;
             for (final id in handled.accessed) {
@@ -1851,10 +1623,22 @@ class CoachAgent {
             }
             results[t.id] = handled.response;
           case AgentTools.startTask || AgentTools.check:
-            final handled = structured.task(_sessionState, t.name, t.arguments, context.language);
+            final handled = structured.task(
+              _sessionState,
+              t.name,
+              t.arguments,
+              context.language,
+            );
             _sessionState = handled.state;
+            if (t.name == AgentTools.startTask && handled.fresh) {
+              _questionsAsked = 0;
+              _pendingConfirmation = null;
+            }
             if (handled.changes.isNotEmpty) {
-              _emitNodeChanges(turnId, NodeResult(handled.state, changes: handled.changes));
+              _emitNodeChanges(
+                turnId,
+                NodeResult(handled.state, changes: handled.changes),
+              );
             }
             fresh = fresh || handled.fresh;
             results[t.id] = handled.response;
@@ -1863,47 +1647,81 @@ class CoachAgent {
             try {
               args = jsonDecode(t.arguments);
             } on FormatException {
-              results[t.id] = jsonEncode(nodeError('invalid_json', 'arguments',
-                  '合法 JSON 对象', '无效 JSON', '提供包含 fields 的合法 JSON 对象。'));
+              results[t.id] = jsonEncode(
+                nodeError(
+                  'invalid_json',
+                  'arguments',
+                  '合法 JSON 对象',
+                  '无效 JSON',
+                  '提供包含 fields 的合法 JSON 对象。',
+                ),
+              );
               break;
             }
             List<MemoryEntry> savedMemory = const [];
             if (memoryOn && memoryAllowed()) {
-              try { savedMemory = await memory(); } on Object { savedMemory = const []; }
+              try {
+                savedMemory = await memory();
+              } on Object {
+                savedMemory = const [];
+              }
             }
             if (dead()) return cancelled(step);
             if (!memoryAllowed()) savedMemory = const [];
-            final handled = structured.setParams(_sessionState, args, context.language, savedMemory);
+            final handled = structured.setParams(
+              _sessionState,
+              args,
+              context.language,
+              savedMemory,
+            );
             _sessionState = handled.state;
             context = ledgerContext(context);
             if (handled.changes.isNotEmpty) {
-              _emitNodeChanges(turnId, NodeResult(handled.state, changes: handled.changes));
+              _emitNodeChanges(
+                turnId,
+                NodeResult(handled.state, changes: handled.changes),
+              );
             }
             if (handled.fresh) {
               fresh = true;
               _pendingConfirmation = null;
             }
             results[t.id] = handled.response;
-          case AgentTools.read || AgentTools.ls:
-            final read = t.name == AgentTools.read;
-            final path = SkillFiles.normalize(_arg(t, read ? 'path' : 'dir') ?? '');
-            if (!skills.blocked(path, read: read, hasTask: _sessionState.task != null)) {
-              emit(read ? AgentEventKind.reading : AgentEventKind.listing, step: step, path: path);
+          case AgentTools.read:
+            final path = SkillFiles.normalize(_arg(t, 'path') ?? '');
+            if (!skills.blocked(
+              path,
+              read: true,
+              hasTask: _sessionState.task != null,
+            )) {
+              emit(AgentEventKind.reading, step: step, path: path);
               if (dead()) return cancelled(step);
-              if (read && path.startsWith('${SkillFiles.userMemory}/')) memResultIds.add(t.id);
+              if (path.startsWith('${SkillFiles.userMemory}/')) {
+                memResultIds.add(t.id);
+              }
             }
-            final handled = skills.execute(t.id, path, read: read, hasTask: _sessionState.task != null);
+            final handled = skills.execute(
+              t.id,
+              path,
+              read: true,
+              hasTask: _sessionState.task != null,
+            );
             results[t.id] = handled.response;
             toolFailure = handled.failed;
             fresh = fresh || handled.fresh;
-            if (handled.compressible != null) pendingCompress[t.id] = handled.compressible!;
+            if (handled.compressible != null) {
+              pendingCompress[t.id] = handled.compressible!;
+            }
           case AgentTools.checkPlan:
             emit(AgentEventKind.checking, step: step);
             if (dead()) return cancelled(step);
             final handled = structured.checkPlan(_sessionState, t.arguments);
             _sessionState = handled.state;
             if (handled.changes.isNotEmpty) {
-              _emitNodeChanges(turnId, NodeResult(handled.state, changes: handled.changes));
+              _emitNodeChanges(
+                turnId,
+                NodeResult(handled.state, changes: handled.changes),
+              );
             }
             fresh = fresh || handled.fresh;
             results[t.id] = handled.response;
@@ -1952,26 +1770,49 @@ class CoachAgent {
               break agentSteps;
             }
           case AgentTools.askUser:
-            final handled = terminal.ask(t.arguments, toolIndex + 1, res.toolCalls.length);
+            final handled = terminal.ask(
+              t.arguments,
+              toolIndex + 1,
+              res.toolCalls.length,
+            );
             terminalRejected = handled.rejected;
             terminalQuestion = handled.question;
             results[t.id] = handled.response;
           case AgentTools.showActions || AgentTools.showPlan:
             attemptedOutput = true;
-            final handled = terminal.show(_sessionState, t.name, t.arguments,
-                language: context.language, redFlag: redFlag);
+            final handled = terminal.show(
+              _sessionState,
+              t.name,
+              t.arguments,
+              language: context.language,
+            );
             terminalRejected = handled.rejected;
             terminalOutput = handled.output;
             results[t.id] = handled.response;
           default:
-            results[t.id] = jsonEncode(nodeError('unknown_tool', 'tool', '已提供的工具', t.name, '使用当前工具列表中的名称。'));
+            results[t.id] = jsonEncode(
+              nodeError(
+                'unknown_tool',
+                'tool',
+                '已提供的工具',
+                t.name,
+                '使用当前工具列表中的名称。',
+              ),
+            );
         }
         if (dead()) return cancelled(step);
         batch.mark(toolIndex + 1, t.id, failure: toolFailure);
         orderedResults.add(results[t.id]!);
         if (terminalOutput != null) {
-          for (var later = toolIndex + 1; later < res.toolCalls.length; later++) {
-            batch.skippedAfterCompletion(res.toolCalls[later].id, toolIndex + 1);
+          for (
+            var later = toolIndex + 1;
+            later < res.toolCalls.length;
+            later++
+          ) {
+            batch.skippedAfterCompletion(
+              res.toolCalls[later].id,
+              toolIndex + 1,
+            );
             orderedResults.add(results[res.toolCalls[later].id]!);
           }
           break;
@@ -1993,8 +1834,14 @@ class CoachAgent {
       if (terminalQuestion != null) {
         submissions++;
         final question = terminalQuestion;
-        calls.add(_Call.ok(step, res,
-          rejected == 0 ? CallOutcome.passed : CallOutcome.rewritten, retry: tag));
+        calls.add(
+          _Call.ok(
+            step,
+            res,
+            rejected == 0 ? CallOutcome.passed : CallOutcome.rewritten,
+            retry: tag,
+          ),
+        );
         return done(
           TurnStatus.ok,
           rejected == 0 ? TurnOutcome.model : TurnOutcome.rewritten,
@@ -2003,11 +1850,14 @@ class CoachAgent {
           question: question,
           commit: () => _commitAsk(
             question: question,
-            questionsAsked: questionsAsked,
-            parameterTask: parameterTask,
+            questionsAsked: _questionsAsked,
             userMessage: userMsg,
             turnMessages: turnMsgs,
-            assistantMessage: assistant(response, content: question.question, history: true),
+            assistantMessage: assistant(
+              response,
+              content: question.question,
+              history: true,
+            ),
             calls: response.toolCalls,
             results: orderedResults,
             memoryResultIds: memResultIds,
@@ -2019,10 +1869,18 @@ class CoachAgent {
       if (terminalOutput == null) {
         if (terminalRejected) {
           submissions++;
-          final detail = jsonDecode(orderedResults[batch.firstFailure! - 1]) as Map;
+          final detail =
+              jsonDecode(orderedResults[batch.firstFailure! - 1]) as Map;
           lastErrors = [PlanIssue('${detail['code']}', '${detail['fix']}')];
-          calls.add(_Call.ok(step, res, retry: tag,
-              CallOutcome.rejected, codes: [for (final issue in lastErrors) issue.code]));
+          calls.add(
+            _Call.ok(
+              step,
+              res,
+              retry: tag,
+              CallOutcome.rejected,
+              codes: [for (final issue in lastErrors) issue.code],
+            ),
+          );
           if (++rejected > maxResubmits) {
             break;
           }
@@ -2035,7 +1893,8 @@ class CoachAgent {
           final m = LlmMessage.tool(t.id, orderedResults[i]);
           turnMsgs.add(m);
           final c = res.toolCalls.indexWhere((call) => call.id == t.id) == i
-              ? pendingCompress[t.id] : null;
+              ? pendingCompress[t.id]
+              : null;
           if (c != null) compressible[m] = c;
         }
         // 防空转：连续相同的工具调用（同名同参数）或连续无新信息。
@@ -2103,8 +1962,12 @@ class CoachAgent {
             dead: dead,
             updateAdmittedTask: (task) => admittedTask = task,
             userMessage: userMsg,
-            visibleAssistant: () => assistant(response, content: g.text,
-                toolCalls: const [], history: true),
+            visibleAssistant: () => assistant(
+              response,
+              content: g.text,
+              toolCalls: const [],
+              history: true,
+            ),
           ),
         );
       }
@@ -2125,7 +1988,8 @@ class CoachAgent {
         final m = LlmMessage.tool(t.id, orderedResults[i]);
         turnMsgs.add(m);
         final c = res.toolCalls.indexWhere((call) => call.id == t.id) == i
-            ? pendingCompress[t.id] : null;
+            ? pendingCompress[t.id]
+            : null;
         if (c != null) compressible[m] = c;
       }
     }
@@ -2143,7 +2007,9 @@ class CoachAgent {
     }
     // A failed planning task must not silently invoke a preset. The host may
     // present an explicit, separately validated preset action instead.
-    if (parameterTask || redFlag || _sessionState.task != null || attemptedOutput) {
+    final task = _sessionState.task;
+    final unfinishedTask = task != null && task.nodes.last.status != 'done';
+    if (unfinishedTask || attemptedPlanning || attemptedOutput) {
       return done(TurnStatus.error, TurnOutcome.error, step);
     }
     final fbFn = fallback;
@@ -2161,9 +2027,8 @@ class CoachAgent {
       if (dead()) {
         return await cancelled(step);
       }
-      final plan = r.plan == null ? null : gate.admitTemplate(r.plan!, context);
-      if (r.plan != null && plan == null) {
-        error = StateError('Fallback plan did not pass admission');
+      if (r.plan != null) {
+        error = StateError('Fallback plans require explicit host selection');
         return await done(TurnStatus.error, TurnOutcome.error, step);
       }
       return await done(
@@ -2171,12 +2036,7 @@ class CoachAgent {
         TurnOutcome.fallback,
         step,
         text: r.text,
-        plan: plan,
         commit: () {
-          if (plan != null) {
-            _questionsAsked = 0;
-            _parameterTask = false;
-          }
           _turns++;
           _history
             ..add(userMsg)
@@ -2219,23 +2079,38 @@ class CoachAgent {
     return null;
   }
 
-  /// show_* 被打回时回给模型的结果（改法换成 Agent 口径：id 来自读到的文件）。
-  static String _feedback(List<PlanIssue> errors, {required int remaining}) =>
-      jsonEncode({
-        'ok': false,
-        'remainingAttempts': remaining,
-        'errors': [for (final e in errors) _issueJson(e)],
-        'instruction': '逐条改完后重新提交（可先 check_plan）；不要向用户解释这些错误。',
-      });
+  /// All model feedback has the same actionable error fields.
+  static String _feedback(List<PlanIssue> errors, {required int remaining}) {
+    final first = errors.firstOrNull;
+    final detail = first == null
+        ? nodeError(
+            'invalid_output',
+            'output',
+            '有效正文或当前任务的输出工具',
+            '无可交付内容',
+            '提交非空正文；计划通过 show_plan 交付。',
+          )
+        : _issueJson(first);
+    return jsonEncode({
+      'ok': false,
+      'code': detail['code'],
+      'field': detail['field'] ?? detail['path'] ?? 'output',
+      'expected': detail['expected'],
+      'actual': detail['actual'],
+      'fix': detail['fix'],
+      'remainingAttempts': remaining,
+      'errors': [for (final e in errors) _issueJson(e)],
+    });
+  }
 
   static Map<String, Object?> _issueJson(PlanIssue e) {
     final j = ToolGate.issueJson(e);
     final fix = switch (e.code) {
       IssueCodes.unknownExercise ||
-      IssueCodes.outOfProfile => '换成你在 action-library 索引里读到的 id，逐字拷贝',
+      IssueCodes.outOfProfile => '先用 search_actions 搜索，并选择返回的合规动作 id。',
       IssueCodes.modeMismatch =>
-        '按 details 里的默认剂量：mode=reps 填 reps；mode=time 填 workSeconds',
-      IssueCodes.avoid => '换成 details 里注意部位不含该部位的动作，或删掉这一项',
+        '参考 search_actions 的剂量模式，用 reps 或 seconds 重新提交 draft_plan。',
+      IssueCodes.avoid => '搜索并选择符合当前伤痛限制的动作，替换冲突动作。',
       IssueCodes.unknownTool => '只用已提供的工具',
       IssueCodes.multipleTools => '一次回复只调用一个 show_* 工具',
       _ => null,

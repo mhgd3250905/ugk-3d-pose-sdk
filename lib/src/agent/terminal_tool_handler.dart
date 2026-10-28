@@ -69,22 +69,7 @@ class TerminalToolHandler {
     String tool,
     String raw, {
     required String language,
-    required bool redFlag,
   }) {
-    if (redFlag) {
-      return TerminalToolResult(
-        jsonEncode(
-          nodeError(
-            'safety_no_actions',
-            'tool',
-            '安全风险已排除',
-            tool,
-            '先处理安全风险，再考虑训练。',
-          ),
-        ),
-        rejected: true,
-      );
-    }
     Object? args;
     try {
       args = jsonDecode(raw);

@@ -46,10 +46,10 @@ void main() {
             'check(actions, picks) + draft_plan + check(planning) + check_plan + check(review) + show_plan',
           ),
         );
-        expect(system, contains('计划 ID 使用 start_task 返回的 plan_id'));
-        expect(system, contains('ask_user 必须是同一次回复里的最后一个调用'));
-        expect(system, contains('任一调用失败后，同批其后的调用会跳过'));
-        expect(system, contains('show_* 成功后立即结束本轮'));
+        expect(system, contains('使用 start_task 返回的 plan_id'));
+        expect(system, contains('ask_user 排最后'));
+        expect(system, contains('失败后其余跳过'));
+        expect(system, contains('show_* 成功即结束'));
         expect(system, isNot(contains('check_plan 仅当前工具列表提供时可用')));
         expect(system, isNot(contains('信息足够或已结束询问后直接 show_plan')));
       }

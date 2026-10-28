@@ -11,7 +11,6 @@ import '../tools/ask_user.dart';
 import '../tools/coach_session.dart';
 import '../tools/tool_gate.dart';
 import 'coach_agent.dart';
-import 'training_confirmation.dart';
 
 /// A presentation/history snapshot. Only live controller results are answerable.
 ///
@@ -629,23 +628,9 @@ class CoachConversationController {
       final stored = card.planState?.planId == plan.plan.id
           ? card.planState
           : null;
-      String? focus;
-      String? goal;
-      // Only inspect the messages associated with this plan, never a previous
-      // card's request. This avoids attaching stale focus to a new plan.
-      for (var i = planIndex - 1; i >= 0; i--) {
-        final message = messages[i];
-        if (message.plan != null) break;
-        if (message.isUser) {
-          focus ??= trainingFocus(message.text);
-          goal ??= trainingGoal(message.text);
-        }
-      }
       agent.restorePlan(
         plan,
         planState: explicit ?? stored,
-        focusHint: focus,
-        goalHint: goal,
         restoredUserTurns: [
           for (final message in messages.take(planIndex))
             if (message.isUser) message.text,
@@ -653,7 +638,8 @@ class CoachConversationController {
         restoredMessages: [
           for (final message in messages.take(planIndex + 1))
             if (message.text.trim().isNotEmpty)
-              message.isUser ? LlmMessage.user(message.text)
+              message.isUser
+                  ? LlmMessage.user(message.text)
                   : LlmMessage.assistant(message.text, reasoning: ''),
         ],
       );

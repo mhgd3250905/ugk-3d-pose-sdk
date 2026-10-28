@@ -5,38 +5,39 @@ import 'package:test/test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 import 'support.dart';
 
-LlmResponse modelQuestion([String question = '准备在哪里、用什么器材、练多久？']) => LlmResponse(
-  content: '',
-  finishReason: 'tool_calls',
-  toolCalls: [
-    LlmToolCall(
-      id: 'question',
-      name: AgentTools.askUser,
-      arguments: jsonEncode({
-        'question': question,
-        'mode': 'form',
-        'fields': [
-          {
-            'key': 'scene',
-            'label': '场景',
-            'options': ['家里', '办公室'],
-          },
-          {
-            'key': 'equipment',
-            'label': '器械',
-            'options': ['徒手', '瑜伽垫'],
-            'multiple': true,
-          },
-          {
-            'key': 'minutes',
-            'label': '时长',
-            'options': ['5 分钟', '10 分钟'],
-          },
-        ],
-      }),
-    ),
-  ],
-);
+LlmResponse modelQuestion([String question = '准备在哪里、用什么器材、练多久？']) =>
+    LlmResponse(
+      content: '',
+      finishReason: 'tool_calls',
+      toolCalls: [
+        LlmToolCall(
+          id: 'question',
+          name: AgentTools.askUser,
+          arguments: jsonEncode({
+            'question': question,
+            'mode': 'form',
+            'fields': [
+              {
+                'key': 'scene',
+                'label': '场景',
+                'options': ['家里', '办公室'],
+              },
+              {
+                'key': 'equipment',
+                'label': '器械',
+                'options': ['徒手', '瑜伽垫'],
+                'multiple': true,
+              },
+              {
+                'key': 'minutes',
+                'label': '时长',
+                'options': ['5 分钟', '10 分钟'],
+              },
+            ],
+          }),
+        ),
+      ],
+    );
 
 void main() {
   test('a casual turn preserves the pending question card', () async {
@@ -166,10 +167,27 @@ void main() {
   test('confirmed card collapses before the model finishes', () async {
     final catalog = loadCatalog();
     final response = Completer<Object>();
+    final questionResponse = modelQuestion();
+    final planningQuestion = LlmResponse(
+      content: '',
+      toolCalls: [
+        LlmToolCall(
+          id: 'start-plan',
+          name: AgentTools.startTask,
+          arguments: jsonEncode({'type': 'plan'}),
+        ),
+        LlmToolCall(
+          id: 'understand-plan',
+          name: AgentTools.check,
+          arguments: jsonEncode({'node': 'understand'}),
+        ),
+        ...questionResponse.toolCalls,
+      ],
+    );
     final controller = CoachConversationController(
       agent: CoachAgent(
         client: FakeLlmClient([
-          modelQuestion(),
+          planningQuestion,
           (LlmRequest _) => response.future,
         ]),
         catalog: () => catalog,
@@ -212,35 +230,46 @@ void main() {
     );
   });
 
-  test('cancelling a submitted form cannot revive it from a late result', () async {
-    final response = Completer<Object>();
-    final controller = CoachConversationController(
-      agent: CoachAgent(
-        client: FakeLlmClient([modelQuestion(), (LlmRequest _) => response.future]),
-        catalog: loadCatalog,
-        profile: loadProfile('smartfit'),
-        enableUserMemory: false,
-        maxRequestRetries: 0,
-      ),
-    );
-    addTearDown(controller.dispose);
-    await controller.send('想拉伸');
-    final question = controller.state.pendingQuestion!;
-    final pending = controller.answerForm(question.id, {
-      'scene': ['家里'],
-      'equipment': ['徒手'],
-      'minutes': ['10 分钟'],
-    });
-    expect(controller.state.isWaiting, isTrue);
-    expect(controller.state.messages.firstWhere((m) => m.id == question.id).questionAnswered, isTrue);
-    controller.cancel();
-    response.complete('迟到的回复');
-    await pending;
-    expect(controller.state.pendingQuestion, isNull);
-    expect(controller.agent.pendingConfirmation, isNull);
-    expect(controller.canAnswer(question.id), isFalse);
-    expect(controller.state.messages.any((m) => m.text == '迟到的回复'), isFalse);
-  });
+  test(
+    'cancelling a submitted form cannot revive it from a late result',
+    () async {
+      final response = Completer<Object>();
+      final controller = CoachConversationController(
+        agent: CoachAgent(
+          client: FakeLlmClient([
+            modelQuestion(),
+            (LlmRequest _) => response.future,
+          ]),
+          catalog: loadCatalog,
+          profile: loadProfile('smartfit'),
+          enableUserMemory: false,
+          maxRequestRetries: 0,
+        ),
+      );
+      addTearDown(controller.dispose);
+      await controller.send('想拉伸');
+      final question = controller.state.pendingQuestion!;
+      final pending = controller.answerForm(question.id, {
+        'scene': ['家里'],
+        'equipment': ['徒手'],
+        'minutes': ['10 分钟'],
+      });
+      expect(controller.state.isWaiting, isTrue);
+      expect(
+        controller.state.messages
+            .firstWhere((m) => m.id == question.id)
+            .questionAnswered,
+        isTrue,
+      );
+      controller.cancel();
+      response.complete('迟到的回复');
+      await pending;
+      expect(controller.state.pendingQuestion, isNull);
+      expect(controller.agent.pendingConfirmation, isNull);
+      expect(controller.canAnswer(question.id), isFalse);
+      expect(controller.state.messages.any((m) => m.text == '迟到的回复'), isFalse);
+    },
+  );
 
   test('submitting a form preserves the next model question', () async {
     final controller = CoachConversationController(

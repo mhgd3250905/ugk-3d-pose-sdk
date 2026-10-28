@@ -557,6 +557,16 @@ void main() {
         var fallbackCalls = 0;
         final controller = chat(
           FakeLlmClient([
+            LlmResponse(
+              content: '',
+              toolCalls: [
+                LlmToolCall(
+                  id: 'begin',
+                  name: 'start_task',
+                  arguments: '{"type":"plan"}',
+                ),
+              ],
+            ),
             const LlmException(
               LlmErrorKind.network,
               'internal-secret-unsafe-detail',

@@ -87,13 +87,13 @@ void main() {
     'action-library/index/scene',
   ]) {
     test(
-      'ls cannot expose unfiltered action data after task start: $directory',
+      'removed ls is rejected without exposing action data: $directory',
       () async {
-        final response = await probe(AgentTools.ls, {'dir': directory});
+        final response = await probe('ls', {'dir': directory});
         expect(response.agent.files(catalog).ls(directory), isNotNull);
         final message = jsonDecode(response.result) as Map<String, dynamic>;
         expect(message['ok'], isFalse);
-        expect(message['code'], 'use_action_search');
+        expect(message['code'], 'unknown_tool');
         expect(response.result, isNot(contains('s-figure4')));
         expect(response.agent.sessionState.seenActionIds, isEmpty);
       },

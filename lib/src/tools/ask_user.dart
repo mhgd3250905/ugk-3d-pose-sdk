@@ -149,7 +149,7 @@ abstract final class AskUserGate {
           path: path,
           expected: expected,
           actual: actual,
-          fix: '一次补齐缺失条件，按 expected 重交完整 ask_user 参数。',
+          fix: '将 ask_user.$path 设置为 $expected，重新调用 ask_user。',
         ),
       );
     }

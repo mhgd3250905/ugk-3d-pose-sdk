@@ -402,6 +402,20 @@ void main() {
       final flow = ScriptedV2PlanFlow(catalog);
       final client = FakeLlmClient([
         ...flow.initial(),
+        LlmResponse(
+          content: '',
+          toolCalls: [
+            LlmToolCall(
+              id: 'save-seven',
+              name: AgentTools.setParams,
+              arguments: jsonEncode({
+                'fields': {
+                  'minutes': {'value': 7, 'source': 'user', 'quote': '7 分钟'},
+                },
+              }),
+            ),
+          ],
+        ),
         const LlmException(LlmErrorKind.network, 'offline'),
         ...flow.changeMinutes(7, '7 分钟'),
       ]);
@@ -410,8 +424,18 @@ void main() {
       final failed = await c.send(turn('shorten_to_7', 1));
       expect(failed!.status, TurnStatus.error);
       expect(failed.isPlanningFailure, isTrue);
-      expect(c.agent.lastConfirmedForm?['minutes'], ['10 分钟']);
+      expect(c.agent.lastConfirmedForm?['minutes'], ['7 分钟']);
+      expect(c.agent.sessionState.params['minutes']!.value, 7);
+      expect(c.agent.sessionState.params['minutes']!.source, 'user');
+      expect(c.agent.sessionState.params['minutes']!.quote, '7 分钟');
+      final firstRetryRequest = client.requests.length;
       final retried = await c.send('重试');
+      final recorded = client.requests[firstRetryRequest].messages.singleWhere(
+        (m) => m.content.startsWith('当前状态：'),
+      );
+      final ledger =
+          jsonDecode(recorded.content.substring('当前状态：'.length)) as Map;
+      expect(((ledger['params'] as Map)['minutes'] as Map)['value'], 7);
       expect(retried!.question, isNull);
       expect(
         retried.plan,

@@ -1,5 +1,7 @@
 import 'package:test/test.dart';
-import 'package:ugk_coach/src/agent/training_parameters.dart';
+import 'package:ugk_coach/src/agent/action_tags.dart';
+import 'package:ugk_coach/src/agent/plan_checker.dart';
+import 'package:ugk_coach/src/agent/session_params.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
@@ -7,46 +9,97 @@ import 'support.dart';
 void main() {
   final catalog = loadCatalog();
   final profile = loadProfile('hiplab');
-  final parameters = TrainingParameters.infer(
-    const [],
-    const CoachContext(),
+  CoachSessionState stateFor(CoachContext context, {CoachProfile? using}) {
+    final params = SessionParams(ActionTags(using ?? profile, catalog));
+    final host = params.applyHost(CoachSessionState(), context);
+    expect(host.ok, isTrue, reason: '${host.error}');
+    final goal = params.set(host.state, {
+      'fields': {
+        'goal': {
+          'value': ['purpose.stretch'],
+          'source': 'default',
+        },
+      },
+    });
+    expect(goal.ok, isTrue, reason: '${goal.error}');
+    return goal.state;
+  }
+
+  PlanCheckResult review(
+    TrainingPlan plan,
+    CoachContext context, {
+    CoachProfile? using,
+  }) => PlanChecker(
+    using ?? profile,
     catalog,
-    profile,
-  );
-  final gate = ToolGate(
-    catalog: catalog,
-    profile: profile,
-    extraRules: [parameters.validate],
-  );
+    minPicks: 3,
+  ).validateTemplate(stateFor(context, using: using), plan);
+
   const confirmed = CoachContext(
     scene: 'home',
     equipment: {'mat', 'chair'},
     minutes: 10,
   );
 
-  test('equipment edits preserve, replace or remove the previous gear', () {
-    const previous = CoachContext(
-      scene: 'home',
-      equipment: {'mat'},
-      minutes: 10,
-    );
-    CoachContext infer(String message, [CoachContext context = previous]) =>
-        TrainingParameters.infer([message], context, catalog, profile).context;
+  test(
+    'structured equipment edits preserve, replace or remove previous gear',
+    () {
+      final params = SessionParams(ActionTags(profile, catalog));
+      const previous = CoachContext(
+        scene: 'home',
+        equipment: {'mat'},
+        minutes: 10,
+      );
+      CoachSessionState edit(
+        String message,
+        List<String> equipment, [
+        CoachContext context = previous,
+      ]) {
+        final state = params.applyHost(CoachSessionState(), context).state;
+        final updated = params.set(state.appendUserTurn(message), {
+          'fields': {
+            'equipment': {
+              'value': equipment,
+              'source': 'user',
+              'quote': message,
+            },
+          },
+        });
+        expect(updated.ok, isTrue, reason: '${updated.error}');
+        expect(updated.state.params['equipment']!.source, 'user');
+        expect(updated.state.params['equipment']!.quote, message);
+        return updated.state;
+      }
 
-    for (final message in ['增加椅子', '再加椅子', '把这套计划加上椅子']) {
-      final updated = infer(message);
-      expect(updated.equipment, {'mat', 'chair'}, reason: message);
-      expect(updated.scene, 'home');
-      expect(updated.minutes, 10);
-    }
-    for (final message in ['改成椅子', '只用椅子']) {
-      expect(infer(message).equipment, {'chair'}, reason: message);
-    }
-    expect(infer('不用椅子', confirmed).equipment, {'mat'});
-    expect(infer('没有瑜伽垫', confirmed).equipment, {'chair'});
-    expect(infer('瑜伽垫不用了，再加椅子').equipment, {'chair'});
-    expect(infer('不用椅子', const CoachContext()).equipment, isNull);
-  });
+      for (final message in ['增加椅子', '再加椅子', '把这套计划加上椅子']) {
+        final updated = edit(message, ['equip.mat', 'equip.chair']);
+        expect(updated.params['equipment']!.value, [
+          'equip.mat',
+          'equip.chair',
+        ]);
+        expect(updated.params['scene']!.value, 'home');
+        expect(updated.params['minutes']!.value, 10);
+      }
+      for (final message in ['改成椅子', '只用椅子']) {
+        expect(edit(message, ['equip.chair']).params['equipment']!.value, [
+          'equip.chair',
+        ], reason: message);
+      }
+      expect(
+        edit('不用椅子', ['equip.mat'], confirmed).params['equipment']!.value,
+        ['equip.mat'],
+      );
+      expect(
+        edit('没有瑜伽垫', ['equip.chair'], confirmed).params['equipment']!.value,
+        ['equip.chair'],
+      );
+      expect(edit('瑜伽垫不用了，再加椅子', ['equip.chair']).params['equipment']!.value, [
+        'equip.chair',
+      ]);
+      final unknown = CoachSessionState().appendUserTurn('不用椅子');
+      expect(unknown.params.containsKey('equipment'), isFalse);
+    },
+  );
 
   TrainingPlan makePlan({int minutes = 10, List<String>? equipment}) {
     final json = planOf(okEnvelope())
@@ -55,62 +108,81 @@ void main() {
     return const PlanCodec().decode(json);
   }
 
-  test('fallback template target must match the confirmed minutes', () {
-    expect(gate.admitTemplate(makePlan(), confirmed), isNotNull);
-    final mismatch = makePlan(minutes: 15);
-    final issues = parameters.validate(mismatch, catalog, confirmed).toList();
-    expect(
-      issues,
-      contains(
-        isA<PlanIssue>()
-            .having((issue) => issue.code, 'code', IssueCodes.contextConflict)
-            .having((issue) => issue.path, 'path', 'targetMinutes'),
-      ),
+  test(
+    'template target must match confirmed minutes without relabelling dose',
+    () {
+      final baseline = review(makePlan(), confirmed);
+      expect(baseline.ok, isTrue, reason: '${baseline.errors}');
+      final mismatch = makePlan(minutes: 15);
+      final checked = review(mismatch, confirmed);
+      expect(checked.ok, isFalse);
+      final conditions = checked.rules['card_conditions'] as Map;
+      expect(conditions['ok'], isFalse);
+      expect((conditions['expected'] as Map)['targetMinutes'], 10);
+      expect((conditions['actual'] as Map)['targetMinutes'], 15);
+      // Only the target label changed; actual dose and estimated duration did not.
+      expect(
+        const PlanDuration().estimateSeconds(mismatch, catalog),
+        const PlanDuration().estimateSeconds(makePlan(), catalog),
+      );
+      expect(
+        checked.errors.map((e) => e['code']),
+        contains('plan_card_conditions'),
+      );
+    },
+  );
+
+  test('plan gear may be a subset but unconfirmed gear is rejected', () {
+    final subset = review(makePlan(equipment: ['mat']), confirmed);
+    expect(subset.ok, isTrue, reason: '${subset.errors}');
+    final declaration = review(
+      makePlan(equipment: ['mat', 'dumbbell']),
+      confirmed,
     );
-    // The exercise dose remains the same, and thus its estimated duration
-    // still matches the user's 10-minute selection. Only the label differs.
-    expect(gate.admitTemplate(mismatch, confirmed), isNull);
+    expect(declaration.ok, isFalse);
+    expect((declaration.rules['card_conditions'] as Map)['ok'], isFalse);
+    final missing = review(
+      makePlan(),
+      const CoachContext(scene: 'home', equipment: {'chair'}, minutes: 10),
+    );
+    expect(missing.ok, isFalse);
+    expect(
+      (missing.rules['equipment'] as Map)['actual'],
+      contains('equip.mat'),
+    );
   });
 
-  test('plan gear may be a subset, but cannot declare unconfirmed gear', () {
-    // The user owns a mat and a chair; a plan that only needs the mat is OK.
-    expect(
-      gate.admitTemplate(makePlan(equipment: ['mat']), confirmed),
-      isNotNull,
-    );
-    final mismatch = makePlan(equipment: ['mat', 'dumbbell']);
-    final issues = parameters.validate(mismatch, catalog, confirmed).toList();
-    expect(
-      issues,
-      contains(
-        isA<PlanIssue>()
-            .having((issue) => issue.code, 'code', IssueCodes.equipment)
-            .having((issue) => issue.path, 'path', 'equipment')
-            .having((issue) => issue.actual, 'actual', 'dumbbell'),
-      ),
-    );
-    expect(gate.admitTemplate(mismatch, confirmed), isNull);
-  });
+  test(
+    'unknown parameters stay unknown and cannot silently authorize a plan',
+    () {
+      final state = CoachSessionState().appendUserTurn('随便看看');
+      final before = state.toJson();
+      final checked = PlanChecker(profile, catalog, minPicks: 3)
+          .validateTemplate(
+            state,
+            makePlan(minutes: 15, equipment: ['mat', 'dumbbell']),
+          );
+      expect(checked.error!['code'], 'missing_parameters');
+      expect(checked.state.params, isEmpty);
+      expect(state.toJson(), before);
+    },
+  );
 
-  test('unknown constraints do not invent restrictions', () {
-    const unknown = CoachContext();
-    final candidate = makePlan(minutes: 15, equipment: ['mat', 'dumbbell']);
-    expect(parameters.validate(candidate, catalog, unknown), isEmpty);
-  });
-
-  test('equipment metadata matches actual catalog needs', () {
-    final missing = parameters
-        .validate(makePlan(equipment: []), catalog, confirmed)
-        .where((issue) => issue.path == 'equipment')
-        .toList();
-    expect(missing, isNotEmpty);
-    expect(missing.single.expected, 'mat');
-    final extra = parameters
-        .validate(makePlan(equipment: ['mat', 'chair']), catalog, confirmed)
-        .where((issue) => issue.path == 'equipment')
-        .toList();
-    expect(extra, isNotEmpty);
-    expect(extra.single.expected, 'mat');
+  test('equipment metadata exactly matches actual catalog needs', () {
+    for (final declared in [
+      <String>[],
+      ['mat', 'chair'],
+    ]) {
+      final checked = review(makePlan(equipment: declared), confirmed);
+      final conditions = checked.rules['card_conditions'] as Map;
+      expect(conditions['ok'], isFalse);
+      expect((conditions['expected'] as Map)['equipment'], ['mat']);
+      expect((conditions['actual'] as Map)['equipment'], [...declared]..sort());
+      expect(
+        checked.errors.map((e) => e['code']),
+        contains('plan_card_conditions'),
+      );
+    }
   });
 
   test('segments rather than the parent represent performed equipment', () {
@@ -153,26 +225,13 @@ void main() {
       ],
     );
     expect(
-      parameters
-          .validate(candidate, catalog, confirmed)
-          .where((issue) => issue.path == 'equipment'),
-      isEmpty,
+      (review(candidate, confirmed).rules['card_conditions'] as Map)['ok'],
+      isTrue,
     );
   });
 
   test('office chair and wall are both reflected in the actual equipment', () {
     final smartfit = loadProfile('smartfit');
-    final officeParameters = TrainingParameters.infer(
-      const [],
-      const CoachContext(),
-      catalog,
-      smartfit,
-    );
-    final officeGate = ToolGate(
-      catalog: catalog,
-      profile: smartfit,
-      extraRules: [officeParameters.validate],
-    );
     const office = CoachContext(
       scene: 'office',
       equipment: {'chair', 'wall'},
@@ -214,11 +273,20 @@ void main() {
         ),
       ],
     );
-    expect(
-      officeGate.admitTemplate(officePlan(['chair', 'wall']), office),
-      isNotNull,
+    final matching = review(
+      officePlan(['chair', 'wall']),
+      office,
+      using: smartfit,
     );
-    expect(officeGate.admitTemplate(officePlan(['chair']), office), isNull);
+    expect((matching.rules['equipment'] as Map)['ok'], isTrue);
+    expect((matching.rules['card_conditions'] as Map)['ok'], isTrue);
+    final missing = review(officePlan(['chair']), office, using: smartfit);
+    expect((missing.rules['card_conditions'] as Map)['ok'], isFalse);
+    expect(
+      ((missing.rules['card_conditions'] as Map)['expected']
+          as Map)['equipment'],
+      ['chair', 'wall'],
+    );
   });
 
   test(
@@ -254,21 +322,65 @@ void main() {
         ],
       );
       expect(
-        parameters
-            .validate(candidate, catalog, confirmed)
-            .where((issue) => issue.path == 'equipment'),
-        isEmpty,
+        (review(candidate, confirmed).rules['equipment'] as Map)['ok'],
+        isTrue,
+      );
+      expect(
+        (review(candidate, confirmed).rules['card_conditions'] as Map)['ok'],
+        isTrue,
       );
     },
   );
 
-  test('the requested default shortcut is recognized', () {
-    final p = TrainingParameters.infer(
-      ['按默认来'],
-      const CoachContext(),
-      catalog,
-      profile,
-    );
-    expect(p.skipped, isTrue);
-  });
+  test(
+    'the model records accepted defaults explicitly without parsing text',
+    () {
+      final params = SessionParams(ActionTags(profile, catalog));
+      final state = CoachSessionState().appendUserTurn('按默认来');
+      expect(state.params, isEmpty);
+      final defaults = params.set(state, {
+        'fields': {
+          'scene': {'value': profile.defaultScene, 'source': 'default'},
+          'equipment': {'value': <String>[], 'source': 'default'},
+          'minutes': {'value': 15, 'source': 'default'},
+        },
+      });
+      expect(defaults.ok, isTrue, reason: '${defaults.error}');
+      expect(defaults.state.params['equipment']!.value, isEmpty);
+      expect(defaults.state.params['minutes']!.value, 15);
+      for (final value in defaults.state.params.values) {
+        expect(value.source, 'default');
+      }
+    },
+  );
+
+  test(
+    'new structured scene minutes and equipment override old host values',
+    () {
+      final smartfit = loadProfile('smartfit');
+      final params = SessionParams(ActionTags(smartfit, catalog));
+      var state = stateFor(confirmed, using: smartfit);
+      state = state.appendUserTurn('改为办公室，徒手，5分钟');
+      final changed = params.set(state, {
+        'fields': {
+          'scene': {'value': 'office', 'source': 'user', 'quote': '办公室'},
+          'equipment': {'value': <String>[], 'source': 'user', 'quote': '徒手'},
+          'minutes': {'value': 5, 'source': 'user', 'quote': '5分钟'},
+        },
+      });
+      expect(changed.ok, isTrue, reason: '${changed.error}');
+      expect(changed.state.params['scene']!.value, 'office');
+      expect(changed.state.params['minutes']!.value, 5);
+      expect(changed.state.params['equipment']!.value, isEmpty);
+      final oldPlan = PlanChecker(
+        smartfit,
+        catalog,
+        minPicks: 3,
+      ).validateTemplate(changed.state, makePlan());
+      expect(oldPlan.ok, isFalse);
+      expect((oldPlan.rules['card_conditions'] as Map)['ok'], isFalse);
+      expect((oldPlan.rules['equipment'] as Map)['ok'], isFalse);
+      expect(oldPlan.errors.map((e) => e['code']), contains(IssueCodes.scene));
+    },
+  );
 }

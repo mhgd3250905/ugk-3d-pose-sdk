@@ -26,6 +26,7 @@ void main() {
             'name': 'json-data',
             'description': 'test data',
             'content': '{"ok":false}',
+            'files': {'second.md': 'second file contents'},
           },
         ];
         final client = FakeLlmClient([
@@ -33,7 +34,7 @@ void main() {
             _tool('read', AgentTools.read, {
               'path': missing ? 'missing/SKILL.md' : 'json-data/SKILL.md',
             }),
-            _tool('list', AgentTools.ls, {'dir': 'json-data'}),
+            _tool('second', AgentTools.read, {'path': 'json-data/second.md'}),
           ]),
           (LlmRequest request) {
             String result(String id) => request.messages
@@ -42,12 +43,12 @@ void main() {
             if (missing) {
               expect((jsonDecode(result('read')) as Map)['code'], 'not_found');
               expect(
-                (jsonDecode(result('list')) as Map)['code'],
+                (jsonDecode(result('second')) as Map)['code'],
                 'skipped_after_error',
               );
             } else {
               expect(result('read'), '{"ok":false}');
-              expect(result('list'), contains('SKILL.md'));
+              expect(result('second'), 'second file contents');
             }
             return LlmResponse(
               content: '好的。',

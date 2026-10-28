@@ -486,7 +486,12 @@ void main() {
     test('planning failure cannot silently admit a fallback plan', () async {
       var fallbackCalls = 0;
       final coach = agent(
-        FakeLlmClient([const LlmException(LlmErrorKind.auth, 'bad key')]),
+        FakeLlmClient([
+          _tools([
+            _call(AgentTools.startTask, {'type': 'plan'}),
+          ]),
+          const LlmException(LlmErrorKind.auth, 'bad key'),
+        ]),
         fallback: (_) {
           fallbackCalls++;
           return SessionFallbackReply(

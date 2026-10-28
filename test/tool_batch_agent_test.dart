@@ -186,7 +186,7 @@ void main() {
 
   for (final missing in [
     ('read', {'path': 'missing/SKILL.md'}, 'not_found'),
-    ('ls', {'dir': 'missing'}, 'not_found'),
+    ('ls', {'dir': 'missing'}, 'unknown_tool'),
     ('not_a_tool', <String, Object>{}, 'unknown_tool'),
   ]) {
     test('${missing.$1} failure stops subsequent calls', () async {

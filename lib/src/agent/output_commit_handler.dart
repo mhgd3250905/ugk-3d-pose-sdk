@@ -53,7 +53,6 @@ extension _OutputCommitHandler on CoachAgent {
       _lastConfirmedForm = trainingSelections(_confirmedPlanContext!, catalog);
     }
     _questionsAsked = 0;
-    _parameterTask = false;
     _turns++;
     _history
       ..add(userMessage)

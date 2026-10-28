@@ -1,5 +1,5 @@
 /// Agent 版第 1 层：系统提示词（身份、防破甲、回答风格、skill 列表、工具说明、App 侧重、记忆摘要）与工具定义。
-/// 内联按 App 白名单过滤的紧凑索引和技能快路径；长动作详情按需读取。
+/// 首轮只含技能索引；动作目录和技能正文在任务开始后按需披露。
 library;
 
 import 'dart:convert';
@@ -21,7 +21,7 @@ import 'skill_files.dart';
 import 'user_memory.dart';
 
 /// Agent 内核修订号。改 `prompts/agent_kernel.md` 或 `skills/` 语义时手动加一。
-const agentKernelRevision = 4;
+const agentKernelRevision = 5;
 
 abstract final class AgentTools {
   static const read = 'read';

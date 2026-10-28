@@ -4,7 +4,6 @@ extension _AskCommitHandler on CoachAgent {
   void _commitAsk({
     required AskUserQuestion question,
     required int questionsAsked,
-    required bool parameterTask,
     required LlmMessage userMessage,
     required List<LlmMessage> turnMessages,
     required LlmMessage assistantMessage,
@@ -15,7 +14,6 @@ extension _AskCommitHandler on CoachAgent {
   }) {
     _questionsAsked = questionsAsked + 1;
     _pendingConfirmation = question;
-    _parameterTask = parameterTask || question.mode == AskUserMode.form;
     _turns++;
     final pending = <LlmMessage>[
       ...turnMessages,

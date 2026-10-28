@@ -342,8 +342,10 @@ void main() {
       // silently replace the requested plan with an arbitrary fallback.
       var fallbackCalls = 0;
       final planClient = FakeLlmClient([
-        for (var i = 0; i < 3; i++)
-          _read('action-library/details/s-figure4.md'),
+        _tools([
+          _call('start_task', {'type': 'plan'}),
+        ]),
+        for (var i = 0; i < 2; i++) _read('action-library/SKILL.md'),
       ]);
       final planner = agent(
         planClient,
@@ -791,7 +793,7 @@ void main() {
           a.enableUserMemory = false;
           return _tools([
             _call('forget', {'kind': 'goal', 'text': sentinel}),
-            _call('ls', {'dir': ''}),
+            _call('read', {'path': ''}),
           ]);
         },
         (_) => _tools([
@@ -827,7 +829,7 @@ void main() {
       late CoachAgent a;
       final c = FakeLlmClient([
         _tools([
-          _call('ls', {'dir': ''}),
+          _call('read', {'path': ''}),
         ]),
         '好的。',
       ]);

@@ -4,7 +4,7 @@
 /// action-library/SKILL.md                 动作库说明、维度与取值、查法
 /// action-library/index/<维度>/<取值>.md    短表：id｜名称（中英）｜关键标签｜用途｜默认剂量
 /// action-library/details/<动作id>.md       单个动作详情
-/// action-library/compact.md               当前 App 的紧凑动作索引（同时内联进系统提示）
+/// action-library/compact.md               当前 App 的紧凑动作索引（问答按需读取）
 /// plan-training/SKILL.md                  排课原则与参数规则
 /// action-coaching/SKILL.md                讲动作、纠错
 /// user-memory/SKILL.md                    （仅记忆开关开时）
@@ -46,76 +46,6 @@ class SkillFiles {
 
   /// 与虚拟文件完全相同的紧凑索引；只有 profile.scope 内的动作。
   String get compactIndex => files[compactPath]!;
-
-  /// 明确的做法/要领问句才预载；匹配仅使用本 App 紧凑索引里的中文名称。
-  /// 精确名称优先，泛称最多命中三个动作；未知、id、过度歧义仍按需 read。
-  Map<String, String> preloadDetails(String userText) {
-    if (RegExp(
-      r'计划|方案|排课|安排|一套|展示|看看|看一下|有哪些|推荐|\b(?:plan|routine|workout|show)\b',
-      caseSensitive: false,
-    ).hasMatch(userText)) {
-      return const {};
-    }
-    final howTo = RegExp(
-      r'(?:怎么|如何)(?:正确)?(?:做|练|发力)|有什么要领|动作要点|正确姿势|做法|要领|注意事项|how\s+to\s+(?:do|perform)|how\s+(?:do|should)\s+i\s+(?:do|perform)',
-      caseSensitive: false,
-    ).firstMatch(userText);
-    if (howTo == null) return const {};
-    String normalized(String text) => text.toLowerCase().replaceAll(
-      RegExp(r'[\s，。！？、,!.?:：()（）「」『』“”]+'),
-      '',
-    );
-    String cleanTopic(String text) => normalized(
-      text
-          .trim()
-          .replaceFirst(
-            RegExp(
-              r'^(?:(?:请问|请|麻烦|我想知道|我想学|想问|问一下|告诉我|教我|讲讲|讲一下|介绍一下|关于)\s*)+',
-            ),
-            '',
-          )
-          .replaceFirst(
-            RegExp(r'(?:(?:这个动作|的|呢|吗|呀|啊|一下)\s*)+[？?。.!！\s]*$'),
-            '',
-          ),
-    );
-    var topic = cleanTopic(userText.substring(0, howTo.start));
-    if (topic.isEmpty) topic = cleanTopic(userText.substring(howTo.end));
-    if (topic.length < 2 || RegExp(r'^[a-z0-9_-]+$').hasMatch(topic)) {
-      return const {};
-    }
-    final candidates = <({String id, String name})>[
-      for (final line in compactIndex.split('\n').skip(3))
-        if (line.split('｜') case final fields when fields.length == 12)
-          (id: fields[0], name: normalized(fields[1])),
-    ];
-    final exact = candidates.where((entry) => entry.name == topic).toList();
-    final matches = exact.isNotEmpty
-        ? exact
-        : candidates.where((entry) => entry.name.contains(topic)).toList();
-    if (matches.isEmpty || matches.length > 3) return const {};
-    return Map.unmodifiable({
-      for (final entry in matches)
-        if (read('$actionLibrary/details/${entry.id}.md')
-            case final String detail)
-          '$actionLibrary/details/${entry.id}.md': detail,
-    });
-  }
-
-  /// 从已按 profile 渲染的同一份技能模板提取快路径，不复制另一套规则。
-  String get fastPaths => [
-    for (final name in const [actionLibrary, planTraining, actionCoaching])
-      _fastPath(files['$name/SKILL.md']!),
-  ].join('\n\n');
-
-  static String _fastPath(String text) {
-    const start = '<!-- fast-path:start -->';
-    const end = '<!-- fast-path:end -->';
-    final from = text.indexOf(start);
-    final to = text.indexOf(end, from + start.length);
-    if (from < 0 || to < 0) throw StateError('内置技能缺少 fast-path 标记');
-    return text.substring(from + start.length, to).trim();
-  }
 
   /// 规范化路径：去掉首尾 `/`、`./`。
   static String normalize(String path) {

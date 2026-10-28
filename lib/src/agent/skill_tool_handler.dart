@@ -91,7 +91,13 @@ class SkillToolHandler {
     if (children == null) {
       return SkillToolResult(
         jsonEncode(
-          nodeError('not_found', 'path', '现有技能文件或目录', path, '使用 ls 查找可读取的路径。'),
+          nodeError(
+            'not_found',
+            'path',
+            '现有技能文件或目录',
+            path,
+            '使用技能索引里的完整文件路径调用 read。',
+          ),
         ),
         failed: true,
       );

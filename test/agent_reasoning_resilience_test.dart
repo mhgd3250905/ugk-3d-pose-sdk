@@ -261,7 +261,7 @@ void main() {
             'kind': 'injury',
             'text': remembered,
           }),
-          _call('list_0', AgentTools.ls, {'dir': 'action-library'}),
+          _call('list_0', AgentTools.read, {'path': 'action-library'}),
         ],
       ),
       const LlmException(LlmErrorKind.network, 'network down'),
@@ -348,7 +348,7 @@ void main() {
             'kind': 'goal',
             'text': stored,
           }),
-          _call('safe_list', AgentTools.ls, {'dir': 'action-library'}),
+          _call('safe_list', AgentTools.read, {'path': 'action-library'}),
         ],
       ),
     );
@@ -370,7 +370,7 @@ void main() {
           .single
           .toolCalls
           .map((tool) => tool.name),
-      [AgentTools.ls],
+      [AgentTools.read],
     );
     _expectProtocol(afterClear);
     expect(store.saves, 1, reason: '清空前在途响应的 remember 不应发起任何保存。');

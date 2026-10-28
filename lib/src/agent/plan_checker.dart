@@ -64,7 +64,36 @@ class PlanChecker {
   final List<PlanRule> extraRules;
   final bool enforceDrillDoseRange;
 
-  PlanCheckResult check(CoachSessionState state, String planId) {
+  PlanCheckResult check(CoachSessionState state, String planId) =>
+      _check(state, planId, enforceNodeOrder: true);
+
+  /// Checks a host-selected template with the same data rules. This does not
+  /// complete, synthesize or reorder the model's task nodes.
+  PlanCheckResult validateTemplate(CoachSessionState state, TrainingPlan plan) {
+    final candidate = CoachPlanVersion(
+      version: 1,
+      plan: plan.toJson(),
+      estimateSec: const PlanDuration().estimateSeconds(plan, catalog),
+      fitLog: const [],
+    );
+    return _check(
+      state.copyWith(
+        activePlanId: plan.id,
+        plans: {
+          ...state.plans,
+          plan.id: [candidate],
+        },
+      ),
+      plan.id,
+      enforceNodeOrder: false,
+    );
+  }
+
+  PlanCheckResult _check(
+    CoachSessionState state,
+    String planId, {
+    required bool enforceNodeOrder,
+  }) {
     PlanCheckResult fail(
       String code,
       String field,
@@ -78,7 +107,8 @@ class PlanChecker {
     final current = state.task?.nodes
         .where((n) => n.status == 'current')
         .firstOrNull;
-    if (state.task?.type != 'plan' || current?.id != 'review') {
+    if (enforceNodeOrder &&
+        (state.task?.type != 'plan' || current?.id != 'review')) {
       return fail(
         'wrong_node',
         'node',
@@ -469,7 +499,7 @@ class PlanChecker {
       },
     );
     final changes = <CoachNodeState>[];
-    if (errors.isNotEmpty) {
+    if (errors.isNotEmpty && enforceNodeOrder) {
       final task = next.task!;
       final nodes = List<CoachNodeState>.of(task.nodes);
       final planning = nodes.indexWhere((node) => node.id == 'planning');

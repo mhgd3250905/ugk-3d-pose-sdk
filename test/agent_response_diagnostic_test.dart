@@ -11,14 +11,40 @@ void main() {
   test(
     'failed response diagnostics and billed usage reach Agent records',
     () async {
+      var attempts = 0;
       final client = OpenAiCompatibleClient(
         config: const LlmConfig(
           baseUrl: 'https://example.invalid/v1',
           model: 'test',
           maxRetries: 0,
         ),
-        httpClient: MockClient(
-          (_) async => http.Response(
+        httpClient: MockClient((_) async {
+          if (attempts++ == 0) {
+            return http.Response(
+              jsonEncode({
+                'choices': [
+                  {
+                    'message': {
+                      'content': '',
+                      'tool_calls': [
+                        {
+                          'id': 'begin',
+                          'type': 'function',
+                          'function': {
+                            'name': 'start_task',
+                            'arguments': '{"type":"plan"}',
+                          },
+                        },
+                      ],
+                    },
+                    'finish_reason': 'tool_calls',
+                  },
+                ],
+              }),
+              200,
+            );
+          }
+          return http.Response(
             jsonEncode({
               'choices': [
                 {
@@ -32,8 +58,8 @@ void main() {
               'usage': {'prompt_tokens': 17, 'completion_tokens': 3},
             }),
             200,
-          ),
-        ),
+          );
+        }),
       );
       addTearDown(client.close);
       final catalog = loadCatalog();
@@ -55,7 +81,7 @@ void main() {
       final result = await agent.send('在家徒手 15 分钟安排一组训练');
       expect(result.status, TurnStatus.error);
       expect(fallbackCalled, isFalse);
-      final record = result.records.single;
+      final record = result.records.last;
       expect(record.errorKind, 'badResponse');
       expect(record.finishReason, 'content_filter');
       expect(record.usage.totalTokens, 20);

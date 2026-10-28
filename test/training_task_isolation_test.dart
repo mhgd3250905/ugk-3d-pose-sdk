@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:test/test.dart';
-import 'package:ugk_coach/src/agent/training_confirmation.dart';
+import 'package:ugk_coach/src/agent/plan_checker.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
@@ -428,34 +428,60 @@ void main() {
     },
   );
 
+  PlanCheckResult inspectPreset(TrainingPlan plan, List<String> goals) =>
+      PlanChecker(
+        loadProfile('smartfit'),
+        catalog,
+        minPicks: 3,
+      ).validateTemplate(
+        CoachSessionState(
+          params: {
+            'scene': CoachParamValue(value: 'home', source: 'host', turn: 0),
+            'minutes': CoachParamValue(
+              value: plan.targetMinutes,
+              source: 'host',
+              turn: 0,
+            ),
+            'goal': CoachParamValue(value: goals, source: 'user', turn: 1),
+            'equipment': CoachParamValue(
+              value: ['equip.mat'],
+              source: 'host',
+              turn: 0,
+            ),
+          },
+        ),
+        plan,
+      );
+
   test('a mismatched preset does not match merely because one action does', () {
-    final plan = const EnvelopeParser()
-        .parse(jsonEncode(okEnvelope()))
-        .reply!
-        .plan!;
-    expect(presetMatchesFocus(plan, catalog, '大腿内侧'), isFalse);
+    final plan = const PlanCodec().decode(planOf(okEnvelope()));
+    final checked = inspectPreset(plan, ['body.inner_thigh']);
+    expect((checked.rules['focus_body'] as Map)['ok'], isFalse);
   });
 
-  test('common preset focuses use trusted catalog muscle groups', () {
+  test('coded preset focuses use trusted catalog muscle groups', () {
     for (final sample in [
-      ('肩颈', 'h-band-pull-apart'),
-      ('小腿', 'h-calf-raise'),
-      ('小腿', 'h-tib-raise'),
-      ('腰部', 'erectors-A'),
+      ('body.scapular', 'h-band-pull-apart'),
+      ('body.calves', 'h-calf-raise'),
+      ('body.tibialis', 'h-tib-raise'),
+      ('body.erectors', 'erectors-A'),
     ]) {
       final envelope = okEnvelope();
       itemOf(envelope, 0, 0)['exerciseId'] = sample.$2;
-      planOf(envelope)['blocks'] = [blocksOf(envelope).first];
-      final plan = const EnvelopeParser()
-          .parse(jsonEncode(envelope))
-          .reply!
-          .plan!;
+      final block = (blocksOf(envelope).first as Map).cast<String, Object?>()
+        ..['type'] = 'main';
+      planOf(envelope)['blocks'] = [block];
+      final plan = const PlanCodec().decode(planOf(envelope));
       expect(
-        presetMatchesFocus(plan, catalog, sample.$1),
+        (inspectPreset(plan, [sample.$1]).rules['focus_body'] as Map)['ok'],
         isTrue,
         reason: sample.$2,
       );
-      expect(presetMatchesFocus(plan, catalog, '未知重点'), isFalse);
+      expect(
+        (inspectPreset(plan, ['body.unknown']).rules['focus_body']
+            as Map)['ok'],
+        isFalse,
+      );
     }
   });
 
@@ -463,6 +489,38 @@ void main() {
     'failed planning preserves confirmation and offers only a matching preset',
     () async {
       final client = FakeLlmClient([
+        LlmResponse(
+          content: '',
+          toolCalls: [
+            LlmToolCall(
+              id: 'preset-start',
+              name: AgentTools.startTask,
+              arguments: jsonEncode({'type': 'plan'}),
+            ),
+            LlmToolCall(
+              id: 'preset-understand',
+              name: AgentTools.check,
+              arguments: jsonEncode({'node': 'understand'}),
+            ),
+            LlmToolCall(
+              id: 'preset-params',
+              name: AgentTools.setParams,
+              arguments: jsonEncode({
+                'fields': {
+                  'scene': _user('home', '在家'),
+                  'equipment': _user(['equip.mat'], '瑜伽垫'),
+                  'minutes': _user(5, '5分钟'),
+                  'goal': _user(['body.inner_thigh'], '大腿内侧'),
+                },
+              }),
+            ),
+            LlmToolCall(
+              id: 'preset-parameters',
+              name: AgentTools.check,
+              arguments: jsonEncode({'node': 'parameters'}),
+            ),
+          ],
+        ),
         const LlmException(LlmErrorKind.network, 'offline'),
       ]);
       final a = agent(client);
@@ -862,10 +920,23 @@ void main() {
     },
   );
 
-  test('red flags are not suppressed and explicit denial is not a flag', () {
-    expect(hasTrainingRedFlag('肩颈刺痛、手麻木'), isTrue);
-    expect(hasTrainingRedFlag('没有刺痛、没有麻木'), isFalse);
-  });
+  test(
+    'symptoms and explicit denial reach the model without local parsing',
+    () async {
+      for (final message in ['肩颈刺痛、手麻木', '没有刺痛、没有麻木']) {
+        final client = FakeLlmClient([
+          (LlmRequest request) {
+            expect(request.messages.last.content, contains(message));
+            expect(request.messages.first.content, contains('不诊断'));
+            return '有危险症状应停止训练并就医。';
+          },
+        ]);
+        final a = agent(client);
+        expect((await a.send(message)).status, TurnStatus.ok);
+        expect(a.sessionState.task, isNull);
+      }
+    },
+  );
 
   test('red flags never open a plan confirmation', () async {
     final a = agent(FakeLlmClient(['建议就医检查。']));
@@ -875,23 +946,36 @@ void main() {
     expect(result.text, contains('就医'));
   });
 
-  test('red flags reject action cards while allowing safety advice', () async {
-    final a = agent(
-      FakeLlmClient([
-        _tool(AgentTools.showActions, {
-          'items': [
-            {'actionId': 's-figure4'},
-          ],
-        }),
-        '建议先咨询医生。',
-      ]),
-    );
-    final result = await a.send('腿麻，推荐动作');
-    expect(result.actions, isNull);
-    expect(result.question, isNull);
-    expect(result.text, contains('医生'));
-    expect(result.records.first.issueCodes, contains('safety_no_actions'));
-  });
+  test(
+    'recorded safety limits reject unsafe actions while allowing advice',
+    () async {
+      var rejected = false;
+      final a = agent(
+        FakeLlmClient([
+          _set({
+            'goal': _user(['body.inner_thigh'], '大腿内侧'),
+            'limits': _user(['limit.knee'], '膝盖疼'),
+          }),
+          _tool(AgentTools.getAction, {
+            'ids': ['h-sumo-pry'],
+          }),
+          (LlmRequest request) {
+            final feedback = jsonDecode(request.messages.last.content) as Map;
+            expect(feedback['code'], 'incompatible_actions');
+            expect((feedback['actual'] as Map)['h-sumo-pry'], '触及伤痛限制');
+            rejected = true;
+            return '建议先咨询医生。';
+          },
+        ]),
+      );
+      final result = await a.send('膝盖疼，想练大腿内侧');
+      expect(rejected, isTrue);
+      expect(result.actions, isNull);
+      expect(result.question, isNull);
+      expect(result.text, contains('医生'));
+      expect(a.sessionState.params['limits']!.value, contains('limit.knee'));
+    },
+  );
 
   test('retry retains safety exclusions when the host omits them', () async {
     var rejected = false;
@@ -938,22 +1022,53 @@ void main() {
     expect(corrected.question?.mode, AskUserMode.form);
   });
 
-  test('unadmitted fallback plan is an error, never successful text', () async {
-    final envelope = okEnvelope();
-    planOf(envelope)['scene'] = 'gym';
-    final invalid = const EnvelopeParser()
-        .parse(jsonEncode(envelope))
-        .reply!
-        .plan!;
+  test('a completed plan does not block a later text-only fallback', () async {
     final a = agent(
-      FakeLlmClient([const LlmException(LlmErrorKind.network, 'offline')]),
-      fallback: (_) => SessionFallbackReply('方案已生成', plan: invalid),
+      FakeLlmClient([
+        ...planFlow(
+          prefix: 'before-chat',
+          fields: {
+            'scene': _user('home', '在家'),
+            'equipment': _user(['equip.mat'], '瑜伽垫'),
+            'minutes': _user(5, '5分钟'),
+            'goal': _user(['purpose.stretch'], '拉伸'),
+          },
+          main: ['s-figure4', 's-butterfly', 's-kneel-hipflex'],
+        ),
+        const LlmException(LlmErrorKind.network, 'offline'),
+      ]),
+      fallback: (_) => const SessionFallbackReply('请稍后再试'),
     );
-    final result = await a.send('你好');
-    expect(result.status, TurnStatus.error);
-    expect(result.plan, isNull);
-    expect(result.text, isEmpty);
+    expect((await a.send('在家有瑜伽垫5分钟拉伸')).plan, isNotNull);
+    final chat = await a.send('你好');
+    expect(chat.status, TurnStatus.fallback);
+    expect(chat.text, '请稍后再试');
+    expect(chat.plan, isNull);
+    expect(chat.isPlanningFailure, isFalse);
   });
+
+  test(
+    'automatic fallback cannot deliver a plan, even a valid template',
+    () async {
+      final envelope = okEnvelope();
+      planOf(envelope)['scene'] = 'gym';
+      final invalid = const EnvelopeParser()
+          .parse(jsonEncode(envelope))
+          .reply!
+          .plan!;
+      final valid = const PlanCodec().decode(planOf(okEnvelope()));
+      for (final candidate in [invalid, valid]) {
+        final a = agent(
+          FakeLlmClient([const LlmException(LlmErrorKind.network, 'offline')]),
+          fallback: (_) => SessionFallbackReply('方案已生成', plan: candidate),
+        );
+        final result = await a.send('你好');
+        expect(result.status, TurnStatus.error);
+        expect(result.plan, isNull);
+        expect(result.text, isEmpty);
+      }
+    },
+  );
 
   test('a text-only fallback remains available outside planning', () async {
     final a = agent(

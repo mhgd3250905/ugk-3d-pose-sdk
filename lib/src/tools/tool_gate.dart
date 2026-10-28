@@ -29,7 +29,8 @@ import 'coach_tools.dart';
 
 /// 通过门禁的计划。只能由 [ToolGate] 构造。
 final class ValidatedPlan {
-  ValidatedPlan._(this.plan, List<PlanIssue> warnings) : warnings = List.unmodifiable(warnings);
+  ValidatedPlan._(this.plan, List<PlanIssue> warnings)
+    : warnings = List.unmodifiable(warnings);
   final TrainingPlan plan;
   final List<PlanIssue> warnings;
 }
@@ -80,7 +81,16 @@ class GateResult {
     ok
         ? {'ok': true, 'shown': true}
         : {
-            'ok': false,
+            ...(errors.isEmpty
+                ? <String, Object?>{
+                    'ok': false,
+                    'code': 'prompt_leak',
+                    'field': 'content',
+                    'expected': '不含内部提示或标记的用户回复',
+                    'actual': '检测到内部标记',
+                    'fix': '停止本次交付，重新生成不含内部资料的回复。',
+                  }
+                : ToolGate.issueJson(errors.first)),
             'remainingAttempts': ?remaining,
             'errors': [for (final e in errors) ToolGate.issueJson(e)],
             'instruction': '逐条改完后重新调用同一个工具，提交完整参数；不要向用户解释这些错误。',
@@ -120,7 +130,10 @@ class ToolGate {
   final List<PlanRule> extraRules;
   final bool enforceDrillDoseRange;
 
-  late final Set<String> _whitelist = CoachTools.whitelist(profile, catalog).toSet();
+  late final Set<String> _whitelist = CoachTools.whitelist(
+    profile,
+    catalog,
+  ).toSet();
 
   PlanValidator get _validator => PlanValidator(
     catalog: catalog,
@@ -182,7 +195,15 @@ class ToolGate {
     final warnings = <PlanIssue>[];
     if (calls.isEmpty) {
       if (text.trim().isEmpty) {
-        errors.add(_issue(IssueCodes.emptyReply, '回复为空', 'content', '一句文字，或文字 + 一个工具', '空'));
+        errors.add(
+          _issue(
+            IssueCodes.emptyReply,
+            '回复为空',
+            'content',
+            '一句文字，或文字 + 一个工具',
+            '空',
+          ),
+        );
       }
       return GateResult._(text: text.trim(), errors: errors);
     }
@@ -230,7 +251,15 @@ class ToolGate {
           );
         }
         if (errs.isEmpty && args is! Map) {
-          errs.add(_issue(IssueCodes.schema, '参数必须是 JSON 对象', 'arguments', 'object', _typeOf(args)));
+          errs.add(
+            _issue(
+              IssueCodes.schema,
+              '参数必须是 JSON 对象',
+              'arguments',
+              'object',
+              _typeOf(args),
+            ),
+          );
         } else if (errs.isEmpty) {
           final m = (args! as Map).cast<String, Object?>();
           if (call.name == CoachTools.showActions) {
@@ -240,11 +269,22 @@ class ToolGate {
           }
         }
       }
-      errors.addAll(prefix.isEmpty ? errs : errs.map((e) => e.copyWith(path: '$prefix${e.path ?? 'arguments'}')));
+      errors.addAll(
+        prefix.isEmpty
+            ? errs
+            : errs.map(
+                (e) => e.copyWith(path: '$prefix${e.path ?? 'arguments'}'),
+              ),
+      );
       warnings.addAll(warns);
     }
     if (errors.isNotEmpty) {
-      return GateResult._(text: text.trim(), errors: errors, warnings: warnings, toolName: calls.first.name);
+      return GateResult._(
+        text: text.trim(),
+        errors: errors,
+        warnings: warnings,
+        toolName: calls.first.name,
+      );
     }
     return GateResult._(
       text: text.trim(),
@@ -279,12 +319,17 @@ class ToolGate {
   static bool _anyString(Object? v, bool Function(String) test) => switch (v) {
     String() => test(v),
     List() => v.any((x) => _anyString(x, test)),
-    Map() => v.entries.any((e) => _anyString(e.key, test) || _anyString(e.value, test)),
+    Map() => v.entries.any(
+      (e) => _anyString(e.key, test) || _anyString(e.value, test),
+    ),
     _ => false,
   };
 
   /// App 自己的模板计划（回落用）也只能经门禁变成 [ValidatedPlan]；不合格返回 null。
-  ValidatedPlan? admitTemplate(TrainingPlan plan, [CoachContext context = const CoachContext()]) {
+  ValidatedPlan? admitTemplate(
+    TrainingPlan plan, [
+    CoachContext context = const CoachContext(),
+  ]) {
     final r = _validator.validate(plan, context);
     return r.ok ? ValidatedPlan._(plan, r.warnings) : null;
   }
@@ -296,15 +341,35 @@ class ToolGate {
     List<PlanIssue> warns,
   ) {
     for (final k in m.keys) {
-      if (k != 'items') errs.add(_issue(IssueCodes.unexpectedField, '多余字段 $k', k, '只有 items', k));
+      if (k != 'items') {
+        errs.add(
+          _issue(IssueCodes.unexpectedField, '多余字段 $k', k, '只有 items', k),
+        );
+      }
     }
     final raw = m['items'];
     if (raw is! List) {
-      errs.add(_issue(IssueCodes.schema, raw == null ? '缺少 items' : 'items 必须是数组', 'items', 'array', _typeOf(raw)));
+      errs.add(
+        _issue(
+          IssueCodes.schema,
+          raw == null ? '缺少 items' : 'items 必须是数组',
+          'items',
+          'array',
+          _typeOf(raw),
+        ),
+      );
       return null;
     }
     if (raw.isEmpty || raw.length > CoachTools.maxActions) {
-      errs.add(_issue(IssueCodes.itemsCount, 'items 数量不对', 'items', '1–${CoachTools.maxActions} 个', '${raw.length} 个'));
+      errs.add(
+        _issue(
+          IssueCodes.itemsCount,
+          'items 数量不对',
+          'items',
+          '1–${CoachTools.maxActions} 个',
+          '${raw.length} 个',
+        ),
+      );
     }
     final out = <ValidatedAction>[];
     final firstAt = <String, int>{};
@@ -312,17 +377,35 @@ class ToolGate {
       final p = 'items[$i]';
       final it = raw[i];
       if (it is! Map) {
-        errs.add(_issue(IssueCodes.schema, '动作项必须是对象', p, 'object', _typeOf(it)));
+        errs.add(
+          _issue(IssueCodes.schema, '动作项必须是对象', p, 'object', _typeOf(it)),
+        );
         continue;
       }
       for (final k in it.keys) {
         if (k != 'actionId' && k != 'note') {
-          errs.add(_issue(IssueCodes.unexpectedField, '看动作不带剂量或其他字段：$k', '$p.$k', 'actionId 与可选 note', '$k'));
+          errs.add(
+            _issue(
+              IssueCodes.unexpectedField,
+              '看动作不带剂量或其他字段：$k',
+              '$p.$k',
+              'actionId 与可选 note',
+              '$k',
+            ),
+          );
         }
       }
       final note = it['note'];
       if (note != null && note is! String) {
-        errs.add(_issue(IssueCodes.schema, 'note 必须是字符串', '$p.note', 'string', _typeOf(note)));
+        errs.add(
+          _issue(
+            IssueCodes.schema,
+            'note 必须是字符串',
+            '$p.note',
+            'string',
+            _typeOf(note),
+          ),
+        );
       }
       final id = it['actionId'];
       if (id is! String || id.isEmpty) {
@@ -339,7 +422,15 @@ class ToolGate {
       }
       final d = catalog[id];
       if (d == null) {
-        errs.add(_issue(IssueCodes.unknownExercise, '未知动作 ID：$id', '$p.actionId', '本 App 动作目录里的 id', id));
+        errs.add(
+          _issue(
+            IssueCodes.unknownExercise,
+            '未知动作 ID：$id',
+            '$p.actionId',
+            '本 App 动作目录里的 id',
+            id,
+          ),
+        );
         continue;
       }
       if (!_whitelist.contains(id)) {
@@ -355,7 +446,15 @@ class ToolGate {
       }
       final prev = firstAt[id];
       if (prev != null) {
-        errs.add(_issue(IssueCodes.duplicateAction, '动作重复', '$p.actionId', '每个 id 只出现一次', '$id（与 items[$prev] 重复）'));
+        errs.add(
+          _issue(
+            IssueCodes.duplicateAction,
+            '动作重复',
+            '$p.actionId',
+            '每个 id 只出现一次',
+            '$id（与 items[$prev] 重复）',
+          ),
+        );
       } else {
         firstAt[id] = i;
       }
@@ -372,7 +471,12 @@ class ToolGate {
           );
         }
       }
-      out.add(ValidatedAction._(d, note is String && note.trim().isNotEmpty ? note.trim() : null));
+      out.add(
+        ValidatedAction._(
+          d,
+          note is String && note.trim().isNotEmpty ? note.trim() : null,
+        ),
+      );
     }
     return errs.isEmpty ? ValidatedActions._(out, warns) : null;
   }
@@ -408,16 +512,35 @@ class ToolGate {
     // 与 PlanCodec 同口径：整值 double（3.0）视为整数 3 比较；非整值由 codec 报 schema 错。
     final lv = _wholeInt(m['level']);
     if (ctx.level != null && lv != null && lv != ctx.level) {
-      errs.add(_issue(IssueCodes.contextConflict, '计划水平与本轮条件不符', 'level', '${ctx.level}（本轮条件）', '$lv'));
+      errs.add(
+        _issue(
+          IssueCodes.contextConflict,
+          '计划水平与本轮条件不符',
+          'level',
+          '${ctx.level}（本轮条件）',
+          '$lv',
+        ),
+      );
     }
     final tm = _wholeInt(m['targetMinutes']);
     if (ctx.minutes != null && tm != null && tm != ctx.minutes) {
-      errs.add(_issue(IssueCodes.contextConflict, '计划时长与本轮条件不符', 'targetMinutes', '${ctx.minutes}（本轮条件）', '$tm'));
+      errs.add(
+        _issue(
+          IssueCodes.contextConflict,
+          '计划时长与本轮条件不符',
+          'targetMinutes',
+          '${ctx.minutes}（本轮条件）',
+          '$tm',
+        ),
+      );
     }
     final raw = decoded.plan;
     if (raw == null) return null;
     // 只判不修：不改场所 / 等级 / 时长；只标 source=ai 并带上本轮保护部位（随计划保存）。
-    final plan = raw.copyWith(source: 'ai', avoid: {...raw.avoid, ...ctx.avoid});
+    final plan = raw.copyWith(
+      source: 'ai',
+      avoid: {...raw.avoid, ...ctx.avoid},
+    );
     final report = _validator.validate(plan, ctx);
     for (final i in report.issues) {
       if (i.code == IssueCodes.duplicateExercise) continue; // 由下面的全计划重复判定（错误）取代
@@ -449,12 +572,19 @@ class ToolGate {
 
   static PlanIssue _strip(PlanIssue i) {
     final p = i.path;
-    final np = p == null || p == 'plan' ? 'arguments' : (p.startsWith('plan.') ? p.substring(5) : p);
+    final np = p == null || p == 'plan'
+        ? 'arguments'
+        : (p.startsWith('plan.') ? p.substring(5) : p);
     return i.copyWith(path: np);
   }
 
-  static PlanIssue _issue(String code, String msg, String path, String expected, String actual) =>
-      PlanIssue(code, msg, path: path, expected: expected, actual: actual);
+  static PlanIssue _issue(
+    String code,
+    String msg,
+    String path,
+    String expected,
+    String actual,
+  ) => PlanIssue(code, msg, path: path, expected: expected, actual: actual);
 
   static String _typeOf(Object? v) => switch (v) {
     null => '缺失',
@@ -466,14 +596,17 @@ class ToolGate {
     _ => v.runtimeType.toString(),
   };
 
-  static String _clip(String s) => s.length <= 80 ? s : '${s.substring(0, 80)}…';
+  static String _clip(String s) =>
+      s.length <= 80 ? s : '${s.substring(0, 80)}…';
 
   /// 一条错误回给模型的样子。
   static Map<String, Object?> issueJson(PlanIssue e) => {
+    'ok': false,
+    'field': e.path ?? 'arguments',
     'path': e.path ?? 'arguments',
     'code': e.code,
-    'expected': e.expected ?? '见 message',
-    'actual': e.actual ?? '见 message',
+    'expected': e.expected ?? (e.fix ?? fixFor(e.code)),
+    'actual': e.actual ?? e.message,
     'fix': e.fix ?? fixFor(e.code),
     'message': e.message,
   };
@@ -481,14 +614,19 @@ class ToolGate {
   /// 每个错误码一句改法。
   static String fixFor(String code) => switch (code) {
     IssueCodes.invalidJson => '参数必须是合法 JSON（检查引号、逗号、括号是否成对），重新提交完整参数',
-    IssueCodes.schema || IssueCodes.schemaVersion || IssueCodes.goal => '按工具参数 schema 补齐该字段或改成正确类型 / 取值',
-    IssueCodes.unexpectedField => '删掉这个字段（看动作只写 actionId 和可选 note；show_plan 参数不要包在 plan 里）',
+    IssueCodes.schema ||
+    IssueCodes.schemaVersion ||
+    IssueCodes.goal => '按工具参数 schema 补齐该字段或改成正确类型 / 取值',
+    IssueCodes.unexpectedField =>
+      '删掉这个字段（看动作只写 actionId 和可选 note；show_plan 参数不要包在 plan 里）',
     IssueCodes.itemsCount => 'show_actions 只放 1–6 个动作',
     IssueCodes.multipleTools => '只保留一个工具调用：看动作用 show_actions，开练用 show_plan',
     IssueCodes.unknownTool => '只能用 show_actions 或 show_plan',
     IssueCodes.emptyReply => '至少写一句给用户的文字',
-    IssueCodes.unknownExercise || IssueCodes.outOfProfile => '换成参数 enum 白名单里的动作 id，逐字拷贝',
-    IssueCodes.modeMismatch => '按目录「默认」列单位：次 → mode=reps 并填 reps；秒 → mode=time 并填 workSeconds',
+    IssueCodes.unknownExercise ||
+    IssueCodes.outOfProfile => '调用 search_actions，使用本任务已返回且符合条件的动作 id',
+    IssueCodes.modeMismatch =>
+      '按目录「默认」列单位：次 → mode=reps 并填 reps；秒 → mode=time 并填 workSeconds',
     IssueCodes.repsRange ||
     IssueCodes.workSecondsRange ||
     IssueCodes.setsRange ||
@@ -500,12 +638,15 @@ class ToolGate {
     IssueCodes.avoid => '换成「注意」列不含该部位的动作，或删掉这一项',
     IssueCodes.duplicateAction => '删掉重复项；同一动作要多做就加 sets',
     IssueCodes.equipment => '换成用户已有器械或徒手的动作',
-    IssueCodes.scene || IssueCodes.position || IssueCodes.sceneUnsupported => '换成适合该场所的动作，scene 填用户场所',
+    IssueCodes.scene ||
+    IssueCodes.position ||
+    IssueCodes.sceneUnsupported => '换成适合该场所的动作，scene 填用户场所',
     IssueCodes.blockOrder => '热身块放在最前，放松块放在最后',
-    IssueCodes.contextConflict => 'level / targetMinutes 改成本轮条件给出的值（expected），并按新时长调整动作与组数',
+    IssueCodes.contextConflict =>
+      'level / targetMinutes 改成本轮条件给出的值（expected），并按新时长调整动作与组数',
     IssueCodes.emptyPlan || IssueCodes.emptyBlock => '每个块至少放一个动作',
     IssueCodes.tooManyItems => '减少动作条目，多做用 sets / rounds',
-    _ => '按期望改正',
+    _ => '修复 actual 描述的字段错误，按当前工具 schema 重新提交完整参数。',
   };
 }
 

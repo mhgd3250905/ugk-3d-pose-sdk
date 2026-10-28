@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:test/test.dart';
-import 'package:ugk_coach/src/agent/training_parameters.dart';
+import 'package:ugk_coach/src/agent/action_tags.dart';
+import 'package:ugk_coach/src/agent/session_params.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
@@ -199,11 +200,6 @@ void main() {
     ];
   }
 
-  TrainingParameters infer(
-    String text, [
-    CoachContext context = const CoachContext(),
-  ]) => TrainingParameters.infer([text], context, catalog, profile);
-
   group(
     'deterministic multi-turn protocol evaluation (network modelCalls=0)',
     () {
@@ -395,28 +391,69 @@ void main() {
   );
 
   test(
-    'negative equipment and latest explicit correction do not grant gear',
+    'structured negative equipment and latest correction preserve provenance',
     () {
-      expect(infer('在家，没什么器械，十五分钟').missing, isEmpty);
-      expect(infer('在家，没什么器械，十五分钟').context.minutes, 15);
-      expect(infer('在家，没有哑铃，只有瑜伽垫，10分钟').context.equipment, {'mat'});
-      expect(infer('不用椅子').context.equipment, isNull);
-      expect(infer('不用椅子').missing, contains('equipment'));
-      expect(
-        infer(
-          '不用椅子',
-          const CoachContext(equipment: {'mat', 'chair'}),
-        ).context.equipment,
-        {'mat'},
+      final params = SessionParams(ActionTags(profile, catalog));
+      final initial = params.set(
+        CoachSessionState().appendUserTurn('在家，没什么器械，十五分钟'),
+        {
+          'fields': {
+            'scene': userValue('home', '在家'),
+            'equipment': userValue(<String>[], '没什么器械'),
+            'minutes': userValue(15, '十五分钟'),
+          },
+        },
       );
-      expect(infer('我在家，不去健身房，徒手10分钟排个计划').context.scene, 'home');
-      final changed = infer(
-        '改为办公室，徒手，5 分钟',
-        const CoachContext(scene: 'home', equipment: {'mat'}, minutes: 10),
+      expect(initial.ok, isTrue, reason: '${initial.error}');
+      expect(initial.state.params['minutes']!.value, 15);
+      expect(initial.state.params['equipment']!.value, isEmpty);
+      final mat = params.set(
+        CoachSessionState().appendUserTurn('在家，没有哑铃，只有瑜伽垫，10分钟'),
+        {
+          'fields': {
+            'equipment': userValue(['equip.mat'], '只有瑜伽垫'),
+          },
+        },
       );
-      expect(changed.context.scene, 'office');
-      expect(changed.context.equipment, isEmpty);
-      expect(changed.context.minutes, 5);
+      expect(mat.ok, isTrue, reason: '${mat.error}');
+      expect(mat.state.params['equipment']!.value, ['equip.mat']);
+      final unknown = CoachSessionState().appendUserTurn('不用椅子');
+      expect(unknown.params.containsKey('equipment'), isFalse);
+      final host = params
+          .applyHost(
+            CoachSessionState(),
+            const CoachContext(
+              scene: 'home',
+              equipment: {'mat', 'chair'},
+              minutes: 10,
+            ),
+          )
+          .state;
+      final removed = params.set(host.appendUserTurn('不用椅子'), {
+        'fields': {
+          'equipment': userValue(['equip.mat'], '不用椅子'),
+        },
+      });
+      expect(removed.ok, isTrue, reason: '${removed.error}');
+      expect(removed.state.params['equipment']!.value, ['equip.mat']);
+      final changed = params.set(
+        removed.state.appendUserTurn('改为办公室，徒手，5 分钟'),
+        {
+          'fields': {
+            'scene': userValue('office', '改为办公室'),
+            'equipment': userValue(<String>[], '徒手'),
+            'minutes': userValue(5, '5 分钟'),
+          },
+        },
+      );
+      expect(changed.ok, isTrue, reason: '${changed.error}');
+      expect(changed.state.params['scene']!.value, 'office');
+      expect(changed.state.params['equipment']!.value, isEmpty);
+      expect(changed.state.params['minutes']!.value, 5);
+      for (final field in ['scene', 'equipment', 'minutes']) {
+        expect(changed.state.params[field]!.source, 'user');
+        expect(changed.state.params[field]!.turn, 2);
+      }
     },
   );
   test('model can ask a clarification during action search', () async {

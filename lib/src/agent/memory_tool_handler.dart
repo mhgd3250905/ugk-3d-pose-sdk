@@ -1,7 +1,7 @@
 part of 'coach_agent.dart';
 
 String _memoryError(String code) => jsonEncode({
-  'ok': false,
+  ...nodeError(code, 'memory', '记忆写入成功且本轮未取消', code, '不要确认保存成功；需要时重新调用记忆工具。'),
   'error': code,
   'message': '记忆未确认保存成功，不要向用户确认已记下或已忘记。',
 });
@@ -19,7 +19,10 @@ extension _AgentMemoryToolHandler on CoachAgent {
     if (t.name == AgentTools.remember) {
       if (kind == null || text == null || text.trim().isEmpty) {
         return jsonEncode({
-          'ok': false,
+          ...nodeError('invalid_memory', 'kind/text', '合法记忆类别和非空 text', {
+            'kind': kindName,
+            'text': text,
+          }, '提供 schema 中的 kind 以及用户主动表达的 text。'),
           'error':
               'remember 需要 kind（${MemoryKind.values.map((k) => k.name).join('/')}）和 text',
         });
@@ -32,7 +35,13 @@ extension _AgentMemoryToolHandler on CoachAgent {
       );
     } else {
       if (kind == null && (text == null || text.trim().isEmpty)) {
-        return jsonEncode({'ok': false, 'error': 'forget 需要 kind 或 text'});
+        return jsonEncode({
+          ...nodeError('invalid_memory', 'kind/text', 'kind 或非空 text', {
+            'kind': kindName,
+            'text': text,
+          }, '提供需要删除的 kind 或 text。'),
+          'error': 'forget 需要 kind 或 text',
+        });
       }
       update = (m) => UserMemoryOps.forget(m, kind: kind, text: text);
     }

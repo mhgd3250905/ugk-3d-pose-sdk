@@ -283,6 +283,10 @@ void main() {
           .join('\n');
       expect(requestText, contains('wrist'));
       expect(requestText, contains('保护手腕'));
+      expect(
+        c.agent.planStateFor(result.plan!).context.notes,
+        contains('保护手腕'),
+      );
     },
   );
 

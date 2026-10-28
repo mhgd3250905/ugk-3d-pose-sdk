@@ -5,6 +5,47 @@ import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
 
+LlmResponse _startPlanning() => LlmResponse(
+  content: '',
+  toolCalls: [
+    LlmToolCall(
+      id: 'preset-start',
+      name: AgentTools.startTask,
+      arguments: jsonEncode({'type': 'plan'}),
+    ),
+    LlmToolCall(
+      id: 'preset-understand',
+      name: AgentTools.check,
+      arguments: jsonEncode({'node': 'understand'}),
+    ),
+    LlmToolCall(
+      id: 'preset-params',
+      name: AgentTools.setParams,
+      arguments: jsonEncode({
+        'fields': {
+          'scene': {'value': 'home', 'source': 'user', 'quote': '在家'},
+          'equipment': {
+            'value': ['equip.mat'],
+            'source': 'user',
+            'quote': '瑜伽垫',
+          },
+          'minutes': {'value': 10, 'source': 'user', 'quote': '10分钟'},
+          'goal': {
+            'value': ['body.glute_max'],
+            'source': 'user',
+            'quote': '臀部',
+          },
+        },
+      }),
+    ),
+    LlmToolCall(
+      id: 'preset-parameters',
+      name: AgentTools.check,
+      arguments: jsonEncode({'node': 'parameters'}),
+    ),
+  ],
+);
+
 void main() {
   test(
     'a failed action explanation cannot offer the previous plan preset',
@@ -34,7 +75,7 @@ void main() {
           jsonDecode(
                 request.messages.singleWhere((m) => m.toolCallId == id).content,
               )
-          as Map<String, dynamic>;
+              as Map<String, dynamic>;
       late String planId;
       final client = FakeLlmClient([
         calls([
@@ -129,6 +170,7 @@ void main() {
             }),
           ]);
         },
+        _startPlanning(),
         const LlmException(
           LlmErrorKind.network,
           'planning network unavailable',
@@ -176,6 +218,7 @@ void main() {
       final profile = loadProfile('hiplab');
       final plan = const PlanCodec().decode(planOf(okEnvelope()));
       final client = FakeLlmClient([
+        _startPlanning(),
         const LlmException(LlmErrorKind.network, 'network unavailable'),
       ]);
       final conversation = CoachConversationController(

@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import 'eval_api_config.dart';
 import 'eval_reasoning_stats.dart';
 import 'eval_thinking_mode.dart';
 import 'eval_turn_budget.dart';
@@ -23,11 +24,10 @@ Future<void> main(List<String> args) async {
 dart run tool/eval_coach_agent_v2.dart --dry [--thinking on|off] [--cases R1,R2] [--out DIR]
 dart run tool/eval_coach_agent_v2.dart [--thinking on|off] [--cases R1,R2] [--out DIR]
 
-Uses the existing UGK Worker route and an existing identity. Environment:
-Fixed route: https://api.uuugk.win/v1 and deepseek-v4-flash-0731.
-UGK_APP_KEY must be supplied through the environment; UGK_DEVICE_ID or
-UGK_DEVICE_FILE must identify the existing authorized evaluation device.
-No alternate bearer route, model or newly generated device is used.
+Uses the approved OpenAI-compatible direct route with Bearer authentication.
+Fixed route: https://ai.uuugk.win/v1 and deepseek-flash (exact response label).
+UGK_API_KEY takes precedence; otherwise the API Key: line in the authorized
+local coach.local.apikey.txt file is read. No Worker or device headers are used.
 SSL_CERT_FILE optionally adds a trusted CA. UGK_EVAL_GAP_SECONDS spaces cases.
 Thinking defaults to on; on sends thinking.type=enabled, off sends disabled.
 The configured generation budget is retained.
@@ -118,18 +118,14 @@ Future<void> _main(List<String> args) async {
   final env = Platform.environment;
   final redactor = EvaluationRedactor([ToolPromptBuilder().canary]);
   final auth = await _auth(env, redactor);
-  const requiredBaseUrl = 'https://api.uuugk.win/v1';
-  const requiredModel = 'deepseek-v4-flash-0731';
-  if ((env['UGK_BASE_URL'] != null && env['UGK_BASE_URL'] != requiredBaseUrl) ||
-      (env['UGK_MODEL'] != null && env['UGK_MODEL'] != requiredModel)) {
-    throw StateError('The approved Worker route and model must be retained');
+  if ((env['UGK_BASE_URL'] != null &&
+          env['UGK_BASE_URL'] != evaluationBaseUrl) ||
+      (env['UGK_MODEL'] != null && env['UGK_MODEL'] != evaluationModel)) {
+    throw StateError(
+      'The approved evaluation route and model must be retained',
+    );
   }
-  final config = LlmConfig.ugkWorker.copyWith(
-    baseUrl: requiredBaseUrl,
-    model: requiredModel,
-    maxRetries: 0,
-    extraBody: {...LlmConfig.ugkWorker.extraBody, ...thinkingMode.extraBody},
-  );
+  final config = evaluationLlmConfig(thinkingMode);
   redactor.secrets.add(config.baseUrl);
   final security = SecurityContext(withTrustedRoots: true);
   final certificate = env['SSL_CERT_FILE'];
@@ -266,7 +262,7 @@ Future<void> _main(List<String> args) async {
       'Thinking mode is explicit and protocol replay is untouched; reasoning text is not evidence prose.',
       'Usage fields absent from upstream are null/unknown, never inferred as zero.',
       'Task-event intervals are observed wall-clock intervals, not isolated tool execution timings.',
-      'The existing Worker may return 502 around 40 seconds; no Worker or alternate route is modified.',
+      'The approved New API direct route uses Bearer authentication; App SDK defaults are unchanged.',
       'Non-JSON response text is excluded because truncated payloads may contain private reasoning; byte count and SHA-256 remain recorded.',
       'Single samples do not establish reliability, native device acceptance or latency guarantees.',
     ],
@@ -884,40 +880,13 @@ class EvaluationRedactor {
   }
 }
 
-/// Checks the supplied environment token without echoing it in diagnostics.
-/// Configuration prose and multi-line files must be parsed by the launcher,
-/// never passed through as an HTTP header value.
-String validateEvaluationAppKey(String value) {
-  if (value.isEmpty ||
-      value.codeUnits.any((unit) => unit < 0x21 || unit > 0x7e)) {
-    throw StateError(
-      'UGK_APP_KEY must be a single nonempty ASCII token without whitespace or header controls',
-    );
-  }
-  return value;
-}
-
 Future<AuthProvider> _auth(
   Map<String, String> env,
   EvaluationRedactor redactor,
 ) async {
-  final appKey = validateEvaluationAppKey(env['UGK_APP_KEY'] ?? '');
-  var device = env['UGK_DEVICE_ID'] ?? '';
-  final deviceFile = env['UGK_DEVICE_FILE'];
-  if (device.isEmpty && deviceFile != null) {
-    device = (await File(deviceFile).readAsString()).trim();
-  }
-  if (appKey.isEmpty ||
-      !RegExp(
-        r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
-        caseSensitive: false,
-      ).hasMatch(device)) {
-    throw StateError(
-      'Existing authorized Worker key and device identity required',
-    );
-  }
-  redactor.secrets.addAll([appKey, device]);
-  return UgkWorkerAuth(appKey: appKey, deviceId: () async => device);
+  final key = await readEvaluationApiKey(env);
+  redactor.secrets.add(key);
+  return ApiKeyAuth(key);
 }
 
 Object? _error(Object? error, EvaluationRedactor redactor) {
@@ -1097,6 +1066,7 @@ Future<String> _sourceFingerprint() async {
         if (entry is File) entry,
     File('pubspec.yaml'),
     File('tool/eval_coach_agent_v2.dart'),
+    File('tool/eval_api_config.dart'),
     File('tool/eval_reasoning_stats.dart'),
     File('tool/eval_thinking_mode.dart'),
     File('tool/eval_turn_budget.dart'),

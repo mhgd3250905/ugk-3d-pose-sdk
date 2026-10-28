@@ -3,11 +3,14 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
+import 'package:ugk_coach/ugk_coach.dart';
 
+import '../tool/eval_api_config.dart';
 import '../tool/eval_coach_agent_v2.dart';
+import '../tool/eval_thinking_mode.dart';
 
 void main() {
-  test('app key rejects prose and header controls without echoing input', () {
+  test('API key rejects prose and header controls without echoing input', () {
     for (final invalid in [
       '',
       'token with spaces',
@@ -20,20 +23,102 @@ void main() {
       'token ',
     ]) {
       expect(
-        () => validateEvaluationAppKey(invalid),
+        () => validateEvaluationApiKey(invalid),
         throwsA(
           isA<StateError>().having(
             (error) => error.message,
             'static message',
-            'UGK_APP_KEY must be a single nonempty ASCII token without whitespace or header controls',
+            'UGK_API_KEY must be a single nonempty ASCII token without whitespace or header controls',
           ),
         ),
       );
     }
     expect(
-      validateEvaluationAppKey('synthetic-token_0123.abc'),
+      validateEvaluationApiKey('synthetic-token_0123.abc'),
       'synthetic-token_0123.abc',
     );
+  });
+
+  test(
+    'direct evaluation uses only bearer auth and retains App defaults',
+    () async {
+      for (final mode in EvaluationThinkingMode.values) {
+        final config = evaluationLlmConfig(mode);
+        expect(config.baseUrl, 'https://ai.uuugk.win/v1');
+        expect(config.model, 'deepseek-flash');
+        expect(config.headers, isEmpty);
+        expect(config.maxRetries, 0);
+        expect(config.extraBody, mode.extraBody);
+      }
+      expect(await ApiKeyAuth('synthetic-key').headers(), {
+        'Authorization': 'Bearer synthetic-key',
+      });
+      expect(LlmConfig.ugkWorker.baseUrl, 'https://api.uuugk.win/v1');
+    },
+  );
+
+  test(
+    'environment key takes priority without reading local credentials',
+    () async {
+      final key = await readEvaluationApiKey({
+        'UGK_API_KEY': ' synthetic-env ',
+      }, readFile: (_) => throw StateError('Must not read fallback'));
+      expect(key, 'synthetic-env');
+    },
+  );
+
+  test('fallback extracts only API Key line, never the Worker key', () async {
+    expect(
+      await readEvaluationApiKey(
+        {},
+        readFile: (path) async {
+          expect(path, evaluationKeyFile);
+          return 'Other notes\r\nX-App-Key: worker-unused\r\nAPI Key: synthetic-api  \r\n';
+        },
+      ),
+      'synthetic-api',
+    );
+    for (final text in [
+      'X-App-Key: worker-unused',
+      'API Key: \n',
+      'API Key: \nnext-line-must-not-be-a-key',
+      'API Key: first\nAPI Key: second',
+      'API Key: synthetic key with spaces',
+    ]) {
+      await expectLater(
+        readEvaluationApiKey({}, readFile: (_) async => text),
+        throwsA(isA<StateError>()),
+      );
+    }
+  });
+
+  test('only exact deepseek-flash response label is accepted', () async {
+    for (final label in [
+      'deepseek-flash',
+      'deepseek-v4.1-flash-1017',
+      'deepseek-v4-1-flash-261017',
+      null,
+    ]) {
+      var stopped = false;
+      final wire = EvaluationWireClient(
+        MockClient(
+          (_) async =>
+              http.Response(jsonEncode({'model': label, 'choices': []}), 200),
+        ),
+        EvaluationRedactor([]),
+        (_) {},
+      )..onModelMismatch = () => stopped = true;
+      final request = http.Request('POST', Uri.parse('https://example.invalid'))
+        ..body = '{"model":"deepseek-flash","messages":[]}';
+      final response = await wire.send(request);
+      await response.stream.drain<void>();
+      expect(
+        wire.calls.single['modelMatchesRequest'],
+        label == 'deepseek-flash',
+      );
+      expect(stopped, label != 'deepseek-flash');
+      wire.close();
+    }
   });
 
   test('redactor hides raw and JSON-escaped registered secrets', () {

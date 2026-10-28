@@ -106,6 +106,7 @@ extension TaskToolHandler on StructuredToolHandler {
       final names = <String>[
         SkillFiles.ask,
         SkillFiles.actionLibrary,
+        if (args['type'] == 'recommend') SkillFiles.actionCoaching,
         if (args['type'] == 'plan') SkillFiles.planTraining,
       ];
       final missing = names

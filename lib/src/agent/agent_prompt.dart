@@ -21,7 +21,7 @@ import 'skill_files.dart';
 import 'user_memory.dart';
 
 /// Agent 内核修订号。改 `prompts/agent_kernel.md` 或 `skills/` 语义时手动加一。
-const agentKernelRevision = 10;
+const agentKernelRevision = 11;
 
 abstract final class AgentTools {
   static const read = 'read';
@@ -97,6 +97,8 @@ abstract final class AgentTools {
             'type': {
               'type': 'string',
               'enum': ['recommend', 'plan'],
+              'description':
+                  'recommend=给几个动作让用户挑选或尝试；plan=有时长和结构、可以跟练的一整套训练（用户给了时长，或说练一下/来一套/安排/计划）；两者都合理时由模型判断。',
             },
             'reuse': {'type': 'boolean'},
           },
@@ -182,7 +184,10 @@ abstract final class AgentTools {
         parameters: {
           'type': 'object',
           'properties': {
-            'title': {'type': 'string'},
+            'title': {
+              'type': 'string',
+              'description': '标题只写名称，不写时长、动作数、组数；卡片时长由代码从数据显示。',
+            },
             'blocks': {
               'type': 'array',
               'items': {

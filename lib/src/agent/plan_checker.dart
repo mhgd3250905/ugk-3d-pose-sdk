@@ -317,15 +317,10 @@ class PlanChecker {
           if (canonicalLimits.contains(gate.tags.canonicalLimitCode(raw))) raw,
       ];
       if (conflicts.isNotEmpty) unsafe[drill.id] = conflicts;
-      final semantics = drill.raw['trainingSemantics'];
-      if (semantics is Map && semantics['unknownFields'] is List) {
-        for (final item in semantics['unknownFields'] as List) {
-          if (item is Map && item['field'] is String) {
-            warnings.add('${drill.id} 的 ${item['field']} 尚未明确，不能视为已验证。');
-          }
-        }
-      }
     }
+    warnings.addAll(
+      gate.catalogWarnings(state, entries.map((entry) => entry.id)),
+    );
     result('safety', unsafe.isEmpty && unavailable.isEmpty, '所有动作在范围内且不触发限制', {
       'conflicts': unsafe,
       'unavailable': unavailable.toList(),

@@ -74,9 +74,119 @@ void main() {
   final profile = loadProfile('smartfit');
   final files = SkillFiles.build(profile, catalog, memory: false);
   final bodies = {
-    for (final skill in ['ask', 'action-library', 'plan-training'])
+    for (final skill in [
+      'ask',
+      'action-library',
+      'plan-training',
+      'action-coaching',
+    ])
       skill: files.read('$skill/SKILL.md')!,
   };
+
+  test(
+    'task skill bodies separate search guidance from recommendation delivery',
+    () {
+      final library = bodies['action-library']!;
+      final recommendation = bodies['action-coaching']!;
+      final plan = bodies['plan-training']!;
+      for (final delivery in [
+        '推荐标准路径',
+        'show_actions',
+        'draft_plan',
+        '主体至少一半',
+      ]) {
+        expect(library, isNot(contains(delivery)));
+      }
+      expect(library, contains('purpose/body/pose/level 同类标签取“或”'));
+      expect(library, contains('每次最多返回 20 条'));
+      expect(recommendation, contains('# 动作推荐与讲解'));
+      expect(
+        recommendation,
+        contains(
+          'start_task(recommend) → set_params → search_actions → show_actions',
+        ),
+      );
+      expect(recommendation, contains('每个动作都须命中目标'));
+      expect(recommendation, contains('可只推荐 1 个'));
+      expect(
+        plan,
+        contains(
+          'start_task → set_params → search_actions → draft_plan → show_plan',
+        ),
+      );
+      expect(SkillDisclosures.requiredFor('recommend'), {
+        'ask/SKILL.md',
+        'action-library/SKILL.md',
+        'action-coaching/SKILL.md',
+      });
+      expect(SkillDisclosures.requiredFor('plan'), {
+        'ask/SKILL.md',
+        'action-library/SKILL.md',
+        'plan-training/SKILL.md',
+      });
+    },
+  );
+
+  for (final readFirst in [false, true]) {
+    test(
+      'recommendation skill ${readFirst ? 'read before' : 'read after'} start has one full body',
+      () async {
+        final client = FakeLlmClient([
+          if (readFirst)
+            _call('before', AgentTools.read, {
+              'path': 'action-coaching/SKILL.md',
+            }),
+          LlmResponse(
+            content: '',
+            toolCalls: [
+              LlmToolCall(
+                id: 'start-recommend',
+                name: AgentTools.startTask,
+                arguments: '{"type":"recommend"}',
+              ),
+              LlmToolCall(
+                id: 'after',
+                name: AgentTools.read,
+                arguments: '{"path":"action-coaching/SKILL.md"}',
+              ),
+            ],
+          ),
+          _call('question', AgentTools.askUser, {
+            'question': '还有什么要求？',
+            'mode': 'text',
+          }),
+        ], latency: Duration.zero);
+        final coach = CoachAgent(
+          client: client,
+          catalog: () => catalog,
+          profile: profile,
+          enableUserMemory: false,
+          maxRequestRetries: 0,
+        );
+        addTearDown(coach.dispose);
+        final result = await coach.send('推荐动作');
+        expect(result.question, isNotNull, reason: '${result.error}');
+        final last = client.requests.last;
+        _expectPairs(last);
+        final loaded = _skills(last, 'start-recommend');
+        expect(loaded.keys, ['ask', 'action-library', 'action-coaching']);
+        expect(
+          loaded['action-coaching'],
+          readFirst
+              ? SkillDisclosures.readReference
+              : bodies['action-coaching'],
+        );
+        expect(
+          last.messages.singleWhere((m) => m.toolCallId == 'after').content,
+          readFirst
+              ? SkillDisclosures.readReference
+              : SkillDisclosures.startReference,
+        );
+        expect(_fullCopies(last, bodies['action-coaching']!), 1);
+        expect(_fullCopies(last, bodies['plan-training']!), 0);
+      },
+    );
+  }
 
   for (final firstFromRead in [false, true]) {
     test(
@@ -114,6 +224,13 @@ void main() {
             _fullCopies(request, bodies['plan-training']!),
         ];
         expect(planCopies, firstFromRead ? [0, 1, 0, 1] : [0, 1, 1, 1]);
+        expect(
+          [
+            for (final request in client.requests)
+              _fullCopies(request, bodies['action-coaching']!),
+          ],
+          [0, 0, 1, 1],
+        );
         for (final request in client.requests) {
           _expectPairs(request);
           for (final body in bodies.values) {
@@ -147,7 +264,7 @@ void main() {
           }
         } else {
           final originalPlan = _skills(afterPlan, 'first');
-          for (final skill in bodies.keys) {
+          for (final skill in ['ask', 'action-library', 'plan-training']) {
             expect(finalSkills[skill], SkillDisclosures.startReference);
             expect(
               originalPlan[skill],
@@ -159,4 +276,49 @@ void main() {
       },
     );
   }
+
+  test(
+    'a recommendation read archived by a plan is disclosed again for the real recommendation task',
+    () async {
+      final client = FakeLlmClient([
+        _call('read-coaching', AgentTools.read, {
+          'path': 'action-coaching/SKILL.md',
+        }),
+        _call('start-plan', AgentTools.startTask, {'type': 'plan'}),
+        _call('start-recommend', AgentTools.startTask, {'type': 'recommend'}),
+        _call('question', AgentTools.askUser, {
+          'question': '还有什么要求？',
+          'mode': 'text',
+        }),
+      ], latency: Duration.zero);
+      final coach = CoachAgent(
+        client: client,
+        catalog: () => catalog,
+        profile: profile,
+        enableUserMemory: false,
+        maxRequestRetries: 0,
+      );
+      addTearDown(coach.dispose);
+      final result = await coach.send('先了解流程');
+      expect(result.question, isNotNull, reason: '${result.error}');
+      expect(_fullCopies(client.requests[1], bodies['action-coaching']!), 1);
+      for (final request in client.requests.skip(2)) {
+        _expectPairs(request);
+        expect(
+          request.messages
+              .singleWhere((m) => m.toolCallId == 'read-coaching')
+              .content,
+          SkillDisclosures.unrelatedArchive,
+        );
+      }
+      expect(_fullCopies(client.requests[2], bodies['action-coaching']!), 0);
+      final last = client.requests.last;
+      final loaded = _skills(last, 'start-recommend');
+      expect(loaded['action-coaching'], bodies['action-coaching']);
+      expect(loaded['ask'], SkillDisclosures.startReference);
+      expect(loaded['action-library'], SkillDisclosures.startReference);
+      expect(loaded.containsKey('plan-training'), isFalse);
+      expect(_fullCopies(last, bodies['action-coaching']!), 1);
+    },
+  );
 }

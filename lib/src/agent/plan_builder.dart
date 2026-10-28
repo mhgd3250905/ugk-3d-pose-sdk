@@ -144,7 +144,9 @@ class PlanBuilder {
     var suppliedOperation = validLegacyOperation ? legacyOperation : null;
     final currentTurn = state.userTurns.isEmpty ? 0 : state.userTurns.last.turn;
     final confirmedOperation = state.params['operation'];
-    if (confirmedOperation?.turn == currentTurn &&
+    final operationRequestTurn =
+        state.lastOperationRequestTurn ?? confirmedOperation?.turn;
+    if (operationRequestTurn == currentTurn &&
         {'edit', 'replace_all'}.contains(confirmedOperation?.value)) {
       suppliedOperation = confirmedOperation!.value;
     }
@@ -260,7 +262,7 @@ class PlanBuilder {
     final log = <Map<String, Object?>>[];
     final notes = <String>[];
     if (legacyOperation != null) {
-      final confirmed = confirmedOperation?.turn == currentTurn;
+      final confirmed = operationRequestTurn == currentTurn;
       notes.add(
         language.toLowerCase().startsWith('en')
             ? confirmed

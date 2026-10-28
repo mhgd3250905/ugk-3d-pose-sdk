@@ -364,7 +364,7 @@ void main() {
       language: 'en',
     );
     expect(result.items.single['id'], 'custom');
-    expect(result.warnings.single, contains('contraindications'));
+    expect(result.warnings, isEmpty);
     expect(custom.search(active(), keywords: '特别动作').items, hasLength(1));
     expect(custom.search(active(), keywords: '不相关的句子').items, isEmpty);
   });

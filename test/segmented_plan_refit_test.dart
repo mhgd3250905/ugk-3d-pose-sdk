@@ -214,6 +214,22 @@ void main() {
       expect(replacement.ok, isFalse);
       expect(replacement.error!['code'], 'replace_too_similar');
       expect(replacement.state.plans[saved.id]!.length, 1);
+      final requestedAgain = builder.refit(
+        current.copyWith(
+          lastOperationRequestTurn: 2,
+          params: {
+            ...current.params,
+            'operation': CoachParamValue(
+              value: 'replace_all',
+              source: 'user',
+              quote: 'earlier proof',
+              turn: 1,
+            ),
+          },
+        ),
+        saved,
+      );
+      expect(requestedAgain.error!['code'], 'replace_too_similar');
     },
   );
 

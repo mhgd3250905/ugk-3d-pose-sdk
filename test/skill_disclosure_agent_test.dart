@@ -88,6 +88,7 @@ void main() {
           expect(_skills(request, 'start'), {
             'ask': '[已在前文 read 中]',
             'action-library': '[已在前文 read 中]',
+            'action-coaching': full('action-coaching'),
           });
           expect(_content(request, 'read-ask'), full('ask'));
           expect(_content(request, 'read-library'), full('action-library'));

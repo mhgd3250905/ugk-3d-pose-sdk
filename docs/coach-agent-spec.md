@@ -202,3 +202,11 @@ profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有�
 - 用户明确剂量通过 `set_params.dose` 保存：value 为 `{field,value,actionId?,blockId?}` 数组，field 为 sets/reps/seconds/rounds；必须 user 和真实 quote，完整保存/恢复。省略作用域时 sets 用于所有动作，reps 用于计次动作，seconds 用于计时动作，rounds 用于主体；其他阶段轮数用 blockId 明确。不能用目录默认值冒充用户明确要求；冲突时正常询问取舍。
 - 保留原配时算法。fitLog 使用 blockId/actionId/field/before/after/beforeEstimatedSec/afterEstimatedSec。只有合法剂量域最小值仍超容差或最大值仍不足时，才证明时长不可行并给结构化原因；明确剂量冲突也列原因并询问。其他情况交付现算法最优结果并回执误差，不以启发式未找到宣称无解，Checker 不重复报 plan_duration。
 - 本轮不新增全局最优求解器，不自动改写 note 数字/器材事实，不改宿主 extraRules；这些边界单独记录在评审包。
+
+## 2026-10-28 dc3f757 评审后：信息与状态修复
+
+- `start_task.type` 在首包即区分 recommend（给几个动作供挑选/尝试）与 plan（有时长和结构、可以跟练的一整套训练）；给时长或表达练一下/来一套/安排/计划是模型判断的线索，不是代码意图门禁。`action-library` 只管检索，推荐路径在 `action-coaching`，计划路径在 `plan-training`。
+- 同值、同来源的参数重放保留原 quote/turn/basedOn，返回 kept，优先于 derived 新鲜度检查。来源变化按原优先级；不得借新一轮原话改写原证明。结构化 operation 的执行轮次单独保存，不更改账本证明，保持连续“换一套”的原差异规则。
+- 计划标题只写名称，不写时长/动作数/组数；卡片时长来自代码数据。通过 schema 和技能说明，不用正则改写模型标题，不新增交付门禁。
+- 目录缺口写入内部开发者诊断日志。只有账本 limits 非空时，缺失的 cautions/contraindications 通用安全字段才进入模型/卡片，沿用既有安全处理；其他缺字段不当作 unverified_limit。保存的旧历史不改，只在请求/交付视图分流。
+- 本小阶段只跑全量测试和三包严格分析，不跑真实模型；通过后进入已批准的“只追加上下文＋阈值折叠”，完成后统一 off/on 六组评测。

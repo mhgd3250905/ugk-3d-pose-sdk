@@ -393,15 +393,7 @@ class ActionSearch {
         in ((state.hostValues['limitsOpaque'] as List<Object?>?) ?? const [])
             .cast<String>())
       '目录缺少限制 ${gate.tags.limitValue(code) ?? code} 的可核对禁忌，不能确认其安全性。',
-    for (final drill in drills)
-      if (drill.raw['trainingSemantics'] is Map)
-        for (final item
-            in ((drill.raw['trainingSemantics'] as Map)['unknownFields'] is List
-                ? (drill.raw['trainingSemantics'] as Map)['unknownFields']
-                      as List
-                : const []))
-          if (item is Map && item['field'] is String)
-            '${drill.id} 的 ${item['field']} 尚未明确，不能视为已验证。',
+    ...gate.catalogWarnings(state, drills.map((drill) => drill.id)),
   ];
 
   static Iterable<String> _strings(Object? value) sync* {

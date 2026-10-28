@@ -193,6 +193,7 @@ class CoachSessionState {
     this.lastDeliveredPlanId,
     this.lastDeliveredVersion,
     this.lastDeliveredTurn,
+    this.lastOperationRequestTurn,
     this.legacyPlanFallback = false,
     Map<String, Object?> hostValues = const {},
   }) : userTurns = List.unmodifiable(userTurns),
@@ -227,6 +228,10 @@ class CoachSessionState {
   final int? lastDeliveredVersion;
   final int? lastDeliveredTurn;
 
+  /// Execution time of a literally supported operation request, separate from
+  /// the immutable proof of an unchanged operation value in [params].
+  final int? lastOperationRequestTurn;
+
   /// True only for restored snapshots written before activePlanId existed.
   final bool legacyPlanFallback;
 
@@ -252,6 +257,7 @@ class CoachSessionState {
     String? lastDeliveredPlanId,
     int? lastDeliveredVersion,
     int? lastDeliveredTurn,
+    int? lastOperationRequestTurn,
     bool clearLastDelivered = false,
     Map<String, Object?>? hostValues,
   }) => CoachSessionState(
@@ -279,6 +285,8 @@ class CoachSessionState {
     lastDeliveredTurn: clearLastDelivered
         ? null
         : lastDeliveredTurn ?? this.lastDeliveredTurn,
+    lastOperationRequestTurn:
+        lastOperationRequestTurn ?? this.lastOperationRequestTurn,
     legacyPlanFallback: clearActivePlanId || activePlanId != null
         ? false
         : legacyPlanFallback,
@@ -319,6 +327,8 @@ class CoachSessionState {
     if (lastDeliveredVersion != null)
       'lastDeliveredVersion': lastDeliveredVersion,
     if (lastDeliveredTurn != null) 'lastDeliveredTurn': lastDeliveredTurn,
+    if (lastOperationRequestTurn != null)
+      'lastOperationRequestTurn': lastOperationRequestTurn,
     if (hostValues.isNotEmpty) 'hostValues': _thaw(hostValues),
   };
 
@@ -358,6 +368,7 @@ class CoachSessionState {
         lastDeliveredPlanId: json['lastDeliveredPlanId'] as String?,
         lastDeliveredVersion: json['lastDeliveredVersion'] as int?,
         lastDeliveredTurn: json['lastDeliveredTurn'] as int?,
+        lastOperationRequestTurn: json['lastOperationRequestTurn'] as int?,
         legacyPlanFallback: !json.containsKey('activePlanId'),
         hostValues: _map(json['hostValues'] ?? const {}),
       );

@@ -84,7 +84,15 @@ void main() {
       );
       final composed = compactor.compose(
         system: const LlmMessage.system('角色'),
-        state: CoachSessionState(),
+        state: CoachSessionState(
+          params: {
+            'limits': CoachParamValue(
+              value: ['limit.knee'],
+              source: 'host',
+              turn: 0,
+            ),
+          },
+        ),
         catalog: catalog,
         history: original,
       );
@@ -124,7 +132,15 @@ void main() {
         final original = history(warnings);
         final composed = compactor.compose(
           system: const LlmMessage.system('角色'),
-          state: CoachSessionState(),
+          state: CoachSessionState(
+            params: {
+              'limits': CoachParamValue(
+                value: ['limit.knee'],
+                source: 'host',
+                turn: 0,
+              ),
+            },
+          ),
           catalog: catalog,
           history: original,
         );

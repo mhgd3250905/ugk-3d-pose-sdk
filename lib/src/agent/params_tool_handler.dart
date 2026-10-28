@@ -58,7 +58,10 @@ extension ParamsToolHandler on StructuredToolHandler {
         'stamp': ?parameterNode?.stamp,
       }),
       changes: nodes.changes,
-      fresh: result.changedFields.isNotEmpty,
+      fresh:
+          result.changedFields.isNotEmpty ||
+          result.state.lastOperationRequestTurn !=
+              state.lastOperationRequestTurn,
     );
   }
 }

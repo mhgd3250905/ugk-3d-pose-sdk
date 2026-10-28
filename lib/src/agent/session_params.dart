@@ -144,6 +144,7 @@ class SessionParams {
     final kept = <String>{};
     final ignoredEquipmentExclude = <String>[];
     final notes = <String>[];
+    var operationRequestTurn = state.lastOperationRequestTurn;
     Map<String, Object?>? feasibility;
     if (arguments.keys.any((key) => key != 'fields')) {
       notes.add('已忽略 fields 以外的附加字段。');
@@ -251,6 +252,29 @@ class SessionParams {
           source,
           '从 user、preselect、default 中选择来源；推测场景或相对时长可使用 derived。',
         );
+      }
+      // An unchanged intent can be requested again without rewriting its
+      // factual proof. Only a quote in the current message authorizes a new
+      // execution; unrelated old-quote replays remain successful no-ops.
+      final operationQuote = raw['quote'];
+      if (name == 'operation' &&
+          source == 'user' &&
+          old != null &&
+          _same(old.value, value) &&
+          operationQuote is String) {
+        final current = state.userTurns.lastOrNull;
+        if (current != null &&
+            _normalize(operationQuote).isNotEmpty &&
+            _normalize(current.text).contains(_normalize(operationQuote))) {
+          operationRequestTurn = current.turn;
+        }
+      }
+      // Replaying an existing value and source adopts no new proof. Keep the
+      // original quote/turn/basedOn before derived freshness or recalculation;
+      // a later message must not make the same inference appear newly sourced.
+      if (old != null && old.source == source && _same(old.value, value)) {
+        kept.add(name);
+        continue;
       }
       if ((old?.source == 'user' ||
               old?.source == 'host' ||
@@ -488,6 +512,12 @@ class SessionParams {
           notes.add('$name：原话已核对，保存前30字符作为短引用。');
         }
       }
+      if (old != null &&
+          _same(old.value, effectiveValue) &&
+          _sourcePriority(source) <= _sourcePriority(old.source)) {
+        kept.add(name);
+        continue;
+      }
       if (name == 'equipment_exclude') {
         final rawWanted = (value! as List<Object?>).cast<String>().toSet();
         final ambient = tags.profile.ambientEquipmentFor(
@@ -660,11 +690,11 @@ class SessionParams {
         }
         effectiveValue = newLimits.toList();
       }
-      // A repeated value cannot move the equipment's last-set turn backwards.
+      // Canonicalizing an unchanged value must also retain its original proof.
       if (old != null &&
           _same(old.value, effectiveValue) &&
-          old.source == source &&
-          (name != 'equipment' || sourceTurn <= old.turn)) {
+          _sourcePriority(source) <= _sourcePriority(old.source)) {
+        kept.add(name);
         continue;
       }
       next[name] = CoachParamValue(
@@ -679,13 +709,17 @@ class SessionParams {
             ? derivedBaseline ?? old
             : null,
       );
+      if (name == 'operation') operationRequestTurn = sourceTurn;
       changed.add(name);
       if (old == null || !_same(old.value, effectiveValue)) {
         valueChanged.add(name);
       }
     }
     return ParamMutation._(
-      state.copyWith(params: next),
+      state.copyWith(
+        params: next,
+        lastOperationRequestTurn: operationRequestTurn,
+      ),
       null,
       Set.unmodifiable(changed),
       Set.unmodifiable(valueChanged),
@@ -898,6 +932,13 @@ class SessionParams {
   static final _strip = RegExp(r'[\s\p{P}]', unicode: true);
   static String _normalize(String text) =>
       text.replaceAll(_strip, '').toLowerCase();
+
+  static int _sourcePriority(String source) => switch (source) {
+    'user' || 'host' => 3,
+    'derived' => 2,
+    'preselect' => 1,
+    _ => 0,
+  };
 
   static bool _same(Object? a, Object? b) {
     if ((a is List && a.any((e) => e is Map)) || a is Map) {

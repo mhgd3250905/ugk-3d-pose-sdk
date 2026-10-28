@@ -70,6 +70,9 @@ const _approvedToolDescriptions = {
 };
 
 const _approvedParameterDescriptions = {
+  'start_task.properties.type.description':
+      'recommend=给几个动作让用户挑选或尝试；plan=有时长和结构、可以跟练的一整套训练（用户给了时长，或说练一下/来一套/安排/计划）；两者都合理时由模型判断。',
+  'draft_plan.properties.title.description': '标题只写名称，不写时长、动作数、组数；卡片时长由代码从数据显示。',
   'show_actions.properties.note.description': '最多120字',
   'show_plan.properties.note.description': '最多120字',
   'ask_user.properties.question.description': '简短口语，一次补齐缺项',

@@ -5,6 +5,7 @@ import '../catalog/catalog.dart';
 import '../profile/coach_profile.dart';
 import 'action_tags.dart';
 import 'agent_task.dart';
+import 'catalog_data_gaps.dart';
 import 'session_state.dart';
 
 class NodeGates {
@@ -224,7 +225,7 @@ class NodeGates {
           );
         }
         warnings.addAll(_unknownLimitWarnings(state));
-        warnings.addAll(_unknownActionWarnings(selected));
+        warnings.addAll(catalogWarnings(state, selected));
         next = next.copyWith(picks: selected);
         stamp = _actionsStamp(selected.length, en);
       case 'planning':
@@ -460,7 +461,7 @@ class NodeGates {
       changes: index < 0 ? const [] : [nodes[index]],
       warnings: [
         ..._unknownLimitWarnings(state),
-        ..._unknownActionWarnings(additions),
+        ...catalogWarnings(state, additions),
       ],
     );
   }
@@ -553,7 +554,7 @@ class NodeGates {
       changes: List.unmodifiable(changes),
       warnings: [
         ..._unknownLimitWarnings(state),
-        ..._unknownActionWarnings(state.picks),
+        ...catalogWarnings(state, state.picks),
       ],
     );
   }
@@ -675,21 +676,8 @@ class NodeGates {
     ];
   }
 
-  List<String> _unknownActionWarnings(Iterable<String> ids) {
-    final warnings = <String>[];
-    for (final id in ids) {
-      final semantics = catalog[id]?.raw['trainingSemantics'];
-      if (semantics is! Map) continue;
-      final fields = semantics['unknownFields'];
-      if (fields is! List) continue;
-      for (final item in fields) {
-        if (item is Map && item['field'] is String) {
-          warnings.add('$id 的 ${item['field']} 尚未明确，不能视为已验证。');
-        }
-      }
-    }
-    return warnings;
-  }
+  List<String> catalogWarnings(CoachSessionState state, Iterable<String> ids) =>
+      CatalogDataGaps(tags).warnings(state, ids);
 
   CoachPlanVersion? _version(CoachSessionState state, String? id) {
     if (state.activePlanId != null && id != null && id != state.activePlanId) {

@@ -19,7 +19,7 @@ void main() {
   });
 
   test(
-    'actual agent request describes ordered batches and terminal ask',
+    'first request defines types and each task skill owns its batch path',
     () async {
       final catalog = loadCatalog();
       for (final name in ['smartfit', 'hiplab', 'flarelab']) {
@@ -35,23 +35,30 @@ void main() {
         await coach.send('你好');
         final system = client.requests.single.messages.first.content;
         expect(
-          system,
+          builtinSkillMarkdown['action-coaching'],
           contains(
-            '推荐 start_task → set_params → search_actions → show_actions',
+            '推荐标准路径 start_task(recommend) → set_params → search_actions → show_actions',
           ),
         );
         expect(
-          system,
+          builtinSkillMarkdown['plan-training'],
           contains(
-            '计划 start_task → set_params → search_actions → draft_plan → show_plan',
+            '标准路径 start_task → set_params → search_actions → draft_plan → show_plan',
           ),
         );
         expect(
           builtinSkillMarkdown['plan-training'],
           contains('代码绑定当前 plan_id'),
         );
-        expect(system, contains('ask_user 排最后'));
-        expect(system, contains('失败后其余跳过'));
+        expect(
+          builtinSkillMarkdown['action-library'],
+          isNot(contains('推荐标准路径')),
+        );
+        final start = client.requests.single.tools.singleWhere(
+          (tool) => tool.name == 'start_task',
+        );
+        final type = (start.parameters['properties'] as Map)['type'] as Map;
+        expect(type['description'], contains('两者都合理时由模型判断'));
         expect(system, contains('show_* 成功即结束'));
         expect(system, isNot(contains('check_plan 仅当前工具列表提供时可用')));
         expect(system, isNot(contains('信息足够或已结束询问后直接 show_plan')));

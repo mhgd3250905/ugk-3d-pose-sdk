@@ -10,7 +10,10 @@ void main() {
   const expected = <String, Object?>{
     'type': 'object',
     'properties': {
-      'title': {'type': 'string'},
+      'title': {
+        'type': 'string',
+        'description': '标题只写名称，不写时长、动作数、组数；卡片时长由代码从数据显示。',
+      },
       'blocks': {
         'type': 'array',
         'items': {

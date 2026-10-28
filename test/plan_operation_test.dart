@@ -3,9 +3,11 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:ugk_coach/src/agent/action_search.dart';
+import 'package:ugk_coach/src/agent/action_tags.dart';
 import 'package:ugk_coach/src/agent/agent_task.dart';
 import 'package:ugk_coach/src/agent/node_gates.dart';
 import 'package:ugk_coach/src/agent/plan_builder.dart';
+import 'package:ugk_coach/src/agent/session_params.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
@@ -204,6 +206,112 @@ void main() {
       expect(result.ok, isTrue, reason: '${result.error}');
       expect(result.state.plans['original']!.last.operation, 'edit');
       expect(result.notes.any((note) => note.contains('无效旧操作')), isTrue);
+    },
+  );
+
+  test(
+    'repeated same-quote replacement requests keep proof but enforce difference on both turns',
+    () {
+      final params = SessionParams(ActionTags(profile, catalog));
+      Map<String, Object?> request() => {
+        'fields': {
+          'operation': {
+            'value': 'replace_all',
+            'source': 'user',
+            'quote': '换一套',
+          },
+        },
+      };
+      final first = params.set(delivered(), request());
+      expect(first.ok, isTrue);
+      expect(first.state.lastOperationRequestTurn, 2);
+      final firstFailure = builder.draft(
+        first.state,
+        draft(oldMain),
+        newPlanId: 'unused',
+      );
+      expect(firstFailure.error!['code'], 'replace_too_similar');
+      final replaced = builder.draft(
+        first.state,
+        draft(newMain),
+        newPlanId: 'unused',
+      );
+      expect(replaced.ok, isTrue);
+      final next = replaced.state
+          .copyWith(
+            task: replaced.state.task!.copyWith(
+              nodes: [
+                for (final node in replaced.state.task!.nodes)
+                  node.copyWith(status: 'done'),
+              ],
+            ),
+            lastDeliveredVersion: replaced.version,
+            lastDeliveredTurn: 2,
+          )
+          .appendUserTurn('换一套');
+      final second = params.set(next, request());
+      expect(second.ok, isTrue);
+      expect(second.kept, {'operation'});
+      expect(second.changedFields, isEmpty);
+      expect(
+        second.state.params['operation'],
+        same(first.state.params['operation']),
+      );
+      expect(second.state.params['operation']!.turn, 2);
+      expect(second.state.lastOperationRequestTurn, 3);
+      final secondFailure = builder.draft(
+        second.state,
+        draft(newMain),
+        newPlanId: 'unused',
+      );
+      expect(secondFailure.error!['code'], 'replace_too_similar');
+      expect(
+        secondFailure.state.plans['original']!.last.operation,
+        'replace_all',
+      );
+      final secondSuccess = builder.draft(
+        second.state,
+        draft(oldMain),
+        newPlanId: 'unused',
+      );
+      expect(secondSuccess.ok, isTrue);
+      expect(
+        secondSuccess.state.plans['original']!.last.operation,
+        'replace_all',
+      );
+    },
+  );
+
+  test(
+    'unrelated old request stays inactive and legacy snapshots fall back to proof turn',
+    () {
+      final params = SessionParams(ActionTags(profile, catalog));
+      final request = {
+        'fields': {
+          'operation': {
+            'value': 'replace_all',
+            'source': 'user',
+            'quote': '换一套',
+          },
+        },
+      };
+      final requested = params.set(delivered(), request).state;
+      final snapshot = requested.toJson()..remove('lastOperationRequestTurn');
+      final legacy = CoachSessionState.fromJson(snapshot);
+      expect(legacy.lastOperationRequestTurn, isNull);
+      final active = builder.draft(legacy, draft(oldMain), newPlanId: 'unused');
+      expect(active.error!['code'], 'replace_too_similar');
+      final replay = params.set(requested.appendUserTurn('谢谢'), request);
+      expect(replay.ok, isTrue);
+      expect(replay.kept, {'operation'});
+      expect(replay.state.lastOperationRequestTurn, 2);
+      final inactive = builder.draft(
+        replay.state,
+        draft(oldMain),
+        newPlanId: 'unused',
+      );
+      expect(inactive.ok, isTrue);
+      expect(inactive.state.plans['original']!.last.operation, 'edit');
     },
   );
 

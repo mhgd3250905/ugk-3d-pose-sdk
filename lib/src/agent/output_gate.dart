@@ -8,6 +8,7 @@ import '../plan/training_plan.dart';
 import '../profile/coach_profile.dart';
 import '../tools/coach_tools.dart';
 import 'agent_task.dart';
+import 'catalog_data_gaps.dart';
 import 'node_gates.dart';
 import 'plan_builder.dart';
 import 'plan_checker.dart';
@@ -430,8 +431,11 @@ class OutputGate {
     if (!ready.ok) return fail(ready.error!);
     changes.addAll(ready.changes);
     final savedWarnings = next.plans[active]!.last.check?['warnings'];
+    final gaps = CatalogDataGaps(gate.tags);
     if (savedWarnings is List) {
-      warnings.addAll(savedWarnings.whereType<String>());
+      warnings.addAll(
+        gaps.filterWarnings(next, savedWarnings.whereType<String>()),
+      );
     }
     return OutputPreparation(
       nodeResult: NodeResult(ready.state, changes: changes),
@@ -444,7 +448,12 @@ class OutputGate {
         for (final detail
             in next.plans[active]!.last.check?['warningDetails'] as List? ??
                 const [])
-          if (detail is Map) detail.cast<String, Object?>(),
+          if (detail is Map &&
+              (detail['message'] is! String ||
+                  gaps.filterWarnings(next, [
+                    detail['message'] as String,
+                  ]).isNotEmpty))
+            detail.cast<String, Object?>(),
       ],
     );
   }

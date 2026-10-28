@@ -22,7 +22,8 @@ extension TrustedCardTiming on PlanBuilder {
       return fail('invalid_refit', saved.id);
     }
     final turn = state.userTurns.lastOrNull?.turn ?? 0;
-    if (state.params['operation']?.turn == turn &&
+    if ((state.lastOperationRequestTurn ?? state.params['operation']?.turn) ==
+            turn &&
         state.params['operation']?.value == 'replace_all') {
       return fail('replace_too_similar', '原动作不能代表整体换一套');
     }

@@ -236,7 +236,7 @@ void main() {
       state = state.copyWith(params: params, seenActionIds: {unknown.id});
       final result = syntheticGate.check(state, 'actions', picks: [unknown.id]);
       expect(result.ok, isTrue);
-      expect(result.warnings.single, contains('contraindications'));
+      expect(result.warnings, isEmpty);
     },
   );
 

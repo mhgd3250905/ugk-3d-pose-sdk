@@ -22,6 +22,8 @@ void main() {
           'properties': {
             'type': {
               'enum': ['recommend', 'plan'],
+              'description':
+                  'recommend=给几个动作让用户挑选或尝试；plan=有时长和结构、可以跟练的一整套训练（用户给了时长，或说练一下/来一套/安排/计划）；两者都合理时由模型判断。',
             },
             'reuse': {'type': 'boolean'},
           },

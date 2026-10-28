@@ -35,6 +35,7 @@ class SkillDisclosures {
   static Set<String> requiredFor(String type) => {
     '${SkillFiles.ask}/SKILL.md',
     '${SkillFiles.actionLibrary}/SKILL.md',
+    if (type == 'recommend') '${SkillFiles.actionCoaching}/SKILL.md',
     if (type == 'plan') '${SkillFiles.planTraining}/SKILL.md',
   };
 

@@ -7,7 +7,9 @@ import '../catalog/catalog.dart';
 import '../llm/llm_types.dart';
 import '../profile/coach_profile.dart';
 import 'action_search.dart';
+import 'action_tags.dart';
 import 'agent_prompt.dart';
+import 'catalog_data_gaps.dart';
 import 'session_state.dart';
 import 'skill_disclosure.dart';
 
@@ -41,7 +43,17 @@ class ContextCompactor {
       system,
       LlmMessage.system('当前状态：${jsonEncode(summary)}'),
     ];
-    final combined = [...history, ...turnMessages];
+    final gaps = CatalogDataGaps(
+      ActionTags(
+        profile ??
+            const CoachProfile(id: 'diagnostics', appName: 'diagnostics'),
+        catalog,
+      ),
+    );
+    final combined = [
+      for (final message in [...history, ...turnMessages])
+        _filterCatalogWarnings(message, gaps, state),
+    ];
     final paired = _pairs(combined);
     // Once a successful task makes an earlier skill read irrelevant, do
     // not revive that raw result if a later task needs the skill again.
@@ -170,6 +182,102 @@ class ContextCompactor {
         summary,
       ),
     );
+  }
+
+  /// Exact catalogue-generated warning bindings can be reclassified after a
+  /// restore. This only changes the request view, never the saved history.
+  LlmMessage _filterCatalogWarnings(
+    LlmMessage message,
+    CatalogDataGaps gaps,
+    CoachSessionState state,
+  ) {
+    if (message.role != LlmRole.tool) return message;
+    Object? decoded;
+    try {
+      decoded = jsonDecode(message.content);
+    } on FormatException {
+      return message;
+    }
+    var changed = false;
+    Object? visit(Object? value) {
+      if (value is List) return [for (final item in value) visit(item)];
+      if (value is! Map) return value;
+      final next = <String, Object?>{};
+      for (final entry in value.entries) {
+        if (entry.key is! String) return value;
+        if (entry.key == 'warnings' && entry.value is List) {
+          final warnings = entry.value as List;
+          final kept = [
+            for (final warning in warnings)
+              if (warning is! String ||
+                  gaps.filterWarnings(state, [warning]).isNotEmpty)
+                visit(warning),
+          ];
+          if (kept.length != warnings.length) changed = true;
+          if (kept.isNotEmpty) next['warnings'] = kept;
+        } else if (entry.key == 'warnings' && entry.value is Map) {
+          final packed = entry.value as Map;
+          if (packed['template'] == '{id} 的 {field} 尚未明确，不能视为已验证。' &&
+              packed['fields'] is List &&
+              packed['rows'] is List) {
+            final fields = packed['fields'] as List;
+            final rows = packed['rows'] as List;
+            bool keepRow(Object? row) {
+              if (row is String) {
+                return gaps.filterWarnings(state, [row]).isNotEmpty;
+              }
+              if (row is! List ||
+                  row.length != 2 ||
+                  row[0] is! String ||
+                  row[1] is! int) {
+                return true;
+              }
+              final index = row[1] as int;
+              if (index < 0 ||
+                  index >= fields.length ||
+                  fields[index] is! String) {
+                return true;
+              }
+              return gaps.filterWarnings(state, [
+                CatalogDataGaps.warning(
+                  row[0] as String,
+                  fields[index] as String,
+                ),
+              ]).isNotEmpty;
+            }
+
+            final kept = [
+              for (final row in rows)
+                if (keepRow(row)) row,
+            ];
+            if (kept.length != rows.length) changed = true;
+            if (kept.isNotEmpty) {
+              next['warnings'] = kept.every((row) => row is String)
+                  ? kept
+                  : {...packed.cast<String, Object?>(), 'rows': kept};
+            }
+          } else {
+            next[entry.key as String] = visit(entry.value);
+          }
+        } else {
+          next[entry.key as String] = visit(entry.value);
+        }
+      }
+      return next;
+    }
+
+    final filtered = visit(decoded);
+    if (!changed) return message;
+    final content = jsonEncode(filtered);
+    return message is SkillDisclosureMessage
+        ? SkillDisclosureMessage(
+            message.toolCallId!,
+            content,
+            fullRead: message.fullRead,
+            fullSkills: message.fullSkills,
+            requiredSkills: message.requiredSkills,
+          )
+        : LlmMessage.tool(message.toolCallId!, content);
   }
 
   /// Previously consumed, successful state receipts can refer to an identical

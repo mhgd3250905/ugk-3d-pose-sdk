@@ -138,6 +138,7 @@ void main() {
         expect(skills.keys.toSet(), {
           'ask',
           'action-library',
+          if (type == 'recommend') 'action-coaching',
           if (type == 'plan') 'plan-training',
         });
         for (final entry in skills.entries) {

@@ -159,10 +159,15 @@ void main() {
             'status=${second.status}; records=${second.records.map((r) => r.toJson()).toList()}; requests=${client.requests.length}',
       );
       expect(
-        client.requests.last.messages
-            .singleWhere((message) => message.toolCallId == 'detail')
-            .content,
-        '[已归档] 已查看要领：$detailOnly',
+        (jsonDecode(
+              client.requests.last.messages
+                  .singleWhere((message) => message.toolCallId == 'detail')
+                  .content,
+            )
+            as Map)['items'],
+        contains(
+          predicate<Map<Object?, Object?>>((item) => item['id'] == detailOnly),
+        ),
       );
       expect(_feedback(client.requests.last, 'check')['ok'], isTrue);
       expect(coach.sessionState.seenActionIds, returned.toSet());

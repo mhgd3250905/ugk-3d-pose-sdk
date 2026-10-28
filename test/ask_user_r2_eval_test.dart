@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import 'request_context_support.dart';
 import 'support.dart';
 
 var _scriptSequence = 0;
@@ -313,7 +314,8 @@ void main() {
               },
             }),
             (LlmRequest request) {
-              final update = jsonDecode(request.messages.last.content) as Map;
+              final update =
+                  jsonDecode(modelRequestHistory(request).last.content) as Map;
               expect(update['ok'], isTrue, reason: '$update');
               return _tool(AgentTools.draftPlan, {
                 'plan_id': planId,
@@ -330,22 +332,26 @@ void main() {
               });
             },
             (LlmRequest request) {
-              final draft = jsonDecode(request.messages.last.content) as Map;
+              final draft =
+                  jsonDecode(modelRequestHistory(request).last.content) as Map;
               expect(draft['ok'], isTrue, reason: '$draft');
               return _tool(AgentTools.check, {'node': 'planning'});
             },
             (LlmRequest request) {
-              final planning = jsonDecode(request.messages.last.content) as Map;
+              final planning =
+                  jsonDecode(modelRequestHistory(request).last.content) as Map;
               expect(planning['ok'], isTrue, reason: '$planning');
               return _tool(AgentTools.checkPlan, {'plan_id': planId});
             },
             (LlmRequest request) {
-              final checked = jsonDecode(request.messages.last.content) as Map;
+              final checked =
+                  jsonDecode(modelRequestHistory(request).last.content) as Map;
               expect(checked['ok'], isTrue, reason: '$checked');
               return _tool(AgentTools.check, {'node': 'review'});
             },
             (LlmRequest request) {
-              final reviewed = jsonDecode(request.messages.last.content) as Map;
+              final reviewed =
+                  jsonDecode(modelRequestHistory(request).last.content) as Map;
               expect(reviewed['ok'], isTrue, reason: '$reviewed');
               return _tool(AgentTools.showPlan, {
                 'plan_id': planId,

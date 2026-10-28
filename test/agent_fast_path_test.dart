@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 import 'package:ugk_coach/src/prompt/prompts.g.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import 'request_context_support.dart';
 import 'support.dart';
 
 LlmToolCall _tool(String id, String name, Object args) =>
@@ -245,7 +246,8 @@ void main() {
         }),
       ]),
       (LlmRequest request) {
-        final detail = jsonDecode(request.messages.last.content) as Map;
+        final detail =
+            jsonDecode(modelRequestHistory(request).last.content) as Map;
         expect(detail['ok'], isTrue);
         expect(jsonEncode(detail), contains('s-figure4'));
         expect(jsonEncode(detail), contains('cues'));
@@ -311,7 +313,8 @@ void main() {
           }),
         ]),
         (LlmRequest request) {
-          final feedback = jsonDecode(request.messages.last.content) as Map;
+          final feedback =
+              jsonDecode(modelRequestHistory(request).last.content) as Map;
           expect(feedback['code'], 'incompatible_actions');
           return '当前动作不可用。';
         },

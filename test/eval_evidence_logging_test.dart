@@ -7,9 +7,180 @@ import 'package:ugk_coach/ugk_coach.dart';
 
 import '../tool/eval_api_config.dart';
 import '../tool/eval_coach_agent_v2.dart';
+import '../tool/eval_context_stats.dart';
 import '../tool/eval_thinking_mode.dart';
+import 'support.dart';
 
 void main() {
+  test(
+    'real CoachAgent getter is read at wire time and matches exact OpenAI body size',
+    () async {
+      final catalog = loadCatalog();
+      final wire = EvaluationWireClient(
+        MockClient(
+          (request) async => http.Response(
+            jsonEncode({
+              'model': evaluationModel,
+              'choices': [
+                {
+                  'finish_reason': 'stop',
+                  'message': {
+                    'role': 'assistant',
+                    'content': '公开回答',
+                    'reasoning_content': '保留在本地协议内存',
+                  },
+                },
+              ],
+              'usage': {
+                'prompt_tokens': 10,
+                'completion_tokens': 2,
+                'total_tokens': 12,
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          ),
+        ),
+        EvaluationRedactor([]),
+        (_) {},
+      );
+      final client = OpenAiCompatibleClient(
+        config: evaluationLlmConfig(EvaluationThinkingMode.on),
+        httpClient: wire,
+      );
+      final agent = CoachAgent(
+        client: client,
+        catalog: () => catalog,
+        profile: loadProfile('smartfit'),
+        enableUserMemory: false,
+      );
+      addTearDown(agent.dispose);
+      addTearDown(client.close);
+      wire.contextDiagnosticsProvider = () {
+        final diagnostics = agent.contextRequestDiagnostics;
+        return diagnostics.isEmpty
+            ? null
+            : {
+                'sdkDiagnosticIndex': diagnostics.length - 1,
+                ...diagnostics.last.toJson(),
+              };
+      };
+      expect((await agent.send('你好')).status, TurnStatus.ok);
+      expect((await agent.send('谢谢')).status, TurnStatus.ok);
+      expect(wire.calls, hasLength(2));
+      for (final call in wire.calls) {
+        final context = call['contextStats'] as Map;
+        expect(context['wireMinusSdkAfterBytes'], 0);
+        expect((context['tailState'] as Map)['observed'], isTrue);
+        expect(context['sdkDiagnostics'], isNotNull);
+      }
+      expect(
+        ((wire.calls.last['contextStats'] as Map)['prefixValidation']
+            as Map)['status'],
+        'pass',
+      );
+      expect(jsonEncode(wire.calls), isNot(contains('保留在本地协议内存')));
+    },
+  );
+
+  test(
+    'wire reads current SDK diagnostics before HTTP and records actual prefix/cache measurements',
+    () async {
+      var sent = 0;
+      var diagnosticReads = 0;
+      var epoch = 1;
+      final wire = EvaluationWireClient(
+        MockClient((request) async {
+          sent++;
+          expect(diagnosticReads, sent);
+          return http.Response(
+            jsonEncode({
+              'model': 'deepseek-flash',
+              'choices': [],
+              if (sent == 1) 'usage': {'prompt_cache_hit_tokens': 0},
+              if (sent == 2)
+                'usage': {
+                  'prompt_tokens_details': {'cached_tokens': 7},
+                },
+            }),
+            200,
+          );
+        }),
+        EvaluationRedactor([]),
+        (_) {},
+      );
+      addTearDown(wire.close);
+      wire.contextDiagnosticsProvider = () {
+        diagnosticReads++;
+        return {
+          'sdkDiagnosticIndex': diagnosticReads - 1,
+          'epoch': epoch,
+          'beforeBytes': 80000,
+          'afterBytes': 1,
+          'completedTurnsFolded': epoch == 2 ? 1 : 0,
+          'receiptBodiesFolded': 0,
+          'measurement': 'SDK diagnostic only',
+          'privateReasoning': 'must-not-log',
+        };
+      };
+      final history = <Json>[
+        {'role': 'user', 'content': 'public input'},
+        {
+          'role': 'assistant',
+          'content': '',
+          'reasoning_content': 'retained-private-reasoning',
+        },
+      ];
+      for (var i = 1; i <= 3; i++) {
+        if (i == 3) epoch = 2;
+        final request =
+            http.Request('POST', Uri.parse('https://example.invalid'))
+              ..body = jsonEncode({
+                'model': 'deepseek-flash',
+                'thinking': {'type': 'enabled'},
+                'tools': <Object?>[],
+                'messages': [
+                  {'role': 'system', 'content': 'role'},
+                  if (i < 3)
+                    ...history
+                  else
+                    {'role': 'user', 'content': 'completed summary'},
+                  if (i == 2) {'role': 'assistant', 'content': 'appended'},
+                  {'role': 'user', 'content': '$evaluationTailStatePrefix$i'},
+                ],
+              });
+        final response = await wire.send(request);
+        await response.stream.drain<void>();
+      }
+      expect(wire.calls[0]['cacheObservation'], containsPair('hitTokens', 0));
+      expect(wire.calls[1]['cacheObservation'], containsPair('hitTokens', 7));
+      expect(
+        wire.calls[2]['cacheObservation'],
+        containsPair('status', 'unknown'),
+      );
+      final second = wire.calls[1]['contextStats'] as Map;
+      expect(second['historyPrefixFullyPreserved'], isTrue);
+      expect((second['prefixValidation'] as Map)['status'], 'pass');
+      expect(
+        second['wireMinusSdkAfterBytes'],
+        (wire.calls[1]['requestBytes'] as int) - 1,
+      );
+      final third = wire.calls[2]['contextStats'] as Map;
+      expect(third['foldType'], 'completed_turns');
+      expect((third['prefixValidation'] as Map)['status'], 'not_applicable');
+      expect(
+        jsonEncode(wire.calls),
+        isNot(contains('retained-private-reasoning')),
+      );
+      expect(jsonEncode(wire.calls), isNot(contains('must-not-log')));
+      expect(
+        (evaluationContextStatistics(wire.calls)['cache']
+            as Map)['unknownCalls'],
+        1,
+      );
+    },
+  );
+
   test('API key rejects prose and header controls without echoing input', () {
     for (final invalid in [
       '',

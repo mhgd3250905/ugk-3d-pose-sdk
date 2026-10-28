@@ -8,6 +8,7 @@ import 'package:ugk_coach/src/agent/plan_builder.dart';
 import 'package:ugk_coach/src/agent/plan_checker.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import 'request_context_support.dart';
 import 'support.dart';
 
 const warmup = ['n-squat-shift', 'forearms-A', 'n-pelvis-circle'];
@@ -223,149 +224,162 @@ void main() {
     sample15();
   });
   for (final segmented in [false, true]) {
-    test(
-      'restored ${segmented ? '15-action segmented' : 'R3 10-action'} plan first request stays within 12 KB',
-      () async {
-        final sample = segmented ? sample15() : sample10();
-        const context = CoachContext(
-          scene: 'home',
-          equipment: {},
-          minutes: 20,
-          goal: 'core',
-        );
-        final admitted = ToolGate(
-          catalog: catalog,
-          profile: profile,
-        ).admitTemplate(sample.plan, context);
-        expect(
-          admitted,
-          isNotNull,
-          reason: 'sample must pass normal card admission',
-        );
-        final seedClient = FakeLlmClient([
-          LlmResponse(
-            content: '',
-            toolCalls: [
-              LlmToolCall(
-                id: 'review-seed',
-                name: AgentTools.check,
-                arguments: jsonEncode({'node': 'review'}),
-              ),
-              LlmToolCall(
-                id: 'show-seed',
-                name: AgentTools.showPlan,
-                arguments: jsonEncode({
-                  'plan_id': sample.plan.id,
-                  'note': '量力而行。',
-                }),
-              ),
-            ],
-            finishReason: 'tool_calls',
-          ),
-        ], latency: Duration.zero);
-        final seedAgent = CoachAgent(
-          client: seedClient,
-          catalog: () => catalog,
-          profile: profile,
-          enableUserMemory: false,
-          maxRequestRetries: 0,
-        );
-        seedAgent.restorePlan(
-          admitted!,
-          planState: CoachPlanState(
-            planId: sample.plan.id,
-            context: context,
-            sessionState: sample.state,
-          ),
-        );
-        final seed = CoachConversationController(agent: seedAgent);
-        addTearDown(seed.dispose);
-        final delivered = await seed.send('请输出这个计划');
-        expect(
-          delivered!.plan,
-          isNotNull,
-          reason: '${delivered.issues}; ${delivered.error}',
-        );
-        final snapshot = CoachPlanState.fromJson(
-          jsonDecode(
-                jsonEncode(seedAgent.planStateFor(delivered.plan!).toJson()),
-              )
-              as Map<String, dynamic>,
-        );
-        final messages = [
-          CoachConversationMessage(
-            id: 'original',
-            at: DateTime.utc(2026),
-            isUser: true,
-            text: '在家徒手20分钟练核心',
-          ),
-          ...seed.state.messages,
-        ];
-        final client = FakeLlmClient(['收到。'], latency: Duration.zero);
-        final fresh = CoachAgent(
-          client: client,
-          catalog: () => catalog,
-          profile: profile,
-          enableUserMemory: false,
-          maxRequestRetries: 0,
-        );
-        final restored = CoachConversationController(agent: fresh);
-        addTearDown(restored.dispose);
-        restored.restoreHistory(messages, planState: snapshot);
-        final result = await restored.send('继续');
-        expect(result, isNotNull);
-        final request = client.requests.single;
-        final serializer = OpenAiCompatibleClient(
-          config: LlmConfig.ugkWorker.copyWith(
-            extraBody: {
-              'thinking': {'type': 'enabled'},
-            },
-          ),
-        );
-        final payload = jsonEncode(serializer.buildBody(request));
-        final bytes = utf8.encode(payload).length;
-        final system = request.messages
-            .where((m) => m.role == LlmRole.system)
-            .fold<int>(
-              0,
-              (n, m) => n + utf8.encode(jsonEncode(m.toJson())).length,
-            );
-        final userAssistant = request.messages
-            .where((m) => m.role != LlmRole.system)
-            .fold<int>(
-              0,
-              (n, m) => n + utf8.encode(jsonEncode(m.toJson())).length,
-            );
-        final tools = utf8
-            .encode(jsonEncode([for (final t in request.tools) t.toJson()]))
-            .length;
-        for (final message in request.messages) {
-          print(
-            'COMPONENT role=${message.role.name} bytes=${utf8.encode(jsonEncode(message.toJson())).length} prefix=${message.content.substring(0, message.content.length < 35 ? message.content.length : 35)}',
+    for (final keepLedger in [false, true]) {
+      test(
+        'restored ${keepLedger ? 'lossless ledger' : 'legacy'} ${segmented ? '15-action segmented' : 'R3 10-action'} respects byte policy without losing user words',
+        () async {
+          final sample = segmented ? sample15() : sample10();
+          const context = CoachContext(
+            scene: 'home',
+            equipment: {},
+            minutes: 20,
+            goal: 'core',
           );
-        }
-        // Components are diagnostic measurements; whole body includes transport fields.
-        print(
-          'RESTORE ${segmented ? 15 : 10}: bytes=$bytes system=$system history=$userAssistant tools=$tools',
-        );
-        expect(
-          bytes,
-          lessThanOrEqualTo(12 * 1024),
-          reason: 'restore payload=$bytes bytes',
-        );
-        expect(
-          request.messages.any((m) => m.content.contains('在家徒手20分钟练核心')),
-          isTrue,
-        );
-        expect(
-          request.messages.any((m) => m.content.contains('量力而行。')),
-          isTrue,
-        );
-      },
-    );
+          final admitted = ToolGate(
+            catalog: catalog,
+            profile: profile,
+          ).admitTemplate(sample.plan, context);
+          expect(
+            admitted,
+            isNotNull,
+            reason: 'sample must pass normal card admission',
+          );
+          final seedClient = FakeLlmClient([
+            LlmResponse(
+              content: '',
+              toolCalls: [
+                LlmToolCall(
+                  id: 'review-seed',
+                  name: AgentTools.check,
+                  arguments: jsonEncode({'node': 'review'}),
+                ),
+                LlmToolCall(
+                  id: 'show-seed',
+                  name: AgentTools.showPlan,
+                  arguments: jsonEncode({
+                    'plan_id': sample.plan.id,
+                    'note': '量力而行。',
+                  }),
+                ),
+              ],
+              finishReason: 'tool_calls',
+            ),
+          ], latency: Duration.zero);
+          final seedAgent = CoachAgent(
+            client: seedClient,
+            catalog: () => catalog,
+            profile: profile,
+            enableUserMemory: false,
+            maxRequestRetries: 0,
+          );
+          seedAgent.restorePlan(
+            admitted!,
+            planState: CoachPlanState(
+              planId: sample.plan.id,
+              context: context,
+              sessionState: sample.state,
+            ),
+          );
+          final seed = CoachConversationController(agent: seedAgent);
+          addTearDown(seed.dispose);
+          final delivered = await seed.send('请输出这个计划');
+          expect(
+            delivered!.plan,
+            isNotNull,
+            reason: '${delivered.issues}; ${delivered.error}',
+          );
+          final snapshotData =
+              jsonDecode(
+                    jsonEncode(
+                      seedAgent.planStateFor(delivered.plan!).toJson(),
+                    ),
+                  )
+                  as Map<String, dynamic>;
+          if (!keepLedger) {
+            (snapshotData['sessionState'] as Map).remove(
+              'completedContextLedger',
+            );
+          }
+          final snapshot = CoachPlanState.fromJson(snapshotData);
+          final messages = [
+            CoachConversationMessage(
+              id: 'original',
+              at: DateTime.utc(2026),
+              isUser: true,
+              text: '在家徒手20分钟练核心',
+            ),
+            ...seed.state.messages,
+          ];
+          final client = FakeLlmClient(['收到。'], latency: Duration.zero);
+          final serializer = OfflineConfiguredClient(
+            replay: client,
+            config: LlmConfig.ugkWorker.copyWith(
+              extraBody: {
+                'thinking': {'type': 'enabled'},
+              },
+            ),
+          );
+          addTearDown(serializer.close);
+          final fresh = CoachAgent(
+            client: serializer,
+            catalog: () => catalog,
+            profile: profile,
+            enableUserMemory: false,
+            maxRequestRetries: 0,
+          );
+          final restored = CoachConversationController(agent: fresh);
+          addTearDown(restored.dispose);
+          restored.restoreHistory(messages, planState: snapshot);
+          final result = await restored.send('继续');
+          expect(result, isNotNull);
+          final request = client.requests.single;
+          final payload = jsonEncode(serializer.buildBody(request));
+          final bytes = utf8.encode(payload).length;
+          final system = request.messages
+              .where((m) => m.role == LlmRole.system)
+              .fold<int>(
+                0,
+                (n, m) => n + utf8.encode(jsonEncode(m.toJson())).length,
+              );
+          final userAssistant = request.messages
+              .where((m) => m.role != LlmRole.system)
+              .fold<int>(
+                0,
+                (n, m) => n + utf8.encode(jsonEncode(m.toJson())).length,
+              );
+          final tools = utf8
+              .encode(jsonEncode([for (final t in request.tools) t.toJson()]))
+              .length;
+          for (final message in request.messages) {
+            print(
+              'COMPONENT role=${message.role.name} bytes=${utf8.encode(jsonEncode(message.toJson())).length} prefix=${message.content.substring(0, message.content.length < 35 ? message.content.length : 35)}',
+            );
+          }
+          // Components are diagnostic measurements; whole body includes transport fields.
+          print(
+            'RESTORE ${keepLedger ? 'ledger' : 'legacy'} ${segmented ? 15 : 10}: bytes=$bytes system=$system history=$userAssistant tools=$tools',
+          );
+          expect(
+            bytes,
+            lessThanOrEqualTo(
+              keepLedger ? fresh.contextBudgetConfig.softOnBytes : 12 * 1024,
+            ),
+            reason: 'restore payload=$bytes bytes',
+          );
+          expect(
+            request.messages.any((m) => m.content.contains('在家徒手20分钟练核心')),
+            isTrue,
+          );
+          expect(
+            request.messages.any((m) => m.content.contains('量力而行。')),
+            isTrue,
+          );
+        },
+      );
+    }
   }
   test(
-    'R3 stress replay keeps every serialized Worker request within 40 KB',
+    'R3 stress replay keeps every configured request within its hard byte budget',
     () async {
       LlmToolCall call(String id, String name, Object args) =>
           LlmToolCall(id: id, name: name, arguments: jsonEncode(args));
@@ -494,8 +508,17 @@ void main() {
         },
         '不客气。',
       ], latency: Duration.zero);
+      final serializer = OfflineConfiguredClient(
+        replay: client,
+        config: LlmConfig.ugkWorker.copyWith(
+          extraBody: {
+            'thinking': {'type': 'enabled'},
+          },
+        ),
+      );
+      addTearDown(serializer.close);
       final agent = CoachAgent(
-        client: client,
+        client: serializer,
         catalog: () => catalog,
         profile: profile,
         enableUserMemory: false,
@@ -517,16 +540,9 @@ void main() {
         reason: '${second.issues}; ${second.error}',
       );
       expect(second.plan!.plan.exerciseIds, hasLength(10));
+      expect(second.text, '量力而行。');
       final finalReply = await agent.send('谢谢');
       expect(finalReply.text, '不客气。');
-      final serializer = OpenAiCompatibleClient(
-        config: LlmConfig.ugkWorker.copyWith(
-          extraBody: {
-            'thinking': {'type': 'enabled'},
-          },
-        ),
-      );
-      addTearDown(serializer.close);
       for (var i = 0; i < client.requests.length; i++) {
         final request = client.requests[i];
         protocol(request);
@@ -571,16 +587,14 @@ void main() {
           );
         }
         if (i >= 2 && i <= 5) {
-          final current =
-              jsonDecode(request.messages[1].content.substring('当前状态：'.length))
-                  as Map;
+          final current = requestCurrentState(request);
           expect(current['picks'], isEmpty);
           expect(current['candidates'], isNotEmpty);
           expect((current['candidates'] as List).length, lessThanOrEqualTo(40));
         }
         expect(
           size,
-          lessThanOrEqualTo(40 * 1024),
+          lessThanOrEqualTo(agent.contextBudgetConfig.hardBytes),
           reason: 'R3 replay request $i: $size bytes',
         );
       }
@@ -594,7 +608,17 @@ void main() {
         isTrue,
       );
       expect(
-        finalRequest.messages.any((m) => m.content.contains('量力而行。')),
+        jsonEncode(
+          finalRequest.messages.map((m) => m.toJson()).toList(),
+        ).contains('量力而行。'),
+        isTrue,
+      );
+      final ledgerTurns =
+          agent.sessionState.completedContextLedger!['turns'] as List;
+      expect(
+        ledgerTurns.any(
+          (turn) => (turn as Map)['finalDeliveryText'] == second.text,
+        ),
         isTrue,
       );
     },

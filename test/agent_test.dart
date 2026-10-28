@@ -30,6 +30,8 @@ LlmResponse _showActions(List<String> ids, [String text = '这几个动作可以
     ], text);
 
 Map<String, Object?> _okPlan() => planOf(okEnvelope())..remove('source');
+LlmMessage _lastTool(LlmRequest request) =>
+    request.messages.lastWhere((message) => message.role == LlmRole.tool);
 
 /// load 被阻塞的 store：返回调用 load 那一刻的快照。
 class _GatedStore implements UserMemoryStore {
@@ -401,7 +403,7 @@ void main() {
       expect(r.records.map((x) => x.turnOutcome).toSet(), {
         TurnOutcome.rewritten,
       });
-      final fb = jsonDecode(c.requests[2].messages.last.content) as Map;
+      final fb = jsonDecode(_lastTool(c.requests[2]).content) as Map;
       expect(fb['ok'], false);
       expect(fb['code'], 'unseen_actions');
       expect(jsonEncode(fb), contains('made-up-id'));
@@ -423,7 +425,7 @@ void main() {
       final r = await a.send('在家徒手推荐臀部动作');
       expect(r.question, isNotNull);
       expect(r.actions, isNull);
-      final fb = jsonDecode(c.requests.last.messages.last.content) as Map;
+      final fb = jsonDecode(_lastTool(c.requests.last).content) as Map;
       expect(fb['code'], 'incompatible_actions');
       expect(jsonEncode(fb), contains('abs-A'));
       expect(a.sessionState.seenActionIds, isNot(contains('abs-A')));
@@ -515,15 +517,18 @@ void main() {
           final replies = request.messages
               .where((m) => m.role == LlmRole.tool)
               .toList();
-          expect(replies[replies.length - 2].content, '[已归档，见当前状态]');
-          expect(request.messages[1].content, contains('"plan_id":"$planId"'));
+          final retainedDraft =
+              jsonDecode(replies[replies.length - 2].content) as Map;
+          expect(retainedDraft['ok'], isTrue);
+          expect(retainedDraft['plan_id'], planId);
+          expect(request.messages.last.content, contains(planId));
           expect((jsonDecode(replies.last.content) as Map)['ok'], isTrue);
           return _tools([
             _call('check_plan', {'plan_id': '不存在的计划'}),
           ]);
         },
         (LlmRequest request) {
-          final normalized = jsonDecode(request.messages.last.content) as Map;
+          final normalized = jsonDecode(_lastTool(request).content) as Map;
           expect(normalized['ok'], isTrue);
           expect((normalized['task'] as Map)['type'], 'plan');
           return _tools([
@@ -531,7 +536,7 @@ void main() {
           ]);
         },
         (LlmRequest request) {
-          final checked = jsonDecode(request.messages.last.content) as Map;
+          final checked = jsonDecode(_lastTool(request).content) as Map;
           expect(checked['ok'], isTrue, reason: '$checked');
           expect(checked['summary'], isA<String>());
           return _tools([
@@ -606,7 +611,7 @@ void main() {
   });
 
   group('用户记忆', () {
-    test('开：remember 逐工具保存，下一轮进系统提示词；forget 删除', () async {
+    test('开：remember 逐工具保存且后续上下文保留，system固定；forget 删除', () async {
       final store = InMemoryUserMemoryStore();
       final c = FakeLlmClient([
         _tools([
@@ -624,7 +629,25 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(store.entries.map((e) => e.text), ['左膝跑步后疼', '想劈叉']);
       await a.send('不想劈叉了');
-      expect(c.requests[2].messages.first.content, contains('左膝跑步后疼'));
+      expect(
+        c.requests[2].messages.first.content,
+        c.requests.first.messages.first.content,
+      );
+      expect(
+        c.requests[2].messages.map((m) => m.content).join('\n'),
+        contains('左膝跑步后疼'),
+      );
+      final rememberedCall = c.requests[1].messages
+          .expand((m) => m.toolCalls)
+          .firstWhere((call) => call.name == AgentTools.remember);
+      expect(jsonDecode(rememberedCall.arguments), {
+        'kind': 'injury',
+        'text': '左膝跑步后疼',
+      });
+      final receipt = c.requests[1].messages.singleWhere(
+        (m) => m.toolCallId == rememberedCall.id,
+      );
+      expect((jsonDecode(receipt.content) as Map)['ok'], isTrue);
       await Future<void>.delayed(Duration.zero);
       expect(store.entries.map((e) => e.kind), [MemoryKind.injury]);
       await a.clearMemory();
@@ -650,7 +673,7 @@ void main() {
       );
       expect(c.requests.first.messages.first.content, isNot(contains('想劈叉')));
       expect(
-        (jsonDecode(c.requests[1].messages.last.content)
+        (jsonDecode(_lastTool(c.requests[1]).content)
             as Map<String, Object?>)['code'],
         'unknown_tool',
       );
@@ -843,6 +866,10 @@ void main() {
         '好的。',
       ]);
       a = agent(c, store: store);
+      // Consume the transient prefetch failure explicitly. A fixed context
+      // epoch no longer reloads memory just to rebuild each model request.
+      await expectLater(a.memory(), throwsStateError);
+      expect(store.loads, 1);
       final pending = a.send('你好');
       await _until(() => store.loads == 2);
       a.enableUserMemory = false;

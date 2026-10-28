@@ -5,6 +5,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'eval_context_stats.dart';
 import 'eval_quality.dart';
 import 'eval_turn_budget.dart';
 
@@ -126,6 +127,15 @@ ComparisonJson _case(ComparisonJson value) {
                 calls: _records(turn['calls']),
               )
             : 'unknown',
+        'actualTaskType': turn['turn'] is int
+            ? evaluationTurnTaskType(
+                turn: turn['turn'] as int,
+                events: events,
+                calls: _records(turn['calls']),
+              )
+            : 'unknown',
+        'manualTaskType': turn['manualTaskType'],
+        'taskTypeCorrect': turn['taskTypeCorrect'],
         'user': turn['user'],
         'assistant': turn['assistant'],
         'question': turn['question'],
@@ -165,6 +175,7 @@ ComparisonJson _case(ComparisonJson value) {
       'p50Ms': statistics['p50Ms'],
       'p90Ms': statistics['p90Ms'],
       'reasoningReplayUtf8Bytes': statistics['reasoningReplayUtf8Bytes'],
+      'context': statistics['context'] ?? evaluationContextStatistics(calls),
     },
     'quality': {
       'planDurationError': _durationQuality(turns),
@@ -180,8 +191,14 @@ ComparisonJson _case(ComparisonJson value) {
         'reason':
             'Compare the actual parameter stamps, accepted tool receipts and delivered plan data. A cancelled final snapshot may be rolled back.',
       },
+      'taskTypeJudgement': {
+        'status': 'manual_review',
+        'reason':
+            'Actual type comes from observed task events; classify correctness from the original dialogue without keyword rules.',
+      },
     },
     'originalInputs': value['originalInputs'],
+    'contextBudgetConfig': value['contextBudgetConfig'],
     'dialogue': dialogue,
     'nodeStamps': stamps,
     'acceptedParameterReceipts': _acceptedParameterReceipts(calls),
@@ -228,13 +245,14 @@ ComparisonJson buildThinkingComparison(ComparisonJson on, ComparisonJson off) {
         'semanticCatalogSha256',
         'profileSha256',
         'sourceSha256',
+        'contextBudgetConfig',
       ])
         field: {
           'on': on[field],
           'off': off[field],
           'match': on[field] == null || off[field] == null
               ? null
-              : on[field] == off[field],
+              : jsonEncode(on[field]) == jsonEncode(off[field]),
         },
     },
     'cases': [
@@ -254,10 +272,10 @@ String thinkingComparisonMarkdown(ComparisonJson comparison) {
     )
     ..writeln()
     ..writeln(
-      '| 案例 | Thinking | Task | 有效性 | 调用 | 搜索发起 | 工具被拒 | 耗时 ms | 最大请求 B | 已知 token | 时长误差 | 器械 | 重复追问 | 参数 stamp |',
+      '| 案例 | Thinking | 实际类型 | 人工判定类型 | 有效性 | 调用 | 搜索发起 | 工具被拒 | 耗时 ms | 最大请求 B | 已知 token | 时长误差 | 器械 | 重复追问 | 参数 stamp |',
     )
     ..writeln(
-      '|---|---|---|---|---:|---:|---:|---:|---:|---:|---|---|---|---|',
+      '|---|---|---|---|---|---:|---:|---:|---:|---:|---:|---|---|---|---|',
     );
   for (final entry in _records(comparison['cases'])) {
     for (final mode in ['on', 'off']) {
@@ -276,7 +294,24 @@ String thinkingComparisonMarkdown(ComparisonJson comparison) {
         item['dialogue'],
       ).map((turn) => turn['task']).toSet().join(' → ');
       output.writeln(
-        '| ${entry['id']} | $mode | ${taskTypes.isEmpty ? 'unknown' : taskTypes} | ${item['caseValidity']} | ${metrics['modelCalls'] ?? 'unknown'} | ${metrics['searchActionsRequested'] ?? 'unknown'} | ${metrics['rejectedToolCalls'] ?? 'unknown'} | ${metrics['elapsedMs'] ?? 'unknown'} | ${metrics['maxRequestBytes'] ?? 'unknown'} | ${metrics['tokensKnownTotal'] ?? 'unknown'} | $durationErrors (${duration['status']}) | ${_map(quality['equipmentCompliance'])['status']} | manual_review | manual_review |',
+        '| ${entry['id']} | $mode | ${taskTypes.isEmpty ? 'unknown' : taskTypes} | ${_records(item['dialogue']).map((turn) => turn['manualTaskType'] ?? 'manual_review').toSet().join(' → ')} | ${item['caseValidity']} | ${metrics['modelCalls'] ?? 'unknown'} | ${metrics['searchActionsRequested'] ?? 'unknown'} | ${metrics['rejectedToolCalls'] ?? 'unknown'} | ${metrics['elapsedMs'] ?? 'unknown'} | ${metrics['maxRequestBytes'] ?? 'unknown'} | ${metrics['tokensKnownTotal'] ?? 'unknown'} | $durationErrors (${duration['status']}) | ${_map(quality['equipmentCompliance'])['status']} | manual_review | manual_review |',
+      );
+    }
+  }
+  output
+    ..writeln()
+    ..writeln('## 请求前缀、折叠与缓存（真实 HTTP 测量）')
+    ..writeln()
+    ..writeln(
+      '| 案例 | Thinking | 已知 cache hit tokens | cache 未知调用 | JSON LCP 最大 B | 历史前缀变化观测 | 尾状态正文 / JSON B | 折叠请求观测 | 超软 / 超硬请求 |',
+    )
+    ..writeln('|---|---|---:|---:|---:|---:|---|---:|---|');
+  for (final entry in _records(comparison['cases'])) {
+    for (final mode in ['on', 'off']) {
+      final context = _map(_map(_map(entry[mode])['metrics'])['context']);
+      final cache = _map(context['cache']);
+      output.writeln(
+        '| ${entry['id']} | $mode | ${cache['knownHitTokensTotal'] ?? 'unknown'} | ${cache['unknownCalls'] ?? 'unknown'} | ${context['fullJsonLcpMaxBytes'] ?? 'unknown'} | ${context['prefixChangedObservations'] ?? 'unknown'} | ${context['maxTailStateContentBytes'] ?? 'unknown'} / ${context['maxTailStateSerializedBytes'] ?? 'unknown'} | ${context['foldedRequestObservations'] ?? 'unknown'} | ${context['softExceededRequests'] ?? 'unknown'} / ${context['hardExceededRequests'] ?? 'unknown'} |',
       );
     }
   }

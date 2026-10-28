@@ -4,6 +4,7 @@ import 'package:test/test.dart';
 import 'package:ugk_coach/src/agent/plan_checker.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import 'request_context_support.dart';
 import 'support.dart';
 
 LlmResponse _tool(String name, Map<String, Object?> args) => LlmResponse(
@@ -606,7 +607,8 @@ void main() {
             },
           }),
           (LlmRequest request) {
-            final update = jsonDecode(request.messages.last.content) as Map;
+            final update =
+                jsonDecode(modelRequestHistory(request).last.content) as Map;
             expect(update['ok'], isTrue, reason: '$update');
             return _tool(AgentTools.draftPlan, {
               'plan_id': planId,
@@ -637,22 +639,26 @@ void main() {
             });
           },
           (LlmRequest request) {
-            final draft = jsonDecode(request.messages.last.content) as Map;
+            final draft =
+                jsonDecode(modelRequestHistory(request).last.content) as Map;
             expect(draft['ok'], isTrue, reason: '$draft');
             return _tool(AgentTools.check, {'node': 'planning'});
           },
           (LlmRequest request) {
-            final planning = jsonDecode(request.messages.last.content) as Map;
+            final planning =
+                jsonDecode(modelRequestHistory(request).last.content) as Map;
             expect(planning['ok'], isTrue, reason: '$planning');
             return _tool(AgentTools.checkPlan, {'plan_id': planId});
           },
           (LlmRequest request) {
-            final checked = jsonDecode(request.messages.last.content) as Map;
+            final checked =
+                jsonDecode(modelRequestHistory(request).last.content) as Map;
             expect(checked['ok'], isTrue, reason: '$checked');
             return _tool(AgentTools.check, {'node': 'review'});
           },
           (LlmRequest request) {
-            final reviewed = jsonDecode(request.messages.last.content) as Map;
+            final reviewed =
+                jsonDecode(modelRequestHistory(request).last.content) as Map;
             expect(reviewed['ok'], isTrue, reason: '$reviewed');
             return _tool(AgentTools.showPlan, {
               'plan_id': planId,
@@ -880,12 +886,14 @@ void main() {
       final client = FakeLlmClient([
         _tool(AgentTools.checkPlan, {'plan_id': planId}),
         (LlmRequest request) {
-          final checked = jsonDecode(request.messages.last.content) as Map;
+          final checked =
+              jsonDecode(modelRequestHistory(request).last.content) as Map;
           expect(checked['ok'], isTrue, reason: '$checked');
           return _tool(AgentTools.check, {'node': 'review'});
         },
         (LlmRequest request) {
-          final reviewed = jsonDecode(request.messages.last.content) as Map;
+          final reviewed =
+              jsonDecode(modelRequestHistory(request).last.content) as Map;
           expect(reviewed['ok'], isTrue);
           return _tool(AgentTools.showPlan, {
             'plan_id': planId,
@@ -928,7 +936,10 @@ void main() {
       for (final message in ['肩颈刺痛、手麻木', '没有刺痛、没有麻木']) {
         final client = FakeLlmClient([
           (LlmRequest request) {
-            expect(request.messages.last.content, contains(message));
+            expect(
+              modelRequestHistory(request).last.content,
+              contains(message),
+            );
             expect(request.messages.first.content, contains('不诊断'));
             return '有危险症状应停止训练并就医。';
           },
@@ -962,7 +973,8 @@ void main() {
             'ids': ['h-sumo-pry'],
           }),
           (LlmRequest request) {
-            final feedback = jsonDecode(request.messages.last.content) as Map;
+            final feedback =
+                jsonDecode(modelRequestHistory(request).last.content) as Map;
             expect(feedback['code'], 'incompatible_actions');
             expect((feedback['actual'] as Map)['h-sumo-pry'], '触及伤痛限制');
             rejected = true;
@@ -993,7 +1005,8 @@ void main() {
         'ids': ['h-sumo-pry'],
       }),
       (LlmRequest request) {
-        final feedback = jsonDecode(request.messages.last.content) as Map;
+        final feedback =
+            jsonDecode(modelRequestHistory(request).last.content) as Map;
         expect(feedback['code'], 'incompatible_actions');
         expect((feedback['actual'] as Map)['h-sumo-pry'], '触及伤痛限制');
         rejected = true;

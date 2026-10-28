@@ -168,17 +168,31 @@ void main() {
     },
   );
 
-  test('request-size check remains active even for QA', () {
-    expect(
-      evaluationTurnBudgetFailures(
-        turn: 1,
-        elapsedMs: 1,
-        calls: [
-          {'turn': 1, 'caseElapsedMs': 1, 'requestBytes': 40961},
-        ],
-        events: [],
-      ),
-      ['turn 1 actual request exceeds 40KB'],
-    );
-  });
+  test(
+    'current turn may exceed soft budget but hard request limit still applies to QA',
+    () {
+      expect(
+        evaluationTurnBudgetFailures(
+          turn: 1,
+          elapsedMs: 1,
+          calls: [
+            {'turn': 1, 'caseElapsedMs': 1, 'requestBytes': 65537},
+          ],
+          events: [],
+        ),
+        ['turn 1 actual request exceeds hard limit 65536B'],
+      );
+      expect(
+        evaluationTurnBudgetFailures(
+          turn: 1,
+          elapsedMs: 1,
+          calls: [
+            {'turn': 1, 'caseElapsedMs': 1, 'requestBytes': 65536},
+          ],
+          events: [],
+        ),
+        isEmpty,
+      );
+    },
+  );
 }

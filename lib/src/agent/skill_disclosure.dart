@@ -70,11 +70,6 @@ class SkillDisclosures {
             sources[path] = SkillSource.read;
           }
         } else if (call.name == 'start_task') {
-          sources.removeWhere(
-            (path, source) =>
-                source == SkillSource.read &&
-                !message.requiredSkills.contains(path),
-          );
           for (final path in message.fullSkills) {
             sources[path] = SkillSource.startTask;
           }

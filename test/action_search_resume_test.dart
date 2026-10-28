@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:test/test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import 'request_context_support.dart';
 import 'support.dart';
 
 LlmToolCall tool(String id, String name, Object arguments) =>
@@ -101,12 +102,8 @@ void main() {
       final searchResult = beforeQuestion.messages
           .singleWhere((m) => m.toolCallId == 'search')
           .content;
-      expect(searchResult, '[已归档，候选见当前状态 candidates]');
-      final current =
-          jsonDecode(
-                beforeQuestion.messages[1].content.substring('当前状态：'.length),
-              )
-              as Map<String, dynamic>;
+      expect(jsonDecode(searchResult), data);
+      final current = requestCurrentState(beforeQuestion);
       final candidates = (current['candidates'] as List).cast<List<Object?>>();
       for (final row in data['items'] as List) {
         final item = row as Map;
@@ -134,7 +131,8 @@ void main() {
         (start['skills'] as Map<String, dynamic>)['action-library'],
         SkillFiles.build(profile, catalog).read('action-library/SKILL.md'),
       );
-      expect(resumed.messages.last.role, LlmRole.user);
+      expect(modelRequestHistory(resumed).last.role, LlmRole.user);
+      expect(modelRequestHistory(resumed).last.content, contains('没有其他要求'));
       expectProtocol(resumed.messages);
     },
   );
@@ -209,13 +207,15 @@ void main() {
         jsonEncode([for (final m in resumed.messages) m.toJson()]),
         isNot(contains(secret)),
       );
-      final searchResult = resumed.messages.singleWhere(
-        (m) => m.toolCallId == 'shared',
-      );
-      expect(searchResult.content, '[已归档，候选见当前状态 candidates]');
-      final current =
-          jsonDecode(resumed.messages[1].content.substring('当前状态：'.length))
-              as Map<String, dynamic>;
+      // A privacy epoch replaces the complete prior turn with factual user
+      // summary; the shared search ID must not resurrect private memory.
+      expect(resumed.messages.where((m) => m.toolCallId == 'shared'), isEmpty);
+      final summary =
+          jsonDecode(resumed.messages[1].content.split('\n').skip(1).join('\n'))
+              as Map;
+      final turn = ((summary['turns'] as List).single as Map);
+      expect(turn['seenActionIds'], containsAll(ids));
+      final current = requestCurrentState(resumed);
       final candidates = (current['candidates'] as List).cast<List<Object?>>();
       for (final id in ids) {
         expect(candidates.map((row) => row.first), contains(id));

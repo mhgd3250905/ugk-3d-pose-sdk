@@ -6,6 +6,7 @@ import 'package:ugk_coach/src/agent/action_tags.dart';
 import 'package:ugk_coach/src/agent/session_params.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import 'request_context_support.dart';
 import 'support.dart';
 
 LlmToolCall _set(String id, Map<String, Object?> fields) => LlmToolCall(
@@ -83,13 +84,12 @@ void main() {
       );
       expect(result.question, isNull);
       expect(client.requests, hasLength(1));
-      final system = client.requests.single.messages
-          .singleWhere((message) => message.content.startsWith('当前状态：'))
-          .content;
-      expect(
-        system,
-        contains('"minutes":{"value":20,"source":"host","turn":0}'),
-      );
+      final current = requestCurrentState(client.requests.single);
+      expect((current['params'] as Map)['minutes'], {
+        'value': 20,
+        'source': 'host',
+        'turn': 0,
+      });
       expect(coach.sessionState.params['minutes']!.value, 20);
     },
   );

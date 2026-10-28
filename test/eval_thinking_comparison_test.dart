@@ -45,6 +45,63 @@ ComparisonJson _quality(ComparisonJson comparison, String field) =>
     ((_on(comparison)['quality'] as Map)[field] as Map).cast<String, Object?>();
 
 void main() {
+  test(
+    'comparison retains context/cache evidence and leaves task correctness to manual review',
+    () {
+      final on = _summary('on');
+      final off = _summary('off');
+      on['contextBudgetConfig'] = {
+        'softOffBytes': 40960,
+        'softOnBytes': 51200,
+        'hardBytes': 65536,
+      };
+      off['contextBudgetConfig'] = {
+        'softOffBytes': 40960,
+        'softOnBytes': 51200,
+        'hardBytes': 65536,
+      };
+      final item = _firstCase(on);
+      item['events'] = [
+        {
+          'turn': 1,
+          'caseElapsedMs': 2,
+          'kind': 'node',
+          'node': {'id': 'understand', 'status': 'current'},
+          'task': {
+            'type': 'plan',
+            'nodes': [
+              {'id': 'planning', 'status': 'current'},
+              {'id': 'output', 'status': 'pending'},
+            ],
+          },
+        },
+      ];
+      item['calls'] = [
+        {
+          'usage': {'prompt_cache_hit_tokens': 9},
+        },
+        {'usage': null},
+      ];
+      final comparison = buildThinkingComparison(on, off);
+      final result = _on(comparison);
+      final context = ((result['metrics'] as Map)['context'] as Map);
+      expect((context['cache'] as Map)['knownHitTokensTotal'], 9);
+      expect((context['cache'] as Map)['unknownCalls'], 1);
+      final dialogue = (result['dialogue'] as List).single as Map;
+      expect(dialogue['actualTaskType'], 'plan');
+      expect(dialogue['manualTaskType'], isNull);
+      expect(dialogue['taskTypeCorrect'], isNull);
+      expect(
+        ((comparison['inputCompatibility'] as Map)['contextBudgetConfig']
+            as Map)['match'],
+        isTrue,
+      );
+      final markdown = thinkingComparisonMarkdown(comparison);
+      expect(markdown, contains('人工判定类型'));
+      expect(markdown, contains('cache 未知调用'));
+    },
+  );
+
   test('ambient equipment is allowed but explicit exclusion still wins', () {
     final on = _summary('on');
     final turn = ((_firstCase(on)['turns'] as List).first as Map);

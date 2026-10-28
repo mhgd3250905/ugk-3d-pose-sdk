@@ -196,6 +196,7 @@ class CoachSessionState {
     this.lastOperationRequestTurn,
     this.legacyPlanFallback = false,
     Map<String, Object?> hostValues = const {},
+    Map<String, Object?>? completedContextLedger,
   }) : userTurns = List.unmodifiable(userTurns),
        params = Map.unmodifiable(params),
        seenActionIds = Set.unmodifiable(seenActionIds),
@@ -205,7 +206,10 @@ class CoachSessionState {
          for (final entry in plans.entries)
            entry.key: List<CoachPlanVersion>.unmodifiable(entry.value),
        }),
-       hostValues = _freezeMap(hostValues);
+       hostValues = _freezeMap(hostValues),
+       completedContextLedger = completedContextLedger == null
+           ? null
+           : _freezeMap(completedContextLedger);
 
   final List<CoachUserTurn> userTurns;
   final CoachTaskState? task;
@@ -239,6 +243,9 @@ class CoachSessionState {
   /// host update from a repeated context after a user adjustment.
   final Map<String, Object?> hostValues;
 
+  /// Completed-turn facts only; never raw model reasoning or tool history.
+  final Map<String, Object?>? completedContextLedger;
+
   CoachSessionState copyWith({
     List<CoachUserTurn>? userTurns,
     CoachTaskState? task,
@@ -260,6 +267,8 @@ class CoachSessionState {
     int? lastOperationRequestTurn,
     bool clearLastDelivered = false,
     Map<String, Object?>? hostValues,
+    Map<String, Object?>? completedContextLedger,
+    bool clearCompletedContextLedger = false,
   }) => CoachSessionState(
     userTurns: userTurns ?? this.userTurns,
     task: clearTask ? null : task ?? this.task,
@@ -291,6 +300,9 @@ class CoachSessionState {
         ? false
         : legacyPlanFallback,
     hostValues: hostValues ?? this.hostValues,
+    completedContextLedger: clearCompletedContextLedger
+        ? null
+        : completedContextLedger ?? this.completedContextLedger,
   );
 
   CoachSessionState appendUserTurn(String text) => copyWith(
@@ -330,6 +342,8 @@ class CoachSessionState {
     if (lastOperationRequestTurn != null)
       'lastOperationRequestTurn': lastOperationRequestTurn,
     if (hostValues.isNotEmpty) 'hostValues': _thaw(hostValues),
+    if (completedContextLedger != null)
+      'completedContextLedger': _thaw(completedContextLedger),
   };
 
   factory CoachSessionState.fromJson(Map<String, Object?> json) =>
@@ -371,6 +385,9 @@ class CoachSessionState {
         lastOperationRequestTurn: json['lastOperationRequestTurn'] as int?,
         legacyPlanFallback: !json.containsKey('activePlanId'),
         hostValues: _map(json['hostValues'] ?? const {}),
+        completedContextLedger: json['completedContextLedger'] == null
+            ? null
+            : _map(json['completedContextLedger']),
       );
 }
 

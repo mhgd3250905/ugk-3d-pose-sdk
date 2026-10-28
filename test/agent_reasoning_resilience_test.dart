@@ -109,7 +109,7 @@ void main() {
     }
   });
 
-  test('上下文预算不计推理，压缩 read 结果保留 assistant 对象及其推理', () {
+  test('兼容旧 compressContext 的可见文本计数，压缩 read 仍保留 assistant 及推理', () {
     final largeReasoning = List.filled(
       10000,
       'private reasoning marker ',
@@ -297,10 +297,12 @@ void main() {
     ]) {
       expect(retryWire, isNot(contains(secret)));
     }
-    expect(_assistants(retry).map((message) => message['reasoning_content']), [
-      '',
-      '',
-    ]);
+    expect(_assistants(retry), isNotEmpty);
+    expect(
+      _assistants(retry).map((message) => message['reasoning_content']),
+      everyElement(''),
+    );
+    expect(retryWire, contains('previous answer'));
     expect(retryWire, contains('用户记忆已关闭'));
     expect(
       retry.tools.map((tool) => tool.name),
@@ -499,7 +501,10 @@ void main() {
     expect(_wire(nextTurn), contains(answer));
     expect(_wire(nextTurn), isNot(contains(stored)));
     expect(_wire(nextTurn), isNot(contains(privateReasoning)));
-    expect(_assistants(nextTurn).single['reasoning_content'], '');
+    expect(
+      _assistants(nextTurn).map((message) => message['reasoning_content']),
+      everyElement(''),
+    );
     expect(store.entries, isEmpty);
     expect(store.saves, 1);
     _expectProtocol(nextTurn);

@@ -13,6 +13,7 @@ import 'package:ugk_coach/src/agent/node_gates.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'eval_api_config.dart';
+import 'eval_context_stats.dart';
 import 'eval_quality.dart';
 import 'eval_reasoning_stats.dart';
 import 'eval_thinking_mode.dart';
@@ -114,6 +115,7 @@ Future<void> _main(List<String> args) async {
       'thinkingRequestType': thinkingMode.protocolType,
       'thinkingRequested': thinkingMode == EvaluationThinkingMode.on,
       'modelCalls': 0,
+      'contextBudgetConfig': const ContextBudgetConfig().toJson(),
       'modelQualityPassed': null,
       'cases': cases.map((item) => item['id']).toList(),
       'fixtureSha256': sha256
@@ -251,6 +253,7 @@ Future<void> _main(List<String> args) async {
     'thinkingRequestType': thinkingMode.protocolType,
     'maxTokens': config.maxTokens,
     'httpClientRetries': config.maxRetries,
+    'contextBudgetConfig': const ContextBudgetConfig().toJson(),
     'sourceSha256': sourceBefore,
     'sourceUnchangedDuringRun': sourceUnchanged,
     'fixtureSha256': sha256.convert(await fixtureFile.readAsBytes()).toString(),
@@ -336,7 +339,17 @@ Future<Json> _runCase(
     client: client,
     catalog: () => catalog,
     profile: profile,
+    contextBudgetConfig: wire.contextBudgetConfig,
   );
+  wire.contextDiagnosticsProvider = () {
+    final diagnostics = agent.contextRequestDiagnostics;
+    return diagnostics.isEmpty
+        ? null
+        : {
+            'sdkDiagnosticIndex': diagnostics.length - 1,
+            ...diagnostics.last.toJson(),
+          };
+  };
   final controller = CoachConversationController(agent: agent);
   wire.onModelMismatch = controller.cancel;
   final watch = Stopwatch()..start();
@@ -400,6 +413,11 @@ Future<Json> _runCase(
     );
     turnWatch.stop();
     final plan = result?.plan?.plan;
+    final actualTaskType = evaluationTurnTaskType(
+      turn: currentTurn,
+      events: events,
+      calls: wire.calls.sublist(before),
+    );
     final turn = <String, Object?>{
       'turn': currentTurn,
       'thinkingMode': thinkingMode.name,
@@ -508,11 +526,12 @@ Future<Json> _runCase(
       'task': agent.sessionState.task?.toJson(),
       'emittedWarningCodes': agent.sessionState.emittedWarningCodes.toList()
         ..sort(),
-      'activityTaskType': evaluationTurnTaskType(
-        turn: currentTurn,
-        events: events,
-        calls: wire.calls.sublist(before),
-      ),
+      'activityTaskType': actualTaskType,
+      'actualTaskType': actualTaskType,
+      'manualTaskType': null,
+      'taskTypeCorrect': null,
+      'taskTypeReview':
+          'manual_review; compare original inputs and successful task events, never rolled-back final snapshots',
       'agentHistoryAfterTurn': [
         for (final message in agent.history)
           publicEvaluationMessage(_map(message.toJson()), redactor),
@@ -584,6 +603,7 @@ Future<Json> _runCase(
     watch.stop();
     await subscription.cancel();
     wire.onModelMismatch = null;
+    wire.contextDiagnosticsProvider = null;
     await controller.dispose();
     await agent.dispose();
   }
@@ -630,6 +650,14 @@ Future<Json> _runCase(
     }
   }
   if (wire.calls.isEmpty) failures.add('no real HTTP model request was made');
+  for (final call in wire.calls) {
+    final validation = _map(_map(call['contextStats'])['prefixValidation']);
+    if (validation['status'] == 'fail') {
+      failures.add(
+        'HTTP call ${call['call']} same-epoch request prefix changed: ${validation['violations']}',
+      );
+    }
+  }
   if (wire.calls.isNotEmpty &&
       (wire.calls.first['requestBytes'] as int) > 12 * 1024) {
     failures.add('actual first HTTP request body exceeded 12KB');
@@ -650,6 +678,7 @@ Future<Json> _runCase(
         elapsedMs: turn['elapsedMs'] as int,
         calls: calls,
         events: events,
+        contextBudgetConfig: wire.contextBudgetConfig,
       ),
     );
     final delivered = turn['plan'] != null || _list(turn['actions']).isNotEmpty;
@@ -705,6 +734,7 @@ Future<Json> _runCase(
   return {
     'id': scenario['id'],
     'thinkingMode': thinkingMode.name,
+    'contextBudgetConfig': wire.contextBudgetConfig.toJson(),
     'originalInputs': scenario['messages'],
     'simulatedSupplementaryUserFacts': true,
     'modelCalls': wire.calls.length,
@@ -731,11 +761,19 @@ Future<Json> _runCase(
 }
 
 class EvaluationWireClient extends http.BaseClient {
-  EvaluationWireClient(this.inner, this.redactor, this.append);
+  EvaluationWireClient(
+    this.inner,
+    this.redactor,
+    this.append, {
+    this.contextBudgetConfig = const ContextBudgetConfig(),
+  });
   final http.Client inner;
   final EvaluationRedactor redactor;
   final void Function(Json) append;
   final calls = <Json>[];
+  final ContextBudgetConfig contextBudgetConfig;
+  final _contextTracker = EvaluationContextTracker();
+  Json? Function()? contextDiagnosticsProvider;
   int turn = 0;
   int agentStep = 0;
   int Function()? caseElapsedMs;
@@ -751,6 +789,7 @@ class EvaluationWireClient extends http.BaseClient {
     }
     final body = request.bodyBytes;
     final decoded = _map(jsonDecode(utf8.decode(body)));
+    final thinkingMode = evaluationRequestThinkingMode(decoded);
     final record = <String, Object?>{
       'recordType': 'model-call',
       'call': calls.length + 1,
@@ -760,7 +799,16 @@ class EvaluationWireClient extends http.BaseClient {
       'taskAtRequest': taskAtRequest,
       'at': DateTime.now().toUtc().toIso8601String(),
       'requestBytes': body.length,
-      'thinkingMode': evaluationRequestThinkingMode(decoded),
+      'thinkingMode': thinkingMode,
+      'contextStats': _contextTracker.observe(
+        body,
+        sdkDiagnostics: contextDiagnosticsProvider?.call(),
+      ),
+      'requestBudget': evaluationRequestBudget(
+        body.length,
+        thinking: thinkingMode == 'on',
+        config: contextBudgetConfig,
+      ),
       'reasoningReplay': reasoningReplayStats(decoded),
       'requestSha256': sha256.convert(body).toString(),
       'request': publicEvaluationRequest(decoded, redactor),
@@ -783,12 +831,16 @@ class EvaluationWireClient extends http.BaseClient {
           record['modelMatchesRequest'] = result['model'] == decoded['model'];
         }
         record['usage'] = redactor.clean(result['usage']);
+        record['cacheObservation'] = evaluationCacheObservation(
+          result['usage'],
+        );
       } on FormatException {
         record['response'] = {
           'bodyFormat': 'non-JSON',
           'bodyTextExcluded': true,
         };
         record['usage'] = null;
+        record['cacheObservation'] = evaluationCacheObservation(null);
       }
       append(record);
       if (record['modelMatchesRequest'] == false) onModelMismatch?.call();
@@ -807,6 +859,7 @@ class EvaluationWireClient extends http.BaseClient {
       record['elapsedMs'] = watch.elapsedMilliseconds;
       record['transportErrorType'] = error.runtimeType.toString();
       record['usage'] = null;
+      record['cacheObservation'] = evaluationCacheObservation(null);
       append(record);
       rethrow;
     }
@@ -880,17 +933,32 @@ String _summaryTable(List<Json> results, Json statistics) {
     )
     ..writeln()
     ..writeln(
-      '| Case | Turn | Thinking | Task | Validity | Calls | Rejected tools | Time ms | Max request B | Tokens | Replayed reasoning B | Model |',
+      '| Case | Turn | Thinking | Actual task | Manual task judgement | Validity | Calls | Rejected tools | Time ms | Max request B | Tokens | Replayed reasoning B | Model |',
     )
-    ..writeln('|---|---:|---|---|---|---:|---:|---:|---:|---:|---:|---|');
+    ..writeln('|---|---:|---|---|---|---|---:|---:|---:|---:|---:|---:|---|');
   for (final result in results) {
     for (final turn in _list(result['turns']).map(_map)) {
       final stats = _map(turn['callStatistics']);
       output.writeln(
-        '| ${result['id']} | ${turn['turn']} | ${turn['thinkingMode'] ?? result['thinkingMode'] ?? 'unknown'} | ${turn['activityTaskType'] ?? 'qa'} | '
+        '| ${result['id']} | ${turn['turn']} | ${turn['thinkingMode'] ?? result['thinkingMode'] ?? 'unknown'} | ${turn['actualTaskType'] ?? turn['activityTaskType'] ?? 'qa'} | ${turn['manualTaskType'] ?? 'manual_review'} | '
         '${result['caseValidity']} | ${stats['modelCalls']} | ${_map(turn['toolRejectionStatistics'])['count'] ?? 'unknown'} | ${turn['elapsedMs']} | '
         '${stats['maxRequestBytes']} | ${_map(stats['totalTokens'])['knownTotal'] ?? 'unknown'} | '
         '${stats['reasoningReplayUtf8Bytes']} | ${stats['responseModels']} |',
+      );
+    }
+  }
+  output.writeln();
+  output
+    ..writeln(
+      '| Case | Turn | Cache hit tokens known | Cache unknown calls | Max full JSON LCP B | Changed history prefixes | Tail content / JSON B | Fold observations | Soft / hard exceeded |',
+    )
+    ..writeln('|---|---:|---:|---:|---:|---:|---|---:|---|');
+  for (final result in results) {
+    for (final turn in _list(result['turns']).map(_map)) {
+      final context = _map(_map(turn['callStatistics'])['context']);
+      final cache = _map(context['cache']);
+      output.writeln(
+        '| ${result['id']} | ${turn['turn']} | ${cache['knownHitTokensTotal'] ?? 'unknown'} | ${cache['unknownCalls'] ?? 'unknown'} | ${context['fullJsonLcpMaxBytes'] ?? 'unknown'} | ${context['prefixChangedObservations'] ?? 'unknown'} | ${context['maxTailStateContentBytes'] ?? 'unknown'} / ${context['maxTailStateSerializedBytes'] ?? 'unknown'} | ${context['foldedRequestObservations'] ?? 'unknown'} | ${context['softExceededRequests'] ?? 'unknown'} / ${context['hardExceededRequests'] ?? 'unknown'} |',
       );
     }
   }
@@ -984,6 +1052,7 @@ Json _callStatistics(List<Json> calls) {
 
   return {
     'modelCalls': calls.length,
+    'context': evaluationContextStatistics(calls),
     'searchActionsRequested': calls.fold<int>(
       0,
       (total, call) =>
@@ -1081,6 +1150,9 @@ String _transcript(Json result) {
             'request': call['request'],
             'response': call['response'],
             'usage': call['usage'],
+            'cacheObservation': call['cacheObservation'],
+            'contextStats': call['contextStats'],
+            'requestBudget': call['requestBudget'],
             'reasoningReplay': call['reasoningReplay'],
           }),
         )
@@ -1132,6 +1204,7 @@ Future<String> _sourceFingerprint() async {
     File('pubspec.yaml'),
     File('tool/eval_coach_agent_v2.dart'),
     File('tool/eval_api_config.dart'),
+    File('tool/eval_context_stats.dart'),
     File('tool/eval_quality.dart'),
     File('tool/eval_reasoning_stats.dart'),
     File('tool/eval_thinking_mode.dart'),

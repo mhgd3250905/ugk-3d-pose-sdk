@@ -9,6 +9,21 @@ import 'support.dart';
 
 typedef Json = Map<String, dynamic>;
 
+/// Exposes the actual thinking configuration to the production byte planner
+/// while all responses still come from the recorded offline fake script.
+class _ConfiguredReplayClient extends OpenAiCompatibleClient {
+  _ConfiguredReplayClient(this.fake, {required super.config})
+    : super(
+        httpClient: MockClient(
+          (_) => throw StateError('Offline replay: HTTP forbidden'),
+        ),
+      );
+  final FakeLlmClient fake;
+  @override
+  Future<LlmResponse> complete(LlmRequest request, {CancelToken? cancel}) =>
+      fake.complete(request, cancel: cancel);
+}
+
 Json _map(Object? value) => (value as Map).cast<String, dynamic>();
 Json _function(Object? tool) => _map(_map(tool)['function']);
 Json _arguments(Object? tool) =>
@@ -128,15 +143,8 @@ void main() {
           ],
         ),
     ], latency: Duration.zero);
-    coach = CoachAgent(
-      client: fake,
-      catalog: () => catalog,
-      profile: profile,
-      enableUserMemory: memory,
-      maxSteps: fixture['stopAfterRecordedResponses'] as int,
-      maxRequestRetries: 0,
-    );
-    serializer = OpenAiCompatibleClient(
+    serializer = _ConfiguredReplayClient(
+      fake,
       config: LlmConfig.ugkWorker.copyWith(
         model: fixture['requestedModel'] as String,
         maxTokens: fixture['maxTokens'] as int,
@@ -144,9 +152,14 @@ void main() {
           'thinking': {'type': fixture['thinking']},
         },
       ),
-      httpClient: MockClient(
-        (_) => throw StateError('Offline replay: HTTP forbidden'),
-      ),
+    );
+    coach = CoachAgent(
+      client: serializer,
+      catalog: () => catalog,
+      profile: profile,
+      enableUserMemory: memory,
+      maxSteps: fixture['stopAfterRecordedResponses'] as int,
+      maxRequestRetries: 0,
     );
     result = await coach.send(
       fixture['user'] as String,
@@ -167,6 +180,12 @@ void main() {
       expect(fixture['mode'], 'offline-public-tools-with-synthetic-reasoning');
       expect(fixture['sourceCaseValidity'], 'invalid-model-mismatch');
       expect(records, hasLength(6));
+      expect(
+        fixture['requestLimitBytes'],
+        40960,
+        reason:
+            'historical fixture is unchanged; current limits come from the approved config',
+      );
       expect(
         (records[0]['toolCalls'] as List).map((raw) => _arguments(raw)['path']),
         ['action-library/SKILL.md', 'plan-training/SKILL.md'],
@@ -201,11 +220,17 @@ void main() {
   );
 
   test(
-    'all six real SDK request bodies fit 40 KB with recorded reasoning occupancy',
+    'all six thinking-on requests obey the approved soft/hard contract with unchanged reasoning',
     () {
       final sizes = [
         for (final body in bodies) utf8.encode(jsonEncode(body)).length,
       ];
+      const budget = ContextBudgetConfig();
+      expect(
+        (serializer.config.extraBody['thinking'] as Map)['type'],
+        'enabled',
+      );
+      expect(coach.contextRequestDiagnostics, hasLength(bodies.length));
       print('R6 public tools + SYNTHETIC reasoning request bytes: $sizes');
       int bytes(Object? value) => utf8.encode(jsonEncode(value)).length;
       print(
@@ -276,8 +301,21 @@ void main() {
         );
         expect(jsonValueBytes, expectedJson);
         expect(
+          messages
+              .where((message) => message['reasoning_content'] is String)
+              .map((message) => message['reasoning_content']),
+          synthetic.take(i),
+          reason: 'each current-turn reasoning value is replayed byte-for-byte',
+        );
+        final diagnostic = coach.contextRequestDiagnostics[i];
+        expect(diagnostic.softLimitBytes, 51200);
+        expect(diagnostic.hardLimitBytes, 65536);
+        expect(diagnostic.completedTurnsFolded, 0);
+        expect(diagnostic.receiptBodiesFolded, 0);
+        expect(diagnostic.afterBytes, sizes[i]);
+        expect(
           sizes[i],
-          lessThanOrEqualTo(fixture['requestLimitBytes'] as int),
+          lessThanOrEqualTo(budget.hardBytes),
           reason: 'R6 request ${i + 1}: ${sizes[i]} bytes',
         );
       }
@@ -295,7 +333,7 @@ void main() {
   });
 
   test(
-    'recommend task retains exactly one required skill body and archives unrelated read',
+    'recommend task retains one copy of every disclosed skill below the hard limit',
     () {
       final planRead =
           _map((records[0]['toolCalls'] as List).last)['id'] as String;
@@ -313,7 +351,7 @@ void main() {
             reason: '$name must have a single complete current version',
           );
         }
-        expect(_fullSkillCopies(request, skills['plan-training']!), 0);
+        expect(_fullSkillCopies(request, skills['plan-training']!), 1);
         final start = _map(
           jsonDecode(
             request.messages
@@ -334,10 +372,10 @@ void main() {
           request.messages.singleWhere((m) => m.toolCallId == askRead).content,
           skills['ask'],
         );
-        final archived = request.messages.singleWhere(
+        final retained = request.messages.singleWhere(
           (m) => m.toolCallId == planRead,
         );
-        expect(archived.content, startsWith('[已归档'));
+        expect(retained.content, skills['plan-training']);
       }
     },
   );

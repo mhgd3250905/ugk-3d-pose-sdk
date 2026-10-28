@@ -65,7 +65,14 @@ void main() {
           maxRequestRetries: 0,
         );
         addTearDown(agent.dispose);
-        await agent.send('你好');
+        final result = await agent.send('你好');
+        expect(
+          result.status,
+          TurnStatus.ok,
+          reason: '${result.error}; ${result.issues}',
+        );
+        expect(result.text, '好的。');
+        expect(client.requests, hasLength(2));
       },
     );
   }

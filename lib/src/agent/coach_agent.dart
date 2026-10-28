@@ -4,7 +4,8 @@
 /// 直到纯文字或 ask_user / show_actions / show_plan 通过门禁。最终工具不过门禁就把错误作为工具结果回给模型重交
 /// （最多 [CoachAgent.maxResubmits] 次）。步数超过 [CoachAgent.maxSteps]、请求重试用尽 / 不可重试、整轮超时、
 /// 空转、暗号泄露 → 回落 App 模板。单步请求失败只重试那一步（指数退避 + 抖动，可被取消 / reset 打断）；
-/// 上下文超预算时把较早的 read / ls 结果压成一行摘要。见 docs/agent-plan.md「步数、上下文预算与失败重试」。
+/// 模型历史只追加，动态状态置于末尾；超过字节软阈值才整轮折叠已结束的对话。
+/// 硬上限仅归档已成功消费的工具回执，不改保留消息的推理。见 docs/coach-agent-context-append-fold.md。
 ///
 /// 对外与 [CoachSession] 同风格：[CoachAgent.send] / [CoachAgent.reset] / 取消、busy、reset 或取消后不回写；
 /// 结果同为 [CoachTurnResult]，卡片只接受门禁产出的 [ValidatedPlan] / [ValidatedActions]。
@@ -16,11 +17,14 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:crypto/crypto.dart' as crypto;
+
 import '../assistant/fallback.dart';
 import '../catalog/catalog.dart';
 import '../llm/cancel_token.dart';
 import '../llm/llm_client.dart';
 import '../llm/llm_types.dart';
+import '../llm/openai_compatible_client.dart';
 import '../plan/coach_context.dart';
 import '../plan/plan_issue.dart';
 import '../plan/plan_validator.dart';
@@ -35,8 +39,10 @@ import 'action_tags.dart';
 import 'agent_prompt.dart';
 import 'agent_resilience.dart';
 import 'agent_task.dart';
+import 'append_only_context.dart';
 import 'batch_handler.dart';
-import 'context_compactor.dart';
+import 'context_budget.dart';
+import 'context_turn_ledger.dart';
 import 'node_gates.dart';
 import 'plan_checker.dart';
 import 'session_params.dart';
@@ -46,11 +52,14 @@ import 'skill_files.dart';
 import 'skill_tool_handler.dart';
 import 'structured_tool_handler.dart';
 import 'terminal_tool_handler.dart';
+
 import 'tool_arguments.dart';
 import 'training_confirmation.dart';
 import 'user_memory.dart';
 
 export 'agent_resilience.dart';
+export 'context_budget.dart'
+    show ContextBudgetConfig, ContextRequestDiagnostics;
 
 part 'memory_tool_handler.dart';
 part 'ask_commit_handler.dart';
@@ -221,6 +230,8 @@ class CoachAgent {
     this.slowAfter = const Duration(seconds: 30),
     this.contextBudgetTokens = 60000,
     this.keepRecentSteps = 3,
+    this.contextBudgetConfig = const ContextBudgetConfig(),
+    this.requestSizeBytes,
     this.maxStallSteps = 3,
     Future<void> Function(Duration)? sleep,
     double Function()? random,
@@ -275,6 +286,8 @@ class CoachAgent {
 
   /// 压缩时完整保留最近几个工具步。
   final int keepRecentSteps;
+  final ContextBudgetConfig contextBudgetConfig;
+  final int Function(LlmRequest)? requestSizeBytes;
 
   /// 连续几次完全相同的工具调用、或连续几步没有新信息算空转：先提示，再犯回落。
   final int maxStallSteps;
@@ -379,6 +392,20 @@ class CoachAgent {
   }
 
   final List<LlmMessage> _history = [];
+  final Set<LlmMessage> _contextCoveredHistory = HashSet.identity();
+  AppendOnlyContext? _modelContext;
+  ({
+    String catalog,
+    String profile,
+    String language,
+    bool memory,
+    int memoryEpoch,
+  })?
+  _modelEpochKey;
+  int _modelEpochCounter = 0;
+  final List<ContextRequestDiagnostics> _contextRequestDiagnostics = [];
+  List<ContextRequestDiagnostics> get contextRequestDiagnostics =>
+      List.unmodifiable(_contextRequestDiagnostics);
   CoachSessionState _sessionState = CoachSessionState();
   int _hostSafetyRevision = 0;
   Set<String>? _latestExplicitAvoid;
@@ -454,6 +481,9 @@ class CoachAgent {
     List<String> restoredUserTurns = const [],
     List<LlmMessage> restoredMessages = const [],
   }) {
+    _modelContext = null;
+    _modelEpochKey = null;
+    _contextCoveredHistory.clear();
     final plan = admitted.plan;
     final stored = planState?.planId == plan.id ? planState : null;
     _sessionState = stored?.sessionState ?? CoachSessionState();
@@ -600,19 +630,64 @@ class CoachAgent {
     final admitted = _admitPreset(plan);
     if (admitted == null) return null;
     final text = _planSummary(admitted.plan, _catalog());
+    final previousLedger = _completedLedger();
+    const userMessage = LlmMessage.user('用预设方案');
+    final deliveredMessage = LlmMessage.assistant(text, reasoning: '');
+    _sessionState = _sessionState.appendUserTurn(userMessage.content);
+    final delivered = admitted.plan;
+    final previousVersions =
+        _sessionState.plans[delivered.id] ?? const <CoachPlanVersion>[];
+    final version = previousVersions.isEmpty
+        ? 1
+        : previousVersions.map((v) => v.version).reduce(math.max) + 1;
+    _sessionState = _sessionState.copyWith(
+      clearTask: true,
+      plans: {
+        ..._sessionState.plans,
+        delivered.id: [
+          ...previousVersions,
+          CoachPlanVersion(
+            version: version,
+            plan: delivered.toJson(),
+            estimateSec: const PlanDuration().estimateSeconds(
+              delivered,
+              _catalog(),
+            ),
+            fitLog: const [],
+            createdAtTurn: _sessionState.userTurns.last.turn,
+          ),
+        ],
+      },
+      activePlanId: delivered.id,
+      lastDeliveredPlanId: delivered.id,
+      lastDeliveredVersion: version,
+      lastDeliveredTurn: _sessionState.userTurns.last.turn,
+    );
     _questionsAsked = 0;
+    _pendingConfirmation = null;
     _planningFailure = false;
     _relativeDurationPolicy = false;
     _turns++;
     _history
-      ..add(const LlmMessage.user('用预设方案'))
-      ..add(LlmMessage.assistant(text, reasoning: ''));
-    return CoachTurnResult(
+      ..add(userMessage)
+      ..add(deliveredMessage);
+    _contextCoveredHistory.addAll([userMessage, deliveredMessage]);
+    final result = CoachTurnResult(
       turnId: _ids.next('turn'),
       status: TurnStatus.fallback,
       text: text,
       plan: admitted,
     );
+    _completeContextTurn(
+      result: result,
+      messages: [userMessage, deliveredMessage],
+      catalog: _catalog(),
+      language: _confirmedPlanContext?.language ?? 'zh',
+      previousLedger: previousLedger,
+      pendingAtStart: null,
+      confirmedForm: null,
+    );
+    return result;
   }
 
   ValidatedPlan? _admitPreset(TrainingPlan plan) {
@@ -657,6 +732,10 @@ class CoachAgent {
   void reset() {
     _generation++;
     _history.clear();
+    _contextCoveredHistory.clear();
+    _modelContext = null;
+    _modelEpochKey = null;
+    _contextRequestDiagnostics.clear();
     _sessionState = CoachSessionState();
     _hostSafetyRevision++;
     _latestExplicitAvoid = null;
@@ -701,6 +780,8 @@ class CoachAgent {
   Future<void> clearMemory() {
     _memEpoch++;
     _memory = [];
+    _modelContext = null;
+    _modelEpochKey = null;
     final safeHistory = _withoutMemory(
       _history,
       const {},
@@ -734,18 +815,26 @@ class CoachAgent {
     List<LlmMessage> msgs,
     Set<String> memResultIds, {
     Set<LlmMessage> privateReasoning = const {},
+    Set<String> preserveMemoryResultIds = const {},
   }) {
     bool isMem(LlmToolCall t) =>
         t.name == AgentTools.remember || t.name == AgentTools.forget;
     final dropIds = {
       for (final m in msgs)
         for (final t in m.toolCalls)
-          if (isMem(t) && memResultIds.contains(t.id)) t.id,
+          if (isMem(t) &&
+              memResultIds.contains(t.id) &&
+              !preserveMemoryResultIds.contains(t.id))
+            t.id,
     };
     final out = <LlmMessage>[];
     for (final m in msgs) {
       if (m.role == LlmRole.tool) {
         if (dropIds.contains(m.toolCallId)) continue;
+        if (preserveMemoryResultIds.contains(m.toolCallId)) {
+          out.add(m);
+          continue;
+        }
         out.add(
           memResultIds.contains(m.toolCallId)
               ? LlmMessage.tool(m.toolCallId!, '（用户记忆已关闭）')
@@ -793,6 +882,182 @@ class CoachAgent {
     extraRules: extraRules,
     enforceDrillDoseRange: enforceDrillDoseRange,
   );
+
+  ContextTurnLedger _completedLedger() =>
+      _sessionState.completedContextLedger == null
+      ? ContextTurnLedger(const [])
+      : ContextTurnLedger.fromJson(_sessionState.completedContextLedger!);
+
+  List<LlmMessage> _uncoveredHistory(ContextTurnLedger ledger) {
+    if (ledger.turns.isEmpty) return List.of(_history);
+    final users = <String, int>{};
+    final answers = <String, int>{};
+    for (final turn in ledger.turns) {
+      users.update(turn.userText, (n) => n + 1, ifAbsent: () => 1);
+      if (turn.finalDeliveryText.isNotEmpty) {
+        answers.update(turn.finalDeliveryText, (n) => n + 1, ifAbsent: () => 1);
+      }
+    }
+    final uncovered = <LlmMessage>[];
+    for (final message in _history) {
+      final counts = message.role == LlmRole.user
+          ? users
+          : message.role == LlmRole.assistant && message.toolCalls.isEmpty
+          ? answers
+          : null;
+      final matches = (counts?[message.content] ?? 0) > 0;
+      if (matches) counts![message.content] = counts[message.content]! - 1;
+      if (_contextCoveredHistory.contains(message) || matches) {
+        _contextCoveredHistory.add(message);
+      } else {
+        uncovered.add(message);
+      }
+    }
+    return uncovered;
+  }
+
+  int _encodedRequestBytes(LlmRequest request) {
+    final counter = requestSizeBytes;
+    if (counter != null) return counter(request);
+    final current = client;
+    if (current is OpenAiCompatibleClient) {
+      return utf8.encode(jsonEncode(current.buildBody(request))).length;
+    }
+    return utf8
+            .encode(
+              jsonEncode({
+                'model': current.model,
+                'messages': [
+                  for (final message in request.messages) message.toJson(),
+                ],
+                'tools': [for (final tool in request.tools) tool.toJson()],
+                'max_tokens': request.maxTokens ?? 6000,
+                'tool_choice': request.toolChoice,
+                'stream': false,
+              }),
+            )
+            .length +
+        1024;
+  }
+
+  void _completeContextTurn({
+    required CoachTurnResult result,
+    required List<LlmMessage> messages,
+    required Catalog catalog,
+    required String language,
+    required ContextTurnLedger previousLedger,
+    required AskUserQuestion? pendingAtStart,
+    required Map<String, List<String>>? confirmedForm,
+  }) {
+    final actualUser = _sessionState.userTurns.lastOrNull;
+    if (actualUser == null) return;
+    List<String> actionIds(Object? value) {
+      final found = <String>{};
+      void walk(Object? node) {
+        if (node is Map) {
+          if (node['exerciseId'] case final String id) found.add(id);
+          for (final child in node.values) {
+            walk(child);
+          }
+        } else if (node is List) {
+          for (final child in node) {
+            walk(child);
+          }
+        }
+      }
+
+      walk(value);
+      return found.toList();
+    }
+
+    final currentId = _sessionState.activePlanId;
+    final currentPlan = _sessionState.plans[currentId]?.lastOrNull;
+    final currentRef = currentPlan == null
+        ? null
+        : ContextDeliveryRef(
+            type: 'plan',
+            planId: currentId,
+            version: currentPlan.version,
+            actionIds: actionIds(currentPlan.plan),
+          );
+    final gate = NodeGates(profile, catalog, minPicks: profile.minActions);
+    final candidates = <Object?>[
+      for (final id in _sessionState.seenActionIds)
+        if (gate.actionProblem(_sessionState, id) == null)
+          [
+            id,
+            catalog[id]!.name.of(language),
+            gate.tags
+                .forActionId(id)
+                .where((tag) => tag.startsWith('body.'))
+                .firstOrNull,
+            catalog[id]!.defaultDose.mode == DoseMode.reps ? 'reps' : 'seconds',
+          ],
+    ];
+    final previousQuestion = pendingAtStart == null
+        ? null
+        : previousLedger.turns
+              .where(
+                (turn) => turn.askQuestions.any(
+                  (q) => jsonEncode(q) == jsonEncode(pendingAtStart.toJson()),
+                ),
+              )
+              .lastOrNull;
+    final facts = CompletedContextTurn(
+      turn: actualUser.turn,
+      userText: actualUser.text,
+      finalDeliveryText: result.text,
+      params: _sessionState.params,
+      task: _sessionState.task,
+      picks: _sessionState.picks,
+      candidates: candidates,
+      currentPlanRef: currentRef,
+      seenActionIds: _sessionState.seenActionIds.toList(),
+      loadedSkillNames: SkillDisclosures.fromMessages(
+        messages,
+      ).sources.keys.map((path) => path.replaceFirst('/SKILL.md', '')).toList(),
+      deliveries: [
+        if (result.plan != null)
+          ContextDeliveryRef(
+            type: 'plan',
+            planId: result.plan!.plan.id,
+            version:
+                _sessionState.plans[result.plan!.plan.id]?.lastOrNull?.version,
+            actionIds: actionIds(result.plan!.plan.toJson()),
+          ),
+        if (result.actions != null)
+          ContextDeliveryRef(
+            type: 'actions',
+            actionIds: result.actions!.items.map((item) => item.id).toList(),
+          ),
+      ],
+      askQuestions: [if (result.question != null) result.question!.toJson()],
+      answeredAsk: previousQuestion == null
+          ? null
+          : ContextAskReplyRef(
+              questionTurn: previousQuestion.turn,
+              questionIndex: previousQuestion.askQuestions.indexWhere(
+                (q) => jsonEncode(q) == jsonEncode(pendingAtStart!.toJson()),
+              ),
+              answerJson: confirmedForm == null
+                  ? {'text': actualUser.text}
+                  : {'text': actualUser.text, 'selections': confirmedForm},
+            ),
+      outcome: result.question != null
+          ? 'awaiting_user'
+          : result.status == TurnStatus.error
+          ? 'error'
+          : 'completed',
+    );
+    final turns = [
+      ..._completedLedger().turns.where((turn) => turn.turn != facts.turn),
+      facts,
+    ];
+    _sessionState = _sessionState.copyWith(
+      completedContextLedger: ContextTurnLedger(turns).toJson(),
+    );
+    _modelContext?.finishTurn(messages: messages);
+  }
 
   Future<CoachTurnResult> send(
     String userText, {
@@ -916,11 +1181,11 @@ class CoachAgent {
     Map<String, List<String>>? confirmedForm,
   ) async {
     bool dead() => gen != _generation || (cancel?.isCancelled ?? false);
-    final previousTaskFinished =
-        _sessionState.task?.nodes.lastOrNull?.status == 'done';
-    const compactor = ContextCompactor();
+    final pendingAtStart = _pendingConfirmation;
+    final ledgerAtStart = _completedLedger();
+    final publicHistoryStart = _history.length;
     // 清除记忆也作废本轮先前请求取得的记忆操作；下一轮才重新允许记忆。
-    final turnMemoryEpoch = _memEpoch;
+    var turnMemoryEpoch = _memEpoch;
     bool memoryAllowed() => enableUserMemory && turnMemoryEpoch == _memEpoch;
     // 固定本轮的 reset 信号：reset() 会替换 _resetSig，之后再读到的是新轮的信号。
     final resetSig = _resetSig;
@@ -956,6 +1221,12 @@ class CoachAgent {
     final turnWatch = Stopwatch()..start();
 
     final cat = _catalog();
+    final catalogContextKey = crypto.sha256
+        .convert(utf8.encode(jsonEncode(cat.raw)))
+        .toString();
+    final profileContextKey = crypto.sha256
+        .convert(utf8.encode(jsonEncode(profile.toJson())))
+        .toString();
     final pending = _pendingConfirmation;
     if (confirmedForm != null) {
       final selected = pending == null
@@ -1042,8 +1313,20 @@ class CoachAgent {
     final gate = gateFor(cat);
     // 记忆开关、系统提示、工具、文件系统在每次调模型前按当前开关重建（运行时可切）。
     var memoryOn = memoryAllowed();
+    var forceContextRebuild = false;
     var fs = files(cat);
     Future<String> systemNow() async {
+      if (_modelContext != null &&
+          _modelEpochKey ==
+              (
+                catalog: catalogContextKey,
+                profile: profileContextKey,
+                language: context.language,
+                memory: memoryOn,
+                memoryEpoch: _memEpoch,
+              )) {
+        return _modelContext!.system;
+      }
       var summary = '';
       if (memoryOn) {
         try {
@@ -1072,6 +1355,7 @@ class CoachAgent {
             : SkillFiles.build(profile, cat, memory: false);
         system = await systemNow();
       } while (memoryOn != memoryAllowed() && !dead());
+      forceContextRebuild = false;
     }
 
     await rebuild();
@@ -1087,6 +1371,8 @@ class CoachAgent {
     var lastRequestMessages = <LlmMessage>[];
     // 与记忆相关的工具结果（读 user-memory/ 文件、remember / forget）：关闭记忆后在后续请求里替换。
     final memResultIds = <String>{};
+    final privacyPreservedReceipts = <String>{};
+    final privacyRedactedResponses = HashSet<LlmResponse>.identity();
     final memoryReasoning = <LlmMessage>{};
     LlmMessage assistant(
       LlmResponse response, {
@@ -1096,10 +1382,20 @@ class CoachAgent {
     }) {
       final msg = LlmMessage.assistant(
         content ?? response.content,
-        toolCalls: toolCalls ?? response.toolCalls,
+        toolCalls: [
+          for (final call in toolCalls ?? response.toolCalls)
+            privacyRedactedResponses.contains(response) &&
+                    call.name == AgentTools.forget
+                ? LlmToolCall(id: call.id, name: call.name, arguments: '{}')
+                : call,
+        ],
         // Worker 的不同上游可能在无推理正文时返回 null / 不返回字段。
         // 后续思考模型仍要求字段存在，显式空串不会编造任何推理内容。
-        reasoning: memoryOn && !memoryAllowed() ? '' : response.reasoning ?? '',
+        reasoning:
+            (memoryOn && !memoryAllowed()) ||
+                privacyRedactedResponses.contains(response)
+            ? ''
+            : response.reasoning ?? '',
       );
       if (memoryOn && memoryAllowed()) {
         (history ? _memoryReasoning : memoryReasoning).add(msg);
@@ -1119,10 +1415,7 @@ class CoachAgent {
     FallbackReason reason = FallbackReason.invalidOutput;
     Object? error;
     var leaked = false;
-    // 上下文压缩：可压缩的 read / ls 结果；防空转状态。
-    // 按具体 tool 消息（对象身份）关联，避免跨步骤复用同一 tool_call_id 时元数据错配。
-    final compressible =
-        LinkedHashMap<LlmMessage, CompressibleResult>.identity();
+    // Context folding belongs to the model journal, never UI history.
     final listed = <String>{};
     String? lastSig;
     var repeat = 0, idle = 0;
@@ -1197,6 +1490,32 @@ class CoachAgent {
                   emit(AgentEventKind.askUser, step: step, question: question),
       );
       if (!dead()) {
+        if (r.status != TurnStatus.cancelled) {
+          _contextCoveredHistory.addAll(_history.skip(publicHistoryStart));
+          if (r.status == TurnStatus.fallback && r.text.isNotEmpty) {
+            // This is the actual delivered code fallback, with no invented
+            // model reasoning; it belongs in the journal just as in UI history.
+            turnMsgs.add(LlmMessage.assistant(r.text, reasoning: ''));
+          }
+          final rawMessages = <LlmMessage>[userMsg, ...turnMsgs];
+          _completeContextTurn(
+            result: r,
+            messages: memoryAllowed()
+                ? rawMessages
+                : _withoutMemory(
+                    rawMessages,
+                    memResultIds,
+                    privateReasoning: memoryReasoning,
+                    preserveMemoryResultIds: privacyPreservedReceipts,
+                  ),
+            catalog: cat,
+            language: context.language,
+            previousLedger: ledgerAtStart,
+            pendingAtStart: pendingAtStart,
+            confirmedForm: confirmedForm,
+          );
+          if (memoryAllowed()) _memoryReasoning.addAll(memoryReasoning);
+        }
         final current = ledgerContext(context);
         _taskSafetyContext = current;
         if (_sessionState.params.isNotEmpty) {
@@ -1214,16 +1533,21 @@ class CoachAgent {
     while (step < maxSteps) {
       step++;
       emit(AgentEventKind.thinking, step: step);
-      if (step > 1 || memoryOn != memoryAllowed()) await rebuild();
+      if (memoryOn != memoryAllowed() || forceContextRebuild) await rebuild();
       // 记忆加载等异步之后、实际调模型之前复查世代与取消。
       if (dead()) return cancelled(step - 1);
       var memOff = !memoryOn;
-      var tools = <LlmTool>[];
-      var fixedTokens = 0;
-      // 按当前 memoryOn 生成工具与固定开销。
       void prepare() {
         memOff = !memoryOn;
-        tools = AgentTools.build(
+        final key = (
+          catalog: catalogContextKey,
+          profile: profileContextKey,
+          language: context.language,
+          memory: memoryOn,
+          memoryEpoch: _memEpoch,
+        );
+        if (_modelContext != null && _modelEpochKey == key) return;
+        final tools = AgentTools.build(
           profile,
           cat,
           memory: memoryOn,
@@ -1231,31 +1555,36 @@ class CoachAgent {
           includeCheckPlan: true,
           language: context.language,
         );
-        fixedTokens =
-            estimateTokens(system) +
-            estimateTokens(jsonEncode([for (final t in tools) t.toJson()])) +
-            _history.fold<int>(0, (n, m) => n + estimateMessageTokens(m)) +
-            estimateMessageTokens(userMsg);
+        final ledger = _completedLedger();
+        _modelContext =
+            AppendOnlyContext(
+              budget: contextBudgetConfig,
+              encodedBytes: _encodedRequestBytes,
+              measurement: requestSizeBytes != null
+                  ? 'caller-supplied'
+                  : client is OpenAiCompatibleClient
+                  ? 'OpenAiCompatibleClient.buildBody-exact'
+                  : 'conservative-json-plus-1024',
+              initialEpoch: _modelEpochCounter,
+            )..activate(
+              system: system,
+              tools: tools,
+              seedMessages: (memOff
+                  ? _withoutMemory(
+                      _uncoveredHistory(ledger),
+                      const {},
+                      privateReasoning: _memoryReasoning,
+                    )
+                  : _uncoveredHistory(ledger)),
+              summarySeed: ledger.turns.isEmpty
+                  ? null
+                  : ledger.summaryMessage(),
+            );
+        _modelEpochKey = key;
+        _modelEpochCounter = _modelContext!.epoch;
       }
 
       prepare();
-      void compress({bool force = false}) {
-        final freed = compressContext(
-          turnMsgs,
-          fixedTokens: fixedTokens,
-          budget: contextBudgetTokens,
-          keepRecent: force ? 1 : keepRecentSteps,
-          compressible: compressible,
-          force: force,
-          protectedPaths:
-              _sessionState.task != null &&
-                  _sessionState.task!.nodes.lastOrNull?.status != 'done'
-              ? SkillDisclosures.requiredFor(_sessionState.task!.type)
-              : const {},
-        );
-        // 压掉的文件允许再读全文。
-        readSet.removeAll(freed);
-      }
 
       // 只重试这一步：已完成的步骤、读过的文件都保留。
       LlmResponse? res;
@@ -1267,7 +1596,7 @@ class CoachAgent {
       while (true) {
         if (dead()) return cancelled(step);
         // 每次实际请求前复查记忆开关（退避期间或在途失败前可能被关闭），必要时重建 system / tools / files。
-        if (memoryOn != memoryAllowed()) {
+        if (memoryOn != memoryAllowed() || forceContextRebuild) {
           await rebuild();
           if (dead()) return cancelled(step);
           prepare();
@@ -1283,14 +1612,6 @@ class CoachAgent {
           reason = FallbackReason.timeout;
           break;
         }
-        compress();
-        final safeHistory = memOff
-            ? _withoutMemory(
-                _history,
-                const {},
-                privateReasoning: _memoryReasoning,
-              )
-            : _history;
         final currentMessages = <LlmMessage>[
           userMsg,
           ...(memOff
@@ -1298,27 +1619,43 @@ class CoachAgent {
                   turnMsgs,
                   memResultIds,
                   privateReasoning: memoryReasoning,
+                  preserveMemoryResultIds: privacyPreservedReceipts,
                 )
               : turnMsgs),
         ];
-        final req = LlmRequest(
-          messages: compactor.compose(
-            system: LlmMessage.system(system),
+        final preparedContext = _modelContext!.compose(
+          currentMessages: currentMessages,
+          stateMessage: AppendOnlyContext.stateMessage(
             state: _sessionState,
             catalog: cat,
             profile: profile,
-            history: safeHistory,
-            turnMessages: currentMessages,
             language: context.language,
-            previousTaskFinished: previousTaskFinished,
-            supersededFailureMessageIndexes: compactor.supersededFailures(
-              safeHistory,
-              currentMessages,
-            ),
           ),
-          tools: tools,
-          toolChoice: 'auto',
+          ledger: _completedLedger(),
+          thinking:
+              client is OpenAiCompatibleClient &&
+              (client as OpenAiCompatibleClient).config.extraBody['thinking']
+                  is Map &&
+              ((client as OpenAiCompatibleClient).config.extraBody['thinking']
+                      as Map)['type'] ==
+                  'enabled',
+          forceHardFold: forced,
         );
+        _contextRequestDiagnostics.add(preparedContext.diagnostics);
+        _modelEpochCounter = preparedContext.diagnostics.epoch;
+        if (!preparedContext.diagnostics.fitsHardLimit ||
+            (forced && !preparedContext.diagnostics.folded)) {
+          error = AgentContextBudgetExceeded(
+            preparedContext.diagnostics.afterBytes,
+            contextBudgetConfig.hardBytes,
+            reason: forced
+                ? 'upstream context limit; no safely foldable content'
+                : 'hard byte limit',
+          );
+          reason = FallbackReason.invalidOutput;
+          break;
+        }
+        final req = preparedContext.request;
         lastRequestMessages = req.messages;
         final turnLimited = left < requestTimeout;
         final child = CancelToken();
@@ -1348,6 +1685,7 @@ class CoachAgent {
               (_) => throw const _Aborted(),
             ),
           ]);
+          _modelContext?.markConsumed(req);
           break;
         } on Object catch (e) {
           if (dead() ||
@@ -1395,7 +1733,6 @@ class CoachAgent {
           } else if (cls == RequestErrorClass.contextTooLong && !forced) {
             // 上下文超长：强制压一次再重试一次（不计入重试次数）。
             forced = true;
-            compress(force: true);
             emit(
               AgentEventKind.retrying,
               step: step,
@@ -1482,6 +1819,7 @@ class CoachAgent {
           leaked = true;
           break;
         }
+        turnMsgs.add(assistant(response));
         if (g.ok &&
             _sessionState.task?.type == 'plan' &&
             _sessionState.task!.nodes.last.status != 'done') {
@@ -1530,13 +1868,11 @@ class CoachAgent {
         );
         lastErrors = g.errors;
         if (++rejected > maxResubmits) break;
-        turnMsgs
-          ..add(assistant(res))
-          ..add(
-            LlmMessage.user(
-              _feedback(g.errors, remaining: 1 + maxResubmits - rejected),
-            ),
-          );
+        turnMsgs.add(
+          LlmMessage.user(
+            _feedback(g.errors, remaining: 1 + maxResubmits - rejected),
+          ),
+        );
         continue;
       }
 
@@ -1586,7 +1922,6 @@ class CoachAgent {
         for (var i = 0; i < orderedResults.length; i++)
           resultMessage(i, orderedResults[i]),
       ]);
-      final pendingCompress = <String, CompressibleResult>{};
       AgentOutputResult? terminalOutput;
       AskUserQuestion? terminalQuestion;
       bool terminalRejected = false;
@@ -1767,9 +2102,6 @@ class CoachAgent {
             results[t.id] = handled.response;
             toolFailure = handled.failed;
             fresh = fresh || handled.fresh;
-            if (handled.compressible != null) {
-              pendingCompress[t.id] = handled.compressible!;
-            }
           case AgentTools.checkPlan:
             emit(AgentEventKind.checking, step: step);
             if (dead()) return cancelled(step);
@@ -1820,6 +2152,41 @@ class CoachAgent {
             if (dead()) {
               calls.add(_Call.ok(step, res, CallOutcome.cancelled, retry: tag));
               return cancelled(step);
+            }
+            if (t.name == AgentTools.forget &&
+                memoryEpoch == _memEpoch &&
+                jsonDecode(results[t.id]!) is Map &&
+                (jsonDecode(results[t.id]!) as Map)['ok'] == true) {
+              // Forgetting is an explicit privacy epoch, just like clearing.
+              privacyPreservedReceipts.add(t.id);
+              _memEpoch++;
+              turnMemoryEpoch = _memEpoch;
+              forceContextRebuild = true;
+              privacyRedactedResponses.addAll([
+                response,
+                res,
+                executedResponse,
+              ]);
+              final safeCurrent = _withoutMemory(
+                turnMsgs,
+                memResultIds,
+                privateReasoning: memoryReasoning,
+                preserveMemoryResultIds: privacyPreservedReceipts,
+              );
+              turnMsgs
+                ..clear()
+                ..addAll(safeCurrent);
+              _modelContext = null;
+              _modelEpochKey = null;
+              final sanitized = _withoutMemory(
+                _history,
+                const {},
+                privateReasoning: _memoryReasoning,
+              );
+              _history
+                ..clear()
+                ..addAll(sanitized);
+              _memoryReasoning.clear();
             }
             if (memoryTimedOut) {
               calls.add(
@@ -1973,6 +2340,13 @@ class CoachAgent {
         break;
       }
 
+      final earlierTurnMessages = List<LlmMessage>.of(turnMsgs);
+      turnMsgs
+        ..add(assistant(executedResponse))
+        ..addAll([
+          for (var i = 0; i < orderedResults.length; i++)
+            resultMessage(i, orderedResults[i]),
+        ]);
       if (terminalQuestion != null) {
         submissions++;
         final question = terminalQuestion;
@@ -1994,7 +2368,7 @@ class CoachAgent {
             question: question,
             questionsAsked: _questionsAsked,
             userMessage: userMsg,
-            turnMessages: turnMsgs,
+            turnMessages: earlierTurnMessages,
             assistantMessage: assistant(
               executedResponse,
               content: question.question,
@@ -2046,16 +2420,6 @@ class CoachAgent {
                   : const [],
             ),
           );
-        }
-        turnMsgs.add(assistant(res));
-        for (var i = 0; i < res.toolCalls.length; i++) {
-          final t = res.toolCalls[i];
-          final m = resultMessage(i, orderedResults[i]);
-          turnMsgs.add(m);
-          final c = res.toolCalls.indexWhere((call) => call.id == t.id) == i
-              ? pendingCompress[t.id]
-              : null;
-          if (c != null) compressible[m] = c;
         }
         // 防空转：连续相同的工具调用（同名同参数）或连续无新信息。
         final sig = [
@@ -2169,16 +2533,6 @@ class CoachAgent {
       );
       lastErrors = g.errors;
       if (++rejected > maxResubmits) break;
-      turnMsgs.add(assistant(res));
-      for (var i = 0; i < res.toolCalls.length; i++) {
-        final t = res.toolCalls[i];
-        final m = resultMessage(i, orderedResults[i]);
-        turnMsgs.add(m);
-        final c = res.toolCalls.indexWhere((call) => call.id == t.id) == i
-            ? pendingCompress[t.id]
-            : null;
-        if (c != null) compressible[m] = c;
-      }
     }
     if (step >= maxSteps &&
         error == null &&
@@ -2481,4 +2835,18 @@ class _Call {
 
 class _Aborted implements Exception {
   const _Aborted();
+}
+
+class AgentContextBudgetExceeded implements Exception {
+  const AgentContextBudgetExceeded(
+    this.bytes,
+    this.hardLimitBytes, {
+    this.reason = 'hard byte limit',
+  });
+  final int bytes;
+  final int hardLimitBytes;
+  final String reason;
+  @override
+  String toString() =>
+      'AgentContextBudgetExceeded(bytes=$bytes, limit=$hardLimitBytes, $reason)';
 }

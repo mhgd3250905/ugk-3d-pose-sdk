@@ -65,7 +65,7 @@ void main() {
   }
 
   test(
-    'three reads then recommendation references required skills and archives plan',
+    'three reads then recommendation references required skills and retains unrelated plan below threshold',
     () async {
       final client = FakeLlmClient([
         _batch([
@@ -92,7 +92,7 @@ void main() {
           });
           expect(_content(request, 'read-ask'), full('ask'));
           expect(_content(request, 'read-library'), full('action-library'));
-          expect(_content(request, 'read-plan'), '[已归档：与当前任务无关的技能 read]');
+          expect(_content(request, 'read-plan'), full('plan-training'));
           final serialized = jsonEncode([
             for (final message in request.messages) message.toJson(),
           ]);
@@ -217,7 +217,7 @@ void main() {
 
   for (final reuse in [false, true]) {
     test(
-      'after completed history is removed ${reuse ? 'reused' : 'new'} task needs skill bodies',
+      'below soft limit ${reuse ? 'reused' : 'new'} task references complete skills in the model journal',
       () async {
         final client = FakeLlmClient([
           _batch([
@@ -268,11 +268,11 @@ void main() {
               request.messages.where(
                 (message) => message.toolCallId?.startsWith('old-') == true,
               ),
-              isEmpty,
+              isNotEmpty,
             );
             expect(_skills(request, 'new-start'), {
-              'ask': full('ask'),
-              'action-library': full('action-library'),
+              'ask': '[已在 start_task 结果中]',
+              'action-library': '[已在 start_task 结果中]',
               'plan-training': full('plan-training'),
             });
             final task = _result(request, 'new-start')['task'] as Map;
@@ -304,20 +304,20 @@ void main() {
   }
 
   test(
-    'technical compression of old read requires the missing body again',
+    'legacy token hint does not archive full reads below the byte thresholds',
     () async {
       final client = FakeLlmClient([
         _batch([_read('old-ask', 'ask')]),
         _batch([_read('recent-plan', 'plan-training')]),
         (LlmRequest request) {
-          expect(_content(request, 'old-ask'), startsWith('已读 ask/SKILL.md（'));
+          expect(_content(request, 'old-ask'), full('ask'));
           expect(_content(request, 'recent-plan'), full('plan-training'));
           return _batch([_start('start', 'plan')]);
         },
         (LlmRequest request) {
           _protocol(request);
           final loaded = _skills(request, 'start');
-          expect(loaded['ask'], full('ask'));
+          expect(loaded['ask'], '[已在前文 read 中]');
           expect(loaded['action-library'], full('action-library'));
           if (loaded['plan-training'] == '[已在前文 read 中]') {
             expect(

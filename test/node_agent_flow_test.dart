@@ -141,7 +141,7 @@ void main() {
                 as Map;
         expect(receipt['ok'], isTrue);
         expect(receipt['notices'], isNotEmpty);
-        expect(receipt['task'], {'sameAsCurrentState': 'task'});
+        expect(receipt['task'], coach.sessionState.task!.toJson());
       }
       expect(coach.sessionState.task!.nodes.first.stamp, isNot('伪造'));
       expect(

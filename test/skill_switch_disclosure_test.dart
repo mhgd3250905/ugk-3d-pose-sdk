@@ -191,7 +191,7 @@ void main() {
   for (final firstFromRead in [false, true]) {
     test(
       firstFromRead
-          ? 'read plan skill -> recommend -> plan never revives the archived read'
+          ? 'read plan skill -> recommend -> plan references its retained full read'
           : 'plan -> recommend -> plan reuses the still-visible first task skill',
       () async {
         final client = FakeLlmClient([
@@ -223,7 +223,7 @@ void main() {
           for (final request in client.requests)
             _fullCopies(request, bodies['plan-training']!),
         ];
-        expect(planCopies, firstFromRead ? [0, 1, 0, 1] : [0, 1, 1, 1]);
+        expect(planCopies, [0, 1, 1, 1]);
         expect(
           [
             for (final request in client.requests)
@@ -242,17 +242,17 @@ void main() {
         final afterPlan = client.requests[3];
         final finalSkills = _skills(afterPlan, 'last-plan');
         if (firstFromRead) {
-          // Both requests retain the old tool_call_id, but its archived body
-          // must stay archived after a later task needs that skill again.
+          // Below the byte threshold, a task switch does not rewrite the
+          // earlier real read; its metadata still proves full disclosure.
           for (final request in [afterRecommend, afterPlan]) {
             expect(
               request.messages
                   .singleWhere((m) => m.toolCallId == 'first')
                   .content,
-              SkillDisclosures.unrelatedArchive,
+              bodies['plan-training'],
             );
           }
-          expect(finalSkills['plan-training'], bodies['plan-training']);
+          expect(finalSkills['plan-training'], SkillDisclosures.readReference);
           final originalRecommend = _skills(afterPlan, 'recommend');
           for (final skill in ['ask', 'action-library']) {
             expect(finalSkills[skill], SkillDisclosures.startReference);
@@ -278,7 +278,7 @@ void main() {
   }
 
   test(
-    'a recommendation read archived by a plan is disclosed again for the real recommendation task',
+    'a retained recommendation read remains the real disclosure source across a plan task',
     () async {
       final client = FakeLlmClient([
         _call('read-coaching', AgentTools.read, {
@@ -308,13 +308,13 @@ void main() {
           request.messages
               .singleWhere((m) => m.toolCallId == 'read-coaching')
               .content,
-          SkillDisclosures.unrelatedArchive,
+          bodies['action-coaching'],
         );
       }
-      expect(_fullCopies(client.requests[2], bodies['action-coaching']!), 0);
+      expect(_fullCopies(client.requests[2], bodies['action-coaching']!), 1);
       final last = client.requests.last;
       final loaded = _skills(last, 'start-recommend');
-      expect(loaded['action-coaching'], bodies['action-coaching']);
+      expect(loaded['action-coaching'], SkillDisclosures.readReference);
       expect(loaded['ask'], SkillDisclosures.startReference);
       expect(loaded['action-library'], SkillDisclosures.startReference);
       expect(loaded.containsKey('plan-training'), isFalse);

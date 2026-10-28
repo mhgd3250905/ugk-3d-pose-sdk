@@ -32,6 +32,11 @@ Map<String, Object?> _choice({bool? multiple}) => {
 };
 Map<String, Object?> _plan() => planOf(okEnvelope())..remove('source');
 LlmResponse _showPlan() => _tools([_call(AgentTools.showPlan, _plan())]);
+LlmMessage _latestToolResult(LlmRequest request) {
+  expect(request.messages.last.role, LlmRole.user);
+  expect(request.messages.last.content, startsWith('当前状态（系统生成）：'));
+  return request.messages.lastWhere((message) => message.role == LlmRole.tool);
+}
 
 /// Every model batch is followed by one acknowledgement per tool call.
 void _expectToolProtocol(List<LlmMessage> messages) {
@@ -177,7 +182,7 @@ void main() {
           expect(result.text, '可以慢慢练习。');
           expect(result.records.first.outcome, CallOutcome.rejected);
           expect(client.requests, hasLength(2));
-          final feedback = client.requests.last.messages.last;
+          final feedback = _latestToolResult(client.requests.last);
           expect(feedback.role, LlmRole.tool);
           expect((jsonDecode(feedback.content) as Map)['ok'], false);
           expect(coach.questionsAsked, 0);
@@ -339,14 +344,17 @@ void main() {
         if (sideTool == AgentTools.read) {
           expect(replies, hasLength(1));
         } else {
-          // Memory-tool messages are deliberately removed from persisted history.
-          expect(replies, isEmpty);
+          // The private model journal remains append-only while memory is on;
+          // the public/UI history still excludes memory tool protocol.
+          expect(replies, hasLength(1));
+          expect((jsonDecode(replies.single.content) as Map)['ok'], isTrue);
           expect(
-            client.requests.last.messages
+            coach.history
                 .expand((m) => m.toolCalls)
                 .where((call) => call.id == side.id),
             isEmpty,
           );
+          expect(coach.history.where((m) => m.toolCallId == side.id), isEmpty);
         }
       });
     }
@@ -445,7 +453,7 @@ void main() {
             ]),
             (LlmRequest request) {
               final rejection =
-                  jsonDecode(request.messages.last.content) as Map;
+                  jsonDecode(_latestToolResult(request).content) as Map;
               expect(rejection['code'], 'missing_parameters');
               return _ask(_text('想做什么动作，有什么器材？'));
             },
@@ -470,7 +478,8 @@ void main() {
               }),
             ]),
             (LlmRequest request) {
-              final search = jsonDecode(request.messages.last.content) as Map;
+              final search =
+                  jsonDecode(_latestToolResult(request).content) as Map;
               selectedIds = (search['items'] as List)
                   .take(3)
                   .map((item) => (item as Map)['id'] as String)
@@ -484,7 +493,8 @@ void main() {
               ]);
             },
             (LlmRequest request) {
-              final state = jsonDecode(request.messages.last.content) as Map;
+              final state =
+                  jsonDecode(_latestToolResult(request).content) as Map;
               expect(state['ok'], isTrue);
               final task = state['task'] as Map;
               expect(

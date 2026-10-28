@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import 'request_context_support.dart';
 import 'support.dart';
 
 LlmToolCall _call(String id, String name, Object args) =>
@@ -198,8 +199,17 @@ void main() {
           ]);
         },
       ], latency: Duration.zero);
+      final serializer = OfflineConfiguredClient(
+        replay: client,
+        config: LlmConfig.ugkWorker.copyWith(
+          extraBody: {
+            'thinking': {'type': 'enabled'},
+          },
+        ),
+      );
+      addTearDown(serializer.close);
       final agent = CoachAgent(
-        client: client,
+        client: serializer,
         catalog: () => catalog,
         profile: profile,
         enableUserMemory: false,
@@ -233,21 +243,11 @@ void main() {
       final target = 20 * 60;
       final estimate = agent.sessionState.plans[planId]!.last.estimateSec;
       expect(estimate, inInclusiveRange(target * 0.9, target * 1.1));
-      final serializer = OpenAiCompatibleClient(
-        config: LlmConfig.ugkWorker.copyWith(
-          extraBody: {
-            'thinking': {'type': 'enabled'},
-          },
-        ),
-      );
-      addTearDown(serializer.close);
       for (var i = 0; i < client.requests.length; i++) {
         final request = client.requests[i];
         _protocol(request);
         if (i >= 2) {
-          final current =
-              jsonDecode(request.messages[1].content.substring('当前状态：'.length))
-                  as Map;
+          final current = requestCurrentState(request);
           expect(current['picks'], isEmpty);
           expect(current['candidates'], isNotEmpty);
           expect((current['candidates'] as List).length, lessThanOrEqualTo(40));
@@ -264,7 +264,7 @@ void main() {
         print('NORMAL R3 request ${i + 1}: $bytes B');
         expect(
           bytes,
-          lessThanOrEqualTo(40 * 1024),
+          lessThanOrEqualTo(agent.contextBudgetConfig.hardBytes),
           reason: 'request ${i + 1}: $bytes B',
         );
       }

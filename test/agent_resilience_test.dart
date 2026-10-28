@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:test/test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import 'request_context_support.dart';
 import 'support.dart';
 
 var _seq = 0;
@@ -23,6 +24,18 @@ LlmResponse _read(String path) => _tools([
 
 FakeStep _hang() =>
     (_) => Completer<Object>().future;
+
+int _requestBytes(LlmRequest request) => utf8
+    .encode(
+      jsonEncode({
+        'messages': [for (final message in request.messages) message.toJson()],
+        'tools': [for (final tool in request.tools) tool.toJson()],
+      }),
+    )
+    .length;
+
+Map<String, Object?> _archive(LlmMessage result) =>
+    (jsonDecode(result.content) as Map).cast<String, Object?>();
 
 /// 每个 assistant 的 tool_call 后面都有对应 tool 回复，每个 tool 回复都对应前面的调用。
 void _expectProtocol(List<LlmMessage> msgs) {
@@ -57,6 +70,8 @@ void main() {
     Duration turnTimeout = const Duration(seconds: 360),
     int contextBudgetTokens = 60000,
     int keepRecentSteps = 3,
+    ContextBudgetConfig contextBudgetConfig = const ContextBudgetConfig(),
+    int Function(LlmRequest)? requestSizeBytes,
     Future<void> Function(Duration)? sleep,
     UserMemoryStore? store,
   }) => CoachAgent(
@@ -70,6 +85,8 @@ void main() {
     turnTimeout: turnTimeout,
     contextBudgetTokens: contextBudgetTokens,
     keepRecentSteps: keepRecentSteps,
+    contextBudgetConfig: contextBudgetConfig,
+    requestSizeBytes: requestSizeBytes,
     random: () => 0.5, // 抖动系数 = 1.0
     sleep:
         sleep ??
@@ -77,6 +94,46 @@ void main() {
           delays.add(d);
         },
   );
+
+  Future<({ContextBudgetConfig budget, String firstBody, String secondBody})>
+  readBudget() async {
+    final sizing = FakeLlmClient([
+      _read('action-library/SKILL.md'),
+      _read('plan-training/SKILL.md'),
+      'Sizing complete.',
+    ]);
+    final coach = agent(sizing, requestSizeBytes: _requestBytes);
+    addTearDown(coach.dispose);
+    expect((await coach.send('展示臀部动作')).status, TurnStatus.ok);
+    final bodies = sizing.requests[2].messages
+        .where((m) => m.role == LlmRole.tool)
+        .toList();
+    final first = bodies.first.content;
+    final second = bodies.last.content;
+    expect(first, contains('#'));
+    expect(second, contains('#'));
+    // Test-only boundary from the uncompressed real fixture, not an enlarged
+    // production budget: initial/full-first fit; both full bodies do not.
+    // Each skill body stays unchanged, including all original instructions.
+    final smallestBody = [
+      utf8.encode(first).length,
+      utf8.encode(second).length,
+    ].reduce((a, b) => a < b ? a : b);
+    final hard = _requestBytes(sizing.requests[2]) - smallestBody ~/ 3;
+    expect(hard, lessThan(const ContextBudgetConfig().hardBytes));
+    expect(_requestBytes(sizing.requests[0]), lessThanOrEqualTo(hard));
+    expect(_requestBytes(sizing.requests[1]), lessThanOrEqualTo(hard));
+    expect(_requestBytes(sizing.requests[2]), greaterThan(hard));
+    return (
+      budget: ContextBudgetConfig(
+        softOffBytes: hard,
+        softOnBytes: hard,
+        hardBytes: hard,
+      ),
+      firstBody: first,
+      secondBody: second,
+    );
+  }
 
   test('默认参数：maxSteps=100、重试 4 次、整轮 360s、慢提示 30s、预算 60k', () {
     final a = CoachAgent(
@@ -92,6 +149,7 @@ void main() {
     expect(a.slowAfter, const Duration(seconds: 30));
     expect(a.requestTimeout, const Duration(seconds: 60));
     expect(a.contextBudgetTokens, 60000);
+    expect(a.keepRecentSteps, 3);
     expect(a.maxStallSteps, 3);
   });
 
@@ -118,7 +176,7 @@ void main() {
     expect(r.records[1].errorKind, 'timeout');
     // 重试请求与超时那次相同：带着第 1 步的读取结果。
     expect(c.requests[2].messages.length, c.requests[1].messages.length);
-    expect(c.requests[2].messages.last.role, LlmRole.tool);
+    expect(modelRequestHistory(c.requests[2]).last.role, LlmRole.tool);
     final retry = events.singleWhere((e) => e.kind == AgentEventKind.retrying);
     expect(
       (retry.attempt, retry.maxAttempts, retry.reason),
@@ -257,8 +315,26 @@ void main() {
     expect(delays, isEmpty);
     final last = c.requests.last.messages;
     final tools = last.where((m) => m.role == LlmRole.tool).toList();
-    expect(tools.first.content, startsWith('已读 action-library/SKILL.md（'));
-    expect(tools.last.content, isNot(startsWith('已读'))); // 最近一步完整保留
+    expect(_archive(tools.first)['archived'], isTrue);
+    expect(_archive(tools.first)['tool'], 'read');
+    final beforeRetry = c.requests[c.requests.length - 2].messages
+        .where((m) => m.role == LlmRole.tool)
+        .toList();
+    expect(
+      tools.map((m) => m.toolCallId),
+      beforeRetry.map((m) => m.toolCallId),
+    );
+    expect(
+      tools.last.content,
+      beforeRetry.last.content,
+      reason: 'the failed HTTP attempt did not consume the newest receipt',
+    );
+    expect(
+      last.where((m) => m.role == LlmRole.assistant).map((m) => m.toJson()),
+      c.requests[c.requests.length - 2].messages
+          .where((m) => m.role == LlmRole.assistant)
+          .map((m) => m.toJson()),
+    );
     _expectProtocol(last);
     expect(
       events.singleWhere((e) => e.kind == AgentEventKind.retrying).reason,
@@ -267,6 +343,7 @@ void main() {
   });
 
   test('超预算压缩较早的 read：协议有效，被压缩的文件可再读全文', () async {
+    final fixture = await readBudget();
     final c = FakeLlmClient([
       _read('action-library/SKILL.md'),
       _read('plan-training/SKILL.md'),
@@ -275,20 +352,37 @@ void main() {
     ]);
     final r = await agent(
       c,
-      contextBudgetTokens: 1,
-      keepRecentSteps: 1,
+      contextBudgetConfig: fixture.budget,
+      requestSizeBytes: _requestBytes,
     ).send('展示臀部动作');
     expect(r.status, TurnStatus.ok);
     final third = c.requests[2].messages
         .where((m) => m.role == LlmRole.tool)
         .toList();
-    expect(third.first.content, startsWith('已读 action-library/SKILL.md（'));
+    expect(_archive(third.first)['archived'], isTrue);
+    expect(_archive(third.first)['tool'], 'read');
+    expect(
+      third.first.toolCallId,
+      c.requests[1].messages
+          .firstWhere((m) => m.role == LlmRole.tool)
+          .toolCallId,
+    );
+    expect(
+      third.last.content,
+      fixture.secondBody,
+      reason: 'the newest plan-training receipt has not been consumed',
+    );
     final fourth = c.requests[3].messages;
     _expectProtocol(fourth);
     final t4 = fourth.where((m) => m.role == LlmRole.tool).toList();
-    expect(t4[1].content, startsWith('已读 plan-training/SKILL.md（'));
-    expect(t4.last.content, isNot(contains('已读'))); // 再读给全文
+    expect(_archive(t4[1])['archived'], isTrue);
+    expect(_archive(t4[1])['tool'], 'read');
+    expect(t4.last.content, fixture.firstBody); // 再读给未截断全文
     expect(t4.last.content.length, greaterThan(100));
+    expect(
+      c.requests.map(_requestBytes),
+      everyElement(lessThanOrEqualTo(fixture.budget.hardBytes)),
+    );
   });
 
   test('相同工具调用空转：提示一次，再犯回落', () async {
@@ -299,7 +393,7 @@ void main() {
     expect(r.status, TurnStatus.fallback);
     expect(r.error, isA<AgentStalled>());
     expect(c.requests.length, 4);
-    final hint = c.requests[3].messages.last;
+    final hint = modelRequestHistory(c.requests[3]).last;
     expect(hint.role, LlmRole.user);
     expect(hint.content, contains('完全相同'));
   });
@@ -407,7 +501,7 @@ void main() {
     expect(r.error, isNull);
     expect(c.requests.length, 5);
     for (final req in c.requests) {
-      expect(req.messages.last.content, isNot(contains('系统提示')));
+      expect(modelRequestHistory(req).last.content, isNot(contains('系统提示')));
     }
   });
 
@@ -422,10 +516,14 @@ void main() {
     expect(r.status, TurnStatus.fallback);
     expect((r.error as AgentStalled).why, 'no_new_info');
     expect(c.requests.length, 5);
-    expect(c.requests[4].messages.last.content, contains('没有获得新信息'));
+    expect(
+      modelRequestHistory(c.requests[4]).last.content,
+      contains('没有获得新信息'),
+    );
   });
 
   test('[P3] 跨步骤复用 tool_call_id：压缩元数据按消息关联，不错配摘要与已读集合', () async {
+    final fixture = await readBudget();
     LlmResponse readAs(String id, String path) => _tools([
       LlmToolCall(id: id, name: 'read', arguments: jsonEncode({'path': path})),
     ]);
@@ -437,20 +535,25 @@ void main() {
     ]);
     final r = await agent(
       c,
-      contextBudgetTokens: 1,
-      keepRecentSteps: 1,
+      contextBudgetConfig: fixture.budget,
+      requestSizeBytes: _requestBytes,
     ).send('展示臀部动作');
     expect(r.status, TurnStatus.ok);
     final third = c.requests[2].messages
         .where((m) => m.role == LlmRole.tool)
         .toList();
-    expect(third.first.content, startsWith('已读 action-library/SKILL.md（'));
-    expect(third[1].content, isNot(startsWith('已读'))); // 第二步完整保留
+    expect(third.first.toolCallId, 'call_0');
+    expect(third[1].toolCallId, 'call_0');
+    expect(_archive(third.first)['archived'], isTrue);
+    expect(third[1].content, fixture.secondBody); // 第二步完整保留
+    _expectProtocol(c.requests[2].messages);
     final t4 = c.requests[3].messages
         .where((m) => m.role == LlmRole.tool)
         .toList();
-    expect(t4[1].content, startsWith('已读 plan-training/SKILL.md（'));
-    expect(t4.last.content, isNot(contains('已读'))); // 第一个文件被压缩后再读给全文
+    expect(_archive(t4[1])['archived'], isTrue);
+    expect(_archive(t4[1])['tool'], 'read');
+    expect(t4.last.content, fixture.firstBody); // 第一个文件被压缩后再读给全文
     expect(t4.last.content.length, greaterThan(100));
+    _expectProtocol(c.requests[3].messages);
   });
 }

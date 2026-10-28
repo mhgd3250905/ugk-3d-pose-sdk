@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
+import 'package:ugk_coach/src/agent/context_turn_ledger.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
@@ -41,6 +42,48 @@ http.Response _response(Map<String, Object?> message) => http.Response.bytes(
   ),
   200,
 );
+
+// Only complete ended turns named in the deterministic summary may disappear.
+// Every assistant retained outside those turns must replay its exact original
+// reasoning, including rejected/tool steps and final deliveries.
+void _expectRetainedReasoning(
+  Map<dynamic, dynamic> body,
+  List<(int turn, String reasoning)> previous, {
+  required int currentTurn,
+}) {
+  final messages = (body['messages'] as List).cast<Map<String, dynamic>>();
+  final folded = <int>{};
+  for (final message in messages) {
+    final text = message['content'];
+    if (message['role'] == 'user' &&
+        text is String &&
+        text.startsWith('${ContextTurnLedger.summaryPrefix}\n')) {
+      final ledger =
+          jsonDecode(text.substring(ContextTurnLedger.summaryPrefix.length + 1))
+              as Map;
+      for (final item in ledger['turns'] as List) {
+        final turn = (item as Map)['turn'] as int;
+        expect(
+          turn,
+          lessThan(currentTurn),
+          reason: 'a current user turn cannot be folded',
+        );
+        folded.add(turn);
+      }
+    }
+  }
+  final assistants = messages.where(
+    (message) => message['role'] == 'assistant',
+  );
+  expect(assistants.map((m) => m['reasoning_content']), [
+    for (final entry in previous)
+      if (!folded.contains(entry.$1)) entry.$2,
+  ]);
+  for (final assistant in assistants) {
+    expect(assistant.containsKey('reasoning_content'), isTrue);
+    expect(assistant['reasoning_content'], isA<String>());
+  }
+}
 
 void main() {
   final catalog = loadCatalog();
@@ -176,28 +219,16 @@ void main() {
   });
 
   test('HTTP 请求体：Agent 保留进行中及交付后可见历史的原始推理', () async {
-    final expected = <List<String>>[
-      [],
-      ['read-reasoning'],
-      ['read-reasoning', 'remember-reasoning'],
-      ['read-reasoning', 'remember-reasoning', 'setup-reasoning'],
-      [
-        'read-reasoning',
-        'remember-reasoning',
-        'setup-reasoning',
-        'draft-reasoning',
-      ],
-      [
-        'read-reasoning',
-        'remember-reasoning',
-        'setup-reasoning',
-        'draft-reasoning',
-        'check-reasoning',
-      ],
-      ['plan-reasoning'],
-      ['plan-reasoning', 'plain-reasoning'],
-      ['plan-reasoning', 'plain-reasoning', 'recommend-reasoning'],
-      ['plan-reasoning', 'plain-reasoning', 'actions-reasoning'],
+    final reasoning = <(int, String)>[
+      (1, 'read-reasoning'),
+      (1, 'remember-reasoning'),
+      (1, 'setup-reasoning'),
+      (1, 'draft-reasoning'),
+      (1, 'check-reasoning'),
+      (1, 'plan-reasoning'),
+      (2, 'plain-reasoning'),
+      (3, 'recommend-reasoning'),
+      (3, 'actions-reasoning'),
     ];
     var step = 0;
     late String planId;
@@ -205,13 +236,16 @@ void main() {
       config: LlmConfig.ugkWorker.copyWith(maxRetries: 0),
       httpClient: MockClient((request) async {
         final body = jsonDecode(request.body) as Map;
-        final assistants = (body['messages'] as List)
-            .cast<Map<String, dynamic>>()
-            .where((m) => m['role'] == 'assistant');
-        expect(
-          assistants.map((m) => m['reasoning_content']),
-          expected[step],
-          reason: 'request ${step + 1}',
+        _expectRetainedReasoning(
+          body,
+          reasoning.take(step).toList(),
+          currentTurn: step <= 5
+              ? 1
+              : step == 6
+              ? 2
+              : step <= 8
+              ? 3
+              : 4,
         );
         expect(body['tools'], isNotEmpty);
         final reply = switch (step++) {
@@ -235,14 +269,8 @@ void main() {
           }(),
           5 => () {
             expect(toolResult(body, 'planning')['ok'], isTrue);
-            expect(
-              (body['messages'] as List)
-                  .cast<Map<String, Object?>>()
-                  .singleWhere(
-                    (message) => message['tool_call_id'] == 'draft',
-                  )['content'],
-              '[已归档，见当前状态]',
-            );
+            expect(toolResult(body, 'draft')['plan_id'], planId);
+            expect(toolResult(body, 'draft')['ok'], isTrue);
             final checked = toolResult(body, 'check-plan');
             expect(checked['ok'], isTrue, reason: '$checked');
             return _message('正文应被忽略', 'plan-reasoning', [
@@ -328,23 +356,20 @@ void main() {
             ]),
             _message('好的', 'next-reasoning'),
           ];
-          final expected = [
-            <String>[],
-            ['setup-reasoning'],
-            ['setup-reasoning', 'rejected-reasoning'],
-            ['accepted-reasoning'],
+          final reasoning = <(int, String)>[
+            (1, 'setup-reasoning'),
+            (1, 'rejected-reasoning'),
+            (1, 'accepted-reasoning'),
           ];
           var step = 0;
           final client = OpenAiCompatibleClient(
             config: LlmConfig.ugkWorker.copyWith(maxRetries: 0),
             httpClient: MockClient((request) async {
               final body = jsonDecode(request.body) as Map;
-              final assistants = (body['messages'] as List)
-                  .cast<Map<String, dynamic>>()
-                  .where((m) => m['role'] == 'assistant');
-              expect(
-                assistants.map((m) => m['reasoning_content']),
-                expected[step],
+              _expectRetainedReasoning(
+                body,
+                reasoning.take(step).toList(),
+                currentTurn: step < 3 ? 1 : 2,
               );
               if (step == 2) {
                 expect(toolResult(body, 'bad')['code'], 'unseen_actions');
@@ -430,18 +455,12 @@ void main() {
   }
 
   test('记忆从未开启：进行中及交付后保留的历史推理完整回传', () async {
-    final expected = <List<String>>[
-      [],
-      ['library-reasoning'],
-      ['library-reasoning', 'setup-reasoning'],
-      ['library-reasoning', 'setup-reasoning', 'draft-reasoning'],
-      [
-        'library-reasoning',
-        'setup-reasoning',
-        'draft-reasoning',
-        'checking-reasoning',
-      ],
-      ['final-reasoning'],
+    final reasoning = <(int, String)>[
+      (1, 'library-reasoning'),
+      (1, 'setup-reasoning'),
+      (1, 'draft-reasoning'),
+      (1, 'checking-reasoning'),
+      (1, 'final-reasoning'),
     ];
     var step = 0;
     late String planId;
@@ -449,10 +468,11 @@ void main() {
       config: LlmConfig.ugkWorker.copyWith(maxRetries: 0),
       httpClient: MockClient((request) async {
         final body = jsonDecode(request.body) as Map;
-        final assistants = (body['messages'] as List)
-            .cast<Map<String, dynamic>>()
-            .where((m) => m['role'] == 'assistant');
-        expect(assistants.map((m) => m['reasoning_content']), expected[step]);
+        _expectRetainedReasoning(
+          body,
+          reasoning.take(step).toList(),
+          currentTurn: step < 5 ? 1 : 2,
+        );
         expect(request.body, isNot(contains('user-memory')));
         final reply = switch (step++) {
           0 => _message('', 'library-reasoning', [
@@ -554,10 +574,22 @@ void main() {
               final assistants = (body['messages'] as List)
                   .cast<Map<String, dynamic>>()
                   .where((m) => m['role'] == 'assistant');
-              expect(
-                assistants.map((m) => m['reasoning_content']),
-                expected[step],
-              );
+              if (useAgent) {
+                _expectRetainedReasoning(
+                  body,
+                  <(int, String)>[
+                    (1, ''),
+                    (1, ''),
+                    (2, ''),
+                  ].take(step).toList(),
+                  currentTurn: step < 2 ? 1 : step,
+                );
+              } else {
+                expect(
+                  assistants.map((m) => m['reasoning_content']),
+                  expected[step],
+                );
+              }
               for (final m in assistants) {
                 expect(m.containsKey('reasoning_content'), isTrue);
               }
@@ -603,8 +635,13 @@ void main() {
             final assistants = (body['messages'] as List)
                 .cast<Map<String, dynamic>>()
                 .where((m) => m['role'] == 'assistant');
-            expect(assistants.single['reasoning_content'], '');
-            expect(assistants.single['content'], '先用预设方案。');
+            if (useAgent) {
+              _expectRetainedReasoning(body, [(1, '')], currentTurn: 2);
+              expect(request.body, contains('先用预设方案。'));
+            } else {
+              expect(assistants.single['reasoning_content'], '');
+              expect(assistants.single['content'], '先用预设方案。');
+            }
             return _response(_message('好。', null));
           }),
         );
@@ -627,7 +664,12 @@ void main() {
         Future<CoachTurnResult> send(String input) =>
             useAgent ? agent.send(input) : session.send(input);
         expect((await send('看动作')).status, TurnStatus.fallback);
-        expect((await send('再来')).status, TurnStatus.ok);
+        final next = await send('再来');
+        expect(
+          next.status,
+          TurnStatus.ok,
+          reason: '${next.error}; ${next.issues}',
+        );
         expect(step, 2);
       },
     );

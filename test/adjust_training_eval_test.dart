@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import 'request_context_support.dart';
 import 'support.dart';
 import 'support_v2_plan_flow.dart';
 
@@ -433,11 +434,7 @@ void main() {
       expect(c.agent.sessionState.params['minutes']!.quote, '7 分钟');
       final firstRetryRequest = client.requests.length;
       final retried = await c.send('重试');
-      final recorded = client.requests[firstRetryRequest].messages.singleWhere(
-        (m) => m.content.startsWith('当前状态：'),
-      );
-      final ledger =
-          jsonDecode(recorded.content.substring('当前状态：'.length)) as Map;
+      final ledger = requestCurrentState(client.requests[firstRetryRequest]);
       expect(((ledger['params'] as Map)['minutes'] as Map)['value'], 7);
       expect(retried!.question, isNull);
       expect(

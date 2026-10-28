@@ -5,6 +5,7 @@ import 'package:ugk_coach/src/agent/action_tags.dart';
 import 'package:ugk_coach/src/agent/session_params.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import 'request_context_support.dart';
 import 'support.dart';
 
 var _sequence = 0;
@@ -383,7 +384,8 @@ void main() {
           'keywords': catalog['h-band-hip-ir']!.name.of('en'),
         }),
         (LlmRequest request) {
-          final search = jsonDecode(request.messages.last.content) as Map;
+          final search =
+              jsonDecode(modelRequestHistory(request).last.content) as Map;
           expect(search['ok'], isTrue);
           expect(
             (search['items'] as List).map((item) => (item as Map)['id']),
@@ -527,7 +529,8 @@ void main() {
             'keywords': catalog[example.forbidden]!.name.of('en'),
           }),
           (LlmRequest request) {
-            final search = jsonDecode(request.messages.last.content) as Map;
+            final search =
+                jsonDecode(modelRequestHistory(request).last.content) as Map;
             expect(search['ok'], isTrue);
             expect(
               (search['items'] as List).map((item) => (item as Map)['id']),

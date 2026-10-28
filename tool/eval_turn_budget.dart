@@ -1,6 +1,8 @@
 /// Post-run checks based on activity actually observed during a user turn.
 library;
 
+import 'package:ugk_coach/src/agent/context_budget.dart';
+
 typedef EvaluationRecord = Map<String, Object?>;
 
 String? _activeType(Object? raw) {
@@ -59,6 +61,7 @@ List<String> evaluationTurnBudgetFailures({
   required int elapsedMs,
   required List<EvaluationRecord> calls,
   required Iterable<EvaluationRecord> events,
+  ContextBudgetConfig contextBudgetConfig = const ContextBudgetConfig(),
 }) {
   final type = evaluationTurnTaskType(turn: turn, events: events, calls: calls);
   final failures = <String>[];
@@ -75,9 +78,11 @@ List<String> evaluationTurnBudgetFailures({
   if (calls.any(
     (call) =>
         call['requestBytes'] is num &&
-        (call['requestBytes'] as num) > 40 * 1024,
+        (call['requestBytes'] as num) > contextBudgetConfig.hardBytes,
   )) {
-    failures.add('turn $turn actual request exceeds 40KB');
+    failures.add(
+      'turn $turn actual request exceeds hard limit ${contextBudgetConfig.hardBytes}B',
+    );
   }
   return failures;
 }

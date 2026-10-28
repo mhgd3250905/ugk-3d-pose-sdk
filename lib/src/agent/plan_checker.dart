@@ -108,7 +108,11 @@ class PlanChecker {
         .where((n) => n.status == 'current')
         .firstOrNull;
     if (enforceNodeOrder &&
-        (state.task?.type != 'plan' || current?.id != 'review')) {
+        (state.task?.type != 'plan' ||
+            (current?.id != 'review' &&
+                !state.task!.nodes.any(
+                  (n) => n.id == 'review' && n.status == 'done',
+                )))) {
       return fail(
         'wrong_node',
         'node',

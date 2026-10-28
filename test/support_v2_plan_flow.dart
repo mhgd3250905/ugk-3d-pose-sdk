@@ -418,6 +418,10 @@ class ScriptedV2PlanFlow {
     };
     return [
       _calls([
+        _tool('edit-start', AgentTools.startTask, {
+          'type': 'plan',
+          'reuse': true,
+        }),
         if (shorter)
           _tool('edit-minutes', AgentTools.setParams, {
             'fields': {
@@ -520,6 +524,10 @@ class ScriptedV2PlanFlow {
     };
     return [
       _calls([
+        _tool('six-start', AgentTools.startTask, {
+          'type': 'plan',
+          'reuse': true,
+        }),
         for (var i = 0; i < fresh.length; i++)
           _tool('six-search-$i', AgentTools.searchActions, {
             'tags': <String>[],

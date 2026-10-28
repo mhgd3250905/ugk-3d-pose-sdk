@@ -165,7 +165,7 @@ class SessionParams {
           'fields.$name.source',
           sources.toList(),
           source,
-          '从 user、preselect、default 中选择来源；相对时长可使用 derived。',
+          '从 user、preselect、default 中选择来源；推测场景或相对时长可使用 derived。',
         );
       }
       if (name == 'equipment_exclude' && source != 'user') {
@@ -179,17 +179,17 @@ class SessionParams {
         );
       }
       final direction = raw['direction'];
-      if (source == 'derived' && name != 'minutes') {
+      if (source == 'derived' && name != 'minutes' && name != 'scene') {
         return _failure(
           state,
           'invalid_source',
           'fields.$name.source',
-          'derived 仅用于 minutes',
+          'derived 仅用于 minutes 或 scene',
           source,
           '其他参数使用 user、preselect 或 default。',
         );
       }
-      if (source != 'derived' && direction != null) {
+      if ((source != 'derived' || name != 'minutes') && direction != null) {
         return _failure(
           state,
           'invalid_direction',
@@ -199,7 +199,9 @@ class SessionParams {
           '移除 direction 或提供 derived 时长。',
         );
       }
-      if (source == 'derived' && !{'shorter', 'longer'}.contains(direction)) {
+      if (source == 'derived' &&
+          name == 'minutes' &&
+          !{'shorter', 'longer'}.contains(direction)) {
         return _failure(
           state,
           'invalid_direction',
@@ -209,7 +211,7 @@ class SessionParams {
           '提供 shorter 或 longer。',
         );
       }
-      if (source == 'derived') {
+      if (source == 'derived' && name == 'minutes') {
         if (old?.value is! int || (old!.value! as int) <= 0) {
           return _failure(
             state,
@@ -360,6 +362,34 @@ class SessionParams {
         }
       }
       if (source == 'derived' &&
+          name == 'scene' &&
+          (old?.source == 'user' || old?.source == 'host')) {
+        return _failure(
+          state,
+          'source_conflict',
+          'fields.scene.source',
+          '保留用户或 App 已明确提供的场景',
+          source,
+          '不要用推断覆盖已确认场景；明确修改时使用用户新原话。',
+        );
+      }
+      if (source == 'derived' &&
+          name == 'scene' &&
+          (sourceTurn != state.userTurns.last.turn ||
+              (old?.source == 'derived' &&
+                  sourceTurn <= old!.turn &&
+                  !_same(old.value, value)))) {
+        return _failure(
+          state,
+          'derived_quote_not_new',
+          'fields.scene.quote',
+          '上次场景设置之后的本轮用户原话',
+          quote,
+          '引用本轮新的用户消息来推断场景。',
+        );
+      }
+      if (source == 'derived' &&
+          name == 'minutes' &&
           (sourceTurn <= old!.turn ||
               sourceTurn != state.userTurns.last.turn)) {
         return _failure(
@@ -487,8 +517,10 @@ class SessionParams {
         source: source,
         quote: quote as String?,
         turn: sourceTurn,
-        direction: source == 'derived' ? direction as String : null,
-        basedOn: source == 'derived' ? old : null,
+        direction: source == 'derived' && name == 'minutes'
+            ? direction as String
+            : null,
+        basedOn: source == 'derived' && name == 'minutes' ? old : null,
       );
       changed.add(name);
       if (old == null || !_same(old.value, effectiveValue)) {

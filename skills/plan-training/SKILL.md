@@ -6,17 +6,17 @@ description: 排一份能直接开练的训练计划，或修改上一份计划
 
 用户本会话和 App 设置里的条件都已知，不重复问；习惯仅作预选。用户明确给出的新场景、器材、目标和时长覆盖旧条件，伤痛限制只能收紧。未知条件不编造；器材未知按徒手。仅当徒手明显影响方案且搜索提示有需器材动作未显示时才询问器材。
 
-由模型判断任务。新建计划使用 start_task(plan)；完成推荐且参数未变时转计划默认复用前三节点，只有显式 reuse=false 才从头开始。修改已交付计划沿用任务及 plan_id；整体换一套用 operation=replace_all，局部调整用 edit。首份计划若误传 operation，代码会忽略并说明。
+由模型判断任务。新建计划使用 start_task(plan)；完成推荐且参数未变时转计划默认复用前三节点，只有显式 reuse=false 才从头开始。修改已交付计划先 start_task(plan,reuse=true) 恢复任务及 plan_id、候选池；整体换一套用 operation=replace_all，局部调整用 edit。首份计划误传 operation 会忽略并说明。
 
 先用 set_params 记条件及来源，用户值带原话 quote。相对时长用 source=derived、direction 和新用户原话；具体分钟数用 user。host 是 App 已确认条件，不重问，默认和预选不能覆盖。参数变化后的节点由代码处理；只改时长不重搜动作。
 
-按节点推进：理解 → 参数 → 动作 → 规划 → 核对 → 输出。check 只提供当前节点；动作节点还须 picks。打卡文字由代码生成，不自己写 stamp。
+节点仍为理解 → 参数 → 动作 → 规划 → 核对 → 输出，门禁通过后代码自动打卡并生成 stamp；check 和 check_plan 仅供可选复查。
 search_actions 按标签枚举检索当前合规动作；需要要领或禁忌细节时再批量 get_action，大多数情况不需要。已经返回过的动作以后只列 id，仍可选用；需要时可再查详情。父部位编码（如 body.core）的子部位由目录／profile 层级展开，不必在账本里手工补子目标。
 
 编排通常依次热身、主体、收尾；热身为主体做准备，收尾放松练到的部位。力量内容兼顾相关部位和前后侧，单侧兼顾左右。必须有哪些块、均衡阈值和重点比例由 profile.planRules 及 check_plan 决定，技能不另外设硬阈值。
 draft_plan 只定标题、块结构、动作及可选剂量，代码补剂量、算时长、配平并返回摘要。动作须已搜索且当前合规，额外使用的已搜索动作由代码补入 picks。使用 start_task 返回的 plan_id，返工沿用同一个 ID。
 
-可以按顺序合并 start_task + check(understand) + set_params + check(parameters)；选好动作后合并 check(actions,picks) + draft_plan + check(planning) + check_plan + check(review) + show_plan。某项失败后本批余下项跳过，按 fix 修正；check_plan 不过就返工，不跳过核对。ask_user 必须放在批次最后，回答后从当前节点继续，不限追问次数。
+标准路径 start_task → set_params → search_actions → draft_plan → show_plan，可同批按顺序调用。draft_plan 自动完成动作、规划和核对，在同一回执里返回未通过项及 fix；通过后直接 show_plan。某项失败后本批余下项跳过，按 fix 修正。ask_user 放在批次最后，回答后续跑，不限追问次数。
 
 通过核对后用 show_plan(plan_id,note) 交付卡片。note 只写安排思路，不写时长、动作数或器材；这些来自卡片数据。show_plan 成功即完成，不再额外生成一段说明。计划不能用纯文字代替。
 

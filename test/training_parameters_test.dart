@@ -361,6 +361,7 @@ void main() {
           'equipment': defaultValue(<String>[]),
           'minutes': defaultValue(12),
         }),
+        tool(AgentTools.startTask, {'type': 'plan'}),
         tool(AgentTools.searchActions, {
           'tags': <String>[],
           'keywords': catalog['h-band-hip-ir']!.name.of('en'),
@@ -504,6 +505,7 @@ void main() {
             'equipment': userValue(example.equipment, example.equipmentQuote),
             'minutes': userValue(10, '10分钟'),
           }),
+          tool(AgentTools.startTask, {'type': 'plan'}),
           tool(AgentTools.searchActions, {
             'tags': <String>[],
             'keywords': catalog[example.forbidden]!.name.of('en'),

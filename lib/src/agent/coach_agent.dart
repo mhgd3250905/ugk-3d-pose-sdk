@@ -1759,7 +1759,11 @@ class CoachAgent {
           case AgentTools.checkPlan:
             emit(AgentEventKind.checking, step: step);
             if (dead()) return cancelled(step);
-            final handled = structured.checkPlan(_sessionState, t.arguments);
+            final handled = structured.checkPlan(
+              _sessionState,
+              t.arguments,
+              language: context.language,
+            );
             _sessionState = handled.state;
             if (handled.changes.isNotEmpty) {
               _emitNodeChanges(
@@ -1804,7 +1808,15 @@ class CoachAgent {
               return cancelled(step);
             }
             if (memoryTimedOut) {
-              calls.add(_Call.ok(step, res, CallOutcome.toolStep, retry: tag));
+              calls.add(
+                _Call.ok(
+                  step,
+                  res,
+                  CallOutcome.toolStep,
+                  retry: tag,
+                  codes: const ['timeout'],
+                ),
+              );
               error = AgentRequestFailed(
                 AgentFailureKind.turnTimeout,
                 errorClass: RequestErrorClass.timeout,
@@ -1934,7 +1946,21 @@ class CoachAgent {
             break;
           }
         } else {
-          calls.add(_Call.ok(step, res, retry: tag, CallOutcome.toolStep));
+          final failed = batch.firstFailure;
+          final detail = failed == null
+              ? null
+              : jsonDecode(orderedResults[failed - 1]);
+          calls.add(
+            _Call.ok(
+              step,
+              res,
+              retry: tag,
+              CallOutcome.toolStep,
+              codes: detail is Map && detail['code'] is String
+                  ? [detail['code'] as String]
+                  : const [],
+            ),
+          );
         }
         turnMsgs.add(assistant(res));
         for (var i = 0; i < res.toolCalls.length; i++) {

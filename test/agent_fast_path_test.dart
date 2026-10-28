@@ -214,7 +214,7 @@ void main() {
           catalog,
           memory: false,
         ).singleWhere((tool) => tool.name == AgentTools.checkPlan).description,
-        contains('当前条件核对指定计划的最新版本'),
+        contains('draft_plan 已自动核对'),
       );
     },
   );

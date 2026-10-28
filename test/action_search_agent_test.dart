@@ -221,6 +221,9 @@ void main() {
       () async {
         final client = FakeLlmClient([
           _calls([
+            _call('start-invalid-case', AgentTools.startTask, {
+              'type': 'recommend',
+            }),
             _call(invalid.id, invalid.name, invalid.args),
             _call('skipped-search', 'search_actions', {'tags': <String>[]}),
           ]),

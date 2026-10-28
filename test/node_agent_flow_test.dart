@@ -120,8 +120,8 @@ void main() {
       final events = <AgentEvent>[];
       coach.events.listen(events.add);
       await coach.send('安排计划');
-      expect(result(client, 'skip')['code'], 'wrong_node');
-      expect(result(client, 'skip')['expected'], 'understand');
+      expect(result(client, 'skip')['code'], 'missing_parameters');
+      expect(result(client, 'skip')['expected'], ['scene', 'goal', 'minutes']);
       expect(
         result(client, 'skipped-understand')['code'],
         'skipped_after_error',
@@ -163,7 +163,8 @@ void main() {
       final coach = agent(client);
       final reply = await coach.send('请帮我训练');
       expect(result(client, 'early')['ok'], isFalse);
-      expect(coach.sessionState.task!.nodes.first.status, 'current');
+      expect(coach.sessionState.task!.nodes.first.status, 'done');
+      expect(coach.sessionState.task!.nodes[1].status, 'current');
       expect(reply.actions, isNull);
       expect(reply.plan, isNull);
     });

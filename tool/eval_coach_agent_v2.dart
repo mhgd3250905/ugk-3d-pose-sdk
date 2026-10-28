@@ -13,6 +13,7 @@ import 'package:ugk_coach/src/agent/node_gates.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'eval_api_config.dart';
+import 'eval_quality.dart';
 import 'eval_reasoning_stats.dart';
 import 'eval_thinking_mode.dart';
 import 'eval_turn_budget.dart';
@@ -258,6 +259,14 @@ Future<void> _main(List<String> args) async {
     'semanticCatalogSha256': sha256.convert(semanticBytes).toString(),
     'profileSha256': sha256.convert(await profileFile.readAsBytes()).toString(),
     'agentOverrides': const <String, Object?>{},
+    'missingEnglishActionNames': evaluationMissingEnglishNames(
+      profile,
+      catalog,
+    ),
+    'requestedEnglishNameChecks': evaluationRequestedEnglishNameChecks(
+      profile,
+      catalog,
+    ),
     'simulatedUserReplies': true,
     'simulatedHostClick': cases.any((item) => item['hostAction'] != null),
     'modelCalls': allWireCalls.length,
@@ -285,8 +294,22 @@ Future<void> _main(List<String> args) async {
     File('${output.path}/summary.json'),
     redactor.clean(summary),
   );
+  await _writeJson(
+    File('${output.path}/missing-english-action-names.json'),
+    evaluationMissingEnglishNames(profile, catalog),
+  );
+  await _writeJson(
+    File('${output.path}/requested-english-name-checks.json'),
+    evaluationRequestedEnglishNameChecks(profile, catalog),
+  );
   await File('${output.path}/evaluation.md').writeAsString(
     _summaryTable(results, _callStatistics(allWireCalls)) +
+        _missingEnglishNameReport(
+          evaluationMissingEnglishNames(profile, catalog),
+        ) +
+        _requestedEnglishNameReport(
+          evaluationRequestedEnglishNameChecks(profile, catalog),
+        ) +
         results.map(_transcript).join('\n\n---\n\n'),
   );
   await _writeJson(
@@ -385,6 +408,23 @@ Future<Json> _runCase(
       'user': text,
       'elapsedMs': turnWatch.elapsedMilliseconds,
       'caseElapsedMs': watch.elapsedMilliseconds,
+      'toolUsageRecords': result == null
+          ? null
+          : [
+              for (final record in result.records)
+                {
+                  'id': record.id,
+                  'outcome': record.outcome.name,
+                  'issueCodes': record.issueCodes,
+                  'hadToolCalls': wire.calls
+                      .sublist(before)
+                      .any(
+                        (call) =>
+                            call['agentStep'] == record.attempt &&
+                            _responseToolNames(call).isNotEmpty,
+                      ),
+                },
+            ],
       'status': result?.status.name,
       'assistant': result?.text,
       'question': result?.question?.toJson(),
@@ -447,6 +487,7 @@ Future<Json> _runCase(
           publicEvaluationMessage(_map(message.toJson()), redactor),
       ],
     };
+    turn['toolRejectionStatistics'] = evaluationToolRejections([turn]);
     turns.add(_map(redactor.clean(turn)));
     append({'recordType': 'turn-result', ...turn});
     if (result == null || result.status != TurnStatus.ok) {
@@ -545,11 +586,14 @@ Future<Json> _runCase(
     }
   }
   if (scenario['expectedEquipment'] case final List<Object?> equipment) {
-    final actual = last?.plan?.plan.equipment.toSet();
-    if (actual == null ||
-        actual.length != equipment.length ||
-        !actual.containsAll(equipment)) {
-      failures.add('explicit equipment was not preserved');
+    final quality = evaluationEquipmentQuality(
+      turns.isEmpty ? [] : [turns.last],
+      expectedEquipment: equipment.cast<String>(),
+    );
+    if (quality['status'] != 'pass') {
+      failures.add(
+        'explicit equipment or ambient/exclusion conditions were not preserved',
+      );
     }
   }
   if (wire.calls.isEmpty) failures.add('no real HTTP model request was made');
@@ -557,7 +601,8 @@ Future<Json> _runCase(
       (wire.calls.first['requestBytes'] as int) > 12 * 1024) {
     failures.add('actual first HTTP request body exceeded 12KB');
   }
-  final rejected = _rejectedCalls(turns);
+  final rejectionStatistics = evaluationToolRejections(turns);
+  final rejected = _list(rejectionStatistics['entries']).map(_map).toList();
   for (final rejection in rejected) {
     if ({'show_actions', 'show_plan'}.contains(rejection['name'])) {
       failures.add('show_* was rejected: ${rejection['result']}');
@@ -641,6 +686,7 @@ Future<Json> _runCase(
         : 'unverified-model-route',
     'modelMismatches': modelMismatches,
     'rejectedCalls': rejected,
+    'toolRejectionStatistics': rejectionStatistics,
     'modelQualityPassed': null,
     'manualReviewRequired': scenario['review'],
     'turns': turns,
@@ -789,46 +835,6 @@ List<String> _responseToolNames(Json call) => [
       if (_map(_map(rawTool)['function'])['name'] case final String name) name,
 ];
 
-List<Json> _rejectedCalls(List<Json> turns) {
-  final rejected = <Json>[];
-  final seen = <String>{};
-  void scan(Object? raw, Object? turn) {
-    final messages = _list(raw).map(_map).toList();
-    final calls = <String, Json>{};
-    for (final message in messages) {
-      for (final call in _list(message['tool_calls']).map(_map)) {
-        if (call['id'] case final String id) calls[id] = call;
-      }
-      if (message['role'] != 'tool' || message['content'] is! String) continue;
-      try {
-        final result = _map(jsonDecode(message['content'] as String));
-        if (result['ok'] != false) continue;
-        final id = message['tool_call_id'];
-        final function = _map(calls[id]?['function']);
-        final key = jsonEncode([id, function, result]);
-        if (!seen.add(key)) continue;
-        rejected.add({
-          'turnObserved': turn,
-          'toolCallId': id,
-          'name': function['name'],
-          'arguments': function['arguments'],
-          'result': result,
-        });
-      } on FormatException {
-        // An archived text result does not add a new rejection.
-      }
-    }
-  }
-
-  for (final turn in turns) {
-    for (final call in _list(turn['calls']).map(_map)) {
-      scan(_map(call['request'])['messages'], turn['turn']);
-    }
-    scan(turn['agentHistoryAfterTurn'], turn['turn']);
-  }
-  return rejected;
-}
-
 String _summaryTable(List<Json> results, Json statistics) {
   final output = StringBuffer()
     ..writeln('# Coach Agent v2 real evaluation')
@@ -839,15 +845,15 @@ String _summaryTable(List<Json> results, Json statistics) {
     )
     ..writeln()
     ..writeln(
-      '| Case | Turn | Thinking | Task | Validity | Calls | Time ms | Max request B | Tokens | Replayed reasoning B | Model |',
+      '| Case | Turn | Thinking | Task | Validity | Calls | Rejected tools | Time ms | Max request B | Tokens | Replayed reasoning B | Model |',
     )
-    ..writeln('|---|---:|---|---|---|---:|---:|---:|---:|---:|---|');
+    ..writeln('|---|---:|---|---|---|---:|---:|---:|---:|---:|---:|---|');
   for (final result in results) {
     for (final turn in _list(result['turns']).map(_map)) {
       final stats = _map(turn['callStatistics']);
       output.writeln(
         '| ${result['id']} | ${turn['turn']} | ${turn['thinkingMode'] ?? result['thinkingMode'] ?? 'unknown'} | ${turn['activityTaskType'] ?? 'qa'} | '
-        '${result['caseValidity']} | ${stats['modelCalls']} | ${turn['elapsedMs']} | '
+        '${result['caseValidity']} | ${stats['modelCalls']} | ${_map(turn['toolRejectionStatistics'])['count'] ?? 'unknown'} | ${turn['elapsedMs']} | '
         '${stats['maxRequestBytes']} | ${_map(stats['totalTokens'])['knownTotal'] ?? 'unknown'} | '
         '${stats['reasoningReplayUtf8Bytes']} | ${stats['responseModels']} |',
       );
@@ -1091,6 +1097,7 @@ Future<String> _sourceFingerprint() async {
     File('pubspec.yaml'),
     File('tool/eval_coach_agent_v2.dart'),
     File('tool/eval_api_config.dart'),
+    File('tool/eval_quality.dart'),
     File('tool/eval_reasoning_stats.dart'),
     File('tool/eval_thinking_mode.dart'),
     File('tool/eval_turn_budget.dart'),
@@ -1112,3 +1119,20 @@ Json _map(Object? value) => value is Map
 List<Object?> _list(Object? value) => value is List ? value : <Object?>[];
 Future<void> _writeJson(File file, Object? value) =>
     file.writeAsString(const JsonEncoder.withIndent('  ').convert(value));
+
+String _missingEnglishNameReport(List<Json> names) {
+  final rows = names.isEmpty
+      ? 'None.'
+      : names.map((row) => '- ${row['id']}: ${row['name']}').join('\n');
+  return '\n## Profile catalogue actions missing English names\n\n$rows\n';
+}
+
+String _requestedEnglishNameReport(List<Json> checks) {
+  final rows = checks
+      .map(
+        (row) =>
+            '| ${row['id']} | ${row['status']} | ${row['inProfileScope']} | ${row['nameZh'] ?? '—'} | ${row['nameEn'] ?? '—'} |',
+      )
+      .join('\n');
+  return '\n## Requested English name checks\n\n| ID | Status | In profile scope | Chinese name | English name |\n|---|---|---|---|---|\n$rows\n';
+}

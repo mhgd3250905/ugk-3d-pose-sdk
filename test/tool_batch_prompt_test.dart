@@ -37,16 +37,19 @@ void main() {
         expect(
           system,
           contains(
-            'start_task + check(understand) + set_params + check(parameters)',
+            '推荐 start_task → set_params → search_actions → show_actions',
           ),
         );
         expect(
           system,
           contains(
-            'check(actions, picks) + draft_plan + check(planning) + check_plan + check(review) + show_plan',
+            '计划 start_task → set_params → search_actions → draft_plan → show_plan',
           ),
         );
-        expect(system, contains('使用 start_task 返回的 plan_id'));
+        expect(
+          builtinSkillMarkdown['plan-training'],
+          contains('使用 start_task 返回的 plan_id'),
+        );
         expect(system, contains('ask_user 排最后'));
         expect(system, contains('失败后其余跳过'));
         expect(system, contains('show_* 成功即结束'));

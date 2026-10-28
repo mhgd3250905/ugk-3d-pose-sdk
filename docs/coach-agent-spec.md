@@ -180,3 +180,15 @@ profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有�
 6. runner把updated视为已完成节点，仍核对固定顺序和非空stamp；器械评测计入环境物与排除项。逐例记录模型发起search_actions次数（含同批较早失败后被跳过的请求，与实际工具回执另行核对）。真实链路为https://ai.uuugk.win/v1、deepseek-flash、Bearer key（UGK_API_KEY优先，本地API Key行兜底），只接受完全相同的响应标签；旧Worker/model/device评测条款作废，SDK App默认配置不改。
 
 单测落点：ambient_equipment_test、action_search_candidates_test、context_*_replay/restore_budget_test、task_defaults_test、plan_operation_test、locale_tool_labels_test、eval_node_completion_test、eval_locale_wire_budget_test。JSON Schema预算压缩只去掉同类型primitive enum已隐含的冗余type，不改枚举允许值、说明或校验边界；enum等字面量不递归修改。
+
+## 2026-10-28 ca72bc3 评测后自动推进整改（本节优先于旧条款）
+
+1. 固定节点与门禁保留，改为代码自动打卡：start_task 完成 understand；set_params 在必填条件齐全时完成 parameters，补原有 equipment/level/limits 默认值并返回 stamp。缺条件的合法 set_params 仍可成功，但不伪造完成。show_actions 校验 ids 作为 picks 并完成 actions/output；draft_plan 用同一来源和安全门禁选择动作，成功后完成 actions/planning，在同一回执运行原 check_plan，通过才完成 review，失败返回 errors/fix 并回 planning。真实节点事件不变，不增加模型调用。check/check_plan 可选，已完成节点重复调用返回当前状态，不重复发事件；核对仍不放宽。
+2. 标准路径：推荐 start_task → set_params → search_actions → show_actions；计划 start_task → set_params → search_actions → draft_plan → show_plan；可以顺序批量调用。连续空搜索的提示也改为直接 show_actions/draft_plan，不再要求单独 check。推荐转计划默认复用不变。
+3. 搜索只接受已启动且未完成的 recommend/plan 任务；否则 fix 为“先调用 start_task，可以和搜索放在同一批”。为兼容已批准的同一计划续改和累计 seen 规则，已交付计划可显式 start_task(plan,reuse=true) 重开 planning/review/output，保留原 plan_id、参数、picks、seen 和交付比较基准；仅允许完整固定节点已完成且真实交付版本存在。reuse=false 仍创建新任务。此处仅解决步骤顺序冲突，不解释用户文字，不放宽来源或安全。
+4. 剂量模式不符时，使用目录默认 reps/seconds，保留输入 sets，回执 notes 说明转换；之后仍走原配时算法。搜索的完整行、重复行均带 doseMode，candidates 格式更新为 [id,名称,主部位编码,reps|seconds]。
+5. note 中文最多120码点，英文最多2句且45词。超长先取前两句，再按字/词截断并交付；回执 noteTruncated=true、note=“已截断”。空值、非字符串、卡片其他校验不变。英文动作名缺项只报告原目录事实，不自行翻译。
+6. purpose/body/pose/level 各前缀内 OR，前缀间 AND；部位父子展开及其他硬过滤不变。scene 可用 derived，必须引用本轮用户原话，stamp 显示“办公室（推测）”/“Office (inferred)”。明确 user/host 可覆盖推测；推测不能覆盖明确地点，default/preselect 不能覆盖推测。原相对时长 derived/direction/basedOn 规则不变。模型判断地点语义，代码不做自然语言判断。
+7. runner 与 comparison 共用账本+环境物-排除的器械判断，expectedEquipment=[] 也包含环境物。真实工具拒绝按 UsageRecord 实际失败批次记录（每批首个失败后余项跳过），包括最后一次不可见回执；skipped 和非工具拒绝不计。可见回执单独留证。当前轮只评测 thinking off 六例各一次，链路及 SDK App 默认配置不变。
+
+单测落点：automatic_node_progress_test、output_note_completion_test、plan_builder_dose_mode_test、search_tag_groups_test、derived_scene_params_test、eval_quality_test；原安全、宿主条件、保存恢复、换一套及预算回归继续执行。系统重复工具用法移到技能/工具说明，未删安全底线或历史 reasoning。

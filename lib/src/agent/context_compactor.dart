@@ -360,7 +360,7 @@ class ContextCompactor {
     }
     return {
       'format':
-          'task=[type,reused,nodes];nodes=[id,status,stamp,doneAtTurn];picks=[id,name];candidates=[id,name,body]',
+          'task=[type,reused,nodes];nodes=[id,status,stamp,doneAtTurn];picks=[id,name];candidates=[id,name,body,doseMode]',
       'task': task == null
           ? null
           : [

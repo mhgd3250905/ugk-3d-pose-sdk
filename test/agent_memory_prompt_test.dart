@@ -23,11 +23,11 @@ void main() {
   // 0.4 ask_user tool; its schema is covered separately. Memory isolation is below.
   const fingerprints = <String, String>{
     'flarelab':
-        'df1c816c7c8cf263760f51dc031143861ca7f0200ea07574207fa25fc6841839',
+        'e9e8d370fd1a5c539427c326b90b9615cdcce0b4a9e82b9ce1e94a68b960e550',
     'hiplab':
-        'df1c816c7c8cf263760f51dc031143861ca7f0200ea07574207fa25fc6841839',
+        'e9e8d370fd1a5c539427c326b90b9615cdcce0b4a9e82b9ce1e94a68b960e550',
     'smartfit':
-        'df1c816c7c8cf263760f51dc031143861ca7f0200ea07574207fa25fc6841839',
+        'e9e8d370fd1a5c539427c326b90b9615cdcce0b4a9e82b9ce1e94a68b960e550',
   };
 
   for (final entry in fingerprints.entries) {

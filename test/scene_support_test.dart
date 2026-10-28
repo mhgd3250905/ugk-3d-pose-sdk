@@ -152,7 +152,7 @@ void main() {
       final parameters = coach.sessionState.task!.nodes.singleWhere(
         (n) => n.id == 'parameters',
       );
-      expect(parameters.status, 'done');
+      expect(parameters.status, 'updated');
       expect(parameters.stamp, contains('居家（你说的）'));
       expect(parameters.stamp, contains('徒手（可用'));
       expect(parameters.stamp, contains('墙'));

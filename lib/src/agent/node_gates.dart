@@ -24,6 +24,10 @@ class NodeGates {
     String? planId,
   }) {
     final task = state.task;
+    final requested = task?.nodes.where((n) => n.id == node).firstOrNull;
+    if (requested?.status == 'done' || requested?.status == 'updated') {
+      return NodeResult(state);
+    }
     final current = task?.nodes.where((n) => n.status == 'current').firstOrNull;
     if (task == null ||
         current == null ||
@@ -596,12 +600,14 @@ class NodeGates {
                   'host': 'app setting',
                   'preselect': 'previous habit',
                   'default': 'default',
+                  'derived': 'inferred',
                 }
               : {
                   'user': '你说的',
                   'host': 'App 设置',
                   'preselect': '上次习惯',
                   'default': '默认',
+                  'derived': '推测',
                 })[param.source] ??
           param.source;
       parts.add(en ? '$label ($source)' : '$label（$source）');

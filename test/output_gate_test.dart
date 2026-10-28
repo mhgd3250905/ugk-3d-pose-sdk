@@ -168,12 +168,18 @@ void main() {
   );
 
   test(
-    'note length and sentence punctuation are checked without numeric or gear parsing',
+    'notes are shortened without numeric or gear parsing; empty stays invalid',
     () {
       final base = state();
       expect(showPlan(base, note: '').error!['code'], 'invalid_note');
-      expect(showPlan(base, note: '😀' * 121).error!['code'], 'invalid_note');
-      expect(showPlan(base, note: '一。二！三？').error!['code'], 'invalid_note');
+      final long = showPlan(base, note: '😀' * 121);
+      expect(long.ok, isTrue);
+      expect(long.card!.text, '😀' * 120);
+      expect(long.noteTruncated, isTrue);
+      final threeSentences = showPlan(base, note: '一。二！三？');
+      expect(threeSentences.ok, isTrue);
+      expect(threeSentences.card!.text, '一。二！');
+      expect(threeSentences.noteTruncated, isTrue);
       final result = showPlan(base, note: '20.3 分钟 block 哑铃。');
       expect(result.ok, isTrue, reason: '${result.error}');
       expect(result.card!.text, '20.3 分钟 block 哑铃。');

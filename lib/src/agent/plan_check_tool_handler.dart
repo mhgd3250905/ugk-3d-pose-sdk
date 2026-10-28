@@ -1,7 +1,11 @@
 part of 'structured_tool_handler.dart';
 
 extension PlanCheckToolHandler on StructuredToolHandler {
-  StructuredToolResult checkPlan(CoachSessionState state, String raw) {
+  StructuredToolResult checkPlan(
+    CoachSessionState state,
+    String raw, {
+    String language = 'zh',
+  }) {
     final args = _decode(raw);
     if (args is! Map ||
         args.keys.any((key) => key != 'plan_id') ||
@@ -27,10 +31,18 @@ extension PlanCheckToolHandler on StructuredToolHandler {
       extraRules: extraRules,
       enforceDrillDoseRange: enforceDrillDoseRange,
     ).check(state, args['plan_id'] as String);
+    final completed = result.ok
+        ? NodeGates(profile, catalog, minPicks: profile.minActions).check(
+            result.state,
+            'review',
+            planId: args['plan_id'] as String,
+            language: language,
+          )
+        : NodeResult(result.state);
     return StructuredToolResult(
-      result.state,
-      jsonEncode(result.toJson()),
-      changes: result.changes,
+      completed.state,
+      jsonEncode({...result.toJson(), 'task': completed.state.task?.toJson()}),
+      changes: [...result.changes, ...completed.changes],
       fresh: result.error == null,
     );
   }

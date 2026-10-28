@@ -62,6 +62,44 @@ class AgentTask {
       );
     }
     final previous = state.task;
+    // A delivered plan remains the editable version. Explicit resume opens its
+    // editing stages before search, without losing the accumulated candidates.
+    if (reuse == true &&
+        type == 'plan' &&
+        previous?.type == 'plan' &&
+        previous!.nodes.lastOrNull?.status == 'done' &&
+        previous.nodes.length == planNodes.length &&
+        previous.nodes.indexed.every((e) => e.$2.id == planNodes[e.$1]) &&
+        previous.nodes.every(
+          (n) => n.status == 'done' || n.status == 'updated',
+        ) &&
+        state.activePlanId != null &&
+        state.lastDeliveredPlanId == state.activePlanId &&
+        state.plans[state.activePlanId]?.any(
+              (v) => v.version == state.lastDeliveredVersion,
+            ) ==
+            true) {
+      final nodes = [
+        for (final node in previous.nodes)
+          if (['planning', 'review', 'output'].contains(node.id))
+            node.copyWith(
+              status: node.id == 'planning' ? 'current' : 'pending',
+              clearStamp: true,
+              clearDoneAtTurn: true,
+            )
+          else
+            node,
+      ];
+      return NodeResult(
+        state.copyWith(
+          task: previous.copyWith(nodes: nodes, reused: true),
+          consecutiveEmptySearches: 0,
+        ),
+        changes: nodes
+            .where((n) => ['planning', 'review', 'output'].contains(n.id))
+            .toList(),
+      );
+    }
     reuse ??=
         type == 'plan' &&
         previous?.type == 'recommend' &&

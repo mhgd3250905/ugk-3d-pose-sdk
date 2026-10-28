@@ -86,7 +86,11 @@ class TerminalToolHandler {
       return TerminalToolResult(jsonEncode(output.error), rejected: true);
     }
     return TerminalToolResult(
-      jsonEncode({'ok': true, 'shown': true}),
+      jsonEncode({
+        'ok': true,
+        'shown': true,
+        if (output.noteTruncated) ...{'noteTruncated': true, 'note': '已截断'},
+      }),
       output: output,
     );
   }

@@ -45,7 +45,10 @@ void main() {
     task: CoachTaskState(
       type: 'plan',
       reused: false,
-      nodes: const [CoachNodeState(id: 'actions', status: 'current')],
+      nodes: const [
+        CoachNodeState(id: 'actions', status: 'current'),
+        CoachNodeState(id: 'output', status: 'pending'),
+      ],
     ),
     params: params,
     seenActionIds: seen,
@@ -77,8 +80,8 @@ void main() {
       expect(current['picks'], isEmpty);
       final rows = current['candidates'] as List;
       expect(rows, hasLength(40));
-      expect(rows.first, ['a44', 'Action a44', 'body.abs']);
-      expect(rows.last, ['a5', 'Action a5', 'body.abs']);
+      expect(rows.first, ['a44', 'Action a44', 'body.abs', 'seconds']);
+      expect(rows.last, ['a5', 'Action a5', 'body.abs', 'seconds']);
       expect(state.seenActionIds.toList(), seen.toList());
     },
   );
@@ -116,7 +119,7 @@ void main() {
         },
       );
       expect(summary(changed, catalog)['candidates'], [
-        ['free', 'Action free', 'body.abs'],
+        ['free', 'Action free', 'body.abs', 'seconds'],
       ]);
       expect(
         summary(
@@ -159,7 +162,7 @@ void main() {
       expect(twice.state.consecutiveEmptySearches, 2);
       expect(
         twice.summary,
-        contains('候选池已有 1 个，请从 candidates 中选择并 check(actions)'),
+        contains('候选池已有 1 个，请从 candidates 中选择并调用 draft_plan'),
       );
       final empty = search.search(
         twice.state,

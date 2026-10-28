@@ -130,6 +130,7 @@ void main() {
           expect(result['ok'], isTrue, reason: '$result');
           expect(result['version'], 1);
           expect(result['legacyGoal'], 'core');
+          expect((result['check'] as Map)['ok'], isTrue);
           expect(result['estimateMinutes'], inInclusiveRange(18, 22));
           expect(result.containsKey('plan'), isFalse);
           expect(result.containsKey('blocks'), isFalse);
@@ -155,21 +156,27 @@ void main() {
       expect(version.version, 1);
       expect(version.plan['goal'], 'core');
       expect(version.plan['equipment'], isEmpty);
-      expect(version.check, isNull);
+      expect(version.check!['ok'], isTrue);
       expect(
         state.task!.nodes.singleWhere((n) => n.id == 'planning').status,
         'done',
       );
       expect(
         state.task!.nodes.singleWhere((n) => n.status == 'current').id,
-        'review',
+        'output',
       );
       final done = events
           .where(
             (e) => e.kind == AgentEventKind.node && e.node?.status == 'done',
           )
           .map((e) => e.node!.id);
-      expect(done, ['understand', 'parameters', 'actions', 'planning']);
+      expect(done, [
+        'understand',
+        'parameters',
+        'actions',
+        'planning',
+        'review',
+      ]);
     },
   );
 
@@ -220,6 +227,7 @@ void main() {
           expect(repaired['plan_id'], planId);
           expect(repaired['version'], 2);
           expect(repaired['legacyGoal'], 'core');
+          expect((repaired['check'] as Map)['ok'], isTrue);
           expect(repaired.containsKey('plan'), isFalse);
           return calls([
             call('planning', AgentTools.check, {'node': 'planning'}),
@@ -237,7 +245,8 @@ void main() {
       expect(coach.sessionState.activePlanId, planId);
       final versions = coach.sessionState.plans[planId]!;
       expect(versions.map((v) => v.version), [1, 2]);
-      expect(versions.every((v) => v.check == null), isTrue);
+      expect(versions.first.check, isNull);
+      expect(versions.last.check!['ok'], isTrue);
       expect(
         coach.sessionState.task!.nodes
             .singleWhere((n) => n.id == 'planning')

@@ -22,7 +22,7 @@ import 'skill_files.dart';
 import 'user_memory.dart';
 
 /// Agent 内核修订号。改 `prompts/agent_kernel.md` 或 `skills/` 语义时手动加一。
-const agentKernelRevision = 7;
+const agentKernelRevision = 8;
 
 abstract final class AgentTools {
   static const read = 'read';
@@ -71,6 +71,7 @@ abstract final class AgentTools {
     Map<String, Object?> parameter(
       Map<String, Object?> value, {
       bool derived = false,
+      bool direction = false,
     }) => {
       'type': 'object',
       'properties': {
@@ -83,7 +84,7 @@ abstract final class AgentTools {
           ],
         },
         'quote': {'type': 'string', 'maxLength': 30},
-        if (derived)
+        if (direction)
           'direction': {
             'type': 'string',
             'enum': ['shorter', 'longer'],
@@ -100,7 +101,7 @@ abstract final class AgentTools {
     final tools = [
       const LlmTool(
         name: startTask,
-        description: '开始动作推荐或组装计划；只有完成推荐卡后才能复用节点。',
+        description: '开始推荐或计划并自动完成理解节点；完成推荐后转计划默认复用。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -116,7 +117,7 @@ abstract final class AgentTools {
       ),
       const LlmTool(
         name: check,
-        description: '请求完成当前节点；动作节点需要传入已搜索并选择的动作 ID。',
+        description: '可选复查节点；已完成则返回当前状态。动作节点可提供已搜索的 picks。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -155,7 +156,8 @@ abstract final class AgentTools {
       ),
       LlmTool(
         name: searchActions,
-        description: '按目录标签与关键词搜索动作，自动按当前场景、器材和伤痛限制过滤。',
+        description:
+            '先 start_task；purpose/body/pose/level 同类标签取或、跨类取且；按场景、器材和伤痛过滤。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -187,7 +189,8 @@ abstract final class AgentTools {
       ),
       const LlmTool(
         name: draftPlan,
-        description: '修改已交付计划时沿用当前任务，整体换一套用 replace_all，局部调整用 edit。',
+        description:
+            '自动完成动作、规划和核对；通过后直接 show_plan。修改沿用任务，整体换用 replace_all，局部用 edit。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -234,7 +237,7 @@ abstract final class AgentTools {
       LlmTool(
         name: setParams,
         description:
-            '记录结构化条件；user 引用本次原话，preselect 仅用已保存习惯，default 明示默认。相对时长用 derived、原话和 direction；host 由宿主写入。',
+            '记条件，齐全时自动打卡；user 引用原话，preselect 用习惯，default 明示默认。推测场景用 derived+quote；相对时长再带 direction；host 由宿主写入。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -246,7 +249,7 @@ abstract final class AgentTools {
                 'scene': parameter({
                   'type': 'string',
                   'enum': SessionParams(tags).sceneCodes,
-                }),
+                }, derived: true),
                 'goal': parameter(codes(tags.goalCodes)),
                 'equipment': parameter(codes(equipmentCodes)),
                 'equipment_exclude': {
@@ -261,10 +264,11 @@ abstract final class AgentTools {
                   },
                   'required': ['value', 'source', 'quote'],
                 },
-                'minutes': parameter({
-                  'type': 'integer',
-                  'minimum': 1,
-                }, derived: true),
+                'minutes': parameter(
+                  {'type': 'integer', 'minimum': 1},
+                  derived: true,
+                  direction: true,
+                ),
                 'level': parameter({
                   'type': 'integer',
                   'enum': [1, 2, 3],
@@ -280,7 +284,7 @@ abstract final class AgentTools {
       if (includeCheckPlan)
         const LlmTool(
           name: checkPlan,
-          description: '按账本中的当前条件核对指定计划的最新版本。',
+          description: '可选复核最新计划；draft_plan 已自动核对，通过后直接 show_plan。',
           parameters: {
             'type': 'object',
             'properties': {
@@ -290,9 +294,9 @@ abstract final class AgentTools {
             'additionalProperties': false,
           },
         ),
-      const LlmTool(
+      LlmTool(
         name: showActions,
-        description: '交付已选动作卡；note 用一两句说明安排思路。',
+        description: '校验并交付动作卡，自动打卡；note 用一两句说明思路，超长截断。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -300,20 +304,28 @@ abstract final class AgentTools {
               'type': 'array',
               'items': {'type': 'string'},
             },
-            'note': {'type': 'string', 'minLength': 1, 'maxLength': 120},
+            'note': {
+              'type': 'string',
+              'minLength': 1,
+              'description': en ? 'At most 2 sentences and 45 words' : '最多120字',
+            },
           },
           'required': ['ids', 'note'],
           'additionalProperties': false,
         },
       ),
-      const LlmTool(
+      LlmTool(
         name: showPlan,
         description: '交付已通过核对的最新计划卡；note 用一两句说明安排思路。',
         parameters: {
           'type': 'object',
           'properties': {
             'plan_id': {'type': 'string'},
-            'note': {'type': 'string', 'minLength': 1, 'maxLength': 120},
+            'note': {
+              'type': 'string',
+              'minLength': 1,
+              'description': en ? 'At most 2 sentences and 45 words' : '最多120字',
+            },
           },
           'required': ['plan_id', 'note'],
           'additionalProperties': false,

@@ -297,6 +297,13 @@ void main() {
         picks: initialIds.toList(),
         seenActionIds: initialIds,
       );
+      final prior = state;
+      final resumed = AgentTask.start(state, 'plan', reuse: true);
+      expect(resumed.ok, isTrue, reason: '${resumed.error}');
+      state = resumed.state;
+      expect(state.activePlanId, prior.activePlanId);
+      expect(state.picks, prior.picks);
+      expect(state.seenActionIds, prior.seenActionIds);
       final search = ActionSearch(profile, catalog, minPicks: 3);
       for (final id in ['h-kneeling-pushup', 'rotator-cuff-A']) {
         final result = search.search(
@@ -347,7 +354,12 @@ void main() {
           source: 'user',
           turn: 2,
         );
-      var state = original.copyWith(params: params);
+      final resumed = AgentTask.start(original, 'plan', reuse: true);
+      expect(resumed.ok, isTrue, reason: '${resumed.error}');
+      expect(resumed.state.activePlanId, original.activePlanId);
+      expect(resumed.state.picks, original.picks);
+      expect(resumed.state.seenActionIds, original.seenActionIds);
+      var state = resumed.state.copyWith(params: params);
       final searched = ActionSearch(
         profile,
         catalog,

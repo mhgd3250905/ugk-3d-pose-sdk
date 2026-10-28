@@ -4,7 +4,7 @@ description: 按已知场景、器械和训练目标搜索适合的动作
 ---
 # 搜索动作
 
-用 search_actions 的标签枚举或关键词检索动作；工具自动按当前场景、器械和伤痛限制过滤。每次最多返回 20 条；需要要领或禁忌细节时才批量 get_action，大多数情况不需要。
+推荐标准路径 start_task → set_params → search_actions → show_actions，可同批顺序调用；节点通过后自动打卡。搜索须先有任务，自动按当前场景、器械和伤痛限制过滤。每次最多返回 20 条；需要要领或禁忌细节时才批量 get_action，大多数情况不需要。
 
 - 标签编码由工具 schema 提供，不要编造；可将用户使用的任何语言映射到目录标签，名称和别名可作为关键词。
 - 徒手指不需额外携带器械，自动包含当前场景的环境物。用户明确不用的物品通过 equipment_exclude 带原话排除；额外器械未确认时不使用，搜索提示有需额外器械动作时才考虑询问。
@@ -13,4 +13,4 @@ description: 按已知场景、器械和训练目标搜索适合的动作
 
 {{dimensions}}
 
-- 父部位标签由目录或 profile 层级展开，body.core 可检索其子部位。重复结果仅列 id，归档后的候选保留在当前状态 candidates，可直接选择并 check(actions)，不要为找回已返回动作重复搜索。需要时再查详情。工具报错按 fix 修正。
+- purpose/body/pose/level 同类标签取“或”，不同类取“且”；父部位按目录或 profile 层级展开。重复结果保留 id 和剂量模式，候选在当前状态 candidates，可直接 show_actions 或 draft_plan，不要为找回动作重复搜索。工具报错按 fix 修正。

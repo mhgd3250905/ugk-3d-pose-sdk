@@ -67,6 +67,22 @@ class ActionSearch {
     int limit = 20,
     String language = 'zh',
   }) {
+    final task = state.task;
+    if (task == null ||
+        !{'recommend', 'plan'}.contains(task.type) ||
+        task.nodes.lastOrNull?.id != 'output' ||
+        task.nodes.lastOrNull?.status == 'done') {
+      return ActionSearchResult(
+        state,
+        error: nodeError(
+          'task_required',
+          'task',
+          '进行中的 recommend 或 plan 任务',
+          task?.toJson(),
+          '先调用 start_task，可以和搜索放在同一批',
+        ),
+      );
+    }
     final invalid = tags.where((tag) => !this.tags.contains(tag)).toList();
     if (invalid.isNotEmpty) {
       return ActionSearchResult(
@@ -93,9 +109,18 @@ class ActionSearch {
       );
     }
     final query = keywords.trim().toLowerCase();
-    final expandedTags = [
-      for (final tag in tags) gate.tags.expandCodes([tag]),
-    ];
+    final grouped = <String, Set<String>>{};
+    final expandedTags = <Set<String>>[];
+    for (final tag in tags) {
+      final prefix = tag.split('.').first;
+      final expanded = gate.tags.expandCodes([tag]);
+      if (const {'purpose', 'body', 'pose', 'level'}.contains(prefix)) {
+        (grouped[prefix] ??= <String>{}).addAll(expanded);
+      } else {
+        expandedTags.add(expanded);
+      }
+    }
+    expandedTags.addAll(grouped.values);
     bool matches(Drill drill) =>
         expandedTags.every(
           (group) => gate.tags.forAction(drill).intersection(group).isNotEmpty,
@@ -187,14 +212,17 @@ class ActionSearch {
     );
     if (emptySearches >= 2) {
       final count = candidateRows(next, language: language).length;
+      final deliver = state.task?.type == 'plan'
+          ? 'draft_plan'
+          : 'show_actions';
       summary += en
-          ? ' The candidate pool already has $count ${count == 1 ? 'action' : 'actions'}; choose from candidates and check(actions).'
-          : '候选池已有 $count 个，请从 candidates 中选择并 check(actions)。';
+          ? ' The candidate pool already has $count ${count == 1 ? 'action' : 'actions'}; choose from candidates and call $deliver.'
+          : '候选池已有 $count 个，请从 candidates 中选择并调用 $deliver。';
     }
     final items = [
       for (final drill in selected)
         state.seenActionIds.contains(drill.id)
-            ? <String, Object?>{'id': drill.id}
+            ? <String, Object?>{'id': drill.id, 'doseMode': _doseMode(drill)}
             : _row(drill, language),
     ];
     return ActionSearchResult(
@@ -235,7 +263,12 @@ class ActionSearch {
   }) => [
     for (final id in state.seenActionIds)
       if (gate.actionProblem(state, id) == null)
-        [id, catalog[id]!.name.of(language), _primaryBody(catalog[id]!)],
+        [
+          id,
+          catalog[id]!.name.of(language),
+          _primaryBody(catalog[id]!),
+          _doseMode(catalog[id]!),
+        ],
   ].take(40).toList(growable: false);
 
   ActionSearchResult getActions(
@@ -332,6 +365,7 @@ class ActionSearch {
     final row = <String, Object?>{
       'id': drill.id,
       'name': drill.name.of(language),
+      'doseMode': _doseMode(drill),
       'summary': firstSentence,
       'data': [
         body == null ? null : _bodies.indexOf(body),
@@ -350,6 +384,9 @@ class ActionSearch {
     };
     return Map.unmodifiable(row);
   }
+
+  String _doseMode(Drill drill) =>
+      drill.defaultDose.mode == DoseMode.reps ? 'reps' : 'seconds';
 
   String? _primaryBody(Drill drill) {
     final tags = gate.tags.forAction(drill);

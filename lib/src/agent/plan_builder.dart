@@ -23,6 +23,7 @@ class DraftResult {
     this.legacyGoal,
     this.changes = const [],
     this.note,
+    this.notes = const [],
     this.error,
   });
   final CoachSessionState state;
@@ -34,6 +35,7 @@ class DraftResult {
   final String? legacyGoal;
   final List<CoachNodeState> changes;
   final String? note;
+  final List<String> notes;
   final Map<String, Object?>? error;
   bool get ok => error == null;
   Map<String, Object?> toJson() => {
@@ -45,6 +47,7 @@ class DraftResult {
     if (structure.isNotEmpty) 'structure': structure,
     if (fitLog.isNotEmpty) 'fitLog': fitLog,
     if (note != null) 'note': note,
+    if (notes.isNotEmpty) 'notes': notes,
   };
 }
 
@@ -250,6 +253,7 @@ class PlanBuilder {
       );
     }
     final log = <String>[];
+    final notes = <String>[];
     final blocks = <_DraftBlock>[];
     final extras = <String>{};
     for (var bi = 0; bi < rawBlocks.length; bi++) {
@@ -307,18 +311,11 @@ class PlanBuilder {
           );
         }
         if (!state.picks.contains(actionId)) extras.add(actionId);
-        if ((drill.defaultDose.mode == DoseMode.reps &&
+        final wrongMode =
+            (drill.defaultDose.mode == DoseMode.reps &&
                 item.containsKey('seconds')) ||
             (drill.defaultDose.mode == DoseMode.time &&
-                item.containsKey('reps'))) {
-          return fail(
-            'invalid_dose_mode',
-            'blocks[$bi].items[$ii]',
-            drill.defaultDose.mode.name,
-            item,
-            '按目录的计次或计时模式提供剂量。',
-          );
-        }
+                item.containsKey('reps'));
         final setsRange = _range(drill.doseRange.sets, profile.limits.sets);
         final workRange = _range(
           drill.defaultDose.mode == DoseMode.reps
@@ -339,7 +336,9 @@ class PlanBuilder {
         }
         final requestedSets = (item['sets'] as int?) ?? drill.defaultDose.sets;
         final requestedWork =
-            (drill.defaultDose.mode == DoseMode.reps
+            (wrongMode
+                ? null
+                : drill.defaultDose.mode == DoseMode.reps
                 ? item['reps'] as int?
                 : item['seconds'] as int?) ??
             (drill.defaultDose.mode == DoseMode.reps
@@ -348,6 +347,18 @@ class PlanBuilder {
             workRange.min;
         final sets = requestedSets.clamp(setsRange.min, setsRange.max);
         final work = requestedWork.clamp(workRange.min, workRange.max);
+        if (wrongMode) {
+          final en = language.toLowerCase().startsWith('en');
+          final name = drill.name.of(language);
+          final dose = drill.defaultDose.mode == DoseMode.reps
+              ? (en ? '$work reps' : '$work 次')
+              : (en ? '$work seconds' : '$work 秒');
+          notes.add(
+            en
+                ? '$name uses the catalogue dose mode; used its default $dose and retained $sets sets.'
+                : '$name 已按目录模式使用默认剂量 $dose，保留 $sets 组。',
+          );
+        }
         if (sets != requestedSets) {
           log.add('$actionId 组数从 $requestedSets 夹到 $sets');
         }
@@ -528,6 +539,7 @@ class PlanBuilder {
       fitLog: List.unmodifiable(log),
       legacyGoal: legacyGoal,
       note: ignoredOperation ? '首份计划，已忽略 operation' : null,
+      notes: List.unmodifiable(notes),
       error: error,
       changes: List.unmodifiable(changes),
     );

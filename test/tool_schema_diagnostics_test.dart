@@ -47,20 +47,21 @@ void _descriptions(Object? value, String path, Map<String, String> result) {
   }
 }
 
-// Approved descriptions from 520c3d5. Keep this fixture independent of the
+// Approved automatic-node descriptions (retain unaffected 520c3d5 contracts).
+// Keep this fixture independent of the
 // current implementation so future budget changes cannot silently shorten it.
 const _approvedToolDescriptions = {
-  'start_task': '开始动作推荐或组装计划；只有完成推荐卡后才能复用节点。',
-  'check': '请求完成当前节点；动作节点需要传入已搜索并选择的动作 ID。',
+  'start_task': '开始推荐或计划并自动完成理解节点；完成推荐后转计划默认复用。',
+  'check': '可选复查节点；已完成则返回当前状态。动作节点可提供已搜索的 picks。',
   'read':
       '读技能文件系统里的一个文件（如 action-library/SKILL.md、action-library/index/scene/home.md）。',
-  'search_actions': '按目录标签与关键词搜索动作，自动按当前场景、器材和伤痛限制过滤。',
+  'search_actions': '先 start_task；purpose/body/pose/level 同类标签取或、跨类取且；按场景、器材和伤痛过滤。',
   'get_action': '批量查看动作要领与禁忌；大多数情况不需要调用。',
-  'draft_plan': '修改已交付计划时沿用当前任务，整体换一套用 replace_all，局部调整用 edit。',
+  'draft_plan': '自动完成动作、规划和核对；通过后直接 show_plan。修改沿用任务，整体换用 replace_all，局部用 edit。',
   'set_params':
-      '记录结构化条件；user 引用本次原话，preselect 仅用已保存习惯，default 明示默认。相对时长用 derived、原话和 direction；host 由宿主写入。',
-  'check_plan': '按账本中的当前条件核对指定计划的最新版本。',
-  'show_actions': '交付已选动作卡；note 用一两句说明安排思路。',
+      '记条件，齐全时自动打卡；user 引用原话，preselect 用习惯，default 明示默认。推测场景用 derived+quote；相对时长再带 direction；host 由宿主写入。',
+  'check_plan': '可选复核最新计划；draft_plan 已自动核对，通过后直接 show_plan。',
+  'show_actions': '校验并交付动作卡，自动打卡；note 用一两句说明思路，超长截断。',
   'show_plan': '交付已通过核对的最新计划卡；note 用一两句说明安排思路。',
   'ask_user': '由模型决定是否需要澄清。调用后暂停，用户回答后继续；不要重问已有条件。',
   'remember': '记住用户主动提供的一条训练相关信息（先读 user-memory/SKILL.md）。',
@@ -68,6 +69,8 @@ const _approvedToolDescriptions = {
 };
 
 const _approvedParameterDescriptions = {
+  'show_actions.properties.note.description': '最多120字',
+  'show_plan.properties.note.description': '最多120字',
   'ask_user.properties.question.description': '简短口语，一次补齐缺项',
   'ask_user.properties.options.description': '仅 choice 模式提供，2–6 个短选项',
   'ask_user.properties.multiple.description': '仅 choice 模式提供，是否多选',

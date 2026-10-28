@@ -104,11 +104,13 @@ class AgentOutputResult {
     required this.state,
     this.card,
     this.changes = const [],
+    this.noteTruncated = false,
     this.error,
   });
   final CoachSessionState state;
   final GateResult? card;
   final List<CoachNodeState> changes;
+  final bool noteTruncated;
   final Map<String, Object?>? error;
   bool get ok => error == null;
 }
@@ -173,6 +175,7 @@ class ToolGate {
     return AgentOutputResult(
       state: prepared.nodeResult!.state,
       changes: prepared.nodeResult!.changes,
+      noteTruncated: prepared.noteTruncated,
       card: GateResult._(
         text: prepared.note,
         plan: plan,

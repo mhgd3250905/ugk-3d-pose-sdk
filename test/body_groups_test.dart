@@ -41,6 +41,7 @@ void main() {
     expect(tags.forAction(drill), isNot(contains('body.core')));
     final found = search.search(
       CoachSessionState(
+        task: AgentTask.start(CoachSessionState(), 'recommend').state.task,
         params: {'scene': param('home'), 'equipment': param(<String>[])},
       ),
       tags: ['body.core'],

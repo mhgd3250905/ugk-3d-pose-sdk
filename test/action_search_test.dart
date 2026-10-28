@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:ugk_coach/src/agent/action_search.dart';
+import 'package:ugk_coach/src/agent/agent_task.dart';
 import 'package:ugk_coach/src/agent/coach_agent.dart';
 import 'package:ugk_coach/src/agent/session_state.dart';
 import 'package:ugk_coach/src/catalog/catalog.dart';
@@ -17,9 +18,16 @@ void main() {
   final search = ActionSearch(profile, catalog, minPicks: 3);
   CoachParamValue param(Object value) =>
       CoachParamValue(value: value, source: 'host', turn: 0);
+  CoachSessionState active({
+    Map<String, CoachParamValue> params = const {},
+    Map<String, Object?> hostValues = const {},
+  }) => AgentTask.start(
+    CoachSessionState(params: params, hostValues: hostValues),
+    'recommend',
+  ).state;
 
   test('reject invalid tags and bounds without mutating state', () {
-    final state = CoachSessionState();
+    final state = active();
     expect(
       search.search(state, tags: ['purpose.warmup']).error!['code'],
       'invalid_tags',
@@ -32,7 +40,7 @@ void main() {
   test(
     'bodyweight default allows ambient wall and records only returned ids',
     () {
-      final state = CoachSessionState();
+      final state = active();
       final result = search.search(state, limit: 20);
       expect(result.ok, isTrue);
       expect(result.items.length, inInclusiveRange(1, 20));
@@ -61,7 +69,7 @@ void main() {
   test(
     'real catalogue rows are compact and default-dose time has both sides',
     () {
-      final result = search.search(CoachSessionState(), limit: 20);
+      final result = search.search(active(), limit: 20);
       final lengths = result.items
           .map((row) => utf8.encode(jsonEncode(row)).length)
           .toList();
@@ -77,7 +85,7 @@ void main() {
   );
 
   test('repeated search returns only IDs with the exact repeat count', () {
-    final first = search.search(CoachSessionState(), limit: 3);
+    final first = search.search(active(), limit: 3);
     expect(first.ok, isTrue);
     expect(first.items, hasLength(3));
     for (final row in first.items) {
@@ -86,7 +94,8 @@ void main() {
     final repeated = search.search(first.state, limit: 3);
     expect(repeated.ok, isTrue);
     expect(repeated.items, [
-      for (final row in first.items) {'id': row['id']},
+      for (final row in first.items)
+        {'id': row['id'], 'doseMode': row['doseMode']},
     ]);
     expect(repeated.summary, contains('以下 3 个之前已返回，仅列 id'));
     expect(repeated.state.seenActionIds, first.state.seenActionIds);
@@ -101,7 +110,7 @@ void main() {
         ?search.gate.tags.equipmentCode(raw),
     ];
     final first = search.search(
-      CoachSessionState(params: {'equipment': param(equipment)}),
+      active(params: {'equipment': param(equipment)}),
       keywords: matAction.name.of('zh'),
     );
     expect(first.ok, isTrue);
@@ -123,14 +132,15 @@ void main() {
   });
 
   test('planState restore preserves seen IDs for search deduplication', () {
-    final first = search.search(CoachSessionState(), limit: 3);
+    final first = search.search(active(), limit: 3);
     final saved = CoachPlanState(planId: 'saved', sessionState: first.state);
     final restored = CoachPlanState.fromJson(
       jsonDecode(jsonEncode(saved.toJson())) as Map<String, dynamic>,
     );
     final repeated = search.search(restored.sessionState!, limit: 3);
     expect(repeated.items, [
-      for (final row in first.items) {'id': row['id']},
+      for (final row in first.items)
+        {'id': row['id'], 'doseMode': row['doseMode']},
     ]);
     expect(repeated.summary, contains('以下 3 个之前已返回，仅列 id'));
     expect(repeated.state.seenActionIds, first.state.seenActionIds);
@@ -162,9 +172,7 @@ void main() {
             for (final raw in drill.equipment)
               ?finder.gate.tags.equipmentCode(raw),
         }.toList();
-        final state = CoachSessionState(
-          params: {'equipment': param(allEquipment)},
-        );
+        final state = active(params: {'equipment': param(allEquipment)});
         for (final drill in p.scope(published)) {
           for (final language in ['zh', 'en']) {
             final result = finder.search(
@@ -259,7 +267,7 @@ void main() {
   );
 
   test('matching tags, scene, equipment and known injury are all enforced', () {
-    final state = CoachSessionState(
+    final state = active(
       params: {
         'scene': param('office'),
         'equipment': param(<String>[]),
@@ -282,7 +290,7 @@ void main() {
   });
 
   test('get_action rejects unsafe or unknown ids and caps at ten', () {
-    final state = CoachSessionState();
+    final state = active();
     final mat = profile
         .scope(catalog)
         .firstWhere((d) => d.equipment.contains('mat'));
@@ -343,25 +351,19 @@ void main() {
       minPicks: 3,
     );
     final result = custom.search(
-      CoachSessionState(),
+      active(),
       keywords: 'UNUSUAL WIDGET',
       language: 'en',
     );
     expect(result.items.single['id'], 'custom');
     expect(result.warnings.single, contains('contraindications'));
-    expect(
-      custom.search(CoachSessionState(), keywords: '特别动作').items,
-      hasLength(1),
-    );
-    expect(
-      custom.search(CoachSessionState(), keywords: '不相关的句子').items,
-      isEmpty,
-    );
+    expect(custom.search(active(), keywords: '特别动作').items, hasLength(1));
+    expect(custom.search(active(), keywords: '不相关的句子').items, isEmpty);
   });
 
   test('unknown host limit is retained and explicitly reported', () {
     final code = search.gate.tags.limitCode('特殊伤痛')!;
-    final state = CoachSessionState(
+    final state = active(
       params: {
         'limits': param([code]),
       },

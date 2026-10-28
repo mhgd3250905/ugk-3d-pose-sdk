@@ -21,18 +21,75 @@ extension DraftToolHandler on StructuredToolHandler {
         ),
       );
     }
+    final gates = NodeGates(profile, catalog, minPicks: profile.minActions);
+    var prepared = state;
+    final changes = <CoachNodeState>[];
+    if (state.task?.type == 'plan' &&
+        state.task?.nodes.where((n) => n.status == 'current').firstOrNull?.id ==
+            'actions') {
+      final blocks = args['blocks'];
+      final ids = <String>{
+        if (blocks is List)
+          for (final block in blocks)
+            if (block is Map && block['items'] is List)
+              for (final item in block['items'] as List)
+                if (item is Map && item['id'] is String) item['id'] as String,
+      };
+      final selected = gates.check(
+        state,
+        'actions',
+        picks: ids.toList(),
+        language: language,
+      );
+      if (!selected.ok) {
+        return StructuredToolResult(state, jsonEncode(selected.error));
+      }
+      prepared = selected.state;
+      changes.addAll(selected.changes);
+    }
     final result = PlanBuilder(profile, catalog, minPicks: profile.minActions)
         .draft(
-          state,
+          prepared,
           args.cast<String, Object?>(),
           newPlanId: newPlanId(),
           language: language,
         );
+    if (result.planId == null) {
+      return StructuredToolResult(state, jsonEncode(result.toJson()));
+    }
+    changes.addAll(result.changes);
+    var next = result.state;
+    final receipt = result.toJson();
+    if (result.ok) {
+      final planned = gates.check(
+        next,
+        'planning',
+        planId: result.planId,
+        language: language,
+      );
+      next = planned.state;
+      changes.addAll(planned.changes);
+      final checked = checkPlan(
+        next,
+        jsonEncode({'plan_id': result.planId}),
+        language: language,
+      );
+      next = checked.state;
+      changes.addAll(checked.changes);
+      final review = jsonDecode(checked.response) as Map<String, dynamic>;
+      // The request's current-state message already contains the full nodes.
+      // Keep this receipt focused on the review and actionable failures.
+      review.remove('task');
+      receipt['check'] = review;
+      if (review['ok'] != true) {
+        receipt.addAll(review);
+      }
+    }
     return StructuredToolResult(
-      result.planId == null ? state : result.state,
-      jsonEncode(result.toJson()),
-      changes: result.planId == null ? const [] : result.changes,
-      fresh: result.planId != null,
+      next,
+      jsonEncode(receipt),
+      changes: changes,
+      fresh: true,
     );
   }
 }

@@ -329,6 +329,7 @@ void main() {
       final result = await pending.timeout(const Duration(seconds: 1));
       expect(result.status, TurnStatus.fallback);
       expect(result.fallbackReason, FallbackReason.timeout);
+      expect(result.records.single.issueCodes, ['timeout']);
       expect(
         result.error,
         isA<AgentRequestFailed>().having(

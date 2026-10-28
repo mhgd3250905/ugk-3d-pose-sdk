@@ -15,7 +15,7 @@ void main() {
         'type': 'array',
         'items': {'type': 'string'},
       },
-      'note': {'type': 'string', 'minLength': 1, 'maxLength': 120},
+      'note': {'type': 'string', 'minLength': 1, 'description': '最多120字'},
     },
     'required': ['ids', 'note'],
     'additionalProperties': false,
@@ -24,7 +24,7 @@ void main() {
     'type': 'object',
     'properties': {
       'plan_id': {'type': 'string'},
-      'note': {'type': 'string', 'minLength': 1, 'maxLength': 120},
+      'note': {'type': 'string', 'minLength': 1, 'description': '最多120字'},
     },
     'required': ['plan_id', 'note'],
     'additionalProperties': false,
@@ -56,6 +56,28 @@ void main() {
       );
     });
   }
+
+  test(
+    'English output notes advertise word limits without rejecting long input at schema level',
+    () {
+      final tools = AgentTools.build(
+        loadProfile('smartfit'),
+        catalog,
+        memory: false,
+        language: 'en',
+      );
+      for (final name in [AgentTools.showActions, AgentTools.showPlan]) {
+        final tool = tools.singleWhere((tool) => tool.name == name);
+        final note = (tool.parameters['properties'] as Map)['note'] as Map;
+        expect(note, {
+          'type': 'string',
+          'minLength': 1,
+          'description': 'At most 2 sentences and 45 words',
+        });
+        expect(note.containsKey('maxLength'), isFalse);
+      }
+    },
+  );
 
   test(
     'legacy CoachSession sends the old CoachTools schema and accepts its action payload',

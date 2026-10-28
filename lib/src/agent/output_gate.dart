@@ -14,6 +14,7 @@ class OutputPreparation {
   const OutputPreparation({
     this.nodeResult,
     this.note = '',
+    this.noteTruncated = false,
     this.plan,
     this.actions,
     this.warnings = const [],
@@ -21,6 +22,7 @@ class OutputPreparation {
   });
   final NodeResult? nodeResult;
   final String note;
+  final bool noteTruncated;
   final TrainingPlan? plan;
   final List<Drill>? actions;
   final List<String> warnings;
@@ -86,8 +88,6 @@ class OutputGate {
         '重新开始并完成固定节点。',
       );
     }
-    final completed = gate.completeOutput(state, language: language);
-    if (!completed.ok) return OutputPreparation(error: completed.error);
     if (arguments is! Map ||
         arguments.keys.any(
           (k) => !{
@@ -104,18 +104,10 @@ class OutputGate {
       );
     }
     final note = arguments['note'];
-    if (note is! String ||
-        note.trim().isEmpty ||
-        note.runes.length > 120 ||
-        _sentenceMarks(note) > 2) {
-      return fail(
-        'invalid_note',
-        'note',
-        '非空、最多 120 字、句末标点最多 2 个',
-        note,
-        '写一到两句不超过 120 字的说明。',
-      );
+    if (note is! String || note.trim().isEmpty) {
+      return fail('invalid_note', 'note', '非空的说明字符串', note, '提供一到两句说明。');
     }
+    final normalized = normalizeOutputNote(note, language: language);
     final warnings = <String>[
       for (final code
           in (state.hostValues['limitsOpaque'] as List<Object?>? ?? const [])
@@ -134,19 +126,39 @@ class OutputGate {
         );
       }
       final ids = value.cast<String>();
-      final notPicked = ids.where((id) => !state.picks.contains(id)).toList();
+      var next = state;
+      final changes = <CoachNodeState>[];
+      final current = task.nodes
+          .where((node) => node.status == 'current')
+          .firstOrNull;
+      if (current?.id == 'actions') {
+        final selected = gate.check(
+          next,
+          'actions',
+          picks: ids,
+          language: language,
+        );
+        if (!selected.ok) return OutputPreparation(error: selected.error);
+        next = selected.state;
+        changes.addAll(selected.changes);
+        warnings.addAll(
+          selected.warnings.where((warning) => !warnings.contains(warning)),
+        );
+      }
+      final ready = gate.completeOutput(next, language: language);
+      if (!ready.ok) return OutputPreparation(error: ready.error);
+      final notPicked = ids.where((id) => !next.picks.contains(id)).toList();
       if (notPicked.isNotEmpty) {
         return fail(
           'unpicked_actions',
           'ids',
-          state.picks,
+          next.picks,
           notPicked,
           '只交付动作节点选中的 ID。',
         );
       }
       final incompatible = {
-        for (final id in ids)
-          id: ?gate.actionProblem(state, id),
+        for (final id in ids) id: ?gate.actionProblem(next, id),
       };
       if (incompatible.isNotEmpty) {
         return fail(
@@ -158,12 +170,19 @@ class OutputGate {
         );
       }
       return OutputPreparation(
-        nodeResult: completed,
-        note: note.trim(),
+        nodeResult: NodeResult(
+          ready.state,
+          changes: List.unmodifiable([...changes, ...ready.changes]),
+          warnings: ready.warnings,
+        ),
+        note: normalized.text,
+        noteTruncated: normalized.truncated,
         actions: [for (final id in ids) catalog[id]!],
         warnings: warnings,
       );
     }
+    final completed = gate.completeOutput(state, language: language);
+    if (!completed.ok) return OutputPreparation(error: completed.error);
     final id = arguments['plan_id'];
     final active =
         state.activePlanId ??
@@ -209,8 +228,7 @@ class OutputGate {
             ...item.segments.map((segment) => segment.exerciseId),
     };
     final incompatible = {
-      for (final action in ids)
-        action: ?gate.actionProblem(state, action),
+      for (final action in ids) action: ?gate.actionProblem(state, action),
     };
     if (incompatible.isNotEmpty) {
       return fail(
@@ -245,20 +263,29 @@ class OutputGate {
     }
     return OutputPreparation(
       nodeResult: completed,
-      note: note.trim(),
+      note: normalized.text,
+      noteTruncated: normalized.truncated,
       plan: plan,
       warnings: warnings,
     );
   }
 }
 
-int _sentenceMarks(String text) {
-  final runes = text.runes.toList();
-  var count = 0;
+/// Deterministic presentation shortening only; never interprets user intent or
+/// changes the card data. Callers still reject missing/non-string/empty notes.
+({String text, bool truncated}) normalizeOutputNote(
+  String input, {
+  String language = 'zh',
+}) {
+  final original = input.trim();
+  final runes = original.runes.toList();
+  var sentences = 0;
+  var end = runes.length;
   bool digit(int r) => r >= 0x30 && r <= 0x39;
+  bool punctuation(int r) => '。！？.!?'.runes.contains(r);
   for (var i = 0; i < runes.length; i++) {
     final r = runes[i];
-    if (!'。！？.!?'.runes.contains(r)) continue;
+    if (!punctuation(r)) continue;
     if (r == 0x2e &&
         i > 0 &&
         i + 1 < runes.length &&
@@ -266,7 +293,25 @@ int _sentenceMarks(String text) {
         digit(runes[i + 1])) {
       continue;
     }
-    count++;
+    sentences++;
+    while (i + 1 < runes.length && punctuation(runes[i + 1])) {
+      i++;
+    }
+    if (sentences == 2) {
+      end = i + 1;
+      // Closing quotes belong to the sentence whose punctuation precedes them.
+      while (end < runes.length && '"\'’”」』）)'.runes.contains(runes[end])) {
+        end++;
+      }
+      break;
+    }
   }
-  return count;
+  var text = String.fromCharCodes(runes.take(end)).trimRight();
+  if (language.toLowerCase().startsWith('en')) {
+    final words = RegExp(r'\S+').allMatches(text).toList();
+    if (words.length > 45) text = text.substring(0, words[44].end);
+  } else if (text.runes.length > 120) {
+    text = String.fromCharCodes(text.runes.take(120));
+  }
+  return (text: text, truncated: text != original);
 }

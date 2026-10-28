@@ -5,6 +5,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'eval_quality.dart';
 import 'eval_turn_budget.dart';
 
 typedef ComparisonJson = Map<String, Object?>;
@@ -15,30 +16,6 @@ ComparisonJson _map(Object? value) => value is Map
 List<Object?> _list(Object? value) => value is List ? value : [];
 
 List<ComparisonJson> _records(Object? value) => _list(value).map(_map).toList();
-
-Set<String> _deliveredIds(ComparisonJson turn) {
-  final result = <String>{
-    for (final action in _records(turn['actions']))
-      if (action['id'] is String) action['id'] as String,
-  };
-  void visit(Object? value) {
-    if (value is Map) {
-      if (value['exerciseId'] is String) {
-        result.add(value['exerciseId'] as String);
-      }
-      for (final child in value.values) {
-        visit(child);
-      }
-    } else if (value is List) {
-      for (final child in value) {
-        visit(child);
-      }
-    }
-  }
-
-  visit(turn['plan']);
-  return result;
-}
 
 ComparisonJson _durationQuality(List<ComparisonJson> turns) {
   final plans = <ComparisonJson>[];
@@ -93,79 +70,8 @@ ComparisonJson _durationQuality(List<ComparisonJson> turns) {
   };
 }
 
-ComparisonJson _equipmentQuality(List<ComparisonJson> turns) {
-  final checks = <ComparisonJson>[];
-  for (final turn in turns) {
-    if (_map(turn['plan']).isEmpty && _list(turn['actions']).isEmpty) continue;
-    final parameter = _map(_map(turn['params'])['equipment']);
-    final rawAllowed = parameter['value'];
-    final facts = _records(turn['actionFacts']);
-    final deliveredIds = _deliveredIds(turn);
-    final ambient = _list(
-      turn['ambientEquipmentCodes'],
-    ).whereType<String>().toSet();
-    final excluded = _list(
-      _map(_map(turn['params'])['equipment_exclude'])['value'],
-    ).whereType<String>().toSet();
-    final allowed = {
-      ..._list(rawAllowed).whereType<String>(),
-      ...ambient,
-    }.difference(excluded);
-    final required = <String>{
-      for (final fact in facts)
-        for (final id in _list(fact['equipment']).whereType<String>())
-          if (id.isNotEmpty && id != 'none') 'equip.${id.replaceAll('-', '_')}',
-    };
-    final source = parameter['source'];
-    // A nonempty preselection has no independent proof of current consent.
-    // Retain that uncertainty instead of turning missing data into a pass.
-    final comparable =
-        rawAllowed is List &&
-        rawAllowed.every((value) => value is String) &&
-        (source == 'user' ||
-            source == 'host' ||
-            (source == 'default' || source == 'preselect') &&
-                _list(rawAllowed).isEmpty) &&
-        facts.isNotEmpty &&
-        deliveredIds.isNotEmpty &&
-        facts.map((fact) => fact['id']).toSet().containsAll(deliveredIds) &&
-        facts.every(
-          (fact) =>
-              fact['equipment'] is List &&
-              (fact['equipment'] as List).every((item) => item is String),
-        ) &&
-        allowed.every((code) => code.startsWith('equip.')) &&
-        !allowed.any((code) => code.startsWith('equip.host.'));
-    final compliant = comparable ? allowed.containsAll(required) : null;
-    checks.add({
-      'turn': turn['turn'],
-      'ledgerSource': source,
-      'allowedCodes': rawAllowed,
-      'ambientCodes': ambient.toList()..sort(),
-      'excludedCodes': excluded.toList()..sort(),
-      'effectiveAllowedCodes': allowed.toList()..sort(),
-      'requiredCodes': required.toList()..sort(),
-      'withinConfirmedLedger': compliant,
-      'status': compliant == null
-          ? 'manual_review'
-          : compliant
-          ? 'pass'
-          : 'fail',
-      'basis':
-          'Catalogue action equipment compared with the accepted ledger; correctness of source quotation still needs transcript review.',
-    });
-  }
-  return {
-    'status': checks.isEmpty
-        ? 'not_observed'
-        : checks.any((check) => check['status'] == 'fail')
-        ? 'fail'
-        : checks.any((check) => check['status'] == 'manual_review')
-        ? 'manual_review'
-        : 'pass',
-    'checks': checks,
-  };
-}
+ComparisonJson _equipmentQuality(List<ComparisonJson> turns) =>
+    evaluationEquipmentQuality(turns);
 
 List<ComparisonJson> _acceptedParameterReceipts(List<ComparisonJson> calls) {
   final result = <ComparisonJson>[];
@@ -246,6 +152,10 @@ ComparisonJson _case(ComparisonJson value) {
     'metrics': {
       'modelCalls': value['modelCalls'],
       'searchActionsRequested': statistics['searchActionsRequested'],
+      'rejectedToolCalls': _map(value['toolRejectionStatistics'])['count'],
+      'rejectedToolCallsObserved': _map(
+        value['toolRejectionStatistics'],
+      )['observedCount'],
       'elapsedMs': value['elapsedMs'],
       'maxRequestBytes':
           statistics['maxRequestBytes'] ??
@@ -274,6 +184,7 @@ ComparisonJson _case(ComparisonJson value) {
     'dialogue': dialogue,
     'nodeStamps': stamps,
     'acceptedParameterReceipts': _acceptedParameterReceipts(calls),
+    'toolRejectionStatistics': value['toolRejectionStatistics'],
   };
 }
 
@@ -341,9 +252,11 @@ String thinkingComparisonMarkdown(ComparisonJson comparison) {
     )
     ..writeln()
     ..writeln(
-      '| 案例 | Thinking | Task | 有效性 | 调用 | 搜索发起 | 耗时 ms | 最大请求 B | 已知 token | 时长误差 | 器械 | 重复追问 | 参数 stamp |',
+      '| 案例 | Thinking | Task | 有效性 | 调用 | 搜索发起 | 工具被拒 | 耗时 ms | 最大请求 B | 已知 token | 时长误差 | 器械 | 重复追问 | 参数 stamp |',
     )
-    ..writeln('|---|---|---|---|---:|---:|---:|---:|---:|---|---|---|---|');
+    ..writeln(
+      '|---|---|---|---|---:|---:|---:|---:|---:|---:|---|---|---|---|',
+    );
   for (final entry in _records(comparison['cases'])) {
     for (final mode in ['on', 'off']) {
       final item = _map(entry[mode]);
@@ -361,7 +274,7 @@ String thinkingComparisonMarkdown(ComparisonJson comparison) {
         item['dialogue'],
       ).map((turn) => turn['task']).toSet().join(' → ');
       output.writeln(
-        '| ${entry['id']} | $mode | ${taskTypes.isEmpty ? 'unknown' : taskTypes} | ${item['caseValidity']} | ${metrics['modelCalls'] ?? 'unknown'} | ${metrics['searchActionsRequested'] ?? 'unknown'} | ${metrics['elapsedMs'] ?? 'unknown'} | ${metrics['maxRequestBytes'] ?? 'unknown'} | ${metrics['tokensKnownTotal'] ?? 'unknown'} | $durationErrors (${duration['status']}) | ${_map(quality['equipmentCompliance'])['status']} | manual_review | manual_review |',
+        '| ${entry['id']} | $mode | ${taskTypes.isEmpty ? 'unknown' : taskTypes} | ${item['caseValidity']} | ${metrics['modelCalls'] ?? 'unknown'} | ${metrics['searchActionsRequested'] ?? 'unknown'} | ${metrics['rejectedToolCalls'] ?? 'unknown'} | ${metrics['elapsedMs'] ?? 'unknown'} | ${metrics['maxRequestBytes'] ?? 'unknown'} | ${metrics['tokensKnownTotal'] ?? 'unknown'} | $durationErrors (${duration['status']}) | ${_map(quality['equipmentCompliance'])['status']} | manual_review | manual_review |',
       );
     }
   }

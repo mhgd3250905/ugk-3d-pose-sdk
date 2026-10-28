@@ -91,7 +91,22 @@ extension TaskToolHandler on StructuredToolHandler {
             language: language,
           );
     var next = result.state;
-    if (result.ok && tool == AgentTools.startTask && args['type'] == 'plan') {
+    final changes = [...result.changes];
+    if (result.ok &&
+        tool == AgentTools.startTask &&
+        next.task?.nodes.first.status == 'current') {
+      final understood = NodeGates(
+        profile,
+        catalog,
+        minPicks: profile.minActions,
+      ).check(next, 'understand', language: language);
+      next = understood.state;
+      changes.addAll(understood.changes);
+    }
+    if (result.ok &&
+        tool == AgentTools.startTask &&
+        args['type'] == 'plan' &&
+        next.activePlanId == null) {
       var id = newPlanId();
       while (next.plans.containsKey(id)) {
         id = newPlanId();
@@ -116,7 +131,7 @@ extension TaskToolHandler on StructuredToolHandler {
               if (result.warnings.isNotEmpty) 'warnings': result.warnings,
             },
       ),
-      changes: result.ok ? result.changes : const [],
+      changes: result.ok ? changes : const [],
       fresh: result.ok,
       fullSkills: result.ok ? fullSkills : const {},
       requiredSkills: result.ok ? requiredSkills : const {},

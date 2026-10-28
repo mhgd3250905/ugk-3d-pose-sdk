@@ -163,14 +163,16 @@ void main() {
     }
 
     final client = FakeLlmClient([
-      ...flow.initial().take(3),
+      ...flow.initial().take(2),
       (LlmRequest request) {
         final toolResult = request.messages.singleWhere(
-          (m) => m.toolCallId == 'plan-check',
+          (m) => m.toolCallId == 'draft',
         );
         final feedback = jsonDecode(toolResult.content) as Map<String, Object?>;
+        flow.planId = feedback['plan_id'] as String;
         expect(feedback['ok'], isFalse);
         expect(feedback['code'], 'plan_check_failed');
+        expect((feedback['check'] as Map)['ok'], isFalse);
         final errors = (feedback['errors']! as List<Object?>)
             .cast<Map<String, Object?>>();
         expect(

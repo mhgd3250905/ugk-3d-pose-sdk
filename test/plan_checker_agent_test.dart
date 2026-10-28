@@ -116,19 +116,13 @@ void main() {
         },
         (LlmRequest request) {
           final first = feedback(request, 'draft1');
-          expect(first['ok'], isTrue, reason: '$first');
+          expect(first['ok'], isFalse, reason: '$first');
           expect(first['version'], 1);
           planId = first['plan_id'] as String;
-          return calls([
-            call('planning1', AgentTools.check, {'node': 'planning'}),
-            call('check1', AgentTools.checkPlan, {'plan_id': planId}),
-          ]);
-        },
-        (LlmRequest request) {
-          expect(feedback(request, 'planning1')['ok'], isTrue);
-          final failed = feedback(request, 'check1');
+          final failed = first;
           expect(failed['ok'], isFalse, reason: '$failed');
           expect(failed['code'], 'plan_check_failed');
+          expect((failed['check'] as Map)['ok'], isFalse);
           final errors = (failed['errors'] as List)
               .cast<Map<String, dynamic>>();
           final body = errors.singleWhere(
@@ -156,6 +150,7 @@ void main() {
           final next = feedback(request, 'draft2');
           expect(next['ok'], isTrue, reason: '$next');
           expect(next['version'], 2);
+          expect((next['check'] as Map)['ok'], isTrue);
           return calls([
             call('planning2', AgentTools.check, {'node': 'planning'}),
             call('check2', AgentTools.checkPlan, {'plan_id': planId}),

@@ -54,7 +54,7 @@ void main() {
         final size = utf8.encode(payload).length;
         expect(
           size,
-          lessThanOrEqualTo(12 * 1024),
+          lessThanOrEqualTo(13 * 1024),
           reason: '$name payload=$size bytes',
         );
         expect(payload, isNot(contains('h-squat')));
@@ -140,7 +140,7 @@ void main() {
       final size = utf8.encode(payload).length;
       expect(
         size,
-        lessThanOrEqualTo(12 * 1024),
+        lessThanOrEqualTo(13 * 1024),
         reason: 'memory-enabled=$size bytes',
       );
       expect(payload, contains('今天在家练多久合适？'));

@@ -667,8 +667,8 @@ Future<Json> _runCase(
     }
   }
   if (wire.calls.isNotEmpty &&
-      (wire.calls.first['requestBytes'] as int) > 12 * 1024) {
-    failures.add('actual first HTTP request body exceeded 12KB');
+      (wire.calls.first['requestBytes'] as int) > 13 * 1024) {
+    failures.add('actual first HTTP request body exceeded 13KiB');
   }
   final rejectionStatistics = evaluationToolRejections(turns);
   final rejected = _list(rejectionStatistics['entries']).map(_map).toList();

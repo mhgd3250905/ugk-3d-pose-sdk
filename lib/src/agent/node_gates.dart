@@ -838,7 +838,7 @@ class NodeGates {
               : {
                   'user': '你说的',
                   'host': 'App 设置',
-                  'preselect': '上次习惯',
+                  'preselect': '沿用上次',
                   'default': '默认',
                   'derived': '推测',
                 })[param.source] ??

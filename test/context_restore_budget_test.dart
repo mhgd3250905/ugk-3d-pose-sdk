@@ -362,7 +362,7 @@ void main() {
           expect(
             bytes,
             lessThanOrEqualTo(
-              keepLedger ? fresh.contextBudgetConfig.softOnBytes : 12 * 1024,
+              keepLedger ? fresh.contextBudgetConfig.softOnBytes : 13 * 1024,
             ),
             reason: 'restore payload=$bytes bytes',
           );

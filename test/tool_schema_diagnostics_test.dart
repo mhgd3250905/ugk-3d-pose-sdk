@@ -60,7 +60,7 @@ const _approvedToolDescriptions = {
   'get_action': '批量查看动作要领与禁忌；大多数情况不需要调用。',
   'draft_plan': '标题/分块/ID配时排序核对；代码算剂量轮数。note不写动作剂量，看卡片；show_plan交付。',
   'set_params':
-      '记条件并自动打卡；user 引用原话，preselect 用习惯，default 明示默认。低来源覆盖高来源时 kept；推测场景用 derived+quote，相对时长带 direction；明确剂量用 dose，改计划用 operation；host 由宿主写入。',
+      '记条件并自动打卡；user 引用原话，preselect 仅沿用上次习惯/记忆地点，default 明示默认。scene derived 的 quote 只摘地点/情境线索（如“坐了很久”“在工位上”“刚起床”），不能引用整句或只有动作/部位的话；无线索且无 user/host/preselect 就 ask_user 问地点。低来源覆盖高来源时 kept；相对时长带 direction；明确剂量用 dose，改计划用 operation；host 由宿主写入。',
   'check_plan': '可选复核最新计划；draft_plan 已自动核对，通过后直接 show_plan。',
   'show_actions': '交付动作卡自动打卡；1个可，须命中目标部位。note一两句思路/要领，不写剂量，看卡片；超长截断。',
   'show_plan': '交付已核对最新计划卡；note同show_actions。',

@@ -21,7 +21,7 @@ import 'skill_files.dart';
 import 'user_memory.dart';
 
 /// Agent 内核修订号。改 `prompts/agent_kernel.md` 或 `skills/` 语义时手动加一。
-const agentKernelRevision = 12;
+const agentKernelRevision = 13;
 
 abstract final class AgentTools {
   static const read = 'read';
@@ -221,7 +221,7 @@ abstract final class AgentTools {
       LlmTool(
         name: setParams,
         description:
-            '记条件并自动打卡；user 引用原话，preselect 用习惯，default 明示默认。低来源覆盖高来源时 kept；推测场景用 derived+quote，相对时长带 direction；明确剂量用 dose，改计划用 operation；host 由宿主写入。',
+            '记条件并自动打卡；user 引用原话，preselect 仅沿用上次习惯/记忆地点，default 明示默认。scene derived 的 quote 只摘地点/情境线索（如“坐了很久”“在工位上”“刚起床”），不能引用整句或只有动作/部位的话；无线索且无 user/host/preselect 就 ask_user 问地点。低来源覆盖高来源时 kept；相对时长带 direction；明确剂量用 dose，改计划用 operation；host 由宿主写入。',
         parameters: {
           'type': 'object',
           'properties': {

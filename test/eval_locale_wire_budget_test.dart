@@ -38,7 +38,9 @@ void main() {
       final body = serializer.buildBody(client.requests.first);
       final bytes = utf8.encode(jsonEncode(body)).length;
       print('R6 en actual first HTTP body: $bytes B');
-      expect(bytes, lessThanOrEqualTo(12288));
+      // Approved scene-cue guidance raises this first-request regression budget
+      // to 13 KiB; production context budgets remain unchanged.
+      expect(bytes, lessThanOrEqualTo(13 * 1024));
       expect(
         client.requests.first.messages.first.content,
         contains('用 en 语言回复用户'),

@@ -8,7 +8,6 @@ class ScriptedV2PlanFlow {
   ScriptedV2PlanFlow(this.catalog);
   final Catalog catalog;
   String? planId;
-  String? stalePlanError;
   static const ids = [
     's-kneel-hipflex',
     'n-thomas-test',
@@ -142,18 +141,6 @@ class ScriptedV2PlanFlow {
         (LlmRequest request) {
           expect(_response(request, 'new-minutes')['ok'], isTrue);
           return _calls([
-            _tool('old-plan', AgentTools.showPlan, {
-              'plan_id': planId,
-              'note': '继续训练。',
-            }),
-          ]);
-        },
-        (LlmRequest request) {
-          final rejection = _response(request, 'old-plan');
-          expect(rejection['ok'], isFalse, reason: '$rejection');
-          stalePlanError = rejection['code'] as String?;
-          expect(stalePlanError, 'nodes_incomplete');
-          return _calls([
             _tool('new-draft', AgentTools.draftPlan, {
               'plan_id': planId,
               'operation': 'edit',
@@ -215,18 +202,6 @@ class ScriptedV2PlanFlow {
       ]),
       (LlmRequest request) {
         expect(_response(request, 'new-equipment')['ok'], isTrue);
-        return _calls([
-          _tool('old-plan', AgentTools.showPlan, {
-            'plan_id': planId,
-            'note': '继续训练。',
-          }),
-        ]);
-      },
-      (LlmRequest request) {
-        final rejection = _response(request, 'old-plan');
-        expect(rejection['ok'], isFalse, reason: '$rejection');
-        stalePlanError = rejection['code'] as String?;
-        expect(stalePlanError, 'nodes_incomplete');
         return _calls([
           for (var i = 0; i < actions.length; i++)
             _tool('body-search-$i', AgentTools.searchActions, {

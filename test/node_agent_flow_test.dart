@@ -97,7 +97,7 @@ void main() {
   );
 
   test(
-    'skipping a node and model-supplied stamps or planId are rejected',
+    'missing goal remains rejected while model stamps and IDs cannot forge nodes',
     () async {
       final client = FakeLlmClient([
         calls([
@@ -121,21 +121,27 @@ void main() {
       coach.events.listen(events.add);
       await coach.send('安排计划');
       expect(result(client, 'skip')['code'], 'missing_parameters');
-      expect(result(client, 'skip')['expected'], ['scene', 'goal', 'minutes']);
+      expect(result(client, 'skip')['actual'], ['goal']);
       expect(
         result(client, 'skipped-understand')['code'],
         'skipped_after_error',
       );
-      expect(result(client, 'stamp')['code'], 'invalid_arguments');
-      expect(result(client, 'planId')['code'], 'invalid_arguments');
+      expect(result(client, 'stamp')['ok'], isTrue);
+      expect(result(client, 'planId')['ok'], isTrue);
+      expect(result(client, 'stamp')['notices'], isNotEmpty);
+      expect(result(client, 'planId')['notices'], isNotEmpty);
       expect(result(client, 'right')['ok'], isTrue);
       for (final id in ['stamp', 'planId']) {
-        expect(
-          client.requests.last.messages
-              .singleWhere((message) => message.toolCallId == id)
-              .content,
-          '[已归档，见当前状态]',
-        );
+        final receipt =
+            jsonDecode(
+                  client.requests.last.messages
+                      .singleWhere((message) => message.toolCallId == id)
+                      .content,
+                )
+                as Map;
+        expect(receipt['ok'], isTrue);
+        expect(receipt['notices'], isNotEmpty);
+        expect(receipt['task'], {'sameAsCurrentState': 'task'});
       }
       expect(coach.sessionState.task!.nodes.first.stamp, isNot('伪造'));
       expect(
@@ -170,49 +176,55 @@ void main() {
     });
   }
 
-  test('ask_user pauses and answer resumes the same node', () async {
-    final client = FakeLlmClient([
-      calls([
-        call('start', 'start_task', {'type': 'plan'}),
-        call('understand', 'check', {'node': 'understand'}),
-        call('goal', 'set_params', {
-          'fields': {
-            'goal': user(['body.core'], '核心'),
-          },
-        }),
-      ]),
-      ask(),
-      calls([
-        call('params', 'set_params', {
-          'fields': {'scene': user('home', '在家'), 'minutes': user(20, '20 分钟')},
-        }),
-        call('parameters', 'check', {'node': 'parameters'}),
-      ]),
-      calls([
-        call('ask2', 'ask_user', {'question': '还有其他条件吗？', 'mode': 'text'}),
-      ]),
-    ], latency: Duration.zero);
-    final coach = agent(client);
-    final first = await coach.send('帮我练核心');
-    expect(first.question, isNotNull);
-    expect(
-      coach.sessionState.task!.nodes
-          .singleWhere((n) => n.status == 'current')
-          .id,
-      'parameters',
-    );
-    final second = await coach.send('在家，20 分钟');
-    expect(second.question, isNotNull);
-    expect(result(client, 'params')['ok'], isTrue);
-    expect(result(client, 'parameters')['ok'], isTrue);
-    expect(
-      coach.sessionState.task!.nodes
-          .singleWhere((n) => n.status == 'current')
-          .id,
-      'actions',
-    );
-    expect(coach.sessionState.params['goal']!.value, ['body.core']);
-  });
+  test(
+    'ask_user pauses and answer updates sourced parameters then resumes',
+    () async {
+      final client = FakeLlmClient([
+        calls([
+          call('start', 'start_task', {'type': 'plan'}),
+          call('understand', 'check', {'node': 'understand'}),
+          call('goal', 'set_params', {
+            'fields': {
+              'goal': user(['body.core'], '核心'),
+            },
+          }),
+        ]),
+        ask(),
+        calls([
+          call('params', 'set_params', {
+            'fields': {
+              'scene': user('home', '在家'),
+              'minutes': user(20, '20 分钟'),
+            },
+          }),
+          call('parameters', 'check', {'node': 'parameters'}),
+        ]),
+        calls([
+          call('ask2', 'ask_user', {'question': '还有其他条件吗？', 'mode': 'text'}),
+        ]),
+      ], latency: Duration.zero);
+      final coach = agent(client);
+      final first = await coach.send('帮我练核心');
+      expect(first.question, isNotNull);
+      expect(
+        coach.sessionState.task!.nodes
+            .singleWhere((n) => n.status == 'current')
+            .id,
+        'actions',
+      );
+      final second = await coach.send('在家，20 分钟');
+      expect(second.question, isNotNull);
+      expect(result(client, 'params')['ok'], isTrue);
+      expect(result(client, 'parameters')['ok'], isTrue);
+      expect(
+        coach.sessionState.task!.nodes
+            .singleWhere((n) => n.status == 'current')
+            .id,
+        'actions',
+      );
+      expect(coach.sessionState.params['goal']!.value, ['body.core']);
+    },
+  );
 
   test(
     'plain question and answer does not create a task or node events',

@@ -53,8 +53,8 @@ void main() {
       test(
         '${started ? 'incomplete task' : 'no task'}: $tool cannot fall back to a plan',
         () async {
-          // The preset passes the legacy template admission; rejecting it here
-          // must therefore come from the unfinished/missing task gate.
+          // A fallback preset cannot supply a missing user goal. Computable
+          // task nodes no longer reject an otherwise valid delivery.
           expect(
             ToolGate(
               catalog: catalog,
@@ -96,7 +96,7 @@ void main() {
           expect(result.submissions, 2);
           expect(
             result.issues.map((issue) => issue.code),
-            contains(started ? 'nodes_incomplete' : 'wrong_task_type'),
+            contains('missing_parameters'),
           );
           expect(result.plan, isNull);
           expect(result.actions, isNull);

@@ -16,6 +16,8 @@ class ParamMutation {
     this.valueChangedFields, {
     this.kept = const {},
     this.ignoredEquipmentExclude = const [],
+    this.notes = const [],
+    this.feasibility,
   });
 
   final CoachSessionState state;
@@ -26,12 +28,20 @@ class ParamMutation {
   final Set<String> valueChangedFields;
   final Set<String> kept;
   final List<String> ignoredEquipmentExclude;
+  final List<String> notes;
+  final Map<String, Object?>? feasibility;
   bool get ok => error == null;
 
   Map<String, Object?> toJson() =>
       error ??
       {
         'ok': true,
+        if (notes.isNotEmpty) 'notes': notes,
+        if (feasibility != null) ...{
+          'status': 'infeasible',
+          'needsUserChoice': true,
+          'feasibility': feasibility,
+        },
         if (kept.isNotEmpty) 'kept': kept.toList(),
         if (ignoredEquipmentExclude.isNotEmpty) ...{
           'ignoredEquipmentExclude': ignoredEquipmentExclude,
@@ -57,6 +67,8 @@ class SessionParams {
     'minutes',
     'level',
     'limits',
+    'dose',
+    'operation',
   };
   static const sources = {'user', 'preselect', 'default', 'derived'};
 
@@ -106,7 +118,6 @@ class SessionParams {
     List<MemoryEntry> memory = const [],
   }) {
     if (arguments is! Map<Object?, Object?> ||
-        arguments.keys.any((key) => key != 'fields') ||
         arguments['fields'] is! Map<Object?, Object?>) {
       return _failure(
         state,
@@ -119,13 +130,12 @@ class SessionParams {
     }
     final rawFields = arguments['fields']! as Map<Object?, Object?>;
     if (rawFields.isEmpty) {
-      return _failure(
+      return ParamMutation._(
         state,
-        'invalid_fields',
-        'fields',
-        '至少一个字段',
-        rawFields,
-        '为至少一个参数提供值和来源。',
+        null,
+        const {},
+        const {},
+        notes: const ['空更新，已保留当前条件。'],
       );
     }
     final next = Map<String, CoachParamValue>.of(state.params);
@@ -133,6 +143,11 @@ class SessionParams {
     final valueChanged = <String>{};
     final kept = <String>{};
     final ignoredEquipmentExclude = <String>[];
+    final notes = <String>[];
+    Map<String, Object?>? feasibility;
+    if (arguments.keys.any((key) => key != 'fields')) {
+      notes.add('已忽略 fields 以外的附加字段。');
+    }
     final orderedFields = [
       if (rawFields.containsKey('scene')) MapEntry('scene', rawFields['scene']),
       ...rawFields.entries.where((entry) => entry.key != 'scene'),
@@ -151,14 +166,8 @@ class SessionParams {
       }
       final raw = entry.value;
       if (raw is! Map<Object?, Object?> ||
-          raw.keys.any(
-            (key) =>
-                key != 'value' &&
-                key != 'source' &&
-                key != 'quote' &&
-                key != 'direction',
-          ) ||
-          !raw.containsKey('value') ||
+          (!raw.containsKey('value') &&
+              !(name == 'minutes' && raw['source'] == 'derived')) ||
           !raw.containsKey('source')) {
         return _failure(
           state,
@@ -169,10 +178,70 @@ class SessionParams {
           '提供 value 和 source，引用原话时填写 quote。',
         );
       }
-      final value = raw['value'];
+      if (raw.keys.any(
+        (key) => !{'value', 'source', 'quote', 'direction'}.contains(key),
+      )) {
+        notes.add('$name：已忽略附加参数。');
+      }
+      var value = raw['value'];
+      if (value is String &&
+          {
+            'goal',
+            'equipment',
+            'equipment_exclude',
+            'limits',
+            'dose',
+          }.contains(name)) {
+        try {
+          final parsed = jsonDecode(value);
+          if (parsed is List) {
+            value = parsed;
+            notes.add('$name：已解析数组字符串。');
+          }
+        } on FormatException {
+          /* Real enum validation remains below. */
+        }
+      }
+      if (value is List && name != 'dose') {
+        final unique = value.toSet().toList();
+        if (unique.length != value.length) notes.add('$name：已合并重复值。');
+        value = unique;
+      }
+      if (name == 'dose' && value is List) {
+        value = [
+          for (final entry in value)
+            if (entry is Map)
+              {
+                ...entry,
+                'value': entry['value'] is String
+                    ? int.tryParse((entry['value'] as String).trim()) ??
+                          entry['value']
+                    : entry['value'] is num &&
+                          (entry['value'] as num).isFinite &&
+                          entry['value'] ==
+                              (entry['value'] as num).roundToDouble()
+                    ? (entry['value'] as num).toInt()
+                    : entry['value'],
+              }
+            else
+              entry,
+        ];
+      }
+      if ({'minutes', 'level'}.contains(name)) {
+        final normalized = value is String
+            ? int.tryParse(value.trim())
+            : value is num && value.isFinite && value == value.roundToDouble()
+            ? value.toInt()
+            : value;
+        if (normalized != null && normalized != value) {
+          notes.add('$name：已规范化整数。');
+        }
+        value = normalized ?? value;
+      }
       Object? effectiveValue = value;
+      CoachParamValue? derivedBaseline;
       final source = raw['source'];
-      final old = state.params[name];
+      var old = state.params[name];
       if (source is! String || !sources.contains(source)) {
         return _failure(
           state,
@@ -181,6 +250,23 @@ class SessionParams {
           sources.toList(),
           source,
           '从 user、preselect、default 中选择来源；推测场景或相对时长可使用 derived。',
+        );
+      }
+      if ((old?.source == 'user' ||
+              old?.source == 'host' ||
+              old?.source == 'derived') &&
+          (source == 'default' || source == 'preselect')) {
+        kept.add(name);
+        continue;
+      }
+      if ({'dose', 'operation'}.contains(name) && source != 'user') {
+        return _failure(
+          state,
+          'invalid_source',
+          'fields.$name.source',
+          'user',
+          source,
+          '明确剂量只记录用户原话，不预设为用户要求。',
         );
       }
       if (name == 'equipment_exclude' && source != 'user') {
@@ -205,14 +291,7 @@ class SessionParams {
         );
       }
       if ((source != 'derived' || name != 'minutes') && direction != null) {
-        return _failure(
-          state,
-          'invalid_direction',
-          'fields.$name.direction',
-          '仅 derived 时长需要 direction',
-          direction,
-          '移除 direction 或提供 derived 时长。',
-        );
+        notes.add('$name：已忽略不适用的 direction。');
       }
       if (source == 'derived' &&
           name == 'minutes' &&
@@ -227,7 +306,38 @@ class SessionParams {
         );
       }
       if (source == 'derived' && name == 'minutes') {
+        if (old == null) {
+          final defaultMinutes = int.tryParse(
+            tags.profile.vars['defaultMinutes'] ?? '',
+          );
+          if (defaultMinutes != null && defaultMinutes > 0) {
+            final turn = state.userTurns.lastOrNull?.turn ?? 0;
+            old = CoachParamValue(
+              value: defaultMinutes,
+              source: 'default',
+              turn: turn > 0 ? turn - 1 : 0,
+            );
+            notes.add('minutes：使用 profile 默认 $defaultMinutes 分钟作为派生基准。');
+          }
+        }
         if (old?.value is! int || (old!.value! as int) <= 0) {
+          final q = raw['quote'];
+          if (old == null &&
+              q is String &&
+              _normalize(q).isNotEmpty &&
+              state.userTurns.lastOrNull != null &&
+              _normalize(state.userTurns.last.text).contains(_normalize(q))) {
+            return ParamMutation._(
+              state,
+              null,
+              const {},
+              const {},
+              feasibility: {
+                'reason': 'derived_missing_baseline',
+                'fix': '请确认作为调整基准的分钟数。',
+              },
+            );
+          }
           return _failure(
             state,
             'derived_missing_baseline',
@@ -255,7 +365,21 @@ class SessionParams {
             '修正派生比例和 profile 时长范围。',
           );
         }
-        final base = old.value! as int;
+        derivedBaseline =
+            old.source == 'derived' &&
+                old.turn == (state.userTurns.lastOrNull?.turn ?? 0) &&
+                old.direction == direction &&
+                _normalize(old.quote ?? '') ==
+                    (raw['quote'] is String
+                        ? _normalize(
+                            String.fromCharCodes(
+                              (raw['quote'] as String).runes.take(30),
+                            ),
+                          )
+                        : '')
+            ? old.basedOn ?? old
+            : old;
+        final base = derivedBaseline.value! as int;
         final low = direction == 'shorter'
             ? base * (1 - range.max)
             : base * (1 + range.min);
@@ -273,30 +397,44 @@ class SessionParams {
         // Profile endpoints need not themselves be multiples of five.
         final first = ((minValue + 4) ~/ 5) * 5;
         final last = (maxValue ~/ 5) * 5;
-        final rounded = value is int && value > 0
+        final requested = value is int && value > 0
             ? ((value + 2) ~/ 5) * 5
             : null;
-        if (value is! int ||
-            rounded == null ||
-            first > last ||
-            rounded < first ||
-            rounded > last ||
-            (direction == 'shorter' ? rounded >= base : rounded <= base)) {
-          final allowed = first <= last
-              ? '$first–$last 分钟（5 分钟间隔）'
-              : '无符合条件的 5 分钟倍数';
-          return _failure(
-            state,
-            'derived_out_of_range',
-            'fields.minutes.value',
-            allowed,
-            {'input': value, 'rounded': rounded},
-            first <= last ? '选择 $allowed，或询问用户明确时长。' : '当前基准无可用派生时长，请询问用户明确时长。',
-          );
+        if (first > last) {
+          final q = raw['quote'];
+          if (q is! String ||
+              _normalize(q).isEmpty ||
+              state.userTurns.lastOrNull == null ||
+              !_normalize(state.userTurns.last.text).contains(_normalize(q)) ||
+              old.turn >= state.userTurns.last.turn) {
+            return _failure(
+              state,
+              'quote_not_found',
+              'fields.minutes.quote',
+              '本轮真实的新用户原话',
+              q,
+              '引用本轮用户调整时长的原话。',
+            );
+          }
+          feasibility = {
+            'reason': 'derived_minutes_unavailable',
+            'basedOn': base,
+            'direction': direction,
+            'fix': '当前时长没有符合范围的调整值，请选择明确时长。',
+          };
+          continue;
         }
+        final preferred = direction == 'shorter'
+            ? base * (1 - range.min)
+            : base * (1 + range.min);
+        final rounded =
+            requested != null && requested >= first && requested <= last
+            ? requested
+            : (((preferred / 5).round() * 5).clamp(first, last));
+        if (rounded != value) notes.add('minutes：已按方向和允许范围计算为 $rounded 分钟。');
         effectiveValue = rounded;
       }
-      final valueIssue = _valueError(name, value, state);
+      final valueIssue = _valueError(name, effectiveValue, state);
       if (valueIssue != null) {
         return _failure(
           state,
@@ -307,7 +445,7 @@ class SessionParams {
           '使用工具枚举中的合法编码和数值。',
         );
       }
-      final quote = raw['quote'];
+      var quote = raw['quote'];
       int sourceTurn = state.userTurns.isEmpty ? 0 : state.userTurns.last.turn;
       if (quote != null && quote is! String) {
         return _failure(
@@ -320,9 +458,7 @@ class SessionParams {
         );
       }
       if (source == 'user' || source == 'derived') {
-        if (quote is! String ||
-            quote.runes.length > 30 ||
-            _normalize(quote).isEmpty) {
+        if (quote is! String || _normalize(quote).isEmpty) {
           return _failure(
             state,
             'invalid_quote',
@@ -347,6 +483,10 @@ class SessionParams {
           );
         }
         sourceTurn = matching.last.turn;
+        if (quote.runes.length > 30) {
+          quote = String.fromCharCodes(quote.runes.take(30));
+          notes.add('$name：原话已核对，保存前30字符作为短引用。');
+        }
       }
       if (name == 'equipment_exclude') {
         final rawWanted = (value! as List<Object?>).cast<String>().toSet();
@@ -387,20 +527,14 @@ class SessionParams {
       if (source == 'derived' &&
           name == 'scene' &&
           (old?.source == 'user' || old?.source == 'host')) {
-        return _failure(
-          state,
-          'source_conflict',
-          'fields.scene.source',
-          '保留用户或 App 已明确提供的场景',
-          source,
-          '不要用推断覆盖已确认场景；明确修改时使用用户新原话。',
-        );
+        kept.add(name);
+        continue;
       }
       if (source == 'derived' &&
           name == 'scene' &&
           (sourceTurn != state.userTurns.last.turn ||
               (old?.source == 'derived' &&
-                  sourceTurn <= old!.turn &&
+                  sourceTurn < old!.turn &&
                   !_same(old.value, value)))) {
         return _failure(
           state,
@@ -413,7 +547,7 @@ class SessionParams {
       }
       if (source == 'derived' &&
           name == 'minutes' &&
-          (sourceTurn <= old!.turn ||
+          (sourceTurn <= (derivedBaseline ?? old)!.turn ||
               sourceTurn != state.userTurns.last.turn)) {
         return _failure(
           state,
@@ -485,7 +619,11 @@ class SessionParams {
             : (old.value! as List<Object?>).cast<String>().toSet();
         final added = wanted.difference(previous);
         if (added.isNotEmpty &&
-            (source != 'user' || sourceTurn <= (old?.turn ?? 0))) {
+            (source != 'user' ||
+                ({'user', 'host'}.contains(old?.source) &&
+                    (sourceTurn <= (old?.turn ?? 0) ||
+                        sourceTurn !=
+                            (state.userTurns.lastOrNull?.turn ?? 0))))) {
           return _failure(
             state,
             'equipment_not_newly_confirmed',
@@ -537,7 +675,9 @@ class SessionParams {
         direction: source == 'derived' && name == 'minutes'
             ? direction as String
             : null,
-        basedOn: source == 'derived' && name == 'minutes' ? old : null,
+        basedOn: source == 'derived' && name == 'minutes'
+            ? derivedBaseline ?? old
+            : null,
       );
       changed.add(name);
       if (old == null || !_same(old.value, effectiveValue)) {
@@ -551,6 +691,8 @@ class SessionParams {
       Set.unmodifiable(valueChanged),
       kept: Set.unmodifiable(kept),
       ignoredEquipmentExclude: List.unmodifiable(ignoredEquipmentExclude),
+      notes: List.unmodifiable(notes),
+      feasibility: feasibility,
     );
   }
 
@@ -639,6 +781,55 @@ class SessionParams {
   }
 
   Object? _valueError(String name, Object? value, CoachSessionState state) {
+    if (name == 'operation') {
+      return {'edit', 'replace_all'}.contains(value)
+          ? null
+          : 'edit 或 replace_all';
+    }
+    if (name == 'dose') {
+      if (value is! List) return '剂量约束数组';
+      final seen = <String, int>{};
+      for (final constraint in value) {
+        if (constraint is! Map ||
+            constraint.keys.any(
+              (key) => !{'field', 'value', 'actionId', 'blockId'}.contains(key),
+            ) ||
+            !{
+              'sets',
+              'reps',
+              'seconds',
+              'rounds',
+            }.contains(constraint['field']) ||
+            constraint['value'] is! int ||
+            (constraint['value'] as int) <= 0) {
+          return '每项含 field、正整数 value，可选 actionId/blockId';
+        }
+        final id = constraint['actionId'];
+        if (id != null &&
+            (id is! String ||
+                tags.catalog[id] == null ||
+                !tags.profile.select.matches(tags.catalog[id]!))) {
+          return '真实目录内的 actionId';
+        }
+        if (constraint['blockId'] != null &&
+            (constraint['blockId'] is! String ||
+                !RegExp(
+                  r'^b[1-9][0-9]*$',
+                ).hasMatch(constraint['blockId'] as String))) {
+          return 'blockId 为 b1、b2 等稳定分块 ID';
+        }
+        if (constraint['field'] == 'rounds' && id != null) {
+          return '轮数约束作用于块或全局，不含 actionId';
+        }
+        final key =
+            '${constraint['field']}:${constraint['actionId']}:${constraint['blockId']}';
+        if (seen.containsKey(key) && seen[key] != constraint['value']) {
+          return '同一作用范围的同一剂量字段只能有一个明确值';
+        }
+        seen[key] = constraint['value'] as int;
+      }
+      return null;
+    }
     if (name == 'scene') {
       return value is String && sceneCodes.contains(value) ? null : sceneCodes;
     }
@@ -709,6 +900,9 @@ class SessionParams {
       text.replaceAll(_strip, '').toLowerCase();
 
   static bool _same(Object? a, Object? b) {
+    if ((a is List && a.any((e) => e is Map)) || a is Map) {
+      return jsonEncode(a) == jsonEncode(b);
+    }
     if (a is List<Object?> && b is List<Object?>) {
       return a.length == b.length && a.toSet().containsAll(b);
     }

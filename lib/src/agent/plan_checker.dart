@@ -18,6 +18,8 @@ class PlanCheckResult {
     this.errors = const [],
     this.rules = const {},
     this.warnings = const [],
+    this.warningDetails = const [],
+    this.notes = const [],
     this.changes = const [],
   });
   final CoachSessionState state;
@@ -25,6 +27,8 @@ class PlanCheckResult {
   final List<Map<String, Object?>> errors;
   final Map<String, Object?> rules;
   final List<String> warnings;
+  final List<Map<String, Object?>> warningDetails;
+  final List<String> notes;
   final List<CoachNodeState> changes;
   bool get ok => error == null && errors.isEmpty;
   Map<String, Object?> toJson() {
@@ -40,12 +44,16 @@ class PlanCheckResult {
         ),
         'errors': errors,
         if (warnings.isNotEmpty) 'warnings': warnings,
+        if (warningDetails.isNotEmpty) 'warningDetails': warningDetails,
+        if (notes.isNotEmpty) 'notes': notes,
       };
     }
     return {
       'ok': true,
-      'summary': warnings.isEmpty ? '计划检查通过。' : '计划检查通过；部分限制缺少目录依据。',
+      'summary': warnings.isEmpty ? '计划检查通过。' : '计划检查通过，建议见 warning。',
       if (warnings.isNotEmpty) 'warnings': warnings,
+      if (warningDetails.isNotEmpty) 'warningDetails': warningDetails,
+      if (notes.isNotEmpty) 'notes': notes,
     };
   }
 }
@@ -104,23 +112,6 @@ class PlanChecker {
       state,
       error: nodeError(code, field, expected, actual, fix),
     );
-    final current = state.task?.nodes
-        .where((n) => n.status == 'current')
-        .firstOrNull;
-    if (enforceNodeOrder &&
-        (state.task?.type != 'plan' ||
-            (current?.id != 'review' &&
-                !state.task!.nodes.any(
-                  (n) => n.id == 'review' && n.status == 'done',
-                )))) {
-      return fail(
-        'wrong_node',
-        'node',
-        'review',
-        current?.id,
-        '先完成 planning 节点，再核对计划。',
-      );
-    }
     final currentId =
         state.activePlanId ??
         (state.legacyPlanFallback && state.plans.length == 1
@@ -178,7 +169,7 @@ class PlanChecker {
         '修复计划结构后重新生成草稿。',
       );
     }
-    final plan = decoded.plan!;
+    var plan = decoded.plan!;
     final params = state.params;
     final minutes = params['minutes']?.value;
     final goalValue = params['goal']?.value;
@@ -190,8 +181,14 @@ class PlanChecker {
       return invalidate(
         'missing_parameters',
         'params',
-        '正整数 minutes 和非空 goal',
-        params.keys.toList(),
+        ['minutes', 'goal'],
+        [
+          if (minutes is! int || minutes <= 0) 'minutes',
+          if (goalValue is! List ||
+              goalValue.isEmpty ||
+              goalValue.any((g) => g is! String))
+            'goal',
+        ],
         '补齐计划时长和目标后重新核对。',
       );
     }
@@ -235,6 +232,35 @@ class PlanChecker {
               .cast<String>())
         '目录缺少限制 ${gate.tags.limitValue(code) ?? code} 的可核对禁忌，不能确认其安全性。',
     ];
+    final allWarningDetails = <Map<String, Object?>>[];
+    final newWarningDetails = <Map<String, Object?>>[];
+    final emitted = {...state.emittedWarningCodes};
+    void advisory(
+      String code,
+      String message,
+      Object? expected,
+      Object? actual, {
+      bool applicable = true,
+    }) {
+      rules[code.startsWith('plan_') ? code.substring(5) : code] = {
+        'ok': true,
+        'severity': 'warning',
+        'applicable': applicable,
+        'expected': expected,
+        'actual': actual,
+      };
+      if (!applicable) return;
+      final detail = <String, Object?>{
+        'code': code,
+        'message': message,
+        'expected': expected,
+        'actual': actual,
+      };
+      allWarningDetails.add(detail);
+      warnings.add(message);
+      if (emitted.add(code)) newWarningDetails.add(detail);
+    }
+
     final entries = <({String id, int block})>[
       for (var bi = 0; bi < plan.blocks.length; bi++)
         for (final item in plan.blocks[bi].items)
@@ -312,28 +338,28 @@ class PlanChecker {
       '替换需要未确认器材的动作。',
     );
     final declared = plan.equipment.toSet();
-    result(
-      'card_conditions',
-      plan.targetMinutes == minutes &&
-          declared.length == usedEquipment.length &&
-          declared.containsAll(usedEquipment),
-      {'targetMinutes': minutes, 'equipment': usedEquipment.toList()..sort()},
-      {
-        'targetMinutes': plan.targetMinutes,
-        'equipment': declared.toList()..sort(),
+    final correctedConditions =
+        declared.length != usedEquipment.length ||
+        !declared.containsAll(usedEquipment);
+    if (correctedConditions) {
+      plan = const PlanCodec().decode({
+        ...plan.toJson(),
+        'equipment': usedEquipment.toList()..sort(),
+      });
+    }
+    rules['card_conditions'] = {
+      'ok': true,
+      'normalized': correctedConditions,
+      'expected': {
+        'targetMinutes': minutes,
+        'equipment': usedEquipment.toList()..sort(),
       },
-      '重新生成计划，使卡片时长与用户条件一致、器材与实际动作一致。',
-    );
+      'actual': {
+        'targetMinutes': plan.targetMinutes,
+        'equipment': plan.equipment,
+      },
+    };
     final seconds = const PlanDuration().estimateSeconds(plan, catalog);
-    final target = minutes * 60;
-    result(
-      'duration',
-      (seconds - target).abs() <= target * .1,
-      '$target 秒 ±10%',
-      seconds,
-      '调整动作、组数或轮数，使估时接近目标。',
-    );
-
     final purpose = goals.where((v) => v.startsWith('purpose.')).toSet();
     final body = goals.where((v) => v.startsWith('body.')).toSet();
     final pureStretch =
@@ -348,12 +374,12 @@ class PlanChecker {
     final hasCooldown = plan.blocks.any(
       (b) => b.type == BlockType.cooldown && b.items.isNotEmpty,
     );
-    result(
-      'structure',
-      (!needWarmup || hasWarmup) && (!needCooldown || hasCooldown),
+    advisory(
+      'plan_structure',
+      '可结合本次目标考虑热身和收尾；当前分组不作为交付门槛。',
       {'warmup': needWarmup, 'cooldown': needCooldown},
       {'warmup': hasWarmup, 'cooldown': hasCooldown},
-      '根据时长添加缺少的热身或收尾块。',
+      applicable: (needWarmup && !hasWarmup) || (needCooldown && !hasCooldown),
     );
 
     const preparationPurposes = {
@@ -382,25 +408,12 @@ class PlanChecker {
                 .toList(),
           },
     ];
-    final preparationCandidates = [
-      for (final id in state.seenActionIds)
-        if (gate.actionProblem(state, id) == null &&
-            gate.tags
-                .forActionId(id)
-                .intersection(preparationPurposes)
-                .isNotEmpty)
-          id,
-    ].take(20).toList(growable: false);
-    final preparationFix = preparationCandidates.isEmpty
-        ? '候选池暂无合规的放松动作，先用 search_actions 搜索拉伸、活动度、呼吸或激活动作，替换热身和收尾中的力量动作。'
-        : '热身和收尾改用候选池中的合规放松动作：${preparationCandidates.map((id) => '$id ${catalog[id]!.name.of()}').join('、')}。';
-    result(
-      'block_purpose',
-      invalidPreparation.isEmpty,
+    advisory(
+      'plan_block_purpose',
+      '部分热身或收尾动作的目录用途不典型，可结合目标与低剂量使用；这不代表存在已知安全冲突。',
       {'warmup/cooldown': preparationPurposes.toList()},
       invalidPreparation,
-      preparationFix,
-      alternatives: preparationCandidates,
+      applicable: invalidPreparation.isNotEmpty,
     );
 
     final main = entries
@@ -447,18 +460,20 @@ class PlanChecker {
       );
     }
 
-    final duplicate = <String>[];
-    for (var i = 0; i < plan.blocks.length; i++) {
-      final seen = <String>{};
-      for (final e in entries.where((e) => e.block == i)) {
-        if (!seen.add(e.id)) duplicate.add('${i + 1}:${e.id}');
-      }
-    }
+    // Alternation is an advisory for multi-region work, never a reason to
+    // change a focused action selection or count preparation as main work.
+    final singleBodyGoal =
+        body.length == 1 ||
+        profile.bodyGroups.values.any(
+          (children) => children.toSet().containsAll(body),
+        );
+    final balanceApplicable = body.isNotEmpty
+        ? !singleBodyGoal
+        : plan.goal == 'fullbody' && purpose.contains('purpose.strength');
     String? previousBody;
     var streak = 0, longest = 0;
-    for (final entry in entries) {
-      final drill = catalog[entry.id];
-      final primary = drill?.muscleGroups.firstOrNull;
+    for (final entry in main) {
+      final primary = catalog[entry.id]?.muscleGroups.firstOrNull;
       if (primary == null) {
         previousBody = null;
         streak = 0;
@@ -468,32 +483,36 @@ class PlanChecker {
       previousBody = primary;
       if (streak > longest) longest = streak;
     }
-    final missingPairs = <Object>[];
-    final tags = <String>{
-      for (final entry in entries) ...gate.tags.forActionId(entry.id),
-    };
-    for (final pair in settings.antagonisticPairs) {
-      if (!pair.first.any(tags.contains) || !pair.second.any(tags.contains)) {
-        missingPairs.add({'first': pair.first, 'second': pair.second});
-      }
-    }
-    result(
-      'balance',
-      duplicate.isEmpty &&
-          longest <= settings.maxSameMuscleInRow &&
-          missingPairs.isEmpty,
-      {
-        'maxSameMuscleInRow': settings.maxSameMuscleInRow,
-        'duplicates': 0,
-        'antagonisticPairs': '两侧均有',
-      },
-      {
-        'longest': longest,
-        'duplicates': duplicate,
-        'missingPairs': missingPairs,
-      },
-      '调整顺序、去除同块重复动作，并补齐缺少的拮抗部位。',
+    advisory(
+      'plan_balance_sequence',
+      '多部位训练可考虑交替主体动作；本次保留已选动作与代码排序。',
+      settings.maxSameMuscleInRow,
+      longest,
+      applicable: balanceApplicable && longest > settings.maxSameMuscleInRow,
     );
+    final tags = <String>{
+      for (final entry in main) ...gate.tags.forActionId(entry.id),
+    };
+    final missingPairs = [
+      for (final pair in settings.antagonisticPairs)
+        if (!pair.first.any(tags.contains) || !pair.second.any(tags.contains))
+          {'first': pair.first, 'second': pair.second},
+    ];
+    advisory(
+      'plan_balance_antagonists',
+      '多部位训练可考虑相关拮抗部位覆盖；不改变本次确认目标。',
+      settings.antagonisticPairs.length,
+      missingPairs,
+      applicable: balanceApplicable && missingPairs.isNotEmpty,
+    );
+
+    rules['balance'] = {
+      'ok': true,
+      'severity': 'warning',
+      'applicable': balanceApplicable,
+      'actual': {'longest': longest, 'missingPairs': missingPairs},
+      'expected': {'maxSameMuscleInRow': settings.maxSameMuscleInRow},
+    };
 
     // Existing card validation still enforces structural and dose safety.
     final context = CoachContext(
@@ -534,10 +553,11 @@ class PlanChecker {
       'errors': errors,
       'rules': rules,
       if (warnings.isNotEmpty) 'warnings': warnings,
+      if (allWarningDetails.isNotEmpty) 'warningDetails': allWarningDetails,
     };
     final saved = CoachPlanVersion(
       version: version.version,
-      plan: version.plan,
+      plan: plan.toJson(),
       estimateSec: seconds,
       fitLog: version.fitLog,
       createdAtTurn: version.createdAtTurn,
@@ -545,13 +565,14 @@ class PlanChecker {
       check: check,
     );
     var next = state.copyWith(
+      emittedWarningCodes: emitted,
       plans: {
         ...state.plans,
         planId: [...versions.take(versions.length - 1), saved],
       },
     );
     final changes = <CoachNodeState>[];
-    if (errors.isNotEmpty && enforceNodeOrder) {
+    if (errors.isNotEmpty && enforceNodeOrder && next.task?.type == 'plan') {
       final task = next.task!;
       final nodes = List<CoachNodeState>.of(task.nodes);
       final planning = nodes.indexWhere((node) => node.id == 'planning');
@@ -572,7 +593,15 @@ class PlanChecker {
       next,
       errors: List.unmodifiable(errors),
       rules: Map.unmodifiable(rules),
-      warnings: List.unmodifiable(warnings),
+      warnings: List.unmodifiable([
+        ...warnings.where(
+          (text) =>
+              !allWarningDetails.any((detail) => detail['message'] == text),
+        ),
+        for (final detail in newWarningDetails) detail['message'] as String,
+      ]),
+      warningDetails: List.unmodifiable(newWarningDetails),
+      notes: correctedConditions ? ['已从实际动作同步卡片器械字段。'] : const [],
       changes: List.unmodifiable(changes),
     );
   }

@@ -85,30 +85,30 @@ void main() {
     expect(needsMat.changes, isEmpty);
   });
 
-  test('English stamp and unchanged minimum-picks check', () {
-    final result = gate.addDraftPicks(base(), ['h-step-jack'], language: 'en');
-    expect(result.state.task!.nodes[2].stamp, 'Selected 4 actions');
-    final initial = base().copyWith(
-      task: task.copyWith(
-        nodes: [
-          task.nodes[0],
-          task.nodes[1],
-          const CoachNodeState(id: 'actions', status: 'current'),
-          const CoachNodeState(id: 'planning', status: 'pending'),
-          task.nodes[4],
-          task.nodes[5],
-        ],
-      ),
-    );
-    expect(
-      gate.addDraftPicks(initial, ['h-step-jack']).error!['code'],
-      'actions_not_complete',
-    );
-    expect(
-      gate
-          .check(initial, 'actions', picks: ['h-squat', 'h-step-jack'])
-          .error!['code'],
-      'invalid_picks',
-    );
-  });
+  test(
+    'English stamp and computable action completion has no hard minimum',
+    () {
+      final result = gate.addDraftPicks(base(), [
+        'h-step-jack',
+      ], language: 'en');
+      expect(result.state.task!.nodes[2].stamp, 'Selected 4 actions');
+      final initial = base().copyWith(
+        task: task.copyWith(
+          nodes: [
+            task.nodes[0],
+            task.nodes[1],
+            const CoachNodeState(id: 'actions', status: 'current'),
+            const CoachNodeState(id: 'planning', status: 'pending'),
+            task.nodes[4],
+            task.nodes[5],
+          ],
+        ),
+      );
+      expect(gate.addDraftPicks(initial, ['h-step-jack']).ok, isTrue);
+      expect(
+        gate.check(initial, 'actions', picks: ['h-squat', 'h-step-jack']).ok,
+        isTrue,
+      );
+    },
+  );
 }

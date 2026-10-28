@@ -66,6 +66,28 @@ class _FailingMemoryStore implements UserMemoryStore {
       throw StateError('unavailable');
 }
 
+class _ChoiceGate extends ToolGate {
+  _ChoiceGate(Catalog catalog, CoachProfile profile)
+    : super(catalog: catalog, profile: profile);
+
+  @override
+  AgentOutputResult checkAgentOutput(
+    CoachSessionState state,
+    String tool,
+    Object? arguments, {
+    String language = 'zh',
+  }) => AgentOutputResult(
+    state: state,
+    needsUserChoice: true,
+    unavailableMessage: '已确认的时长和剂量不能同时满足。你愿意调整哪项条件？',
+    feasibility: const {
+      'reason': 'explicit_dose_conflict',
+      'targetSec': 300,
+      'minEstimatedSec': 900,
+    },
+  );
+}
+
 void main() {
   final catalog = loadCatalog();
   final profile = loadProfile('smartfit');
@@ -151,14 +173,6 @@ void main() {
               'zh',
             )
             .response,
-        'search limit': structured
-            .search(
-              state,
-              AgentTools.searchActions,
-              '{"tags":[],"limit":21}',
-              'zh',
-            )
-            .response,
         'details': structured
             .search(
               state,
@@ -171,36 +185,56 @@ void main() {
         'draft no task': structured
             .draft(state, '{"title":"计划","blocks":[]}', 'zh')
             .response,
-        'check plan schema': structured.checkPlan(state, '{}').response,
-        'check missing plan': structured
-            .checkPlan(state, '{"plan_id":"missing"}')
-            .response,
       };
       for (final sample in samples.entries) {
         _contract(_json(sample.value), origin: sample.key);
+      }
+      final normalizedLimit = _json(
+        structured
+            .search(
+              state,
+              AgentTools.searchActions,
+              '{"tags":[],"limit":21}',
+              'zh',
+            )
+            .response,
+      );
+      expect(normalizedLimit['ok'], isTrue);
+      expect(normalizedLimit['notes'], isNotEmpty);
+      expect((normalizedLimit['items'] as List).length, lessThanOrEqualTo(20));
+      for (final raw in ['{}', '{"plan_id":"missing"}']) {
+        final checked = _json(structured.checkPlan(state, raw).response);
+        expect(checked['ok'], isTrue);
+        expect(checked['notReady'], isTrue);
+        expect(checked['note'], isNotEmpty);
       }
     },
   );
 
   test(
-    'ask payload and batch-position failures expose concrete repair fields',
+    'invalid questions retain errors while shape and batch position normalize',
     () {
       final terminal = TerminalToolHandler(
         ToolGate(catalog: catalog, profile: profile),
       );
-      for (final raw in [
-        'not json',
-        '{}',
-        '{"question":"练什么？","mode":"choice","options":["一个"]}',
-      ]) {
+      for (final raw in ['not json', '{}']) {
         final result = terminal.ask(raw, 1, 1);
         expect(result.rejected, isTrue);
         _contract(_json(result.response), origin: 'ask $raw');
       }
-      _contract(
-        _json(terminal.ask('{"question":"练什么？","mode":"text"}', 1, 2).response),
-        origin: 'ask position',
+      final oneChoice = terminal.ask(
+        '{"question":"练什么？","mode":"choice","options":["一个"]}',
+        1,
+        1,
       );
+      expect(oneChoice.rejected, isFalse);
+      expect(oneChoice.question!.mode, AskUserMode.text);
+      expect(oneChoice.question!.question, contains('一个'));
+      expect(_json(oneChoice.response)['notes'], isNotEmpty);
+      final scheduled = terminal.ask('{"question":"练什么？","mode":"text"}', 1, 2);
+      expect(scheduled.rejected, isFalse);
+      expect(_json(scheduled.response)['ok'], isTrue);
+      expect(_json(scheduled.response)['notes'], isNotEmpty);
     },
   );
 
@@ -238,6 +272,32 @@ void main() {
     expect(legacy.ok, isFalse);
     _contract(_json(legacy.feedback()), origin: 'legacy gate');
   });
+
+  test(
+    'delivery infeasibility is a normal choice receipt without a stale card',
+    () {
+      final state = CoachSessionState();
+      final terminal = TerminalToolHandler(_ChoiceGate(catalog, profile));
+      final result = terminal.show(
+        state,
+        AgentTools.showPlan,
+        '{"plan_id":"old","note":"说明"}',
+        language: 'zh',
+      );
+      final receipt = _json(result.response);
+      expect(result.rejected, isFalse);
+      expect(result.output, isNull);
+      expect(result.state, same(state));
+      expect(receipt['ok'], isTrue);
+      expect(receipt['status'], 'infeasible');
+      expect(receipt['needsUserChoice'], isTrue);
+      expect(
+        (receipt['feasibility'] as Map)['reason'],
+        'explicit_dose_conflict',
+      );
+      expect(receipt['message'], contains('你愿意调整哪项条件'));
+    },
+  );
 
   for (final operation in ['remember', 'forget']) {
     for (final invalid in [true, false]) {

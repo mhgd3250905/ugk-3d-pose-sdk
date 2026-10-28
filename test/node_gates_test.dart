@@ -29,15 +29,21 @@ void main() {
     return result.state;
   }
 
-  test('fixed nodes reject skipped checks and output cannot be checked', () {
-    final started = AgentTask.start(initial(), 'plan');
-    expect(started.state.task!.nodes.map((n) => n.id), AgentTask.planNodes);
-    final rejected = gate.check(started.state, 'parameters');
-    expect(rejected.ok, isFalse);
-    expect(rejected.error!['expected'], 'understand');
-    expect(gate.check(started.state, 'output').ok, isFalse);
-    expect(started.state.task!.nodes.first.status, 'current');
-  });
+  test(
+    'fixed nodes auto advance known prerequisites and explicit output check is noop',
+    () {
+      final started = AgentTask.start(initial(), 'plan');
+      expect(started.state.task!.nodes.map((n) => n.id), AgentTask.planNodes);
+      final rejected = gate.check(started.state, 'parameters');
+      expect(rejected.ok, isTrue);
+      expect(
+        rejected.state.task!.nodes.take(2).every((n) => n.status == 'done'),
+        isTrue,
+      );
+      expect(gate.check(started.state, 'output').ok, isTrue);
+      expect(started.state.task!.nodes.first.status, 'current');
+    },
+  );
 
   test(
     'parameters require goal and plan conditions, then add sourced defaults',
@@ -45,7 +51,7 @@ void main() {
       var state = AgentTask.start(CoachSessionState(), 'plan').state;
       state = gate.check(state, 'understand').state;
       final missing = gate.check(state, 'parameters');
-      expect(missing.error!['actual'], ['scene', 'goal', 'minutes']);
+      expect(missing.error!['actual'], ['goal']);
       final ready = parametersDone();
       expect(ready.params['equipment']!.value, isEmpty);
       expect(ready.params['level']!.value, 1);
@@ -277,10 +283,14 @@ void main() {
   });
 
   test(
-    'reuse requires delivered recommendation and keeps first three nodes',
+    'unavailable reuse falls back to fresh nodes and completed recommendations retain the first three nodes',
     () {
       var state = AgentTask.start(initial(), 'recommend').state;
-      expect(AgentTask.start(state, 'plan', reuse: true).ok, isFalse);
+      expect(AgentTask.start(state, 'plan', reuse: true).ok, isTrue);
+      expect(
+        AgentTask.start(state, 'plan', reuse: true).state.task!.reused,
+        isFalse,
+      );
       state = gate.check(state, 'understand').state;
       state = gate.check(state, 'parameters').state;
       final valid = profile

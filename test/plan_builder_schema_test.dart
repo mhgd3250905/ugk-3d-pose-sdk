@@ -10,10 +10,6 @@ void main() {
   const expected = <String, Object?>{
     'type': 'object',
     'properties': {
-      'plan_id': {'type': 'string'},
-      'operation': {
-        'enum': ['edit', 'replace_all'],
-      },
       'title': {'type': 'string'},
       'blocks': {
         'type': 'array',
@@ -23,16 +19,12 @@ void main() {
             'kind': {
               'enum': ['warmup', 'main', 'cooldown'],
             },
-            'rounds': {'type': 'integer'},
             'items': {
               'type': 'array',
               'items': {
                 'type': 'object',
                 'properties': {
                   'id': {'type': 'string'},
-                  'sets': {'type': 'integer'},
-                  'reps': {'type': 'integer'},
-                  'seconds': {'type': 'integer'},
                 },
                 'required': ['id'],
                 'additionalProperties': false,

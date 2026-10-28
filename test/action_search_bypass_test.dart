@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:test/test.dart';
+import 'package:ugk_coach/src/agent/node_gates.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
@@ -74,13 +75,27 @@ void main() {
           reason: 'fixture includes a mat action',
         );
         final message = jsonDecode(response.result) as Map<String, dynamic>;
-        expect(message['ok'], isFalse);
-        expect(message['code'], 'use_action_search');
-        expect(
-          response.result,
-          isNot(contains(catalog['s-figure4']!.name.of('zh'))),
-        );
-        expect(response.agent.sessionState.seenActionIds, isEmpty);
+        expect(message['ok'], isTrue);
+        expect(message['notes'], isNotEmpty);
+        final ids = (message['items'] as List)
+            .map((row) => (row as Map)['id'] as String)
+            .toSet();
+        for (final id in ids) {
+          expect(
+            NodeGates(
+              profile,
+              catalog,
+              minPicks: 3,
+            ).actionProblem(response.agent.sessionState, id),
+            isNull,
+          );
+        }
+        expect(response.result, isNot(original));
+        if (path.contains('/details/')) {
+          expect(response.agent.sessionState.seenActionIds, isEmpty);
+        } else {
+          expect(response.agent.sessionState.seenActionIds, ids);
+        }
       },
     );
   }

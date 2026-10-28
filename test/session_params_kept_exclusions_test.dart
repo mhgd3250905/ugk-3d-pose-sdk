@@ -88,8 +88,10 @@ void main() {
           'minutes': value('twenty', 'default'),
         },
       });
-      expect(invalid.error!['code'], 'invalid_value');
-      expect(invalid.state.toJson(), state.toJson());
+      expect(invalid.ok, isTrue);
+      expect(invalid.kept, {'minutes'});
+      expect(invalid.state.params['minutes'], same(state.params['minutes']));
+      expect(invalid.state.params['level']!.value, 1);
     },
   );
 

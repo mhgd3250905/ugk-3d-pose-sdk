@@ -12,6 +12,8 @@ import 'legacy_goal.dart';
 import 'node_gates.dart';
 import 'session_state.dart';
 
+part 'plan_timing.dart';
+
 class DraftResult {
   const DraftResult(
     this.state, {
@@ -24,6 +26,8 @@ class DraftResult {
     this.changes = const [],
     this.note,
     this.notes = const [],
+    this.feasibility,
+    this.durationErrorPercent,
     this.error,
   });
   final CoachSessionState state;
@@ -31,11 +35,13 @@ class DraftResult {
   final int? version;
   final double? estimateMinutes;
   final List<Map<String, Object?>> structure;
-  final List<String> fitLog;
+  final List<Map<String, Object?>> fitLog;
   final String? legacyGoal;
   final List<CoachNodeState> changes;
   final String? note;
   final List<String> notes;
+  final Map<String, Object?>? feasibility;
+  final double? durationErrorPercent;
   final Map<String, Object?>? error;
   bool get ok => error == null;
   Map<String, Object?> toJson() => {
@@ -48,6 +54,15 @@ class DraftResult {
     if (fitLog.isNotEmpty) 'fitLog': fitLog,
     if (note != null) 'note': note,
     if (notes.isNotEmpty) 'notes': notes,
+    if (feasibility != null) ...{
+      'status': 'infeasible',
+      'needsUserChoice': true,
+      'feasibility': feasibility,
+    },
+    if (durationErrorPercent != null) ...{
+      'durationErrorPercent': durationErrorPercent,
+      'withinTolerance': durationErrorPercent! <= 10,
+    },
   };
 }
 
@@ -119,21 +134,22 @@ class PlanBuilder {
         '修正 profile 的换一套阈值。',
       );
     }
-    var suppliedOperation = arguments['operation'];
-    if (suppliedOperation != null &&
-        (suppliedOperation is! String ||
-            !{'edit', 'replace_all'}.contains(suppliedOperation))) {
-      return fail(
-        'invalid_operation',
-        'operation',
-        'edit 或 replace_all',
-        suppliedOperation,
-        '选择 edit 或 replace_all。',
-      );
+    // Old model operation markers remain a compatibility alias only. New
+    // callers put the understood intent in source-validated set_params.
+    final legacyOperation = arguments['operation'];
+    final validLegacyOperation = {
+      'edit',
+      'replace_all',
+    }.contains(legacyOperation);
+    var suppliedOperation = validLegacyOperation ? legacyOperation : null;
+    final currentTurn = state.userTurns.isEmpty ? 0 : state.userTurns.last.turn;
+    final confirmedOperation = state.params['operation'];
+    if (confirmedOperation?.turn == currentTurn &&
+        {'edit', 'replace_all'}.contains(confirmedOperation?.value)) {
+      suppliedOperation = confirmedOperation!.value;
     }
     final deliveredId = state.lastDeliveredPlanId;
     final deliveredVersion = state.lastDeliveredVersion;
-    final currentTurn = state.userTurns.isEmpty ? 0 : state.userTurns.last.turn;
     final deliveredVersions = deliveredId == null
         ? const <CoachPlanVersion>[]
         : state.plans[deliveredId] ?? const <CoachPlanVersion>[];
@@ -153,48 +169,22 @@ class PlanBuilder {
         state.activePlanId == deliveredId &&
         latest.version != deliveredVersion;
     final sameTurnRepair = sameTurnDraft && latest.check?['ok'] == false;
-    if (sameTurnDraft &&
-        suppliedOperation != null &&
-        suppliedOperation != latest.operation) {
-      return fail(
-        'operation_conflict',
-        'operation',
-        latest.operation,
-        suppliedOperation,
-        '同轮修复沿用原修改操作。',
-      );
-    }
     final operation =
+        (sameTurnDraft ? latest.operation : null) ??
         suppliedOperation as String? ??
-        (sameTurnRepair ? latest.operation : null);
-    final suppliedId = arguments['plan_id'];
+        (sameTurnRepair ? latest.operation : null) ??
+        (delivered != null &&
+                (state.activePlanId == deliveredId ||
+                    arguments['plan_id'] == deliveredId)
+            ? 'edit'
+            : null);
+    var suppliedId = arguments['plan_id'];
     final completed =
         task?.type == 'plan' &&
         task!.nodes.isNotEmpty &&
         task.nodes.every((n) => n.status == 'done' || n.status == 'updated');
-    final referencesDelivered =
-        deliveredId != null && suppliedId == deliveredId;
-    if (suppliedOperation == null &&
-        !sameTurnRepair &&
-        (completed ||
-            referencesDelivered ||
-            (deliveredId != null && state.activePlanId == deliveredId))) {
-      return fail(
-        'operation_required',
-        'operation',
-        'edit 或 replace_all',
-        null,
-        '修改已交付计划时指定操作。',
-      );
-    }
     if (operation != null && suppliedId != null && suppliedId != deliveredId) {
-      return fail(
-        'invalid_plan_id',
-        'plan_id',
-        deliveredId,
-        suppliedId,
-        '修改已交付计划时使用原计划 ID。',
-      );
+      suppliedId = deliveredId;
     }
     CoachSessionState working = state;
     final changes = <CoachNodeState>[];
@@ -230,15 +220,12 @@ class PlanBuilder {
         '先完成当前计划节点，然后在 planning 节点创建草稿。',
       );
     }
-    final title = arguments['title'];
+    final rawTitle = arguments['title'];
+    final title = rawTitle is String && rawTitle.trim().isNotEmpty
+        ? rawTitle.trim()
+        : (language.toLowerCase().startsWith('en') ? 'Training plan' : '训练计划');
     final rawBlocks = arguments['blocks'];
-    if (arguments.keys.any(
-          (k) => !{'plan_id', 'title', 'blocks', 'operation'}.contains(k),
-        ) ||
-        title is! String ||
-        title.trim().isEmpty ||
-        rawBlocks is! List ||
-        rawBlocks.isEmpty ||
+    if (rawBlocks is! List ||
         (suppliedId != null && (suppliedId is! String || suppliedId.isEmpty))) {
       return fail(
         'invalid_draft',
@@ -248,9 +235,16 @@ class PlanBuilder {
         '提供计划标题、结构和可选的已有计划 ID。',
       );
     }
-    final id = operation != null
+    var id = operation != null
         ? deliveredId!
         : suppliedId as String? ?? newPlanId;
+    if (operation == null && suppliedId != null && id != state.activePlanId) {
+      id =
+          state.activePlanId ??
+          (state.legacyPlanFallback && state.plans.length == 1
+              ? state.plans.keys.single
+              : newPlanId);
+    }
     if ((suppliedId != null && !state.plans.containsKey(id)) ||
         (suppliedId != null &&
             state.plans[id]?.isEmpty == true &&
@@ -258,26 +252,66 @@ class PlanBuilder {
         (operation == null &&
             suppliedId == null &&
             (id.isEmpty || state.plans.containsKey(id)))) {
-      return fail(
-        'invalid_plan_id',
-        'plan_id',
-        suppliedId == null ? '未使用的新计划 ID' : '已有计划 ID',
-        id,
-        '传入已有计划 ID，或生成未使用的新计划 ID。',
+      id = state.activePlanId ?? newPlanId;
+      if (state.plans[id]?.isNotEmpty == true && operation == null) {
+        id = '$newPlanId-${state.plans.length + 1}';
+      }
+    }
+    final log = <Map<String, Object?>>[];
+    final notes = <String>[];
+    if (legacyOperation != null) {
+      final confirmed = confirmedOperation?.turn == currentTurn;
+      notes.add(
+        language.toLowerCase().startsWith('en')
+            ? confirmed
+                  ? 'Used the confirmed operation parameter instead of the legacy draft marker.'
+                  : validLegacyOperation
+                  ? 'Accepted the legacy operation marker for compatibility; new callers use set_params.'
+                  : 'Ignored an invalid legacy operation marker; continued with the current/default operation.'
+            : confirmed
+            ? '已使用带来源的操作参数，未采用旧草稿操作标记。'
+            : validLegacyOperation
+            ? '已兼容旧操作标记；新调用应使用 set_params。'
+            : '已忽略无效旧操作标记，沿用当前或默认操作。',
       );
     }
-    final log = <String>[];
-    final notes = <String>[];
+    if (arguments['plan_id'] != null && arguments['plan_id'] != id) {
+      notes.add(
+        language.toLowerCase().startsWith('en')
+            ? 'Used the current plan reference managed by the SDK.'
+            : '已使用 SDK 管理的当前计划引用。',
+      );
+    }
+    if (arguments['operation'] == null && operation == 'edit') {
+      notes.add(
+        language.toLowerCase().startsWith('en')
+            ? 'Continued the delivered plan with the default edit operation.'
+            : '已按默认 edit 继续修改已交付计划。',
+      );
+    }
+    if (arguments.containsKey('legacy_goal')) {
+      notes.add(
+        language.toLowerCase().startsWith('en')
+            ? 'Ignored legacy_goal; the SDK derives it from confirmed goals.'
+            : '已忽略 legacy_goal，由 SDK 从已确认目标推导。',
+      );
+    }
+    final ignoredDoseFields = <String>[];
+    for (final field in ['sets', 'reps', 'seconds', 'rounds']) {
+      if (arguments.containsKey(field)) ignoredDoseFields.add(field);
+    }
+    if (title != rawTitle) {
+      notes.add(
+        language.toLowerCase().startsWith('en')
+            ? 'Used a default plan title.'
+            : '已使用默认计划标题。',
+      );
+    }
     final blocks = <_DraftBlock>[];
     final extras = <String>{};
     for (var bi = 0; bi < rawBlocks.length; bi++) {
       final raw = rawBlocks[bi];
-      if (raw is! Map ||
-          raw.keys.any((k) => !{'kind', 'rounds', 'items'}.contains(k)) ||
-          !{'warmup', 'main', 'cooldown'}.contains(raw['kind']) ||
-          raw['items'] is! List ||
-          (raw['items'] as List).isEmpty ||
-          (raw['rounds'] != null && raw['rounds'] is! int)) {
+      if (raw is! Map || raw['items'] is! List) {
         return fail(
           'invalid_block',
           'blocks[$bi]',
@@ -286,23 +320,34 @@ class PlanBuilder {
           '提供 warmup、main 或 cooldown 块和动作。',
         );
       }
-      final kind = raw['kind'] as String;
-      final inputRounds = (raw['rounds'] as int?) ?? 1;
-      final rounds = inputRounds.clamp(1, 4);
-      if (rounds != inputRounds) log.add('$kind 轮数从 $inputRounds 夹到 $rounds');
+      if ((raw['items'] as List).isEmpty) {
+        notes.add(
+          language.toLowerCase().startsWith('en')
+              ? 'Removed empty block b${bi + 1}.'
+              : '已移除空块 b${bi + 1}。',
+        );
+        continue;
+      }
+      final kind = {'warmup', 'main', 'cooldown'}.contains(raw['kind'])
+          ? raw['kind'] as String
+          : 'main';
+      if (kind != raw['kind']) {
+        notes.add(
+          language.toLowerCase().startsWith('en')
+              ? 'Normalized block b${bi + 1} to main.'
+              : '已将 b${bi + 1} 规范化为主体块。',
+        );
+      }
+      if (raw.containsKey('rounds')) {
+        ignoredDoseFields.add('blocks[$bi].rounds');
+      }
+      final rounds = kind == 'main'
+          ? 1.clamp(profile.limits.rounds.min, profile.limits.rounds.max)
+          : 1;
       final items = <_DraftItem>[];
       for (var ii = 0; ii < (raw['items'] as List).length; ii++) {
         final item = (raw['items'] as List)[ii];
-        if (item is! Map ||
-            item.keys.any(
-              (k) => !{'id', 'sets', 'reps', 'seconds'}.contains(k),
-            ) ||
-            item['id'] is! String ||
-            [
-              'sets',
-              'reps',
-              'seconds',
-            ].any((k) => item[k] != null && item[k] is! int)) {
+        if (item is! Map || item['id'] is! String) {
           return fail(
             'invalid_item',
             'blocks[$bi].items[$ii]',
@@ -310,6 +355,11 @@ class PlanBuilder {
             item,
             '提供动作 ID 和整数剂量。',
           );
+        }
+        for (final key in ['sets', 'reps', 'seconds', 'rounds']) {
+          if (item.containsKey(key)) {
+            ignoredDoseFields.add('blocks[$bi].items[$ii].$key');
+          }
         }
         final actionId = item['id'] as String;
         final drill = catalog[actionId];
@@ -325,11 +375,6 @@ class PlanBuilder {
           );
         }
         if (!state.picks.contains(actionId)) extras.add(actionId);
-        final wrongMode =
-            (drill.defaultDose.mode == DoseMode.reps &&
-                item.containsKey('seconds')) ||
-            (drill.defaultDose.mode == DoseMode.time &&
-                item.containsKey('reps'));
         final setsRange = _range(drill.doseRange.sets, profile.limits.sets);
         final workRange = _range(
           drill.defaultDose.mode == DoseMode.reps
@@ -348,37 +393,14 @@ class PlanBuilder {
             '修正目录或 profile 的剂量范围。',
           );
         }
-        final requestedSets = (item['sets'] as int?) ?? drill.defaultDose.sets;
+        final requestedSets = drill.defaultDose.sets;
         final requestedWork =
-            (wrongMode
-                ? null
-                : drill.defaultDose.mode == DoseMode.reps
-                ? item['reps'] as int?
-                : item['seconds'] as int?) ??
             (drill.defaultDose.mode == DoseMode.reps
                 ? drill.defaultDose.reps
                 : drill.defaultDose.seconds) ??
             workRange.min;
         final sets = requestedSets.clamp(setsRange.min, setsRange.max);
         final work = requestedWork.clamp(workRange.min, workRange.max);
-        if (wrongMode) {
-          final en = language.toLowerCase().startsWith('en');
-          final name = drill.name.of(language);
-          final dose = drill.defaultDose.mode == DoseMode.reps
-              ? (en ? '$work reps' : '$work 次')
-              : (en ? '$work seconds' : '$work 秒');
-          notes.add(
-            en
-                ? '$name uses the catalogue dose mode; used its default $dose and retained $sets sets.'
-                : '$name 已按目录模式使用默认剂量 $dose，保留 $sets 组。',
-          );
-        }
-        if (sets != requestedSets) {
-          log.add('$actionId 组数从 $requestedSets 夹到 $sets');
-        }
-        if (work != requestedWork) {
-          log.add('$actionId 剂量从 $requestedWork 夹到 $work');
-        }
         final restRange = _range(
           drill.doseRange.restSeconds,
           profile.limits.restSeconds,
@@ -396,12 +418,85 @@ class PlanBuilder {
           restRange.min,
           restRange.max,
         );
-        if (rest != drill.defaultDose.restSeconds) {
-          log.add('$actionId 休息从 ${drill.defaultDose.restSeconds} 秒夹到 $rest 秒');
-        }
-        items.add(_DraftItem(drill, sets, work, rest, setsRange, workRange));
+        items.add(
+          _DraftItem(drill, sets, work, rest, setsRange, workRange, restRange),
+        );
       }
-      blocks.add(_DraftBlock(kind, rounds, items));
+      final grouped = <_DraftItem>[];
+      for (final item in items) {
+        final existing = grouped
+            .where((v) => v.drill.id == item.drill.id)
+            .firstOrNull;
+        if (existing == null) {
+          grouped.add(item);
+        } else {
+          existing.sets = (existing.sets + item.sets).clamp(
+            existing.setRange.min,
+            existing.setRange.max,
+          );
+          notes.add(
+            language.toLowerCase().startsWith('en')
+                ? 'Merged repeated ${item.drill.id} in block b${bi + 1}; the timer determines its dose.'
+                : '已合并 b${bi + 1} 中重复的 ${item.drill.id}，剂量由配时器统一计算。',
+          );
+        }
+      }
+      final block = _DraftBlock(
+        'b${bi + 1}',
+        kind,
+        rounds,
+        grouped,
+        roundsRange: profile.limits.rounds,
+        roundRestRange: profile.limits.restBetweenRoundsSeconds,
+        roundRest: profile.limits.restBetweenRoundsSeconds.min,
+      );
+      final originalOrder = grouped.map((item) => item.drill.id).join(',');
+      _stableMainOrder(block);
+      if (originalOrder != block.items.map((item) => item.drill.id).join(',')) {
+        notes.add(
+          language.toLowerCase().startsWith('en')
+              ? 'Stably ordered main block ${block.id} without adding or removing actions.'
+              : '已稳定排序主体块 ${block.id}，未增删动作。',
+        );
+      }
+      blocks.add(block);
+    }
+    final originalPhases = blocks.map((block) => block.id).join(',');
+    blocks.sort((a, b) {
+      const phase = {'warmup': 0, 'main': 1, 'cooldown': 2};
+      final byPhase = phase[a.kind]!.compareTo(phase[b.kind]!);
+      return byPhase != 0
+          ? byPhase
+          : int.parse(
+              a.id.substring(1),
+            ).compareTo(int.parse(b.id.substring(1)));
+    });
+    if (originalPhases != blocks.map((block) => block.id).join(',')) {
+      notes.add(
+        language.toLowerCase().startsWith('en')
+            ? 'Ordered blocks as warmup, main, cooldown.'
+            : '已按热身、主体、收尾排列分块。',
+      );
+    }
+    if (ignoredDoseFields.isNotEmpty) {
+      notes.add(
+        language.toLowerCase().startsWith('en')
+            ? 'Ignored ${ignoredDoseFields.length} legacy dose fields; doses and rounds are calculated from the catalogue and confirmed parameters.'
+            : '已忽略 ${ignoredDoseFields.length} 个旧模型剂量字段；剂量和轮数由目录及已确认参数计算。',
+      );
+    }
+    if (blocks.isEmpty) {
+      return DraftResult(
+        state,
+        notes: notes,
+        feasibility: {
+          'status': 'infeasible',
+          'reason': 'no_selected_actions',
+          'fix': language.toLowerCase().startsWith('en')
+              ? 'No actions were selected. Explain that the current conditions have no plan or ask whether to adjust them.'
+              : '当前没有已选动作，请说明无法生成计划或询问是否调整条件，不要反复提交空计划。',
+        },
+      );
     }
     final target = minutes * 60.0;
     final legacyGoal = resolveLegacyGoal(
@@ -428,14 +523,35 @@ class PlanBuilder {
         level: state.params['level']?.value as int? ?? 1,
         targetMinutes: minutes,
         avoid: {for (final code in limits) gate.tags.limitValue(code) ?? code},
-        blocks: [
-          for (var bi = 0; bi < source.length; bi++) source[bi].toBlock(bi),
-        ],
+        blocks: [for (final block in source) block.toBlock()],
       );
     }
 
     double estimate(List<_DraftBlock> source) =>
         _duration.estimateSeconds(asPlan(source), catalog);
+    final conflicts = _applyDoseConstraints(
+      blocks,
+      state.params['dose']?.value,
+      profile.limits.rounds,
+    );
+    final bounds = _timingBounds(blocks, target, estimate);
+    if (conflicts.isNotEmpty || bounds['status'] == 'infeasible') {
+      return DraftResult(
+        state,
+        notes: notes,
+        feasibility: {
+          ...bounds,
+          if (conflicts.isNotEmpty) ...{
+            'status': 'infeasible',
+            'reason': 'explicit_dose_conflict',
+            'conflicts': conflicts,
+          },
+          'fix': language.toLowerCase().startsWith('en')
+              ? 'Explain the conflict and ask which confirmed condition the user wants to adjust.'
+              : '请说明已确认条件的冲突，询问用户愿意调整时长还是剂量；不要反复提交同一条件。',
+        },
+      );
+    }
     _fit(blocks, target, estimate, log);
     final plan = asPlan(blocks);
     final seconds = _duration.estimateSeconds(plan, catalog);
@@ -471,7 +587,12 @@ class PlanBuilder {
     );
     final structure = [
       for (final b in blocks)
-        {'kind': b.kind, 'rounds': b.rounds, 'items': b.items.length},
+        {
+          'blockId': b.id,
+          'kind': b.kind,
+          'rounds': b.rounds,
+          'items': b.items.length,
+        },
     ];
     Map<String, Object?>? error;
     if (operation == 'replace_all') {
@@ -522,28 +643,6 @@ class PlanBuilder {
         };
       }
     }
-    if (error == null && (seconds - target).abs() > target * .1) {
-      final count = blocks.fold<int>(0, (sum, b) => sum + b.items.length);
-      final mean = count == 0 ? target : seconds / count;
-      final change = ((target - seconds).abs() / mean).ceil();
-      final chosen = plan.exerciseIds;
-      final candidates = [
-        for (final candidate in state.seenActionIds)
-          if (!chosen.contains(candidate) &&
-              gate.actionProblem(state, candidate) == null)
-            candidate,
-      ];
-      error = {
-        ...nodeError(
-          'duration_unfit',
-          'duration',
-          '目标 $minutes 分钟 ±10%',
-          '${(seconds - target).round()} 秒',
-          seconds < target ? '建议增加约 $change 个动作。' : '建议减少约 $change 个动作。',
-        ),
-        'candidates': candidates,
-      };
-    }
     return DraftResult(
       next,
       planId: id,
@@ -552,8 +651,17 @@ class PlanBuilder {
       structure: List.unmodifiable(structure),
       fitLog: List.unmodifiable(log),
       legacyGoal: legacyGoal,
-      note: ignoredOperation ? '首份计划，已忽略 operation' : null,
+      note: !ignoredOperation && ignoredDoseFields.isEmpty
+          ? null
+          : [
+              if (ignoredOperation) '首份计划，已忽略 operation',
+              if (ignoredDoseFields.isNotEmpty)
+                language.toLowerCase().startsWith('en')
+                    ? 'Ignored legacy model doses; the timer computed them.'
+                    : '已忽略旧模型剂量，由配时器计算。',
+            ].join(' '),
       notes: List.unmodifiable(notes),
+      durationErrorPercent: (seconds - target).abs() / target * 100,
       error: error,
       changes: List.unmodifiable(changes),
     );
@@ -569,7 +677,7 @@ class PlanBuilder {
     List<_DraftBlock> blocks,
     double target,
     double Function(List<_DraftBlock>) estimate,
-    List<String> log,
+    List<Map<String, Object?>> log,
   ) {
     final initialSeconds = estimate(blocks);
     if ((initialSeconds - target).abs() <= target * .1) return;
@@ -579,12 +687,12 @@ class PlanBuilder {
     final initial = copy(blocks);
     var chosen = copy(blocks);
     var chosenSeconds = initialSeconds;
-    var chosenLog = <String>[];
+    var chosenLog = <Map<String, Object?>>[];
 
     void attempt(
       List<_DraftBlock> candidate,
       int startStage,
-      List<String> changes,
+      List<Map<String, Object?>> changes,
     ) {
       var current = estimate(candidate);
       void saveIfBetter() {
@@ -604,9 +712,16 @@ class PlanBuilder {
           for (final block in candidate) {
             if (stage == 0 && block.kind == 'main') {
               if (block.rounds + direction >= 1 &&
-                  block.rounds + direction <= 4) {
+                  block.rounds + direction <= 4 &&
+                  block.roundsRange.contains(block.rounds + direction)) {
                 edits.add(
-                  _Edit('主体轮数', () => block.rounds, (v) => block.rounds = v),
+                  _Edit(
+                    block.id,
+                    null,
+                    'rounds',
+                    () => block.rounds,
+                    (v) => block.rounds = v,
+                  ),
                 );
               }
             }
@@ -617,7 +732,9 @@ class PlanBuilder {
                   item.sets + direction <= item.setRange.max) {
                 edits.add(
                   _Edit(
-                    '${item.drill.id} 组数',
+                    block.id,
+                    item.drill.id,
+                    'sets',
                     () => item.sets,
                     (v) => item.sets = v,
                   ),
@@ -631,7 +748,11 @@ class PlanBuilder {
                   item.work + direction <= item.workRange.max) {
                 edits.add(
                   _Edit(
-                    '${item.drill.id} 剂量',
+                    block.id,
+                    item.drill.id,
+                    item.drill.defaultDose.mode == DoseMode.reps
+                        ? 'reps'
+                        : 'seconds',
                     () => item.work,
                     (v) => item.work = v,
                   ),
@@ -654,9 +775,18 @@ class PlanBuilder {
           }
           if (best == null) break;
           final before = best.get();
+          final beforeSeconds = current;
           best.set(before + direction);
-          changes.add('${best.label}由 $before 调至 ${best.get()}');
           current = bestSeconds;
+          changes.add({
+            'blockId': best.blockId,
+            'actionId': best.actionId,
+            'field': best.field,
+            'before': before,
+            'after': best.get(),
+            'beforeEstimatedSec': beforeSeconds,
+            'afterEstimatedSec': current,
+          });
           saveIfBetter();
           if ((direction > 0 && current >= target) ||
               (direction < 0 && current <= target)) {
@@ -681,10 +811,23 @@ class PlanBuilder {
         rounds <= 4 && (chosenSeconds - target).abs() > target * .05;
         rounds++
       ) {
-        if (rounds == initial[i].rounds) continue;
+        if (rounds == initial[i].rounds ||
+            !initial[i].roundsRange.contains(rounds)) {
+          continue;
+        }
         final candidate = copy(initial);
         candidate[i].rounds = rounds;
-        attempt(candidate, 1, ['主体轮数由 ${initial[i].rounds} 调至 $rounds']);
+        attempt(candidate, 1, [
+          {
+            'blockId': initial[i].id,
+            'actionId': null,
+            'field': 'rounds',
+            'before': initial[i].rounds,
+            'after': rounds,
+            'beforeEstimatedSec': initialSeconds,
+            'afterEstimatedSec': estimate(candidate),
+          },
+        ]);
       }
     }
     blocks
@@ -695,8 +838,9 @@ class PlanBuilder {
 }
 
 class _Edit {
-  _Edit(this.label, this.get, this.set);
-  final String label;
+  _Edit(this.blockId, this.actionId, this.field, this.get, this.set);
+  final String blockId, field;
+  final String? actionId;
   final int Function() get;
   final void Function(int) set;
 }
@@ -709,12 +853,14 @@ class _DraftItem {
     this.rest,
     this.setRange,
     this.workRange,
+    this.restRange,
   );
   final Drill drill;
-  int sets, work;
-  final int rest;
-  final IntRange setRange, workRange;
-  _DraftItem copy() => _DraftItem(drill, sets, work, rest, setRange, workRange);
+  int sets, work, rest;
+  IntRange setRange, workRange;
+  final IntRange restRange;
+  _DraftItem copy() =>
+      _DraftItem(drill, sets, work, rest, setRange, workRange, restRange);
   PlanItem toPlanItem() => PlanItem(
     exerciseId: drill.id,
     mode: drill.defaultDose.mode,
@@ -727,19 +873,39 @@ class _DraftItem {
 }
 
 class _DraftBlock {
-  _DraftBlock(this.kind, this.rounds, this.items);
-  final String kind;
+  _DraftBlock(
+    this.id,
+    this.kind,
+    this.rounds,
+    this.items, {
+    required this.roundsRange,
+    required this.roundRestRange,
+    this.roundRest = 0,
+  });
+  final String id, kind;
   int rounds;
+  IntRange roundsRange;
+  final IntRange roundRestRange;
+  int roundRest;
   final List<_DraftItem> items;
-  _DraftBlock cloneWithout(Set<String> excluded) => _DraftBlock(kind, rounds, [
-    for (final item in items)
-      if (!excluded.contains(item.drill.id)) item.copy(),
-  ]);
-  PlanBlock toBlock(int index) => PlanBlock(
-    id: 'b${index + 1}',
+  _DraftBlock cloneWithout(Set<String> excluded) => _DraftBlock(
+    id,
+    kind,
+    rounds,
+    [
+      for (final item in items)
+        if (!excluded.contains(item.drill.id)) item.copy(),
+    ],
+    roundsRange: roundsRange,
+    roundRestRange: roundRestRange,
+    roundRest: roundRest,
+  );
+  PlanBlock toBlock() => PlanBlock(
+    id: id,
     name: kind,
     type: BlockType.values.firstWhere((t) => t.name == kind),
     rounds: rounds,
+    restBetweenRoundsSeconds: roundRest,
     items: [for (final item in items) item.toPlanItem()],
   );
 }

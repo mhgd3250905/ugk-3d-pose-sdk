@@ -122,16 +122,7 @@ class AgentTask {
                 .any(
                   (node) => node.status != 'done' && node.status != 'updated',
                 ))) {
-      return NodeResult(
-        state,
-        error: nodeError(
-          'reuse_unavailable',
-          'reuse',
-          '已交付动作推荐后转为计划',
-          reuse,
-          '先完成动作推荐，或不使用 reuse 创建计划。',
-        ),
-      );
+      reuse = false;
     }
     final ids = type == 'plan' ? planNodes : recommendNodes;
     final nodes = <CoachNodeState>[
@@ -144,11 +135,19 @@ class AgentTask {
             status: i == (reuse ? 3 : 0) ? 'current' : 'pending',
           ),
     ];
+    final preservePendingSearch =
+        previous == null &&
+        state.pendingSearchTurn != null &&
+        state.pendingSearchTurn == state.userTurns.lastOrNull?.turn;
     final next = state.copyWith(
       task: CoachTaskState(type: type, nodes: nodes, reused: reuse),
       clearActivePlanId: true,
       picks: reuse ? state.picks : const [],
-      seenActionIds: reuse ? state.seenActionIds : const {},
+      seenActionIds: reuse || preservePendingSearch
+          ? state.seenActionIds
+          : const {},
+      clearPendingSearchTurn: true,
+      emittedWarningCodes: reuse ? state.emittedWarningCodes : const {},
       consecutiveEmptySearches: 0,
       recommendationHintShown: reuse ? state.recommendationHintShown : false,
     );

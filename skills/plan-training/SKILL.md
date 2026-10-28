@@ -6,19 +6,19 @@ description: 排一份能直接开练的训练计划，或修改上一份计划
 
 用户本会话和 App 设置里的条件都已知，不重复问；习惯仅作预选。用户明确给出的新场景、器材、目标和时长覆盖旧条件，伤痛限制只能收紧。未知条件不编造；器材未知按徒手。仅当徒手明显影响方案且搜索提示有需器材动作未显示时才询问器材。
 
-由模型判断任务。新建计划使用 start_task(plan)；完成推荐且参数未变时转计划默认复用前三节点，只有显式 reuse=false 才从头开始。修改已交付计划先 start_task(plan,reuse=true) 恢复任务及 plan_id、候选池；整体换一套用 operation=replace_all，局部调整用 edit。首份计划误传 operation 会忽略并说明。
+由模型判断任务。新建计划使用 start_task(plan)；完成推荐且参数未变时转计划默认复用前三节点，只有显式 reuse=false 才从头开始。修改已交付计划先 start_task(plan,reuse=true) 恢复任务及 plan_id、候选池；整体换一套通过 set_params 记录 operation=replace_all（user+quote），局部修改默认 edit；ID和版本由代码管理。
 
-先用 set_params 记条件及来源，用户值带原话 quote。相对时长用 source=derived、direction 和新用户原话；具体分钟数用 user。host 是 App 已确认条件，不重问，默认和预选不能覆盖。参数变化后的节点由代码处理；只改时长不重搜动作。
+先用 set_params 记条件及来源，用户值带原话 quote。相对时长用 source=derived、direction 和新用户原话；具体分钟数用 user。host 是 App 已确认条件，不重问，默认和预选不能覆盖。参数变化后的节点由代码处理；只改时长、剂量或操作不重搜动作。用户明确组数、次数、秒数或轮数才记录 dose 约束，value 为 [{field,value,actionId?,blockId?}]；不指定范围时 sets 用于全动作，reps 用于计次动作，seconds 用于计时动作，rounds 用于主体；指定其他阶段轮数用 blockId。带 user 和真实 quote。
 
 节点仍为理解 → 参数 → 动作 → 规划 → 核对 → 输出，门禁通过后代码自动打卡并生成 stamp；check 和 check_plan 仅供可选复查。
 search_actions 按标签枚举检索当前合规动作；需要要领或禁忌细节时再批量 get_action，大多数情况不需要。已经返回过的动作以后只列 id，仍可选用；需要时可再查详情。父部位编码（如 body.core）的子部位由目录／profile 层级展开，不必在账本里手工补子目标。
 
-编排通常依次热身、主体、收尾；热身为主体做准备，收尾放松练到的部位。力量内容兼顾相关部位和前后侧，单侧兼顾左右。必须有哪些块、均衡阈值和重点比例由 profile.planRules 及 check_plan 决定，技能不另外设硬阈值。
-热身和收尾仅用 purpose.stretch/mobility/breath/activation 动作；纯力量动作不能充当放松。主体至少一半命中 body 目标（主次部位和子部位都算），未通过时按 fix 的合规候选替换。
-draft_plan 只定标题、块结构、动作及可选剂量，代码补剂量、算时长、配平并返回摘要。动作须已搜索且当前合规，额外使用的已搜索动作由代码补入 picks。使用 start_task 返回的 plan_id，返工沿用同一个 ID。
+编排通常依次热身、主体、收尾；热身为主体做准备，收尾放松练到的部位。力量内容兼顾相关部位和前后侧，单侧兼顾左右。顺序、分组、剂量和时长由代码计算，专业编排建议只给一次 warning，不要求为 warning 返工。
+热身/收尾通常用拉伸、活动度、呼吸或激活；purpose 标签不典型只提示，不硬拒绝。单部位专项不要求与其他部位交替。主体至少一半命中 body 目标（主次部位和子部位都算），未通过时按 fix 的合规候选替换。
+draft_plan 只给标题、kind及每块动作ID顺序；不传 sets/reps/seconds/rounds，代码忽略旧剂量输入，用目录和已确认 dose 约束配时。动作须已搜索且当前合规，额外使用的已搜索动作由代码补入 picks。1个合规动作也可成计划；代码绑定当前 plan_id，保留所选不同动作，合并同块重复。
 scene/minutes 缺失时 draft_plan 用 profile 默认值并标注默认；goal 必须明确记录。实际用到的环境物由代码打卡列明，不要声称不用任何物品。
 
-标准路径 start_task → set_params → search_actions → draft_plan → show_plan，可同批按顺序调用。draft_plan 自动完成动作、规划和核对，在同一回执里返回未通过项及 fix；通过后直接 show_plan。某项失败后本批余下项跳过，按 fix 修正。ask_user 放在批次最后，回答后续跑，不限追问次数。
+标准路径 start_task → set_params → search_actions → draft_plan → show_plan，可同批按顺序调用。draft_plan 自动完成动作、规划和核对，在同一回执里返回未通过项及 fix；通过后直接 show_plan。真正违反目录/条件/来源/目标时按 fix 修正；代码修正和 warning 不算模型错误。可证明时长或明确剂量冲突时，代码说明原因并询问取舍；未证明不可达则交付现算法最佳方案并显示误差。ask_user 会在其他依赖操作后暂停，回答后续跑，不限追问次数。
 
 通过核对后用 show_plan(plan_id,note) 交付卡片。note 只写安排思路，不写时长、动作数或器材；这些来自卡片数据。show_plan 成功即完成，不再额外生成一段说明。计划不能用纯文字代替。
 

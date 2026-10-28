@@ -21,7 +21,7 @@ void main() {
   final tags = ActionTags(loadProfile('smartfit'), catalog);
   final params = SessionParams(tags);
 
-  test('R2 blocks equipment additions from the same message atomically', () {
+  test('forged equipment quotations still fail atomically', () {
     var state = CoachSessionState().appendUserTurn('在家，有瑜伽垫，练大腿内侧。');
     final initial = params.set(
       state,
@@ -37,10 +37,14 @@ void main() {
       state,
       _fields({
         'scene': _user('office', '在家'),
-        'equipment': _user(['equip.mat', 'equip.wall', 'equip.block'], '有瑜伽垫'),
+        'equipment': _user([
+          'equip.mat',
+          'equip.wall',
+          'equip.block',
+        ], '我有墙和瑜伽砖'),
       }),
     );
-    expect(rejected.error!['code'], 'equipment_not_newly_confirmed');
+    expect(rejected.error!['code'], 'quote_not_found');
     expect(rejected.state.toJson(), before);
     expect(state.toJson(), before);
     for (final key in ['ok', 'code', 'field', 'expected', 'actual', 'fix']) {
@@ -99,7 +103,7 @@ void main() {
       params
           .set(state, _fields({'scene': _user('home', 'x' * 31)}))
           .error!['code'],
-      'invalid_quote',
+      'quote_not_found',
     );
   });
 

@@ -135,18 +135,18 @@ class CoachPlanVersion {
     required this.version,
     required Map<String, Object?> plan,
     required this.estimateSec,
-    required List<String> fitLog,
+    required List<Object?> fitLog,
     Map<String, Object?>? check,
     this.createdAtTurn,
     this.operation,
   }) : plan = _freezeMap(plan),
-       fitLog = List.unmodifiable(fitLog),
+       fitLog = List.unmodifiable(fitLog.map(_freeze)),
        check = check == null ? null : _freezeMap(check);
 
   final int version;
   final Map<String, Object?> plan;
   final num estimateSec;
-  final List<String> fitLog;
+  final List<Object?> fitLog;
   final Map<String, Object?>? check;
   final int? createdAtTurn;
   final String? operation;
@@ -155,7 +155,7 @@ class CoachPlanVersion {
     'version': version,
     'plan': _thaw(plan),
     'estimateSec': estimateSec,
-    'fitLog': List<String>.of(fitLog),
+    'fitLog': _thaw(fitLog),
     'check': _thaw(check),
     if (createdAtTurn != null) 'createdAtTurn': createdAtTurn,
     if (operation != null) 'operation': operation,
@@ -166,7 +166,7 @@ class CoachPlanVersion {
         version: json['version'] as int,
         plan: _map(json['plan']),
         estimateSec: json['estimateSec'] as num,
-        fitLog: (json['fitLog'] as List<Object?>).cast<String>(),
+        fitLog: (json['fitLog'] as List<Object?>? ?? const []),
         check: json['check'] == null ? null : _map(json['check']),
         createdAtTurn: json['createdAtTurn'] as int?,
         operation: json['operation'] as String?,
@@ -185,6 +185,8 @@ class CoachSessionState {
     Set<String> seenActionIds = const {},
     this.consecutiveEmptySearches = 0,
     this.recommendationHintShown = false,
+    this.pendingSearchTurn,
+    Set<String> emittedWarningCodes = const {},
     List<String> picks = const [],
     Map<String, List<CoachPlanVersion>> plans = const {},
     this.activePlanId,
@@ -196,6 +198,7 @@ class CoachSessionState {
   }) : userTurns = List.unmodifiable(userTurns),
        params = Map.unmodifiable(params),
        seenActionIds = Set.unmodifiable(seenActionIds),
+       emittedWarningCodes = Set.unmodifiable(emittedWarningCodes),
        picks = List.unmodifiable(picks),
        plans = Map.unmodifiable({
          for (final entry in plans.entries)
@@ -213,6 +216,8 @@ class CoachSessionState {
 
   /// Whether this task has already suggested broadening a sparse body search.
   final bool recommendationHintShown;
+  final int? pendingSearchTurn;
+  final Set<String> emittedWarningCodes;
   final List<String> picks;
   final Map<String, List<CoachPlanVersion>> plans;
 
@@ -237,6 +242,9 @@ class CoachSessionState {
     Set<String>? seenActionIds,
     int? consecutiveEmptySearches,
     bool? recommendationHintShown,
+    int? pendingSearchTurn,
+    bool clearPendingSearchTurn = false,
+    Set<String>? emittedWarningCodes,
     List<String>? picks,
     Map<String, List<CoachPlanVersion>>? plans,
     String? activePlanId,
@@ -255,6 +263,10 @@ class CoachSessionState {
         consecutiveEmptySearches ?? this.consecutiveEmptySearches,
     recommendationHintShown:
         recommendationHintShown ?? this.recommendationHintShown,
+    pendingSearchTurn: clearPendingSearchTurn
+        ? null
+        : pendingSearchTurn ?? this.pendingSearchTurn,
+    emittedWarningCodes: emittedWarningCodes ?? this.emittedWarningCodes,
     picks: picks ?? this.picks,
     plans: plans ?? this.plans,
     activePlanId: clearActivePlanId ? null : activePlanId ?? this.activePlanId,
@@ -293,6 +305,9 @@ class CoachSessionState {
     if (consecutiveEmptySearches != 0)
       'consecutiveEmptySearches': consecutiveEmptySearches,
     if (recommendationHintShown) 'recommendationHintShown': true,
+    if (pendingSearchTurn != null) 'pendingSearchTurn': pendingSearchTurn,
+    if (emittedWarningCodes.isNotEmpty)
+      'emittedWarningCodes': emittedWarningCodes.toList(),
     'picks': List<String>.of(picks),
     'plans': {
       for (final entry in plans.entries)
@@ -326,6 +341,11 @@ class CoachSessionState {
         consecutiveEmptySearches: json['consecutiveEmptySearches'] as int? ?? 0,
         recommendationHintShown:
             json['recommendationHintShown'] as bool? ?? false,
+        pendingSearchTurn: json['pendingSearchTurn'] as int?,
+        emittedWarningCodes:
+            (json['emittedWarningCodes'] as List<Object?>? ?? const [])
+                .cast<String>()
+                .toSet(),
         picks: (json['picks'] as List<Object?>? ?? const []).cast<String>(),
         plans: {
           for (final entry in _map(json['plans'] ?? const {}).entries)

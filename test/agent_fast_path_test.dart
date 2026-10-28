@@ -21,38 +21,32 @@ void main() {
   final catalog = loadCatalog();
   final hip = loadProfile('hiplab');
 
-  test(
-    'Agent does not preload matched detail in either request',
-    () async {
-      final name = catalog['s-figure4']!.name.of('zh');
-      final client = FakeLlmClient([
-        (LlmRequest request) {
-          expect(
-            request.messages.first.content,
-            isNot(contains('路径：action-library/details/s-figure4.md')),
-          );
-          return '保持骨盆稳定，轻柔拉伸。';
-        },
-        (LlmRequest request) {
-          expect(
-            request.messages.first.content,
-            isNot(contains('# 本轮已预载动作详情')),
-          );
-          return '想练哪个部位？';
-        },
-      ]);
-      final agent = CoachAgent(
-        client: client,
-        catalog: () => catalog,
-        profile: hip,
-        enableUserMemory: false,
-      );
-      addTearDown(agent.dispose);
-      expect((await agent.send('$name怎么做？')).steps, 1);
-      expect((await agent.send('换个部位')).status, TurnStatus.ok);
-      expect(client.requests, hasLength(2));
-    },
-  );
+  test('Agent does not preload matched detail in either request', () async {
+    final name = catalog['s-figure4']!.name.of('zh');
+    final client = FakeLlmClient([
+      (LlmRequest request) {
+        expect(
+          request.messages.first.content,
+          isNot(contains('路径：action-library/details/s-figure4.md')),
+        );
+        return '保持骨盆稳定，轻柔拉伸。';
+      },
+      (LlmRequest request) {
+        expect(request.messages.first.content, isNot(contains('# 本轮已预载动作详情')));
+        return '想练哪个部位？';
+      },
+    ]);
+    final agent = CoachAgent(
+      client: client,
+      catalog: () => catalog,
+      profile: hip,
+      enableUserMemory: false,
+    );
+    addTearDown(agent.dispose);
+    expect((await agent.send('$name怎么做？')).steps, 1);
+    expect((await agent.send('换个部位')).status, TurnStatus.ok);
+    expect(client.requests, hasLength(2));
+  });
 
   CoachAgent agent(
     FakeLlmClient client, {
@@ -236,7 +230,7 @@ void main() {
       maxResubmits: 0,
     ).send('在家有瑜伽垫十分钟，排个开胯计划', context: const CoachContext(level: 1));
     expect(result.plan, isNull);
-    expect(result.records.first.issueCodes, contains('wrong_task_type'));
+    expect(result.records.first.issueCodes, contains('missing_parameters'));
     expect(result.steps, 1);
     expect(result.reads, isEmpty);
     expect(client.requests, hasLength(1));
@@ -250,14 +244,17 @@ void main() {
         }),
       ]),
       (LlmRequest request) {
-        expect(request.messages.last.content, contains('要领：'));
+        final detail = jsonDecode(request.messages.last.content) as Map;
+        expect(detail['ok'], isTrue);
+        expect(jsonEncode(detail), contains('s-figure4'));
+        expect(jsonEncode(detail), contains('cues'));
         return '仰卧4字拉伸主要放松臀部，保持骨盆稳定，拉伸到舒适范围即可。';
       },
     ], latency: Duration.zero);
     final result = await agent(client).send('4字拉伸怎么做？');
     expect(result.status, TurnStatus.ok);
     expect(result.steps, 2);
-    expect(result.reads, ['action-library/details/s-figure4.md']);
+    expect(result.reads, isEmpty);
     expect(result.actions, isNull);
     expect(result.plan, isNull);
   });
@@ -273,7 +270,7 @@ void main() {
     ], latency: Duration.zero);
     final shown = await agent(show, maxResubmits: 0).send('看看4字拉伸');
     expect(shown.actions, isNull);
-    expect(shown.records.first.issueCodes, contains('wrong_task_type'));
+    expect(shown.records.first.issueCodes, contains('missing_parameters'));
     expect(shown.steps, 1);
     expect(shown.reads, isEmpty);
 
@@ -291,7 +288,11 @@ void main() {
     final explained = await agent(batch).send('讲讲4字和蝴蝶拉伸');
     expect(explained.status, TurnStatus.ok);
     expect(explained.steps, 2);
-    expect(explained.reads, hasLength(2));
+    expect(explained.reads, isEmpty);
+    expect(
+      batch.requests.last.messages.where((m) => m.role == LlmRole.tool),
+      hasLength(2),
+    );
   });
 
   test('跳过预读与 check_plan 不会绕过未知id或 profile 门禁', () async {
@@ -328,7 +329,7 @@ void main() {
     'action questions and planning both start without preloaded details',
     () {
       final smart = loadProfile('smartfit');
-    final files = SkillFiles.build(smart, catalog, memory: false);
+      final files = SkillFiles.build(smart, catalog, memory: false);
       final builder = AgentPromptBuilder();
       final plain = builder.system(smart, files, memory: false);
       for (final text in ['臀桥怎么做？', 'How to do bridge?', '排臀桥计划']) {

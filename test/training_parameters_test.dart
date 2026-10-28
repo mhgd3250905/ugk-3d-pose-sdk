@@ -117,8 +117,16 @@ void main() {
           }),
       ]),
       (LlmRequest request) {
-        expect(feedback(request, 'params')['ok'], isTrue);
-        expect(feedback(request, 'parameters')['ok'], isTrue);
+        expect(
+          feedback(request, 'params')['ok'],
+          isTrue,
+          reason: '${feedback(request, 'params')}',
+        );
+        expect(
+          feedback(request, 'parameters')['ok'],
+          isTrue,
+          reason: '${feedback(request, 'parameters')}',
+        );
         for (var i = 0; i < ids.length; i++) {
           final search = feedback(request, 'search$i');
           expect(search['ok'], isTrue);
@@ -142,7 +150,7 @@ void main() {
               {
                 'kind': 'main',
                 'items': [
-                  for (final id in undersized ? main.take(1) : main)
+                  for (final id in undersized ? main.skip(2).take(1) : main)
                     {
                       'id': id,
                       if (oversized && id == main.first) 'sets': 999,
@@ -163,11 +171,21 @@ void main() {
         ]);
       },
       (LlmRequest request) {
-        expect(feedback(request, 'actions')['ok'], isTrue);
+        expect(
+          feedback(request, 'actions')['ok'],
+          isTrue,
+          reason: '${feedback(request, 'actions')}',
+        );
         final draft = feedback(request, 'draft');
         expect(draft['ok'], isTrue, reason: '$draft');
         if (oversized) {
-          expect((draft['fitLog'] as List).join(' '), contains('夹到'));
+          expect(draft['note'], contains('已忽略'));
+          expect(
+            (draft['fitLog'] as List).every(
+              (step) => step is Map && step['beforeEstimatedSec'] is num,
+            ),
+            isTrue,
+          );
         }
         planId = draft['plan_id'] as String;
         return batch([
@@ -177,26 +195,24 @@ void main() {
       },
       (LlmRequest request) {
         final checked = feedback(request, 'check');
-        if (undersized) {
-          expect(checked['ok'], isFalse);
-          expect(checked['code'], 'plan_check_failed');
-          return '无法提供合适方案。';
-        }
         expect(checked['ok'], isTrue, reason: '$checked');
         return batch([
           call('review', AgentTools.check, {'node': 'review'}),
         ]);
       },
-      if (!undersized)
-        (LlmRequest request) {
-          expect(feedback(request, 'review')['ok'], isTrue);
-          return batch([
-            call('show', AgentTools.showPlan, {
-              'plan_id': planId,
-              'note': '按你的条件安排髋部训练。',
-            }),
-          ]);
-        },
+      (LlmRequest request) {
+        expect(
+          feedback(request, 'review')['ok'],
+          isTrue,
+          reason: '${feedback(request, 'review')}',
+        );
+        return batch([
+          call('show', AgentTools.showPlan, {
+            'plan_id': planId,
+            'note': '按你的条件安排髋部训练。',
+          }),
+        ]);
+      },
     ];
   }
 
@@ -529,7 +545,7 @@ void main() {
     },
   );
   test(
-    'short draft is resized but rejected when required structure is missing',
+    'a single-action plan is timed and delivered with a stage warning',
     () async {
       final chat = conversation([
         tool(AgentTools.askUser, {'question': '想练什么？', 'mode': 'text'}),
@@ -549,10 +565,11 @@ void main() {
         chat.state.pendingQuestion!.id,
         '拉伸',
       );
-      expect(result!.plan, isNull);
+      expect(result!.plan, isNotNull, reason: '${result.error}');
       final versions = chat.agent.sessionState.plans.values.single;
       expect(versions.single.estimateSec, inInclusiveRange(540, 660));
-      expect(versions.single.check?['ok'], isFalse);
+      expect(versions.single.check?['ok'], isTrue);
+      expect(versions.single.check?['warnings'], isNotEmpty);
     },
   );
   test(
@@ -586,7 +603,7 @@ void main() {
     },
   );
   test(
-    'malformed grouped fields, incompatible modes and unknown equipment are rejected',
+    'presentation deviations normalize while unsupported selected equipment is refused',
     () async {
       final bad = [
         {
@@ -604,7 +621,7 @@ void main() {
         },
       ];
       for (final value in bad) {
-        expect(AskUserGate.check(jsonEncode(value)).ok, isFalse);
+        expect(AskUserGate.check(jsonEncode(value)).ok, isTrue);
       }
       final chat = conversation([
         tool(AgentTools.askUser, form(['scene', 'equipment', 'minutes'])),

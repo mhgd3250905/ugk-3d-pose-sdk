@@ -77,13 +77,21 @@ void main() {
     );
     expect(result.question!.skipLabel, 'Show suggestions');
     expect(result.question!.toJson()['skipLabel'], 'Show suggestions');
-    expect(AskUserGate.check(raw).ok, isFalse);
+    final chinese = AskUserGate.check(raw);
+    expect(chinese.ok, isTrue);
     expect(
-      AskUserGate.check(
-        jsonEncode(_form(label: 'What equipment is available to you today')),
-        language: 'en',
-      ).ok,
-      isFalse,
+      chinese.question!.question,
+      contains('What equipment is available to you'),
+    );
+    final shortened = AskUserGate.check(
+      jsonEncode(_form(label: 'What equipment is available to you today')),
+      language: 'en',
+    );
+    expect(shortened.ok, isTrue);
+    expect(shortened.question!.fields.single.label.split(' '), hasLength(6));
+    expect(
+      shortened.question!.question,
+      contains('What equipment is available to you today'),
     );
   });
 
@@ -99,61 +107,70 @@ void main() {
         AskUserGate.check(jsonEncode(choice), language: 'en-GB').ok,
         isTrue,
       );
+      final longChoice = AskUserGate.check(
+        jsonEncode({
+          ...choice,
+          'options': [List.filled(13, 'word').join(' '), 'Other'],
+        }),
+        language: 'en',
+      );
+      expect(longChoice.ok, isTrue);
+      expect(longChoice.question!.mode, AskUserMode.text);
       expect(
-        AskUserGate.check(
-          jsonEncode({
-            ...choice,
-            'options': [List.filled(13, 'word').join(' '), 'Other'],
-          }),
-          language: 'en',
-        ).ok,
-        isFalse,
+        longChoice.question!.question,
+        contains(List.filled(13, 'word').join(' ')),
       );
       final form = _form(options: [List.filled(24, 'word').join(' '), 'Other']);
       expect(AskUserGate.check(jsonEncode(form), language: 'en').ok, isTrue);
+      final longForm = AskUserGate.check(
+        jsonEncode(
+          _form(options: [List.filled(25, 'word').join(' '), 'Other']),
+        ),
+        language: 'en',
+      );
+      expect(longForm.ok, isTrue);
+      expect(longForm.question!.mode, AskUserMode.text);
       expect(
-        AskUserGate.check(
-          jsonEncode(
-            _form(options: [List.filled(25, 'word').join(' '), 'Other']),
-          ),
-          language: 'en',
-        ).ok,
-        isFalse,
+        longForm.question!.question,
+        contains(List.filled(25, 'word').join(' ')),
       );
     },
   );
 
-  test('Chinese label and option boundaries remain unchanged', () {
-    final form = _form(label: '字' * 20, options: ['字' * 24, '另一个']);
-    expect(AskUserGate.check(jsonEncode(form)).ok, isTrue);
-    expect(
-      AskUserGate.check(
+  test(
+    'Chinese display bounds normalize while full labels and options survive',
+    () {
+      final form = _form(label: '字' * 20, options: ['字' * 24, '另一个']);
+      expect(AskUserGate.check(jsonEncode(form)).ok, isTrue);
+      final longLabel = AskUserGate.check(
         jsonEncode(_form(label: '字' * 21, options: ['一', '二'])),
-      ).ok,
-      isFalse,
-    );
-    expect(
-      AskUserGate.check(
+      );
+      expect(longLabel.ok, isTrue);
+      expect(longLabel.question!.fields.single.label.runes, hasLength(20));
+      expect(longLabel.question!.question, contains('字' * 21));
+      final longFormOption = AskUserGate.check(
         jsonEncode(_form(label: '器械', options: ['字' * 25, '二'])),
-      ).ok,
-      isFalse,
-    );
-    final choice = {
-      'question': '选哪个？',
-      'mode': 'choice',
-      'options': ['字' * 12, '另一个'],
-    };
-    expect(AskUserGate.check(jsonEncode(choice)).ok, isTrue);
-    expect(
-      AskUserGate.check(
+      );
+      expect(longFormOption.ok, isTrue);
+      expect(longFormOption.question!.mode, AskUserMode.text);
+      expect(longFormOption.question!.question, contains('字' * 25));
+      final choice = {
+        'question': '选哪个？',
+        'mode': 'choice',
+        'options': ['字' * 12, '另一个'],
+      };
+      expect(AskUserGate.check(jsonEncode(choice)).ok, isTrue);
+      final longChoiceOption = AskUserGate.check(
         jsonEncode({
           ...choice,
           'options': ['字' * 13, '二'],
         }),
-      ).ok,
-      isFalse,
-    );
-  });
+      );
+      expect(longChoiceOption.ok, isTrue);
+      expect(longChoiceOption.question!.mode, AskUserMode.text);
+      expect(longChoiceOption.question!.question, contains('字' * 13));
+    },
+  );
 
   test(
     'the real agent passes host locale through to the clarification gate',

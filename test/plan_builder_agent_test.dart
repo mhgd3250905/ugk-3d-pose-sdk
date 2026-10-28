@@ -181,7 +181,7 @@ void main() {
   );
 
   test(
-    'duration_unfit saves version and its plan_id can repair it on the next model call',
+    'missing main target saves a failed checked version and can be repaired',
     () async {
       late String planId;
       final client = FakeLlmClient([
@@ -209,11 +209,14 @@ void main() {
         (LlmRequest request) {
           final short = feedback(request, 'short');
           expect(short['ok'], isFalse, reason: '$short');
-          expect(short['code'], 'duration_unfit');
+          expect(short['code'], 'plan_check_failed');
+          expect(
+            (short['errors'] as List).map((error) => (error as Map)['code']),
+            contains('plan_focus_body'),
+          );
           expect(short['version'], 1);
           expect(short.containsKey('plan'), isFalse);
           planId = short['plan_id'] as String;
-          expect(short['fix'], contains('增加'));
           return calls([
             call('repair', AgentTools.draftPlan, {
               ...draft(),
@@ -245,7 +248,7 @@ void main() {
       expect(coach.sessionState.activePlanId, planId);
       final versions = coach.sessionState.plans[planId]!;
       expect(versions.map((v) => v.version), [1, 2]);
-      expect(versions.first.check, isNull);
+      expect(versions.first.check!['ok'], isFalse);
       expect(versions.last.check!['ok'], isTrue);
       expect(
         coach.sessionState.task!.nodes
@@ -257,7 +260,7 @@ void main() {
   );
 
   test(
-    'invalid arguments and model legacy_goal never save a version',
+    'unreadable blocks are refused and legacy_goal cannot override the derived goal',
     () async {
       final client = FakeLlmClient([
         setup(),
@@ -270,7 +273,7 @@ void main() {
             }),
             call('bad', AgentTools.draftPlan, {
               'title': '',
-              'blocks': <Object>[],
+              'blocks': 'not-an-array',
             }),
           ]);
         },
@@ -284,10 +287,9 @@ void main() {
           ]);
         },
         (LlmRequest request) {
-          final denied = feedback(request, 'goal_injection');
-          expect(denied['ok'], isFalse);
-          expect(denied['code'], 'invalid_draft');
-          expect(denied.containsKey('plan_id'), isFalse);
+          final normalized = feedback(request, 'goal_injection');
+          expect(normalized['ok'], isTrue, reason: '$normalized');
+          expect(normalized['legacyGoal'], 'core');
           return ask();
         },
       ], latency: Duration.zero);
@@ -301,12 +303,13 @@ void main() {
       final reserved = coach.sessionState.activePlanId;
       expect(reserved, isNotNull);
       expect(coach.sessionState.plans.keys, [reserved]);
-      expect(coach.sessionState.plans[reserved], isEmpty);
+      expect(coach.sessionState.plans[reserved], hasLength(1));
+      expect(coach.sessionState.plans[reserved]!.single.plan['goal'], 'core');
       expect(
         coach.sessionState.task!.nodes
             .singleWhere((n) => n.status == 'current')
             .id,
-        'planning',
+        'output',
       );
     },
   );

@@ -12,6 +12,64 @@ EvaluationJson _map(Object? value) => value is Map
 List<Object?> _list(Object? value) => value is List ? value : [];
 List<EvaluationJson> _records(Object? value) => _list(value).map(_map).toList();
 
+/// Reports captured advisory emissions separately from warnings on the card.
+/// Replayed receipts and nested copies of the same check are counted once.
+EvaluationJson evaluationWarningSummary(List<EvaluationJson> turns) {
+  final emitted = <String, EvaluationJson>{};
+  final delivered = <String, EvaluationJson>{};
+  final recordedCodes = <String>{};
+  void scan(Object? messages, Object? turn) {
+    for (final message in _records(messages)) {
+      if (message['role'] != 'tool' || message['content'] is! String) continue;
+      Object? decoded;
+      try {
+        decoded = jsonDecode(message['content'] as String);
+      } on FormatException {
+        continue;
+      }
+      final receipt = _map(decoded);
+      for (final source in [receipt, _map(receipt['check'])]) {
+        for (final warning in _records(source['warningDetails'])) {
+          if (warning['code'] is! String) continue;
+          final key = '${message['tool_call_id']}:${warning['code']}';
+          emitted.putIfAbsent(
+            key,
+            () => {
+              'turnObserved': turn,
+              'toolCallId': message['tool_call_id'],
+              ...warning,
+            },
+          );
+        }
+      }
+    }
+  }
+
+  for (final turn in turns) {
+    recordedCodes.addAll(
+      _list(turn['emittedWarningCodes']).whereType<String>(),
+    );
+    for (final call in _records(turn['calls'])) {
+      scan(_map(call['request'])['messages'], turn['turn']);
+    }
+    scan(turn['agentHistoryAfterTurn'], turn['turn']);
+    for (final warning in _records(turn['warnings'])) {
+      final key = '${warning['code']}:${warning['message']}';
+      delivered.putIfAbsent(key, () => {'turn': turn['turn'], ...warning});
+    }
+  }
+  return {
+    'advisoryEmissions': emitted.values.toList(),
+    'advisoryEmissionCount': emitted.length,
+    'recordedAdvisoryCodes': recordedCodes.toList(),
+    'advisoryCodes': emitted.values.map((w) => w['code']).toSet().toList(),
+    'deliveredWarnings': delivered.values.toList(),
+    'deliveredWarningCount': delivered.length,
+    'limitation':
+        'Advisories are exact captured emissions, deduplicated by tool_call_id and code; final card copies are separate. Missing terminal receipts are not guessed.',
+  };
+}
+
 /// Reads captured catalogue codes; never infers targets from user prose.
 EvaluationJson evaluationBodyTargetQuality(List<EvaluationJson> turns) {
   final checks = <EvaluationJson>[];

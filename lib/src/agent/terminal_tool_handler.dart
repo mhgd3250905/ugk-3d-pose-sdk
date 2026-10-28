@@ -14,6 +14,7 @@ class TerminalToolResult {
     this.question,
     this.output,
     this.state,
+    this.changes = const [],
     this.rejected = false,
   });
   final String response;
@@ -22,6 +23,7 @@ class TerminalToolResult {
 
   /// Receipt-only metadata after a rejected show; nodes and picks are intact.
   final CoachSessionState? state;
+  final List<CoachNodeState> changes;
   final bool rejected;
 }
 
@@ -35,20 +37,6 @@ class TerminalToolHandler {
     int count, {
     String language = 'zh',
   }) {
-    if (position != count) {
-      return TerminalToolResult(
-        jsonEncode(
-          nodeError(
-            'ask_not_last',
-            'tool_calls',
-            'ask_user 位于批次最后',
-            position,
-            '将 ask_user 放在最后一次工具调用。',
-          ),
-        ),
-        rejected: true,
-      );
-    }
     final checked = AskUserGate.check(raw, language: language);
     if (!checked.ok) {
       return TerminalToolResult(
@@ -68,7 +56,13 @@ class TerminalToolHandler {
       );
     }
     return TerminalToolResult(
-      jsonEncode({'ok': true, 'asked': true, 'awaitingUser': true}),
+      jsonEncode({
+        'ok': true,
+        'asked': true,
+        'awaitingUser': true,
+        if (checked.notes.isNotEmpty || position != count)
+          'notes': [...checked.notes, if (position != count) '已在本批其他操作之后暂停询问。'],
+      }),
       question: checked.question,
     );
   }
@@ -86,11 +80,37 @@ class TerminalToolHandler {
       args = null;
     }
     final output = gate.checkAgentOutput(state, tool, args, language: language);
+    if (output.needsUserChoice) {
+      return TerminalToolResult(
+        jsonEncode({
+          'ok': true,
+          'status': 'infeasible',
+          'needsUserChoice': true,
+          'feasibility': output.feasibility,
+          if (output.unavailableMessage != null)
+            'message': output.unavailableMessage,
+          if (output.notices.isNotEmpty) 'notices': output.notices,
+        }),
+        state: output.state,
+        changes: output.changes,
+      );
+    }
     if (!output.ok) {
       return TerminalToolResult(
         jsonEncode(output.error),
         rejected: true,
         state: output.state,
+      );
+    }
+    if (output.unavailable) {
+      return TerminalToolResult(
+        jsonEncode({
+          'ok': true,
+          'unavailable': true,
+          'message': output.unavailableMessage,
+        }),
+        state: output.state,
+        output: output,
       );
     }
     return TerminalToolResult(

@@ -105,6 +105,14 @@ extension DraftToolHandler on StructuredToolHandler {
           language: language,
         );
     if (result.planId == null) {
+      if (result.feasibility != null) {
+        return StructuredToolResult(
+          prepared,
+          jsonEncode(result.toJson()),
+          changes: changes,
+          fresh: true,
+        );
+      }
       return StructuredToolResult(state, jsonEncode(result.toJson()));
     }
     changes.addAll(result.changes);

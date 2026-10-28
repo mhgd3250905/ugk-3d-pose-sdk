@@ -283,11 +283,10 @@ void main() {
               sample.$2,
           lessThanOrEqualTo(.10),
         );
-        expect(
-          flow.stalePlanError,
-          'nodes_incomplete',
-          reason: 'old-target plan must be rejected and corrected',
-        );
+        expect(c.agent.sessionState.plans[flow.planId]!.last.version, 2);
+        final minutes = c.agent.sessionState.params['minutes']!;
+        expect(minutes.source, 'user');
+        expect(minutes.quote, '${sample.$2} 分钟');
         expect(c.agent.lastConfirmedForm?['minutes'], [
           sample.$2 == 20 ? '20+ 分钟' : '${sample.$2} 分钟',
         ]);
@@ -383,11 +382,11 @@ void main() {
         plan.items.every((item) => catalog[item.exerciseId]!.equipment.isEmpty),
         isTrue,
       );
-      expect(
-        flow.stalePlanError,
-        'nodes_incomplete',
-        reason: 'old mat plan must be rejected',
-      );
+      expect(c.agent.sessionState.plans[flow.planId]!.last.version, 2);
+      final equipment = c.agent.sessionState.params['equipment']!;
+      expect(equipment.value, isEmpty);
+      expect(equipment.source, 'user');
+      expect(equipment.quote, '徒手');
       final check = c.agent.sessionState.plans[flow.planId]!.last.check!;
       final rules = check['rules']! as Map<String, Object?>;
       expect((rules['focus_body']! as Map<String, Object?>)['ok'], isTrue);
@@ -423,7 +422,11 @@ void main() {
       await begin(c, 'shorten_to_7');
       final failed = await c.send(turn('shorten_to_7', 1));
       expect(failed!.status, TurnStatus.error);
-      expect(failed.isPlanningFailure, isTrue);
+      expect(
+        failed.isPlanningFailure,
+        isTrue,
+        reason: '${failed.error} ${failed.issues}',
+      );
       expect(c.agent.lastConfirmedForm?['minutes'], ['7 分钟']);
       expect(c.agent.sessionState.params['minutes']!.value, 7);
       expect(c.agent.sessionState.params['minutes']!.source, 'user');
@@ -453,11 +456,11 @@ void main() {
         ),
         isTrue,
       );
+      expect(c.agent.sessionState.plans[flow.planId]!.last.version, 2);
       expect(
-        client.requests.last.messages
-            .where((m) => m.role == LlmRole.tool)
-            .any((m) => m.content.contains('nodes_incomplete')),
-        isTrue,
+        (duration.estimateSeconds(retried.plan!.plan, catalog) / 60 - 7).abs() /
+            7,
+        lessThanOrEqualTo(.10),
       );
     },
   );

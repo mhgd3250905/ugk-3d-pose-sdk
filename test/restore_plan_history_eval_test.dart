@@ -169,6 +169,27 @@ void main() {
         expect(plan.targetMinutes, sample.$2);
         expect(plan.scene, 'home');
         expect(plan.equipment, sample.$1 == '换成徒手' ? isEmpty : ['mat']);
+        expect(
+          (duration.estimateSeconds(plan, catalog) / 60 - sample.$2).abs() /
+              sample.$2,
+          lessThanOrEqualTo(.10),
+          reason: 'restoring conditions must preserve actual timing behavior',
+        );
+        final params = c.agent.sessionState.params;
+        expect(params['scene']!.source, 'user');
+        if (sample.$1 == '换成徒手') {
+          expect(params['equipment']!.value, isEmpty);
+          expect(params['equipment']!.source, 'user');
+          expect(params['equipment']!.quote, '徒手');
+          expect(params['minutes']!.source, 'user');
+          expect(params['minutes']!.quote, '10分钟');
+        } else {
+          expect(
+            params['minutes']!.source,
+            sample.$1 == '短一点' ? 'derived' : 'user',
+          );
+          expect(params['minutes']!.quote, sample.$1 == '短一点' ? '短一点' : '7 分钟');
+        }
         if (sample.$1 == '短一点') {
           expect(
             duration.estimateSeconds(plan, catalog),

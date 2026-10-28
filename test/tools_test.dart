@@ -10,16 +10,20 @@ import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
 
-LlmToolCall call(String name, Object args, [String id = 'c1']) =>
-    LlmToolCall(id: id, name: name, arguments: args is String ? args : jsonEncode(args));
-
-LlmResponse resp({String text = '', List<LlmToolCall> calls = const []}) => LlmResponse(
-  content: text,
-  toolCalls: calls,
-  usage: const TokenUsage(promptTokens: 100, completionTokens: 20),
-  model: 'fake',
-  finishReason: calls.isEmpty ? 'stop' : 'tool_calls',
+LlmToolCall call(String name, Object args, [String id = 'c1']) => LlmToolCall(
+  id: id,
+  name: name,
+  arguments: args is String ? args : jsonEncode(args),
 );
+
+LlmResponse resp({String text = '', List<LlmToolCall> calls = const []}) =>
+    LlmResponse(
+      content: text,
+      toolCalls: calls,
+      usage: const TokenUsage(promptTokens: 100, completionTokens: 20),
+      model: 'fake',
+      finishReason: calls.isEmpty ? 'stop' : 'tool_calls',
+    );
 
 Map<String, Object?> okPlan() => planOf(okEnvelope());
 
@@ -29,7 +33,11 @@ void main() {
     for (final p in ['flarelab', 'hiplab', 'smartfit']) p: loadProfile(p),
   };
   final hip = profiles['hiplab']!;
-  final gate = ToolGate(catalog: catalog, profile: hip, canary: defaultPromptCanary);
+  final gate = ToolGate(
+    catalog: catalog,
+    profile: hip,
+    canary: defaultPromptCanary,
+  );
 
   group('工具提示词与当前配置金样一致', () {
     for (final id in profiles.keys) {
@@ -40,8 +48,18 @@ void main() {
         );
       });
       test('$id 工具 JSON 一致', () {
-        final golden = jsonDecode(File('test/fixtures/golden/$id.tools.json').readAsStringSync());
-        expect(jsonDecode(jsonEncode([for (final t in CoachTools.build(profiles[id]!, catalog)) t.toJson()])), golden);
+        final golden = jsonDecode(
+          File('test/fixtures/golden/$id.tools.json').readAsStringSync(),
+        );
+        expect(
+          jsonDecode(
+            jsonEncode([
+              for (final t in CoachTools.build(profiles[id]!, catalog))
+                t.toJson(),
+            ]),
+          ),
+          golden,
+        );
       });
     }
     test('工具内核含防破甲、工具用法、暗号；版本号 kernel-v4', () {
@@ -60,7 +78,10 @@ void main() {
   });
 
   group('宿主确认瑜伽垫时的旧评测门禁逐例对照（parity_tools.json）', () {
-    final doc = (jsonDecode(File('test/fixtures/parity_tools.json').readAsStringSync()) as Map).cast<String, Object?>();
+    final doc =
+        (jsonDecode(File('test/fixtures/parity_tools.json').readAsStringSync())
+                as Map)
+            .cast<String, Object?>();
     for (final c in (doc['cases']! as List).cast<Map<String, Object?>>()) {
       test(c['name']! as String, () {
         final req = (c['request']! as Map).cast<String, Object?>();
@@ -68,13 +89,20 @@ void main() {
           // These historical fixture plans use a mat. Treat it as an explicit
           // host condition, not as a claim inferred from model output.
           equipment: const {'mat'},
-          avoid: {for (final a in (req['avoid'] as List?) ?? const []) a as String},
+          avoid: {
+            for (final a in (req['avoid'] as List?) ?? const []) a as String,
+          },
           level: req['level'] as int?,
           minutes: req['minutes'] as int?,
         );
         final calls = [
-          for (final (i, x) in (c['calls']! as List).cast<Map<String, Object?>>().indexed)
-            LlmToolCall(id: 'c$i', name: x['name']! as String, arguments: x['arguments']! as String),
+          for (final (i, x)
+              in (c['calls']! as List).cast<Map<String, Object?>>().indexed)
+            LlmToolCall(
+              id: 'c$i',
+              name: x['name']! as String,
+              arguments: x['arguments']! as String,
+            ),
         ];
         final g = ToolGate(
           catalog: catalog,
@@ -88,19 +116,43 @@ void main() {
         }
         final why = 'Dart: ${g.errors}\nPython: ${py['messages']}';
         expect(g.leaked, py['leaked'], reason: why);
-        expect(counts, (py['counts']! as Map).map((k, v) => MapEntry(k as String, v as int)), reason: why);
-        expect(g.ok, (c['expect']! as List).isEmpty && c['expectLeaked'] == false);
+        const normalizedCases = {
+          '看动作 7 个',
+          '看动作带剂量',
+          '看动作重复',
+          '两个工具',
+          '计划多包一层 plan',
+          '计划跨块重复',
+          '计划同块重复',
+          '计划水平与本轮条件冲突',
+          '计划时长与本轮条件冲突',
+          '计划水平与时长都冲突',
+        };
+        final expectedCounts = normalizedCases.contains(c['name'])
+            ? <String, int>{}
+            : (py['counts']! as Map).map(
+                (k, v) => MapEntry(k as String, v as int),
+              );
+        expect(counts, expectedCounts, reason: why);
+        expect(g.ok, expectedCounts.isEmpty && c['expectLeaked'] == false);
       });
     }
   });
 
   group('门禁错误码（每条含位置、期望、实际、改法）', () {
     void expectCode(GateResult g, String code, String path) {
-      final e = g.errors.firstWhere((e) => e.code == code, orElse: () => throw StateError('没有 $code：${g.errors}'));
+      final e = g.errors.firstWhere(
+        (e) => e.code == code,
+        orElse: () => throw StateError('没有 $code：${g.errors}'),
+      );
       expect(e.path, path);
       final j = ToolGate.issueJson(e);
       for (final k in ['path', 'code', 'expected', 'actual', 'fix']) {
-        expect(j[k], isA<String>().having((s) => s.isNotEmpty, '非空', isTrue), reason: '$code.$k');
+        expect(
+          j[k],
+          isA<String>().having((s) => s.isNotEmpty, '非空', isTrue),
+          reason: '$code.$k',
+        );
       }
       expect(g.plan, isNull);
       expect(g.actions, isNull);
@@ -121,34 +173,45 @@ void main() {
     }
 
     Map<String, Object?> item(Map<String, Object?> p, int b, int i) =>
-        ((((p['blocks']! as List)[b]! as Map)['items']! as List)[i]! as Map).cast<String, Object?>();
+        ((((p['blocks']! as List)[b]! as Map)['items']! as List)[i]! as Map)
+            .cast<String, Object?>();
 
     test(
       'invalid_json（不修复 JSON 语法）',
-      () => expectCode(gate.check('x', [call('show_plan', '{"title": "a",}')]), IssueCodes.invalidJson, 'arguments'),
+      () => expectCode(
+        gate.check('x', [call('show_plan', '{"title": "a",}')]),
+        IssueCodes.invalidJson,
+        'arguments',
+      ),
     );
     test(
       'schema：缺字段',
-      () => expectCode(gate.check('x', [call('show_actions', <String, Object?>{})]), IssueCodes.schema, 'items'),
+      () => expectCode(
+        gate.check('x', [call('show_actions', <String, Object?>{})]),
+        IssueCodes.schema,
+        'items',
+      ),
     );
     test('schema：类型错', () {
       final p = mutPlan((p) => item(p, 1, 0)['sets'] = '2');
-      expectCode(gate.check('x', [call('show_plan', p)]), IssueCodes.schema, 'blocks[1].items[0].sets');
+      expectCode(
+        gate.check('x', [call('show_plan', p)]),
+        IssueCodes.schema,
+        'blocks[1].items[0].sets',
+      );
     });
-    test(
-      'unexpected_field：看动作带剂量',
-      () => expectCode(
-        gate.check('x', [
-          call('show_actions', {
-            'items': [
-              {'actionId': 's-figure4', 'reps': 10},
-            ],
-          }),
-        ]),
-        IssueCodes.unexpectedField,
-        'items[0].reps',
-      ),
-    );
+    test('recommendation dose extras are ignored with receipt notes', () {
+      final g = gate.check('x', [
+        call('show_actions', {
+          'items': [
+            {'actionId': 's-figure4', 'reps': 10},
+          ],
+        }),
+      ]);
+      expect(g.ok, isTrue);
+      expect(g.warnings.map((w) => w.code), contains('normalized_fields'));
+      expect((jsonDecode(g.feedback()) as Map)['notes'], isNotEmpty);
+    });
     test(
       'items_count',
       () => expectCode(
@@ -159,21 +222,20 @@ void main() {
         'items',
       ),
     );
-    test(
-      'multiple_tools',
-      () => expectCode(
-        gate.check('x', [
-          call('show_actions', {
-            'items': [
-              {'actionId': 's-figure4'},
-            ],
-          }),
-          call('show_plan', okPlan(), 'c2'),
-        ]),
-        IssueCodes.multipleTools,
-        'tool_calls',
-      ),
-    );
+    test('legacy output batch is normalized without an extra model call', () {
+      final g = gate.check('x', [
+        call('show_actions', {
+          'items': [
+            {'actionId': 's-figure4'},
+          ],
+        }),
+        call('show_plan', okPlan(), 'c2'),
+      ], context: const CoachContext(equipment: {'mat'}));
+      expect(g.ok, isTrue);
+      expect(g.actions, isNotNull);
+      expect(g.plan, isNotNull);
+      expect(g.warnings.map((w) => w.code), contains('normalized_batch'));
+    });
     test(
       'unknown_tool',
       () => expectCode(
@@ -184,7 +246,14 @@ void main() {
         'tool_calls[0].name',
       ),
     );
-    test('empty_reply', () => expectCode(gate.check('  ', const []), IssueCodes.emptyReply, 'content'));
+    test(
+      'empty_reply',
+      () => expectCode(
+        gate.check('  ', const []),
+        IssueCodes.emptyReply,
+        'content',
+      ),
+    );
     test(
       'unknown_exercise',
       () => expectCode(
@@ -220,12 +289,18 @@ void main() {
           ..['reps'] = 10
           ..remove('workSeconds'),
       );
-      expectCode(gate.check('x', [call('show_plan', p)]), IssueCodes.modeMismatch, 'blocks[1].items[0].mode');
+      expectCode(
+        gate.check('x', [call('show_plan', p)]),
+        IssueCodes.modeMismatch,
+        'blocks[1].items[0].mode',
+      );
     });
     test(
       'avoid：计划撞保护部位',
       () => expectCode(
-        gate.check('x', [call('show_plan', okPlan())], context: const CoachContext(avoid: {'膝'})),
+        gate.check('x', [
+          call('show_plan', okPlan()),
+        ], context: const CoachContext(avoid: {'膝'})),
         IssueCodes.avoid,
         'blocks[1].items[2].exerciseId',
       ),
@@ -244,27 +319,36 @@ void main() {
         'items[0].actionId',
       ),
     );
-    test(
-      'duplicate_action：看动作',
-      () => expectCode(
-        gate.check('x', [
-          call('show_actions', {
-            'items': [
-              {'actionId': 's-figure4'},
-              {'actionId': 's-figure4'},
-            ],
-          }),
-        ]),
-        IssueCodes.duplicateAction,
-        'items[1].actionId',
-      ),
-    );
-    test('duplicate_action：计划跨块，位置指向重复项并提示首次出现', () {
-      final p = mutPlan((p) => (((p['blocks']! as List)[2]! as Map)['items']! as List).add(dup));
-      final g = gate.check('x', [call('show_plan', p)], context: const CoachContext(equipment: {'mat'}));
-      expectCode(g, IssueCodes.duplicateAction, 'blocks[2].items[1].exerciseId');
-      expect(g.errors.single.actual, contains('blocks[1].items[0]'));
+    test('duplicate recommendation IDs are normalized once', () {
+      final g = gate.check('x', [
+        call('show_actions', {
+          'items': [
+            {'actionId': 's-figure4'},
+            {'actionId': 's-figure4'},
+          ],
+        }),
+      ]);
+      expect(g.ok, isTrue);
+      expect(g.actions!.items, hasLength(1));
+      expect(g.warnings.map((w) => w.code), contains('normalized_duplicate'));
     });
+    test(
+      'an action may be reused across preparation and cooldown without a duplicate error',
+      () {
+        final p = mutPlan(
+          (p) =>
+              (((p['blocks']! as List)[2]! as Map)['items']! as List).add(dup),
+        );
+        final g = gate.check('x', [
+          call('show_plan', p),
+        ], context: const CoachContext(equipment: {'mat'}));
+        expect(g.ok, isTrue);
+        expect(
+          g.errors.where((e) => e.code == IssueCodes.duplicateAction),
+          isEmpty,
+        );
+      },
+    );
     test('一次报出全部错误', () {
       final g = gate.check('x', [
         call('show_actions', {
@@ -277,18 +361,23 @@ void main() {
       ]);
       expect(
         g.errors.map((e) => e.code),
-        containsAll([IssueCodes.unknownExercise, IssueCodes.outOfProfile, IssueCodes.unexpectedField]),
+        containsAll([IssueCodes.unknownExercise, IssueCodes.outOfProfile]),
       );
       final fb = jsonDecode(g.feedback(remaining: 2)) as Map;
       expect(fb['ok'], isFalse);
       expect(fb['remainingAttempts'], 2);
-      expect(fb['errors'], hasLength(3));
+      expect(fb['errors'], hasLength(2));
     });
     test('只警告放行：剂量超推荐、时长偏差', () {
       final p = mutPlan((p) => item(p, 1, 1)['workSeconds'] = 115);
-      final g = gate.check('好', [call('show_plan', p)], context: const CoachContext(equipment: {'mat'}));
+      final g = gate.check('好', [
+        call('show_plan', p),
+      ], context: const CoachContext(equipment: {'mat'}));
       expect(g.ok, isTrue);
-      expect(g.plan!.warnings.map((w) => w.code), contains(IssueCodes.doseRange));
+      expect(
+        g.plan!.warnings.map((w) => w.code),
+        contains(IssueCodes.doseRange),
+      );
     });
     test('通过：产出 ValidatedPlan / ValidatedActions', () {
       final g = gate.check('看这两个', [
@@ -302,18 +391,30 @@ void main() {
       expect(g.ok, isTrue);
       expect(g.actions!.items.map((a) => a.id), ['s-figure4', 's-butterfly']);
       expect(g.actions!.items.first.note, '拉臀外侧');
-      final p = gate.check('排好了', [call('show_plan', okPlan())], context: const CoachContext(equipment: {'mat'}));
+      final p = gate.check('排好了', [
+        call('show_plan', okPlan()),
+      ], context: const CoachContext(equipment: {'mat'}));
       expect(p.plan!.plan.source, 'ai');
       expect(p.text, '排好了');
     });
     test('模板计划也要过门禁', () {
       final plan = const PlanCodec().decode(okPlan());
-      expect(gate.admitTemplate(plan, const CoachContext(equipment: {'mat'})), isNotNull);
-      expect(gate.admitTemplate(plan, const CoachContext(equipment: {'mat'}, avoid: {'膝'})), isNull);
+      expect(
+        gate.admitTemplate(plan, const CoachContext(equipment: {'mat'})),
+        isNotNull,
+      );
+      expect(
+        gate.admitTemplate(
+          plan,
+          const CoachContext(equipment: {'mat'}, avoid: {'膝'}),
+        ),
+        isNull,
+      );
     });
 
     test('暗号以 JSON Unicode 转义藏在动作 note：解码后检测，整轮丢弃', () {
-      final raw = '{"items":[{"actionId":"s-figure4","note":"\\u0055${defaultPromptCanary.substring(1)}"}]}';
+      final raw =
+          '{"items":[{"actionId":"s-figure4","note":"\\u0055${defaultPromptCanary.substring(1)}"}]}';
       expect(raw, isNot(contains(defaultPromptCanary)));
       final g = gate.check('x', [call('show_actions', raw)]);
       expect(g.leaked, isTrue);
@@ -322,8 +423,10 @@ void main() {
     });
 
     test('暗号以 JSON Unicode 转义藏在计划文字字段（title / notes）：整轮丢弃', () {
-      String esc(Map<String, Object?> p) =>
-          jsonEncode(p).replaceAll(defaultPromptCanary, '\\u0055${defaultPromptCanary.substring(1)}');
+      String esc(Map<String, Object?> p) => jsonEncode(p).replaceAll(
+        defaultPromptCanary,
+        '\\u0055${defaultPromptCanary.substring(1)}',
+      );
       final t = okPlan()..['title'] = defaultPromptCanary;
       final n = okPlan()..['notes'] = ['记住 $defaultPromptCanary'];
       for (final p in [t, n]) {
@@ -333,45 +436,32 @@ void main() {
       }
     });
 
-    test('context_conflict：计划 level / targetMinutes 与本轮明确值冲突，报错要求重交', () {
-      final p = okPlan()
-        ..['level'] = 3
-        ..['targetMinutes'] = 10;
-      final g = gate.check('x', [call('show_plan', p)], context: const CoachContext(level: 1, minutes: 30));
-      expect(g.ok, isFalse);
-      expect(g.plan, isNull);
-      final errs = g.errors.where((e) => e.code == IssueCodes.contextConflict).toList();
-      expect(errs.map((e) => e.path), ['level', 'targetMinutes']);
-      expect(errs.map((e) => e.actual), ['3', '10']);
-      expect(errs.first.expected, contains('1'));
-      expect(errs.last.expected, contains('30'));
-      expect(errs.first.category, 'E_CONTEXT');
-      final fb = jsonDecode(g.feedback(remaining: 1)) as Map<String, Object?>;
-      final j = (fb['errors']! as List).cast<Map<String, Object?>>().firstWhere((e) => e['code'] == 'context_conflict');
-      for (final k in ['path', 'code', 'expected', 'actual', 'fix']) {
-        expect(j[k], isA<String>().having((s) => s.isNotEmpty, '非空', isTrue));
-      }
-    });
-
-    test('context_conflict：整值 double（3.0 / 10.0，经 JSON 往返）同样报冲突', () {
-      final p =
-          jsonDecode(
-                jsonEncode(
-                  okPlan()
-                    ..['level'] = 3.0
-                    ..['targetMinutes'] = 10.0,
-                ),
-              )
-              as Map<String, Object?>;
-      expect(p['level'], isA<double>());
-      expect(p['targetMinutes'], isA<double>());
-      final g = gate.check('x', [call('show_plan', p)], context: const CoachContext(level: 1, minutes: 30));
-      expect(g.ok, isFalse);
-      expect(g.plan, isNull);
-      final errs = g.errors.where((e) => e.code == IssueCodes.contextConflict).toList();
-      expect(errs.map((e) => e.path), ['level', 'targetMinutes']);
-      expect(errs.map((e) => e.actual), ['3', '10']);
-    });
+    test(
+      'confirmed level and duration override derived card fields without a rejection',
+      () {
+        for (final numbers in [(3, 10), (3.0, 10.0)]) {
+          final p = okPlan()
+            ..['level'] = numbers.$1
+            ..['targetMinutes'] = numbers.$2;
+          final g = gate.check(
+            'x',
+            [call('show_plan', p)],
+            context: const CoachContext(
+              equipment: {'mat'},
+              level: 1,
+              minutes: 30,
+            ),
+          );
+          expect(g.ok, isTrue);
+          expect(g.plan!.plan.level, 1);
+          expect(g.plan!.plan.targetMinutes, 30);
+          expect(
+            g.warnings.map((w) => w.code),
+            contains('normalized_card_conditions'),
+          );
+        }
+      },
+    );
 
     test('context_conflict：整值 double 与本轮值相同（1.0 对 1）不报，规范为整数', () {
       final base = okPlan();
@@ -385,23 +475,44 @@ void main() {
                 ),
               )
               as Map<String, Object?>;
-      final g = gate.check('x', [call('show_plan', p)], context: CoachContext(equipment: const {'mat'}, level: lv, minutes: tm));
-      expect(g.errors.map((e) => e.code), isNot(contains(IssueCodes.contextConflict)));
+      final g = gate.check(
+        'x',
+        [call('show_plan', p)],
+        context: CoachContext(equipment: const {'mat'}, level: lv, minutes: tm),
+      );
+      expect(
+        g.errors.map((e) => e.code),
+        isNot(contains(IssueCodes.contextConflict)),
+      );
       expect(g.ok, isTrue);
       expect(g.plan!.plan.level, lv);
-      final one = jsonDecode(jsonEncode(okPlan()..['level'] = 1.0)) as Map<String, Object?>;
+      final one =
+          jsonDecode(jsonEncode(okPlan()..['level'] = 1.0))
+              as Map<String, Object?>;
       expect(
-        gate.check('x', [call('show_plan', one)], context: const CoachContext(level: 1)).errors.map((e) => e.code),
+        gate
+            .check('x', [
+              call('show_plan', one),
+            ], context: const CoachContext(level: 1))
+            .errors
+            .map((e) => e.code),
         isNot(contains(IssueCodes.contextConflict)),
       );
     });
 
     test('context_conflict：与本轮值一致或本轮未给值时不报', () {
       final p = okPlan();
-      final same = CoachContext(equipment: const {'mat'}, level: p['level'] as int, minutes: p['targetMinutes'] as int);
+      final same = CoachContext(
+        equipment: const {'mat'},
+        level: p['level'] as int,
+        minutes: p['targetMinutes'] as int,
+      );
       expect(gate.check('x', [call('show_plan', p)], context: same).ok, isTrue);
       expect(
-        gate.check('x', [call('show_plan', okPlan()..['level'] = 2)]).errors.map((e) => e.code),
+        gate
+            .check('x', [call('show_plan', okPlan()..['level'] = 2)])
+            .errors
+            .map((e) => e.code),
         isNot(contains(IssueCodes.contextConflict)),
       );
     });
@@ -409,11 +520,16 @@ void main() {
 
   group('CoachSession', () {
     final fallbackPlan = const PlanCodec().decode(okPlan());
-    CoachSession session(FakeLlmClient c, {SessionFallback? fallback, int maxTurns = 20}) => CoachSession(
+    CoachSession session(
+      FakeLlmClient c, {
+      SessionFallback? fallback,
+      int maxTurns = 20,
+    }) => CoachSession(
       client: c,
       catalog: () => catalog,
       profile: hip,
-      fallback: fallback ?? (r) => SessionFallbackReply('先用模板', plan: fallbackPlan),
+      fallback:
+          fallback ?? (r) => SessionFallbackReply('先用模板', plan: fallbackPlan),
       maxTurns: maxTurns,
     );
     final good = resp(text: '排好了', calls: [call('show_plan', okPlan())]);
@@ -431,12 +547,22 @@ void main() {
     test('首次通过：带工具请求，历史含 assistant + tool', () async {
       final c = FakeLlmClient([good]);
       final s = session(c);
-      final r = await s.send('睡前开胯 10 分钟', context: const CoachContext(equipment: {'mat'}));
+      final r = await s.send(
+        '睡前开胯 10 分钟',
+        context: const CoachContext(equipment: {'mat'}),
+      );
       expect(r.status, TurnStatus.ok);
       expect(r.plan, isNotNull);
       expect(r.submissions, 1);
-      expect(c.requests.single.tools.map((t) => t.name), ['show_actions', 'show_plan']);
-      expect(s.history.map((m) => m.role), [LlmRole.user, LlmRole.assistant, LlmRole.tool]);
+      expect(c.requests.single.tools.map((t) => t.name), [
+        'show_actions',
+        'show_plan',
+      ]);
+      expect(s.history.map((m) => m.role), [
+        LlmRole.user,
+        LlmRole.assistant,
+        LlmRole.tool,
+      ]);
       expect(r.records.single.outcome, CallOutcome.passed);
     });
 
@@ -451,12 +577,17 @@ void main() {
       final r = await s.send('帮我安排一下');
       expect(r.status, TurnStatus.error);
       expect(r.plan, isNull);
-      expect(r.issues.map((issue) => issue.code), contains(IssueCodes.equipment));
+      expect(
+        r.issues.map((issue) => issue.code),
+        contains(IssueCodes.equipment),
+      );
     });
 
     test('打回后重交：错误作为 tool 结果回传（同一 tool_call_id），第二次通过', () async {
       final c = FakeLlmClient([bad, good]);
-      final r = await session(c).send('看动作', context: const CoachContext(equipment: {'mat'}));
+      final r = await session(
+        c,
+      ).send('看动作', context: const CoachContext(equipment: {'mat'}));
       expect(r.status, TurnStatus.ok);
       expect(r.resubmits, 1);
       final second = c.requests[1].messages;
@@ -466,7 +597,7 @@ void main() {
       expect(second.last.content, contains('unknown_exercise'));
     });
 
-    test('多工具打回：每个调用都有 tool 结果', () async {
+    test('多工具规范化：同批一次交付，不为协议重交', () async {
       final multi = resp(
         text: 'x',
         calls: [
@@ -479,11 +610,13 @@ void main() {
         ],
       );
       final c = FakeLlmClient([multi, good]);
-      final r = await session(c).send('x', context: const CoachContext(equipment: {'mat'}));
+      final r = await session(
+        c,
+      ).send('x', context: const CoachContext(equipment: {'mat'}));
       expect(r.status, TurnStatus.ok);
-      final tools = c.requests[1].messages.where((m) => m.role == LlmRole.tool).toList();
-      expect(tools.map((m) => m.toolCallId), ['c1', 'c2']);
-      expect(tools.first.content, contains('multiple_tools'));
+      expect(c.requests, hasLength(1));
+      expect(r.plan, isNotNull);
+      expect(r.actions, isNotNull);
     });
 
     test('纯文字被打回时反馈作为用户消息', () async {
@@ -495,7 +628,9 @@ void main() {
 
     test('重交 2 次仍不过：回落模板（模板也过门禁），绝不渲染未通过内容', () async {
       final c = FakeLlmClient([bad, bad, bad]);
-      final r = await session(c).send('x', context: const CoachContext(equipment: {'mat'}));
+      final r = await session(
+        c,
+      ).send('x', context: const CoachContext(equipment: {'mat'}));
       expect(c.requests, hasLength(3));
       expect(r.status, TurnStatus.fallback);
       expect(r.fallbackReason, FallbackReason.invalidOutput);
@@ -503,12 +638,18 @@ void main() {
       expect(r.plan!.plan, same(fallbackPlan));
       expect(r.actions, isNull);
       expect(r.issues.single.code, IssueCodes.unknownExercise);
-      expect(r.records.map((x) => x.outcome), everyElement(CallOutcome.rejected));
+      expect(
+        r.records.map((x) => x.outcome),
+        everyElement(CallOutcome.rejected),
+      );
     });
 
     test('回落模板不合格：只给文字', () async {
       final c = FakeLlmClient([bad, bad, bad]);
-      final r = await session(c).send('x', context: const CoachContext(equipment: {'mat'}, avoid: {'膝'}));
+      final r = await session(c).send(
+        'x',
+        context: const CoachContext(equipment: {'mat'}, avoid: {'膝'}),
+      );
       expect(r.status, TurnStatus.fallback);
       expect(r.plan, isNull);
     });
@@ -532,7 +673,9 @@ void main() {
     });
 
     test('网络错误回落 offline', () async {
-      final c = FakeLlmClient([const LlmException(LlmErrorKind.network, 'down')]);
+      final c = FakeLlmClient([
+        const LlmException(LlmErrorKind.network, 'down'),
+      ]);
       final r = await session(c).send('x');
       expect(r.status, TurnStatus.fallback);
       expect(r.fallbackReason, FallbackReason.offline);
@@ -543,14 +686,23 @@ void main() {
       final s = session(c, maxTurns: 2);
       await s.send('第一轮', context: const CoachContext(equipment: {'mat'}));
       await s.send('再短一点', context: const CoachContext(equipment: {'mat'}));
-      expect(c.requests[1].messages.where((m) => m.role == LlmRole.user), hasLength(2));
+      expect(
+        c.requests[1].messages.where((m) => m.role == LlmRole.user),
+        hasLength(2),
+      );
       expect(s.isFull, isTrue);
       final r = await s.send('第三轮');
       expect(r.status, TurnStatus.limitReached);
       expect(c.requests, hasLength(2));
       s.reset();
       expect(s.history, isEmpty);
-      expect((await s.send('重来', context: const CoachContext(equipment: {'mat'}))).status, TurnStatus.ok);
+      expect(
+        (await s.send(
+          '重来',
+          context: const CoachContext(equipment: {'mat'}),
+        )).status,
+        TurnStatus.ok,
+      );
       expect(c.requests.last.messages, hasLength(2));
     });
 
@@ -564,12 +716,22 @@ void main() {
     test('本轮条件放在用户消息前缀，系统消息不变', () async {
       final c = FakeLlmClient([good, good]);
       final s = session(c);
-      await s.send('a', context: const CoachContext(scene: 'home', equipment: {'mat'}));
+      await s.send(
+        'a',
+        context: const CoachContext(scene: 'home', equipment: {'mat'}),
+      );
       await s.send(
         'b',
-        context: const CoachContext(scene: 'home', equipment: {'mat'}, avoid: {'腰'}),
+        context: const CoachContext(
+          scene: 'home',
+          equipment: {'mat'},
+          avoid: {'腰'},
+        ),
       );
-      expect(c.requests[0].messages.first.content, c.requests[1].messages.first.content);
+      expect(
+        c.requests[0].messages.first.content,
+        c.requests[1].messages.first.content,
+      );
       expect(c.requests[1].messages.last.content, contains('腰'));
     });
 
@@ -577,12 +739,21 @@ void main() {
       final old = Completer<Object>();
       final c = FakeLlmClient([(_) => old.future, good, good]);
       final s = session(c);
-      final oldTurn = s.send('旧请求', context: const CoachContext(equipment: {'mat'}));
+      final oldTurn = s.send(
+        '旧请求',
+        context: const CoachContext(equipment: {'mat'}),
+      );
       await pumpEventQueue();
       expect(s.isBusy, isTrue);
       s.reset();
       expect(s.isBusy, isFalse);
-      expect((await s.send('新请求', context: const CoachContext(equipment: {'mat'}))).status, TurnStatus.ok);
+      expect(
+        (await s.send(
+          '新请求',
+          context: const CoachContext(equipment: {'mat'}),
+        )).status,
+        TurnStatus.ok,
+      );
       old.complete(resp(text: '旧回复', calls: [call('show_plan', okPlan())]));
       final r = await oldTurn;
       expect(r.status, TurnStatus.cancelled);
@@ -592,7 +763,10 @@ void main() {
       expect(s.history.first.content, contains('新请求'));
       expect(s.history.any((m) => m.content.contains('旧')), isFalse);
       await s.send('第三轮', context: const CoachContext(equipment: {'mat'}));
-      final users = c.requests.last.messages.where((m) => m.role == LlmRole.user).map((m) => m.content).toList();
+      final users = c.requests.last.messages
+          .where((m) => m.role == LlmRole.user)
+          .map((m) => m.content)
+          .toList();
       expect(users, hasLength(2));
       expect(users.first, contains('新请求'));
       expect(users.last, contains('第三轮'));
@@ -613,7 +787,10 @@ void main() {
           return gateSink.future;
         }),
       );
-      final oldTurn = s.send('旧请求', context: const CoachContext(equipment: {'mat'}));
+      final oldTurn = s.send(
+        '旧请求',
+        context: const CoachContext(equipment: {'mat'}),
+      );
       await inSink.future;
       expect(entered, 1);
       expect(s.isBusy, isTrue);
@@ -642,7 +819,11 @@ void main() {
           return gateSink.future;
         }),
       );
-      final turn = s.send('x', context: const CoachContext(equipment: {'mat'}), cancel: token);
+      final turn = s.send(
+        'x',
+        context: const CoachContext(equipment: {'mat'}),
+        cancel: token,
+      );
       await inSink.future;
       token.cancel();
       gateSink.complete();
@@ -658,7 +839,9 @@ void main() {
       final gateSink = Completer<void>();
       final inSink = Completer<void>();
       final s = CoachSession(
-        client: FakeLlmClient([const LlmException(LlmErrorKind.network, 'down')]),
+        client: FakeLlmClient([
+          const LlmException(LlmErrorKind.network, 'down'),
+        ]),
         catalog: () => catalog,
         profile: hip,
         fallback: (r) => SessionFallbackReply('先用模板', plan: fallbackPlan),
@@ -730,18 +913,35 @@ void main() {
       first.complete(good);
       await a;
       expect(s.isBusy, isFalse);
-      expect((await s.send('第二轮', context: const CoachContext(equipment: {'mat'}))).status, TurnStatus.ok);
-      final users = s.history.where((m) => m.role == LlmRole.user).map((m) => m.content).toList();
+      expect(
+        (await s.send(
+          '第二轮',
+          context: const CoachContext(equipment: {'mat'}),
+        )).status,
+        TurnStatus.ok,
+      );
+      final users = s.history
+          .where((m) => m.role == LlmRole.user)
+          .map((m) => m.content)
+          .toList();
       expect(users.first, contains('第一轮'));
       expect(users.last, contains('第二轮'));
       expect(users.any((u) => u.contains('抢跑')), isFalse);
-      expect(c.requests[1].messages.where((m) => m.role == LlmRole.user).first.content, contains('第一轮'));
+      expect(
+        c.requests[1].messages
+            .where((m) => m.role == LlmRole.user)
+            .first
+            .content,
+        contains('第一轮'),
+      );
     });
 
     test('异步回落期间取消：await 回落后复查，返回 cancelled，历史与轮数不变', () async {
       final fb = Completer<SessionFallbackReply>();
       final cancel = CancelToken();
-      final c = FakeLlmClient([const LlmException(LlmErrorKind.network, 'down')]);
+      final c = FakeLlmClient([
+        const LlmException(LlmErrorKind.network, 'down'),
+      ]);
       final s = session(c, fallback: (_) => fb.future);
       final t = s.send('x', cancel: cancel);
       await pumpEventQueue();
@@ -758,7 +958,9 @@ void main() {
 
     test('异步回落期间 reset：旧轮回落结果不写入', () async {
       final fb = Completer<SessionFallbackReply>();
-      final c = FakeLlmClient([const LlmException(LlmErrorKind.network, 'down')]);
+      final c = FakeLlmClient([
+        const LlmException(LlmErrorKind.network, 'down'),
+      ]);
       final s = session(c, fallback: (_) => fb.future);
       final t = s.send('x');
       await pumpEventQueue();
@@ -769,85 +971,101 @@ void main() {
       expect(s.history, isEmpty);
     });
 
-    test('会话把本轮 level / minutes 冲突打回重交', () async {
-      final conflict = resp(text: 'x', calls: [call('show_plan', okPlan()..['level'] = 3)]);
+    test('会话按已确认 level / minutes 规范化而不重交', () async {
+      final conflict = resp(
+        text: 'x',
+        calls: [call('show_plan', okPlan()..['level'] = 3)],
+      );
       final c = FakeLlmClient([conflict, good]);
-      final r = await session(c).send('x', context: const CoachContext(equipment: {'mat'}, level: 1));
+      final r = await session(
+        c,
+      ).send('x', context: const CoachContext(equipment: {'mat'}, level: 1));
       expect(r.status, TurnStatus.ok);
-      expect(r.resubmits, 1);
-      expect(c.requests[1].messages.last.content, contains('context_conflict'));
+      expect(r.resubmits, 0);
+      expect(c.requests, hasLength(1));
       expect(r.plan!.plan.level, 1);
     });
   });
 
   group('OpenAI 兼容客户端：工具调用与自定义头', () {
-    test('请求带 tools、不带 response_format；解析 tool_calls；带自定义头与 Worker 头', () async {
-      late http.Request seen;
-      final mock = MockClient((r) async {
-        seen = r;
-        return http.Response.bytes(
-          utf8.encode(
-            jsonEncode({
-              'model': 'deepseek-v4-flash-0731',
-              'choices': [
-                {
-                  'message': {
-                    'role': 'assistant',
-                    'content': null,
-                    'tool_calls': [
-                      {
-                        'id': 'call_1',
-                        'type': 'function',
-                        'function': {'name': 'show_actions', 'arguments': '{"items":[{"actionId":"s-figure4"}]}'},
-                      },
-                    ],
+    test(
+      '请求带 tools、不带 response_format；解析 tool_calls；带自定义头与 Worker 头',
+      () async {
+        late http.Request seen;
+        final mock = MockClient((r) async {
+          seen = r;
+          return http.Response.bytes(
+            utf8.encode(
+              jsonEncode({
+                'model': 'deepseek-v4-flash-0731',
+                'choices': [
+                  {
+                    'message': {
+                      'role': 'assistant',
+                      'content': null,
+                      'tool_calls': [
+                        {
+                          'id': 'call_1',
+                          'type': 'function',
+                          'function': {
+                            'name': 'show_actions',
+                            'arguments': '{"items":[{"actionId":"s-figure4"}]}',
+                          },
+                        },
+                      ],
+                    },
+                    'finish_reason': 'tool_calls',
                   },
-                  'finish_reason': 'tool_calls',
-                },
-              ],
-              'usage': {'prompt_tokens': 10, 'completion_tokens': 5},
-            }),
-          ),
-          200,
-        );
-      });
-      final client = OpenAiCompatibleClient(
-        config: LlmConfig.ugkWorker.copyWith(headers: {'User-Agent': 'ugk-coach'}),
-        auth: UgkWorkerAuth(appKey: 'k', deviceId: () async => 'dev-1'),
-        httpClient: mock,
-      );
-      final r = await client.complete(
-        LlmRequest(
-          messages: [
-            const LlmMessage.user('看看'),
-            LlmMessage.assistant(
-              '',
-              toolCalls: [
-                call('show_actions', {'items': <Object>[]}, 'x'),
-              ],
+                ],
+                'usage': {'prompt_tokens': 10, 'completion_tokens': 5},
+              }),
             ),
-            const LlmMessage.tool('x', '{"ok":false}'),
-          ],
-          tools: CoachTools.build(hip, catalog),
-          toolChoice: 'auto',
-        ),
-      );
-      final body = jsonDecode(seen.body) as Map;
-      expect(seen.url.toString(), 'https://api.uuugk.win/v1/chat/completions');
-      expect(body['model'], 'deepseek-v4-flash-0731');
-      expect(body['tools'], hasLength(2));
-      expect(body.containsKey('response_format'), isFalse);
-      final msgs = body['messages'] as List;
-      expect((msgs[1] as Map)['content'], isNull);
-      expect((msgs[1] as Map)['tool_calls'], hasLength(1));
-      expect((msgs[2] as Map)['tool_call_id'], 'x');
-      expect(seen.headers['X-App-Key'], 'k');
-      expect(seen.headers['X-Device-Id'], 'dev-1');
-      expect(seen.headers['User-Agent'], 'ugk-coach');
-      expect(seen.headers.containsKey('Authorization'), isFalse);
-      expect(r.content, '');
-      expect(r.toolCalls.single.name, 'show_actions');
-      expect(r.toolCalls.single.id, 'call_1');
-    });
+            200,
+          );
+        });
+        final client = OpenAiCompatibleClient(
+          config: LlmConfig.ugkWorker.copyWith(
+            headers: {'User-Agent': 'ugk-coach'},
+          ),
+          auth: UgkWorkerAuth(appKey: 'k', deviceId: () async => 'dev-1'),
+          httpClient: mock,
+        );
+        final r = await client.complete(
+          LlmRequest(
+            messages: [
+              const LlmMessage.user('看看'),
+              LlmMessage.assistant(
+                '',
+                toolCalls: [
+                  call('show_actions', {'items': <Object>[]}, 'x'),
+                ],
+              ),
+              const LlmMessage.tool('x', '{"ok":false}'),
+            ],
+            tools: CoachTools.build(hip, catalog),
+            toolChoice: 'auto',
+          ),
+        );
+        final body = jsonDecode(seen.body) as Map;
+        expect(
+          seen.url.toString(),
+          'https://api.uuugk.win/v1/chat/completions',
+        );
+        expect(body['model'], 'deepseek-v4-flash-0731');
+        expect(body['tools'], hasLength(2));
+        expect(body.containsKey('response_format'), isFalse);
+        final msgs = body['messages'] as List;
+        expect((msgs[1] as Map)['content'], isNull);
+        expect((msgs[1] as Map)['tool_calls'], hasLength(1));
+        expect((msgs[2] as Map)['tool_call_id'], 'x');
+        expect(seen.headers['X-App-Key'], 'k');
+        expect(seen.headers['X-Device-Id'], 'dev-1');
+        expect(seen.headers['User-Agent'], 'ugk-coach');
+        expect(seen.headers.containsKey('Authorization'), isFalse);
+        expect(r.content, '');
+        expect(r.toolCalls.single.name, 'show_actions');
+        expect(r.toolCalls.single.id, 'call_1');
+      },
+    );
   });
 }

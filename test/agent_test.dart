@@ -278,10 +278,21 @@ void main() {
       expect(r.status, TurnStatus.ok);
       expect(r.actions!.items.map((i) => i.id), selected);
       expect(r.steps, 4);
-      expect(r.reads, [
-        'action-library/SKILL.md',
-        'action-library/index/muscle/glute-max.md',
-      ]);
+      expect(r.reads, ['action-library/SKILL.md']);
+      final routedIndex =
+          jsonDecode(
+                c.requests[2].messages
+                    .firstWhere(
+                      (m) =>
+                          m.role == LlmRole.tool &&
+                          m.content.contains('"items"'),
+                    )
+                    .content,
+              )
+              as Map;
+      expect(routedIndex['ok'], isTrue);
+      expect(routedIndex['notes'], isNotEmpty);
+      expect(routedIndex['items'], isNotEmpty);
       expect(r.records.map((x) => x.outcome), [
         CallOutcome.toolStep,
         CallOutcome.toolStep,
@@ -300,7 +311,6 @@ void main() {
           AgentEventKind.thinking,
           AgentEventKind.reading,
           AgentEventKind.thinking,
-          AgentEventKind.reading,
           AgentEventKind.reading,
           AgentEventKind.thinking,
           AgentEventKind.thinking,
@@ -393,7 +403,7 @@ void main() {
       });
       final fb = jsonDecode(c.requests[2].messages.last.content) as Map;
       expect(fb['ok'], false);
-      expect(fb['code'], 'invalid_picks');
+      expect(fb['code'], 'unseen_actions');
       expect(jsonEncode(fb), contains('made-up-id'));
     });
 
@@ -430,7 +440,7 @@ void main() {
   });
 
   group('check_plan', () {
-    test('当前计划核对成功；坏 plan_id 返回具体错误并产生 checking 事件', () async {
+    test('当前计划核对成功；旧 plan_id 规范化到当前版本并产生 checking 事件', () async {
       const ids = ['h-sumo-pry', 'n-squat-shift', 's-butterfly'];
       late String planId;
       final c = FakeLlmClient([
@@ -513,11 +523,9 @@ void main() {
           ]);
         },
         (LlmRequest request) {
-          final invalid = jsonDecode(request.messages.last.content) as Map;
-          expect(invalid['ok'], isFalse);
-          expect(invalid['code'], 'invalid_plan_id');
-          expect(invalid['field'], 'plan_id');
-          expect(invalid['actual'], '不存在的计划');
+          final normalized = jsonDecode(request.messages.last.content) as Map;
+          expect(normalized['ok'], isTrue);
+          expect((normalized['task'] as Map)['type'], 'plan');
           return _tools([
             _call('check_plan', {'plan_id': planId}),
           ]);
@@ -538,6 +546,7 @@ void main() {
       final r = await a.send('在家有瑜伽垫，5分钟练大腿内侧');
       expect(r.question, isNotNull, reason: '${r.error}; ${r.issues}');
       final version = a.sessionState.plans[planId]!.last;
+      expect(a.sessionState.plans.keys, [planId]);
       expect(version.check!['ok'], isTrue);
       expect(events.where((e) => e == AgentEventKind.checking).length, 2);
     });

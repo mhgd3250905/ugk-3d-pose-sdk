@@ -196,19 +196,19 @@ void main() {
       id: 'too-large',
       name: 'search_actions',
       args: <String, Object?>{'tags': <String>[], 'limit': 21},
-      code: 'invalid_limit',
+      code: null,
     ),
     (
       id: 'zero',
       name: 'search_actions',
       args: <String, Object?>{'tags': <String>[], 'limit': 0},
-      code: 'invalid_limit',
+      code: null,
     ),
     (
       id: 'empty',
       name: 'get_action',
       args: <String, Object?>{'ids': <String>[]},
-      code: 'invalid_ids',
+      code: null,
     ),
     (
       id: 'many',
@@ -216,7 +216,7 @@ void main() {
       args: <String, Object?>{
         'ids': [for (var i = 0; i < 11; i++) 'id$i'],
       },
-      code: 'invalid_ids',
+      code: 'incompatible_actions',
     ),
     (
       id: 'duplicate',
@@ -224,7 +224,7 @@ void main() {
       args: <String, Object?>{
         'ids': ['a', 'a'],
       },
-      code: 'invalid_arguments',
+      code: 'incompatible_actions',
     ),
   ];
   for (final invalid in invalidCases) {
@@ -244,6 +244,13 @@ void main() {
         final coach = agent(client);
         await coach.send('推荐运动');
         final request = client.requests.last;
+        if (invalid.code == null) {
+          expect(_feedback(request, invalid.id)['ok'], isTrue);
+          expect(_feedback(request, invalid.id)['notes'], isNotEmpty);
+          expect(_feedback(request, 'skipped-search')['ok'], isTrue);
+          expect(coach.sessionState.seenActionIds, isNotEmpty);
+          return;
+        }
         expect(_feedback(request, invalid.id)['code'], invalid.code);
         expect(
           _feedback(request, 'skipped-search')['code'],

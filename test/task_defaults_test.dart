@@ -73,7 +73,10 @@ void main() {
           )
           .state;
       expect(AgentTask.start(changed, 'plan').state.task!.reused, isFalse);
-      expect(AgentTask.start(changed, 'plan', reuse: true).ok, isFalse);
+      final staleReuse = AgentTask.start(changed, 'plan', reuse: true);
+      expect(staleReuse.ok, isTrue);
+      expect(staleReuse.state.task!.reused, isFalse);
+      expect(staleReuse.state.seenActionIds, isEmpty);
     },
   );
   test('start_task handler preserves omitted versus explicit false', () {

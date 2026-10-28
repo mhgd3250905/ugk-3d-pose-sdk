@@ -186,6 +186,7 @@ ComparisonJson _case(ComparisonJson value) {
     'nodeStamps': stamps,
     'acceptedParameterReceipts': _acceptedParameterReceipts(calls),
     'toolRejectionStatistics': value['toolRejectionStatistics'],
+    'warningSummary': evaluationWarningSummary(turns),
   };
 }
 

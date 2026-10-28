@@ -46,6 +46,7 @@ import 'skill_files.dart';
 import 'skill_tool_handler.dart';
 import 'structured_tool_handler.dart';
 import 'terminal_tool_handler.dart';
+import 'tool_arguments.dart';
 import 'training_confirmation.dart';
 import 'user_memory.dart';
 
@@ -1554,6 +1555,10 @@ class CoachAgent {
         break;
       }
 
+      final normalizedBatch = normalizeToolBatch(res);
+      res = normalizedBatch.response;
+      final executedResponse = res;
+
       // Execute the batch in order; a failed call blocks every later call.
       final batch = ToolBatch();
       final structured = StructuredToolHandler(
@@ -1581,7 +1586,6 @@ class CoachAgent {
         for (var i = 0; i < orderedResults.length; i++)
           resultMessage(i, orderedResults[i]),
       ]);
-      final callIds = <String>{};
       final pendingCompress = <String, CompressibleResult>{};
       AgentOutputResult? terminalOutput;
       AskUserQuestion? terminalQuestion;
@@ -1589,24 +1593,19 @@ class CoachAgent {
       var fresh = false;
       for (var toolIndex = 0; toolIndex < res.toolCalls.length; toolIndex++) {
         final t = res.toolCalls[toolIndex];
-        if (batch.failed) {
-          batch.skipped(t.id);
+        if (terminalQuestion != null) {
+          results[t.id] = jsonEncode({
+            'ok': true,
+            'deferred': true,
+            'reason': 'awaiting_user',
+            'notes': ['本批已暂停询问；此操作在收到用户回答后继续。'],
+          });
           orderedResults.add(results[t.id]!);
           continue;
         }
-        if (!callIds.add(t.id)) {
-          orderedResults.add(
-            jsonEncode(
-              nodeError(
-                'duplicate_tool_call_id',
-                'tool_calls[$toolIndex].id',
-                '每个 tool_call_id 唯一',
-                t.id,
-                '为每个工具调用提供不同的 ID。',
-              ),
-            ),
-          );
-          batch.mark(toolIndex + 1, t.id, failure: true);
+        if (batch.failed) {
+          batch.skipped(t.id);
+          orderedResults.add(results[t.id]!);
           continue;
         }
         // Host settings may change while the model request is in flight.
@@ -1725,6 +1724,21 @@ class CoachAgent {
             results[t.id] = handled.response;
           case AgentTools.read:
             final path = SkillFiles.normalize(_arg(t, 'path') ?? '');
+            if (skills.blocked(path, read: true, hasTask: true) &&
+                (fs.read(path) != null || fs.ls(path) != null)) {
+              final handled = structured.readActions(
+                _sessionState,
+                path,
+                context.language,
+              );
+              _sessionState = handled.state;
+              results[t.id] = handled.response;
+              fresh = fresh || handled.fresh;
+              for (final id in handled.accessed) {
+                if (readSet.add('get_action:$id')) fresh = true;
+              }
+              break;
+            }
             if (!skills.blocked(
               path,
               read: true,
@@ -1846,6 +1860,12 @@ class CoachAgent {
             terminalRejected = handled.rejected;
             terminalOutput = handled.output;
             _sessionState = handled.state ?? _sessionState;
+            if (handled.changes.isNotEmpty) {
+              _emitNodeChanges(
+                turnId,
+                NodeResult(_sessionState, changes: handled.changes),
+              );
+            }
             results[t.id] = handled.response;
           default:
             results[t.id] = jsonEncode(
@@ -1859,6 +1879,70 @@ class CoachAgent {
             );
         }
         if (dead()) return cancelled(step);
+        try {
+          final receipt = jsonDecode(results[t.id]!);
+          if (receipt is Map) {
+            final extraNotes = <String>[...?normalizedBatch.notes[t.id]];
+            if (receipt['status'] == 'infeasible') {
+              final feasibility = receipt['feasibility'];
+              final target = feasibility is Map
+                  ? feasibility['targetSec']
+                  : null;
+              final reason = feasibility is Map ? feasibility['reason'] : null;
+              final requiresRebuild =
+                  feasibility is Map &&
+                  feasibility['status'] == 'requires_rebuild';
+              final targetMinutes = target is num
+                  ? (target / 60).toStringAsFixed(1)
+                  : null;
+              final english = context.language.toLowerCase().startsWith('en');
+              final providedQuestion = receipt['message'];
+              final question =
+                  providedQuestion is String &&
+                      providedQuestion.trim().isNotEmpty
+                  ? providedQuestion
+                  : requiresRebuild
+                  ? (english
+                        ? 'This saved plan needs to be rebuilt before changing its duration. Would you prefer to rebuild the selected actions or keep the current plan?'
+                        : '这份已保存计划需要重新编排后才能调整时长。你希望用已有动作重新编排，还是保留当前计划？')
+                  : reason == 'derived_minutes_unavailable'
+                  ? (english
+                        ? 'The requested duration change has no supported value. Would you prefer to keep the current duration or adjust the request?'
+                        : '当前支持的时长范围内没有符合这次调整要求的数值。你希望保留当前时长，还是调整本次要求？')
+                  : english
+                  ? 'The selected actions within the permitted dose ranges cannot fit${targetMinutes == null ? " the requested duration" : " $targetMinutes minutes"}. Would you prefer to change the duration, the dose, or the selected actions?'
+                  : '当前动作在允许剂量范围内无法同时满足${targetMinutes == null ? "要求的时长" : "$targetMinutes 分钟"}。你希望调整时长、剂量，还是动作选择？';
+              terminalQuestion = AskUserGate.check(
+                jsonEncode({'question': question, 'mode': 'text'}),
+                language: context.language,
+              ).question;
+              receipt['asked'] = true;
+              receipt['awaitingUser'] = true;
+              extraNotes.add('已根据结构化不可行原因暂停询问取舍，未要求模型继续试算。');
+            }
+            if (extraNotes.isNotEmpty) {
+              results[t.id] = jsonEncode({
+                ...receipt,
+                'notes': [
+                  if (receipt['notes'] is List) ...receipt['notes'] as List,
+                  ...extraNotes,
+                ],
+              });
+              final disclosure = disclosuresByIndex[toolIndex];
+              if (disclosure != null) {
+                disclosuresByIndex[toolIndex] = SkillDisclosureMessage(
+                  t.id,
+                  results[t.id]!,
+                  fullRead: disclosure.fullRead,
+                  fullSkills: disclosure.fullSkills,
+                  requiredSkills: disclosure.requiredSkills,
+                );
+              }
+            }
+          }
+        } on FormatException {
+          // Plain skill results retain their exact disclosure text.
+        }
         batch.mark(toolIndex + 1, t.id, failure: toolFailure);
         orderedResults.add(results[t.id]!);
         if (terminalOutput != null) {
@@ -1912,11 +1996,11 @@ class CoachAgent {
             userMessage: userMsg,
             turnMessages: turnMsgs,
             assistantMessage: assistant(
-              response,
+              executedResponse,
               content: question.question,
               history: true,
             ),
-            calls: response.toolCalls,
+            calls: executedResponse.toolCalls,
             results: orderedResults,
             resultMessages: [
               for (var i = 0; i < orderedResults.length; i++)
@@ -2005,6 +2089,33 @@ class CoachAgent {
 
       submissions++;
       final output = terminalOutput;
+      if (output.unavailable) {
+        final message =
+            output.unavailableMessage ??
+            (context.language.toLowerCase().startsWith('en')
+                ? 'No actions match the current conditions. Would you like to adjust them?'
+                : '当前条件没有符合要求的动作。是否愿意调整条件？');
+        calls.add(_Call.ok(step, res, CallOutcome.passed, retry: tag));
+        return done(
+          TurnStatus.ok,
+          TurnOutcome.model,
+          step,
+          text: message,
+          commit: () {
+            _turns++;
+            _history
+              ..add(userMsg)
+              ..add(
+                assistant(
+                  executedResponse,
+                  content: message,
+                  toolCalls: const [],
+                  history: true,
+                ),
+              );
+          },
+        );
+      }
       final g = output.card!;
       if (g.ok) {
         var admittedTask = _sessionState.task;

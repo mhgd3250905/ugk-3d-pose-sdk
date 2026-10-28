@@ -8,32 +8,94 @@ extension TaskToolHandler on StructuredToolHandler {
     String language, {
     SkillDisclosures? disclosures,
   }) {
-    final args = _decode(raw);
-    if (args is! Map ||
-        args.keys.any((key) => key is! String) ||
-        (tool == AgentTools.startTask &&
-            (args['type'] is! String ||
-                (args['reuse'] != null && args['reuse'] is! bool) ||
-                args.keys.any((key) => key != 'type' && key != 'reuse'))) ||
-        (tool == AgentTools.check &&
-            (args['node'] is! String ||
-                (args['picks'] != null &&
-                    (args['picks'] is! List ||
-                        (args['picks'] as List).any((v) => v is! String))) ||
-                args.keys.any((key) => key != 'node' && key != 'picks')))) {
+    var decoded = _decode(raw);
+    final normalization = <String>[];
+    if (decoded is String) {
+      decoded = _decode(decoded);
+      normalization.add('已解包字符串化参数。');
+    }
+    if (decoded is! Map || decoded.keys.any((key) => key is! String)) {
       return StructuredToolResult(
         state,
         jsonEncode(
           nodeError(
             'invalid_arguments',
             'arguments',
-            tool == AgentTools.startTask
-                ? '{type: recommend|plan, reuse?: bool}'
-                : '{node: fixed node, picks?: string[]}',
-            args,
-            '使用工具 schema 中的字段和值。',
+            '参数对象',
+            decoded,
+            '提供结构化参数。',
           ),
         ),
+      );
+    }
+    final args = decoded.cast<String, Object?>();
+    if (tool == AgentTools.startTask && args['type'] is! String) {
+      return StructuredToolResult(
+        state,
+        jsonEncode(
+          nodeError(
+            'invalid_arguments',
+            'type',
+            'recommend 或 plan',
+            args['type'],
+            '明确任务类型。',
+          ),
+        ),
+      );
+    }
+    if (tool == AgentTools.startTask &&
+        args['reuse'] != null &&
+        args['reuse'] is! bool) {
+      args.remove('reuse');
+      normalization.add('已按真实状态决定复用。');
+    }
+    final allowed = tool == AgentTools.startTask
+        ? const {'type', 'reuse'}
+        : const {'node', 'picks'};
+    final extra = args.keys.where((key) => !allowed.contains(key)).toList();
+    for (final key in extra) {
+      args.remove(key);
+    }
+    if (extra.isNotEmpty) normalization.add('已忽略额外字段：${extra.join('、')}。');
+    if (tool == AgentTools.check && args['node'] is! String) {
+      return StructuredToolResult(
+        state,
+        jsonEncode({
+          'ok': true,
+          'task': state.task?.toJson(),
+          'note': '节点由代码推进，已返回当前状态。',
+        }),
+      );
+    }
+    if (tool == AgentTools.check && args['picks'] is String) {
+      args['picks'] = _decode(args['picks'] as String);
+      normalization.add('已解包动作ID数组。');
+    }
+    if (tool == AgentTools.check &&
+        args['picks'] != null &&
+        (args['picks'] is! List ||
+            (args['picks'] as List).any((v) => v is! String))) {
+      return StructuredToolResult(
+        state,
+        jsonEncode(
+          nodeError(
+            'invalid_arguments',
+            'picks',
+            '动作ID数组',
+            args['picks'],
+            '提供已选ID。',
+          ),
+        ),
+      );
+    }
+    if (tool == AgentTools.check &&
+        {'planning', 'review'}.contains(args['node']) &&
+        state.activePlanId != null &&
+        state.plans[state.activePlanId]?.isNotEmpty == true) {
+      return checkPlan(
+        state,
+        jsonEncode({'plan_id': state.activePlanId}),
+        language: language,
       );
     }
     Map<String, String>? taskSkills;
@@ -129,11 +191,12 @@ extension TaskToolHandler on StructuredToolHandler {
               if (tool == AgentTools.startTask && next.task?.type == 'plan')
                 'plan_id': next.activePlanId,
               if (result.warnings.isNotEmpty) 'warnings': result.warnings,
-              if (result.notices.isNotEmpty) 'notices': result.notices,
+              if (result.notices.isNotEmpty || normalization.isNotEmpty)
+                'notices': [...normalization, ...result.notices],
             },
       ),
       changes: result.ok ? changes : const [],
-      fresh: result.ok,
+      fresh: result.ok && (changes.isNotEmpty || fullSkills.isNotEmpty),
       fullSkills: result.ok ? fullSkills : const {},
       requiredSkills: result.ok ? requiredSkills : const {},
     );

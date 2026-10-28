@@ -506,6 +506,8 @@ Future<Json> _runCase(
             ..sort(),
       'legacyGoal': plan?.goal,
       'task': agent.sessionState.task?.toJson(),
+      'emittedWarningCodes': agent.sessionState.emittedWarningCodes.toList()
+        ..sort(),
       'activityTaskType': evaluationTurnTaskType(
         turn: currentTurn,
         events: events,
@@ -518,6 +520,7 @@ Future<Json> _runCase(
     };
     turn['toolRejectionStatistics'] = evaluationToolRejections([turn]);
     turn['bodyTargetQuality'] = evaluationBodyTargetQuality([turn]);
+    turn['warningSummary'] = evaluationWarningSummary([turn]);
     turns.add(_map(redactor.clean(turn)));
     append({'recordType': 'turn-result', ...turn});
     if (result == null || result.status != TurnStatus.ok) {
@@ -708,6 +711,7 @@ Future<Json> _runCase(
     'elapsedMs': watch.elapsedMilliseconds,
     'callStatistics': _callStatistics(wire.calls),
     'bodyTargetQuality': evaluationBodyTargetQuality(turns),
+    'warningSummary': evaluationWarningSummary(turns),
     'automatedChecksPassed': failures.isEmpty,
     'automatedFailures': failures,
     'caseValidity': modelMismatches.isNotEmpty

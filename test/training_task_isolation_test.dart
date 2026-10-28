@@ -861,7 +861,9 @@ void main() {
           'level': CoachParamValue(value: 1, source: 'host', turn: 0),
           'limits': CoachParamValue(value: <String>[], source: 'host', turn: 0),
         },
-        seenActionIds: {'h-squat'},
+        // Both performed segment and stored media parent have an explicit
+        // admitted source; repairing a node must not manufacture this pool.
+        seenActionIds: {'h-squat', 'n-windshield'},
         picks: ['h-squat'],
         activePlanId: planId,
         plans: {

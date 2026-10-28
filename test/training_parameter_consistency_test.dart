@@ -109,15 +109,15 @@ void main() {
   }
 
   test(
-    'template target must match confirmed minutes without relabelling dose',
+    'checking does not relabel a template dose and leaves actual refitting to delivery',
     () {
       final baseline = review(makePlan(), confirmed);
       expect(baseline.ok, isTrue, reason: '${baseline.errors}');
       final mismatch = makePlan(minutes: 15);
       final checked = review(mismatch, confirmed);
-      expect(checked.ok, isFalse);
+      expect(checked.ok, isTrue, reason: '${checked.errors}');
       final conditions = checked.rules['card_conditions'] as Map;
-      expect(conditions['ok'], isFalse);
+      expect(conditions['ok'], isTrue);
       expect((conditions['expected'] as Map)['targetMinutes'], 10);
       expect((conditions['actual'] as Map)['targetMinutes'], 15);
       // Only the target label changed; actual dose and estimated duration did not.
@@ -125,10 +125,7 @@ void main() {
         const PlanDuration().estimateSeconds(mismatch, catalog),
         const PlanDuration().estimateSeconds(makePlan(), catalog),
       );
-      expect(
-        checked.errors.map((e) => e['code']),
-        contains('plan_card_conditions'),
-      );
+      expect(checked.state.plans[mismatch.id]!.last.plan['targetMinutes'], 15);
     },
   );
 
@@ -141,8 +138,11 @@ void main() {
         makePlan(equipment: ['mat', 'dumbbell']),
         confirmed,
       );
-      expect(declaration.ok, isFalse);
-      expect((declaration.rules['card_conditions'] as Map)['ok'], isFalse);
+      expect(declaration.ok, isTrue);
+      expect((declaration.rules['card_conditions'] as Map)['ok'], isTrue);
+      expect(declaration.state.plans.values.single.last.plan['equipment'], [
+        'mat',
+      ]);
       final source = stateFor(
         const CoachContext(scene: 'home', equipment: {'chair'}, minutes: 10),
       ).appendUserTurn('这次不用瑜伽垫');
@@ -192,13 +192,11 @@ void main() {
     ]) {
       final checked = review(makePlan(equipment: declared), confirmed);
       final conditions = checked.rules['card_conditions'] as Map;
-      expect(conditions['ok'], isFalse);
+      expect(conditions['ok'], isTrue);
+      expect(conditions['normalized'], isTrue);
       expect((conditions['expected'] as Map)['equipment'], ['mat']);
-      expect((conditions['actual'] as Map)['equipment'], [...declared]..sort());
-      expect(
-        checked.errors.map((e) => e['code']),
-        contains('plan_card_conditions'),
-      );
+      expect((conditions['actual'] as Map)['equipment'], ['mat']);
+      expect(checked.state.plans.values.single.last.plan['equipment'], ['mat']);
     }
   });
 
@@ -298,7 +296,8 @@ void main() {
     expect((matching.rules['equipment'] as Map)['ok'], isTrue);
     expect((matching.rules['card_conditions'] as Map)['ok'], isTrue);
     final missing = review(officePlan(['chair']), office, using: smartfit);
-    expect((missing.rules['card_conditions'] as Map)['ok'], isFalse);
+    expect((missing.rules['card_conditions'] as Map)['ok'], isTrue);
+    expect((missing.rules['card_conditions'] as Map)['normalized'], isTrue);
     expect(
       ((missing.rules['card_conditions'] as Map)['expected']
           as Map)['equipment'],
@@ -395,7 +394,9 @@ void main() {
         minPicks: 3,
       ).validateTemplate(changed.state, makePlan());
       expect(oldPlan.ok, isFalse);
-      expect((oldPlan.rules['card_conditions'] as Map)['ok'], isFalse);
+      expect((oldPlan.rules['card_conditions'] as Map)['ok'], isTrue);
+      // The new office scene does not allow the old home mat: both actual
+      // scene and equipment restrictions remain hard.
       expect((oldPlan.rules['equipment'] as Map)['ok'], isFalse);
       expect(oldPlan.errors.map((e) => e['code']), contains(IssueCodes.scene));
     },

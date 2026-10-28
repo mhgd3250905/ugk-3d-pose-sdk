@@ -147,7 +147,16 @@ void main() {
       'non-bool multiple': {..._choice(), 'multiple': 'true'},
       'null multiple': {..._choice(), 'multiple': null},
     };
-    for (final entry in badArguments.entries) {
+    const invalidQuestions = {
+      'malformed JSON',
+      'non-object JSON',
+      'missing question',
+      'empty question',
+      'non-string question',
+    };
+    for (final entry in badArguments.entries.where(
+      (e) => invalidQuestions.contains(e.key),
+    )) {
       test(
         '${entry.key}: gate rejects and Agent repairs to a safe answer',
         () async {
@@ -180,6 +189,29 @@ void main() {
         },
       );
     }
+    for (final entry in badArguments.entries.where(
+      (e) => !invalidQuestions.contains(e.key),
+    )) {
+      test(
+        '${entry.key}: presentation is normalized without another model call',
+        () async {
+          final raw = entry.value is String
+              ? entry.value as String
+              : jsonEncode(entry.value);
+          final checked = AskUserGate.check(raw);
+          expect(checked.ok, isTrue);
+          expect(checked.errors, isEmpty);
+          final client = FakeLlmClient([_ask(entry.value)]);
+          final coach = agent(client);
+          final result = await coach.send('请讲解这个动作');
+          expect(result.question, isNotNull);
+          expect(result.records.single.issueCodes, isEmpty);
+          expect(client.requests, hasLength(1));
+          expect(coach.questionsAsked, 1);
+          _expectToolProtocol(coach.history);
+        },
+      );
+    }
     test(
       'the model may ask a valid question without code intent classification',
       () async {
@@ -196,7 +228,7 @@ void main() {
     for (final show in [AgentTools.showPlan, AgentTools.showActions]) {
       for (final askFirst in [true, false]) {
         test(
-          'ask and $show in one response are rejected (askFirst=$askFirst)',
+          'ask pauses before $show without rejection (askFirst=$askFirst)',
           () async {
             final question = _call(AgentTools.askUser, _text());
             final delivery = show == AgentTools.showPlan
@@ -217,34 +249,37 @@ void main() {
             expect(result.status, TurnStatus.ok);
             expect(result.plan, isNull);
             expect(result.actions, isNull);
-            expect(result.question, isNull);
-            expect(result.records.first.outcome, CallOutcome.rejected);
-            expect(coach.questionsAsked, 0);
+            expect(result.question, isNotNull);
+            expect(result.records.first.outcome, CallOutcome.passed);
+            expect(coach.questionsAsked, 1);
             expect(
               events.where((event) => event.kind == AgentEventKind.askUser),
-              isEmpty,
+              hasLength(1),
             );
-            _expectToolProtocol(client.requests.last.messages);
+            _expectToolProtocol(coach.history);
           },
         );
       }
     }
-    test('two asks in the same response are both rejected', () async {
-      final client = FakeLlmClient([
-        _tools([
-          _call(AgentTools.askUser, _text()),
-          _call(AgentTools.askUser, _choice()),
-        ]),
-        '可以慢慢练习。',
-      ]);
-      final coach = agent(client);
-      final result = await coach.send('请讲解这个动作');
-      expect(result.status, TurnStatus.ok);
-      expect(result.question, isNull);
-      expect(result.records.first.outcome, CallOutcome.rejected);
-      expect(coach.questionsAsked, 0);
-      _expectToolProtocol(client.requests.last.messages);
-    });
+    test(
+      'second question is deferred until the first question is answered',
+      () async {
+        final client = FakeLlmClient([
+          _tools([
+            _call(AgentTools.askUser, _text()),
+            _call(AgentTools.askUser, _choice()),
+          ]),
+          '可以慢慢练习。',
+        ]);
+        final coach = agent(client);
+        final result = await coach.send('请讲解这个动作');
+        expect(result.status, TurnStatus.ok);
+        expect(result.question, isNotNull);
+        expect(result.records.first.outcome, CallOutcome.passed);
+        expect(coach.questionsAsked, 1);
+        _expectToolProtocol(coach.history);
+      },
+    );
     test('invalid show can be repaired without inventing a question', () async {
       final client = FakeLlmClient([
         _tools([_call(AgentTools.showPlan, <String, Object?>{})]),

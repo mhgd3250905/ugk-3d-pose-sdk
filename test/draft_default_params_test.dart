@@ -114,7 +114,7 @@ void main() {
         expect(result.state.params['scene']!.source, 'default');
         expect(result.state.params['minutes']!.source, 'default');
         expect(result.state.params['goal']!.source, 'user');
-        final stamp = result.changes
+        final stamp = result.state.task!.nodes
             .singleWhere((n) => n.id == 'parameters')
             .stamp;
         expect(stamp, contains('默认'));
@@ -142,7 +142,14 @@ void main() {
       expect(result.state.params['minutes'], same(state.params['minutes']));
       expect(result.state.params['scene']!.source, 'default');
       final invalid = jsonDecode(draft) as Map<String, Object?>;
-      invalid['title'] = 3;
+      invalid['blocks'] = [
+        {
+          'kind': 'main',
+          'items': [
+            {'id': 'unseen-action'},
+          ],
+        },
+      ];
       final rejected = h.draft(state, jsonEncode(invalid), 'zh');
       expect((jsonDecode(rejected.response) as Map)['ok'], isFalse);
       expect(rejected.state, same(state));
@@ -168,7 +175,13 @@ void main() {
     'builder reports names of genuinely missing fields, not values or placeholders',
     () {
       final h = handler('smartfit');
-      final state = start(h);
+      final ready = start(h);
+      final state = ready.copyWith(
+        params: {
+          for (final e in ready.params.entries)
+            if (!{'scene', 'minutes'}.contains(e.key)) e.key: e.value,
+        },
+      );
       final result = PlanBuilder(loadProfile('smartfit'), catalog, minPicks: 3)
           .draft(
             state,

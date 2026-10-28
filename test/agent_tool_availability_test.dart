@@ -58,7 +58,7 @@ void main() {
   );
 
   test(
-    'check_plan remains available after a read and rejects missing or extra fields',
+    'check_plan remains available and normalizes missing IDs or extra fields',
     () async {
       final client = FakeLlmClient([
         tool('read', AgentTools.read, {'path': 'plan-training/SKILL.md'}),
@@ -72,18 +72,19 @@ void main() {
           'mode': 'text',
         }),
       ], latency: Duration.zero);
-      final result = await agent(client).send('在家有瑜伽垫十分钟排个计划');
+      final coach = agent(client);
+      final result = await coach.send('在家有瑜伽垫十分钟排个计划');
       expect(result.status, TurnStatus.ok);
       expect(client.requests, hasLength(4));
       expect(client.requests.every(hasCheck), isTrue);
-      expect(
-        feedback(client.requests[2], 'missing')['code'],
-        'invalid_arguments',
-      );
-      expect(
-        feedback(client.requests[3], 'extra')['code'],
-        'invalid_arguments',
-      );
+      for (final entry in [(2, 'missing'), (3, 'extra')]) {
+        final checked = feedback(client.requests[entry.$1], entry.$2);
+        expect(checked['ok'], isTrue);
+        expect(checked['notReady'], isTrue);
+        expect(checked['note'], isNotEmpty);
+      }
+      expect(coach.sessionState.params.containsKey('equipment'), isFalse);
+      expect(result.plan, isNull);
     },
   );
 
@@ -91,6 +92,16 @@ void main() {
     'rejected unknown action stays rejected and check_plan remains available',
     () async {
       final client = FakeLlmClient([
+        tool('start', AgentTools.startTask, {'type': 'recommend'}),
+        tool('params', AgentTools.setParams, {
+          'fields': {
+            'goal': {
+              'value': ['body.inner_thigh'],
+              'source': 'user',
+              'quote': '大腿内侧',
+            },
+          },
+        }),
         tool('bad', AgentTools.showActions, {
           'ids': ['invented-id'],
           'note': '请看动作。',
@@ -98,12 +109,17 @@ void main() {
         tool('check', AgentTools.checkPlan, {'plan_id': 'missing'}),
         '目录里没有这个动作。',
       ], latency: Duration.zero);
-      final result = await agent(client).send('展示动作');
+      final result = await agent(client).send('展示大腿内侧动作');
       expect(result.status, TurnStatus.ok);
       expect(result.actions, isNull);
       expect(client.requests.every(hasCheck), isTrue);
-      expect(result.records.first.issueCodes, contains('wrong_task_type'));
-      expect(feedback(client.requests[2], 'check')['ok'], isFalse);
+      expect(feedback(client.requests[3], 'bad')['code'], 'unseen_actions');
+      expect(
+        feedback(client.requests[3], 'bad')['actual'],
+        contains('invented-id'),
+      );
+      expect(feedback(client.requests[4], 'check')['ok'], isTrue);
+      expect(feedback(client.requests[4], 'check')['notReady'], isTrue);
     },
   );
 

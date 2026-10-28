@@ -35,7 +35,7 @@ void main() {
   }
 
   test(
-    'agent offers check_plan in successive requests and rejects model equipment',
+    'agent offers check_plan and ignores extra model equipment without admitting it',
     () async {
       final client = FakeLlmClient([
         _call('read', 'read', {'path': 'plan-training/SKILL.md'}),
@@ -67,8 +67,11 @@ void main() {
         (m) => m.toolCallId == 'bad',
       );
       final response = jsonDecode(message.content) as Map<String, dynamic>;
-      expect(response['ok'], isFalse);
-      expect(response['code'], 'invalid_arguments');
+      expect(response['ok'], isTrue);
+      expect(response['notReady'], isTrue);
+      expect(response['note'], isNotEmpty);
+      expect(coach.sessionState.params.containsKey('equipment'), isFalse);
+      expect(coach.sessionState.plans, isEmpty);
     },
   );
 

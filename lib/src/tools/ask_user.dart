@@ -137,199 +137,211 @@ class AskUserQuestion {
 }
 
 class AskUserGateResult {
-  AskUserGateResult._(this.question, List<PlanIssue> errors)
-    : errors = List.unmodifiable(errors);
+  AskUserGateResult._(
+    this.question,
+    List<PlanIssue> errors, {
+    List<String> notes = const [],
+  }) : errors = List.unmodifiable(errors),
+       notes = List.unmodifiable(notes);
   final AskUserQuestion? question;
   final List<PlanIssue> errors;
+  final List<String> notes;
   bool get ok => question != null && errors.isEmpty;
 }
 
 abstract final class AskUserGate {
-  /// 只校验，不修补 JSON、字段类型、选项或模式；错误沿用 Agent 的工具重交机制。
+  /// Normalize presentation without changing the question or option meanings.
+  /// An unreadable payload or a missing question still cannot be invented.
   static AskUserGateResult check(String arguments, {String language = 'zh'}) {
     final english = language.toLowerCase().startsWith('en');
+    final notes = <String>[];
     int length(String value) => english
         ? value.trim().split(RegExp(r'\s+')).length
         : value.runes.length;
-    final errors = <PlanIssue>[];
-    void issue(String path, String expected, String actual, {String? code}) {
-      errors.add(
-        PlanIssue(
-          code ?? IssueCodes.schema,
-          'ask_user 的 $path 不合规',
-          path: path,
-          expected: expected,
-          actual: actual,
-          fix: '将 ask_user.$path 设置为 $expected，重新调用 ask_user。',
-        ),
-      );
-    }
-
-    Object? raw;
+    String label(String value, int maximum) => english
+        ? value.trim().split(RegExp(r'\s+')).take(maximum).join(' ')
+        : String.fromCharCodes(value.trim().runes.take(maximum));
+    AskUserGateResult invalid(String path, String actual, {String? code}) =>
+        AskUserGateResult._(null, [
+          PlanIssue(
+            code ?? IssueCodes.schema,
+            'ask_user 的 $path 不合规',
+            path: path,
+            expected: '合法 JSON 对象及非空 question',
+            actual: actual,
+            fix: '提供用户能够回答的非空问题。',
+          ),
+        ]);
+    Object? decoded;
     try {
-      raw = jsonDecode(arguments);
+      decoded = jsonDecode(arguments);
     } on FormatException {
-      issue('arguments', '合法 JSON 对象', '非法 JSON', code: IssueCodes.invalidJson);
-      return AskUserGateResult._(null, errors);
+      return invalid('arguments', '非法 JSON', code: IssueCodes.invalidJson);
     }
-    if (raw is! Map<String, dynamic>) {
-      issue('arguments', 'JSON 对象', '${raw.runtimeType}');
-      return AskUserGateResult._(null, errors);
+    if (decoded is! Map<String, dynamic>) return invalid('arguments', '不是对象');
+    final raw = decoded;
+    final value = raw['question'];
+    if (value is! String || value.trim().isEmpty) {
+      return invalid('question', '缺少非空问题');
     }
-    for (final key in raw.keys) {
-      if (!const {
+    var question = value.trim();
+    var mode = raw['mode'];
+    if (!{'text', 'choice', 'form'}.contains(mode)) {
+      mode = raw['fields'] is List
+          ? 'form'
+          : raw['options'] != null
+          ? 'choice'
+          : 'text';
+      notes.add('已根据提供的数据结构补齐问题模式。');
+    }
+    if (raw.keys.any(
+      (key) => !{
         'question',
         'mode',
         'options',
         'multiple',
         'fields',
         'skipLabel',
-      }.contains(key)) {
-        issue(
-          key,
-          'question / mode / options / multiple / fields / skipLabel',
-          '多余字段',
-          code: IssueCodes.unexpectedField,
-        );
+      }.contains(key),
+    )) {
+      notes.add('已忽略不影响问题含义的附加字段。');
+    }
+    Object? listValue(Object? input) {
+      if (input is String) {
+        try {
+          return jsonDecode(input);
+        } on FormatException {
+          return input;
+        }
       }
+      return input;
     }
-    final question = raw['question'];
-    if (question is! String || question.trim().isEmpty) {
-      issue('question', '非空、简短口语问题', '${question.runtimeType}');
+
+    List<String> options(Object? input) {
+      final parsed = listValue(input);
+      final values = parsed is List
+          ? parsed
+          : parsed == null
+          ? const []
+          : [parsed];
+      final result = <String>[];
+      for (final item in values) {
+        if (item is! String && item is! num) continue;
+        final text = item.toString().trim();
+        if (text.isNotEmpty && !result.contains(text)) result.add(text);
+      }
+      return result;
     }
-    final mode = raw['mode'];
-    if (mode != 'text' && mode != 'choice' && mode != 'form') {
-      issue('mode', 'text、choice 或 form', '$mode');
-    }
-    final options = <String>[];
+
+    bool boolean(Object? input) => input == true || input == 'true';
+    final choices = <String>[];
     final fields = <AskUserField>[];
-    if (mode != 'form') {
-      for (final key in ['fields', 'skipLabel']) {
-        if (raw.containsKey(key)) issue(key, '仅 form 模式提供', '字段存在');
+    final textParts = <String>[];
+    var textFallback = false;
+    if (mode == 'choice') {
+      choices.addAll(options(raw['options']));
+      final original = listValue(raw['options']);
+      if (original is! List ||
+          original.length != choices.length ||
+          raw['multiple'] is! bool && raw.containsKey('multiple')) {
+        notes.add('已规范化选项数组、重复项或多选标记。');
       }
-    }
-    if (mode == 'text') {
-      for (final key in ['options', 'multiple']) {
-        if (raw.containsKey(key)) {
-          issue(key, 'text 模式不带此字段', '字段存在', code: IssueCodes.unexpectedField);
+      if (choices.length < 2 ||
+          choices.length > 6 ||
+          choices.any((v) => length(v) > 12)) {
+        textFallback = true;
+        if (choices.isNotEmpty) {
+          textParts.add(choices.join(english ? '; ' : '；'));
         }
-      }
-    } else if (mode == 'choice') {
-      final values = raw['options'];
-      if (values is! List) {
-        issue('options', '2–6 个短选项的数组', '${values.runtimeType}');
-      } else {
-        if (values.length < 2 || values.length > 6) {
-          issue('options', '2–6 个选项', '${values.length} 个');
-        }
-        for (var i = 0; i < values.length; i++) {
-          final value = values[i];
-          if (value is! String || value.trim().isEmpty || length(value) > 12) {
-            issue(
-              'options[$i]',
-              english
-                  ? 'Nonempty option, at most 12 words'
-                  : '非空字符串，每个最多 12 个 Unicode 码点',
-              '${value.runtimeType}',
-            );
-          } else {
-            if (options.contains(value.trim())) {
-              issue('options[$i]', '不重复的选项', '重复选项');
-            }
-            options.add(value.trim());
-          }
-        }
-      }
-      if (raw.containsKey('multiple') && raw['multiple'] is! bool) {
-        issue(
-          'multiple',
-          'boolean，省略时为 false',
-          '${raw['multiple'].runtimeType}',
-        );
       }
     } else if (mode == 'form') {
-      for (final key in ['options', 'multiple']) {
-        if (raw.containsKey(key)) issue(key, 'form 使用 fields', '字段存在');
-      }
-      final skipLabel = english ? 'Show suggestions' : '直接出方案';
-      if (raw.containsKey('skipLabel') && raw['skipLabel'] != skipLabel) {
-        issue('skipLabel', skipLabel, '${raw['skipLabel']}');
-      }
-      final values = raw['fields'];
-      if (values is! List || values.isEmpty || values.length > 3) {
-        issue('fields', '1–3 组缺失条件', '${values.runtimeType}');
-      } else {
-        final keys = <String>{};
-        for (var i = 0; i < values.length; i++) {
-          final value = values[i];
-          if (value is! Map<String, dynamic>) {
-            issue('fields[$i]', '条件对象', '${value.runtimeType}');
-            continue;
-          }
-          if (value.keys.any(
-            (key) =>
-                !const {'key', 'label', 'options', 'multiple'}.contains(key),
-          )) {
-            issue('fields[$i]', 'key / label / options / multiple', '多余字段');
-          }
-          final key = value['key'];
-          final label = value['label'];
-          final choices = value['options'];
-          if (key is! String ||
-              !const {'scene', 'equipment', 'minutes'}.contains(key) ||
-              !keys.add(key)) {
-            issue('fields[$i].key', '不重复的 scene / equipment / minutes', '$key');
-          }
-          if (label is! String ||
-              label.trim().isEmpty ||
-              length(label) > (english ? 6 : 20)) {
-            issue(
-              'fields[$i].label',
-              english ? '1–6 word label' : '1–20 字标签',
-              '$label',
-            );
-          }
-          if (choices is! List ||
-              choices.length < 2 ||
-              choices.length > 64 ||
-              choices.any(
-                (x) => x is! String || x.trim().isEmpty || length(x) > 24,
-              ) ||
-              choices.toSet().length != choices.length) {
-            issue('fields[$i].options', '2–64 个不重复的短选项', '$choices');
-            continue;
-          }
-          if (value.containsKey('multiple') && value['multiple'] is! bool) {
-            issue('fields[$i].multiple', 'boolean', '${value['multiple']}');
-          }
-          if (key != 'equipment' && value['multiple'] == true) {
-            issue('fields[$i].multiple', '场景和时长单选', 'true');
-          }
-          if (key is String && label is String) {
-            fields.add(
-              AskUserField(
-                key: key,
-                label: label.trim(),
-                options: choices.cast<String>(),
-                multiple: value['multiple'] == true,
-              ),
-            );
-          }
+      final parsed = listValue(raw['fields']);
+      final source = parsed is List ? parsed : const [];
+      final keys = <String>{};
+      for (final input in source) {
+        if (input is! Map) {
+          textFallback = true;
+          continue;
+        }
+        final key = input['key'];
+        final rawLabel = input['label'];
+        final fullLabel = rawLabel is String && rawLabel.trim().isNotEmpty
+            ? rawLabel.trim()
+            : key is String
+            ? key
+            : '';
+        final values = options(input['options']);
+        if (fullLabel.isNotEmpty) {
+          textParts.add('$fullLabel: ${values.join(english ? "; " : "；")}');
+        }
+        if (key is! String ||
+            !{'scene', 'equipment', 'minutes'}.contains(key) ||
+            !keys.add(key) ||
+            values.length < 2 ||
+            values.length > 64 ||
+            values.any((v) => length(v) > 24)) {
+          textFallback = true;
+          continue;
+        }
+        final shortLabel = label(fullLabel, english ? 6 : 20);
+        if (shortLabel != fullLabel) notes.add('已缩短显示标签，完整条件保留在问题中。');
+        fields.add(
+          AskUserField(
+            key: key,
+            label: shortLabel,
+            options: values,
+            multiple: key == 'equipment' && boolean(input['multiple']),
+          ),
+        );
+        if (input.keys.any(
+              (key) => !{'key', 'label', 'options', 'multiple'}.contains(key),
+            ) ||
+            input['multiple'] is! bool ||
+            input['options'] is! List ||
+            input['options'] is List &&
+                (input['options'] as List).length != values.length) {
+          notes.add('已规范化表单字段、选项及选择模式。');
         }
       }
+      if (source.isEmpty ||
+          source.length > 3 ||
+          fields.length != source.length) {
+        textFallback = true;
+      }
+      final skip = english ? 'Show suggestions' : '直接出方案';
+      if (raw['skipLabel'] != null && raw['skipLabel'] != skip) {
+        notes.add('已使用标准跳过按钮文案。');
+      }
+      if (raw.containsKey('options') || raw.containsKey('multiple')) {
+        notes.add('已忽略表单模式不使用的顶层选项字段。');
+      }
+      if (notes.any((note) => note.startsWith('已缩短'))) {
+        question += '\n${textParts.join('\n')}';
+      }
+    } else if (raw.containsKey('options') ||
+        raw.containsKey('multiple') ||
+        raw.containsKey('fields') ||
+        raw.containsKey('skipLabel')) {
+      notes.add('已忽略文字问题不使用的呈现字段。');
+    }
+    if (textFallback) {
+      mode = 'text';
+      if (textParts.isNotEmpty) question += '\n${textParts.join('\n')}';
+      choices.clear();
+      fields.clear();
+      notes.add('选项超出控件形状时改为文字问答，完整选项含义已保留。');
     }
     return AskUserGateResult._(
-      errors.isEmpty
-          ? AskUserQuestion._(
-              (question as String).trim(),
-              AskUserMode.values.byName(mode as String),
-              options,
-              raw['multiple'] == true,
-              fields,
-              language: language,
-            )
-          : null,
-      errors,
+      AskUserQuestion._(
+        question,
+        AskUserMode.values.byName(mode as String),
+        choices,
+        mode == 'choice' && boolean(raw['multiple']),
+        fields,
+        language: language,
+      ),
+      const [],
+      notes: notes.toSet().toList(),
     );
   }
 }

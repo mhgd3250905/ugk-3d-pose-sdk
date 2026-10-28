@@ -110,7 +110,7 @@ void main() {
     },
   );
 
-  test('insufficient duration saves draft and suggests additions', () {
+  test('unproven timing gap delivers current heuristic best with its error', () {
     final ids = ['forearms-A', 'n-pelvis-circle', 'h-bilateral-upper-back-hug'];
     final result = builder.draft(state(minutes: 30, picks: ids), {
       'title': '短方案',
@@ -123,15 +123,16 @@ void main() {
         },
       ],
     }, newPlanId: 'short');
-    expect(result.ok, isFalse);
-    expect(result.error!['code'], 'duration_unfit');
-    expect(result.error!['fix'], contains('增加'));
-    expect(result.error!['candidates'], isNotEmpty);
+    expect(result.ok, isTrue);
+    expect(result.error, isNull);
+    // Conservative bounds include all legal rounds/rest, beyond what the
+    // bounded heuristic explores. It must not claim mathematical impossibility.
+    expect(result.planId, 'short');
+    expect(result.durationErrorPercent, isNotNull);
     expect(result.state.plans['short']!.single.version, 1);
-    expect(result.state.activePlanId, 'short');
   });
 
-  test('model doses are clamped and new versions append', () {
+  test('model doses are ignored and new versions append', () {
     final request = r3Draft();
     final blocks = request['blocks']! as List<Object?>;
     final warm = blocks.first! as Map<String, Object?>;
@@ -142,7 +143,15 @@ void main() {
     };
     final first = builder.draft(state(), request, newPlanId: 'p1');
     expect(first.state.plans['p1'], hasLength(1));
-    expect(first.fitLog.any((line) => line.contains('夹到')), isTrue);
+    expect(first.note, contains('已忽略'));
+    expect(
+      first.fitLog.every(
+        (step) =>
+            step.containsKey('beforeEstimatedSec') &&
+            step.containsKey('blockId'),
+      ),
+      isTrue,
+    );
     final savedBlocks =
         first.state.plans['p1']!.single.plan['blocks']! as List<Object?>;
     final savedWarm = savedBlocks.first! as Map<String, Object?>;
@@ -239,7 +248,7 @@ void main() {
     },
   );
 
-  test('an unrelated empty plan is not an active reservation', () {
+  test('an unrelated model ID normalizes to the active reservation', () {
     final unrelated = state().copyWith(
       plans: {'active': [], 'unrelated': []},
       activePlanId: 'active',
@@ -248,8 +257,9 @@ void main() {
       ...r3Draft(),
       'plan_id': 'unrelated',
     }, newPlanId: 'unused');
-    expect(result.error!['code'], 'invalid_plan_id');
-    expect(result.state.toJson(), unrelated.toJson());
+    expect(result.ok, isTrue, reason: '${result.error}');
+    expect(result.planId, 'active');
+    expect(result.state.plans['unrelated'], isEmpty);
   });
 
   test('node checks refuse another plan id when active plan is set', () {

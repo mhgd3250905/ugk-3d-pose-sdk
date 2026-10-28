@@ -244,7 +244,7 @@ void main() {
     }
   });
   test(
-    'strength preparation fails with only currently safe seen relaxation candidates',
+    'unusual preparation emits a goal-aware advisory rather than a rejection',
     () {
       final result = check(
         state(
@@ -262,23 +262,19 @@ void main() {
           },
         ),
       );
-      expect(result.ok, isFalse);
-      final error = result.errors.singleWhere(
+      expect(result.ok, isTrue);
+      final warning = result.warningDetails.singleWhere(
         (e) => e['code'] == 'plan_block_purpose',
       );
       expect(
-        (error['actual'] as List).single,
+        (warning['actual'] as List).single,
         containsPair('id', 'core-secondary'),
       );
-      expect(error['candidates'], ['prep-mobility', 'relax']);
-      expect(error['fix'], contains('prep-mobility'));
-      expect(error['fix'], contains('测试prep-mobility'));
-      expect(error['fix'], isNot(contains('unsafe-relax')));
-      expect(error['fix'], isNot(contains('not-seen-relax')));
+      expect(result.errors, isEmpty);
     },
   );
   test(
-    'real dumbbell front raise cannot become a cooldown by changing its block',
+    'real strength cooldown produces an advisory and does not impersonate a safety error',
     () {
       const pack = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
       final published = PoseHubAppTestCatalog.fromBytes(
@@ -313,7 +309,7 @@ void main() {
         published,
         minPicks: 3,
       ).check(withGear, 'test');
-      final purpose = rejected.errors.singleWhere(
+      final purpose = rejected.warningDetails.singleWhere(
         (e) => e['code'] == 'plan_block_purpose',
       );
       expect(purpose['actual'], [
@@ -325,10 +321,9 @@ void main() {
         },
       ]);
       expect(
-        purpose['candidates'],
-        containsAll(['forearms-A', 'h-bilateral-upper-back-hug']),
+        rejected.errors.any((e) => e['code'] == 'plan_block_purpose'),
+        isFalse,
       );
-      expect(purpose['fix'], contains('h-bilateral-upper-back-hug'));
     },
   );
 }

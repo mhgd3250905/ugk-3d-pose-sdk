@@ -93,10 +93,14 @@ void main() {
         ),
       ]) {
         final result = search.search(state);
-        expect(result.ok, isFalse);
-        expect(result.error!['code'], 'task_required');
-        expect(result.error!['fix'], '先调用 start_task，可以和搜索放在同一批');
-        expect(result.state, same(state));
+        expect(result.ok, isTrue);
+        expect(result.items, isNotEmpty);
+        for (final item in result.items) {
+          expect(
+            search.gate.actionProblem(state, item['id'] as String),
+            isNull,
+          );
+        }
       }
       expect(search.search(active()).ok, isTrue);
       expect(

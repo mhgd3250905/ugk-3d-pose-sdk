@@ -16,6 +16,7 @@ class ActionSearchResult {
     this.format = const {},
     this.summary = '',
     this.warnings = const [],
+    this.notes = const [],
     this.error,
   });
   final CoachSessionState state;
@@ -24,6 +25,7 @@ class ActionSearchResult {
   final Map<String, Object?> format;
   final String summary;
   final List<String> warnings;
+  final List<String> notes;
   final Map<String, Object?>? error;
   bool get ok => error == null;
   Map<String, Object?> toJson() =>
@@ -35,6 +37,7 @@ class ActionSearchResult {
         if (format.isNotEmpty) 'format': format,
         if (summary.isNotEmpty) 'summary': summary,
         if (warnings.isNotEmpty) 'warnings': warnings,
+        if (notes.isNotEmpty) 'notes': notes,
       };
 }
 
@@ -66,23 +69,9 @@ class ActionSearch {
     String keywords = '',
     int limit = 20,
     String language = 'zh',
+    Set<String>? restrictedIds,
   }) {
-    final task = state.task;
-    if (task == null ||
-        !{'recommend', 'plan'}.contains(task.type) ||
-        task.nodes.lastOrNull?.id != 'output' ||
-        task.nodes.lastOrNull?.status == 'done') {
-      return ActionSearchResult(
-        state,
-        error: nodeError(
-          'task_required',
-          'task',
-          '进行中的 recommend 或 plan 任务',
-          task?.toJson(),
-          '先调用 start_task，可以和搜索放在同一批',
-        ),
-      );
-    }
+    final notes = <String>[];
     final invalid = tags.where((tag) => !this.tags.contains(tag)).toList();
     if (invalid.isNotEmpty) {
       return ActionSearchResult(
@@ -96,17 +85,18 @@ class ActionSearch {
         ),
       );
     }
-    if (limit < 1 || limit > 20) {
-      return ActionSearchResult(
-        state,
-        error: nodeError(
-          'invalid_limit',
-          'limit',
-          '1–20',
-          limit,
-          '将 limit 设置为 1 到 20。',
-        ),
-      );
+    final bounded = limit.clamp(1, 20);
+    if (bounded != limit) notes.add('搜索数量已规范化为 $bounded。');
+    limit = bounded;
+    if (state.task == null) {
+      final turn = state.userTurns.lastOrNull?.turn ?? 0;
+      if (state.pendingSearchTurn != turn) {
+        state = state.copyWith(
+          seenActionIds: const {},
+          consecutiveEmptySearches: 0,
+        );
+      }
+      state = state.copyWith(pendingSearchTurn: turn);
     }
     final query = keywords.trim().toLowerCase();
     final grouped = <String, Set<String>>{};
@@ -122,6 +112,7 @@ class ActionSearch {
     }
     expandedTags.addAll(grouped.values);
     bool matches(Drill drill) =>
+        (restrictedIds == null || restrictedIds.contains(drill.id)) &&
         expandedTags.every(
           (group) => gate.tags.forAction(drill).intersection(group).isNotEmpty,
         ) &&
@@ -252,6 +243,7 @@ class ActionSearch {
       },
       summary: summary,
       warnings: List.unmodifiable(_warnings(state, selected)),
+      notes: notes,
     );
   }
 
@@ -276,18 +268,12 @@ class ActionSearch {
     List<String> ids, {
     String language = 'zh',
   }) {
-    if (ids.isEmpty || ids.length > 10 || ids.toSet().length != ids.length) {
-      return ActionSearchResult(
-        state,
-        error: nodeError(
-          'invalid_ids',
-          'ids',
-          '1–10 个不同动作 id',
-          ids,
-          '提供 1 到 10 个不同的动作 id。',
-        ),
-      );
-    }
+    final notes = <String>[];
+    final unique = ids.toSet().toList();
+    if (ids.length != unique.length) notes.add('详情动作 ID 已去重。');
+    ids = unique;
+    if (ids.length > 10) notes.add('已按每批最多 10 个动作读取全部详情。');
+    if (ids.isEmpty) notes.add('空详情列表无需读取，当前状态保留。');
     final errors = {for (final id in ids) id: ?gate.actionProblem(state, id)};
     if (errors.isNotEmpty) {
       return ActionSearchResult(
@@ -303,19 +289,21 @@ class ActionSearch {
     }
     final drills = [for (final id in ids) catalog[id]!];
     final items = [
-      for (final drill in drills)
-        {
-          'id': drill.id,
-          'name': drill.name.of(language),
-          'cues': drill.cues[language] ?? drill.cues['zh'] ?? <String>[],
-          'cautions': drill.cautions,
-          'contraindications': drill.contraindications,
-        },
+      for (var offset = 0; offset < drills.length; offset += 10)
+        for (final drill in drills.skip(offset).take(10))
+          {
+            'id': drill.id,
+            'name': drill.name.of(language),
+            'cues': drill.cues[language] ?? drill.cues['zh'] ?? <String>[],
+            'cautions': drill.cautions,
+            'contraindications': drill.contraindications,
+          },
     ];
     return ActionSearchResult(
       state,
       items: List.unmodifiable(items),
       warnings: List.unmodifiable(_warnings(state, drills)),
+      notes: notes,
     );
   }
 

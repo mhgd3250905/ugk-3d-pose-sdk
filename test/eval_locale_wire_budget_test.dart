@@ -47,9 +47,13 @@ void main() {
         (t) => t.name == 'ask_user',
       );
       final fields = ((ask.parameters['properties'] as Map)['fields'] as Map);
-      final label =
-          (((fields['items'] as Map)['properties'] as Map)['label'] as Map);
-      expect(label['description'], 'At most 6 words');
+      expect((fields['items'] as Map)['type'], 'object');
+      expect(
+        fields.containsKey('maxItems'),
+        isFalse,
+        reason:
+            'Form display limits are normalized locally, not model rejections.',
+      );
     },
   );
 }

@@ -127,27 +127,25 @@ void main() {
       for (final count in [1, 2, 3]) {
         final hit = ['a', 'b', 'c'].take(count).toList();
         final current = state({...hit, 'other', 'gear', 'wrong-scene'});
-        expect(nodes.recommendationMinimum(current), count);
+        expect(nodes.recommendationMinimum(current), 1);
         expect(nodes.recommendationCandidates(current), hit);
         expect(show(current, hit).ok, isTrue);
         if (count > 1) {
-          expect(
-            show(current, hit.take(count - 1).toList()).error!['code'],
-            'invalid_picks',
-          );
+          expect(show(current, hit.take(count - 1).toList()).ok, isTrue);
         }
       }
       final none = state({'other', 'gear', 'wrong-scene'});
       expect(nodes.recommendationMinimum(none), 1);
-      expect(show(none, []).error!['code'], 'invalid_picks');
-      expect(show(none, []).error!['candidateCount'], 0);
+      expect(show(none, []).unavailable, isTrue);
+      expect(show(none, []).ok, isTrue);
+      expect(show(none, []).card, isNull);
     },
   );
 
-  test('without body goals the configured minimum remains in force', () {
+  test('purpose-only recommendations have no hard quota', () {
     final current = state({'a', 'other'}, goal: ['purpose.strength']);
-    expect(nodes.recommendationMinimum(current), 3);
-    expect(show(current, ['a', 'other']).error!['code'], 'invalid_picks');
+    expect(nodes.recommendationMinimum(current), 1);
+    expect(show(current, ['a']).ok, isTrue);
   });
 
   test(
@@ -183,13 +181,14 @@ void main() {
         }),
         language: 'zh',
       );
-      expect(first.rejected, isTrue);
+      expect(first.rejected, isFalse);
       expect((jsonDecode(first.response) as Map)['notices'], hasLength(1));
-      expect(first.state!.recommendationHintShown, isTrue);
-      expect(first.state!.task!.nodes[2].status, 'current');
-      expect(first.state!.picks, isEmpty);
+      expect(first.output!.state.recommendationHintShown, isTrue);
+      expect(first.output!.state.task!.nodes[2].status, 'done');
+      expect(first.output!.state.picks, ['a']);
       final restored = CoachSessionState.fromJson(
-        jsonDecode(jsonEncode(first.state!.toJson())) as Map<String, Object?>,
+        jsonDecode(jsonEncode(first.output!.state.toJson()))
+            as Map<String, Object?>,
       );
       final retry = terminal.show(
         restored,

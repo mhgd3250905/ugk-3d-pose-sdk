@@ -263,30 +263,37 @@ void main() {
     );
   });
 
-  test('duration checks unrounded seconds at the ten percent boundary', () {
-    final pass = session(
-      blocks: [
-        block(BlockType.main, [
-          item('ad-stretch', 75),
-          item('ad-mobility', 75),
-          item('abs-stretch', 74),
-        ]),
-      ],
-    );
-    final fail = session(
-      blocks: [
-        block(BlockType.main, [
-          item('ad-stretch', 75),
-          item('ad-mobility', 75),
-          item('abs-stretch', 75),
-        ]),
-      ],
-    );
-    expect(rule(check(pass), 'duration')['actual'], 264);
-    expect(rule(check(pass), 'duration')['ok'], isTrue);
-    expect(rule(check(fail), 'duration')['actual'], 265);
-    expect(rule(check(fail), 'duration')['ok'], isFalse);
-  });
+  test(
+    'duration estimates remain exact while checker does not repeat timer errors',
+    () {
+      final pass = session(
+        blocks: [
+          block(BlockType.main, [
+            item('ad-stretch', 75),
+            item('ad-mobility', 75),
+            item('abs-stretch', 74),
+          ]),
+        ],
+      );
+      final fail = session(
+        blocks: [
+          block(BlockType.main, [
+            item('ad-stretch', 75),
+            item('ad-mobility', 75),
+            item('abs-stretch', 75),
+          ]),
+        ],
+      );
+      expect(pass.plans['p']!.last.estimateSec, 264);
+      expect(fail.plans['p']!.last.estimateSec, 265);
+      expect(check(pass).rules, isNot(contains('duration')));
+      expect(check(fail).rules, isNot(contains('duration')));
+      expect(
+        check(fail).errors.where((e) => e['code'] == 'plan_duration'),
+        isEmpty,
+      );
+    },
+  );
 
   test('structure follows duration thresholds and pure stretch exemption', () {
     final withBoth = session(
@@ -304,7 +311,11 @@ void main() {
       goals: ['purpose.strength'],
       blocks: main(['chest-strength']),
     );
-    expect(rule(check(missing), 'structure')['ok'], isFalse);
+    expect(rule(check(missing), 'structure')['ok'], isTrue);
+    expect(
+      check(missing).warningDetails.map((w) => w['code']),
+      contains('plan_structure'),
+    );
     final pure = session(
       minutes: 10,
       goals: ['purpose.stretch', 'body.inner_thigh'],
@@ -322,70 +333,68 @@ void main() {
         block(BlockType.cooldown, [item('abs-stretch')]),
       ],
     );
-    expect(rule(check(mixed), 'structure')['ok'], isFalse);
+    expect(rule(check(mixed), 'structure')['ok'], isTrue);
+    expect(
+      check(mixed).warningDetails.map((w) => w['code']),
+      contains('plan_structure'),
+    );
   });
 
-  test(
-    'balance rejects duplicates, long runs and missing configured antagonist',
-    () {
-      expect(
-        rule(
-          check(
-            session(
-              blocks: main(['ad-stretch', 'abs-stretch', 'chest-strength']),
-            ),
+  test('balance is advisory and not applicable to a pure stretch target', () {
+    expect(
+      rule(
+        check(
+          session(
+            blocks: main(['ad-stretch', 'abs-stretch', 'chest-strength']),
           ),
-          'balance',
-        )['ok'],
-        isTrue,
-      );
-      expect(
-        rule(
-          check(session(blocks: main(['ad-stretch', 'ad-stretch']))),
-          'balance',
-        )['ok'],
-        isFalse,
-      );
-      final strict = CoachProfile(
-        id: 'test',
-        appName: 'test',
-        planRules: const PlanRules(maxSameMuscleInRow: 1),
-      );
-      expect(
-        rule(
-          check(session(blocks: main(['ad-stretch', 'ad-mobility'])), strict),
-          'balance',
-        )['ok'],
-        isFalse,
-      );
-      final pairs = CoachProfile(
-        id: 'test',
-        appName: 'test',
-        planRules: const PlanRules(
-          antagonisticPairs: [
-            AntagonistPair(first: ['body.abs'], second: ['body.chest']),
-          ],
         ),
-      );
-      expect(
-        rule(
-          check(
-            session(blocks: main(['abs-stretch', 'chest-strength'])),
-            pairs,
-          ),
-          'balance',
-        )['ok'],
-        isTrue,
-      );
-      expect(
-        rule(
-          check(session(blocks: main(['abs-stretch', 'ad-stretch'])), pairs),
-          'balance',
-        )['ok'],
-        isFalse,
-      );
-    },
-  );
+        'balance',
+      )['ok'],
+      isTrue,
+    );
+    expect(
+      rule(
+        check(session(blocks: main(['ad-stretch', 'ad-stretch']))),
+        'balance',
+      )['ok'],
+      isTrue,
+    );
+    final strict = CoachProfile(
+      id: 'test',
+      appName: 'test',
+      planRules: const PlanRules(maxSameMuscleInRow: 1),
+    );
+    expect(
+      rule(
+        check(session(blocks: main(['ad-stretch', 'ad-mobility'])), strict),
+        'balance',
+      )['ok'],
+      isTrue,
+    );
+    final pairs = CoachProfile(
+      id: 'test',
+      appName: 'test',
+      planRules: const PlanRules(
+        antagonisticPairs: [
+          AntagonistPair(first: ['body.abs'], second: ['body.chest']),
+        ],
+      ),
+    );
+    expect(
+      rule(
+        check(session(blocks: main(['abs-stretch', 'chest-strength'])), pairs),
+        'balance',
+      )['ok'],
+      isTrue,
+    );
+    expect(
+      rule(
+        check(session(blocks: main(['abs-stretch', 'ad-stretch'])), pairs),
+        'balance',
+      )['ok'],
+      isTrue,
+    );
+  });
 
   test(
     'only latest active version is checked and stale successful result is replaced',
@@ -512,18 +521,23 @@ void main() {
       planEquipment: ['mat'],
       planMinutes: 10,
     );
-    expect(rule(check(wrongTime), 'card_conditions')['ok'], isFalse);
+    expect(rule(check(wrongTime), 'card_conditions')['ok'], isTrue);
+    expect(check(wrongTime).state.plans['p']!.last.plan['targetMinutes'], 10);
     final missingGear = session(
       blocks: main(['mat-stretch']),
       equipment: ['equip.mat'],
     );
-    expect(rule(check(missingGear), 'card_conditions')['ok'], isFalse);
+    expect(rule(check(missingGear), 'card_conditions')['ok'], isTrue);
+    expect(check(missingGear).state.plans['p']!.last.plan['equipment'], [
+      'mat',
+    ]);
     final extraGear = session(
       blocks: main(['ad-stretch']),
       equipment: ['equip.mat'],
       planEquipment: ['mat'],
     );
-    expect(rule(check(extraGear), 'card_conditions')['ok'], isFalse);
+    expect(rule(check(extraGear), 'card_conditions')['ok'], isTrue);
+    expect(check(extraGear).state.plans['p']!.last.plan['equipment'], isEmpty);
   });
 
   test(

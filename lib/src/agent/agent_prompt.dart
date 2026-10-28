@@ -21,7 +21,7 @@ import 'skill_files.dart';
 import 'user_memory.dart';
 
 /// Agent 内核修订号。改 `prompts/agent_kernel.md` 或 `skills/` 语义时手动加一。
-const agentKernelRevision = 9;
+const agentKernelRevision = 10;
 
 abstract final class AgentTools {
   static const read = 'read';
@@ -59,6 +59,7 @@ abstract final class AgentTools {
       Map<String, Object?> value, {
       bool derived = false,
       bool direction = false,
+      bool userOnly = false,
     }) => {
       'type': 'object',
       'properties': {
@@ -67,17 +68,18 @@ abstract final class AgentTools {
           'type': 'string',
           'enum': [
             for (final source in SessionParams.sources)
-              if (derived || source != 'derived') source,
+              if (userOnly ? source == 'user' : derived || source != 'derived')
+                source,
           ],
         },
-        'quote': {'type': 'string', 'maxLength': 30},
+        'quote': {'type': 'string'},
         if (direction)
           'direction': {
             'type': 'string',
             'enum': ['shorter', 'longer'],
           },
       },
-      'required': ['value', 'source'],
+      'required': [if (!direction) 'value', 'source', if (userOnly) 'quote'],
       'additionalProperties': false,
     };
     Map<String, Object?> codes(List<String> values) => {
@@ -176,16 +178,10 @@ abstract final class AgentTools {
       ),
       const LlmTool(
         name: draftPlan,
-        description:
-            '自动完成动作、规划和核对；通过后直接 show_plan。修改沿用任务，整体换用 replace_all，局部用 edit。',
+        description: '按标题、分块与动作 ID 配时、排序和核对；剂量与轮数由代码算，交付用 show_plan。',
         parameters: {
           'type': 'object',
           'properties': {
-            'plan_id': {'type': 'string'},
-            'operation': {
-              'type': 'string',
-              'enum': ['edit', 'replace_all'],
-            },
             'title': {'type': 'string'},
             'blocks': {
               'type': 'array',
@@ -196,16 +192,12 @@ abstract final class AgentTools {
                     'type': 'string',
                     'enum': ['warmup', 'main', 'cooldown'],
                   },
-                  'rounds': {'type': 'integer'},
                   'items': {
                     'type': 'array',
                     'items': {
                       'type': 'object',
                       'properties': {
                         'id': {'type': 'string'},
-                        'sets': {'type': 'integer'},
-                        'reps': {'type': 'integer'},
-                        'seconds': {'type': 'integer'},
                       },
                       'required': ['id'],
                       'additionalProperties': false,
@@ -224,7 +216,7 @@ abstract final class AgentTools {
       LlmTool(
         name: setParams,
         description:
-            '记条件并自动打卡；user 引用原话，preselect 用习惯，default 明示默认。低来源覆盖高来源时 kept；推测场景用 derived+quote，相对时长带 direction；host 由宿主写入。',
+            '记条件并自动打卡；user 引用原话，preselect 用习惯，default 明示默认。低来源覆盖高来源时 kept；推测场景用 derived+quote，相对时长带 direction；明确剂量用 dose，改计划用 operation；host 由宿主写入。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -251,7 +243,7 @@ abstract final class AgentTools {
                       'type': 'string',
                       'enum': ['user'],
                     },
-                    'quote': {'type': 'string', 'maxLength': 30},
+                    'quote': {'type': 'string'},
                   },
                   'required': ['value', 'source', 'quote'],
                 },
@@ -265,6 +257,25 @@ abstract final class AgentTools {
                   'enum': [1, 2, 3],
                 }),
                 'limits': parameter(codes(tags.limitCodes)),
+                'operation': parameter({
+                  'enum': ['edit', 'replace_all'],
+                }, userOnly: true),
+                'dose': parameter({
+                  'type': 'array',
+                  'items': {
+                    'type': 'object',
+                    'properties': {
+                      'field': {
+                        'enum': ['sets', 'reps', 'seconds', 'rounds'],
+                      },
+                      'value': {'type': 'integer', 'minimum': 1},
+                      'actionId': {'type': 'string'},
+                      'blockId': {'type': 'string'},
+                    },
+                    'required': ['field', 'value'],
+                    'additionalProperties': false,
+                  },
+                }, userOnly: true),
               },
             },
           },
@@ -287,7 +298,7 @@ abstract final class AgentTools {
         ),
       LlmTool(
         name: showActions,
-        description: '交付动作卡并自动打卡；每项须命中目标部位，数量按候选池。note 用一两句说明思路，超长截断。',
+        description: '交付动作卡并自动打卡，1 个也可；每项须命中目标部位。note 用一两句说明思路，超长截断。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -339,13 +350,7 @@ abstract final class AgentTools {
             },
             'options': {
               'type': 'array',
-              'items': {
-                'type': 'string',
-                'minLength': 1,
-                if (en) 'description': 'At most 12 words' else 'maxLength': 12,
-              },
-              'minItems': 2,
-              'maxItems': 6,
+              'items': {'type': 'string'},
               'uniqueItems': true,
               'description': '仅 choice 模式提供，2–6 个短选项',
             },
@@ -356,44 +361,13 @@ abstract final class AgentTools {
             },
             'fields': {
               'type': 'array',
-              'minItems': 1,
-              'maxItems': 3,
-              'description': '仅旧版 form：scene/equipment/minutes 分组，器械选项来自当前动作库',
-              'items': {
-                'type': 'object',
-                'properties': {
-                  'key': {
-                    'type': 'string',
-                    'enum': ['scene', 'equipment', 'minutes'],
-                  },
-                  'label': {
-                    'type': 'string',
-                    if (en) 'description': 'At most 6 words',
-                  },
-                  'options': {
-                    'type': 'array',
-                    'minItems': 2,
-                    'maxItems': 64,
-                    'items': {
-                      'type': 'string',
-                      if (en)
-                        'description': 'At most 24 words'
-                      else
-                        'maxLength': 24,
-                    },
-                  },
-                  'multiple': {'type': 'boolean'},
-                },
-                'required': ['key', 'label', 'options', 'multiple'],
-                'additionalProperties': false,
-              },
+              'description':
+                  '仅旧版 form：scene/equipment/minutes 分组，器械选项来自当前动作库；每组 key/label/options/multiple 由代码规范化',
+              'items': {'type': 'object'},
             },
-            'skipLabel': {
-              'type': 'string',
-              'enum': [en ? 'Show suggestions' : '直接出方案'],
-            },
+            'skipLabel': {'type': 'string'},
           },
-          'required': ['question', 'mode'],
+          'required': ['question'],
           'additionalProperties': false,
         },
       ),

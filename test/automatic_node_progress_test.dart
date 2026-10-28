@@ -47,7 +47,7 @@ void main() {
             LlmToolCall(
               id: 'early-search',
               name: 'search_actions',
-              arguments: '{"tags":[]}',
+              arguments: '{"tags":["invented.tag"]}',
             ),
           ],
         ),
@@ -63,7 +63,7 @@ void main() {
       addTearDown(agent.dispose);
       final result = await agent.send('你好');
       expect(result.records.first.outcome, CallOutcome.toolStep);
-      expect(result.records.first.issueCodes, ['task_required']);
+      expect(result.records.first.issueCodes, ['invalid_tags']);
     },
   );
   Map<String, Object?> params() => {
@@ -192,7 +192,10 @@ void main() {
 
   test('bad draft cannot commit temporary actions or bypass source gate', () {
     final state = ready();
-    final bad = draft()..['title'] = 3;
+    final bad = draft();
+    (((bad['blocks'] as List).first as Map)['items'] as List)[0] = {
+      'id': 'unsearched-action',
+    };
     final rejected = handler.draft(state, jsonEncode(bad), 'zh');
     expect(receipt(rejected)['ok'], isFalse);
     expect(identical(rejected.state, state), isTrue);

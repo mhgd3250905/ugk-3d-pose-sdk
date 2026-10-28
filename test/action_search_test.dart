@@ -32,8 +32,9 @@ void main() {
       search.search(state, tags: ['purpose.warmup']).error!['code'],
       'invalid_tags',
     );
-    expect(search.search(state, limit: 21).error!['code'], 'invalid_limit');
-    expect(search.search(state, limit: 0).error!['code'], 'invalid_limit');
+    expect(search.search(state, limit: 21).ok, isTrue);
+    expect(search.search(state, limit: 21).notes, isNotEmpty);
+    expect(search.search(state, limit: 0).items, hasLength(1));
     expect(state.seenActionIds, isEmpty);
   });
 
@@ -305,7 +306,8 @@ void main() {
       'incompatible_actions',
     );
     expect(search.getActions(state, ['not-in-catalog']).ok, isFalse);
-    expect(search.getActions(state, []).ok, isFalse);
+    expect(search.getActions(state, []).ok, isTrue);
+    expect(search.getActions(state, []).notes, isNotEmpty);
     expect(
       search.getActions(state, List.generate(11, (i) => 'id$i')).ok,
       isFalse,

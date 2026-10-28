@@ -1,14 +1,6 @@
-/// 工具门禁：判定模型一次回复（文字 + 工具调用）能否渲染。**只判不修**——不修 JSON、不补字段、不改剂量。
-///
-/// 必须改（错误，打回让模型自己修）：
-/// - `invalid_json` 参数不是合法 JSON；`schema` 缺字段 / 类型错；`unexpected_field` 多余字段（如看动作带剂量）
-/// - `items_count` show_actions 不是 1–6 个；`multiple_tools` 一次调了两个及以上工具；`unknown_tool`；`empty_reply`
-/// - `unknown_exercise` id 不在目录；`out_of_profile` 不在本 App 白名单
-/// - `mode_mismatch` 剂量单位与动作不符；`avoid` 撞用户保护部位；`duplicate_action` 同一动作重复
-/// - `context_conflict` 计划 level / targetMinutes 与本轮 [CoachContext] 明确值不一致
-/// - 沿用 0.1 的其余计划规则（硬限、单侧、器械、场所、热身在放松后……）
-///
-/// 只警告放行：剂量超出动作推荐范围、估算时长偏差、块顺序不理想（沿用 0.1 口径）。
+/// 工具门禁：保留目录、伤痛、器械、场景与来源底线；可确定修正的
+/// 协议/呈现偏差由代码规范化并写入回执。Agent v2 的配时交给共享配时器，
+/// 专业编排建议作为 warning；宿主 extraRules 保持原有执行方式。
 ///
 /// 卡片只接受本门禁产出的 [ValidatedPlan] / [ValidatedActions]（私有构造，App 无法自己造）。
 library;
@@ -42,7 +34,7 @@ class ValidatedAction {
   String get id => drill.id;
 }
 
-/// 通过门禁的动作展示（1–6 个、不重复、都在白名单）。只能由 [ToolGate] 构造。
+/// 通过门禁的动作展示（非空、不重复、都在白名单）。只能由 [ToolGate] 构造。
 final class ValidatedActions {
   ValidatedActions._(List<ValidatedAction> items, List<PlanIssue> warnings)
     : items = List.unmodifiable(items),
@@ -79,7 +71,12 @@ class GateResult {
   /// 回给模型的工具结果（JSON 字符串）：一次列出全部错误，每条 位置 / 错误码 / 期望 / 实际 / 改法。
   String feedback({int? remaining}) => jsonEncode(
     ok
-        ? {'ok': true, 'shown': true}
+        ? {
+            'ok': true,
+            'shown': true,
+            if (warnings.isNotEmpty)
+              'notes': [for (final warning in warnings) warning.message],
+          }
         : {
             ...(errors.isEmpty
                 ? <String, Object?>{
@@ -106,6 +103,10 @@ class AgentOutputResult {
     this.changes = const [],
     this.noteTruncated = false,
     this.notices = const [],
+    this.unavailable = false,
+    this.unavailableMessage,
+    this.needsUserChoice = false,
+    this.feasibility,
     this.error,
   });
   final CoachSessionState state;
@@ -113,6 +114,10 @@ class AgentOutputResult {
   final List<CoachNodeState> changes;
   final bool noteTruncated;
   final List<String> notices;
+  final bool unavailable;
+  final String? unavailableMessage;
+  final bool needsUserChoice;
+  final Map<String, Object?>? feasibility;
   final Map<String, Object?>? error;
   bool get ok => error == null;
 }
@@ -157,6 +162,8 @@ class ToolGate {
     final prepared = OutputGate(
       profile,
       catalog,
+      extraRules: extraRules,
+      enforceDrillDoseRange: enforceDrillDoseRange,
     ).prepare(state, tool, arguments, language: language);
     if (!prepared.ok) {
       return AgentOutputResult(
@@ -165,9 +172,27 @@ class ToolGate {
         error: prepared.error,
       );
     }
+    if (prepared.unavailable || prepared.needsUserChoice) {
+      return AgentOutputResult(
+        state: prepared.nodeResult!.state,
+        unavailable: prepared.unavailable,
+        needsUserChoice: prepared.needsUserChoice,
+        feasibility: prepared.feasibility,
+        changes: prepared.nodeResult!.changes,
+        unavailableMessage: prepared.unavailableMessage,
+        notices: prepared.notices,
+      );
+    }
     final warnings = [
       for (final text in prepared.warnings)
-        PlanIssue.warning('unverified_limit', text),
+        PlanIssue.warning(
+          prepared.warningDetails
+                      .where((detail) => detail['message'] == text)
+                      .firstOrNull?['code']
+                  as String? ??
+              'unverified_limit',
+          text,
+        ),
     ];
     final plan = prepared.plan == null
         ? null
@@ -218,14 +243,8 @@ class ToolGate {
       return GateResult._(text: text.trim(), errors: errors);
     }
     if (calls.length > 1) {
-      errors.add(
-        _issue(
-          IssueCodes.multipleTools,
-          '一次回复只能调用一个工具',
-          'tool_calls',
-          '0 或 1 个工具调用',
-          '${calls.length} 个：${calls.map((t) => t.name).join(', ')}',
-        ),
+      warnings.add(
+        const PlanIssue.warning('normalized_batch', '已按顺序处理输出工具批次。'),
       );
     }
     ValidatedPlan? plan;
@@ -301,7 +320,7 @@ class ToolGate {
       plan: plan,
       actions: actions,
       warnings: warnings,
-      toolName: calls.single.name,
+      toolName: calls.last.name,
     );
   }
 
@@ -350,12 +369,8 @@ class ToolGate {
     List<PlanIssue> errs,
     List<PlanIssue> warns,
   ) {
-    for (final k in m.keys) {
-      if (k != 'items') {
-        errs.add(
-          _issue(IssueCodes.unexpectedField, '多余字段 $k', k, '只有 items', k),
-        );
-      }
+    if (m.keys.any((key) => key != 'items')) {
+      warns.add(const PlanIssue.warning('normalized_fields', '已忽略推荐卡额外字段。'));
     }
     final raw = m['items'];
     if (raw is! List) {
@@ -370,7 +385,7 @@ class ToolGate {
       );
       return null;
     }
-    if (raw.isEmpty || raw.length > CoachTools.maxActions) {
+    if (raw.isEmpty) {
       errs.add(
         _issue(
           IssueCodes.itemsCount,
@@ -392,30 +407,12 @@ class ToolGate {
         );
         continue;
       }
-      for (final k in it.keys) {
-        if (k != 'actionId' && k != 'note') {
-          errs.add(
-            _issue(
-              IssueCodes.unexpectedField,
-              '看动作不带剂量或其他字段：$k',
-              '$p.$k',
-              'actionId 与可选 note',
-              '$k',
-            ),
-          );
-        }
+      if (it.keys.any((key) => key != 'actionId' && key != 'note')) {
+        warns.add(PlanIssue.warning('normalized_fields', '已忽略动作项 $i 的额外字段。'));
       }
       final note = it['note'];
       if (note != null && note is! String) {
-        errs.add(
-          _issue(
-            IssueCodes.schema,
-            'note 必须是字符串',
-            '$p.note',
-            'string',
-            _typeOf(note),
-          ),
-        );
+        warns.add(PlanIssue.warning('normalized_note', '动作项 $i 的非文本说明已忽略。'));
       }
       final id = it['actionId'];
       if (id is! String || id.isEmpty) {
@@ -454,20 +451,11 @@ class ToolGate {
           ),
         );
       }
-      final prev = firstAt[id];
-      if (prev != null) {
-        errs.add(
-          _issue(
-            IssueCodes.duplicateAction,
-            '动作重复',
-            '$p.actionId',
-            '每个 id 只出现一次',
-            '$id（与 items[$prev] 重复）',
-          ),
-        );
-      } else {
-        firstAt[id] = i;
+      if (firstAt.containsKey(id)) {
+        warns.add(PlanIssue.warning('normalized_duplicate', '重复推荐动作 $id 已合并。'));
+        continue;
       }
+      firstAt[id] = i;
       for (final c in d.cautions) {
         if (ctx.avoid.contains(c)) {
           errs.add(
@@ -498,17 +486,9 @@ class ToolGate {
     List<PlanIssue> warns,
     String? planId,
   ) {
-    if (m.length == 1 && m['plan'] is Map) {
-      errs.add(
-        _issue(
-          IssueCodes.unexpectedField,
-          '参数多包了一层 plan',
-          'plan',
-          '顶层直接是 TrainingPlan 字段（schemaVersion、title、blocks…）',
-          '{"plan": {...}}',
-        ),
-      );
-      return null;
+    if (m['plan'] is Map) {
+      m = (m['plan'] as Map).cast<String, Object?>();
+      warns.add(const PlanIssue.warning('normalized_wrapper', '已解包计划对象。'));
     }
     final decoded = const PlanCodec().decodeStrict(
       m,
@@ -518,64 +498,29 @@ class ToolGate {
       minutes: ctx.minutes,
     );
     errs.addAll(decoded.issues.where((i) => i.isError).map(_strip));
-    // 只判不修：本轮已知的水平 / 时长为准，冲突打回重交（旧入口会覆盖，这里不改值）。
-    // 与 PlanCodec 同口径：整值 double（3.0）视为整数 3 比较；非整值由 codec 报 schema 错。
-    final lv = _wholeInt(m['level']);
-    if (ctx.level != null && lv != null && lv != ctx.level) {
-      errs.add(
-        _issue(
-          IssueCodes.contextConflict,
-          '计划水平与本轮条件不符',
-          'level',
-          '${ctx.level}（本轮条件）',
-          '$lv',
-        ),
-      );
-    }
-    final tm = _wholeInt(m['targetMinutes']);
-    if (ctx.minutes != null && tm != null && tm != ctx.minutes) {
-      errs.add(
-        _issue(
-          IssueCodes.contextConflict,
-          '计划时长与本轮条件不符',
-          'targetMinutes',
-          '${ctx.minutes}（本轮条件）',
-          '$tm',
-        ),
-      );
-    }
     final raw = decoded.plan;
     if (raw == null) return null;
+    if ((ctx.scene != null && raw.scene != ctx.scene) ||
+        (ctx.level != null && raw.level != ctx.level) ||
+        (ctx.minutes != null && raw.targetMinutes != ctx.minutes)) {
+      warns.add(
+        const PlanIssue.warning(
+          'normalized_card_conditions',
+          '已按本轮确认条件同步卡片字段。',
+        ),
+      );
+    }
     // 只判不修：不改场所 / 等级 / 时长；只标 source=ai 并带上本轮保护部位（随计划保存）。
     final plan = raw.copyWith(
       source: 'ai',
+      scene: ctx.scene,
+      level: ctx.level,
+      targetMinutes: ctx.minutes,
       avoid: {...raw.avoid, ...ctx.avoid},
     );
     final report = _validator.validate(plan, ctx);
     for (final i in report.issues) {
-      if (i.code == IssueCodes.duplicateExercise) continue; // 由下面的全计划重复判定（错误）取代
       (i.isError ? errs : warns).add(_strip(i));
-    }
-    final firstAt = <String, String>{};
-    for (var b = 0; b < plan.blocks.length; b++) {
-      for (var k = 0; k < plan.blocks[b].items.length; k++) {
-        final id = plan.blocks[b].items[k].exerciseId;
-        final here = 'blocks[$b].items[$k]';
-        final prev = firstAt[id];
-        if (prev != null) {
-          errs.add(
-            _issue(
-              IssueCodes.duplicateAction,
-              '同一动作在计划里重复出现',
-              '$here.exerciseId',
-              '每个动作只出现一次（多做请加 sets）',
-              '$id（与 $prev 重复）',
-            ),
-          );
-        } else {
-          firstAt[id] = here;
-        }
-      }
     }
     return errs.isEmpty ? ValidatedPlan._(plan, warns) : null;
   }
@@ -658,11 +603,4 @@ class ToolGate {
     IssueCodes.tooManyItems => '减少动作条目，多做用 sets / rounds',
     _ => '修复 actual 描述的字段错误，按当前工具 schema 重新提交完整参数。',
   };
-}
-
-/// 整数或整值 double（JSON 的 3 / 3.0）→ int；其余（非整值、非数字、NaN/∞）→ null。
-int? _wholeInt(Object? v) {
-  if (v is int) return v;
-  if (v is double && v.isFinite && v == v.truncateToDouble()) return v.toInt();
-  return null;
 }

@@ -263,90 +263,64 @@ void main() {
   );
 
   test(
-    'ask not last rejects itself, preserves prefix and skips suffix',
+    'ask is scheduled after independent state operations without rejection',
     () async {
-      late CoachAgent agent;
       final client = FakeLlmClient([
         calls([start(), ask(), parameters()]),
-        (LlmRequest request) {
-          protocol(request.messages);
-          for (final id in ['start', 'ask', 'params']) {
-            expect(
-              request.messages.where((m) => m.toolCallId == id),
-              hasLength(1),
-            );
-          }
-          expect(agent.sessionState.task, isNotNull);
-          expect(response(request, 'ask')['ok'], isFalse);
-          expect(response(request, 'params')['code'], 'skipped_after_error');
-          expect(agent.sessionState.params['scene'], isNull);
-          return calls([ask('repair')]);
-        },
       ], latency: Duration.zero);
-      agent = coach(client);
+      final agent = coach(client);
       final result = await agent.send(input);
-      expect(
-        result.question,
-        isNotNull,
-        reason: '${result.issues} ${result.error}',
+      expect(result.question, isNotNull, reason: '${result.error}');
+      expect(client.requests, hasLength(1));
+      expect(agent.sessionState.params['scene']!.value, 'home');
+      expect(result.records.single.issueCodes, isEmpty);
+      protocol(agent.history);
+      final request = LlmRequest(messages: agent.history);
+      expect(response(request, 'ask')['ok'], isTrue);
+      expect(response(request, 'ask')['notes'], isNotEmpty);
+      expect(response(request, 'params')['ok'], isTrue);
+      final batch = agent.history.singleWhere(
+        (m) => m.toolCalls.any((c) => c.id == 'start'),
       );
-      expect(agent.sessionState.task, isNotNull);
-      expect(agent.sessionState.params['scene'], isNull);
+      expect(batch.toolCalls.map((c) => c.id), ['start', 'params', 'ask']);
     },
   );
 
-  test(
-    'ask not last keeps prior memory write and skips subsequent write',
-    () async {
-      final store = InMemoryUserMemoryStore();
-      final client = FakeLlmClient([
-        calls([
-          tool('memory-before', AgentTools.remember, {
-            'kind': 'goal',
-            'text': '想劈叉',
-          }),
-          ask(),
-          tool('memory-after', AgentTools.remember, {
-            'kind': 'goal',
-            'text': '想拉伸',
-          }),
-        ]),
-        (LlmRequest request) {
-          protocol(request.messages);
-          expect(store.entries.map((e) => e.text), ['想劈叉']);
-          expect(response(request, 'ask')['ok'], isFalse);
-          expect(
-            response(request, 'memory-after')['code'],
-            'skipped_after_error',
-          );
-          return calls([ask('repair-memory')]);
-        },
-      ], latency: Duration.zero);
-      final agent = CoachAgent(
-        client: client,
-        catalog: () => catalog,
-        profile: profile,
-        memoryStore: store,
-        enableUserMemory: true,
-        maxRequestRetries: 0,
-      );
-      addTearDown(agent.dispose);
-      final events = <AgentEvent>[];
-      final subscription = agent.events.listen(events.add);
-      final result = await agent.send('我想劈叉和拉伸');
-      await subscription.cancel();
-      expect(
-        result.question,
-        isNotNull,
-        reason: '${result.issues} ${result.error}',
-      );
-      expect(store.entries.map((e) => e.text), ['想劈叉']);
-      expect(
-        events.where((event) => event.kind == AgentEventKind.memory),
-        hasLength(1),
-      );
-    },
-  );
+  test('ask scheduling preserves both independent memory writes', () async {
+    final store = InMemoryUserMemoryStore();
+    final client = FakeLlmClient([
+      calls([
+        tool('memory-before', AgentTools.remember, {
+          'kind': 'goal',
+          'text': '想劈叉',
+        }),
+        ask(),
+        tool('memory-after', AgentTools.remember, {
+          'kind': 'goal',
+          'text': '想拉伸',
+        }),
+      ]),
+    ], latency: Duration.zero);
+    final agent = CoachAgent(
+      client: client,
+      catalog: () => catalog,
+      profile: profile,
+      memoryStore: store,
+      enableUserMemory: true,
+      maxRequestRetries: 0,
+    );
+    addTearDown(agent.dispose);
+    final events = <AgentEvent>[];
+    final subscription = agent.events.listen(events.add);
+    final result = await agent.send('我想劈叉和拉伸');
+    await subscription.cancel();
+    expect(result.question, isNotNull, reason: '${result.error}');
+    expect(client.requests, hasLength(1));
+    expect(store.entries.map((e) => e.text), ['想劈叉', '想拉伸']);
+    expect(events.where((e) => e.kind == AgentEventKind.memory), hasLength(2));
+    expect(result.records.single.issueCodes, isEmpty);
+    protocol(agent.history);
+  });
 
   test('cancel in a synchronous node event prevents later calls', () async {
     final token = CancelToken();
@@ -631,7 +605,7 @@ void main() {
     },
   );
   test(
-    'duplicate call ID preserves the successful prefix and replies by position',
+    'duplicate call IDs are mapped uniquely without dropping later operations',
     () async {
       late CoachAgent agent;
       final client = FakeLlmClient([
@@ -656,7 +630,7 @@ void main() {
           expect(index, greaterThanOrEqualTo(0));
           expect(request.messages[index].toolCalls.map((t) => t.id), [
             'same',
-            'same',
+            'same__sdk2',
             'last',
           ]);
           final feedback = request.messages.skip(index + 1).take(3).toList();
@@ -665,18 +639,22 @@ void main() {
             LlmRole.tool,
             LlmRole.tool,
           ]);
-          expect(feedback.map((m) => m.toolCallId), ['same', 'same', 'last']);
+          expect(feedback.map((m) => m.toolCallId), [
+            'same',
+            'same__sdk2',
+            'last',
+          ]);
           final values = [
             for (final m in feedback)
               jsonDecode(m.content) as Map<String, dynamic>,
           ];
           expect(values[0]['ok'], isTrue);
-          expect(values[1]['code'], 'duplicate_tool_call_id');
-          expect(values[2]['code'], 'skipped_after_error');
-          expect(values[2]['actual'], contains('2'));
+          expect(values[1]['ok'], isTrue);
+          expect(values[1]['notes'], isNotEmpty);
+          expect(values[2]['ok'], isTrue);
           expect(agent.sessionState.task, isNotNull);
-          expect(agent.sessionState.params['scene'], isNull);
-          expect(agent.sessionState.seenActionIds, isEmpty);
+          expect(agent.sessionState.params['scene'], isNotNull);
+          expect(agent.sessionState.seenActionIds, isNotEmpty);
           return calls([ask('repair-duplicate')]);
         },
       ], latency: Duration.zero);
@@ -688,7 +666,7 @@ void main() {
         reason: '${result.issues}; ${result.error}',
       );
       expect(agent.sessionState.task, isNotNull);
-      expect(agent.sessionState.params['scene'], isNull);
+      expect(agent.sessionState.params['scene'], isNotNull);
     },
   );
 }

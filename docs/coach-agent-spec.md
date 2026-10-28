@@ -192,3 +192,13 @@ profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有�
 7. runner 与 comparison 共用账本+环境物-排除的器械判断，expectedEquipment=[] 也包含环境物。真实工具拒绝按 UsageRecord 实际失败批次记录（每批首个失败后余项跳过），包括最后一次不可见回执；skipped 和非工具拒绝不计。可见回执单独留证。当前轮只评测 thinking off 六例各一次，链路及 SDK App 默认配置不变。
 
 单测落点：automatic_node_progress_test、output_note_completion_test、plan_builder_dose_mode_test、search_tag_groups_test、derived_scene_params_test、eval_quality_test；原安全、宿主条件、保存恢复、换一套及预算回归继续执行。系统重复工具用法移到技能/工具说明，未删安全底线或历史 reasoning。
+# 2026-10-28 审定补充：确定性修正与建议分离
+
+本节按开哥对 `coach-agent-gate-audit.md` 第六、八节的批准及本轮范围限定补充；覆盖前文冲突条目。
+
+- 安全/伤痛、器械/场景、目录/scope/seen、真实目标及来源继续按同一依据校验。代码计算剂量、时长、稳定顺序、分组和缺省值；无害协议/呈现偏差规范化并回执说明。
+- 同块重复动作合并剂量；主体稳定排序，不增删不同动作。连续同部位/拮抗覆盖按目标的一次 warning，单部位不适用；热身/放松 purpose、三段阈值也仅一次 warning，不拦交付。取消硬 min3，1个合规动作可交付；没有合规动作正常说明或询问调整。
+- 新 `draft_plan` schema 只有 title、blocks(kind/items[id])；模型剂量和轮数一律忽略并说明。ID/版本归代码；整体替换意图通过带 user/quote 的 `set_params.operation` 表达。旧调用有效 operation 保留为兼容别名，当前轮有来源的账本优先，非法别名忽略；差异率底线仍保留。
+- 用户明确剂量通过 `set_params.dose` 保存：value 为 `{field,value,actionId?,blockId?}` 数组，field 为 sets/reps/seconds/rounds；必须 user 和真实 quote，完整保存/恢复。省略作用域时 sets 用于所有动作，reps 用于计次动作，seconds 用于计时动作，rounds 用于主体；其他阶段轮数用 blockId 明确。不能用目录默认值冒充用户明确要求；冲突时正常询问取舍。
+- 保留原配时算法。fitLog 使用 blockId/actionId/field/before/after/beforeEstimatedSec/afterEstimatedSec。只有合法剂量域最小值仍超容差或最大值仍不足时，才证明时长不可行并给结构化原因；明确剂量冲突也列原因并询问。其他情况交付现算法最优结果并回执误差，不以启发式未找到宣称无解，Checker 不重复报 plan_duration。
+- 本轮不新增全局最优求解器，不自动改写 note 数字/器材事实，不改宿主 extraRules；这些边界单独记录在评审包。

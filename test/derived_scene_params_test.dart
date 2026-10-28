@@ -107,31 +107,31 @@ void main() {
     },
   );
 
-  test('derived scene needs current quote and rejects direction', () {
-    final current = CoachSessionState().appendUserTurn('坐了挺久');
-    expect(
-      params.set(current, scene('office', 'derived')).error!['code'],
-      'invalid_quote',
-    );
-    expect(
-      params
-          .set(
-            current.appendUserTurn('继续'),
-            scene('office', 'derived', quote: '坐了挺久'),
-          )
-          .error!['code'],
-      'derived_quote_not_new',
-    );
-    expect(
-      params
-          .set(
-            current,
-            scene('office', 'derived', quote: '坐了挺久', direction: 'shorter'),
-          )
-          .error!['code'],
-      'invalid_direction',
-    );
-  });
+  test(
+    'derived scene needs current quote and ignores irrelevant direction',
+    () {
+      final current = CoachSessionState().appendUserTurn('坐了挺久');
+      expect(
+        params.set(current, scene('office', 'derived')).error!['code'],
+        'invalid_quote',
+      );
+      expect(
+        params
+            .set(
+              current.appendUserTurn('继续'),
+              scene('office', 'derived', quote: '坐了挺久'),
+            )
+            .error!['code'],
+        'derived_quote_not_new',
+      );
+      final normalized = params.set(
+        current,
+        scene('office', 'derived', quote: '坐了挺久', direction: 'shorter'),
+      );
+      expect(normalized.ok, isTrue);
+      expect(normalized.notes, isNotEmpty);
+    },
+  );
 
   test('explicit user and host settings override inferred scene', () {
     final current = inferred().appendUserTurn('我现在在家');
@@ -162,12 +162,10 @@ void main() {
           )
           .state
           .appendUserTurn('坐了挺久');
-      expect(
-        params
-            .set(user, scene('office', 'derived', quote: '坐了挺久'))
-            .error!['code'],
-        'source_conflict',
-      );
+      final kept = params.set(user, scene('office', 'derived', quote: '坐了挺久'));
+      expect(kept.ok, isTrue);
+      expect(kept.kept, {'scene'});
+      expect(kept.state.params['scene']!.value, 'home');
       final current = CoachSessionState().appendUserTurn('坐了挺久');
       final defaulted = params.set(current, scene('home', 'default')).state;
       expect(

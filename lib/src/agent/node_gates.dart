@@ -27,24 +27,83 @@ class NodeGates {
     final requested = task?.nodes.where((n) => n.id == node).firstOrNull;
     if (requested?.status == 'done' || requested?.status == 'updated') {
       if (node == 'actions' && picks != null) {
-        return validateRecommendationPicks(state, picks, language: language);
+        final selected = picks.toSet().toList();
+        final checked = validateRecommendationPicks(
+          state,
+          selected,
+          language: language,
+        );
+        if (!checked.ok) return checked;
+        if (state.task?.type == 'plan') {
+          return addDraftPicks(checked.state, selected, language: language);
+        }
+        return NodeResult(
+          checked.state.copyWith(picks: selected),
+          notices: checked.notices,
+        );
       }
       return NodeResult(state);
     }
     final current = task?.nodes.where((n) => n.status == 'current').firstOrNull;
-    if (task == null ||
-        current == null ||
-        node != current.id ||
-        node == 'output') {
+    if (task == null) {
       return NodeResult(
         state,
         error: nodeError(
-          'wrong_node',
-          'node',
-          current?.id ?? '先创建任务',
-          node,
-          '按当前节点顺序打卡；output 在交付时自动完成。',
+          'missing_task',
+          'task',
+          '由模型明确的任务类型',
+          null,
+          '先明确 recommend 或 plan。',
         ),
+      );
+    }
+    final requestedIndex = task.nodes.indexWhere((entry) => entry.id == node);
+    if (node == 'output' || requestedIndex < 0 || current == null) {
+      return NodeResult(state, notices: ['节点由代码推进，已返回当前状态。']);
+    }
+    if (node != current.id) {
+      final currentIndex = task.nodes.indexOf(current);
+      if (requestedIndex < currentIndex) return NodeResult(state);
+      var prepared = state;
+      final changes = <CoachNodeState>[];
+      final warnings = <String>[];
+      final notices = <String>[];
+      while (prepared.task!.nodes
+              .where((entry) => entry.status == 'current')
+              .firstOrNull
+              ?.id !=
+          node) {
+        final pending = prepared.task!.nodes
+            .where((entry) => entry.status == 'current')
+            .firstOrNull;
+        if (pending == null || pending.id == 'output') break;
+        final advanced = check(
+          prepared,
+          pending.id,
+          picks: picks ?? prepared.picks,
+          language: language,
+          planId: planId,
+        );
+        if (!advanced.ok) return advanced;
+        if (identical(advanced.state, prepared)) return advanced;
+        prepared = advanced.state;
+        changes.addAll(advanced.changes);
+        warnings.addAll(advanced.warnings);
+        notices.addAll(advanced.notices);
+      }
+      final advanced = check(
+        prepared,
+        node,
+        picks: picks,
+        language: language,
+        planId: planId,
+      );
+      return NodeResult(
+        advanced.state,
+        error: advanced.error,
+        changes: [...changes, ...advanced.changes],
+        warnings: [...warnings, ...advanced.warnings],
+        notices: [...notices, ...advanced.notices],
       );
     }
     var next = state;
@@ -58,11 +117,30 @@ class NodeGates {
             ? (en ? 'Preparing a plan' : '准备训练计划')
             : (en ? 'Recommending actions' : '准备推荐动作');
       case 'parameters':
+        if (task.type == 'plan') {
+          final params = Map<String, CoachParamValue>.of(next.params);
+          for (final entry in <String, Object>{
+            'scene': profile.defaultScene,
+            if (int.tryParse(profile.vars['defaultMinutes'] ?? '')
+                case final int minutes)
+              'minutes': minutes,
+          }.entries) {
+            params.putIfAbsent(
+              entry.key,
+              () => CoachParamValue(
+                value: entry.value,
+                source: 'default',
+                turn: _turn(state),
+              ),
+            );
+          }
+          next = next.copyWith(params: params);
+        }
         final required = task.type == 'plan'
             ? ['scene', 'goal', 'minutes']
             : ['goal'];
         final missing = required.where((key) {
-          final v = state.params[key]?.value;
+          final v = next.params[key]?.value;
           return v == null || (v is List && v.isEmpty);
         }).toList();
         if (missing.isNotEmpty) {
@@ -78,7 +156,7 @@ class NodeGates {
           );
         }
         final turn = _turn(state);
-        final params = Map<String, CoachParamValue>.of(state.params);
+        final params = Map<String, CoachParamValue>.of(next.params);
         for (final entry in <String, Object>{
           'equipment': <String>[],
           'level': 1,
@@ -93,10 +171,10 @@ class NodeGates {
             ),
           );
         }
-        next = state.copyWith(params: params);
+        next = next.copyWith(params: params);
         stamp = _parametersStamp(next, en);
       case 'actions':
-        final selected = picks ?? const <String>[];
+        final selected = (picks ?? state.picks).toSet().toList();
         final focused = validateRecommendationPicks(
           state,
           selected,
@@ -105,18 +183,14 @@ class NodeGates {
         if (!focused.ok) return focused;
         next = focused.state;
         notices.addAll(focused.notices);
-        final minimum = recommendationMinimum(state);
-        if (selected.length < minimum ||
-            selected.toSet().length != selected.length) {
+        if (selected.isEmpty) {
           return NodeResult(
             state,
-            error: nodeError(
-              'invalid_picks',
-              'picks',
-              '至少 $minimum 个不同动作',
-              selected,
-              '选择至少 $minimum 个不同的已搜索动作。',
-            ),
+            notices: [
+              recommendationCandidates(state).isEmpty
+                  ? '当前条件没有合规动作，可说明无法满足或询问是否调整条件。'
+                  : '尚未选择动作，可从合规候选中选择。',
+            ],
           );
         }
         final unseen = selected
@@ -182,7 +256,9 @@ class NodeGates {
         }
         if (node == 'review') {
           stamp =
-              (en ? 'Plan checks passed' : '安全、时长、器材、均衡、重点都通过') +
+              (en
+                  ? 'Catalogue, safety and target checks completed'
+                  : '目录、安全、器材和目标核对完成') +
               _planAmbientStamp(state, version, en);
         } else {
           stamp = en
@@ -219,15 +295,8 @@ class NodeGates {
     ];
   }
 
-  int recommendationMinimum(CoachSessionState state) {
-    if (_recommendationGoals(state).isEmpty) return minPicks;
-    final count = recommendationCandidates(state).length;
-    return count < 1
-        ? 1
-        : count < 3
-        ? count
-        : 3;
-  }
+  /// Only a nonempty real card is required; quantity is not a hard quota.
+  int recommendationMinimum(CoachSessionState state) => 1;
 
   /// Shared by explicit check(actions) and delivery, including after a previous
   /// actions stamp. The optional hint flag is the only mutation on rejection.
@@ -237,16 +306,11 @@ class NodeGates {
     String language = 'zh',
   }) {
     final goals = _recommendationGoals(state);
-    if (goals.isEmpty) return NodeResult(state);
     final candidates = recommendationCandidates(state);
     final count = candidates.length;
-    final minimum = count < 1
-        ? 1
-        : count < 3
-        ? count
-        : 3;
+    const minimum = 1;
     final en = language.toLowerCase().startsWith('en');
-    final notices = count < 3 && !state.recommendationHintShown
+    final notices = count > 0 && count < 3 && !state.recommendationHintShown
         ? [
             en
                 ? 'Found $count matching actions. You may search once more without level/pose filters, or use these candidates.'
@@ -283,11 +347,11 @@ class NodeGates {
       },
       notices: notices,
     );
-    if (picks.length < minimum || picks.toSet().length != picks.length) {
+    if (picks.isEmpty && candidates.isNotEmpty) {
       return failure(
         'invalid_picks',
         'picks',
-        '至少 $minimum 个不同的命中动作',
+        '已选择的合规动作',
         picks,
         '从 candidates 中选择符合部位的已搜索动作。',
       );
@@ -315,7 +379,11 @@ class NodeGates {
       );
     }
     final missed = picks
-        .where((id) => tags.forActionId(id).intersection(goals).isEmpty)
+        .where(
+          (id) =>
+              goals.isNotEmpty &&
+              tags.forActionId(id).intersection(goals).isEmpty,
+        )
         .toList();
     if (missed.isNotEmpty) {
       return failure(
@@ -344,20 +412,6 @@ class NodeGates {
     if (additions.isEmpty) return NodeResult(state);
     final task = state.task;
     final index = task?.nodes.indexWhere((node) => node.id == 'actions') ?? -1;
-    if (task?.type != 'plan' ||
-        index < 0 ||
-        task!.nodes[index].status != 'done') {
-      return NodeResult(
-        state,
-        error: nodeError(
-          'actions_not_complete',
-          'task.actions',
-          '已完成的计划动作节点',
-          index < 0 ? null : task?.nodes[index].status,
-          '先完成动作节点再补充草稿动作。',
-        ),
-      );
-    }
     final unseen = additions
         .where((id) => !state.seenActionIds.contains(id))
         .toList();
@@ -389,19 +443,21 @@ class NodeGates {
       );
     }
     final picks = [...state.picks, ...additions];
-    final nodes = List<CoachNodeState>.of(task.nodes);
-    nodes[index] = nodes[index].copyWith(
-      stamp: _actionsStamp(
-        picks.length,
-        language.toLowerCase().startsWith('en'),
-      ),
-    );
+    final nodes = List<CoachNodeState>.of(task?.nodes ?? const []);
+    if (index >= 0) {
+      nodes[index] = nodes[index].copyWith(
+        stamp: _actionsStamp(
+          picks.length,
+          language.toLowerCase().startsWith('en'),
+        ),
+      );
+    }
     return NodeResult(
       state.copyWith(
-        task: task.copyWith(nodes: nodes),
+        task: task?.copyWith(nodes: nodes),
         picks: picks,
       ),
-      changes: [nodes[index]],
+      changes: index < 0 ? const [] : [nodes[index]],
       warnings: [
         ..._unknownLimitWarnings(state),
         ..._unknownActionWarnings(additions),
@@ -432,8 +488,11 @@ class NodeGates {
     final preserveActions =
         task.type == 'plan' &&
         actualChanges != null &&
-        actualChanges.length == 1 &&
-        actualChanges.contains('minutes') &&
+        actualChanges.isNotEmpty &&
+        actualChanges.every(
+          (field) =>
+              field == 'minutes' || field == 'dose' || field == 'operation',
+        ) &&
         actionIndex >= 0 &&
         planningIndex > actionIndex &&
         {'done', 'updated'}.contains(task.nodes[actionIndex].status);
@@ -501,6 +560,10 @@ class NodeGates {
 
   NodeResult completeOutput(CoachSessionState state, {String language = 'zh'}) {
     final task = state.task;
+    if (task?.nodes.lastOrNull?.id == 'output' &&
+        task?.nodes.lastOrNull?.status == 'done') {
+      return NodeResult(state);
+    }
     final current = task?.nodes.where((n) => n.status == 'current').firstOrNull;
     if (current?.id != 'output' ||
         task!.nodes
@@ -682,10 +745,34 @@ class NodeGates {
       'minutes',
       'level',
       'limits',
+      'dose',
+      'operation',
     ]) {
       final param = state.params[key];
       if (param == null) continue;
       final value = param.value;
+      if (key == 'dose') {
+        final labels = en
+            ? const {
+                'sets': 'sets',
+                'reps': 'reps',
+                'seconds': 'seconds',
+                'rounds': 'rounds',
+              }
+            : const {'sets': '组', 'reps': '次', 'seconds': '秒', 'rounds': '轮'};
+        final rows = value as List;
+        for (final row in rows.whereType<Map<Object?, Object?>>()) {
+          final actionId = row['actionId'];
+          final scope = actionId is String
+              ? '${catalog[actionId]?.name.of(en ? 'en' : 'zh') ?? actionId} '
+              : '';
+          parts.add(
+            '$scope${row['value']} ${labels[row['field']] ?? row['field']}（${en ? 'you said' : '你说的'}）',
+          );
+        }
+        continue;
+      }
+      if (key == 'operation') continue;
       if (key == 'equipment_exclude' && (value as List).isEmpty) continue;
       if (key == 'minutes' &&
           param.source == 'derived' &&

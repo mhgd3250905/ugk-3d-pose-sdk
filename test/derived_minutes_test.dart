@@ -60,15 +60,14 @@ void main() {
       }
       for (final value in [5, 20, 25, 15.0]) {
         final result = derived(state, value);
-        expect(result.ok, isFalse, reason: '$value');
-        expect(result.error!['code'], 'derived_out_of_range');
-        expect(result.error!['fix'], contains('10–15'));
-        expect(result.state.params['minutes']!.value, 20);
+        expect(result.ok, isTrue, reason: '$value');
+        expect(result.state.params['minutes']!.value, isIn([10, 15]));
+        expect(result.state.params['minutes']!.source, 'derived');
       }
       final ten = base(10).appendUserTurn('短一点');
       expect(derived(ten, 5).ok, isTrue);
       final limit = base(5).appendUserTurn('短一点');
-      expect(derived(limit, 5).error!['fix'], contains('询问用户'));
+      expect(derived(limit, 5).toJson()['needsUserChoice'], isTrue);
     },
   );
 
@@ -80,13 +79,21 @@ void main() {
       expect(result.state.params['minutes']!.value, sample.$2);
       expect(result.state.params['minutes']!.basedOn!.value, 20);
     }
-    expect(derived(shorter, 18).error!['code'], 'derived_out_of_range');
-    expect(derived(shorter, 7).error!['code'], 'derived_out_of_range');
+    expect(derived(shorter, 18).state.params['minutes']!.value, 15);
+    expect(derived(shorter, 7).state.params['minutes']!.value, 15);
     final longer = base().appendUserTurn('长一点');
     final rounded = derived(longer, 27, direction: 'longer', quote: '长一点');
     expect(rounded.ok, isTrue, reason: '${rounded.error}');
     expect(rounded.state.params['minutes']!.value, 25);
-    expect(derived(longer, 22, direction: 'longer', quote: '长一点').ok, isFalse);
+    expect(
+      derived(
+        longer,
+        22,
+        direction: 'longer',
+        quote: '长一点',
+      ).state.params['minutes']!.value,
+      25,
+    );
   });
 
   test('ratio and admissible minutes are read from profile configuration', () {
@@ -121,8 +128,8 @@ void main() {
         },
       },
     });
-    expect(rejected.error!['code'], 'derived_out_of_range');
-    expect(rejected.error!['fix'], contains('25'));
+    expect(rejected.ok, isTrue);
+    expect(rejected.state.params['minutes']!.value, 25);
   });
 
   test('derived requires a fresh quoted user turn and explicit direction', () {
@@ -166,13 +173,13 @@ void main() {
             'direction': 'shorter',
           },
         },
-      }).error!['code'],
-      'invalid_direction',
+      }).ok,
+      isTrue,
     );
-    expect(
-      derived(CoachSessionState().appendUserTurn('短一点'), 15).error!['code'],
-      'derived_missing_baseline',
-    );
+    final defaultBase = derived(CoachSessionState().appendUserTurn('短一点'), 15);
+    expect(defaultBase.ok, isTrue);
+    expect(defaultBase.state.params['minutes']!.basedOn!.source, 'default');
+    expect(defaultBase.notes, isNotEmpty);
   });
 
   test('a prior unused relative request cannot be reused in a later turn', () {

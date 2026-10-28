@@ -48,7 +48,7 @@ void main() {
         );
         expect(
           builtinSkillMarkdown['plan-training'],
-          contains('使用 start_task 返回的 plan_id'),
+          contains('代码绑定当前 plan_id'),
         );
         expect(system, contains('ask_user 排最后'));
         expect(system, contains('失败后其余跳过'));

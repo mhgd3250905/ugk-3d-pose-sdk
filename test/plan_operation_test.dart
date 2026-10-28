@@ -106,7 +106,7 @@ void main() {
     );
   }
 
-  test('first plan ignores operation; later modification requires it', () {
+  test('first plan ignores operation; later modification defaults to edit', () {
     final first = builder.draft(
       ready(),
       draft(oldMain, operation: 'edit'),
@@ -125,14 +125,16 @@ void main() {
     expect(replaceFirst.state.plans['first']!.last.operation, isNull);
     final prior = delivered();
     final absent = builder.draft(prior, draft(oldMain), newPlanId: 'new');
-    expect(absent.error!['code'], 'operation_required');
-    expect(absent.state.toJson(), prior.toJson());
+    expect(absent.ok, isTrue, reason: '${absent.error}');
+    expect(absent.planId, 'original');
+    expect(absent.state.plans['original']!.last.operation, 'edit');
     final wrongId = builder.draft(
       prior,
       draft(oldMain, operation: 'edit', id: 'other'),
       newPlanId: 'unused',
     );
-    expect(wrongId.error!['code'], 'invalid_plan_id');
+    expect(wrongId.ok, isTrue, reason: '${wrongId.error}');
+    expect(wrongId.planId, 'original');
   });
 
   test('a new independent task can create a fresh plan after delivery', () {
@@ -152,6 +154,58 @@ void main() {
     expect(result.state.lastDeliveredPlanId, 'original');
     expect(result.version, 1);
   });
+
+  test(
+    'current-turn sourced operation wins over the legacy compatibility marker',
+    () {
+      final prior = delivered();
+      final sourced = prior.copyWith(
+        params: {
+          ...prior.params,
+          'operation': CoachParamValue(
+            value: 'replace_all',
+            source: 'user',
+            quote: '换一套',
+            turn: 2,
+          ),
+        },
+      );
+      final result = builder.draft(
+        sourced,
+        draft(newMain, operation: 'edit'),
+        newPlanId: 'unused',
+      );
+      expect(result.ok, isTrue, reason: '${result.error}');
+      expect(result.state.plans['original']!.last.operation, 'replace_all');
+      expect(result.notes.any((note) => note.contains('带来源')), isTrue);
+    },
+  );
+
+  test(
+    'old sourced operation does not repeat and invalid legacy markers normalize',
+    () {
+      final prior = delivered();
+      final stale = prior.copyWith(
+        params: {
+          ...prior.params,
+          'operation': CoachParamValue(
+            value: 'replace_all',
+            source: 'user',
+            quote: 'old request',
+            turn: 1,
+          ),
+        },
+      );
+      final result = builder.draft(
+        stale,
+        draft(oldMain, operation: 'unknown'),
+        newPlanId: 'unused',
+      );
+      expect(result.ok, isTrue, reason: '${result.error}');
+      expect(result.state.plans['original']!.last.operation, 'edit');
+      expect(result.notes.any((note) => note.contains('无效旧操作')), isTrue);
+    },
+  );
 
   test('recommendation to plan reuse retains searched actions', () {
     final state = delivered();
@@ -214,13 +268,13 @@ void main() {
       draft(oldMain),
       newPlanId: 'unused',
     );
-    expect(withoutOperation.error!['code'], 'operation_required');
+    expect(withoutOperation.error!['code'], 'replace_too_similar');
     final switched = builder.draft(
       result.state,
       draft(oldMain, operation: 'edit'),
       newPlanId: 'unused',
     );
-    expect(switched.error!['code'], 'operation_conflict');
+    expect(switched.error!['code'], 'replace_too_similar');
   });
 
   test('replacement reports unique main action counts', () {
@@ -421,7 +475,7 @@ void main() {
         draft(oldMain, id: 'original', operation: 'edit'),
         newPlanId: 'unused',
       );
-      expect(switched.error!['code'], 'operation_conflict');
+      expect(switched.error!['code'], 'replace_too_similar');
       final result = builder.draft(
         repair,
         draft(oldMain, id: 'original'),

@@ -78,7 +78,7 @@ void main() {
 
   for (final badMinutes in [15]) {
     test(
-      'invalid shorter duration $badMinutes is rejected before a valid correction',
+      'opposite proposed shorter duration $badMinutes is normalized without losing its source',
       () async {
         final flow = ScriptedV2PlanFlow(catalog);
         final correction = flow.changeMinutes(5, '短一点', direction: 'shorter');
@@ -115,8 +115,8 @@ void main() {
                           .content,
                     )
                     as Map<String, dynamic>;
-            expect(result['ok'], isFalse);
-            expect(result['code'], 'derived_out_of_range');
+            expect(result['ok'], isTrue, reason: '$result');
+            expect(result['notes'], isNotEmpty);
             return correction.first as LlmResponse;
           },
           ...correction.skip(1),
@@ -131,6 +131,10 @@ void main() {
           reason: '${result.issues} ${result.error}',
         );
         expect(result.plan!.plan.targetMinutes, 5);
+        final minutes = controller.agent.sessionState.params['minutes']!;
+        expect(minutes.source, 'derived');
+        expect(minutes.quote, '短一点');
+        expect(minutes.direction, 'shorter');
         expect(
           controller.agent.sessionState.params['minutes']!.basedOn!.value,
           10,
@@ -195,7 +199,13 @@ void main() {
     expect(result!.question, isNull);
     expect(result.plan, isNotNull, reason: '${result.issues} ${result.error}');
     expect(result.plan!.plan.targetMinutes, 7);
-    expect(flow.stalePlanError, 'nodes_incomplete');
+    expect(controller.agent.sessionState.plans[flow.planId]!.last.version, 2);
+    expect(controller.agent.sessionState.params['minutes']!.source, 'user');
+    expect(controller.agent.sessionState.params['minutes']!.quote, '7分钟');
+    expect(
+      (duration.estimateSeconds(result.plan!.plan, catalog) / 60 - 7).abs() / 7,
+      lessThanOrEqualTo(.10),
+    );
     expect(
       client.requests.any(
         (request) => request.messages.any((m) => m.content.contains('缩短到7分钟')),

@@ -80,21 +80,21 @@ void main() {
     },
   );
 
-  test('invalid note types remain errors and cannot advance actions', () {
+  test('empty or malformed presentation notes do not block valid actions', () {
     for (final note in [null, 17, '', '   ', <String>[]]) {
       final original = ready();
       final before = jsonEncode(original.toJson());
       final result = show(original, note: note);
-      expect(result.ok, isFalse);
-      expect(result.error!['code'], 'invalid_note');
-      expect(result.state, same(original));
-      expect(result.changes, isEmpty);
+      expect(result.ok, isTrue);
+      expect(result.card!.text, isEmpty);
+      expect(result.state.task!.nodes.last.status, 'done');
+      expect(result.notices, isNotEmpty);
       expect(jsonEncode(original.toJson()), before);
     }
   });
 
   test(
-    'automatic selection preserves minPicks, uniqueness and seen checks',
+    'automatic selection allows small pools and deduplicates while retaining seen checks',
     () {
       for (final selected in [
         ids.take(2).toList(),
@@ -102,14 +102,15 @@ void main() {
       ]) {
         final original = ready();
         final result = show(original, selected: selected);
-        expect(result.error!['code'], 'invalid_picks');
-        expect(result.state, same(original));
-        expect(result.changes, isEmpty);
+        expect(result.ok, isTrue);
+        expect(result.state.picks, selected.toSet().toList());
+        expect(result.card!.actions!.items, hasLength(selected.toSet().length));
       }
       final unseen = ready().copyWith(seenActionIds: ids.take(2).toSet());
       final result = show(unseen);
       expect(result.error!['code'], 'unseen_actions');
-      expect(result.state, same(unseen));
+      expect(result.state.task!.toJson(), unseen.task!.toJson());
+      expect(result.state.picks, unseen.picks);
       expect(result.changes, isEmpty);
     },
   );
@@ -131,34 +132,41 @@ void main() {
     );
     final result = show(original, selected: selected);
     expect(result.error!['code'], 'incompatible_actions');
-    expect(result.state, same(original));
+    expect(result.state.task!.toJson(), original.task!.toJson());
+    expect(result.state.picks, original.picks);
     expect(result.changes, isEmpty);
     expect(original.task!.nodes[2].status, 'current');
   });
 
-  test('recommendation output cannot skip understanding or parameters', () {
-    final original = ready().copyWith(
-      task: CoachTaskState(
-        type: 'recommend',
-        reused: false,
-        nodes: [
-          for (final id in AgentTask.recommendNodes)
-            CoachNodeState(
-              id: id,
-              status: id == 'parameters'
-                  ? 'current'
-                  : id == 'understand'
-                  ? 'done'
-                  : 'pending',
-            ),
-        ],
-      ),
-    );
-    final result = show(original);
-    expect(result.error!['code'], 'nodes_incomplete');
-    expect(result.state, same(original));
-    expect(result.changes, isEmpty);
-  });
+  test(
+    'recommendation output completes computable parameter prerequisites',
+    () {
+      final original = ready().copyWith(
+        task: CoachTaskState(
+          type: 'recommend',
+          reused: false,
+          nodes: [
+            for (final id in AgentTask.recommendNodes)
+              CoachNodeState(
+                id: id,
+                status: id == 'parameters'
+                    ? 'current'
+                    : id == 'understand'
+                    ? 'done'
+                    : 'pending',
+              ),
+          ],
+        ),
+      );
+      final result = show(original);
+      expect(result.ok, isTrue);
+      expect(
+        result.state.task!.nodes.every((node) => node.status == 'done'),
+        isTrue,
+      );
+      expect(original.task!.nodes[1].status, 'current');
+    },
+  );
 
   test(
     'overlong English note is shortened and explained in the tool receipt',

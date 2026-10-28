@@ -347,7 +347,7 @@ void main() {
                 expected[step],
               );
               if (step == 2) {
-                expect(toolResult(body, 'bad')['code'], 'invalid_picks');
+                expect(toolResult(body, 'bad')['code'], 'unseen_actions');
               }
               return _response(replies[step++]);
             }),

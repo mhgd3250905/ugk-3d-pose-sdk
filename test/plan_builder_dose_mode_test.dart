@@ -98,69 +98,69 @@ void main() {
 
   for (final mode in DoseMode.values) {
     for (final language in ['zh', 'en']) {
-      test(
-        'wrong ${mode.name} field uses catalogue default and retains sets ($language)',
-        () {
-          final result = builder.draft(
-            state(mode),
-            draft(mode, mode == DoseMode.reps ? {'seconds': 55} : {'reps': 7}),
-            newPlanId: 'test',
-            language: language,
-          );
-          expect(result.ok, isTrue, reason: '${result.error}');
-          expect(result.notes, hasLength(3));
-          expect(result.toJson()['notes'], result.notes);
-          for (final item in items(result)) {
-            expect(item['sets'], 2);
-            expect(item['mode'], mode.name);
-            expect(
-              item[mode == DoseMode.reps ? 'reps' : 'workSeconds'],
-              mode == DoseMode.reps ? 12 : 35,
-            );
-            expect(
-              item.containsKey(mode == DoseMode.reps ? 'workSeconds' : 'reps'),
-              isFalse,
-            );
+      test('legacy ${mode.name} dose fields are ignored ($language)', () {
+        final clean = draft(mode, {});
+        for (final block in clean['blocks']! as List) {
+          for (final item in (block as Map)['items'] as List) {
+            (item as Map).remove('sets');
           }
-          expect(
-            result.notes.first,
-            contains(language == 'en' ? 'Exercise' : '测试'),
-          );
-          expect(
-            result.notes.first,
-            contains(language == 'en' ? 'retained 2 sets' : '保留 2 组'),
-          );
-        },
-      );
-    }
-    test(
-      'correct ${mode.name} field remains an explicit override without fallback note',
-      () {
-        final result = builder.draft(
-          state(mode, minutes: 5),
-          draft(mode, mode == DoseMode.reps ? {'reps': 14} : {'seconds': 40}),
+        }
+        final baseline = builder.draft(
+          state(mode),
+          clean,
           newPlanId: 'test',
+          language: language,
+        );
+        final result = builder.draft(
+          state(mode),
+          draft(mode, mode == DoseMode.reps ? {'seconds': 55} : {'reps': 7}),
+          newPlanId: 'test',
+          language: language,
         );
         expect(result.ok, isTrue, reason: '${result.error}');
-        expect(result.notes, isEmpty);
+        expect(
+          result.state.plans['test']!.single.plan,
+          baseline.state.plans['test']!.single.plan,
+        );
+        expect(result.note, contains(language == 'en' ? 'Ignored' : '已忽略'));
         for (final item in items(result)) {
+          expect(item['mode'], mode.name);
           expect(
-            item[mode == DoseMode.reps ? 'reps' : 'workSeconds'],
-            mode == DoseMode.reps ? 14 : 40,
+            item.containsKey(mode == DoseMode.reps ? 'workSeconds' : 'reps'),
+            isFalse,
           );
         }
-      },
-    );
+      });
+    }
+    test('correct legacy ${mode.name} dose cannot override the timer', () {
+      final first = builder.draft(
+        state(mode, minutes: 5),
+        draft(mode, mode == DoseMode.reps ? {'reps': 14} : {'seconds': 40}),
+        newPlanId: 'test',
+      );
+      final other = builder.draft(
+        state(mode, minutes: 5),
+        draft(mode, mode == DoseMode.reps ? {'reps': 29} : {'seconds': 119}),
+        newPlanId: 'test',
+      );
+      expect(first.ok, isTrue);
+      expect(
+        first.state.plans['test']!.single.plan,
+        other.state.plans['test']!.single.plan,
+      );
+      expect(first.note, contains('已忽略'));
+    });
   }
   test(
-    'incorrect value types and unsearched IDs still fail without relaxing safety',
+    'legacy malformed doses are ignored but unsearched IDs remain rejected',
     () {
       final malformed = builder.draft(
         state(DoseMode.reps),
         draft(DoseMode.reps, {'seconds': '55'}),
         newPlanId: 'test',
       );
-      expect(malformed.error!['code'], 'invalid_item');
+      expect(malformed.ok, isTrue);
+      expect(malformed.note, contains('已忽略'));
       final unseen = builder.draft(
         state(DoseMode.reps).copyWith(seenActionIds: {}),
         draft(DoseMode.reps, {'seconds': 55}),

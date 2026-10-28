@@ -18,6 +18,7 @@ import 'session_params.dart';
 import 'session_state.dart';
 import 'skill_disclosure.dart';
 import 'skill_files.dart';
+import 'tool_arguments.dart';
 import 'user_memory.dart';
 
 part 'draft_tool_handler.dart';

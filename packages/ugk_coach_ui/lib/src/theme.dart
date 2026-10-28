@@ -25,7 +25,11 @@ class CoachUiColors {
     required this.onEmphasis,
     required this.onMedia,
     required this.mediaLabelSurface,
-  });
+    Color? cardSurface,
+    Color? cardBorder,
+    this.primaryForeground = const Color(0xFFFFFFFF),
+  }) : _cardSurface = cardSurface,
+       _cardBorder = cardBorder;
   final Brightness brightness;
   final Color text, muted, faint;
 
@@ -38,6 +42,18 @@ class CoachUiColors {
   final Color userBubble, assistantBubble;
   final CoachMediaPalette stage;
   final Color emphasis, onEmphasis, onMedia, mediaLabelSurface;
+  final Color? _cardSurface, _cardBorder;
+  final Color primaryForeground;
+
+  /// Shared action-card surfaces; hosts can override these semantic tokens.
+  Color get cardSurface =>
+      _cardSurface ??
+      (isDark ? const Color(0xFF1A2324) : const Color(0xFFFFFFFF));
+  Color get cardBorder =>
+      _cardBorder ??
+      (isDark
+          ? const Color.from(alpha: .08, red: 1, green: 1, blue: 1)
+          : const Color(0xFFE3E8E6));
   bool get isDark => brightness == Brightness.dark;
 
   static final light = CoachUiColors.fromTheme(ThemeData.light());
@@ -64,6 +80,9 @@ class CoachUiColors {
     Color? onEmphasis,
     Color? onMedia,
     Color? mediaLabelSurface,
+    Color? cardSurface,
+    Color? cardBorder,
+    Color? primaryForeground,
   }) => CoachUiColors(
     brightness: brightness ?? this.brightness,
     text: text ?? this.text,
@@ -85,6 +104,9 @@ class CoachUiColors {
     onEmphasis: onEmphasis ?? this.onEmphasis,
     onMedia: onMedia ?? this.onMedia,
     mediaLabelSurface: mediaLabelSurface ?? this.mediaLabelSurface,
+    cardSurface: cardSurface ?? _cardSurface,
+    cardBorder: cardBorder ?? _cardBorder,
+    primaryForeground: primaryForeground ?? this.primaryForeground,
   );
   factory CoachUiColors.fromTheme(ThemeData theme) {
     final c = theme.colorScheme;

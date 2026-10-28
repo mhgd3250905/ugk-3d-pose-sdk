@@ -44,17 +44,23 @@ void main() {
     tester.view.physicalSize = const Size(430, 932);
     await withClock(Clock(tester.binding.clock.now), () async {
       await tester.pumpWidget(
-        ShowcaseApp(
-          key: UniqueKey(),
-          initialState: state,
-          initialTheme: mode,
-          fontFamily: captureFont,
-          onSaved: saved,
+        RepaintBoundary(
+          key: const ValueKey('showcase-root-capture'),
+          child: ShowcaseApp(
+            key: UniqueKey(),
+            initialState: state,
+            initialTheme: mode,
+            fontFamily: captureFont,
+            onSaved: saved,
+          ),
         ),
       );
     });
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
+    }
+    if (state == ShowcaseState.result) {
+      await tester.pump(const Duration(milliseconds: 1200));
     }
   }
 
@@ -154,7 +160,7 @@ void main() {
       'state': state.name,
       'theme': mode.name,
       'viewport': [430, 932],
-      'capture_time_ms': 1000,
+      'capture_time_ms': state == ShowcaseState.result ? 2200 : 1000,
       'coordinate_space': 'logical pixels relative to player viewport',
       'rect_order': ['left', 'top', 'width', 'height'],
       'anchors': anchors,
@@ -298,6 +304,61 @@ void main() {
       }
     } finally {
       debugDisableShadows = oldShadows;
+    }
+    await dispose(tester);
+  });
+
+  testWidgets('preview labels, cue sheet and start morph remain readable', (
+    tester,
+  ) async {
+    final output = Platform.environment['SHOWCASE_CAPTURE_DIR'];
+    Future<void> capture(String name, {bool root = false}) async {
+      if (output == null || output.isEmpty) return;
+      final boundary = tester.renderObject<RenderRepaintBoundary>(
+        find.byKey(
+          ValueKey(root ? 'showcase-root-capture' : 'showcase-player-capture'),
+        ),
+      );
+      await tester.runAsync(() async {
+        await Directory(output).create(recursive: true);
+        final image = await boundary.toImage(pixelRatio: 2);
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        await File(
+          '$output/$name.png',
+        ).writeAsBytes(bytes!.buffer.asUint8List());
+        image.dispose();
+      });
+    }
+
+    for (final mode in [ThemeMode.light, ThemeMode.dark]) {
+      await mount(tester, state: ShowcaseState.preview, mode: mode);
+      final labels = tester.getRect(
+        find.byKey(const ValueKey('preview-labels')),
+      );
+      final cues = tester.getRect(
+        find.byKey(const ValueKey('trainer-cue-container')),
+      );
+      expect(labels.bottom, lessThan(cues.top));
+      await tester.tap(find.byKey(const ValueKey('start-training')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      await capture('start-morph-${mode.name}');
+      await tester.pump(const Duration(milliseconds: 150));
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('1/3'), findsOneWidget);
+      await capture('preparation-${mode.name}');
+
+      await mount(tester, mode: mode);
+      await tester.drag(find.byType(TrainerCueCarousel), const Offset(-150, 0));
+      await tester.pump(const Duration(milliseconds: 250));
+      await capture('cue-manual-${mode.name}');
+      await tester.tap(find.byType(TrainerCueCarousel));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('怎么做'), findsOneWidget);
+      expect(find.text('不强迫手触地'), findsOneWidget);
+      await capture('cue-sheet-${mode.name}', root: true);
+      expect(tester.takeException(), isNull);
     }
     await dispose(tester);
   });

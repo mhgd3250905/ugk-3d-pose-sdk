@@ -81,7 +81,7 @@ Widget _media(BuildContext context, CoachMediaRequest request) => ColoredBox(
 );
 
 void main() {
-  testWidgets('one action uses a compact row and delivers its original ID', (
+  testWidgets('one action uses a grid tile and delivers its original ID', (
     tester,
   ) async {
     final opened = <String>[];
@@ -100,11 +100,105 @@ void main() {
     expect(find.text('肩部拉伸0'), findsOneWidget);
     expect(find.text('初学 · 椅子'), findsOneWidget);
     final tile = find.byKey(const ValueKey('recommend-action-move-0'));
-    expect(tester.getSize(tile).width, 328);
+    expect(tester.getSize(tile).width, 162);
     await tester.tap(find.text('肩部拉伸0'));
     expect(opened, ['move-0']);
     expect(tester.takeException(), isNull);
   });
+
+  for (final dark in [false, true]) {
+    testWidgets('action cards follow the fixed grid specification $dark', (
+      tester,
+    ) async {
+      final library = CoachExerciseLibrary([
+        const CoachExercise(
+          id: 'short',
+          name: '短标题',
+          poster: '',
+          stage: _stage,
+          levelLabel: '初学',
+          equipmentLabel: '徒手',
+        ),
+        const CoachExercise(
+          id: 'long',
+          name: '一条超过两行仍然保留相同标题空间的动作标题',
+          poster: '',
+          stage: _stage,
+        ),
+        const CoachExercise(
+          id: 'third',
+          name: '第三个动作',
+          poster: '',
+          stage: _stage,
+        ),
+      ]);
+      await tester.pumpWidget(
+        _app(
+          CoachRecommendCard(
+            actionIds: const ['short', 'long', 'third'],
+            note: '',
+            library: library,
+            onOpenAction: (_) {},
+          ),
+          brightness: dark ? Brightness.dark : Brightness.light,
+        ),
+      );
+      final first = find.byKey(const ValueKey('recommend-action-short'));
+      final second = find.byKey(const ValueKey('recommend-action-long'));
+      final third = find.byKey(const ValueKey('recommend-action-third'));
+      expect(tester.getSize(first), tester.getSize(second));
+      expect(tester.getSize(first), tester.getSize(third));
+      expect(tester.getTopLeft(second).dx - tester.getTopRight(first).dx, 12);
+      expect(tester.getTopLeft(third).dy - tester.getBottomLeft(first).dy, 12);
+      final art = tester.getRect(
+        find.byKey(const ValueKey('recommend-image-area-short')),
+      );
+      expect(art.width, art.height);
+      expect(art.left - tester.getTopLeft(first).dx, 12);
+      expect(art.top - tester.getTopLeft(first).dy, 12);
+      final surface =
+          tester
+                  .widget<DecoratedBox>(
+                    find.byKey(const ValueKey('recommend-surface-short')),
+                  )
+                  .decoration
+              as BoxDecoration;
+      expect(
+        surface.color,
+        dark ? const Color(0xFF1A2324) : const Color(0xFFFFFFFF),
+      );
+      expect(surface.borderRadius, BorderRadius.circular(20));
+      expect(surface.border!.top.width, 1);
+      expect(
+        surface.border!.top.color,
+        dark
+            ? const Color.from(alpha: .08, red: 1, green: 1, blue: 1)
+            : const Color(0xFFE3E8E6),
+      );
+      expect(surface.gradient, isNull);
+      final name = tester.widget<Text>(find.text('短标题'));
+      expect(name.style!.fontSize, 15);
+      expect(name.style!.fontWeight, FontWeight.w600);
+      expect(name.style!.height, 1.35);
+      expect(name.maxLines, 2);
+      expect(name.overflow, TextOverflow.ellipsis);
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('recommend-title-slot-short')))
+            .height,
+        40.5,
+      );
+      final tag = tester.widget<Text>(find.text('初学 · 徒手'));
+      expect(tag.style!.fontSize, 12);
+      expect(
+        tester
+            .getBottomLeft(find.byKey(const ValueKey('recommend-tags-short')))
+            .dy,
+        tester.getBottomLeft(first).dy - 12,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('six actions form two columns and plan callback keeps all IDs', (
     tester,
@@ -371,6 +465,9 @@ void main() {
           ),
         ),
         width: 390,
+        brightness: Platform.environment['COACH_RECOMMEND_THEME'] == 'dark'
+            ? Brightness.dark
+            : Brightness.light,
         fontFamily: font.existsSync() ? 'RecommendCapture' : null,
         media: (_, request) => Image.memory(
           bytes[request.exercise.id]!,

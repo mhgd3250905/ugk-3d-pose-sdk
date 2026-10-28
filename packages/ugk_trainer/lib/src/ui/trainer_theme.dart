@@ -26,8 +26,13 @@ class TrainerTheme {
     this.radius = 22,
     Color? pausedColor,
     Color? onPaused,
-  }) : pausedColor = pausedColor ?? danger,
-       onPaused = onPaused ?? onAccent;
+    Color? cardSurface,
+    Color? cardBorder,
+    this.primaryForeground = const Color(0xFFFFFFFF),
+  }) : pausedColor = pausedColor ?? accent,
+       onPaused = onPaused ?? onAccent,
+       cardSurface = cardSurface ?? surface,
+       cardBorder = cardBorder ?? border;
 
   final Brightness brightness;
 
@@ -49,6 +54,11 @@ class TrainerTheme {
   final Color onAccent;
   final Color pausedColor;
   final Color onPaused;
+
+  /// Action cards and training UX surfaces use one continuous background.
+  final Color cardSurface;
+  final Color cardBorder;
+  final Color primaryForeground;
   final Color text;
   final Color muted;
   final Color faint;
@@ -78,6 +88,9 @@ class TrainerTheme {
     Color? onAccent,
     Color? pausedColor,
     Color? onPaused,
+    Color? cardSurface,
+    Color? cardBorder,
+    Color? primaryForeground,
     Color? text,
     Color? muted,
     Color? faint,
@@ -101,6 +114,9 @@ class TrainerTheme {
     onAccent: onAccent ?? this.onAccent,
     pausedColor: pausedColor ?? this.pausedColor,
     onPaused: onPaused ?? this.onPaused,
+    cardSurface: cardSurface ?? this.cardSurface,
+    cardBorder: cardBorder ?? this.cardBorder,
+    primaryForeground: primaryForeground ?? this.primaryForeground,
     text: text ?? this.text,
     muted: muted ?? this.muted,
     faint: faint ?? this.faint,
@@ -112,6 +128,8 @@ class TrainerTheme {
   );
 
   static const dark = TrainerTheme(
+    cardSurface: Color(0xFF1A2324),
+    cardBorder: Color.from(alpha: .08, red: 1, green: 1, blue: 1),
     brightness: Brightness.dark,
     background: Color(0xFF0C1117),
     surface: Color(0xFF151D25),
@@ -133,6 +151,8 @@ class TrainerTheme {
   );
 
   static const light = TrainerTheme(
+    cardSurface: Color(0xFFFFFFFF),
+    cardBorder: Color(0xFFE3E8E6),
     brightness: Brightness.light,
     background: Color(0xFFF2F4F5),
     surface: Color(0xFFFFFFFF),

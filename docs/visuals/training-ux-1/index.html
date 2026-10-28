@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SDK 训练体验 · 浅深前后对照</title>
+<style>
+body{font:15px/1.6 system-ui,sans-serif;max-width:1360px;margin:32px auto;padding:0 20px;color:#182526;background:#f5f7f6}
+h1{font-size:26px}h2{font-size:20px;margin-top:36px}p{max-width:1000px}figure{margin:0}figcaption{padding:6px 0}img{width:100%;height:auto;display:block;border:1px solid #dce3df;border-radius:10px}
+.pair{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.new{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:680px}a{color:#087858}@media(max-width:760px){.pair{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+<h1>SDK 训练体验 · 浅深前后对照</h1>
+<p>分支 codex/training-ux-1。截图为实际 Flutter widget 渲染；训练人物使用仓库既有布局样例，动作库与推荐卡使用随包首帧。截图不代表原生设备或真实视频验收。视频偏移及裁切按后续指令不在本轮处理。</p>
+<p><a href="README.md">验证范围、接入说明与完整截图索引</a></p>
+<main id="gallery"></main>
+<script>
+const pairs=[
+['推荐动作卡','before-recommend-light.png','after-recommend-light.png','before-recommend-dark.png','after-recommend-dark.png'],
+['动作库','before-library-light.png','after-library-light.png','before-library-dark.png','after-library-dark.png'],
+['训练与动作要点','before/training-light.png','after/training-light.png','before/training-dark.png','after/training-dark.png'],
+['休息','before/rest-light.png','after/rest-light.png','before/rest-dark.png','after/rest-dark.png'],
+['换侧','before/transition-light.png','after/transition-light.png','before/transition-dark.png','after/transition-dark.png'],
+['完成页','before/result-light.png','after/result-light.png','before/result-dark.png','after/result-dark.png']
+];
+const added=[['视频展示阶段','preview'],['开始训练 · 150ms','start-morph'],['准备倒计时 · 第1条','preparation'],['手动切换要点','cue-manual'],['半屏完整步骤','cue-sheet']];
+const target=document.querySelector('#gallery');
+function figure(label,path){const f=document.createElement('figure');const c=document.createElement('figcaption');c.textContent=label;const a=document.createElement('a');a.href=path;const img=document.createElement('img');img.src=path;img.alt=label;img.loading='lazy';a.append(img);f.append(c,a);return f;}
+function section(title,items,kind){const h=document.createElement('h2');h.textContent=title;const row=document.createElement('div');row.className=kind;for(const [label,path] of items)row.append(figure(label,path));target.append(h,row);}
+for(const [title,...paths] of pairs)section(title,paths.map((p,i)=>[['浅色 · 修改前','浅色 · 修改后','深色 · 修改前','深色 · 修改后'][i],p]),'pair');
+for(const [title,name] of added)section(title,[['浅色',`after/${name}-light.png`],['深色',`after/${name}-dark.png`]],'new');
+</script>
+</html>

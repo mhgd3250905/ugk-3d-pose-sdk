@@ -1,0 +1,119 @@
+{
+  "state": "rest",
+  "theme": "light",
+  "viewport": [
+    430,
+    932
+  ],
+  "capture_time_ms": 1000,
+  "coordinate_space": "logical pixels relative to player viewport",
+  "rect_order": [
+    "left",
+    "top",
+    "width",
+    "height"
+  ],
+  "anchors": {
+    "player": [
+      0.0,
+      0.0,
+      430.0,
+      883.0
+    ],
+    "info-card": [
+      12.0,
+      8.0,
+      406.0,
+      73.0
+    ],
+    "close": [
+      24.0,
+      27.5,
+      34.0,
+      34.0
+    ],
+    "index": [
+      366.0732421875,
+      23.5,
+      35.9267578125,
+      31.0
+    ],
+    "progress": [
+      70.0,
+      68.0,
+      332.0,
+      3.0
+    ],
+    "top-hud": [
+      12.0,
+      93.0,
+      406.0,
+      44.0
+    ],
+    "discomfort": [
+      336.25,
+      93.0,
+      81.75,
+      44.0
+    ],
+    "pendant-slot": [
+      12.0,
+      563.6,
+      406.0,
+      36.0
+    ],
+    "subtitle-slot": [
+      12.0,
+      607.6,
+      406.0,
+      49.39999999999998
+    ],
+    "prev": [
+      40.0,
+      787.0,
+      56.0,
+      56.0
+    ],
+    "pause": [
+      167.0,
+      767.0,
+      96.0,
+      96.0
+    ],
+    "skip": [
+      334.0,
+      787.0,
+      56.0,
+      56.0
+    ],
+    "extend-rest": [
+      167.0,
+      677.0,
+      48.0,
+      44.0
+    ],
+    "complete-timed-phase": null,
+    "sound-toggle": [
+      215.0,
+      677.0,
+      48.0,
+      44.0
+    ],
+    "done-card": null,
+    "finish": null,
+    "figure": [
+      -32.24999999999997,
+      117.52500000000003,
+      494.5,
+      494.49999999999994
+    ],
+    "counter-slot": [
+      40.0,
+      721.0,
+      350.0,
+      44.0
+    ],
+    "stat-minutes": null,
+    "stat-exercises": null
+  }
+}

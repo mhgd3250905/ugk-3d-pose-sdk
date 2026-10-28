@@ -31,7 +31,7 @@ class CoachRecommendCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = CoachUiTheme.of(context);
     return CoachCardSurface(
-      padding: const EdgeInsets.all(CoachSpace.x4),
+      padding: const EdgeInsets.all(CoachSpace.x3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -45,12 +45,7 @@ class CoachRecommendCard extends StatelessWidget {
           ],
           LayoutBuilder(
             builder: (context, constraints) {
-              final single = actionIds.length == 1;
-              final columns = constraints.maxWidth < 260 ? 1 : 2;
-              final tileWidth = single
-                  ? constraints.maxWidth
-                  : (constraints.maxWidth - CoachSpace.x3 * (columns - 1)) /
-                        columns;
+              final tileWidth = (constraints.maxWidth - CoachSpace.x3) / 2;
               return Wrap(
                 spacing: CoachSpace.x3,
                 runSpacing: CoachSpace.x3,
@@ -62,7 +57,6 @@ class CoachRecommendCard extends StatelessWidget {
                       child: _Action(
                         id: id,
                         exercise: library.tryGet(id),
-                        horizontal: single,
                         onOpen: () => onOpenAction(id),
                       ),
                     ),
@@ -99,13 +93,11 @@ class _Action extends StatelessWidget {
   const _Action({
     required this.id,
     required this.exercise,
-    required this.horizontal,
     required this.onOpen,
   });
 
   final String id;
   final CoachExercise? exercise;
-  final bool horizontal;
   final VoidCallback onOpen;
 
   @override
@@ -113,35 +105,47 @@ class _Action extends StatelessWidget {
     final style = CoachUiTheme.of(context);
     final e = exercise;
     final name = e?.name ?? style.strings.actionUnavailable;
-    final text = Padding(
-      padding: const EdgeInsets.all(CoachSpace.x3),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
+    final scaler = MediaQuery.textScalerOf(context);
+    final titleStyle = style.typography.callout.copyWith(
+      color: style.colors.text,
+      fontSize: 15,
+      fontWeight: FontWeight.w600,
+      height: 1.35,
+    );
+    final tagStyle = style.typography.caption.copyWith(
+      color: style.colors.muted,
+      fontSize: 12,
+      height: 1.35,
+    );
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          key: ValueKey('recommend-title-slot-$id'),
+          height: scaler.scale(15) * 1.35 * 2,
+          child: Text(
             name,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: style.typography.callout.copyWith(color: style.colors.text),
+            style: titleStyle,
           ),
-          if (e?.levelLabel.isNotEmpty == true ||
-              e?.equipmentLabel.isNotEmpty == true) ...[
-            const SizedBox(height: CoachSpace.x1),
-            Text(
-              [
-                if (e!.levelLabel.isNotEmpty) e.levelLabel,
-                if (e.equipmentLabel.isNotEmpty) e.equipmentLabel,
-              ].join(' · '),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: style.typography.caption.copyWith(
-                color: style.colors.muted,
-              ),
-            ),
-          ],
-        ],
-      ),
+        ),
+        const SizedBox(height: CoachSpace.x1),
+        SizedBox(
+          key: ValueKey('recommend-tags-$id'),
+          height: scaler.scale(12) * 1.35,
+          child: Text(
+            [
+              if (e?.levelLabel.isNotEmpty == true) e!.levelLabel,
+              if (e?.equipmentLabel.isNotEmpty == true) e!.equipmentLabel,
+            ].join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: tagStyle,
+          ),
+        ),
+      ],
     );
     final image = _Thumbnail(exercise: e);
     return CoachPressable(
@@ -149,28 +153,30 @@ class _Action extends StatelessWidget {
       semanticLabel: name,
       haptic: CoachHaptic.selection,
       child: DecoratedBox(
+        key: ValueKey('recommend-surface-$id'),
         decoration: BoxDecoration(
-          color: style.colors.surfaceRaised,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: style.colors.outline),
+          color: style.colors.cardSurface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: style.colors.cardBorder),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: horizontal
-              ? Row(
-                  children: [
-                    SizedBox(width: 96, height: 112, child: image),
-                    Expanded(child: text),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AspectRatio(aspectRatio: 1, child: image),
-                    text,
-                  ],
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(CoachSpace.x3),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AspectRatio(
+                  key: ValueKey('recommend-image-area-$id'),
+                  aspectRatio: 1,
+                  child: image,
                 ),
+                const SizedBox(height: CoachSpace.x3),
+                text,
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -194,52 +200,34 @@ class _Thumbnail extends StatelessWidget {
         color: style.colors.faint,
       ),
     );
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            style.colors.stage.mediaStage,
-            Color.alphaBlend(
-              style.colors.accent.withValues(alpha: .08),
-              style.colors.surface,
-            ),
-          ],
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(CoachSpace.x2),
-        child: e == null || asset == null || asset.isEmpty
-            ? placeholder()
-            : Builder(
-                builder: (context) {
-                  final request = CoachMediaRequest(
-                    exercise: e,
-                    asset: asset,
-                    cutout: cutout,
-                    still: true,
-                    landing: false,
-                    fit: BoxFit.contain,
-                    alignment: Alignment.center,
-                    semanticLabel: e.name,
+    return e == null || asset == null || asset.isEmpty
+        ? placeholder()
+        : Builder(
+            builder: (context) {
+              final request = CoachMediaRequest(
+                exercise: e,
+                asset: asset,
+                cutout: cutout,
+                still: true,
+                landing: false,
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
+                semanticLabel: e.name,
+              );
+              return style.builders.media?.call(context, request) ??
+                  Image.asset(
+                    asset,
+                    fit: request.fit,
+                    alignment: request.alignment,
+                    gaplessPlayback: true,
+                    semanticLabel: request.semanticLabel,
+                    frameBuilder: (_, child, frame, wasSync) =>
+                        wasSync || frame != null
+                        ? child
+                        : const SizedBox.expand(),
+                    errorBuilder: (_, _, _) => placeholder(),
                   );
-                  return style.builders.media?.call(context, request) ??
-                      Image.asset(
-                        asset,
-                        fit: request.fit,
-                        alignment: request.alignment,
-                        gaplessPlayback: true,
-                        semanticLabel: request.semanticLabel,
-                        frameBuilder: (_, child, frame, wasSync) =>
-                            wasSync || frame != null
-                            ? child
-                            : const SizedBox.expand(),
-                        errorBuilder: (_, _, _) => placeholder(),
-                      );
-                },
-              ),
-      ),
-    );
+            },
+          );
   }
 }

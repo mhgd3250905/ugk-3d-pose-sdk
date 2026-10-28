@@ -125,7 +125,9 @@ void main() {
       expect(card.gradient, isNull);
       expect(control.gradient, isNull);
       expect(card.border!.top.width, 1);
-      expect(card.border!.top.color, colors.outline);
+      expect(card.border!.top.color, colors.cardBorder);
+      expect(card.color, colors.cardSurface);
+      expect(card.borderRadius, BorderRadius.circular(20));
       expect((control.shape as StadiumBorder).side.width, 1);
       expect((control.shape as StadiumBorder).side.color, colors.outline);
       expect(card.boxShadow, hasLength(1));
@@ -149,6 +151,7 @@ void main() {
     expect(controlRect.size, const Size(98, 44));
     final custom = CoachUiColors.light.copyWith(
       surface: const Color(0x40314253),
+      cardSurface: const Color(0x40314253),
       surfaceRaised: const Color(0x40536475),
       text: const Color(0xFF123456),
       outline: const Color(0xFF718293),

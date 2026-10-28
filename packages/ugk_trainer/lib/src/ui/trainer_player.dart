@@ -43,6 +43,8 @@ import '../voice/voice_cue.dart';
 import '../voice/voice_queue.dart';
 import '../voice/voice_source.dart';
 import 'countdown_ring.dart';
+import 'trainer_completion.dart';
+import 'trainer_cue_carousel.dart';
 import 'trainer_stage.dart';
 import 'trainer_strings.dart';
 import 'trainer_surface.dart';
@@ -57,6 +59,11 @@ class TrainerDrill {
     this.cue,
     this.media,
     this.floorGeometry,
+    this.cues = const [],
+    this.precautions = const [],
+    this.targetMuscles,
+    this.equipment,
+    this.thumbnailAsset,
   });
   final String id;
 
@@ -66,6 +73,11 @@ class TrainerDrill {
   /// Key point shown while resting before it.
   final String? cue;
   final DrillMedia? media;
+  final List<String> cues;
+  final List<String> precautions;
+  final String? targetMuscles;
+  final String? equipment;
+  final String? thumbnailAsset;
 
   /// Optional image-space calibration for this drill's training media.
   /// When absent, the stage uses an estimated default projection.
@@ -232,6 +244,9 @@ class TrainerRestFeedback {
 typedef TrainerRestFeedbackBuilder =
     Widget Function(BuildContext context, TrainerRestFeedback feedback);
 
+/// Existing callers continue directly into preparation and training.
+enum TrainerStartMode { preview, training }
+
 /// Full-screen follow-along of one [TrainingPlan]. Pops with the
 /// [SessionResult] when the user taps 完成 (or closes and confirms).
 class TrainerPlayer extends StatefulWidget {
@@ -241,6 +256,9 @@ class TrainerPlayer extends StatefulWidget {
     required this.drillOf,
     required this.strings,
     required this.onFinished,
+    this.startMode = TrainerStartMode.training,
+    this.onStartTraining,
+    this.onCompleted,
     this.rhythms = const {},
     this.rhythmDefaults = const RhythmDefaults(),
     this.showExtendRest = false,
@@ -279,6 +297,14 @@ class TrainerPlayer extends StatefulWidget {
   /// early or closed). Save it keyed by [SessionResult.sessionId]: a retry
   /// after a failure passes the same result.
   final Future<void> Function(SessionResult result) onFinished;
+  final TrainerStartMode startMode;
+  final VoidCallback? onStartTraining;
+
+  /// Optional completion-page receipt, including the selected feeling. The
+  /// existing automatic [onFinished] save is unchanged. Hosts can upsert this
+  /// receipt under the same session ID when Finish or Train again is tapped.
+  /// A failed callback stays on the completion page and can be retried.
+  final Future<void> Function(SessionResult result)? onCompleted;
 
   /// Rhythm by exercise id ([rhythmsFromCatalog]); missing: by dose.
   final Map<String, Rhythm> rhythms;
@@ -392,10 +418,20 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   String? _subtitle;
   int _shownGen = -1;
   bool _saveFailed = false;
+  bool _doneHandled = false;
   bool _closing = false;
   bool _disposed = false;
   bool _soundEnabled = true;
   bool _interruptionActive = false;
+  late bool _preview = widget.startMode == TrainerStartMode.preview;
+  bool _startingTraining = false;
+  bool _leavingPreview = false;
+  Timer? _startTimer;
+  bool _resumeAfterCues = false;
+  int _cueInterruptionRevision = 0;
+  TrainingFeeling? _feeling;
+  SessionResult? _completionReceipt;
+  late ResultSaver _completionSaver;
   PoseHubMediaPrefetcher? _mediaPrefetcher;
   Future<void>? _mediaRetirement;
   int _mediaGeneration = -1;
@@ -496,6 +532,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         );
     _occurrences = _builder.occurrenceCount(_plan);
     _runner = SessionRunner(SessionEngine(_builder.phases(_plan)), _script);
+    if (_engine.done) _preview = false;
     _configureMedia();
     _recorder = SessionRecorder(
       plan: _plan,
@@ -503,6 +540,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       sessionId: widget.sessionId,
     );
     _saver = ResultSaver(widget.onFinished);
+    _completionSaver = ResultSaver((result) async {
+      await widget.onCompleted?.call(result);
+    });
     _voice.output.volume = _voice.settings.volume;
     _queue = VoiceQueue(
       output: _voice.output,
@@ -510,14 +550,14 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       settings: _soundSettings,
       onStarted: _onCueStarted,
     );
-    if (_voice.settings.voice || _voice.settings.chimes) {
+    if (!_preview && (_voice.settings.voice || _voice.settings.chimes)) {
       unawaited(_voice.output.begin());
     }
     if (_voice.output case final InterruptibleVoiceOutput out) {
       _interruptions = out.interruptions.listen(_onInterruption);
     }
     ScreenAwake.acquire();
-    if (widget.keepAlive) {
+    if (!_preview && widget.keepAlive) {
       _hold = TrainingHold.begin(
         Duration(seconds: (_runner.planSeconds + widget.prepSeconds).round()),
         mediaPlayback: _voice.settings.voice || _voice.settings.chimes,
@@ -530,7 +570,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         ),
       );
     }
-    _clock.start();
+    if (!_preview) _clock.start();
     _timer = Timer.periodic(widget.tick, (_) => _tick());
     WidgetsBinding.instance.addPostFrameCallback((_) => _tick());
   }
@@ -543,6 +583,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _terminalAudio?.cancel();
     _terminalAudio = null;
     _timer?.cancel();
+    _startTimer?.cancel();
     _navigationVoice?.cancel();
     _progress.dispose();
     unawaited(_interruptions?.cancel());
@@ -550,7 +591,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _queue.cancelAll(_t);
     unawaited(_endAudio());
     _hold?.release();
-    if (!_recorder.finished) {
+    if (!_preview && !_recorder.finished) {
       // Closed without the done view (route removed): still record it.
       _runner.finish(_t);
       _endedAt ??= _t;
@@ -561,6 +602,70 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   SessionResult _result() =>
       _recorder.finish(_engine, activeSeconds: _endedAt ?? _t);
+
+  void _startPreviewTraining() {
+    if (!_preview || _startingTraining || _leavingPreview) return;
+    setState(() => _startingTraining = true);
+    _startTimer = Timer(
+      TrainerMotion.reduced(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 300),
+      () {
+        if (!mounted ||
+            _leavingPreview ||
+            ModalRoute.of(context)?.isActive == false) {
+          return;
+        }
+        _startTimer = null;
+        _recorder = SessionRecorder(
+          plan: _plan,
+          totalExercises: _occurrences,
+          sessionId: widget.sessionId,
+        );
+        if (_voice.settings.voice || _voice.settings.chimes) {
+          unawaited(_voice.output.begin());
+        }
+        if (widget.keepAlive) {
+          _hold = TrainingHold.begin(
+            Duration(
+              seconds: (_runner.planSeconds + widget.prepSeconds).round(),
+            ),
+            mediaPlayback: _voice.settings.voice || _voice.settings.chimes,
+            notice: TrainingNotice(
+              channelName: _s.notificationChannel,
+              channelDescription: _s.notificationChannelDescription,
+              title: _s.notificationTitle,
+              text: _s.notificationText,
+              icon: widget.notificationIcon,
+            ),
+          );
+        }
+        setState(() {
+          _preview = false;
+          _startingTraining = false;
+          _clock.start();
+        });
+        _tick();
+      },
+    );
+    widget.onStartTraining?.call();
+  }
+
+  void _cueSheetChanged(bool expanded) {
+    if (_preview) return;
+    if (expanded) {
+      _resumeAfterCues = !_paused;
+      _cueInterruptionRevision = _interruptionRevision;
+      if (_resumeAfterCues) _togglePause(announce: false);
+    } else {
+      if (_resumeAfterCues &&
+          _paused &&
+          _cueInterruptionRevision == _interruptionRevision) {
+        _togglePause(announce: false);
+      }
+      _resumeAfterCues = false;
+    }
+  }
 
   static String _cueKey(VoiceCue c) =>
       '${c.at}|${c.priority.name}|${c.clips.join('+')}';
@@ -588,7 +693,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _tick() {
-    if (_disposed || !mounted || (_paused && !_engine.done)) return;
+    if (_disposed || !mounted || _preview || (_paused && !_engine.done)) return;
     final t = _t;
     if (_navigationCoalescing) {
       // Navigation settles only presentation and speech, never the clock.
@@ -668,7 +773,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _onDone(double t) {
-    if (_recorder.finished) return;
+    if (_doneHandled) return;
+    _doneHandled = true;
     _retireMedia();
     _endedAt ??= t;
     _clock.stop();
@@ -719,8 +825,30 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     return ok;
   }
 
+  Future<bool> _completeReceipt() async {
+    _completionReceipt ??= _feeling == null
+        ? _result()
+        : _result().withFeeling(_feeling);
+    final ok = await _completionSaver(_completionReceipt!);
+    if (mounted) setState(() => _saveFailed = !ok);
+    return ok;
+  }
+
   void _replay() {
     if (!_engine.done || !_saver.saved || _closing) return;
+    unawaited(_replayWithReceipt());
+  }
+
+  Future<void> _replayWithReceipt() async {
+    if (_closing) return;
+    _closing = true;
+    final ok = await _completeReceipt();
+    _closing = false;
+    if (!mounted || !ok) return;
+    _restartSession();
+  }
+
+  void _restartSession() {
     final owner = ++_audioOwner;
     _terminalAudio?.cancel();
     _terminalAudio = null;
@@ -745,6 +873,11 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _recorder = SessionRecorder(plan: _plan, totalExercises: _occurrences);
     _configureMedia();
     _saver = ResultSaver(widget.onFinished);
+    _completionSaver = ResultSaver((result) async {
+      await widget.onCompleted?.call(result);
+    });
+    _completionReceipt = null;
+    _feeling = null;
     _queue = VoiceQueue(
       output: _voice.output,
       lib: _voice.source,
@@ -756,6 +889,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _shownGen = -1;
     _shownKey = '';
     _saveFailed = false;
+    _doneHandled = false;
     _hapticGen = -1;
     _hapticSecond = -1;
     _progress.value = 0;
@@ -829,7 +963,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _togglePause({bool announce = true}) {
-    if (_engine.done || _audioRestarting || (_paused && _interruptionActive)) {
+    if (_preview ||
+        _engine.done ||
+        _audioRestarting ||
+        (_paused && _interruptionActive)) {
       return;
     }
     if (_paused) {
@@ -1254,10 +1391,19 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _closing = true;
     final nav = Navigator.of(context);
     try {
+      if (_preview) {
+        _leavingPreview = true;
+        _startTimer?.cancel();
+        _startTimer = null;
+        nav.pop();
+        return;
+      }
       if (!await _confirmClose() || !mounted) return;
       // A confirmed early exit and system back share the same save as the
       // done view. Keep the result and retry action on screen if it fails.
-      if (await _save() && mounted) nav.pop(_recorder.result);
+      if (await _save() && mounted && await _completeReceipt() && mounted) {
+        nav.pop(_completionReceipt);
+      }
     } finally {
       _closing = false;
     }
@@ -1410,7 +1556,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   Widget _media(SessionPhase p, TrainerDrill d, TrainerTheme theme) {
     final req = TrainerMediaRequest(
       drill: d,
-      paused: _paused,
+      paused: _preview ? false : _paused,
       mirrored: p.side == Side.left,
       theme: theme,
       strings: _s,
@@ -1422,8 +1568,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       final media = PoseHubPackMedia(
         action: action,
         baseUri: widget.poseHubMediaBaseUri ?? Uri(),
-        playing: !_engine.done,
-        paused: _paused,
+        playing: _preview || !_engine.done,
+        paused: _preview ? false : _paused,
         // The stage already supplies the opaque background. Keep the
         // bundled transparent still transparent here so the floor behind it
         // is visible while the video initializes.
@@ -1441,7 +1587,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     return DrillMediaView(
       key: const ValueKey('player-media'),
       media: m,
-      paused: _paused,
+      paused: _preview ? false : _paused,
       mirrored: p.side == Side.left,
       radius: 0,
       stage: _th.mediaStage,
@@ -1466,9 +1612,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       PhaseKind.switchSide => _s.switchTo(p.side ?? Side.left),
       _ => '',
     };
-    final sub =
-        _subtitle ??
-        (rest || _poseHubAction(d?.id ?? '') != null ? d?.cue : null);
+    final sub = d?.cue;
+    final cues = d?.cues.isNotEmpty == true ? d!.cues : [?sub];
+    final displayCues =
+        !_preview && p.kind != PhaseKind.prep && _subtitle != null
+        ? [_subtitle!]
+        : cues;
     final current = (p.itemIndex + 1).clamp(
       1,
       _occurrences < 1 ? 1 : _occurrences,
@@ -1547,7 +1696,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
             Positioned(
               left: TrainerSpace.x3,
               right: TrainerSpace.x3,
-              bottom: h - midBottom + TrainerSpace.x2,
+              bottom: _preview
+                  ? mq.padding.bottom +
+                        TrainerSpace.x5 +
+                        _ringD +
+                        TrainerSpace.x4
+                  : h - midBottom + TrainerSpace.x2,
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 520),
@@ -1555,27 +1709,32 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (_preview && d != null) ...[
+                        _previewLabels(p, d),
+                        const SizedBox(height: 12),
+                      ],
                       // A fixed slot for the built-in pendants (none / next
                       // up / 完成本组) (sdk-stage-r6).
-                      ConstrainedBox(
-                        key: const ValueKey('pendant-slot'),
-                        constraints: const BoxConstraints(
-                          minHeight: _pendantSlot,
-                        ),
-                        child: Align(
-                          alignment: Alignment.bottomCenter,
-                          heightFactor: 1,
-                          child: _fade(
+                      if (!_preview)
+                        ConstrainedBox(
+                          key: const ValueKey('pendant-slot'),
+                          constraints: const BoxConstraints(
+                            minHeight: _pendantSlot,
+                          ),
+                          child: Align(
                             alignment: Alignment.bottomCenter,
-                            sizeToCurrent: true,
-                            bottomPendant ??
-                                const SizedBox(
-                                  key: ValueKey('next-none'),
-                                  width: double.infinity,
-                                ),
+                            heightFactor: 1,
+                            child: _fade(
+                              alignment: Alignment.bottomCenter,
+                              sizeToCurrent: true,
+                              bottomPendant ??
+                                  const SizedBox(
+                                    key: ValueKey('next-none'),
+                                    width: double.infinity,
+                                  ),
+                            ),
                           ),
                         ),
-                      ),
                       const SizedBox(height: TrainerSpace.x2),
                       // A fixed slot for the subtitle (two lines), the chip
                       // bottom-aligned in it, so a one- or two-line line
@@ -1589,7 +1748,25 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                           child: _fade(
                             alignment: Alignment.bottomCenter,
                             sizeToCurrent: true,
-                            _subtitleChip(sub),
+                            displayCues.isEmpty
+                                ? const SizedBox.shrink()
+                                : IgnorePointer(
+                                    ignoring: _startingTraining,
+                                    child: TrainerCueCarousel(
+                                      key: ValueKey('cues-${d?.id}'),
+                                      cues: displayCues,
+                                      steps: cues,
+                                      precautions: d?.precautions ?? const [],
+                                      theme: _th,
+                                      preparing:
+                                          !_preview && p.kind == PhaseKind.prep,
+                                      sheetTitle: _s.howTo,
+                                      precautionsTitle: _s.precautions,
+                                      semanticLabel: _s.instructionsLabel,
+                                      closeLabel: _s.closeInstructions,
+                                      onExpandedChanged: _cueSheetChanged,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
@@ -1602,50 +1779,81 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
               left: 0,
               right: 0,
               bottom: 0,
-              child: _transport(p, t, rest, mq.padding.bottom),
+              child: IgnorePointer(
+                ignoring: _preview,
+                child: ExcludeSemantics(
+                  excluding: _preview,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 250),
+                    opacity: !_preview || _startingTraining ? 1 : 0,
+                    child: _transport(p, t, rest, mq.padding.bottom),
+                  ),
+                ),
+              ),
             ),
+            if (_preview)
+              Positioned(
+                left: TrainerSpace.x5,
+                right: TrainerSpace.x5,
+                bottom: mq.padding.bottom + TrainerSpace.x5 + (_ringD - 56) / 2,
+                child: _previewStartButton(),
+              ),
             if (d != null)
               Positioned(
                 left: TrainerSpace.x3,
                 right: TrainerSpace.x3,
                 top: tagTop,
-                child: Row(
-                  key: const ValueKey('top-hud'),
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: _fade(
-                          topPendant ??
-                              const SizedBox.shrink(key: ValueKey('tag-none')),
-                        ),
-                      ),
-                    ),
-                    if (showDiscomfort) ...[
-                      const SizedBox(width: TrainerSpace.x2),
-                      Semantics(
-                        excludeSemantics: true,
-                        button: true,
-                        label: _s.discomfort,
-                        onTap: _discomfort,
-                        child: GestureDetector(
-                          key: const ValueKey('discomfort'),
-                          behavior: HitTestBehavior.opaque,
-                          onTap: _discomfort,
-                          child: Padding(
-                            // 32 px chip, 44 px touch target.
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: _tag(
-                              _s.discomfort,
-                              icon: CupertinoIcons.waveform_path_ecg,
-                              color: _mediaCaution,
+                child: IgnorePointer(
+                  ignoring: _preview,
+                  child: ExcludeSemantics(
+                    excluding: _preview,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 250),
+                      opacity: !_preview || _startingTraining ? 1 : 0,
+                      child: Row(
+                        key: const ValueKey('top-hud'),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: _fade(
+                                topPendant ??
+                                    const SizedBox.shrink(
+                                      key: ValueKey('tag-none'),
+                                    ),
+                              ),
                             ),
                           ),
-                        ),
+                          if (showDiscomfort) ...[
+                            const SizedBox(width: TrainerSpace.x2),
+                            Semantics(
+                              excludeSemantics: true,
+                              button: true,
+                              label: _s.discomfort,
+                              onTap: _discomfort,
+                              child: GestureDetector(
+                                key: const ValueKey('discomfort'),
+                                behavior: HitTestBehavior.opaque,
+                                onTap: _discomfort,
+                                child: Padding(
+                                  // 32 px chip, 44 px touch target.
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 6,
+                                  ),
+                                  child: _tag(
+                                    _s.discomfort,
+                                    icon: CupertinoIcons.waveform_path_ecg,
+                                    color: _mediaCaution,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
-                  ],
+                    ),
+                  ),
                 ),
               ),
             Positioned(
@@ -1671,6 +1879,98 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     );
   }
 
+  Widget _previewLabels(SessionPhase p, TrainerDrill d) => Wrap(
+    key: const ValueKey('preview-labels'),
+    alignment: WrapAlignment.center,
+    spacing: 6,
+    runSpacing: 6,
+    children: [
+      for (final label in [
+        d.targetMuscles,
+        if (p.item != null) _dose(p.item!, phase: p),
+        d.equipment,
+      ].whereType<String>().where((label) => label.isNotEmpty))
+        Container(
+          height: 26,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: _th.cardSurface,
+            border: Border.all(color: _th.cardBorder),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Center(
+            widthFactor: 1,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _th.label.copyWith(fontSize: 12),
+            ),
+          ),
+        ),
+    ],
+  );
+
+  Widget _previewStartButton() => LayoutBuilder(
+    builder: (context, constraints) => SizedBox(
+      height: 56,
+      child: OverflowBox(
+        minWidth: 0,
+        maxWidth: constraints.maxWidth,
+        minHeight: 0,
+        maxHeight: 76,
+        child: AnimatedContainer(
+          key: const ValueKey('start-training-morph'),
+          duration: TrainerMotion.reduced(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          width: _startingTraining ? 76 : constraints.maxWidth,
+          height: _startingTraining ? 76 : 56,
+          decoration: BoxDecoration(
+            color: _th.accent,
+            borderRadius: BorderRadius.circular(_startingTraining ? 38 : 28),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              key: const ValueKey('start-training'),
+              onTap: _startingTraining ? null : _startPreviewTraining,
+              child: Center(
+                child: _startingTraining
+                    ? Icon(
+                        CupertinoIcons.play_fill,
+                        color: _th.primaryForeground,
+                        size: 30,
+                      )
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            CupertinoIcons.play_fill,
+                            color: _th.primaryForeground,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _s.startTraining,
+                            style: _th.callout.copyWith(
+                              color: _th.primaryForeground,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
   /// The top information card, two levels only: the move name (the one prominent
   /// line) over one short muted line (block / set · side / what is next),
   /// and on the right a quiet exercise index — a large light current number
@@ -1689,15 +1989,19 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     final total = _occurrences < 1 ? 1 : _occurrences;
     final segment = p.segment;
     final segmentName = segment?.label ?? d?.name;
-    final line = [
-      if (segment != null && segmentName != null) segmentName,
-      _subline(p, label),
-    ].where((part) => part.isNotEmpty).join(' · ');
+    final line = _preview
+        ? _s.demonstration
+        : [
+            if (segment != null && segmentName != null) segmentName,
+            _subline(p, label),
+          ].where((part) => part.isNotEmpty).join(' · ');
     final parentDrill = p.item == null
         ? null
         : widget.drillOf(p.item!.exerciseId);
     final displayDrill = segment == null ? d : parentDrill ?? d;
-    final lineColor = p.kind == PhaseKind.switchSide
+    final lineColor = _preview
+        ? _th.muted
+        : p.kind == PhaseKind.switchSide
         ? _th.caution
         : label.isEmpty
         ? _th.muted
@@ -1781,17 +2085,19 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                               ),
                             ),
                             const SizedBox(width: TrainerSpace.x3),
-                            _index(current, total),
+                            if (!_preview) _index(current, total),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      _track(
-                        done: done,
-                        current: current,
-                        still: still,
-                        compact: true,
-                      ),
+                      if (!_preview) ...[
+                        const SizedBox(height: 8),
+                        _track(
+                          done: done,
+                          current: current,
+                          still: still,
+                          compact: true,
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -1945,38 +2251,6 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     );
   }
 
-  /// The coach's line as a compact solid chip (max two lines).
-  Widget _subtitleChip(String? sub) => sub == null
-      ? const SizedBox(key: ValueKey('sub-none'), width: double.infinity)
-      : Center(
-          key: ValueKey('sub-$sub'),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 340),
-            child: TrainerSurface(
-              theme: _th,
-
-              radius: 16,
-              padding: const EdgeInsets.symmetric(
-                horizontal: TrainerSpace.x3,
-                vertical: 6,
-              ),
-              child: Text(
-                sub,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: _th.fontFamily,
-                  fontSize: 13,
-                  height: 1.4,
-                  fontWeight: FontWeight.w400,
-                  color: _mediaInk,
-                ),
-              ),
-            ),
-          ),
-        );
-
   /// Previous / pause / skip, hovering above the stage floor. The phase's
   /// countdown is a thin ring around the emerald button, and its number sits
   /// just above the button on the same axis: read at a glance from the mat,
@@ -2021,7 +2295,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                   isPlaying: !_paused,
                   progress: _progress,
                   onTap: _togglePause,
-                  theme: _th,
+                  theme: _th.copyWith(pausedColor: _th.accent),
                   strings: _s,
                   trackColor: _th.track,
                   progressColor: rest || p.kind == PhaseKind.switchSide
@@ -2350,205 +2624,47 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     );
   }
 
-  Widget _doneView() {
-    final result = _recorder.result;
-    final full =
-        !_engine.endedEarly && _engine.fullyCompletedExercises >= _occurrences;
-    final minutes = ((_endedAt ?? _t) / 60).round();
-    final numeral = _th.numeral(32);
-    return Column(
-      children: [
-        Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                TrainerSpace.x3,
-                TrainerSpace.x2,
-                TrainerSpace.x3,
-                0,
-              ),
-              child: TrainerSurface(
-                key: const ValueKey('done-card'),
-                theme: _th,
-                radius: 28,
-                padding: const EdgeInsets.fromLTRB(
-                  TrainerSpace.x4,
-                  TrainerSpace.x4,
-                  TrainerSpace.x4,
-                  TrainerSpace.x4,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        TrainerSurface(
-                          theme: _th,
-                          level: TrainerSurfaceLevel.control,
-                          width: 56,
-                          height: 56,
-                          child: Icon(
-                            full
-                                ? CupertinoIcons.check_mark
-                                : CupertinoIcons.flag,
-                            size: 30,
-                            color: _th.accent,
-                          ),
-                        ),
-                        const SizedBox(width: TrainerSpace.x4),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                full ? _s.doneFull : _s.donePartial,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: _th.title.copyWith(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _plan.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: _th.label.copyWith(fontSize: 14),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: TrainerSpace.x4),
-                    _track(
-                      done: _engine.fullyCompletedExercises,
-                      current: _engine.fullyCompletedExercises,
-                      still: TrainerMotion.reduced(context),
-                      finished: true,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        Expanded(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: TrainerSpace.x6,
-                vertical: TrainerSpace.x5,
-              ),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 560),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _stat(
-                            Text('$minutes', style: numeral),
-                            _s.minutes,
-                          ),
-                        ),
-                        const SizedBox(width: TrainerSpace.x3),
-                        Expanded(
-                          child: _stat(
-                            Text(
-                              '${_engine.fullyCompletedExercises}/$_occurrences',
-                              style: numeral,
-                            ),
-                            _s.exercisesDone,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (result != null && widget.feedbackBuilder != null) ...[
-                      const SizedBox(height: TrainerSpace.x6),
-                      widget.feedbackBuilder!(context, result),
-                    ],
-                    if (result != null &&
-                        _saver.saved &&
-                        widget.replayBuilder != null) ...[
-                      const SizedBox(height: TrainerSpace.x3),
-                      widget.replayBuilder!(context, result, _replay),
-                    ],
-                    if (_saveFailed) ...[
-                      const SizedBox(height: TrainerSpace.x5),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              _s.saveFailed,
-                              style: _th.label.copyWith(color: _th.danger),
-                            ),
-                          ),
-                          TextButton(
-                            key: const ValueKey('save-retry'),
-                            onPressed: () => unawaited(_save()),
-                            child: Text(
-                              _s.saveRetry,
-                              style: TextStyle(color: _th.accent),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            TrainerSpace.x6,
-            0,
-            TrainerSpace.x6,
-            TrainerSpace.x5,
-          ),
-          child: SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: FilledButton(
-              key: const ValueKey('finish'),
-              style: FilledButton.styleFrom(
-                backgroundColor: _th.accent,
-                foregroundColor: _th.onAccent,
-                disabledBackgroundColor: _th.track,
-                shape: StadiumBorder(side: BorderSide(color: _th.border)),
-              ),
-              onPressed: _saver.saved ? _close : null,
-              child: Text(
-                _s.finish,
-                style: _th.callout.copyWith(
-                  color: _th.onAccent,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _stat(Widget value, String label) => TrainerSurface(
+  Widget _doneView() => TrainerCompletion(
+    key: ValueKey('completion-${_recorder.sessionId}'),
     theme: _th,
-    radius: _th.radius,
-    padding: const EdgeInsets.symmetric(vertical: TrainerSpace.x5),
-    child: Column(
+    strings: _s,
+    result: _result(),
+    drillOf: widget.drillOf,
+    feeling: _feeling,
+    onFeelingChanged: (value) {
+      if (_completionReceipt == null && !_closing) {
+        setState(() => _feeling = value);
+      }
+    },
+    onFinish: _saver.saved ? _close : null,
+    onReplay: _saver.saved ? _replay : null,
+    feedback: Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        value,
-        const SizedBox(height: 2),
-        Text(label, style: _th.label),
+        if (widget.feedbackBuilder != null)
+          widget.feedbackBuilder!(context, _result()),
+        if (_saver.saved && widget.replayBuilder != null)
+          widget.replayBuilder!(context, _result(), _replay),
       ],
     ),
+    error: _saveFailed
+        ? Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  _s.saveFailed,
+                  style: _th.label.copyWith(color: _th.danger),
+                ),
+              ),
+              TextButton(
+                key: const ValueKey('save-retry'),
+                onPressed: () =>
+                    unawaited(_saver.saved ? _completeReceipt() : _save()),
+                child: Text(_s.saveRetry),
+              ),
+            ],
+          )
+        : null,
   );
 }

@@ -21,6 +21,7 @@ export 'src/pose_hub/pose_hub_media_preparation.dart';
 export 'src/pose_hub/pose_hub_pack_image.dart';
 export 'src/pose_hub/pose_hub_pack_media.dart';
 export 'src/ui/countdown_ring.dart';
+export 'src/ui/trainer_cue_carousel.dart';
 export 'src/ui/trainer_player.dart';
 export 'src/ui/trainer_stage.dart';
 export 'src/ui/trainer_strings.dart';

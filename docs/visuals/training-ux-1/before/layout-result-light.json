@@ -1,0 +1,69 @@
+{
+  "state": "result",
+  "theme": "light",
+  "viewport": [
+    430,
+    932
+  ],
+  "capture_time_ms": 1000,
+  "coordinate_space": "logical pixels relative to player viewport",
+  "rect_order": [
+    "left",
+    "top",
+    "width",
+    "height"
+  ],
+  "anchors": {
+    "player": [
+      0.0,
+      0.0,
+      430.0,
+      883.0
+    ],
+    "info-card": null,
+    "close": null,
+    "index": null,
+    "progress": [
+      28.0,
+      96.0,
+      374.0,
+      16.0
+    ],
+    "top-hud": null,
+    "discomfort": null,
+    "pendant-slot": null,
+    "subtitle-slot": null,
+    "prev": null,
+    "pause": null,
+    "skip": null,
+    "extend-rest": null,
+    "complete-timed-phase": null,
+    "sound-toggle": null,
+    "done-card": [
+      12.0,
+      8.0,
+      406.0,
+      120.0
+    ],
+    "finish": [
+      24.0,
+      807.0,
+      382.0,
+      56.0
+    ],
+    "figure": null,
+    "counter-slot": null,
+    "stat-minutes": [
+      24.0,
+      394.5,
+      185.0,
+      92.0
+    ],
+    "stat-exercises": [
+      221.0,
+      394.5,
+      185.0,
+      92.0
+    ]
+  }
+}

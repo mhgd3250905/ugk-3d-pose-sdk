@@ -222,6 +222,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(TrainerPlayer), findsOneWidget);
+      final player = tester.widget<TrainerPlayer>(find.byType(TrainerPlayer));
+      expect(player.startMode, TrainerStartMode.preview);
+      expect(player.prepSeconds, 10);
+      expect(
+        player.drillOf(action.id)!.cues,
+        (action.raw['cues'] as Map)['zh'],
+      );
+      expect(player.drillOf(action.id)!.cue, isNull);
       expect(find.textContaining('原始'), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
@@ -268,6 +276,52 @@ void main() {
       isEmpty,
     );
   });
+
+  testWidgets(
+    'single practice retains training default and forwards preview events',
+    (tester) async {
+      final action = catalog.semanticCompleteActions.first;
+      TrainerPlayer? player;
+      void started() {}
+      Future<void> completed(SessionResult result) async {}
+      for (final preview in [false, true]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) {
+                final page = preview
+                    ? PoseHubSinglePracticePage(
+                        action: action,
+                        mediaBaseUri: Uri.parse('file:///pack/'),
+                        startMode: TrainerStartMode.preview,
+                        onStartTraining: started,
+                        onCompleted: completed,
+                      )
+                    : PoseHubSinglePracticePage(
+                        action: action,
+                        mediaBaseUri: Uri.parse('file:///pack/'),
+                      );
+                player = page.build(context) as TrainerPlayer;
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        );
+        expect(
+          player!.startMode,
+          preview ? TrainerStartMode.preview : TrainerStartMode.training,
+        );
+        expect(player!.prepSeconds, preview ? 10 : 0);
+        expect(player!.onStartTraining, preview ? same(started) : isNull);
+        expect(player!.onCompleted, preview ? same(completed) : isNull);
+        final drill = player!.drillOf(action.id)!;
+        expect(drill.cues, (action.raw['cues'] as Map)['zh']);
+        expect(drill.targetMuscles, action.raw['muscleGroupsZh']);
+        expect(drill.equipment, '瑜伽垫');
+        expect(drill.thumbnailAsset, endsWith('/${action.id}.webp'));
+      }
+    },
+  );
 
   testWidgets('two-column browser supports a 320px screen and large text', (
     tester,

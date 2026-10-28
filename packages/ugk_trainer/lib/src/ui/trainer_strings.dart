@@ -55,6 +55,25 @@ class TrainerStrings {
     this.soundOn = 'Sound on',
     this.soundOff = 'Sound off',
     this.skipSegment = 'Skip segment',
+    this.demonstration = 'Exercise demonstration',
+    this.startTraining = 'Start training',
+    this.howTo = 'How to do it',
+    this.precautions = 'Keep in mind',
+    this.instructionsLabel = 'Exercise cues',
+    this.closeInstructions = 'Collapse',
+    this.feelingPrompt = 'How did that feel?',
+    this.feelingLabels = const [
+      'Easy',
+      'Just right',
+      'Tiring',
+      'Uncomfortable',
+    ],
+    this.actualDuration = 'Actual duration',
+    this.totalReps = 'Total reps',
+    this.totalWorkTime = 'Total work time',
+    this.skipped = 'Skipped',
+    this.replay = 'Train again',
+    this.durationLabel = _enDuration,
   });
 
   /// Top label during prep ("准备 · 第一个动作").
@@ -131,6 +150,14 @@ class TrainerStrings {
   final String soundOn;
   final String soundOff;
   final String skipSegment;
+  final String demonstration, startTraining, howTo, precautions;
+  final String instructionsLabel, closeInstructions;
+  final String feelingPrompt, actualDuration, totalReps, totalWorkTime;
+  final String skipped, replay;
+  final List<String> feelingLabels;
+  final String Function(int seconds) durationLabel;
+  static String _enDuration(int seconds) => '${seconds ~/ 60}m${seconds % 60}s';
+  static String _zhDuration(int seconds) => '${seconds ~/ 60}分${seconds % 60}秒';
 
   static String _zhDose({
     required bool reps,
@@ -145,6 +172,20 @@ class TrainerStrings {
   }) => '$amount ${reps ? 'reps' : 's'}${perSide ? ' each side' : ''}';
 
   factory TrainerStrings.zh() => TrainerStrings(
+    demonstration: '动作演示',
+    startTraining: '开始训练',
+    howTo: '怎么做',
+    precautions: '注意事项',
+    instructionsLabel: '动作要点',
+    closeInstructions: '收起',
+    feelingPrompt: '这次感觉怎么样？',
+    feelingLabels: const ['轻松', '刚好', '有点累', '不舒服'],
+    actualDuration: '实际时长',
+    totalReps: '总次数',
+    totalWorkTime: '总时长',
+    skipped: '已跳过',
+    replay: '再练一次',
+    durationLabel: _zhDuration,
     extendRest: '休息 +15 秒',
     completeTimedPhase: '提前完成',
     soundOn: '开启声音',
@@ -182,7 +223,7 @@ class TrainerStrings {
     skip: '跳过动作',
     pause: '暂停训练',
     resume: '继续训练',
-    doneFull: '训练完成！',
+    doneFull: '练完了！',
     donePartial: '今天先到这里',
     minutes: '分钟',
     exercisesDone: '完成动作',

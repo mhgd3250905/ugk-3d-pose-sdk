@@ -78,6 +78,9 @@ class DiscomfortEvent {
 
 enum ItemStatus { completed, partial, skipped, notReached }
 
+/// Optional, user-reported feeling selected on the completion page.
+enum TrainingFeeling { easy, justRight, tired, uncomfortable }
+
 /// One plan item (a circuit item over all its rounds).
 class ItemResult {
   const ItemResult({
@@ -91,6 +94,7 @@ class ItemResult {
     this.replacedFrom,
     this.plannedSideSets = const {},
     this.completedSideSets = const {},
+    this.completedReps,
   });
 
   /// The exercise actually done (after a substitute).
@@ -111,6 +115,10 @@ class ItemResult {
   final Map<String, int> plannedSideSets;
   final Map<String, int> completedSideSets;
 
+  /// Repetitions completed by the session rhythm, or confirmed by the user
+  /// for a self-paced set. Null when no repetition dose was recorded.
+  final int? completedReps;
+
   Map<String, Object?> toJson() => {
     'exerciseId': exerciseId,
     'blockIndex': blockIndex,
@@ -120,6 +128,7 @@ class ItemResult {
     'activeSeconds': activeSeconds.round(),
     'status': status.name,
     'replacedFrom': ?replacedFrom,
+    'completedReps': ?completedReps,
     if (plannedSideSets.isNotEmpty) 'plannedSideSets': plannedSideSets,
     if (completedSideSets.isNotEmpty) 'completedSideSets': completedSideSets,
   };
@@ -136,6 +145,7 @@ class ItemResult {
       orElse: () => ItemStatus.notReached,
     ),
     replacedFrom: j['replacedFrom'] as String?,
+    completedReps: (j['completedReps'] as num?)?.toInt(),
     plannedSideSets: {
       for (final e in (j['plannedSideSets'] as Map? ?? const {}).entries)
         e.key as String: (e.value as num).toInt(),
@@ -160,6 +170,7 @@ class SessionResult {
     required this.totalExercises,
     required this.items,
     this.discomfort = const [],
+    this.feeling,
   });
 
   static const schema = 'ugk-session-result@1';
@@ -178,6 +189,29 @@ class SessionResult {
   final int totalExercises;
   final List<ItemResult> items;
   final List<DiscomfortEvent> discomfort;
+  final TrainingFeeling? feeling;
+
+  /// The completion event keeps the original saved session identity and data.
+  SessionResult withFeeling(TrainingFeeling? value) => SessionResult(
+    sessionId: sessionId,
+    planId: planId,
+    planTitle: planTitle,
+    startedAt: startedAt,
+    endedAt: endedAt,
+    activeSeconds: activeSeconds,
+    endedEarly: endedEarly,
+    completedExercises: completedExercises,
+    totalExercises: totalExercises,
+    items: items,
+    discomfort: discomfort,
+    feeling: value,
+  );
+
+  int? get completedReps => items.any((item) => item.completedReps != null)
+      ? items.fold<int>(0, (sum, item) => sum + (item.completedReps ?? 0))
+      : null;
+  double get workSeconds =>
+      items.fold<double>(0, (sum, item) => sum + item.activeSeconds);
 
   bool get full => !endedEarly && completedExercises >= totalExercises;
   int get minutes => (activeSeconds / 60).round();
@@ -195,6 +229,7 @@ class SessionResult {
     'totalExercises': totalExercises,
     'items': [for (final i in items) i.toJson()],
     'discomfort': [for (final d in discomfort) d.toJson()],
+    'feeling': ?feeling?.name,
   };
 
   factory SessionResult.fromJson(Map<String, dynamic> j) => SessionResult(
@@ -207,6 +242,9 @@ class SessionResult {
     endedEarly: j['endedEarly'] == true,
     completedExercises: (j['completedExercises'] as num).toInt(),
     totalExercises: (j['totalExercises'] as num).toInt(),
+    feeling: TrainingFeeling.values
+        .where((value) => value.name == j['feeling'])
+        .firstOrNull,
     items: [
       for (final i in j['items'] as List? ?? const [])
         ItemResult.fromJson(Map<String, dynamic>.from(i as Map)),
@@ -353,6 +391,11 @@ class SessionRecorder {
             plannedSets: requiredSets,
             completedSets: completed,
             activeSeconds: work.fold(0.0, (s, v) => s + v.seconds),
+            completedReps:
+                item.mode == DoseMode.reps ||
+                    work.any((v) => v.phase.reps != null)
+                ? work.fold<int>(0, (sum, visit) => sum + _repsOf(visit))
+                : null,
             status: status,
             replacedFrom: actual != item.exerciseId ? item.exerciseId : null,
             plannedSideSets: {
@@ -368,6 +411,33 @@ class SessionRecorder {
       }
     }
     return out;
+  }
+
+  static int _repsOf(PhaseVisit visit) {
+    final phase = visit.phase;
+    final target = phase.reps;
+    if (target == null) return 0;
+    if (phase.selfPaced) {
+      return visit.exit == PhaseExit.completed ? target : 0;
+    }
+    if (!phase.countedOnClock) return 0;
+    final rhythm = phase.rhythm;
+    if (rhythm == null) return 0;
+    final plan = rhythm.repPlan(
+      reps: target,
+      hold: phase.holdSeconds,
+      seconds: phase.seconds,
+    );
+    final lead = rhythm.derived ? 0.0 : plan.lead;
+    final cycle = rhythm.derived
+        ? phase.repSeconds ??
+              rhythm
+                  .phasesFor(hold: phase.holdSeconds)
+                  .fold<double>(0, (sum, part) => sum + part.seconds)
+        : plan.cycle;
+    return cycle <= 0
+        ? 0
+        : ((visit.seconds - lead + 1e-9) / cycle).floor().clamp(0, target);
   }
 }
 

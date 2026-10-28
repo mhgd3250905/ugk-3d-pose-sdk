@@ -56,10 +56,14 @@ final builders = ui.CoachUiBuilders(
 );
 ```
 
-组件使用固定的主题媒体底色、透明首帧和无进度圈的加载方式；原生默认资源加载使用 `gaplessPlayback`，解码前保持媒体底色。无目录记录或缺素材时使用静态占位，不显示 ID 或调试文案。未知目录动作不能点击进入训练。媒体 builder 自己处理图片错误时，仍保留组件外层的主题媒体底色。
+组件使用透明图片区和无进度圈的加载方式，整张动作卡共享同一底色；原生默认资源加载使用 `gaplessPlayback`，解码前保持透明。无目录记录或缺素材时使用静态占位，不显示 ID 或调试文案。未知目录动作不能点击进入训练。
 
-颜色、字体、表面、点击与媒体均沿用 `CoachUiTheme` / `CoachUiBuilders`。固定文案新增 `CoachUiStrings.planFromActions`、`actionUnavailable`；中文可传“排成计划”“动作暂不可用”，英文可使用默认值。没有改动训练页、套路卡或它们的动画。
+推荐动作统一为两列网格（单个动作也占一列），列/行间距 12，卡片内边距 12，图片区 1:1，圆角 20，描边 1。标题为 15sp/w600/1.35，固定预留两行、超出省略；标签为 12sp 次要色，固定一行并贴底，同网格卡片等高。字号随宿主的无障碍文本缩放。
+
+颜色、字体族、点击与媒体沿用 `CoachUiTheme` / `CoachUiBuilders`。新增 `CoachUiColors.cardSurface`、`cardBorder`：默认浅色为 `#FFFFFF` / `#E3E8E6`，深色为 `#1A2324` / 白色 8%；宿主可单独覆盖。`CoachCardSurface` 同样采用这组 token 和 20 圆角。开始训练按钮使用 `accent` / `primaryForeground`，默认主色前景为白色。既有套路卡的展开/折叠流程不变。
+
+固定文案使用 `CoachUiStrings.planFromActions`、`actionUnavailable`；中文可传“排成计划”“动作暂不可用”，英文可使用默认值。
 
 ## 渲染与验证
 
-`test/recommend_card_test.dart` 覆盖 1/6 个动作、缺素材、原 ID 回调、可选按钮、中英文、主题覆盖与窄屏大字体。通过 `COACH_RECOMMEND_CAPTURE=<absolute png path>` 单独运行其中的 capture 测试，会以当前仓库原始 PoseHub 首帧和实际 Flutter 组件导出六动作浅色截图；这是 widget 渲染证据，不代替原生设备验收。
+`test/recommend_card_test.dart` 覆盖 1/6 个动作、缺素材、原 ID 回调、可选按钮、中英文、固定网格规格、主题覆盖与窄屏大字体。通过 `COACH_RECOMMEND_CAPTURE=<absolute png path>` 单独运行其中的 capture 测试，会以当前仓库原始 PoseHub 首帧和实际 Flutter 组件导出六动作截图；`COACH_RECOMMEND_THEME=dark` 选择深色，默认浅色。这是 widget 渲染证据，不代替原生设备验收。

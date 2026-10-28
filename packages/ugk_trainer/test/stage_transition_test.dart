@@ -65,11 +65,11 @@ void main() {
     expect(f, findsOneWidget);
   }
 
-  testWidgets('subtitle chip keeps one position across phases and loading', (
+  testWidgets('cue carousel keeps one position across phases and loading', (
     tester,
   ) async {
     await pump(tester);
-    final prepChip = find.byKey(const ValueKey('sub-cue-a'));
+    final prepChip = find.byKey(const ValueKey('cues-a'));
     await until(tester, prepChip);
     await tester.pump(const Duration(milliseconds: 700));
     final prep = tester.getBottomLeft(prepChip).dy;
@@ -89,7 +89,7 @@ void main() {
       tester.getTopLeft(find.byKey(const ValueKey('next-b'))).dy,
       greaterThan(card.bottom),
     );
-    final restChip = find.byKey(const ValueKey('sub-cue-b'));
+    final restChip = find.byKey(const ValueKey('cues-b'));
     await until(tester, restChip);
     await tester.pump(const Duration(milliseconds: 200));
     final midFade = tester.getBottomLeft(restChip).dy;

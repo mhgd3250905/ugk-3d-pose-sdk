@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import '../engine/session.dart';
+import '../result/session_result.dart';
 import '../rhythm/rhythm.dart';
 import '../ui/trainer_player.dart';
 import '../ui/trainer_strings.dart';
-import '../ui/trainer_surface.dart';
 import '../ui/trainer_theme.dart';
 import 'pose_hub_media_preparation.dart';
 import 'pose_hub_pack_image.dart';
@@ -125,6 +125,8 @@ class PoseHubActionBrowser extends StatefulWidget {
     this.onPracticeFinished,
     this.mediaPreparer,
     this.voice,
+    this.onStartTraining,
+    this.onCompleted,
   });
   final PoseHubAppTestCatalog catalog;
   final Uri mediaBaseUri;
@@ -132,6 +134,8 @@ class PoseHubActionBrowser extends StatefulWidget {
   final ValueChanged<PoseHubPracticeResult>? onPracticeFinished;
   final PoseHubMediaPreparer? mediaPreparer;
   final TrainerVoice? voice;
+  final VoidCallback? onStartTraining;
+  final Future<void> Function(SessionResult result)? onCompleted;
   @override
   State<PoseHubActionBrowser> createState() => _PoseHubActionBrowserState();
 }
@@ -166,21 +170,18 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
       : poseHubEquipmentLabels[value] ?? '其他器械';
 
   Color _selectedBackground(TrainerTheme theme) => Color.alphaBlend(
-    const Color(0xFF12A97F).withValues(alpha: theme.isDark ? .22 : .12),
+    theme.accent.withValues(alpha: theme.isDark ? .22 : .12),
     theme.surface,
   );
 
-  Color _selectedForeground(TrainerTheme theme) =>
-      theme.isDark ? const Color(0xFF7BE2C1) : const Color(0xFF08614B);
+  Color _selectedForeground(TrainerTheme theme) => theme.accentText;
 
   @override
   Widget build(BuildContext context) {
     final theme = _themeOf(context, widget.theme);
-    final nameHeight =
-        MediaQuery.textScalerOf(context).scale(theme.callout.fontSize ?? 16) *
-            (theme.callout.height ?? 1.3) *
-            2 +
-        8;
+    final scaler = MediaQuery.textScalerOf(context);
+    final nameHeight = scaler.scale(15) * 1.35 * 2;
+    final tagHeight = scaler.scale(12) * 1.35;
     final equipment =
         widget.catalog.semanticCompleteActions
             .expand(PoseHubActionFacets.equipment)
@@ -267,7 +268,8 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
                                 crossAxisCount: 2,
                                 crossAxisSpacing: 12,
                                 mainAxisSpacing: 12,
-                                mainAxisExtent: cardWidth + nameHeight + 16,
+                                mainAxisExtent:
+                                    cardWidth + 12 + nameHeight + 4 + tagHeight,
                               ),
                           itemCount: actions.length,
                           itemBuilder: (context, index) {
@@ -286,68 +288,74 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
                                       onFinished: widget.onPracticeFinished,
                                       mediaPreparer: widget.mediaPreparer,
                                       voice: widget.voice,
+                                      startMode: TrainerStartMode.preview,
+                                      onStartTraining: widget.onStartTraining,
+                                      onCompleted: widget.onCompleted,
                                     ),
                                   ),
                                 ),
-                                child: TrainerSurface(
-                                  theme: theme,
-                                  radius: 22,
+                                child: DecoratedBox(
+                                  key: ValueKey(
+                                    'posehub-card-surface-${action.id}',
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: theme.cardSurface,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: theme.cardBorder),
+                                  ),
                                   child: ClipRRect(
                                     key: ValueKey(
                                       'posehub-card-clip-${action.id}',
                                     ),
-                                    borderRadius: BorderRadius.circular(22),
-                                    child: Column(
-                                      children: [
-                                        AspectRatio(
-                                          aspectRatio: 1,
-                                          child: DecoratedBox(
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          AspectRatio(
                                             key: ValueKey(
                                               'posehub-image-area-${action.id}',
                                             ),
-                                            decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                begin: Alignment.topLeft,
-                                                end: Alignment.bottomRight,
-                                                colors: [
-                                                  theme.mediaStage,
-                                                  Color.alphaBlend(
-                                                    theme.accent.withValues(
-                                                      alpha: .08,
-                                                    ),
-                                                    theme.surface,
-                                                  ),
-                                                ],
-                                              ),
+                                            aspectRatio: 1,
+                                            child: PoseHubStandingImage(
+                                              action: action,
+                                              theme: theme,
                                             ),
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(8),
-                                              child: PoseHubStandingImage(
-                                                action: action,
-                                                theme: theme,
+                                          ),
+                                          const SizedBox(height: 12),
+                                          SizedBox(
+                                            height: nameHeight,
+                                            child: Text(
+                                              action.nameZh,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: theme.callout.copyWith(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w600,
+                                                height: 1.35,
                                               ),
                                             ),
                                           ),
-                                        ),
-                                        SizedBox(
-                                          height: nameHeight + 16,
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 8,
+                                          const SizedBox(height: 4),
+                                          SizedBox(
+                                            key: ValueKey(
+                                              'posehub-card-tags-${action.id}',
                                             ),
-                                            child: Center(
-                                              child: Text(
-                                                action.nameZh,
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                textAlign: TextAlign.center,
-                                                style: theme.callout,
+                                            height: tagHeight,
+                                            child: Text(
+                                              '${PoseHubActionFacets.type(action)} · ${_actionEquipment(action)}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: theme.label.copyWith(
+                                                fontSize: 12,
+                                                height: 1.35,
                                               ),
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -554,6 +562,9 @@ class PoseHubSinglePracticePage extends StatelessWidget {
     this.onFinished,
     this.mediaPreparer,
     this.voice,
+    this.startMode = TrainerStartMode.training,
+    this.onStartTraining,
+    this.onCompleted,
   });
   final PoseHubPackAction action;
   final Uri mediaBaseUri;
@@ -561,6 +572,9 @@ class PoseHubSinglePracticePage extends StatelessWidget {
   final ValueChanged<PoseHubPracticeResult>? onFinished;
   final PoseHubMediaPreparer? mediaPreparer;
   final TrainerVoice? voice;
+  final TrainerStartMode startMode;
+  final VoidCallback? onStartTraining;
+  final Future<void> Function(SessionResult result)? onCompleted;
 
   @override
   Widget build(BuildContext context) {
@@ -573,7 +587,16 @@ class PoseHubSinglePracticePage extends StatelessWidget {
     final dose = action.raw['defaultDose']! as Map;
     final cues = action.raw['cues'] as Map?;
     final zh = cues?['zh'] as List?;
-    final cue = zh?.whereType<String>().join('；');
+    final cueList =
+        zh?.whereType<String>().toList(growable: false) ?? const <String>[];
+    final cautionAreas =
+        (action.raw['cautions'] as List?)?.whereType<String>().toList() ??
+        const <String>[];
+    final precautions = [
+      if (cautionAreas.isNotEmpty) '注意部位：${cautionAreas.join('、')}',
+      ...(action.raw['contraindications'] as List?)?.whereType<String>() ??
+          const <String>[],
+    ];
     final item = PlanItem(
       exerciseId: action.id,
       mode: dose['mode'] == 'reps' ? DoseMode.reps : DoseMode.time,
@@ -620,14 +643,26 @@ class PoseHubSinglePracticePage extends StatelessWidget {
       rhythms: rhythms,
       strings: TrainerStrings.zh(),
       theme: _themeOf(context, theme),
+      startMode: startMode,
+      onStartTraining: onStartTraining,
+      onCompleted: onCompleted,
       drillOf: (id) => id == action.id
-          ? TrainerDrill(id: id, name: action.nameZh, cue: cue)
+          ? TrainerDrill(
+              id: id,
+              name: action.nameZh,
+              cues: cueList,
+              precautions: precautions,
+              targetMuscles: action.raw['muscleGroupsZh'] as String?,
+              equipment: _actionEquipment(action),
+              thumbnailAsset:
+                  'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/standing/$id.webp',
+            )
           : null,
       poseHubActionOf: (id) => id == action.id ? action : null,
       poseHubMediaBaseUri: mediaBaseUri,
       poseHubMediaPreparer: mediaPreparer,
       voice: voice,
-      prepSeconds: 0,
+      prepSeconds: startMode == TrainerStartMode.preview ? 10 : 0,
       onFinished: (result) async => onFinished?.call(
         PoseHubPracticeResult(
           actionId: action.id,
@@ -639,6 +674,12 @@ class PoseHubSinglePracticePage extends StatelessWidget {
       ),
     );
   }
+}
+
+String _actionEquipment(PoseHubPackAction action) {
+  final equipment = PoseHubActionFacets.equipment(action);
+  if (equipment.isEmpty) return '徒手';
+  return equipment.map((id) => poseHubEquipmentLabels[id] ?? '其他器械').join('、');
 }
 
 TrainerTheme _themeOf(BuildContext context, TrainerTheme? supplied) =>

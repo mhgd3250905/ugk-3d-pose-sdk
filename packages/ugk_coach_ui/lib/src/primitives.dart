@@ -11,7 +11,7 @@ abstract final class CoachSpace {
 }
 
 abstract final class CoachRadius {
-  static const xs = 8.0, sm = 12.0, lg = 22.0, tail = 8.0;
+  static const xs = 8.0, sm = 12.0, lg = 20.0, tail = 8.0;
 }
 
 abstract final class CoachMotion {
@@ -174,7 +174,7 @@ class CoachCardSurface extends StatelessWidget {
   const CoachCardSurface({
     super.key,
     required this.child,
-    this.radius = 22,
+    this.radius = 20,
     this.padding,
     this.width,
   });
@@ -192,9 +192,9 @@ class CoachCardSurface extends StatelessWidget {
       width: width,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: style.colors.surface.withValues(alpha: 1),
+          color: style.colors.cardSurface.withValues(alpha: 1),
           borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: style.colors.outline),
+          border: Border.all(color: style.colors.cardBorder),
           boxShadow: [
             BoxShadow(
               color: style.colors.shadow,
@@ -261,7 +261,7 @@ class CoachStartButton extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: style.colors.emphasis.withValues(alpha: 1),
+            color: style.colors.accent.withValues(alpha: 1),
             border: Border.all(color: style.colors.outline),
             boxShadow: [
               BoxShadow(
@@ -274,7 +274,7 @@ class CoachStartButton extends StatelessWidget {
           child: CoachIcon(
             CoachGlyph.play,
             filled: true,
-            color: style.colors.onEmphasis,
+            color: style.colors.primaryForeground,
           ),
         ),
       ),

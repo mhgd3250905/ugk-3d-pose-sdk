@@ -1,5 +1,9 @@
 # ugk_trainer 0.4.2
 
+## 训练体验修复（待验收分支）
+
+新增可选视频展示阶段 `TrainerStartMode.preview`、共享要点轮播及半屏完整步骤、真实训练数据完成页和可选感受完成事件。默认仍直接训练；旧 `onFinished` 自动保存保留，新增 `onCompleted` 可用同一 session ID 更新感受。[接入与兼容说明](docs/training-ux.md)，[浅深前后截图](../../docs/visuals/training-ux-1/README.md)。本轮不修改视频素材、取景或裁切。
+
 训练舞台在透明媒体后绘制浅色或深色的低对比透视地板，不改变训练页布局。默认地平线和接地位置是视觉估算；当前随包目录没有与发布素材绑定的逐动作相机矩阵或接地坐标。宿主若有经验证的素材坐标，可为对应 `TrainerDrill.floorGeometry` 传入 `TrainerFloorGeometry(horizon: ..., ground: ..., vanishingX: ...)`，坐标均相对于方形媒体帧，缺省使用估算值。静帧和媒体均须保留 alpha 才能透出地板。
 
 ## 宿主媒体准备与 v3 逐文件素材

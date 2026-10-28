@@ -7,7 +7,7 @@ import 'support.dart';
 void main() {
   test('paused palette defaults and copies preserve host colours', () {
     for (final theme in [TrainerTheme.light, TrainerTheme.dark]) {
-      expect(theme.pausedColor, theme.danger);
+      expect(theme.pausedColor, theme.accent);
       expect(theme.onPaused, theme.onAccent);
       final custom = theme.copyWith(
         pausedColor: const Color(0xFFB00020),
@@ -22,7 +22,7 @@ void main() {
 
   for (final brightness in Brightness.values) {
     testWidgets(
-      '${brightness.name}: next move stays top-left and pause uses host state colour at 320px/1.5x',
+      '${brightness.name}: next move stays top-left and pause uses primary colour at 320px/1.5x',
       (tester) async {
         tester.view.physicalSize = const Size(320, 800);
         tester.view.devicePixelRatio = 1;
@@ -86,7 +86,7 @@ void main() {
         expect(tester.getRect(next), nextRect);
         final paused = tester.widget<UgkPlayPauseButton>(pause);
         expect(paused.isPlaying, isFalse);
-        expect(paused.theme.pausedColor, theme.pausedColor);
+        expect(paused.theme.pausedColor, theme.accent);
         expect(paused.theme.onPaused, theme.onPaused);
         expect(paused.strings.resume, strings.resume);
         expect(tester.takeException(), isNull);

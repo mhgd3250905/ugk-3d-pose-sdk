@@ -6,6 +6,10 @@ import 'package:ugk_trainer/ugk_trainer.dart';
 
 void main() => runApp(
   ShowcaseApp(
+    initialState: ShowcaseState.values.firstWhere(
+      (state) => state.name == Uri.base.queryParameters['state'],
+      orElse: () => ShowcaseState.training,
+    ),
     initialLibrary: Uri.base.queryParameters['page'] == 'library',
     initialTheme: switch (Uri.base.queryParameters['theme']) {
       'light' => ThemeMode.light,
@@ -16,6 +20,7 @@ void main() => runApp(
 );
 
 enum ShowcaseState {
+  preview('动作演示'),
   training('训练中'),
   rest('休息'),
   transition('换侧'),
@@ -298,6 +303,9 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
                   theme: theme,
                   sessionId: 'showcase-${_state.name}-$_generation',
                   sessionBuilder: DemoSessionBuilder(_state),
+                  startMode: _state == ShowcaseState.preview
+                      ? TrainerStartMode.preview
+                      : TrainerStartMode.training,
                   keepAlive: false,
                   voice: TrainerVoice.silent,
                   showExtendRest: true,
@@ -368,11 +376,20 @@ final demoPlan = TrainingPlan(
 );
 
 TrainerDrill? demoDrill(String id) => switch (id) {
-  'lunge' => const TrainerDrill(id: 'lunge', name: '弓步伸展', cue: '放松肩颈，保持均匀呼吸'),
+  'lunge' => const TrainerDrill(
+    id: 'lunge',
+    name: '弓步伸展',
+    cues: ['放松肩颈，保持均匀呼吸', '双脚站稳，缓慢移向前侧', '保持身体稳定，不要憋气'],
+    precautions: ['不强迫手触地'],
+    targetMuscles: '髋部',
+    equipment: '徒手',
+  ),
   'reach' => const TrainerDrill(
     id: 'reach',
     name: '站姿侧向伸展',
-    cue: '双脚站稳，感受身体侧面伸展',
+    cues: ['双脚站稳，感受身体侧面伸展', '保持均匀呼吸', '缓慢回到起始位置'],
+    targetMuscles: '躯干',
+    equipment: '徒手',
   ),
   _ => null,
 };
@@ -431,6 +448,26 @@ class DemoSessionBuilder extends SessionBuilder {
     const done = SessionPhase(kind: PhaseKind.done, seconds: 0);
     return switch (state) {
       ShowcaseState.training => [right, change, left, rest, reach, done],
+      ShowcaseState.preview => [
+        const SessionPhase(
+          kind: PhaseKind.prep,
+          seconds: 10,
+          exerciseId: 'lunge',
+          item: _lunge,
+          itemIndex: 0,
+          blockIndex: 0,
+          itemInBlock: 0,
+          set: 1,
+          sets: 1,
+          blockName: '全身舒展',
+        ),
+        right,
+        change,
+        left,
+        rest,
+        reach,
+        done,
+      ],
       ShowcaseState.rest => [rest, reach, done],
       ShowcaseState.transition => [change, left, rest, reach, done],
       // Short genuine engine visits produce a result; no invented statistics.

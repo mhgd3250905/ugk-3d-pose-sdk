@@ -210,7 +210,7 @@ void main() {
     await advance(tester, 1);
     await tester.tap(find.byKey(const ValueKey('discomfort-end')));
     await advance(tester, 1);
-    expect(find.text('That\'s it for today'), findsOneWidget);
+    expect(find.text('Session complete!'), findsOneWidget);
     final r = saved.single;
     expect(r.endedEarly, isTrue);
     expect(r.discomfort.single.action, DiscomfortAction.end);

@@ -12,6 +12,87 @@ EvaluationJson _map(Object? value) => value is Map
 List<Object?> _list(Object? value) => value is List ? value : [];
 List<EvaluationJson> _records(Object? value) => _list(value).map(_map).toList();
 
+/// Reads captured catalogue codes; never infers targets from user prose.
+EvaluationJson evaluationBodyTargetQuality(List<EvaluationJson> turns) {
+  final checks = <EvaluationJson>[];
+  for (final turn in turns) {
+    final plan = _map(turn['plan']);
+    final actions = _records(turn['actions']);
+    if (plan.isEmpty && actions.isEmpty) continue;
+    final goals = _list(
+      _map(_map(turn['params'])['goal'])['value'],
+    ).whereType<String>().where((v) => v.startsWith('body.')).toList();
+    if (goals.isEmpty) {
+      checks.add({
+        'turn': turn['turn'],
+        'status': 'not_applicable',
+        'reason': 'No body.* goal in the recorded ledger.',
+      });
+      continue;
+    }
+    final ids = <String>[
+      if (plan.isEmpty)
+        for (final action in actions) action['id'] as String,
+      if (plan.isNotEmpty)
+        for (final block in _records(plan['blocks']))
+          if (block['type'] == 'main' || block['type'] == 'circuit')
+            for (final item in _records(block['items']))
+              if (_records(item['segments']).isEmpty)
+                item['exerciseId'] as String
+              else
+                for (final segment in _records(item['segments']))
+                  segment['exerciseId'] as String,
+    ];
+    final facts = {
+      for (final fact in _records(turn['actionFacts'])) fact['id']: fact,
+    };
+    final expanded = _list(
+      turn['expandedBodyGoalCodes'],
+    ).whereType<String>().toSet();
+    final known =
+        expanded.containsAll(goals) &&
+        ids.every((id) => facts[id]?['tags'] is List);
+    final matched = [
+      for (final id in ids)
+        if (_list(
+          facts[id]?['tags'],
+        ).whereType<String>().any(expanded.contains))
+          id,
+    ];
+    final threshold = plan.isEmpty
+        ? 1.0
+        : (turn['bodyFocusMinRatio'] as num? ?? .5);
+    final ratio = ids.isEmpty ? 0.0 : matched.length / ids.length;
+    checks.add({
+      'turn': turn['turn'],
+      'kind': plan.isEmpty ? 'recommend' : 'main',
+      'goals': goals,
+      'expandedGoals': expanded.toList(),
+      'matchedIds': known ? matched : null,
+      'matched': known ? matched.length : null,
+      'total': ids.length,
+      'requiredRatio': threshold,
+      'status': !known
+          ? 'manual_review'
+          : ratio >= threshold && ids.isNotEmpty
+          ? 'pass'
+          : 'fail',
+    });
+  }
+  return {
+    'checks': checks,
+    'status': checks.isEmpty
+        ? 'not_observed'
+        : checks.any((c) => c['status'] == 'fail')
+        ? 'fail'
+        : checks.any((c) => c['status'] == 'manual_review')
+        ? 'manual_review'
+        : checks.every((c) => c['status'] == 'not_applicable')
+        ? 'not_applicable'
+        : 'pass',
+  };
+}
+
 Set<String> evaluationDeliveredIds(EvaluationJson turn) {
   final result = <String>{
     for (final action in _records(turn['actions']))
@@ -63,7 +144,7 @@ EvaluationJson evaluationEquipmentQuality(
     final allowed = {
       ..._list(rawAllowed).whereType<String>(),
       ...ambient,
-    }.difference(excluded);
+    }.difference(excluded.intersection(ambient));
     final facts = _records(turn['actionFacts']);
     final deliveredIds = evaluationDeliveredIds(turn);
     final required = <String>{

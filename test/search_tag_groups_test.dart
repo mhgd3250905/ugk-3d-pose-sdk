@@ -164,6 +164,13 @@ void main() {
       );
       expect(
         ids(excludes, ['purpose.strength', 'purpose.stretch']),
+        contains('requires-dumbbell'),
+      );
+      final reduced = excludes.copyWith(
+        params: {...excludes.params, 'equipment': param(<String>[])},
+      );
+      expect(
+        ids(reduced, ['purpose.strength', 'purpose.stretch']),
         isNot(contains('requires-dumbbell')),
       );
     },

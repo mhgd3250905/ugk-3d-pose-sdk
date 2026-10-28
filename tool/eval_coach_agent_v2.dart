@@ -450,11 +450,36 @@ Future<Json> _runCase(
               'name': drill.name.toJson(),
               'category': drill.category,
               'muscleGroups': drill.muscleGroups,
+              'tags': (NodeGates(
+                profile,
+                catalog,
+                minPicks: profile.minActions,
+              ).tags.forActionId(id).toList()..sort()),
               'equipment': drill.equipment,
               'scenes': drill.scenes,
               'cautions': drill.cautions,
             },
       ],
+      'bodyGoalCodes': [
+        for (final value
+            in (agent.sessionState.params['goal']?.value as List? ?? const []))
+          if (value is String && value.startsWith('body.')) value,
+      ],
+      'expandedBodyGoalCodes':
+          (NodeGates(
+              profile,
+              catalog,
+              minPicks: profile.minActions,
+            ).tags.expandCodes([
+              for (final value
+                  in (agent.sessionState.params['goal']?.value as List? ??
+                      const []))
+                if (value is String && value.startsWith('body.')) value,
+            ]).toList()
+            ..sort()),
+      'bodyFocusMinRatio': profile.planRules.focusRatio < .5
+          ? .5
+          : profile.planRules.focusRatio,
       if (plan != null)
         'estimatedPlanSeconds': const PlanDuration().estimateSeconds(
           plan,
@@ -470,11 +495,15 @@ Future<Json> _runCase(
       'params': agent.sessionState.params.map(
         (key, value) => MapEntry(key, value.toJson()),
       ),
-      'ambientEquipmentCodes': NodeGates(
-        profile,
-        catalog,
-        minPicks: profile.minActions,
-      ).ambientEquipment(agent.sessionState).toList()..sort(),
+      // Record the configured set before exclusions so the shared audit can
+      // apply exclusions only to ambient items, even when explicitly listed.
+      'ambientEquipmentCodes':
+          profile
+              .ambientEquipmentFor(
+                agent.sessionState.params['scene']?.value as String?,
+              )
+              .toList()
+            ..sort(),
       'legacyGoal': plan?.goal,
       'task': agent.sessionState.task?.toJson(),
       'activityTaskType': evaluationTurnTaskType(
@@ -488,6 +517,7 @@ Future<Json> _runCase(
       ],
     };
     turn['toolRejectionStatistics'] = evaluationToolRejections([turn]);
+    turn['bodyTargetQuality'] = evaluationBodyTargetQuality([turn]);
     turns.add(_map(redactor.clean(turn)));
     append({'recordType': 'turn-result', ...turn});
     if (result == null || result.status != TurnStatus.ok) {
@@ -677,6 +707,7 @@ Future<Json> _runCase(
     'modelCalls': wire.calls.length,
     'elapsedMs': watch.elapsedMilliseconds,
     'callStatistics': _callStatistics(wire.calls),
+    'bodyTargetQuality': evaluationBodyTargetQuality(turns),
     'automatedChecksPassed': failures.isEmpty,
     'automatedFailures': failures,
     'caseValidity': modelMismatches.isNotEmpty

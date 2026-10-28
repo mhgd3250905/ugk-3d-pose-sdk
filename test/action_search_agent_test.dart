@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart';
+import 'package:ugk_coach/src/agent/action_tags.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
@@ -73,7 +74,10 @@ void main() {
             },
           }),
           _call('parameters', 'check', {'node': 'parameters'}),
-          _call('search', 'search_actions', {'tags': <String>[], 'limit': 3}),
+          _call('search', 'search_actions', {
+            'tags': ['body.core'],
+            'limit': 3,
+          }),
         ]),
         _ask('ask1'),
         (LlmRequest request) {
@@ -106,6 +110,14 @@ void main() {
       expect(rows, hasLength(3));
       returned = [for (final row in rows) row['id'] as String];
       expect(returned.toSet(), hasLength(3));
+      final actionTags = ActionTags(profile, catalog);
+      final goals = actionTags.expandCodes(['body.core']);
+      expect(
+        returned.every(
+          (id) => actionTags.forActionId(id).intersection(goals).isNotEmpty,
+        ),
+        isTrue,
+      );
       final format = (search['format'] as Map).cast<String, dynamic>();
       final fields = (format['data'] as List).cast<String>();
       final equipmentIndex = fields.indexOf('equipment_indices');

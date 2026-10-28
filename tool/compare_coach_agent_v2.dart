@@ -169,6 +169,7 @@ ComparisonJson _case(ComparisonJson value) {
     'quality': {
       'planDurationError': _durationQuality(turns),
       'equipmentCompliance': _equipmentQuality(turns),
+      'bodyTargetMatch': evaluationBodyTargetQuality(turns),
       'repeatedQuestions': {
         'status': 'manual_review',
         'reason':

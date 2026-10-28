@@ -15,6 +15,7 @@ class OutputPreparation {
     this.nodeResult,
     this.note = '',
     this.noteTruncated = false,
+    this.notices = const [],
     this.plan,
     this.actions,
     this.warnings = const [],
@@ -23,6 +24,7 @@ class OutputPreparation {
   final NodeResult? nodeResult;
   final String note;
   final bool noteTruncated;
+  final List<String> notices;
   final TrainingPlan? plan;
   final List<Drill>? actions;
   final List<String> warnings;
@@ -43,14 +45,22 @@ class OutputGate {
     Object? arguments, {
     String language = 'zh',
   }) {
+    var receiptState = state;
+    final notices = <String>[];
     OutputPreparation fail(
       String code,
       String field,
       Object? expected,
       Object? actual,
       String fix,
-    ) =>
-        OutputPreparation(error: nodeError(code, field, expected, actual, fix));
+    ) => OutputPreparation(
+      nodeResult: NodeResult(receiptState),
+      notices: notices,
+      error: {
+        ...nodeError(code, field, expected, actual, fix),
+        if (notices.isNotEmpty) 'notices': notices,
+      },
+    );
     if (tool != CoachTools.showActions && tool != CoachTools.showPlan) {
       return fail(
         'invalid_output_tool',
@@ -126,11 +136,30 @@ class OutputGate {
         );
       }
       final ids = value.cast<String>();
-      var next = state;
-      final changes = <CoachNodeState>[];
       final current = task.nodes
           .where((node) => node.status == 'current')
           .firstOrNull;
+      if (current?.id != 'actions' && current?.id != 'output') {
+        return OutputPreparation(
+          error: gate.completeOutput(state, language: language).error,
+        );
+      }
+      final focused = gate.validateRecommendationPicks(
+        state,
+        ids,
+        language: language,
+      );
+      receiptState = focused.state;
+      notices.addAll(focused.notices);
+      if (!focused.ok) {
+        return OutputPreparation(
+          nodeResult: focused,
+          notices: notices,
+          error: focused.error,
+        );
+      }
+      var next = focused.state;
+      final changes = <CoachNodeState>[];
       if (current?.id == 'actions') {
         final selected = gate.check(
           next,
@@ -138,7 +167,13 @@ class OutputGate {
           picks: ids,
           language: language,
         );
-        if (!selected.ok) return OutputPreparation(error: selected.error);
+        if (!selected.ok) {
+          return OutputPreparation(
+            nodeResult: NodeResult(receiptState),
+            notices: notices,
+            error: selected.error,
+          );
+        }
         next = selected.state;
         changes.addAll(selected.changes);
         warnings.addAll(
@@ -146,7 +181,13 @@ class OutputGate {
         );
       }
       final ready = gate.completeOutput(next, language: language);
-      if (!ready.ok) return OutputPreparation(error: ready.error);
+      if (!ready.ok) {
+        return OutputPreparation(
+          nodeResult: NodeResult(receiptState),
+          notices: notices,
+          error: ready.error,
+        );
+      }
       final notPicked = ids.where((id) => !next.picks.contains(id)).toList();
       if (notPicked.isNotEmpty) {
         return fail(
@@ -177,6 +218,7 @@ class OutputGate {
         ),
         note: normalized.text,
         noteTruncated: normalized.truncated,
+        notices: notices,
         actions: [for (final id in ids) catalog[id]!],
         warnings: warnings,
       );
@@ -265,6 +307,7 @@ class OutputGate {
       nodeResult: completed,
       note: normalized.text,
       noteTruncated: normalized.truncated,
+      notices: notices,
       plan: plan,
       warnings: warnings,
     );

@@ -30,6 +30,17 @@ void main() {
     ],
   };
 
+  test('stale nonambient exclusions cannot veto explicit extra equipment', () {
+    final t = delivered(required: ['dumbbell'], excluded: ['equip.dumbbell']);
+    expect(
+      evaluationEquipmentQuality(
+        [t],
+        expectedEquipment: ['dumbbell'],
+      )['status'],
+      'pass',
+    );
+  });
+
   test(
     'fixture bodyweight allows ambient but cannot authorize extra or excluded gear',
     () {
@@ -43,6 +54,15 @@ void main() {
         evaluationEquipmentQuality([
           delivered(excluded: ['equip.mat']),
         ], expectedEquipment: [])['status'],
+        'fail',
+      );
+      expect(
+        evaluationEquipmentQuality(
+          [
+            delivered(excluded: ['equip.mat']),
+          ],
+          expectedEquipment: ['mat'],
+        )['status'],
         'fail',
       );
       final invented = delivered(required: ['dumbbell']);

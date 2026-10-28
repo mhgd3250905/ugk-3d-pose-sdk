@@ -117,12 +117,13 @@ void main() {
             .error!['code'],
         'invalid_source',
       );
-      expect(
-        params
-            .set(state, _fields({'minutes': _other(15, 'default')}))
-            .error!['code'],
-        'source_conflict',
+      final keptHost = params.set(
+        state,
+        _fields({'minutes': _other(15, 'default')}),
       );
+      expect(keptHost.ok, isTrue);
+      expect(keptHost.kept, {'minutes'});
+      expect(keptHost.state.params['minutes']!.value, 20);
       expect(
         params
             .set(
@@ -138,12 +139,13 @@ void main() {
       expect(user.ok, isTrue);
       expect(user.state.params['minutes']!.source, 'user');
       expect(user.state.params['minutes']!.value, 15);
-      expect(
-        params
-            .set(user.state, _fields({'minutes': _other(10, 'default')}))
-            .error!['code'],
-        'source_conflict',
+      final keptUser = params.set(
+        user.state,
+        _fields({'minutes': _other(10, 'default')}),
       );
+      expect(keptUser.ok, isTrue);
+      expect(keptUser.kept, {'minutes'});
+      expect(keptUser.state.params['minutes']!.value, 15);
     },
   );
 

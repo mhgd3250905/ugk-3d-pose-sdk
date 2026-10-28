@@ -9,11 +9,13 @@ class NodeResult {
     this.error,
     this.changes = const [],
     this.warnings = const [],
+    this.notices = const [],
   });
   final CoachSessionState state;
   final Map<String, Object?>? error;
   final List<CoachNodeState> changes;
   final List<String> warnings;
+  final List<String> notices;
   bool get ok => error == null;
 }
 
@@ -148,6 +150,7 @@ class AgentTask {
       picks: reuse ? state.picks : const [],
       seenActionIds: reuse ? state.seenActionIds : const {},
       consecutiveEmptySearches: 0,
+      recommendationHintShown: reuse ? state.recommendationHintShown : false,
     );
     return NodeResult(next, changes: List.unmodifiable(nodes));
   }

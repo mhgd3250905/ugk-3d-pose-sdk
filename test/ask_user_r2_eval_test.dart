@@ -404,7 +404,7 @@ void main() {
                 'minutes': _user(20, '20分钟'),
                 'goal': _user(['body.core'], '核心'),
               },
-              warmup: ['h-step-jack', 'n-pelvis-circle'],
+              warmup: ['n-squat-shift', 'n-pelvis-circle'],
               main: ['erectors-A', 'obliques-A', 'h-squat', 'h-good-morning'],
               cooldown: ['o-stand-sidebend', 'h-bilateral-upper-back-hug'],
             ),
@@ -518,7 +518,7 @@ void main() {
           fields: {
             'goal': _default(['purpose.strength']),
           },
-          warmup: ['h-step-jack', 'n-pelvis-circle'],
+          warmup: ['n-squat-shift', 'n-pelvis-circle'],
           main: [
             'h-squat',
             'h-good-morning',

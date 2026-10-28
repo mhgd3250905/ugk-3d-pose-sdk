@@ -406,6 +406,10 @@ class CoachProfile {
 
   SceneRule sceneRule(String scene) => scenes[scene] ?? const SceneRule();
 
+  Set<String> ambientEquipmentFor(String? scene) => scene == null
+      ? ambientEquipmentUnknown
+      : ambientEquipment[scene] ?? const {};
+
   List<String> get resolvedAssetApps => assetApps.isEmpty ? [id, 'pose-hub'] : assetApps;
 
   factory CoachProfile.fromJson(Object? raw) {

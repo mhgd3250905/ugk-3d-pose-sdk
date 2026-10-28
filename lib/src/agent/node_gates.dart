@@ -26,6 +26,9 @@ class NodeGates {
     final task = state.task;
     final requested = task?.nodes.where((n) => n.id == node).firstOrNull;
     if (requested?.status == 'done' || requested?.status == 'updated') {
+      if (node == 'actions' && picks != null) {
+        return validateRecommendationPicks(state, picks, language: language);
+      }
       return NodeResult(state);
     }
     final current = task?.nodes.where((n) => n.status == 'current').firstOrNull;
@@ -47,6 +50,7 @@ class NodeGates {
     var next = state;
     final en = language.toLowerCase().startsWith('en');
     final warnings = <String>[];
+    final notices = <String>[];
     String stamp;
     switch (node) {
       case 'understand':
@@ -93,16 +97,25 @@ class NodeGates {
         stamp = _parametersStamp(next, en);
       case 'actions':
         final selected = picks ?? const <String>[];
-        if (selected.length < minPicks ||
+        final focused = validateRecommendationPicks(
+          state,
+          selected,
+          language: language,
+        );
+        if (!focused.ok) return focused;
+        next = focused.state;
+        notices.addAll(focused.notices);
+        final minimum = recommendationMinimum(state);
+        if (selected.length < minimum ||
             selected.toSet().length != selected.length) {
           return NodeResult(
             state,
             error: nodeError(
               'invalid_picks',
               'picks',
-              '至少 $minPicks 个不同动作',
+              '至少 $minimum 个不同动作',
               selected,
-              '选择至少 $minPicks 个不同的已搜索动作。',
+              '选择至少 $minimum 个不同的已搜索动作。',
             ),
           );
         }
@@ -138,7 +151,7 @@ class NodeGates {
         }
         warnings.addAll(_unknownLimitWarnings(state));
         warnings.addAll(_unknownActionWarnings(selected));
-        next = state.copyWith(picks: selected);
+        next = next.copyWith(picks: selected);
         stamp = _actionsStamp(selected.length, en);
       case 'planning':
       case 'review':
@@ -168,7 +181,9 @@ class NodeGates {
           );
         }
         if (node == 'review') {
-          stamp = en ? 'Plan checks passed' : '安全、时长、器材、均衡、重点都通过';
+          stamp =
+              (en ? 'Plan checks passed' : '安全、时长、器材、均衡、重点都通过') +
+              _planAmbientStamp(state, version, en);
         } else {
           stamp = en
               ? 'Plan drafted, about ${(version.estimateSec / 60).toStringAsFixed(1)} min'
@@ -180,7 +195,138 @@ class NodeGates {
           error: nodeError('invalid_node', 'node', '固定任务节点', node, '选择当前固定节点。'),
         );
     }
-    return _advance(next, stamp, warnings: warnings);
+    return _advance(next, stamp, warnings: warnings, notices: notices);
+  }
+
+  Set<String> _recommendationGoals(CoachSessionState state) =>
+      state.task?.type != 'recommend'
+      ? const {}
+      : tags.expandCodes(
+          (state.params['goal']?.value as List<Object?>? ?? const [])
+              .cast<String>()
+              .where((code) => code.startsWith('body.')),
+        );
+
+  /// Only already-seen, currently safe and in-scope catalogue actions count.
+  List<String> recommendationCandidates(CoachSessionState state) {
+    final goals = _recommendationGoals(state);
+    return [
+      for (final id in state.seenActionIds)
+        if (actionProblem(state, id) == null &&
+            (goals.isEmpty ||
+                tags.forActionId(id).intersection(goals).isNotEmpty))
+          id,
+    ];
+  }
+
+  int recommendationMinimum(CoachSessionState state) {
+    if (_recommendationGoals(state).isEmpty) return minPicks;
+    final count = recommendationCandidates(state).length;
+    return count < 1
+        ? 1
+        : count < 3
+        ? count
+        : 3;
+  }
+
+  /// Shared by explicit check(actions) and delivery, including after a previous
+  /// actions stamp. The optional hint flag is the only mutation on rejection.
+  NodeResult validateRecommendationPicks(
+    CoachSessionState state,
+    List<String> picks, {
+    String language = 'zh',
+  }) {
+    final goals = _recommendationGoals(state);
+    if (goals.isEmpty) return NodeResult(state);
+    final candidates = recommendationCandidates(state);
+    final count = candidates.length;
+    final minimum = count < 1
+        ? 1
+        : count < 3
+        ? count
+        : 3;
+    final en = language.toLowerCase().startsWith('en');
+    final notices = count < 3 && !state.recommendationHintShown
+        ? [
+            en
+                ? 'Found $count matching actions. You may search once more without level/pose filters, or use these candidates.'
+                : '命中候选有 $count 个；可以去掉 level/pose 限制再搜一次，也可直接选用现有候选。',
+          ]
+        : <String>[];
+    final next = notices.isEmpty
+        ? state
+        : state.copyWith(recommendationHintShown: true);
+    NodeResult failure(
+      String code,
+      String field,
+      Object? expected,
+      Object? actual,
+      String fix,
+    ) => NodeResult(
+      next,
+      error: {
+        ...nodeError(code, field, expected, actual, fix),
+        'candidateCount': count,
+        'minimum': minimum,
+        'candidates': [
+          for (final id in candidates.take(40))
+            [
+              id,
+              catalog[id]!.name.of(language),
+              tags
+                  .forActionId(id)
+                  .where((code) => code.startsWith('body.'))
+                  .firstOrNull,
+            ],
+        ],
+        if (notices.isNotEmpty) 'notices': notices,
+      },
+      notices: notices,
+    );
+    if (picks.length < minimum || picks.toSet().length != picks.length) {
+      return failure(
+        'invalid_picks',
+        'picks',
+        '至少 $minimum 个不同的命中动作',
+        picks,
+        '从 candidates 中选择符合部位的已搜索动作。',
+      );
+    }
+    final unseen = picks
+        .where((id) => !state.seenActionIds.contains(id))
+        .toList();
+    if (unseen.isNotEmpty) {
+      return failure(
+        'unseen_actions',
+        'picks',
+        '已由 search_actions 返回的动作',
+        unseen,
+        '先搜索动作再选取。',
+      );
+    }
+    final invalid = {for (final id in picks) id: ?actionProblem(state, id)};
+    if (invalid.isNotEmpty) {
+      return failure(
+        'incompatible_actions',
+        'picks',
+        '符合当前场景、器械和限制的动作',
+        invalid,
+        '从 candidates 中选择仍合规的动作。',
+      );
+    }
+    final missed = picks
+        .where((id) => tags.forActionId(id).intersection(goals).isEmpty)
+        .toList();
+    if (missed.isNotEmpty) {
+      return failure(
+        'recommendation_focus',
+        'picks',
+        '每个动作均命中任一目标部位',
+        missed,
+        '从 candidates 中选择命中目标部位的动作。',
+      );
+    }
+    return NodeResult(next, notices: notices);
   }
 
   /// Adds already searched, currently compatible draft actions to completed
@@ -373,7 +519,14 @@ class NodeGates {
     }
     return _advance(
       state,
-      language.toLowerCase().startsWith('en') ? 'Delivered' : '已交付',
+      (language.toLowerCase().startsWith('en') ? 'Delivered' : '已交付') +
+          (task.type == 'plan' && _version(state, null) != null
+              ? _planAmbientStamp(
+                  state,
+                  _version(state, null)!,
+                  language.toLowerCase().startsWith('en'),
+                )
+              : ''),
     );
   }
 
@@ -381,9 +534,7 @@ class NodeGates {
   /// explicit user exclusions, never added through the exclusion field.
   Set<String> ambientEquipment(CoachSessionState state) {
     final scene = state.params['scene']?.value as String?;
-    final configured = scene == null
-        ? profile.ambientEquipmentUnknown
-        : profile.ambientEquipment[scene] ?? const <String>{};
+    final configured = profile.ambientEquipmentFor(scene);
     final excluded =
         (state.params['equipment_exclude']?.value as List<Object?>? ?? const [])
             .cast<String>()
@@ -400,6 +551,11 @@ class NodeGates {
     }.difference(
       (state.params['equipment_exclude']?.value as List<Object?>? ?? const [])
           .cast<String>()
+          .where(
+            profile
+                .ambientEquipmentFor(state.params['scene']?.value as String?)
+                .contains,
+          )
           .toSet(),
     ),
   );
@@ -490,6 +646,7 @@ class NodeGates {
     CoachSessionState state,
     String stamp, {
     List<String> warnings = const [],
+    List<String> notices = const [],
   }) {
     final task = state.task!;
     final nodes = List<CoachNodeState>.of(task.nodes);
@@ -508,6 +665,7 @@ class NodeGates {
       state.copyWith(task: task.copyWith(nodes: nodes)),
       changes: List.unmodifiable(changes),
       warnings: List.unmodifiable(warnings),
+      notices: List.unmodifiable(notices),
     );
   }
 
@@ -620,11 +778,54 @@ class NodeGates {
   }
 
   String _bodyweightLabel(CoachSessionState state, bool en) {
-    final available = ambientEquipment(state);
+    final available = ambientEquipment(state).toList()..sort();
     if (available.isEmpty) return en ? 'Bodyweight' : '徒手';
     final labels = available
-        .map((code) => tags.localizedLabel(code, en ? 'en' : 'zh'))
+        .map(
+          (code) => state.params['scene'] == null && code == 'equip.mat'
+              ? (en ? 'floor' : '地面')
+              : tags.localizedLabel(code, en ? 'en' : 'zh'),
+        )
         .join(en ? ', ' : '/');
     return en ? 'Bodyweight ($labels available)' : '徒手（可用$labels）';
+  }
+
+  String _planAmbientStamp(
+    CoachSessionState state,
+    CoachPlanVersion version,
+    bool en,
+  ) {
+    final used = <String>{};
+    void collect(Object? value) {
+      if (value is Map) {
+        final segments = value['segments'];
+        final usesSegments = segments is List && segments.isNotEmpty;
+        if (!usesSegments) {
+          if (value['exerciseId'] case final String id) {
+            for (final equipment
+                in catalog[id]?.equipment ?? const <String>[]) {
+              if (tags.equipmentCode(equipment) case final code?) {
+                used.add(code);
+              }
+            }
+          }
+        }
+        for (final child in value.values) {
+          collect(child);
+        }
+      } else if (value is List) {
+        for (final child in value) {
+          collect(child);
+        }
+      }
+    }
+
+    collect(version.plan);
+    final actual = used.intersection(ambientEquipment(state)).toList()..sort();
+    if (actual.isEmpty) return en ? ' · No ambient items used' : ' · 未使用环境物';
+    final labels = actual
+        .map((code) => tags.localizedLabel(code, en ? 'en' : 'zh'))
+        .join(en ? ', ' : '、');
+    return en ? ' · Ambient items used: $labels' : ' · 实际用到环境物：$labels';
   }
 }

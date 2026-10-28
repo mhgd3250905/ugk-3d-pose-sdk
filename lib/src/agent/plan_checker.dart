@@ -356,6 +356,53 @@ class PlanChecker {
       '根据时长添加缺少的热身或收尾块。',
     );
 
+    const preparationPurposes = {
+      'purpose.stretch',
+      'purpose.mobility',
+      'purpose.breath',
+      'purpose.activation',
+    };
+    final invalidPreparation = <Map<String, Object?>>[
+      for (final entry in entries)
+        if ({
+              BlockType.warmup,
+              BlockType.cooldown,
+            }.contains(plan.blocks[entry.block].type) &&
+            gate.tags
+                .forActionId(entry.id)
+                .intersection(preparationPurposes)
+                .isEmpty)
+          {
+            'block': entry.block,
+            'kind': plan.blocks[entry.block].type.name,
+            'id': entry.id,
+            'purposes': gate.tags
+                .forActionId(entry.id)
+                .where((code) => code.startsWith('purpose.'))
+                .toList(),
+          },
+    ];
+    final preparationCandidates = [
+      for (final id in state.seenActionIds)
+        if (gate.actionProblem(state, id) == null &&
+            gate.tags
+                .forActionId(id)
+                .intersection(preparationPurposes)
+                .isNotEmpty)
+          id,
+    ].take(20).toList(growable: false);
+    final preparationFix = preparationCandidates.isEmpty
+        ? '候选池暂无合规的放松动作，先用 search_actions 搜索拉伸、活动度、呼吸或激活动作，替换热身和收尾中的力量动作。'
+        : '热身和收尾改用候选池中的合规放松动作：${preparationCandidates.map((id) => '$id ${catalog[id]!.name.of()}').join('、')}。';
+    result(
+      'block_purpose',
+      invalidPreparation.isEmpty,
+      {'warmup/cooldown': preparationPurposes.toList()},
+      invalidPreparation,
+      preparationFix,
+      alternatives: preparationCandidates,
+    );
+
     final main = entries
         .where(
           (entry) =>
@@ -375,10 +422,13 @@ class PlanChecker {
           )
           .length;
       final ratio = main.isEmpty ? 0.0 : matched / main.length;
+      final threshold = name == 'body' && settings.focusRatio < .5
+          ? .5
+          : settings.focusRatio;
       result(
         'focus_$name',
-        main.isNotEmpty && ratio >= settings.focusRatio,
-        'main ≥ ${(settings.focusRatio * 100).toStringAsFixed(0)}% 含 ${group.join('、')}',
+        main.isNotEmpty && ratio >= threshold,
+        'main ≥ ${(threshold * 100).toStringAsFixed(0)}% 含 ${group.join('、')}',
         '$matched/${main.length}',
         '替换主体动作为目标组的合规候选动作。',
         alternatives: candidates(match: expanded),

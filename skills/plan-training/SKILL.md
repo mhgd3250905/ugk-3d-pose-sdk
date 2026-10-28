@@ -14,7 +14,9 @@ description: 排一份能直接开练的训练计划，或修改上一份计划
 search_actions 按标签枚举检索当前合规动作；需要要领或禁忌细节时再批量 get_action，大多数情况不需要。已经返回过的动作以后只列 id，仍可选用；需要时可再查详情。父部位编码（如 body.core）的子部位由目录／profile 层级展开，不必在账本里手工补子目标。
 
 编排通常依次热身、主体、收尾；热身为主体做准备，收尾放松练到的部位。力量内容兼顾相关部位和前后侧，单侧兼顾左右。必须有哪些块、均衡阈值和重点比例由 profile.planRules 及 check_plan 决定，技能不另外设硬阈值。
+热身和收尾仅用 purpose.stretch/mobility/breath/activation 动作；纯力量动作不能充当放松。主体至少一半命中 body 目标（主次部位和子部位都算），未通过时按 fix 的合规候选替换。
 draft_plan 只定标题、块结构、动作及可选剂量，代码补剂量、算时长、配平并返回摘要。动作须已搜索且当前合规，额外使用的已搜索动作由代码补入 picks。使用 start_task 返回的 plan_id，返工沿用同一个 ID。
+scene/minutes 缺失时 draft_plan 用 profile 默认值并标注默认；goal 必须明确记录。实际用到的环境物由代码打卡列明，不要声称不用任何物品。
 
 标准路径 start_task → set_params → search_actions → draft_plan → show_plan，可同批按顺序调用。draft_plan 自动完成动作、规划和核对，在同一回执里返回未通过项及 fix；通过后直接 show_plan。某项失败后本批余下项跳过，按 fix 修正。ask_user 放在批次最后，回答后续跑，不限追问次数。
 

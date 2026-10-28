@@ -143,7 +143,8 @@ void main() {
       ], latency: Duration.zero);
       final agent = coach(client);
       expect((await agent.send('排个计划')).question, isNotNull);
-      expect((await agent.send('没有其他要求')).question, isNotNull);
+      final resumed = await agent.send('没有其他要求');
+      expect(resumed.question, isNotNull, reason: '${resumed.error}');
       expect(client.requests, hasLength(4));
     },
   );

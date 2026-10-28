@@ -55,13 +55,15 @@ const _approvedToolDescriptions = {
   'check': '可选复查节点；已完成则返回当前状态。动作节点可提供已搜索的 picks。',
   'read':
       '读技能文件系统里的一个文件（如 action-library/SKILL.md、action-library/index/scene/home.md）。',
-  'search_actions': '先 start_task；purpose/body/pose/level 同类标签取或、跨类取且；按场景、器材和伤痛过滤。',
+  'search_actions':
+      '先 start_task；purpose/body/pose/level 同类或、跨类且；按场景、器材、伤痛过滤。默认不加 level，仅用户说明水平或 limits 需要时加。',
   'get_action': '批量查看动作要领与禁忌；大多数情况不需要调用。',
-  'draft_plan': '自动完成动作、规划和核对；通过后直接 show_plan。修改沿用任务，整体换用 replace_all，局部用 edit。',
+  'draft_plan':
+      '自动完成动作、规划和核对；通过后直接 show_plan。修改沿用任务，整体换用 replace_all，局部用 edit。',
   'set_params':
-      '记条件，齐全时自动打卡；user 引用原话，preselect 用习惯，default 明示默认。推测场景用 derived+quote；相对时长再带 direction；host 由宿主写入。',
+      '记条件并自动打卡；user 引用原话，preselect 用习惯，default 明示默认。低来源覆盖高来源时 kept；推测场景用 derived+quote，相对时长带 direction；host 由宿主写入。',
   'check_plan': '可选复核最新计划；draft_plan 已自动核对，通过后直接 show_plan。',
-  'show_actions': '校验并交付动作卡，自动打卡；note 用一两句说明思路，超长截断。',
+  'show_actions': '交付动作卡并自动打卡；每项须命中目标部位，数量按候选池。note 用一两句说明思路，超长截断。',
   'show_plan': '交付已通过核对的最新计划卡；note 用一两句说明安排思路。',
   'ask_user': '由模型决定是否需要澄清。调用后暂停，用户回答后继续；不要重问已有条件。',
   'remember': '记住用户主动提供的一条训练相关信息（先读 user-memory/SKILL.md）。',

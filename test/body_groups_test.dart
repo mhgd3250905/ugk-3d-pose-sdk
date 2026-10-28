@@ -83,7 +83,7 @@ void main() {
   });
 
   test('R3 ten-action plan passes focus with only body.core in ledger', () {
-    const warmup = ['h-step-jack', 'forearms-A', 'n-pelvis-circle'];
+    const warmup = ['n-squat-shift', 'forearms-A', 'n-pelvis-circle'];
     const main = [
       'erectors-A',
       'rotator-cuff-A',

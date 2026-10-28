@@ -13,11 +13,15 @@ class TerminalToolResult {
     this.response, {
     this.question,
     this.output,
+    this.state,
     this.rejected = false,
   });
   final String response;
   final AskUserQuestion? question;
   final AgentOutputResult? output;
+
+  /// Receipt-only metadata after a rejected show; nodes and picks are intact.
+  final CoachSessionState? state;
   final bool rejected;
 }
 
@@ -83,13 +87,18 @@ class TerminalToolHandler {
     }
     final output = gate.checkAgentOutput(state, tool, args, language: language);
     if (!output.ok) {
-      return TerminalToolResult(jsonEncode(output.error), rejected: true);
+      return TerminalToolResult(
+        jsonEncode(output.error),
+        rejected: true,
+        state: output.state,
+      );
     }
     return TerminalToolResult(
       jsonEncode({
         'ok': true,
         'shown': true,
         if (output.noteTruncated) ...{'noteTruncated': true, 'note': '已截断'},
+        if (output.notices.isNotEmpty) 'notices': output.notices,
       }),
       output: output,
     );

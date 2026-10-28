@@ -383,7 +383,7 @@ void main() {
             'note': '可以看看。',
           }),
         ]),
-        _showActions([selected.first]),
+        _showActions(selected),
       ]);
       final r = await agent(c).send('在家徒手推荐臀部动作');
       expect(r.status, TurnStatus.ok);
@@ -393,7 +393,7 @@ void main() {
       });
       final fb = jsonDecode(c.requests[2].messages.last.content) as Map;
       expect(fb['ok'], false);
-      expect(fb['code'], 'unpicked_actions');
+      expect(fb['code'], 'invalid_picks');
       expect(jsonEncode(fb), contains('made-up-id'));
     });
 

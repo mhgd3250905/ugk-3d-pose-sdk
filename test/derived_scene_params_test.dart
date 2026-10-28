@@ -145,10 +145,10 @@ void main() {
 
   test('defaults and preselection cannot override derived scene', () {
     for (final source in ['default', 'preselect']) {
-      expect(
-        params.set(inferred(), scene('home', source)).error!['code'],
-        'source_conflict',
-      );
+      final result = params.set(inferred(), scene('home', source));
+      expect(result.ok, isTrue);
+      expect(result.kept, {'scene'});
+      expect(result.state.params['scene']!.value, 'office');
     }
   });
 

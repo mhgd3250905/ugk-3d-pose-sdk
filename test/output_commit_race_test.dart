@@ -30,9 +30,9 @@ void main() {
           'scene': {'value': 'home', 'source': 'user', 'quote': '在家'},
           'equipment': {'value': <String>[], 'source': 'user', 'quote': '徒手'},
           'goal': {
-            'value': ['body.inner_thigh'],
+            'value': ['purpose.strength'],
             'source': 'user',
-            'quote': '大腿内侧',
+            'quote': '力量',
           },
         },
       }),
@@ -88,7 +88,7 @@ void main() {
 
   test('control: a completed action task returns its card', () async {
     final agent = coach(model());
-    final result = await agent.send('在家徒手推荐大腿内侧动作');
+    final result = await agent.send('在家徒手推荐全身力量动作');
     expect(
       result.status,
       TurnStatus.ok,
@@ -107,10 +107,10 @@ void main() {
         final sub = agent.events.listen((event) {
           if (fired ||
               event.kind != AgentEventKind.node ||
-            event.node?.id != 'output' ||
-            event.node?.status != 'done') {
+              event.node?.id != 'output' ||
+              event.node?.status != 'done') {
             return;
-        }
+          }
           fired = true;
           switch (operation) {
             case 'safety':
@@ -122,7 +122,7 @@ void main() {
           }
         });
         addTearDown(sub.cancel);
-        final result = await agent.send('在家徒手推荐大腿内侧动作', cancel: token);
+        final result = await agent.send('在家徒手推荐全身力量动作', cancel: token);
         expect(
           fired,
           isTrue,

@@ -207,6 +207,33 @@ void main() {
         for (final body in bodies) utf8.encode(jsonEncode(body)).length,
       ];
       print('R6 public tools + SYNTHETIC reasoning request bytes: $sizes');
+      int bytes(Object? value) => utf8.encode(jsonEncode(value)).length;
+      print(
+        jsonEncode({
+          'r6LastRequestComponents': [
+            for (final message in fake.requests.last.messages)
+              {
+                'role': message.role.name,
+                'toolCallId': message.toolCallId,
+                'bytes': bytes(message.toJson()),
+                if (message.role == LlmRole.tool)
+                  ...(() {
+                    try {
+                      final result = jsonDecode(message.content);
+                      return result is Map
+                          ? <String, Object?>{
+                              for (final entry in result.entries)
+                                entry.key.toString(): bytes(entry.value),
+                            }
+                          : <String, Object?>{};
+                    } on FormatException {
+                      return <String, Object?>{};
+                    }
+                  })(),
+              },
+          ],
+        }),
+      );
       for (var i = 0; i < bodies.length; i++) {
         final messages = (bodies[i]['messages'] as List)
             .cast<Map<String, Object?>>();

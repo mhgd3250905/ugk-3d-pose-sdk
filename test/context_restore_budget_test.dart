@@ -10,7 +10,7 @@ import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
 
-const warmup = ['h-step-jack', 'forearms-A', 'n-pelvis-circle'];
+const warmup = ['n-squat-shift', 'forearms-A', 'n-pelvis-circle'];
 const mainActions = [
   'erectors-A',
   'rotator-cuff-A',
@@ -534,6 +534,42 @@ void main() {
             .encode(jsonEncode(serializer.buildBody(request)))
             .length;
         print('STRESS request=$i bytes=$size');
+        if (i == 4) {
+          int bytes(Object? value) => utf8.encode(jsonEncode(value)).length;
+          final body = serializer.buildBody(request);
+          print(
+            jsonEncode({
+              'stressRequest': i,
+              'toolsBytes': bytes(body['tools']),
+              'messages': [
+                for (final message in request.messages)
+                  {
+                    'role': message.role.name,
+                    'toolCallId': message.toolCallId,
+                    'bytes': bytes(message.toJson()),
+                    if (message.role == LlmRole.tool)
+                      ...(() {
+                        try {
+                          final result = jsonDecode(message.content);
+                          return result is Map
+                              ? <String, Object?>{
+                                  if (result['format'] != null)
+                                    'formatBytes': bytes(result['format']),
+                                  if (result['items'] != null)
+                                    'itemsBytes': bytes(result['items']),
+                                  if (result['skills'] != null)
+                                    'skillsBytes': bytes(result['skills']),
+                                }
+                              : <String, Object?>{};
+                        } on FormatException {
+                          return <String, Object?>{};
+                        }
+                      })(),
+                  },
+              ],
+            }),
+          );
+        }
         if (i >= 2 && i <= 5) {
           final current =
               jsonDecode(request.messages[1].content.substring('当前状态：'.length))

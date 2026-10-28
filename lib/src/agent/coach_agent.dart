@@ -1845,6 +1845,7 @@ class CoachAgent {
             );
             terminalRejected = handled.rejected;
             terminalOutput = handled.output;
+            _sessionState = handled.state ?? _sessionState;
             results[t.id] = handled.response;
           default:
             results[t.id] = jsonEncode(

@@ -163,7 +163,209 @@ class ContextCompactor {
             : message,
       );
     }
-    return List.unmodifiable(messages);
+    return List.unmodifiable(
+      _compactStateReceipts(
+        _deduplicateSearchFormats(_compactSearchWarnings(messages, catalog)),
+        state,
+        summary,
+      ),
+    );
+  }
+
+  /// Previously consumed, successful state receipts can refer to an identical
+  /// snapshot already present in this request. Changed values stay complete,
+  /// and a tool reference always targets an earlier still-full dictionary.
+  List<LlmMessage> _compactStateReceipts(
+    List<LlmMessage> messages,
+    CoachSessionState state,
+    Map<String, Object?> summary,
+  ) {
+    final current = <String, Object?>{
+      if (summary['task'] != null) 'task': state.task?.toJson(),
+      if (summary['params'] is Map) 'params': summary['params'],
+    };
+    final latestAssistant = messages.lastIndexWhere(
+      (message) => message.role == LlmRole.assistant,
+    );
+    final paired = _pairs(messages);
+    final fullTasks = <String, String>{};
+    return [
+      for (var index = 0; index < messages.length; index++)
+        (() {
+          final message = messages[index];
+          final call = paired[index];
+          if (call == null ||
+              !const {
+                AgentTools.startTask,
+                AgentTools.check,
+                AgentTools.setParams,
+              }.contains(call.name) ||
+              !_ok(message.content)) {
+            return message;
+          }
+          final decoded = jsonDecode(message.content) as Map<String, dynamic>;
+          var changed = false;
+          final next = <String, Object?>{...decoded};
+          for (final field in ['task', 'params']) {
+            final value = decoded[field];
+            if (value is! Map ||
+                value.containsKey('sameAsCurrentState') ||
+                value.containsKey('sameAsToolCall')) {
+              continue;
+            }
+            final encoded = jsonEncode(value);
+            Map<String, Object?>? reference;
+            if (index < latestAssistant) {
+              if (current[field] != null &&
+                  encoded == jsonEncode(current[field])) {
+                reference = {'sameAsCurrentState': field};
+              } else if (field == 'task' &&
+                  call.name == AgentTools.check &&
+                  fullTasks.containsKey(encoded)) {
+                reference = {
+                  'sameAsToolCall': fullTasks[encoded],
+                  'field': 'task',
+                };
+              }
+            }
+            if (reference != null &&
+                utf8.encode(jsonEncode(reference)).length <
+                    utf8.encode(encoded).length) {
+              next[field] = reference;
+              changed = true;
+            } else if (field == 'task') {
+              fullTasks.putIfAbsent(encoded, () => message.toolCallId!);
+            }
+          }
+          if (!changed) return message;
+          // Only task/params changed; skill bodies are still fully present.
+          // Real archival above replaces the message with a plain tool result,
+          // so this cannot revive metadata for a removed skill body.
+          final content = jsonEncode(next);
+          final compacted = message is SkillDisclosureMessage
+              ? SkillDisclosureMessage(
+                  message.toolCallId!,
+                  content,
+                  fullRead: message.fullRead,
+                  fullSkills: message.fullSkills,
+                  requiredSkills: message.requiredSkills,
+                )
+              : LlmMessage.tool(message.toolCallId!, content);
+          return utf8.encode(jsonEncode(compacted.toJson())).length <
+                  utf8.encode(jsonEncode(message.toJson())).length
+              ? compacted
+              : message;
+        })(),
+    ];
+  }
+
+  /// Repeated catalogue-generated warnings retain their full sentence template
+  /// and every action/field binding. Unrecognized warning text stays literal.
+  /// This representation is used only when it makes the wire message smaller.
+  List<LlmMessage> _compactSearchWarnings(
+    List<LlmMessage> messages,
+    Catalog catalog,
+  ) {
+    final known = <String, ({String id, String field})>{};
+    for (final drill in catalog.drills) {
+      final semantics = drill.raw['trainingSemantics'];
+      final unknown = semantics is Map ? semantics['unknownFields'] : null;
+      if (unknown is! List) continue;
+      for (final entry in unknown) {
+        if (entry is! Map || entry['field'] is! String) continue;
+        final field = entry['field'] as String;
+        known['${drill.id} 的 $field 尚未明确，不能视为已验证。'] = (
+          id: drill.id,
+          field: field,
+        );
+      }
+    }
+    final paired = _pairs(messages);
+    return [
+      for (var index = 0; index < messages.length; index++)
+        (() {
+          final message = messages[index];
+          if (paired[index]?.name != AgentTools.searchActions ||
+              !_ok(message.content)) {
+            return message;
+          }
+          final decoded = jsonDecode(message.content) as Map<String, dynamic>;
+          final warnings = decoded['warnings'];
+          if (warnings is! List || warnings.any((value) => value is! String)) {
+            return message;
+          }
+          final fields = <String>[];
+          final rows = <Object?>[];
+          for (final text in warnings) {
+            final binding = known[text];
+            if (binding == null) {
+              rows.add(text);
+            } else {
+              var position = fields.indexOf(binding.field);
+              if (position < 0) {
+                position = fields.length;
+                fields.add(binding.field);
+              }
+              rows.add([binding.id, position]);
+            }
+          }
+          if (fields.isEmpty) return message;
+          final compacted = LlmMessage.tool(
+            message.toolCallId!,
+            jsonEncode({
+              ...decoded,
+              'warnings': {
+                'template': '{id} 的 {field} 尚未明确，不能视为已验证。',
+                'fields': fields,
+                'rows': rows,
+              },
+            }),
+          );
+          return utf8.encode(jsonEncode(compacted.toJson())).length <
+                  utf8.encode(jsonEncode(message.toJson())).length
+              ? compacted
+              : message;
+        })(),
+    ];
+  }
+
+  /// Identical search column dictionaries need only occur once in a request.
+  /// References are built after archival, so their target is always still
+  /// present with its full dictionary and original tool_call_id. Raw history
+  /// and stored tool captures are never modified.
+  List<LlmMessage> _deduplicateSearchFormats(List<LlmMessage> messages) {
+    final paired = _pairs(messages);
+    final firstFormats = <String, String>{};
+    return [
+      for (var index = 0; index < messages.length; index++)
+        (() {
+          final message = messages[index];
+          if (paired[index]?.name != AgentTools.searchActions ||
+              !_ok(message.content)) {
+            return message;
+          }
+          final decoded = jsonDecode(message.content) as Map<String, dynamic>;
+          final format = decoded['format'];
+          if (format is! Map ||
+              format.isEmpty ||
+              format.containsKey('sameAsToolCall')) {
+            return message;
+          }
+          final key = jsonEncode(format);
+          final original = firstFormats[key];
+          if (original == null) {
+            firstFormats[key] = message.toolCallId!;
+            return message;
+          }
+          return LlmMessage.tool(
+            message.toolCallId!,
+            jsonEncode({
+              ...decoded,
+              'format': {'sameAsToolCall': original},
+            }),
+          );
+        })(),
+    ];
   }
 
   String _archiveActions(

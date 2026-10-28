@@ -1,7 +1,7 @@
 {
  "id": "hiplab",
  "ambientEquipment": {"home":["equip.mat","equip.wall","equip.chair"],"office":["equip.chair","equip.wall"],"gym":["equip.mat","equip.wall","equip.chair"]},
- "ambientEquipmentUnknown": ["equip.wall"],
+ "ambientEquipmentUnknown": ["equip.wall","equip.mat"],
  "minActions": 3,
  "bodyGroups": {"body.core":["body.abs","body.obliques","body.erectors"]},
  "planRules": {"warmupFromMinutes":9,"cooldownFromMinutes":9,"exemptWarmupForPureStretch":true,"focusRatio":0.5,"maxSameMuscleInRow":3,"replaceAllMinDiff":0.5,"derivedStep":{"min":0.2,"max":0.5},"antagonisticPairs":[]},

@@ -184,6 +184,7 @@ class CoachSessionState {
     Map<String, CoachParamValue> params = const {},
     Set<String> seenActionIds = const {},
     this.consecutiveEmptySearches = 0,
+    this.recommendationHintShown = false,
     List<String> picks = const [],
     Map<String, List<CoachPlanVersion>> plans = const {},
     this.activePlanId,
@@ -209,6 +210,9 @@ class CoachSessionState {
 
   /// Consecutive successful searches that returned no previously unseen IDs.
   final int consecutiveEmptySearches;
+
+  /// Whether this task has already suggested broadening a sparse body search.
+  final bool recommendationHintShown;
   final List<String> picks;
   final Map<String, List<CoachPlanVersion>> plans;
 
@@ -232,6 +236,7 @@ class CoachSessionState {
     Map<String, CoachParamValue>? params,
     Set<String>? seenActionIds,
     int? consecutiveEmptySearches,
+    bool? recommendationHintShown,
     List<String>? picks,
     Map<String, List<CoachPlanVersion>>? plans,
     String? activePlanId,
@@ -248,6 +253,8 @@ class CoachSessionState {
     seenActionIds: seenActionIds ?? this.seenActionIds,
     consecutiveEmptySearches:
         consecutiveEmptySearches ?? this.consecutiveEmptySearches,
+    recommendationHintShown:
+        recommendationHintShown ?? this.recommendationHintShown,
     picks: picks ?? this.picks,
     plans: plans ?? this.plans,
     activePlanId: clearActivePlanId ? null : activePlanId ?? this.activePlanId,
@@ -285,6 +292,7 @@ class CoachSessionState {
     'seenActionIds': seenActionIds.toList(),
     if (consecutiveEmptySearches != 0)
       'consecutiveEmptySearches': consecutiveEmptySearches,
+    if (recommendationHintShown) 'recommendationHintShown': true,
     'picks': List<String>.of(picks),
     'plans': {
       for (final entry in plans.entries)
@@ -316,6 +324,8 @@ class CoachSessionState {
             .cast<String>()
             .toSet(),
         consecutiveEmptySearches: json['consecutiveEmptySearches'] as int? ?? 0,
+        recommendationHintShown:
+            json['recommendationHintShown'] as bool? ?? false,
         picks: (json['picks'] as List<Object?>? ?? const []).cast<String>(),
         plans: {
           for (final entry in _map(json['plans'] ?? const {}).entries)

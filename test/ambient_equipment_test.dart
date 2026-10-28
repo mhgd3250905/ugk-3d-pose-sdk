@@ -57,7 +57,7 @@ void main() {
           'equip.wall',
           'equip.chair',
         });
-        expect(configured.ambientEquipmentUnknown, {'equip.wall'});
+        expect(configured.ambientEquipmentUnknown, {'equip.wall', 'equip.mat'});
         final restored = CoachProfile.fromJson(configured.toJson());
         expect(restored.ambientEquipment, configured.ambientEquipment);
         expect(
@@ -78,7 +78,10 @@ void main() {
       'equip.chair',
       'equip.wall',
     });
-    expect(gate.ambientEquipment(state(scene: null)), {'equip.wall'});
+    expect(gate.ambientEquipment(state(scene: null)), {
+      'equip.wall',
+      'equip.mat',
+    });
     final mat = profile
         .scope(catalog)
         .firstWhere(
@@ -174,7 +177,7 @@ void main() {
   );
 
   test(
-    'explicitly excluded extra equipment cannot be reintroduced by ledger',
+    'excluding nonambient extra equipment is ignored without changing ledger',
     () {
       final source = state().appendUserTurn('这次不用哑铃');
       final owned = Map<String, CoachParamValue>.of(source.params)
@@ -188,7 +191,9 @@ void main() {
         'equip.mat',
         'equip.wall',
         'equip.chair',
+        'equip.dumbbell',
       });
+      expect(excluded.ignoredEquipmentExclude, ['equip.dumbbell']);
       final missingQuote = params.set(source, {
         'fields': {
           'equipment_exclude': {

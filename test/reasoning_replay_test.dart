@@ -51,7 +51,7 @@ void main() {
     ],
   };
 
-  const v2Ids = ['h-sumo-pry', 'n-squat-shift', 'h-squat'];
+  const v2Ids = ['h-sumo-pry', 'n-squat-shift', 's-butterfly'];
   List<Map<String, Object?>> setup(String type, {bool parameters = true}) => [
     _tool('start-$type', 'start_task', {'type': type}),
     _tool('understand-$type', 'check', {'node': 'understand'}),
@@ -347,7 +347,7 @@ void main() {
                 expected[step],
               );
               if (step == 2) {
-                expect(toolResult(body, 'bad')['code'], 'unpicked_actions');
+                expect(toolResult(body, 'bad')['code'], 'invalid_picks');
               }
               return _response(replies[step++]);
             }),

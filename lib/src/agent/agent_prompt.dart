@@ -15,14 +15,13 @@ import '../prompt/prompts.g.dart';
 import '../prompt/tool_prompt.dart';
 import '../tools/coach_tools.dart';
 import 'action_tags.dart';
-import 'node_gates.dart';
 import 'session_params.dart';
 import 'session_state.dart';
 import 'skill_files.dart';
 import 'user_memory.dart';
 
 /// Agent 内核修订号。改 `prompts/agent_kernel.md` 或 `skills/` 语义时手动加一。
-const agentKernelRevision = 8;
+const agentKernelRevision = 9;
 
 abstract final class AgentTools {
   static const read = 'read';
@@ -53,18 +52,6 @@ abstract final class AgentTools {
     final kinds = [for (final k in MemoryKind.values) k.name];
     final tags = ActionTags(profile, catalog);
     final en = language.toLowerCase().startsWith('en');
-    final state = sessionState ?? CoachSessionState();
-    final excludable = {
-      for (final equipment in profile.ambientEquipment.values) ...equipment,
-      ...NodeGates(
-        profile,
-        catalog,
-        minPicks: profile.minActions,
-      ).effectiveEquipment(state),
-      ...((state.params['equipment_exclude']?.value as List<Object?>?) ??
-              const [])
-          .cast<String>(),
-    }.toList()..sort();
     final equipmentCodes = SessionParams(
       tags,
     ).equipmentCodes(sessionState ?? CoachSessionState());
@@ -157,7 +144,7 @@ abstract final class AgentTools {
       LlmTool(
         name: searchActions,
         description:
-            '先 start_task；purpose/body/pose/level 同类标签取或、跨类取且；按场景、器材和伤痛过滤。',
+            '先 start_task；purpose/body/pose/level 同类或、跨类且；按场景、器材、伤痛过滤。默认不加 level，仅用户说明水平或 limits 需要时加。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -237,7 +224,7 @@ abstract final class AgentTools {
       LlmTool(
         name: setParams,
         description:
-            '记条件，齐全时自动打卡；user 引用原话，preselect 用习惯，default 明示默认。推测场景用 derived+quote；相对时长再带 direction；host 由宿主写入。',
+            '记条件并自动打卡；user 引用原话，preselect 用习惯，default 明示默认。低来源覆盖高来源时 kept；推测场景用 derived+quote，相对时长带 direction；host 由宿主写入。',
         parameters: {
           'type': 'object',
           'properties': {
@@ -255,7 +242,11 @@ abstract final class AgentTools {
                 'equipment_exclude': {
                   ...parameter(codes(equipmentCodes)),
                   'properties': {
-                    'value': codes(excludable),
+                    'value': {
+                      'type': 'array',
+                      'items': {'type': 'string'},
+                      'uniqueItems': true,
+                    },
                     'source': {
                       'type': 'string',
                       'enum': ['user'],
@@ -296,7 +287,7 @@ abstract final class AgentTools {
         ),
       LlmTool(
         name: showActions,
-        description: '校验并交付动作卡，自动打卡；note 用一两句说明思路，超长截断。',
+        description: '交付动作卡并自动打卡；每项须命中目标部位，数量按候选池。note 用一两句说明思路，超长截断。',
         parameters: {
           'type': 'object',
           'properties': {

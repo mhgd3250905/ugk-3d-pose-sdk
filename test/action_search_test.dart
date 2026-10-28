@@ -38,7 +38,7 @@ void main() {
   });
 
   test(
-    'bodyweight default allows ambient wall and records only returned ids',
+    'bodyweight default allows ambient wall and mat and records only returned ids',
     () {
       final state = active();
       final result = search.search(state, limit: 20);
@@ -49,12 +49,12 @@ void main() {
       for (final row in result.items) {
         expect(
           catalog[row['id'] as String]!.equipment.where((e) => e != 'none'),
-          everyElement('wall'),
+          everyElement(isIn(['wall', 'mat'])),
         );
         final returnedGear = ((row['data'] as List)[1] as List).map(
           (index) => (result.format['equipment'] as List)[index as int],
         );
-        expect(returnedGear, everyElement('equip.wall'));
+        expect(returnedGear, everyElement(isIn(['equip.wall', 'equip.mat'])));
         expect(row.keys, containsAll(['id', 'name', 'summary', 'data']));
         expect(row['data'], hasLength(8));
       }
@@ -74,9 +74,12 @@ void main() {
           .map((row) => utf8.encode(jsonEncode(row)).length)
           .toList();
       expect(lengths.every((n) => n <= 240), isTrue, reason: '$lengths');
-      final byId = {for (final row in result.items) row['id']: row};
-      expect((byId['h-squat']!['data'] as List)[7], 48);
-      expect((byId['h-side-leg-raise']!['data'] as List)[7], 101);
+      Map<String, Object?> rowFor(String id) => search
+          .search(active(), keywords: catalog[id]!.name.of('en'))
+          .items
+          .singleWhere((row) => row['id'] == id);
+      expect((rowFor('h-squat')['data'] as List)[7], 48);
+      expect((rowFor('h-side-leg-raise')['data'] as List)[7], 101);
       expect(
         result.items.every((row) => (row['summary'] as String).isNotEmpty),
         isTrue,
@@ -102,33 +105,36 @@ void main() {
   });
 
   test('repeated search rechecks equipment after the user removes it', () {
-    final matAction = profile
+    final extraAction = profile
         .scope(catalog)
-        .firstWhere((drill) => drill.equipment.contains('mat'));
+        .firstWhere((drill) => drill.equipment.contains('dumbbell'));
     final equipment = [
-      for (final raw in matAction.equipment)
+      for (final raw in extraAction.equipment)
         ?search.gate.tags.equipmentCode(raw),
     ];
     final first = search.search(
       active(params: {'equipment': param(equipment)}),
-      keywords: matAction.name.of('zh'),
+      keywords: extraAction.name.of('zh'),
     );
     expect(first.ok, isTrue);
-    expect(first.items.map((row) => row['id']), contains(matAction.id));
+    expect(first.items.map((row) => row['id']), contains(extraAction.id));
     final reduced = first.state.copyWith(
       params: {...first.state.params, 'equipment': param(<String>[])},
     );
-    final repeated = search.search(reduced, keywords: matAction.name.of('zh'));
+    final repeated = search.search(
+      reduced,
+      keywords: extraAction.name.of('zh'),
+    );
     expect(repeated.ok, isTrue);
     expect(
       repeated.items.map((row) => row['id']),
-      isNot(contains(matAction.id)),
+      isNot(contains(extraAction.id)),
     );
     expect(repeated.filter['hiddenEquipmentCount'], greaterThan(0));
     for (final row in repeated.items) {
       expect(search.gate.actionProblem(reduced, row['id'] as String), isNull);
     }
-    expect(repeated.state.seenActionIds, contains(matAction.id));
+    expect(repeated.state.seenActionIds, contains(extraAction.id));
   });
 
   test('planState restore preserves seen IDs for search deduplication', () {
@@ -291,11 +297,11 @@ void main() {
 
   test('get_action rejects unsafe or unknown ids and caps at ten', () {
     final state = active();
-    final mat = profile
+    final extra = profile
         .scope(catalog)
-        .firstWhere((d) => d.equipment.contains('mat'));
+        .firstWhere((d) => d.equipment.contains('dumbbell'));
     expect(
-      search.getActions(state, [mat.id]).error!['code'],
+      search.getActions(state, [extra.id]).error!['code'],
       'incompatible_actions',
     );
     expect(search.getActions(state, ['not-in-catalog']).ok, isFalse);

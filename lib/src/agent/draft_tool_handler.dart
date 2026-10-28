@@ -24,8 +24,58 @@ extension DraftToolHandler on StructuredToolHandler {
     final gates = NodeGates(profile, catalog, minPicks: profile.minActions);
     var prepared = state;
     final changes = <CoachNodeState>[];
-    if (state.task?.type == 'plan' &&
-        state.task?.nodes.where((n) => n.status == 'current').firstOrNull?.id ==
+    if (state.task?.type == 'plan') {
+      final defaults = <String, Object?>{
+        if (state.params['scene']?.value == null)
+          'scene': {'value': profile.defaultScene, 'source': 'default'},
+        if (state.params['minutes']?.value == null &&
+            int.tryParse(profile.vars['defaultMinutes'] ?? '') != null)
+          'minutes': {
+            'value': int.parse(profile.vars['defaultMinutes']!),
+            'source': 'default',
+          },
+      };
+      if (defaults.isNotEmpty) {
+        final filled = setParams(
+          state,
+          {'fields': defaults},
+          language,
+          const [],
+        );
+        final receipt = jsonDecode(filled.response) as Map;
+        if (receipt['ok'] != true) {
+          return StructuredToolResult(state, filled.response);
+        }
+        prepared = filled.state;
+        changes.addAll(filled.changes);
+      }
+    }
+    final missing = [
+      for (final key in ['scene', 'goal', 'minutes'])
+        if (prepared.params[key]?.value == null ||
+            (prepared.params[key]?.value is List &&
+                (prepared.params[key]!.value as List).isEmpty))
+          key,
+    ];
+    if (missing.isNotEmpty) {
+      return StructuredToolResult(
+        state,
+        jsonEncode(
+          nodeError(
+            'missing_parameters',
+            'params',
+            ['scene', 'goal', 'minutes'],
+            missing,
+            '通过 set_params 补齐缺少的参数。',
+          ),
+        ),
+      );
+    }
+    if (prepared.task?.type == 'plan' &&
+        prepared.task?.nodes
+                .where((n) => n.status == 'current')
+                .firstOrNull
+                ?.id ==
             'actions') {
       final blocks = args['blocks'];
       final ids = <String>{
@@ -36,7 +86,7 @@ extension DraftToolHandler on StructuredToolHandler {
                 if (item is Map && item['id'] is String) item['id'] as String,
       };
       final selected = gates.check(
-        state,
+        prepared,
         'actions',
         picks: ids.toList(),
         language: language,

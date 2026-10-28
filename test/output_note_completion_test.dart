@@ -34,7 +34,7 @@ void main() {
     ),
     params: {
       'scene': param('home'),
-      'goal': param(['body.core']),
+      'goal': param(['purpose.strength']),
       'equipment': param(<String>[]),
       'limits': param(<String>[]),
     },
@@ -245,7 +245,10 @@ void main() {
             },
           }),
           call('parameters', 'check', {'node': 'parameters'}),
-          call('search', 'search_actions', {'tags': <String>[], 'limit': 3}),
+          call('search', 'search_actions', {
+            'tags': ['body.core'],
+            'limit': 3,
+          }),
         ]),
         (LlmRequest request) {
           final result =

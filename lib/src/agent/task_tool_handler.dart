@@ -129,6 +129,7 @@ extension TaskToolHandler on StructuredToolHandler {
               if (tool == AgentTools.startTask && next.task?.type == 'plan')
                 'plan_id': next.activePlanId,
               if (result.warnings.isNotEmpty) 'warnings': result.warnings,
+              if (result.notices.isNotEmpty) 'notices': result.notices,
             },
       ),
       changes: result.ok ? changes : const [],

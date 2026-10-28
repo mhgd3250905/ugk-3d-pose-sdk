@@ -13,8 +13,10 @@ class ParamMutation {
     this.state,
     this.error,
     this.changedFields,
-    this.valueChangedFields,
-  );
+    this.valueChangedFields, {
+    this.kept = const {},
+    this.ignoredEquipmentExclude = const [],
+  });
 
   final CoachSessionState state;
   final Map<String, Object?>? error;
@@ -22,12 +24,19 @@ class ParamMutation {
 
   /// Fields whose structured value changed, excluding provenance-only writes.
   final Set<String> valueChangedFields;
+  final Set<String> kept;
+  final List<String> ignoredEquipmentExclude;
   bool get ok => error == null;
 
   Map<String, Object?> toJson() =>
       error ??
       {
         'ok': true,
+        if (kept.isNotEmpty) 'kept': kept.toList(),
+        if (ignoredEquipmentExclude.isNotEmpty) ...{
+          'ignoredEquipmentExclude': ignoredEquipmentExclude,
+          'note': '非当前场景环境物的排除已忽略；原有条件保留。',
+        },
         'params': {
           for (final entry in state.params.entries)
             entry.key: entry.value.toJson(),
@@ -122,7 +131,13 @@ class SessionParams {
     final next = Map<String, CoachParamValue>.of(state.params);
     final changed = <String>{};
     final valueChanged = <String>{};
-    for (final entry in rawFields.entries) {
+    final kept = <String>{};
+    final ignoredEquipmentExclude = <String>[];
+    final orderedFields = [
+      if (rawFields.containsKey('scene')) MapEntry('scene', rawFields['scene']),
+      ...rawFields.entries.where((entry) => entry.key != 'scene'),
+    ];
+    for (final entry in orderedFields) {
       final name = entry.key;
       if (name is! String || !fields.contains(name)) {
         return _failure(
@@ -334,10 +349,17 @@ class SessionParams {
         sourceTurn = matching.last.turn;
       }
       if (name == 'equipment_exclude') {
-        final wanted = (value! as List<Object?>).cast<String>().toSet();
-        final previous = old == null
+        final rawWanted = (value! as List<Object?>).cast<String>().toSet();
+        final ambient = tags.profile.ambientEquipmentFor(
+          next['scene']?.value as String?,
+        );
+        final wanted = rawWanted.intersection(ambient);
+        final previousAll = old == null
             ? <String>{}
             : (old.value! as List<Object?>).cast<String>().toSet();
+        final previous = previousAll.intersection(ambient);
+        ignoredEquipmentExclude.addAll(rawWanted.difference(ambient));
+        if (rawWanted.isNotEmpty && wanted.isEmpty) continue;
         if (!wanted.containsAll(previous)) {
           return _failure(
             state,
@@ -360,6 +382,7 @@ class SessionParams {
             '引用用户本轮明确排除物品的原话。',
           );
         }
+        effectiveValue = {...previousAll, ...wanted}.toList();
       }
       if (source == 'derived' &&
           name == 'scene' &&
@@ -405,14 +428,8 @@ class SessionParams {
               old?.source == 'host' ||
               old?.source == 'derived') &&
           (source == 'default' || source == 'preselect')) {
-        return _failure(
-          state,
-          'source_conflict',
-          'fields.$name.source',
-          'user 或 host 的值不被默认或预选覆盖',
-          source,
-          '保留原值，或用用户新的原话提供修改。',
-        );
+        kept.add(name);
+        continue;
       }
       if (old?.source == 'host' &&
           source == 'user' &&
@@ -532,6 +549,8 @@ class SessionParams {
       null,
       Set.unmodifiable(changed),
       Set.unmodifiable(valueChanged),
+      kept: Set.unmodifiable(kept),
+      ignoredEquipmentExclude: List.unmodifiable(ignoredEquipmentExclude),
     );
   }
 
@@ -630,9 +649,18 @@ class SessionParams {
     if (value is! List<Object?> || value.any((item) => item is! String)) {
       return '编码字符串数组';
     }
+    if (name == 'equipment_exclude') {
+      return value.every(
+                (item) =>
+                    RegExp(r'^equip\.[a-z0-9_]+$').hasMatch(item as String),
+              ) &&
+              value.toSet().length == value.length
+          ? null
+          : '不重复的 equip.* 编码数组';
+    }
     final valid = switch (name) {
       'goal' => tags.goalCodes,
-      'equipment' || 'equipment_exclude' => equipmentCodes(state),
+      'equipment' => equipmentCodes(state),
       'limits' => tags.limitCodes,
       _ => const <String>[],
     };

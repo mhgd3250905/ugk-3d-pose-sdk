@@ -215,7 +215,7 @@ void main() {
       );
       var state = CoachSessionState(
         params: {
-          'goal': param(['body.core']),
+          'goal': param(['purpose.mobility']),
         },
       );
       state = AgentTask.start(state, 'recommend').state;
@@ -285,7 +285,14 @@ void main() {
       state = gate.check(state, 'parameters').state;
       final valid = profile
           .scope(catalog)
-          .where((d) => gate.actionProblem(state, d.id) == null)
+          .where(
+            (d) =>
+                gate.actionProblem(state, d.id) == null &&
+                gate.tags
+                    .forAction(d)
+                    .intersection(gate.tags.expandCodes(['body.core']))
+                    .isNotEmpty,
+          )
           .take(3)
           .map((d) => d.id)
           .toList();

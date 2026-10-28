@@ -25,7 +25,7 @@ void main() {
     semanticCatalogBytes: File('$root/catalog/catalog.json').readAsBytesSync(),
   ).toAiCatalog();
   final profile = loadProfile('smartfit');
-  const warmup = ['h-step-jack', 'forearms-A', 'n-pelvis-circle'];
+  const warmup = ['n-squat-shift', 'forearms-A', 'n-pelvis-circle'];
   const firstMain = [
     'h-squat',
     'h-good-morning',

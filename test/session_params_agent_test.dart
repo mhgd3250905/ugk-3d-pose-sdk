@@ -239,7 +239,7 @@ void main() {
           _set('params', {
             'scene': _user('home', '在家'),
             'equipment': _user(<String>[], '徒手'),
-            'goal': _user(['body.core'], '核心'),
+            'goal': _user(['body.quadriceps'], '下肢'),
           }),
           LlmToolCall(
             id: 'parameters',
@@ -257,7 +257,10 @@ void main() {
           LlmToolCall(
             id: 'all',
             name: AgentTools.searchActions,
-            arguments: jsonEncode({'tags': <String>[], 'limit': 20}),
+            arguments: jsonEncode({
+              'tags': ['body.quadriceps'],
+              'limit': 20,
+            }),
           ),
         ]),
         (LlmRequest request) {
@@ -290,7 +293,7 @@ void main() {
         '先保护膝盖，不勉强训练。',
       ], latency: Duration.zero);
       final coach = agent(client);
-      final pending = coach.send('在家徒手推荐核心动作');
+      final pending = coach.send('在家徒手推荐下肢动作');
       await started.future;
       expect(coach.sessionState.picks, contains('h-squat'));
       coach.replaceSafetyAvoid({'knee'});
@@ -321,6 +324,8 @@ void main() {
   test('same-turn model parameters reach the subsequent plan gate', () async {
     late List<String> ids;
     late String planId;
+    const warmupId = 'h-catcow-quad';
+    const cooldownId = 'h-banana';
     final client = FakeLlmClient([
       _tools([
         LlmToolCall(
@@ -349,6 +354,15 @@ void main() {
             'tags': ['body.core', 'equip.mat'],
           }),
         ),
+        for (final id in [warmupId, cooldownId])
+          LlmToolCall(
+            id: 'prep-$id',
+            name: AgentTools.searchActions,
+            arguments: jsonEncode({
+              'tags': <String>[],
+              'keywords': catalog[id]!.name.of('en'),
+            }),
+          ),
       ]),
       (LlmRequest request) {
         final search =
@@ -372,7 +386,10 @@ void main() {
           LlmToolCall(
             id: 'actions',
             name: AgentTools.check,
-            arguments: jsonEncode({'node': 'actions', 'picks': ids}),
+            arguments: jsonEncode({
+              'node': 'actions',
+              'picks': {...ids, warmupId, cooldownId}.toList(),
+            }),
           ),
           LlmToolCall(
             id: 'draft',
@@ -383,7 +400,7 @@ void main() {
                 {
                   'kind': 'warmup',
                   'items': [
-                    {'id': ids.first},
+                    {'id': warmupId},
                   ],
                 },
                 {
@@ -395,7 +412,7 @@ void main() {
                 {
                   'kind': 'cooldown',
                   'items': [
-                    {'id': ids.last},
+                    {'id': cooldownId},
                   ],
                 },
               ],

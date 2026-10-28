@@ -21,7 +21,7 @@ void main() {
     files: SkillFiles.build(profile, catalog),
   );
   const groups = [
-    ('warmup', ['h-step-jack', 'forearms-A', 'n-pelvis-circle']),
+    ('warmup', ['n-squat-shift', 'forearms-A', 'n-pelvis-circle']),
     (
       'main',
       [

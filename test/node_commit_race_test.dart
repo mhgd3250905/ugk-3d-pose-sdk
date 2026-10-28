@@ -52,12 +52,12 @@ void main() {
     ).admitTemplate(plan, context);
     expect(admitted, isNotNull);
     var state = CoachSessionState(
-      userTurns: [const CoachUserTurn(turn: 1, text: '推荐大腿内侧动作')],
+      userTurns: [const CoachUserTurn(turn: 1, text: '推荐臀部动作')],
       params: {
         'goal': CoachParamValue(
-          value: ['body.inner_thigh'],
+          value: ['body.glute_max'],
           source: 'user',
-          quote: '大腿内侧',
+          quote: '臀部',
           turn: 1,
         ),
       },
@@ -88,10 +88,7 @@ void main() {
     final call = LlmToolCall(
       id: 'show',
       name: AgentTools.showActions,
-      arguments: jsonEncode({
-        'ids': ['h-squat'],
-        'note': '可以从这个动作开始。',
-      }),
+      arguments: jsonEncode({'ids': picks, 'note': '可以从这个动作开始。'}),
     );
     final output = OutputGate(profile, catalog).prepare(
       checked.state,
@@ -99,7 +96,7 @@ void main() {
       jsonDecode(call.arguments),
     );
     expect(output.ok, isTrue, reason: '${output.error}');
-    expect(output.actions!.single.id, 'h-squat');
+    expect(output.actions!.map((action) => action.id), picks);
     final client = FakeLlmClient([
       LlmResponse(
         content: '可以从这个动作开始。',
@@ -135,7 +132,8 @@ void main() {
       TurnStatus.ok,
       reason: '${result.error}; ${result.issues}',
     );
-    expect(result.actions!.items.single.id, 'h-squat');
+    expect(result.actions!.items, hasLength(3));
+    expect(result.actions!.items.map((item) => item.id), contains('h-squat'));
   });
 
   test(

@@ -78,6 +78,20 @@ class PlanBuilder {
     final scene = state.params['scene']?.value;
     final minutes = state.params['minutes']?.value;
     final goals = state.params['goal']?.value;
+    final missing = [
+      if (scene == null) 'scene',
+      if (goals == null || goals is List && goals.isEmpty) 'goal',
+      if (minutes == null) 'minutes',
+    ];
+    if (missing.isNotEmpty) {
+      return fail(
+        'missing_parameters',
+        'params',
+        ['scene', 'goal', 'minutes'],
+        missing,
+        '先完成参数节点并补齐计划条件。',
+      );
+    }
     if (scene is! String ||
         minutes is! int ||
         minutes <= 0 ||
@@ -85,11 +99,11 @@ class PlanBuilder {
         goals.isEmpty ||
         goals.any((x) => x is! String)) {
       return fail(
-        'missing_parameters',
+        'invalid_parameters',
         'params',
-        'scene、非空 goal、正整数 minutes',
-        state.params.keys.toList(),
-        '先完成参数节点并补齐计划条件。',
+        ['scene', 'goal', 'minutes'],
+        {'scene': scene, 'goal': goals, 'minutes': minutes},
+        'scene 须为字符串，goal 须为非空编码列表，minutes 须为正整数。',
       );
     }
     final task = state.task;

@@ -28,7 +28,7 @@ void main() {
       ).readAsBytesSync(),
     ).toAiCatalog();
     final profile = loadProfile('smartfit');
-    const warmup = ['h-step-jack', 'forearms-A', 'n-pelvis-circle'];
+    const warmup = ['n-squat-shift', 'forearms-A', 'n-pelvis-circle'];
     const main = ['h-squat', 'h-good-morning', 'erectors-A', 'obliques-A'];
     const cooldown = ['o-stand-sidebend', 'h-bilateral-upper-back-hug'];
     const ids = [...warmup, ...main, ...cooldown];

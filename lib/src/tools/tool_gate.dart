@@ -105,12 +105,14 @@ class AgentOutputResult {
     this.card,
     this.changes = const [],
     this.noteTruncated = false,
+    this.notices = const [],
     this.error,
   });
   final CoachSessionState state;
   final GateResult? card;
   final List<CoachNodeState> changes;
   final bool noteTruncated;
+  final List<String> notices;
   final Map<String, Object?>? error;
   bool get ok => error == null;
 }
@@ -157,7 +159,11 @@ class ToolGate {
       catalog,
     ).prepare(state, tool, arguments, language: language);
     if (!prepared.ok) {
-      return AgentOutputResult(state: state, error: prepared.error);
+      return AgentOutputResult(
+        state: prepared.nodeResult?.state ?? state,
+        notices: prepared.notices,
+        error: prepared.error,
+      );
     }
     final warnings = [
       for (final text in prepared.warnings)
@@ -176,6 +182,7 @@ class ToolGate {
       state: prepared.nodeResult!.state,
       changes: prepared.nodeResult!.changes,
       noteTruncated: prepared.noteTruncated,
+      notices: prepared.notices,
       card: GateResult._(
         text: prepared.note,
         plan: plan,

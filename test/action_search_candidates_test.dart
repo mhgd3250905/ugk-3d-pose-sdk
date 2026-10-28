@@ -184,7 +184,7 @@ void main() {
         taxonomy: fixture.taxonomy,
         drills: [
           drill('visible'),
-          for (var i = 0; i < 3; i++) drill('mat$i', equipment: ['mat']),
+          for (var i = 0; i < 3; i++) drill('band$i', equipment: ['band']),
           for (var i = 0; i < 3; i++)
             drill('weight$i', equipment: ['dumbbell']),
           for (var i = 0; i < 3; i++)
@@ -208,17 +208,19 @@ void main() {
         state.copyWith(
           params: {
             ...state.params,
-            'equipment_exclude': param(['equip.mat']),
+            'equipment_exclude': param(['equip.band']),
           },
         ),
       );
-      expect(excluded.filter['hiddenEquipmentCount'], 3);
-      expect(excluded.summary, isNot(contains('ask_user 问一次')));
+      // Excluding a nonambient item is ignored; its unavailable actions remain
+      // hidden and still count toward the equipment-availability hint.
+      expect(excluded.filter['hiddenEquipmentCount'], 6);
+      expect(excluded.summary, contains('ask_user 问一次'));
       final available = search.search(
         state.copyWith(
           params: {
             ...state.params,
-            'equipment': param(['equip.mat']),
+            'equipment': param(['equip.band']),
           },
         ),
       );

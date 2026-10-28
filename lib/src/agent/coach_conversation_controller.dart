@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 
 import '../llm/cancel_token.dart';
+import '../llm/llm_types.dart';
 import '../plan/coach_context.dart';
 import '../plan/training_plan.dart';
 import '../tools/ask_user.dart';
@@ -648,6 +649,12 @@ class CoachConversationController {
         restoredUserTurns: [
           for (final message in messages.take(planIndex))
             if (message.isUser) message.text,
+        ],
+        restoredMessages: [
+          for (final message in messages.take(planIndex + 1))
+            if (message.text.trim().isNotEmpty)
+              message.isUser ? LlmMessage.user(message.text)
+                  : LlmMessage.assistant(message.text, reasoning: ''),
         ],
       );
     }

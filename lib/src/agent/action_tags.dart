@@ -13,6 +13,18 @@ class ActionTags {
       for (final drill in drills) drill.id: Set.unmodifiable(_encode(drill)),
     };
     final allTags = <String>{for (final values in _actions.values) ...values};
+    for (final group in profile.bodyGroups.entries) {
+      if (!group.key.startsWith('body.') ||
+          group.value.any((code) => !code.startsWith('body.'))) {
+        throw FormatException('Body groups must contain body.* codes.');
+      }
+    }
+    // A configured parent is searchable only when this scope contains it or
+    // one of its descendants; unrelated profile groups do not widen scope.
+    allTags.addAll([
+      for (final parent in profile.bodyGroups.keys)
+        if (expandCodes([parent]).intersection(allTags).isNotEmpty) parent,
+    ]);
     tags = _sorted(allTags);
     goalCodes = _sorted(
       allTags.where(
@@ -67,6 +79,19 @@ class ActionTags {
 
   Set<String> forAction(Drill drill) => forActionId(drill.id);
   Set<String> forActionId(String id) => _actions[id] ?? const {};
+
+  /// Resolve configured descendants while preserving direct-code matching.
+  /// The visited set also makes nested or cyclic profile groups finite.
+  Set<String> expandCodes(Iterable<String> codes) {
+    final result = <String>{};
+    final pending = codes.toList();
+    while (pending.isNotEmpty) {
+      final code = pending.removeLast();
+      if (!result.add(code)) continue;
+      pending.addAll(profile.bodyGroups[code] ?? const <String>[]);
+    }
+    return Set.unmodifiable(result);
+  }
 
   /// The host may retain an owned item absent from this catalogue. Such
   /// values use a reserved reversible namespace outside model-facing enums.

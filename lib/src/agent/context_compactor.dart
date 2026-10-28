@@ -1,0 +1,327 @@
+/// Builds model context without modifying saved history or structured state.
+library;
+
+import 'dart:convert';
+
+import '../catalog/catalog.dart';
+import '../llm/llm_types.dart';
+import 'agent_prompt.dart';
+import 'session_state.dart';
+
+class ContextCompactor {
+  const ContextCompactor();
+
+  static const archived = '[已归档，见当前状态]';
+
+  /// Positions are indexes into [history], not tool-call IDs. Only pass a
+  /// failed result whose replacement has been established structurally by the
+  /// caller; identical tool names alone do not prove replacement.
+  List<LlmMessage> compose({
+    required LlmMessage system,
+    required CoachSessionState state,
+    required Catalog catalog,
+    required List<LlmMessage> history,
+    List<LlmMessage> turnMessages = const [],
+    String language = 'zh',
+    bool previousTaskFinished = false,
+    Set<int> supersededFailureMessageIndexes = const {},
+  }) {
+    final messages = <LlmMessage>[
+      system,
+      LlmMessage.system(
+        '当前状态：${jsonEncode(_summary(state, catalog, language))}',
+      ),
+    ];
+    final combined = [...history, ...turnMessages];
+    final paired = _pairs(combined);
+    // Results from the latest model batch are visible in full exactly once.
+    // A later assistant response proves a model call has consumed them, even
+    // across user turns and before the actions node is completed.
+    final latestAssistant = combined.lastIndexWhere(
+      (message) => message.role == LlmRole.assistant,
+    );
+    final askedMessages = <int>{};
+    int? assistantIndex;
+    for (var index = 0; index < combined.length; index++) {
+      final message = combined[index];
+      if (message.role == LlmRole.assistant) {
+        assistantIndex = index;
+      } else if (message.role == LlmRole.tool) {
+        if (assistantIndex != null &&
+            paired[index]?.name == AgentTools.askUser &&
+            _asked(message.content)) {
+          askedMessages.add(assistantIndex);
+        }
+      } else {
+        assistantIndex = null;
+      }
+    }
+
+    final completed = <String>{
+      for (final node in state.task?.nodes ?? const <CoachNodeState>[])
+        if (node.status == 'done' || node.status == 'updated') node.id,
+    };
+    final completedAt = <String, int>{};
+    for (final entry in paired.entries) {
+      if (entry.value.name != AgentTools.check ||
+          !_ok(combined[entry.key].content)) {
+        continue;
+      }
+      final node = _arguments(entry.value)['node'];
+      if (node is String && completed.contains(node)) {
+        completedAt[node] = entry.key;
+      }
+    }
+    for (var index = 0; index < combined.length; index++) {
+      final message = combined[index];
+      if (previousTaskFinished && index < history.length) {
+        if (message.role == LlmRole.user) {
+          messages.add(message);
+        } else if (message.role == LlmRole.assistant &&
+            message.content.isNotEmpty &&
+            (message.toolCalls.isEmpty || askedMessages.contains(index))) {
+          messages.add(LlmMessage.assistant(message.content));
+        }
+        continue;
+      }
+      if (message.role != LlmRole.tool) {
+        if (message.role != LlmRole.system) messages.add(message);
+        continue;
+      }
+      final call = paired[index];
+      final node = switch (call?.name) {
+        AgentTools.searchActions || AgentTools.getAction => 'actions',
+        AgentTools.draftPlan => 'planning',
+        AgentTools.checkPlan => 'review',
+        _ => null,
+      };
+      final archive =
+          call != null &&
+          call.name != AgentTools.startTask &&
+          ((node != null && (completedAt[node] ?? -1) > index) ||
+              (supersededFailureMessageIndexes.contains(index) &&
+                  _failed(message.content)));
+      final oldActionBatch =
+          call != null &&
+          index < latestAssistant &&
+          (call.name == AgentTools.searchActions ||
+              call.name == AgentTools.getAction) &&
+          _ok(message.content);
+      messages.add(
+        archive
+            ? LlmMessage.tool(message.toolCallId!, archived)
+            : oldActionBatch
+            ? LlmMessage.tool(
+                message.toolCallId!,
+                _archiveActions(call, message.content),
+              )
+            : message,
+      );
+    }
+    return List.unmodifiable(messages);
+  }
+
+  String _archiveActions(LlmToolCall call, String content) {
+    final data = jsonDecode(content) as Map;
+    final items = data['items'];
+    if (items is! List) return archived;
+    final ids = <String>[];
+    for (final item in items) {
+      if (item is! Map || item['id'] is! String) continue;
+      final id = item['id'] as String;
+      final name = item['name'];
+      ids.add(
+        call.name == AgentTools.searchActions && name is String
+            ? '$id $name'
+            : id,
+      );
+    }
+    return call.name == AgentTools.searchActions
+        ? '[已归档] 返回：${ids.join('、')}'
+        : '[已归档] 已查看要领：${ids.join('、')}';
+  }
+
+  /// Find failed results replaced by a later success with the same structured
+  /// target, without using model prose or assuming IDs are globally unique.
+  Set<int> supersededFailures(
+    List<LlmMessage> history, [
+    List<LlmMessage> turnMessages = const [],
+  ]) {
+    final combined = [...history, ...turnMessages];
+    final pending = <String, List<int>>{};
+    final replaced = <int>{};
+    for (final entry in _pairs(combined).entries) {
+      final call = entry.value;
+      final content = combined[entry.key].content;
+      if (call.name == AgentTools.startTask && _ok(content)) {
+        pending.clear();
+        continue;
+      }
+      final key = _target(call);
+      if (key == null) continue;
+      if (_failed(content)) {
+        (pending[key] ??= []).add(entry.key);
+      } else if (_ok(content)) {
+        replaced.addAll(pending.remove(key) ?? const []);
+      }
+    }
+    return replaced;
+  }
+
+  Map<int, LlmToolCall> _pairs(List<LlmMessage> messages) {
+    final pending = <LlmToolCall>[];
+    final result = <int, LlmToolCall>{};
+    for (var index = 0; index < messages.length; index++) {
+      final message = messages[index];
+      if (message.role == LlmRole.assistant) {
+        pending
+          ..clear()
+          ..addAll(message.toolCalls);
+      } else if (message.role == LlmRole.tool) {
+        final position = pending.indexWhere(
+          (call) => call.id == message.toolCallId,
+        );
+        if (position >= 0) result[index] = pending.removeAt(position);
+      }
+    }
+    return result;
+  }
+
+  Map<Object?, Object?> _arguments(LlmToolCall call) {
+    try {
+      final value = jsonDecode(call.arguments);
+      return value is Map ? value : const {};
+    } on FormatException {
+      return const {};
+    }
+  }
+
+  bool? _status(String content) {
+    try {
+      final value = jsonDecode(content);
+      return value is Map && value['ok'] is bool ? value['ok'] as bool : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  bool _ok(String content) => _status(content) == true;
+  bool _failed(String content) => _status(content) == false;
+
+  bool _asked(String content) {
+    try {
+      final value = jsonDecode(content);
+      return value is Map && value['ok'] == true && value['asked'] == true;
+    } on FormatException {
+      return false;
+    }
+  }
+
+  String? _target(LlmToolCall call) {
+    final args = _arguments(call);
+    if (call.name == AgentTools.check) {
+      final node = args['node'];
+      return node is String && node.isNotEmpty ? '${call.name}:$node' : null;
+    }
+    if (call.name == AgentTools.draftPlan ||
+        call.name == AgentTools.checkPlan) {
+      final id = args['plan_id'];
+      return id is String && id.isNotEmpty ? '${call.name}:$id' : null;
+    }
+    if (call.name == AgentTools.searchActions ||
+        call.name == AgentTools.getAction) {
+      if (args.isEmpty) return null;
+      final keys = args.keys.whereType<String>().toList()..sort();
+      if (keys.length != args.length) return null;
+      return '${call.name}:${jsonEncode({for (final key in keys) key: args[key]})}';
+    }
+    return null;
+  }
+
+  Map<String, Object?> _summary(
+    CoachSessionState state,
+    Catalog catalog,
+    String language,
+  ) {
+    final planId = state.activePlanId;
+    final versions = planId == null ? null : state.plans[planId];
+    final latest = versions == null || versions.isEmpty ? null : versions.last;
+    final task = state.task;
+    if (task == null && latest == null) {
+      return {
+        'params': {
+          for (final entry in state.params.entries)
+            entry.key: entry.value.toJson(),
+        },
+      };
+    }
+    if (task?.nodes.lastOrNull?.id == 'output' &&
+        task?.nodes.lastOrNull?.status == 'done') {
+      final actionIds = <String>{};
+      void collect(Object? value) {
+        if (value is Map) {
+          if (value['exerciseId'] case final String id) actionIds.add(id);
+          for (final child in value.values) {
+            collect(child);
+          }
+        } else if (value is List) {
+          for (final child in value) {
+            collect(child);
+          }
+        }
+      }
+
+      collect(latest?.plan);
+      if (latest == null) actionIds.addAll(state.picks);
+      return {
+        'parameters': task!.nodes
+            .where((node) => node.id == 'parameters')
+            .firstOrNull
+            ?.stamp,
+        'plan': latest == null
+            ? null
+            : {
+                'plan_id': planId,
+                'version': latest.version,
+                'title': latest.plan['title'],
+                'estimateSec': latest.estimateSec,
+              },
+        'actions': [
+          for (final id in actionIds) catalog[id]?.name.of(language) ?? id,
+        ],
+      };
+    }
+    return {
+      'format':
+          'task=[type,reused,nodes];nodes=[id,status,stamp,doneAtTurn];picks=[id,name]',
+      'task': task == null
+          ? null
+          : [
+              task.type,
+              task.reused,
+              [
+                for (final node in task.nodes)
+                  [node.id, node.status, node.stamp, node.doneAtTurn],
+              ],
+            ],
+      'params': {
+        for (final entry in state.params.entries)
+          entry.key: entry.value.toJson(),
+      },
+      'picks': [
+        for (final id in state.picks) [id, catalog[id]?.name.of(language)],
+      ],
+      if (planId != null)
+        'plan': {
+          'plan_id': planId,
+          if (latest != null) ...{
+            'version': latest.version,
+            'title': latest.plan['title'],
+            'targetMinutes': latest.plan['targetMinutes'],
+            'estimateSec': latest.estimateSec,
+            'checkOk': latest.check?['ok'],
+          },
+        },
+    };
+  }
+}

@@ -7,28 +7,34 @@ import 'package:ugk_coach/ugk_coach.dart';
 import 'support.dart';
 
 var _seq = 0;
-LlmToolCall _call(String name, Object args) =>
-    LlmToolCall(id: 'c${_seq++}', name: name, arguments: args is String ? args : jsonEncode(args));
+LlmToolCall _call(String name, Object args) => LlmToolCall(
+  id: 'c${_seq++}',
+  name: name,
+  arguments: args is String ? args : jsonEncode(args),
+);
 
-LlmResponse _tools(List<LlmToolCall> calls, [String text = '']) =>
-    LlmResponse(content: text, toolCalls: calls, finishReason: 'tool_calls', model: 'fake');
+LlmResponse _tools(List<LlmToolCall> calls, [String text = '']) => LlmResponse(
+  content: text,
+  toolCalls: calls,
+  finishReason: 'tool_calls',
+  model: 'fake',
+);
 
 LlmResponse _read(String path) => _tools([
   _call('read', {'path': path}),
 ]);
 
-LlmResponse _showActions(List<String> ids, [String text = '这几个动作可以看看。']) => _tools([
-  _call('show_actions', {
-    'ids': ids,
-    'note': text,
-  }),
-], text);
+LlmResponse _showActions(List<String> ids, [String text = '这几个动作可以看看。']) =>
+    _tools([
+      _call('show_actions', {'ids': ids, 'note': text}),
+    ], text);
 
 Map<String, Object?> _okPlan() => planOf(okEnvelope())..remove('source');
 
 /// load 被阻塞的 store：返回调用 load 那一刻的快照。
 class _GatedStore implements UserMemoryStore {
-  _GatedStore([List<MemoryEntry> initial = const []]) : entries = List.of(initial);
+  _GatedStore([List<MemoryEntry> initial = const []])
+    : entries = List.of(initial);
   List<MemoryEntry> entries;
   final _gate = Completer<void>();
   void release() => _gate.complete();
@@ -98,29 +104,45 @@ void main() {
   LlmResponse prepareActions() => _tools([
     _call('start_task', {'type': 'recommend'}),
     _call('check', {'node': 'understand'}),
-    _call('set_params', {'fields': {
-      'scene': {'value': 'home', 'source': 'user', 'quote': '在家'},
-      'equipment': {'value': <String>[], 'source': 'user', 'quote': '徒手'},
-      'goal': {'value': ['body.glute_max'], 'source': 'user', 'quote': '臀部'},
-    }}),
+    _call('set_params', {
+      'fields': {
+        'scene': {'value': 'home', 'source': 'user', 'quote': '在家'},
+        'equipment': {'value': <String>[], 'source': 'user', 'quote': '徒手'},
+        'goal': {
+          'value': ['body.glute_max'],
+          'source': 'user',
+          'quote': '臀部',
+        },
+      },
+    }),
     _call('check', {'node': 'parameters'}),
     for (final id in selected)
-      _call('search_actions', {'tags': <String>[], 'keywords': catalog[id]!.name.of('zh')}),
+      _call('search_actions', {
+        'tags': <String>[],
+        'keywords': catalog[id]!.name.of('zh'),
+      }),
   ]);
-  LlmToolCall selectActions() => _call('check', {'node': 'actions', 'picks': selected});
+  LlmToolCall selectActions() =>
+      _call('check', {'node': 'actions', 'picks': selected});
 
   group('虚拟文件系统', () {
     final fs = SkillFiles.build(hiplab, catalog);
     final scope = {for (final d in hiplab.scope(catalog)) d.id};
 
-    Set<String> idsIn(String path) => {for (final l in fs.read(path)!.split('\n').skip(2)) l.split('｜').first};
+    Set<String> idsIn(String path) => {
+      for (final l in fs.read(path)!.split('\n').skip(2)) l.split('｜').first,
+    };
 
     test('只出现白名单内的动作', () {
-      final outside = catalog.drills.where((d) => !scope.contains(d.id)).map((d) => d.id).toList();
+      final outside = catalog.drills
+          .where((d) => !scope.contains(d.id))
+          .map((d) => d.id)
+          .toList();
       expect(outside, isNotEmpty);
       final details = {
         for (final p in fs.files.keys)
-          if (p.startsWith('action-library/details/')) p.split('/').last.replaceAll('.md', ''),
+          if (p.startsWith('action-library/details/'))
+            p.split('/').last.replaceAll('.md', ''),
       };
       expect(details, scope);
       for (final p in fs.files.keys.where((p) => p.contains('/index/'))) {
@@ -135,7 +157,8 @@ void main() {
       ).intersection(idsIn('action-library/index/equipment/chair.md'));
       final expected = {
         for (final d in hiplab.scope(catalog))
-          if (d.scenes.contains('office') && d.equipment.contains('chair')) d.id,
+          if (d.scenes.contains('office') && d.equipment.contains('chair'))
+            d.id,
       };
       expect(both, expected);
       expect(both, isNotEmpty);
@@ -155,7 +178,10 @@ void main() {
       expect(lib, contains('knee=膝'));
       expect(lib, contains('scene（场所'));
       expect(lib, isNot(contains('{{')));
-      expect(fs.ls(''), containsAll(['action-library/', 'plan-training/', 'user-memory/']));
+      expect(
+        fs.ls(''),
+        containsAll(['action-library/', 'plan-training/', 'user-memory/']),
+      );
       expect(fs.ls('action-library/index'), contains('scene/'));
       final off = SkillFiles.build(hiplab, catalog, memory: false);
       expect(off.read('user-memory/SKILL.md'), isNull);
@@ -185,13 +211,21 @@ void main() {
   });
 
   group('第 1 层', () {
-    test('系统提示词包含作用域内紧凑索引，工具不带 id enum；记忆开关控制工具和摘要', () {
+    test('系统提示词只含技能索引不含动作目录，工具不带 id enum；记忆开关控制工具和摘要', () {
       final fs = SkillFiles.build(hiplab, catalog);
-      final sys = AgentPromptBuilder().system(hiplab, fs, memory: true, memorySummary: '- injury：左膝疼');
-      expect(sys, contains('s-figure4'));
+      final sys = AgentPromptBuilder().system(
+        hiplab,
+        fs,
+        memory: true,
+        memorySummary: '- injury：左膝疼',
+      );
+      expect(sys, isNot(contains('s-figure4')));
       expect(sys, contains(defaultPromptCanary));
       expect(sys, contains('左膝疼'));
-      final tools = jsonEncode([for (final t in AgentTools.build(hiplab, catalog, memory: true)) t.toJson()]);
+      final tools = jsonEncode([
+        for (final t in AgentTools.build(hiplab, catalog, memory: true))
+          t.toJson(),
+      ]);
       expect(tools, isNot(contains('s-figure4')));
       expect(tools, contains('"remember"'));
       final off = AgentPromptBuilder().system(
@@ -202,8 +236,24 @@ void main() {
       );
       expect(off, isNot(contains('左膝疼')));
       expect(off, isNot(contains('remember')));
-      final offTools = AgentTools.build(hiplab, catalog, memory: false).map((t) => t.name);
-      expect(offTools, ['start_task', 'check', 'read', 'ls', 'search_actions', 'get_action', 'draft_plan', 'set_params', 'check_plan', 'show_actions', 'show_plan', 'ask_user']);
+      final offTools = AgentTools.build(
+        hiplab,
+        catalog,
+        memory: false,
+      ).map((t) => t.name);
+      expect(offTools, [
+        'start_task',
+        'check',
+        'read',
+        'search_actions',
+        'get_action',
+        'draft_plan',
+        'set_params',
+        'check_plan',
+        'show_actions',
+        'show_plan',
+        'ask_user',
+      ]);
     });
   });
 
@@ -216,7 +266,10 @@ void main() {
           _call('read', {'path': 'action-library/SKILL.md'}),
         ]),
         prepareActions(),
-        _tools([selectActions(), _call('show_actions', {'ids': selected, 'note': '可以看看这些动作。'})]),
+        _tools([
+          selectActions(),
+          _call('show_actions', {'ids': selected, 'note': '可以看看这些动作。'}),
+        ]),
       ]);
       final a = agent(c);
       final events = <AgentEvent>[];
@@ -225,21 +278,35 @@ void main() {
       expect(r.status, TurnStatus.ok);
       expect(r.actions!.items.map((i) => i.id), selected);
       expect(r.steps, 4);
-      expect(r.reads, ['action-library/SKILL.md', 'action-library/index/muscle/glute-max.md']);
-      expect(r.records.map((x) => x.outcome), [CallOutcome.toolStep, CallOutcome.toolStep, CallOutcome.toolStep, CallOutcome.passed]);
-      // 重复读返回简短提示。
-      final third = c.requests[2].messages.where((m) => m.role == LlmRole.tool).map((m) => m.content).toList();
-      expect(third.last, contains('已读过'));
-      expect(events.where((e) => e.kind != AgentEventKind.node).map((e) => e.kind), [
-        AgentEventKind.thinking,
-        AgentEventKind.reading,
-        AgentEventKind.thinking,
-        AgentEventKind.reading,
-        AgentEventKind.reading,
-        AgentEventKind.thinking,
-        AgentEventKind.thinking,
-        AgentEventKind.done,
+      expect(r.reads, [
+        'action-library/SKILL.md',
+        'action-library/index/muscle/glute-max.md',
       ]);
+      expect(r.records.map((x) => x.outcome), [
+        CallOutcome.toolStep,
+        CallOutcome.toolStep,
+        CallOutcome.toolStep,
+        CallOutcome.passed,
+      ]);
+      // 重复读返回简短提示。
+      final third = c.requests[2].messages
+          .where((m) => m.role == LlmRole.tool)
+          .map((m) => m.content)
+          .toList();
+      expect(third.last, contains('已读过'));
+      expect(
+        events.where((e) => e.kind != AgentEventKind.node).map((e) => e.kind),
+        [
+          AgentEventKind.thinking,
+          AgentEventKind.reading,
+          AgentEventKind.thinking,
+          AgentEventKind.reading,
+          AgentEventKind.reading,
+          AgentEventKind.thinking,
+          AgentEventKind.thinking,
+          AgentEventKind.done,
+        ],
+      );
       expect(a.history.length, 2); // user + delivered visible note
       expect(a.history.last.content, '可以看看这些动作。');
       expect(a.turnCount, 1);
@@ -254,8 +321,15 @@ void main() {
     });
 
     test('步数超限回落', () async {
-      final c = FakeLlmClient([for (var i = 0; i < 3; i++) _read('action-library/details/s-figure4.md')]);
-      final a = agent(c, maxSteps: 3, fallback: (req) => const SessionFallbackReply('模板回复'));
+      final c = FakeLlmClient([
+        for (var i = 0; i < 3; i++)
+          _read('action-library/details/s-figure4.md'),
+      ]);
+      final a = agent(
+        c,
+        maxSteps: 3,
+        fallback: (req) => const SessionFallbackReply('模板回复'),
+      );
       // Action guidance may use a safe text fallback; it must actually enter
       // the model loop instead of stopping at the local planning preflight.
       final r = await a.send('讲解一下这个动作怎么做');
@@ -268,7 +342,8 @@ void main() {
       // silently replace the requested plan with an arbitrary fallback.
       var fallbackCalls = 0;
       final planClient = FakeLlmClient([
-        for (var i = 0; i < 3; i++) _read('action-library/details/s-figure4.md'),
+        for (var i = 0; i < 3; i++)
+          _read('action-library/details/s-figure4.md'),
       ]);
       final planner = agent(
         planClient,
@@ -287,7 +362,9 @@ void main() {
     });
 
     test('网络错回落；没配回落返回 error', () async {
-      final a = agent(FakeLlmClient([const LlmException(LlmErrorKind.network, 'down')]));
+      final a = agent(
+        FakeLlmClient([const LlmException(LlmErrorKind.network, 'down')]),
+      );
       final r = await a.send('在家有瑜伽垫，10分钟排个训练计划');
       expect(r.status, TurnStatus.error);
       expect(r.fallbackReason, FallbackReason.offline);
@@ -297,13 +374,21 @@ void main() {
     test('门禁不过：错误回给模型，重交所选动作后通过', () async {
       final c = FakeLlmClient([
         prepareActions(),
-        _tools([selectActions(), _call('show_actions', {'ids': ['made-up-id'], 'note': '可以看看。'})]),
+        _tools([
+          selectActions(),
+          _call('show_actions', {
+            'ids': ['made-up-id'],
+            'note': '可以看看。',
+          }),
+        ]),
         _showActions([selected.first]),
       ]);
       final r = await agent(c).send('在家徒手推荐臀部动作');
       expect(r.status, TurnStatus.ok);
       expect(r.submissions, 2);
-      expect(r.records.map((x) => x.turnOutcome).toSet(), {TurnOutcome.rewritten});
+      expect(r.records.map((x) => x.turnOutcome).toSet(), {
+        TurnOutcome.rewritten,
+      });
       final fb = jsonDecode(c.requests[2].messages.last.content) as Map;
       expect(fb['ok'], false);
       expect(fb['code'], 'unpicked_actions');
@@ -313,8 +398,14 @@ void main() {
     test('白名单外的 id 不能通过详情工具或进入所选动作', () async {
       final c = FakeLlmClient([
         prepareActions(),
-        _tools([_call('get_action', {'ids': ['abs-A']})]),
-        _tools([_call('ask_user', {'question': '还需要其他帮助吗？', 'mode': 'text'})]),
+        _tools([
+          _call('get_action', {
+            'ids': ['abs-A'],
+          }),
+        ]),
+        _tools([
+          _call('ask_user', {'question': '还需要其他帮助吗？', 'mode': 'text'}),
+        ]),
       ]);
       final a = agent(c);
       final r = await a.send('在家徒手推荐臀部动作');
@@ -344,40 +435,80 @@ void main() {
         _tools([
           _call('start_task', {'type': 'plan'}),
           _call('check', {'node': 'understand'}),
-          _call('set_params', {'fields': {
-            'scene': {'value': _okPlan()['scene'], 'source': 'user', 'quote': '在家'},
-            'equipment': {'value': ['equip.mat'], 'source': 'user', 'quote': '瑜伽垫'},
-            'goal': {'value': ['body.inner_thigh'], 'source': 'user', 'quote': '大腿内侧'},
-            'minutes': {'value': 5, 'source': 'user', 'quote': '5分钟'},
-          }}),
+          _call('set_params', {
+            'fields': {
+              'scene': {
+                'value': _okPlan()['scene'],
+                'source': 'user',
+                'quote': '在家',
+              },
+              'equipment': {
+                'value': ['equip.mat'],
+                'source': 'user',
+                'quote': '瑜伽垫',
+              },
+              'goal': {
+                'value': ['body.inner_thigh'],
+                'source': 'user',
+                'quote': '大腿内侧',
+              },
+              'minutes': {'value': 5, 'source': 'user', 'quote': '5分钟'},
+            },
+          }),
           _call('check', {'node': 'parameters'}),
           for (final id in ids)
-            _call('search_actions', {'tags': <String>[], 'keywords': catalog[id]!.name.of('zh')}),
+            _call('search_actions', {
+              'tags': <String>[],
+              'keywords': catalog[id]!.name.of('zh'),
+            }),
         ]),
         (LlmRequest request) {
-          final searchResults = request.messages.where((m) => m.role == LlmRole.tool)
-              .map((m) => m.content).where((v) => v.contains('"items"'))
-              .map((v) => jsonDecode(v) as Map).toList();
+          final searchResults = request.messages
+              .where((m) => m.role == LlmRole.tool)
+              .map((m) => m.content)
+              .where((v) => v.contains('"items"'))
+              .map((v) => jsonDecode(v) as Map)
+              .toList();
           expect(searchResults, hasLength(3));
           for (var i = 0; i < ids.length; i++) {
-            expect((searchResults[i]['items'] as List).map((e) => (e as Map)['id']), contains(ids[i]));
+            expect(
+              (searchResults[i]['items'] as List).map((e) => (e as Map)['id']),
+              contains(ids[i]),
+            );
           }
+          final startCall = request.messages
+              .where((m) => m.role == LlmRole.tool)
+              .map((m) => m.content)
+              .where((v) => v.contains('"skills"'))
+              .single;
+          planId = (jsonDecode(startCall) as Map)['plan_id'] as String;
           return _tools([
             _call('check', {'node': 'actions', 'picks': ids}),
             _call('draft_plan', {
+              'plan_id': planId,
               'title': '大腿内侧训练',
-              'blocks': [{'kind': 'main', 'items': [for (final id in ids) {'id': id}]}],
+              'blocks': [
+                {
+                  'kind': 'main',
+                  'items': [
+                    for (final id in ids) {'id': id},
+                  ],
+                },
+              ],
             }),
             _call('check', {'node': 'planning'}),
           ]);
         },
         (LlmRequest request) {
-          final replies = request.messages.where((m) => m.role == LlmRole.tool).toList();
-          final draft = jsonDecode(replies[replies.length - 2].content) as Map;
-          expect(draft['ok'], isTrue, reason: '$draft');
-          planId = draft['plan_id'] as String;
+          final replies = request.messages
+              .where((m) => m.role == LlmRole.tool)
+              .toList();
+          expect(replies[replies.length - 2].content, '[已归档，见当前状态]');
+          expect(request.messages[1].content, contains('"plan_id":"$planId"'));
           expect((jsonDecode(replies.last.content) as Map)['ok'], isTrue);
-          return _tools([_call('check_plan', {'plan_id': '不存在的计划'})]);
+          return _tools([
+            _call('check_plan', {'plan_id': '不存在的计划'}),
+          ]);
         },
         (LlmRequest request) {
           final invalid = jsonDecode(request.messages.last.content) as Map;
@@ -385,17 +516,22 @@ void main() {
           expect(invalid['code'], 'invalid_plan_id');
           expect(invalid['field'], 'plan_id');
           expect(invalid['actual'], '不存在的计划');
-          return _tools([_call('check_plan', {'plan_id': planId})]);
+          return _tools([
+            _call('check_plan', {'plan_id': planId}),
+          ]);
         },
         (LlmRequest request) {
           final checked = jsonDecode(request.messages.last.content) as Map;
           expect(checked['ok'], isTrue, reason: '$checked');
           expect(checked['summary'], isA<String>());
-          return _tools([_call('ask_user', {'question': '还有其他要求吗？', 'mode': 'text'})]);
+          return _tools([
+            _call('ask_user', {'question': '还有其他要求吗？', 'mode': 'text'}),
+          ]);
         },
       ], latency: Duration.zero);
       final events = <AgentEventKind>[];
-      final a = agent(c, memory: false)..events.listen((e) => events.add(e.kind));
+      final a = agent(c, memory: false)
+        ..events.listen((e) => events.add(e.kind));
       addTearDown(a.dispose);
       final r = await a.send('在家有瑜伽垫，5分钟练大腿内侧');
       expect(r.question, isNotNull, reason: '${r.error}; ${r.issues}');
@@ -485,7 +621,9 @@ void main() {
     });
 
     test('关：没有 remember 工具，调用被当成未知工具，不写记忆', () async {
-      final store = InMemoryUserMemoryStore([MemoryEntry(MemoryKind.goal, '想劈叉', at: DateTime.utc(2026))]);
+      final store = InMemoryUserMemoryStore([
+        MemoryEntry(MemoryKind.goal, '想劈叉', at: DateTime.utc(2026)),
+      ]);
       final c = FakeLlmClient([
         _tools([
           _call('remember', {'kind': 'injury', 'text': '左膝疼'}),
@@ -495,9 +633,16 @@ void main() {
       final a = agent(c, store: store, memory: false);
       final r = await a.send('我左膝疼');
       expect(r.status, TurnStatus.ok);
-      expect(c.requests.first.tools.map((t) => t.name), isNot(contains('remember')));
+      expect(
+        c.requests.first.tools.map((t) => t.name),
+        isNot(contains('remember')),
+      );
       expect(c.requests.first.messages.first.content, isNot(contains('想劈叉')));
-      expect((jsonDecode(c.requests[1].messages.last.content) as Map<String, Object?>)['code'], 'unknown_tool');
+      expect(
+        (jsonDecode(c.requests[1].messages.last.content)
+            as Map<String, Object?>)['code'],
+        'unknown_tool',
+      );
       expect(store.entries.map((e) => e.text), ['想劈叉']);
       // 运行时打开
       a.enableUserMemory = true;
@@ -505,27 +650,59 @@ void main() {
     });
 
     test('去重替换、每类条数与总长度上限', () {
-      const lim = MemoryLimits(perKind: 2, maxTotalChars: 20, maxEntryChars: 10);
+      const lim = MemoryLimits(
+        perKind: 2,
+        maxTotalChars: 20,
+        maxEntryChars: 10,
+      );
       final t = DateTime.utc(2026);
       var m = <MemoryEntry>[];
-      m = UserMemoryOps.remember(m, MemoryEntry(MemoryKind.injury, '左膝疼', at: t), lim);
-      m = UserMemoryOps.remember(m, MemoryEntry(MemoryKind.injury, '左膝疼，跑步后', at: t), lim);
+      m = UserMemoryOps.remember(
+        m,
+        MemoryEntry(MemoryKind.injury, '左膝疼', at: t),
+        lim,
+      );
+      m = UserMemoryOps.remember(
+        m,
+        MemoryEntry(MemoryKind.injury, '左膝疼，跑步后', at: t),
+        lim,
+      );
       expect(m.map((e) => e.text), ['左膝疼，跑步后']);
-      m = UserMemoryOps.remember(m, MemoryEntry(MemoryKind.injury, '腰酸', at: t), lim);
-      m = UserMemoryOps.remember(m, MemoryEntry(MemoryKind.injury, '肩紧', at: t), lim);
+      m = UserMemoryOps.remember(
+        m,
+        MemoryEntry(MemoryKind.injury, '腰酸', at: t),
+        lim,
+      );
+      m = UserMemoryOps.remember(
+        m,
+        MemoryEntry(MemoryKind.injury, '肩紧', at: t),
+        lim,
+      );
       expect(m.map((e) => e.text), ['腰酸', '肩紧']);
-      m = UserMemoryOps.remember(m, MemoryEntry(MemoryKind.goal, '一二三四五六七八九十十一', at: t), lim);
+      m = UserMemoryOps.remember(
+        m,
+        MemoryEntry(MemoryKind.goal, '一二三四五六七八九十十一', at: t),
+        lim,
+      );
       expect(m.last.text.length, 10);
       expect(m.fold(0, (s, e) => s + e.text.length), lessThanOrEqualTo(20));
-      expect(UserMemoryOps.forget(m, text: '腰酸').map((e) => e.text), isNot(contains('腰酸')));
+      expect(
+        UserMemoryOps.forget(m, text: '腰酸').map((e) => e.text),
+        isNot(contains('腰酸')),
+      );
     });
   });
 
   group('审核回归（PR #4）', () {
-    final skillText = SkillFiles.build(hiplab, catalog).read('user-memory/SKILL.md')!;
+    final skillText = SkillFiles.build(
+      hiplab,
+      catalog,
+    ).read('user-memory/SKILL.md')!;
 
     test('[P1] clearMemory 作废在途的首次 load：缓存、store、下一轮摘要都不恢复', () async {
-      final store = _GatedStore([MemoryEntry(MemoryKind.injury, '旧记忆', at: DateTime.utc(2026))]);
+      final store = _GatedStore([
+        MemoryEntry(MemoryKind.injury, '旧记忆', at: DateTime.utc(2026)),
+      ]);
       final c = FakeLlmClient(['好的。']);
       final a = agent(c, store: store);
       final pending = a.memory();
@@ -563,7 +740,9 @@ void main() {
     });
 
     test('[P2] 当前轮中途关闭记忆：后续请求去掉摘要、记忆工具、技能项与已读正文，丢弃暂存操作', () async {
-      final store = InMemoryUserMemoryStore([MemoryEntry(MemoryKind.goal, '想劈叉', at: DateTime.utc(2026))]);
+      final store = InMemoryUserMemoryStore([
+        MemoryEntry(MemoryKind.goal, '想劈叉', at: DateTime.utc(2026)),
+      ]);
       late CoachAgent a;
       final c = FakeLlmClient([
         (_) {
@@ -581,8 +760,14 @@ void main() {
       expect(c.requests[0].messages.first.content, contains('想劈叉'));
       final second = c.requests[1];
       expect(second.messages.first.content, isNot(contains('想劈叉')));
-      expect(second.messages.first.content, isNot(contains('user-memory/SKILL.md')));
-      expect(second.tools.map((t) => t.name), isNot(anyOf(contains('remember'), contains('forget'))));
+      expect(
+        second.messages.first.content,
+        isNot(contains('user-memory/SKILL.md')),
+      );
+      expect(
+        second.tools.map((t) => t.name),
+        isNot(anyOf(contains('remember'), contains('forget'))),
+      );
       final all = second.messages.map((m) => m.content).join('\n');
       expect(all, isNot(contains(skillText)));
       expect(all, contains('用户记忆已关闭'));
@@ -597,7 +782,9 @@ void main() {
 
     test('[P2] 等首个响应时关闭记忆、模型仍调 forget：下一次请求序列化后不含记忆调用参数与回复', () async {
       const sentinel = 'stored-only-private-sentinel';
-      final store = InMemoryUserMemoryStore([MemoryEntry(MemoryKind.goal, sentinel, at: DateTime.utc(2026))]);
+      final store = InMemoryUserMemoryStore([
+        MemoryEntry(MemoryKind.goal, sentinel, at: DateTime.utc(2026)),
+      ]);
       late CoachAgent a;
       final c = FakeLlmClient([
         (_) {
@@ -621,7 +808,9 @@ void main() {
         final w = wire(req);
         expect(w, isNot(contains(sentinel)));
         // 协议有效：每个 tool 回复都对应前面 assistant 的某个调用。
-        final ids = {for (final m in req.messages) ...m.toolCalls.map((t) => t.id)};
+        final ids = {
+          for (final m in req.messages) ...m.toolCalls.map((t) => t.id),
+        };
         for (final m in req.messages.where((m) => m.role == LlmRole.tool)) {
           expect(ids, contains(m.toolCallId));
         }
@@ -632,7 +821,9 @@ void main() {
 
     test('[P2] 记忆加载挂起期间关闭记忆：放行后请求按当前开关重建，无摘要/记忆工具/技能项', () async {
       const sentinel = 'stored-only-private-sentinel';
-      final store = _FlakyGatedStore([MemoryEntry(MemoryKind.goal, sentinel, at: DateTime.utc(2026))]);
+      final store = _FlakyGatedStore([
+        MemoryEntry(MemoryKind.goal, sentinel, at: DateTime.utc(2026)),
+      ]);
       late CoachAgent a;
       final c = FakeLlmClient([
         _tools([
@@ -650,25 +841,45 @@ void main() {
       final w = wire(c.requests[1]);
       expect(w, isNot(contains(sentinel)));
       expect(w, isNot(contains('user-memory/SKILL.md')));
-      expect(c.requests[1].messages.first.content, isNot(contains('user-memory')));
-      expect(c.requests[1].tools.map((t) => t.name), isNot(anyOf(contains('remember'), contains('forget'))));
+      expect(
+        c.requests[1].messages.first.content,
+        isNot(contains('user-memory')),
+      );
+      expect(
+        c.requests[1].tools.map((t) => t.name),
+        isNot(anyOf(contains('remember'), contains('forget'))),
+      );
     });
 
-    test('[P2] 中间工具轮的暗号（含 Unicode 转义）：remember(other, 暗号) 后干净文字 → 回落、不写记忆', () async {
-      final store = InMemoryUserMemoryStore();
-      const cn = defaultPromptCanary;
-      final escaped = '\\u${cn.codeUnitAt(0).toRadixString(16).padLeft(4, '0')}${cn.substring(1)}';
-      final c = FakeLlmClient([
-        _tools([LlmToolCall(id: 'm1', name: 'remember', arguments: '{"kind":"other","text":"$escaped"}')]),
-        '好的。',
-      ]);
-      final r = await agent(c, store: store, fallback: (_) => const SessionFallbackReply('t')).send('x');
-      expect(r.status, TurnStatus.fallback);
-      expect(r.leaked, isTrue);
-      expect(c.requests.length, 1);
-      await Future<void>.delayed(Duration.zero);
-      expect(store.entries, isEmpty);
-    });
+    test(
+      '[P2] 中间工具轮的暗号（含 Unicode 转义）：remember(other, 暗号) 后干净文字 → 回落、不写记忆',
+      () async {
+        final store = InMemoryUserMemoryStore();
+        const cn = defaultPromptCanary;
+        final escaped =
+            '\\u${cn.codeUnitAt(0).toRadixString(16).padLeft(4, '0')}${cn.substring(1)}';
+        final c = FakeLlmClient([
+          _tools([
+            LlmToolCall(
+              id: 'm1',
+              name: 'remember',
+              arguments: '{"kind":"other","text":"$escaped"}',
+            ),
+          ]),
+          '好的。',
+        ]);
+        final r = await agent(
+          c,
+          store: store,
+          fallback: (_) => const SessionFallbackReply('t'),
+        ).send('x');
+        expect(r.status, TurnStatus.fallback);
+        expect(r.leaked, isTrue);
+        expect(c.requests.length, 1);
+        await Future<void>.delayed(Duration.zero);
+        expect(store.entries, isEmpty);
+      },
+    );
 
     test('[P2] read 调用同时正文含暗号 → 不执行工具、回落', () async {
       final events = <AgentEventKind>[];
@@ -678,7 +889,8 @@ void main() {
         ], '先看看 $defaultPromptCanary'),
         '好的。',
       ]);
-      final a = agent(c, fallback: (_) => const SessionFallbackReply('t'))..events.listen((e) => events.add(e.kind));
+      final a = agent(c, fallback: (_) => const SessionFallbackReply('t'))
+        ..events.listen((e) => events.add(e.kind));
       final r = await a.send('x');
       expect(r.status, TurnStatus.fallback);
       expect(r.leaked, isTrue);
@@ -714,7 +926,11 @@ void main() {
       );
       final token = CancelToken();
       final sink = MemoryUsageSink();
-      final c = FakeLlmClient([rd('action-library/SKILL.md'), rd('plan-training/SKILL.md'), '不该到这']);
+      final c = FakeLlmClient([
+        rd('action-library/SKILL.md'),
+        rd('plan-training/SKILL.md'),
+        '不该到这',
+      ]);
       final a = agent(c, usage: sink);
       a.events.listen((e) {
         if (e.kind == AgentEventKind.thinking && e.step == 3) token.cancel();
@@ -738,11 +954,17 @@ void main() {
         final p = loadProfile(id);
         final fs = SkillFiles.build(p, catalog);
         final scope = {for (final d in p.scope(catalog)) d.id};
-        for (final path in fs.files.keys.where((k) => k.startsWith('action-library/details/'))) {
+        for (final path in fs.files.keys.where(
+          (k) => k.startsWith('action-library/details/'),
+        )) {
           for (final m in altRe.allMatches(fs.files[path]!)) {
             final alt = m.group(1)!;
             expect(scope, contains(alt), reason: '$id $path');
-            expect(fs.read('action-library/details/$alt.md'), isNotNull, reason: '$id $path');
+            expect(
+              fs.read('action-library/details/$alt.md'),
+              isNotNull,
+              reason: '$id $path',
+            );
           }
         }
       }

@@ -23,11 +23,11 @@ void main() {
   // 0.4 ask_user tool; its schema is covered separately. Memory isolation is below.
   const fingerprints = <String, String>{
     'flarelab':
-        '47d96cd002b75fbae206b545929a68658d59faf69c56711f1956b522bc71235c',
+        'df1c816c7c8cf263760f51dc031143861ca7f0200ea07574207fa25fc6841839',
     'hiplab':
-        '47d96cd002b75fbae206b545929a68658d59faf69c56711f1956b522bc71235c',
+        'df1c816c7c8cf263760f51dc031143861ca7f0200ea07574207fa25fc6841839',
     'smartfit':
-        '47d96cd002b75fbae206b545929a68658d59faf69c56711f1956b522bc71235c',
+        'df1c816c7c8cf263760f51dc031143861ca7f0200ea07574207fa25fc6841839',
   };
 
   for (final entry in fingerprints.entries) {
@@ -56,7 +56,8 @@ void main() {
         expect(system, isNot(contains('# 用户记忆（')));
         expect(system, isNot(contains('remember')));
         expect(system, isNot(contains('forget')));
-        expect(system, contains('排计划快路径'));
+        expect(system, contains('plan-training/SKILL.md'));
+        expect(system, isNot(contains('<!-- fast-path:')));
       },
     );
   }
@@ -71,10 +72,15 @@ void main() {
         memory: true,
         memorySummary: '- goal：长期提升力量',
       );
-      expect(system, contains('必须先用 read 读 user-memory/SKILL.md'));
-      expect(system, contains('只有记忆工具返回 ok=true 后才能确认'));
-      expect(system, contains('不把 App 条件、预选、模型推断或一次临时请求当作长期习惯'));
-      expect(system, contains('历史习惯只能作为预选'));
+      expect(system, contains('记忆工具先读 user-memory/SKILL.md'));
+      expect(system, contains('成功后才确认'));
+      expect(system, contains('习惯只作预选'));
+      final skill = SkillFiles.build(
+        profile,
+        catalog,
+      ).read('user-memory/SKILL.md')!;
+      expect(skill, contains('用户'));
+      expect(skill, contains('长期'));
       expect(system, contains('长期提升力量'));
     },
   );

@@ -93,8 +93,13 @@ class ActionSearch {
       );
     }
     final query = keywords.trim().toLowerCase();
+    final expandedTags = [
+      for (final tag in tags) gate.tags.expandCodes([tag]),
+    ];
     bool matches(Drill drill) =>
-        tags.every(gate.tags.forAction(drill).contains) &&
+        expandedTags.every(
+          (group) => gate.tags.forAction(drill).intersection(group).isNotEmpty,
+        ) &&
         (query.isEmpty ||
             [
               ...drill.name.values.values,
@@ -136,10 +141,24 @@ class ActionSearch {
     final limitsLabel = limits.isEmpty
         ? (en ? 'no restrictions' : '无伤痛')
         : limits.map((v) => gate.tags.limitValue(v) ?? v).join(en ? ', ' : '、');
-    final summary = en
-        ? 'Filtered by $scene / $equipmentLabel / $limitsLabel; $hiddenGear matching actions need other equipment.'
-        : '已按 $scene / $equipmentLabel / $limitsLabel 过滤，另有 $hiddenGear 个需要器材的动作未显示。';
-    final items = [for (final drill in selected) _row(drill, language)];
+    final repeated = selected
+        .where((drill) => state.seenActionIds.contains(drill.id))
+        .length;
+    final summary =
+        (en
+            ? 'Filtered by $scene / $equipmentLabel / $limitsLabel; $hiddenGear matching actions need other equipment.'
+            : '已按 $scene / $equipmentLabel / $limitsLabel 过滤，另有 $hiddenGear 个需要器材的动作未显示。') +
+        (repeated == 0
+            ? ''
+            : en
+            ? ' The following $repeated IDs were returned before.'
+            : '以下 $repeated 个之前已返回，仅列 id。');
+    final items = [
+      for (final drill in selected)
+        state.seenActionIds.contains(drill.id)
+            ? <String, Object?>{'id': drill.id}
+            : _row(drill, language),
+    ];
     return ActionSearchResult(
       state.copyWith(
         seenActionIds: {...state.seenActionIds, for (final d in selected) d.id},

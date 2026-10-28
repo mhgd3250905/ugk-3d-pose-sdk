@@ -16,6 +16,7 @@ import 'plan_builder.dart';
 import 'plan_checker.dart';
 import 'session_params.dart';
 import 'session_state.dart';
+import 'skill_files.dart';
 import 'user_memory.dart';
 
 part 'draft_tool_handler.dart';
@@ -46,12 +47,14 @@ class StructuredToolHandler {
     required this.newPlanId,
     this.extraRules = const [],
     this.enforceDrillDoseRange = false,
+    this.files,
   });
   final CoachProfile profile;
   final Catalog catalog;
   final String Function() newPlanId;
   final List<PlanRule> extraRules;
   final bool enforceDrillDoseRange;
+  final SkillFiles? files;
 
   Object? _decode(String raw) {
     try {

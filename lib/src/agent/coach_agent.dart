@@ -36,6 +36,7 @@ import 'agent_prompt.dart';
 import 'agent_resilience.dart';
 import 'agent_task.dart';
 import 'batch_handler.dart';
+import 'context_compactor.dart';
 import 'node_gates.dart';
 import 'session_params.dart';
 import 'session_state.dart';
@@ -461,6 +462,7 @@ class CoachAgent {
     String? focusHint,
     String? goalHint,
     List<String> restoredUserTurns = const [],
+    List<LlmMessage> restoredMessages = const [],
   }) {
     final plan = admitted.plan;
     final stored = planState?.planId == plan.id ? planState : null;
@@ -486,7 +488,6 @@ class CoachAgent {
       if (restored.ok) _sessionState = restored.state;
       for (final text in restoredUserTurns) {
         _sessionState = _sessionState.appendUserTurn(text);
-        _history.add(LlmMessage.user(text));
       }
     }
     if (stored?.sessionState == null && _sessionState.lastDeliveredPlanId == null) {
@@ -533,12 +534,12 @@ class CoachAgent {
     _planParameterMessages
       ..clear()
       ..add('已恢复的当前计划');
-    _history.add(
-      LlmMessage.assistant(
-        '已恢复的当前计划（供后续调整使用）：${jsonEncode(plan.toJson())}',
-        reasoning: '',
-      ),
-    );
+    if (restoredMessages.isNotEmpty) {
+      _history.addAll(restoredMessages);
+    } else {
+      _history.addAll(_sessionState.userTurns.map((turn) => LlmMessage.user(turn.text)));
+    }
+    _history.add(LlmMessage.assistant('已恢复当前计划：${plan.title}（${plan.id}）', reasoning: ''));
   }
 
   /// The still-active local confirmation, including while unrelated chat is
@@ -928,6 +929,8 @@ class CoachAgent {
     Map<String, List<String>>? confirmedForm,
   ) async {
     bool dead() => gen != _generation || (cancel?.isCancelled ?? false);
+    final previousTaskFinished = _sessionState.task?.nodes.lastOrNull?.status == 'done';
+    const compactor = ContextCompactor();
     // 清除记忆也作废本轮先前请求取得的记忆操作；下一轮才重新允许记忆。
     final turnMemoryEpoch = _memEpoch;
     bool memoryAllowed() => enableUserMemory && turnMemoryEpoch == _memEpoch;
@@ -1538,25 +1541,26 @@ class CoachAgent {
           break;
         }
         compress();
+        final safeHistory = memOff
+            ? _withoutMemory(_history, const {}, privateReasoning: _memoryReasoning)
+            : _history;
+        final currentMessages = <LlmMessage>[
+          userMsg,
+          ...(memOff
+              ? _withoutMemory(turnMsgs, memResultIds, privateReasoning: memoryReasoning)
+              : turnMsgs),
+        ];
         final req = LlmRequest(
-          messages: [
-            LlmMessage.system(system),
-            ...(memOff
-                ? _withoutMemory(
-                    _history,
-                    const {},
-                    privateReasoning: _memoryReasoning,
-                  )
-                : _history),
-            userMsg,
-            ...(memOff
-                ? _withoutMemory(
-                    turnMsgs,
-                    memResultIds,
-                    privateReasoning: memoryReasoning,
-                  )
-                : turnMsgs),
-          ],
+          messages: compactor.compose(
+            system: LlmMessage.system(system),
+            state: _sessionState,
+            catalog: cat,
+            history: safeHistory,
+            turnMessages: currentMessages,
+            language: context.language,
+            previousTaskFinished: previousTaskFinished,
+            supersededFailureMessageIndexes: compactor.supersededFailures(safeHistory, currentMessages),
+          ),
           tools: tools,
           toolChoice: 'auto',
         );
@@ -1802,7 +1806,7 @@ class CoachAgent {
       final batch = ToolBatch();
       final structured = StructuredToolHandler(profile, cat,
           newPlanId: () => _ids.next('plan'), extraRules: extraRules,
-          enforceDrillDoseRange: enforceDrillDoseRange);
+          enforceDrillDoseRange: enforceDrillDoseRange, files: fs);
       final skills = SkillToolHandler(fs, readSet, reads, listed);
       final terminal = TerminalToolHandler(gate);
       final results = batch.results;

@@ -81,6 +81,15 @@ void main() {
             _call('detail', 'get_action', {
               'ids': [detailOnly],
             }),
+          ]);
+        },
+        (LlmRequest request) {
+          final detail = _feedback(request, 'detail');
+          expect(detail['ok'], isTrue);
+          final items = (detail['items'] as List).cast<Map<String, Object?>>();
+          expect(items.single['id'], detailOnly);
+          expect(items.single, contains('cues'));
+          return _calls([
             _call('check', 'check', {'node': 'actions', 'picks': returned}),
           ]);
         },
@@ -131,7 +140,12 @@ void main() {
         reason:
             'status=${second.status}; records=${second.records.map((r) => r.toJson()).toList()}; requests=${client.requests.length}',
       );
-      expect(_feedback(client.requests.last, 'detail')['ok'], isTrue);
+      expect(
+        client.requests.last.messages
+            .singleWhere((message) => message.toolCallId == 'detail')
+            .content,
+        '[已归档，见当前状态]',
+      );
       expect(_feedback(client.requests.last, 'check')['ok'], isTrue);
       expect(coach.sessionState.seenActionIds, returned.toSet());
       expect(coach.sessionState.seenActionIds, isNot(contains(detailOnly)));

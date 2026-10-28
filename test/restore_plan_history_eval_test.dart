@@ -180,13 +180,18 @@ void main() {
             .join('\n');
         expect(
           requestText,
-          contains('s-kneel-hipflex'),
+          contains(catalog['s-kneel-hipflex']!.name.of('zh')),
           reason: 'model must see the previous plan, including actions',
         );
         expect(
           requestText,
+          isNot(contains('workSeconds')),
+          reason: 'the restored request contains a summary, not full plan JSON',
+        );
+        expect(
+          jsonEncode(c.agent.sessionState.plans),
           contains('workSeconds'),
-          reason: 'previous doses must be restored too',
+          reason: 'full plan doses remain in the persisted state',
         );
       },
     );

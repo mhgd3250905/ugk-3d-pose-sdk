@@ -35,6 +35,35 @@ extension TaskToolHandler on StructuredToolHandler {
         ),
       );
     }
+    Map<String, String>? taskSkills;
+    if (tool == AgentTools.startTask &&
+        {'recommend', 'plan'}.contains(args['type'])) {
+      final names = <String>[
+        SkillFiles.ask,
+        SkillFiles.actionLibrary,
+        if (args['type'] == 'plan') SkillFiles.planTraining,
+      ];
+      final missing = names
+          .where((name) => files?.read('$name/SKILL.md') == null)
+          .toList();
+      if (missing.isNotEmpty) {
+        return StructuredToolResult(
+          state,
+          jsonEncode(
+            nodeError(
+              'skills_unavailable',
+              'skills',
+              names,
+              missing,
+              '恢复当前任务所需的技能文件。',
+            ),
+          ),
+        );
+      }
+      taskSkills = {
+        for (final name in names) name: files!.read('$name/SKILL.md')!,
+      };
+    }
     final result = tool == AgentTools.startTask
         ? AgentTask.start(
             state,
@@ -65,6 +94,9 @@ extension TaskToolHandler on StructuredToolHandler {
             {
               'ok': true,
               'task': next.task?.toJson(),
+              'skills': ?taskSkills,
+              if (taskSkills != null)
+                'profile': {'focus': profile.focus, 'rules': profile.rules},
               if (tool == AgentTools.startTask && next.task?.type == 'plan')
                 'plan_id': next.activePlanId,
               if (result.warnings.isNotEmpty) 'warnings': result.warnings,

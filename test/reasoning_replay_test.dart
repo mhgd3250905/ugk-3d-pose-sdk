@@ -89,7 +89,6 @@ void main() {
         },
       ],
     }),
-    _tool('planning', 'check', {'node': 'planning'}),
   ];
   Map<String, dynamic> toolResult(Map<dynamic, dynamic> body, String id) {
     final messages = (body['messages'] as List).cast<Map<String, dynamic>>();
@@ -130,7 +129,7 @@ void main() {
     }
   });
 
-  test('HTTP 请求体：Agent 在 v2 工具链与跨轮交付中保留推理', () async {
+  test('HTTP 请求体：Agent 进行中保留推理，交付后仅保留可见历史', () async {
     final expected = <List<String>>[
       [],
       ['read-reasoning'],
@@ -149,10 +148,10 @@ void main() {
         'draft-reasoning',
         'check-reasoning',
       ],
-      ['plan-reasoning'],
-      ['plan-reasoning', 'plain-reasoning'],
-      ['plan-reasoning', 'plain-reasoning', 'recommend-reasoning'],
-      ['plan-reasoning', 'plain-reasoning', 'actions-reasoning'],
+      [''],
+      ['', ''],
+      ['', '', 'recommend-reasoning'],
+      ['', '', ''],
     ];
     var step = 0;
     late String planId;
@@ -184,11 +183,22 @@ void main() {
             expect(result['ok'], isTrue, reason: '$result');
             planId = result['plan_id'] as String;
             return _message('', 'check-reasoning', [
+              _tool('planning', 'check', {'node': 'planning'}),
               _tool('check-plan', 'check_plan', {'plan_id': planId}),
             ]);
           }(),
           5 => () {
-            expect(toolResult(body, 'check-plan')['ok'], isTrue);
+            expect(toolResult(body, 'planning')['ok'], isTrue);
+            expect(
+              (body['messages'] as List)
+                  .cast<Map<String, Object?>>()
+                  .singleWhere(
+                    (message) => message['tool_call_id'] == 'draft',
+                  )['content'],
+              '[已归档，见当前状态]',
+            );
+            final checked = toolResult(body, 'check-plan');
+            expect(checked['ok'], isTrue, reason: '$checked');
             return _message('正文应被忽略', 'plan-reasoning', [
               _tool('review', 'check', {'node': 'review'}),
               _tool('show-plan', 'show_plan', {
@@ -276,7 +286,7 @@ void main() {
             <String>[],
             ['setup-reasoning'],
             ['setup-reasoning', 'rejected-reasoning'],
-            ['accepted-reasoning'],
+            [''],
           ];
           var step = 0;
           final client = OpenAiCompatibleClient(
@@ -373,7 +383,7 @@ void main() {
     );
   }
 
-  test('记忆从未开启：读库、自检、最终历史的 reasoning_content 完整回传', () async {
+  test('记忆从未开启：进行中推理完整回传，交付后的推理被移除', () async {
     final expected = <List<String>>[
       [],
       ['library-reasoning'],
@@ -385,7 +395,7 @@ void main() {
         'draft-reasoning',
         'checking-reasoning',
       ],
-      ['final-reasoning'],
+      [''],
     ];
     var step = 0;
     late String planId;
@@ -409,11 +419,13 @@ void main() {
             expect(draft['ok'], isTrue, reason: '$draft');
             planId = draft['plan_id'] as String;
             return _message('', 'checking-reasoning', [
+              _tool('planning', 'check', {'node': 'planning'}),
               _tool('check-plan', 'check_plan', {'plan_id': planId}),
             ]);
           }(),
           4 => () {
-            expect(toolResult(body, 'check-plan')['ok'], isTrue);
+            final checked = toolResult(body, 'check-plan');
+            expect(checked['ok'], isTrue, reason: '$checked');
             return _message('', 'final-reasoning', [
               _tool('review', 'check', {'node': 'review'}),
               _tool('plan', 'show_plan', {'plan_id': planId, 'note': '轻柔开始。'}),
@@ -433,7 +445,8 @@ void main() {
     );
     addTearDown(client.close);
     addTearDown(agent.dispose);
-    expect((await agent.send('在家徒手，5分钟训练大腿内侧')).plan, isNotNull);
+    final delivered = await agent.send('在家徒手，5分钟训练大腿内侧');
+    expect(delivered.plan, isNotNull, reason: '${delivered.error}');
     expect((await agent.send('谢谢')).status, TurnStatus.ok);
     expect(step, 6);
   });

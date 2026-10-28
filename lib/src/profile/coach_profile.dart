@@ -342,6 +342,7 @@ class CoachProfile {
     this.minActions = 3,
     this.planRules = const PlanRules(),
     this.legacyGoalMap = const [],
+    this.bodyGroups = const {},
     this.assetApps = const [],
     this.vars = const {},
     this.skills = const [],
@@ -377,6 +378,10 @@ class CoachProfile {
 
   /// Ordered structured-to-legacy goal rules, including an explicit fallback.
   final List<Map<String, Object?>> legacyGoalMap;
+
+  /// Catalogue body-code hierarchy when the catalogue has no parent links.
+  /// Keys are parents; values may contain leaf codes or further groups.
+  final Map<String, List<String>> bodyGroups;
 
   /// 素材来源优先级（[AssetResolver.appOrder]），空 = `[id, 'pose-hub']`。
   final List<String> assetApps;
@@ -415,6 +420,10 @@ class CoachProfile {
       minActions: asInt(j['minActions']) ?? 3,
       planRules: PlanRules.fromJson(j['planRules']),
       legacyGoalMap: [for (final rule in asList(j['legacyGoalMap'])) asMap(rule)],
+      bodyGroups: {
+        for (final entry in asMap(j['bodyGroups']).entries)
+          entry.key: asStringList(entry.value),
+      },
       assetApps: asStringList(j['assetApps']),
       vars: {for (final e in asMap(j['vars']).entries) if (e.value is String) e.key: e.value! as String},
       skills: [for (final x in asList(j['skills'])) ?ProfileSkill.tryParse(x)],
@@ -435,6 +444,7 @@ class CoachProfile {
     'minActions': minActions,
     'planRules': planRules.toJson(),
     if (legacyGoalMap.isNotEmpty) 'legacyGoalMap': legacyGoalMap,
+    if (bodyGroups.isNotEmpty) 'bodyGroups': bodyGroups,
     if (assetApps.isNotEmpty) 'assetApps': assetApps,
     if (vars.isNotEmpty) 'vars': vars,
     if (skills.isNotEmpty) 'skills': [for (final x in skills) x.toJson()],

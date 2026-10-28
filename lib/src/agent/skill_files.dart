@@ -38,6 +38,7 @@ class SkillFiles {
   final List<SkillEntry> skills;
 
   static const actionLibrary = 'action-library';
+  static const ask = 'ask';
   static const planTraining = 'plan-training';
   static const actionCoaching = 'action-coaching';
   static const userMemory = 'user-memory';
@@ -173,6 +174,7 @@ class SkillFiles {
       );
     }
 
+    addBuiltin(ask);
     addBuiltin(actionLibrary);
     addBuiltin(planTraining);
     addBuiltin(actionCoaching);

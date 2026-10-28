@@ -83,7 +83,9 @@ void main() {
       );
       expect(result.question, isNull);
       expect(client.requests, hasLength(1));
-      final system = client.requests.single.messages.first.content;
+      final system = client.requests.single.messages
+          .singleWhere((message) => message.content.startsWith('当前状态：'))
+          .content;
       expect(
         system,
         contains('"minutes":{"value":20,"source":"host","turn":0}'),
@@ -399,11 +401,6 @@ void main() {
               ],
             }),
           ),
-          LlmToolCall(
-            id: 'planning',
-            name: AgentTools.check,
-            arguments: jsonEncode({'node': 'planning'}),
-          ),
         ]);
       },
       (LlmRequest request) {
@@ -417,6 +414,11 @@ void main() {
         expect(draft['ok'], isTrue, reason: '$draft');
         planId = draft['plan_id'] as String;
         return _tools([
+          LlmToolCall(
+            id: 'planning',
+            name: AgentTools.check,
+            arguments: jsonEncode({'node': 'planning'}),
+          ),
           LlmToolCall(
             id: 'check-plan',
             name: AgentTools.checkPlan,

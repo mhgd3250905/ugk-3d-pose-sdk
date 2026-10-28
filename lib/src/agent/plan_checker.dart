@@ -333,10 +333,13 @@ class PlanChecker {
         .toList();
     void focus(String name, Set<String> group) {
       if (group.isEmpty) return;
+      final expanded = gate.tags.expandCodes(group);
       final matched = main
           .where(
-            (item) =>
-                gate.tags.forActionId(item.id).intersection(group).isNotEmpty,
+            (item) => gate.tags
+                .forActionId(item.id)
+                .intersection(expanded)
+                .isNotEmpty,
           )
           .length;
       final ratio = main.isEmpty ? 0.0 : matched / main.length;
@@ -346,7 +349,7 @@ class PlanChecker {
         'main ≥ ${(settings.focusRatio * 100).toStringAsFixed(0)}% 含 ${group.join('、')}',
         '$matched/${main.length}',
         '替换主体动作为目标组的合规候选动作。',
-        alternatives: candidates(match: group),
+        alternatives: candidates(match: expanded),
       );
     }
 

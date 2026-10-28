@@ -60,7 +60,7 @@ void main() {
   }
 
   test(
-    'search and read results remain visible after ask and user answer',
+    'search archive and read result remain visible after ask and user answer',
     () async {
       final client = FakeLlmClient([
         calls([
@@ -84,15 +84,24 @@ void main() {
       expect(first.question, isNotNull);
       expect(first.reads, contains('action-library/SKILL.md'));
       final beforeQuestion = client.requests[2];
-      final searchResult = beforeQuestion.messages
+      final originalSearch = client.requests[1].messages
           .singleWhere((m) => m.toolCallId == 'search')
           .content;
-      final data = jsonDecode(searchResult) as Map<String, dynamic>;
+      final data = jsonDecode(originalSearch) as Map<String, dynamic>;
+      expect(data['ok'], isTrue);
       final ids = (data['items'] as List)
           .map((item) => (item as Map)['id'])
           .toSet();
       expect(ids, hasLength(3));
       expect(coach.sessionState.seenActionIds, ids);
+      final searchResult = beforeQuestion.messages
+          .singleWhere((m) => m.toolCallId == 'search')
+          .content;
+      expect(searchResult, startsWith('[已归档] 返回：'));
+      for (final row in data['items'] as List) {
+        expect(searchResult, contains((row as Map)['id']));
+        expect(searchResult, contains(row['name']));
+      }
       await coach.send('没有其他要求');
       final resumed = client.requests[3];
       expect(
@@ -160,6 +169,15 @@ void main() {
       ], latency: Duration.zero);
       final coach = agent(client, memory: true);
       expect((await coach.send('推荐动作')).question, isNotNull);
+      final rawSearch = client.requests[2].messages
+          .where((m) => m.toolCallId == 'shared')
+          .map((m) => jsonDecode(m.content) as Map)
+          .singleWhere((result) => result['items'] is List);
+      expect(rawSearch['ok'], isTrue);
+      final ids = (rawSearch['items'] as List)
+          .map((item) => (item as Map)['id'] as String)
+          .toList();
+      expect(ids, hasLength(3));
       coach.enableUserMemory = false;
       await coach.send('谢谢');
       final resumed = client.requests.last;
@@ -170,7 +188,10 @@ void main() {
       final searchResult = resumed.messages.singleWhere(
         (m) => m.toolCallId == 'shared',
       );
-      expect((jsonDecode(searchResult.content) as Map)['ok'], isTrue);
+      expect(searchResult.content, startsWith('[已归档] 返回：'));
+      for (final id in ids) {
+        expect(searchResult.content, contains(id));
+      }
       expectProtocol(resumed.messages);
     },
   );

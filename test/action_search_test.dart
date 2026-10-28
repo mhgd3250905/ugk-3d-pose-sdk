@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:ugk_coach/src/agent/action_search.dart';
+import 'package:ugk_coach/src/agent/coach_agent.dart';
 import 'package:ugk_coach/src/agent/session_state.dart';
 import 'package:ugk_coach/src/catalog/catalog.dart';
 import 'package:ugk_coach/src/catalog/pose_hub_app_test_pack.dart';
@@ -71,6 +72,66 @@ void main() {
       );
     },
   );
+
+  test('repeated search returns only IDs with the exact repeat count', () {
+    final first = search.search(CoachSessionState(), limit: 3);
+    expect(first.ok, isTrue);
+    expect(first.items, hasLength(3));
+    for (final row in first.items) {
+      expect(row.keys, containsAll(['id', 'name', 'summary', 'data']));
+    }
+    final repeated = search.search(first.state, limit: 3);
+    expect(repeated.ok, isTrue);
+    expect(repeated.items, [
+      for (final row in first.items) {'id': row['id']},
+    ]);
+    expect(repeated.summary, contains('以下 3 个之前已返回，仅列 id'));
+    expect(repeated.state.seenActionIds, first.state.seenActionIds);
+  });
+
+  test('repeated search rechecks equipment after the user removes it', () {
+    final matAction = profile
+        .scope(catalog)
+        .firstWhere((drill) => drill.equipment.contains('mat'));
+    final equipment = [
+      for (final raw in matAction.equipment)
+        ?search.gate.tags.equipmentCode(raw),
+    ];
+    final first = search.search(
+      CoachSessionState(params: {'equipment': param(equipment)}),
+      keywords: matAction.name.of('zh'),
+    );
+    expect(first.ok, isTrue);
+    expect(first.items.map((row) => row['id']), contains(matAction.id));
+    final reduced = first.state.copyWith(
+      params: {...first.state.params, 'equipment': param(<String>[])},
+    );
+    final repeated = search.search(reduced, keywords: matAction.name.of('zh'));
+    expect(repeated.ok, isTrue);
+    expect(
+      repeated.items.map((row) => row['id']),
+      isNot(contains(matAction.id)),
+    );
+    expect(repeated.filter['hiddenEquipmentCount'], greaterThan(0));
+    for (final row in repeated.items) {
+      expect(search.gate.actionProblem(reduced, row['id'] as String), isNull);
+    }
+    expect(repeated.state.seenActionIds, contains(matAction.id));
+  });
+
+  test('planState restore preserves seen IDs for search deduplication', () {
+    final first = search.search(CoachSessionState(), limit: 3);
+    final saved = CoachPlanState(planId: 'saved', sessionState: first.state);
+    final restored = CoachPlanState.fromJson(
+      jsonDecode(jsonEncode(saved.toJson())) as Map<String, dynamic>,
+    );
+    final repeated = search.search(restored.sessionState!, limit: 3);
+    expect(repeated.items, [
+      for (final row in first.items) {'id': row['id']},
+    ]);
+    expect(repeated.summary, contains('以下 3 个之前已返回，仅列 id'));
+    expect(repeated.state.seenActionIds, first.state.seenActionIds);
+  });
 
   test(
     'every published profile action has a compact nonempty Chinese and English search row',
@@ -206,7 +267,12 @@ void main() {
     expect(result.ok, isTrue);
     for (final row in result.items) {
       final id = row['id'] as String;
-      expect(search.gate.tags.forActionId(id), contains('body.core'));
+      expect(
+        search.gate.tags
+            .forActionId(id)
+            .intersection(search.gate.tags.expandCodes(['body.core'])),
+        isNotEmpty,
+      );
       expect(search.gate.actionProblem(state, id), isNull);
       expect(catalog[id]!.cautions, isNot(contains('膝')));
     }

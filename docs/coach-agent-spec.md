@@ -85,7 +85,7 @@ profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有�
 • equipment：所有动作所需器械的并集必须是 params.equipment 的子集。这里直接读 params，不再让模型传 equipment 参数。
 • duration：估时在 T ±10% 以内。
 • structure：minutes 达到 planRules.warmupFromMinutes 时必须有 warmup 块，达到 cooldownFromMinutes 时必须有 cooldown 块。如果是纯拉伸目标，可以在 planRules 里设置不要求热身。
-• focus：将 params.goal 分为 bodyGoals（body.*）和 purposeGoals（purpose.*）。有 bodyGoals 时，main 块至少有 planRules.focusRatio（默认 0.5）的动作命中任一 bodyGoals；同时有 purposeGoals 时，另行计算至少 focusRatio 的动作命中任一 purposeGoals。只有 purposeGoals 时，按 purposeGoals 计算。命中以目录标签包含对应编码为准，不看名称；分别计算、分别报错，expected 写明目标组及比例（如“main ≥ 50% 含 purpose.stretch”），actual 写实际命中数（如“2/6”），candidates 列可替换的合规动作。goal 为空时 plan 参数节点不能完成。用户给出哪类目标就按哪类核对，不为凑规则追问，也不跳过核对。
+• focus：将 params.goal 分为 bodyGoals（body.*）和 purposeGoals（purpose.*）。有 bodyGoals 时，main 块至少有 planRules.focusRatio（默认 0.5）的动作命中任一 bodyGoals；同时有 purposeGoals 时，另行计算至少 focusRatio 的动作命中任一 purposeGoals。只有 purposeGoals 时，按 purposeGoals 计算。命中以目录标签及目录层级／profile.bodyGroups 展开的编码为准，不看名称；分别计算、分别报错，expected 写明目标组及比例（如“main ≥ 50% 含 purpose.stretch”），actual 写实际命中数（如“2/6”），candidates 列可替换的合规动作。goal 为空时 plan 参数节点不能完成。用户给出哪类目标就按哪类核对，不为凑规则追问，也不跳过核对。
 • balance：同一主要部位连续不超过 planRules.maxSameMuscleInRow（默认 3）个；同一块里不能有重复动作；如果 planRules 配置了拮抗对（例如核心的前侧对后侧），就要求两侧都有。
 • 结果记入该版本的 check 字段。成功时只返回一句汇总。失败时每条错误都按第 10 步的格式写，并给出可以替换的候选 id。
 测试：每条规则至少有一个通过的用例和一个失败的用例。focus 的只有 purpose、只有 body、两者都有三种情况各有一个通过及一个失败用例。
@@ -115,7 +115,12 @@ profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有�
 • 任务结束后，下一轮只保留用户和助手的可见正文，以及“当前状态”。
 • 恢复会话：完整计划留在 state 里，请求里只放计划摘要和 plan_id。恢复会话的首包同样 ≤12KB。
 • 去掉模型自己 ls/read 技能的开头两轮：start_task 的结果里直接返回该任务类型需要的技能正文（recommend 返回 ask + action-library，plan 返回 ask + action-library + plan-training）。问答类不调用 start_task，仍然按索引按需 read。新会话首包仍然不含技能正文。
-测试：用 R3 的十动作计划和一个 15 个动作、带分段的合法计划（先用 check_plan 验证合法）。恢复首包 ≤12KB，且至少有 2KB 余量。按 R3 的调用序列重放时，每次请求 ≤40KB。
+测试（2026-10-28 预算评审修订）：新会话及恢复首包均 ≤12,288 B，取消 2KB 余量要求；恢复首包软目标 ≤11,264 B，未达到需报告但不算失败。使用 R3 的十动作计划（goal 仅 body.core）和 15 动作带分段合法计划，先以实际 check_plan 验证合法。
+• output 完成后“当前状态”只发参数 stamp、plan_id/版本/标题/估时、计划动作名；来源明细和完整计划仍无损保存在 state。任务进行中发完整状态。
+• 工具及参数 description 保持 520c3d5 的语义和正文，不靠缩短说明凑预算。set_params.goal 只列 body/purpose、equipment 只列 equip、limits 只列伤痛，search_actions.tags 列全部标签。逐工具 schema 与逐 enum 字节数、重复次数纳入诊断。移除 ls，read 留给问答；系统提示中重复工具说明保留在 description，安全和范围不删。
+• search_actions/get_action 原始结果只在下一次模型请求完整可见，再后续请求按批次压成含 id/名称或已查看 id 的归档行，保留 tool_call_id。节点完成归档规则仍保留。重复搜索行仅回 id 并说明之前返回过多少项，硬过滤仍每次执行。
+• R3 正常重放 4–6 次调用、2–3 次带 tags 搜索、不调用 get_action，是主验收；另保留 15 次搜索+10 次单独详情的压力重放。两者每次实际序列化请求均 ≤40,960 B。
+• focus 和搜索按目录部位层级展开父编码；目录无层级时用 profile.bodyGroups 配置，不在代码写死。goal=body.core 可命中腹直肌、腹斜肌、竖脊肌等配置子编码，账本不要求模型展开。
 
 ======== 第 10 步：统一报错格式与提示词 ========
 • 所有工具失败都返回同一种格式：{"ok":false,"code":"...","field":"...","expected":"具体值","actual":"具体值","fix":"一句可以直接执行的建议","candidates"?:[...]}。禁止出现“见 message”“按期望改正”这类写法。加一条测试，扫描所有错误构造处，确保没有这些字样。
@@ -131,6 +136,7 @@ profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有�
 • skills/ask、action-library、plan-training：与上面保持一致，并删掉与之冲突的旧说法。均衡和热身的硬性规则以 planRules 为准，技能里只保留讲解。
 
 ======== 第 11 步：评测 ========
+• thinking 开启时，runner 逐次记录实际请求回传的 reasoning_content UTF-8 字节数（不是响应推理字符数）。
 • runner 记录每次响应的模型标签。如果响应模型与配置的模型不一致（例如出现带 free 的标签），这一例标为作废，并在回报里写明。Worker 渠道由开哥固定，你不要改 Worker。
 • 链路沿用上一轮：api.uuugk.win、deepseek-v4-flash-0731、UGK_APP_KEY 环境变量。六组案例和模拟回答都与上一轮相同，每组跑 1 次。
 • 验收线：

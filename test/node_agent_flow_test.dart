@@ -27,8 +27,9 @@ Map<String, Object?> user(Object value, String quote) => {
 
 Map<String, dynamic> result(FakeLlmClient client, String id) =>
     jsonDecode(
-          client.requests.last.messages
-              .singleWhere((message) => message.toolCallId == id)
+          client.requests
+              .expand((request) => request.messages)
+              .firstWhere((message) => message.toolCallId == id)
               .content,
         )
         as Map<String, dynamic>;
@@ -128,6 +129,14 @@ void main() {
       expect(result(client, 'stamp')['code'], 'invalid_arguments');
       expect(result(client, 'planId')['code'], 'invalid_arguments');
       expect(result(client, 'right')['ok'], isTrue);
+      for (final id in ['stamp', 'planId']) {
+        expect(
+          client.requests.last.messages
+              .singleWhere((message) => message.toolCallId == id)
+              .content,
+          '[已归档，见当前状态]',
+        );
+      }
       expect(coach.sessionState.task!.nodes.first.stamp, isNot('伪造'));
       expect(
         events.where(

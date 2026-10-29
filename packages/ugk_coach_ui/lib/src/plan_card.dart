@@ -10,6 +10,8 @@ import 'models.dart';
 import 'theme.dart';
 import 'primitives.dart';
 
+part 'plan_expanded.dart';
+
 /// The assistant's plan reply: a compact, fixed-height card (like a link
 /// share in a messenger), raised on an opaque content surface;
 /// the media inside stays opaque and rounded.
@@ -747,24 +749,12 @@ class _PlanCardState extends State<CoachPlanCard>
     // Resolve text exactly as the rows paint it. The same row measurements
     // determine natural height, thumbnail destinations and no-crossing bands.
     final rowType = _MoveRowTypography.of(context);
-    var indexWidth = _MoveRow.indexWidth;
-    for (var i = 0; i < items.length; i++) {
-      indexWidth = math.max(
-        indexWidth,
-        rowType.measure('${i + 1}', rowType.index).width.ceilToDouble() + 4,
-      );
-    }
-    final rowLayouts = [
-      for (var i = 0; i < items.length; i++)
-        _MoveRowLayout.measure(
-          type: rowType,
-          index: '${i + 1}',
-          name: lib.tryGet(items[i].exerciseId)?.name ?? items[i].exerciseId,
-          dose: items[i].detailDose,
-          width: innerW - _Details.pad * 2,
-          indexWidth: indexWidth,
-        ),
-    ];
+    final rowLayouts = _measurePlanRows(
+      p,
+      lib,
+      rowType,
+      innerW - _Details.pad * 2,
+    );
     final rowTops = <double>[];
     var nextRowTop = headerH;
     for (final row in rowLayouts) {
@@ -952,65 +942,30 @@ class _PlanCardState extends State<CoachPlanCard>
     Animation<double> textOf(int i) =>
         reduced ? _expand : anim((t, b) => timeline.text(i, t, b));
     final arrive = reduced ? _expand : anim(_Timeline.open);
-    final details = _Details(
-      t: _expand,
-      height: _height,
-      fade: arrive,
-      reduced: reduced,
-      clip: single,
-      topPad: single ? _Details.pad : 0,
-      header: single
-          ? null
-          // The header is overlaid with the toggle in one Row, so the text
-          // gives the button its actual width at every system text size.
-          : SizedBox(height: headerH),
-      rows: [
-        if (single)
-          for (final (i, c) in cues.indexed)
-            _CueRow(index: i + 1, text: c, anim: textOf(i), reduced: reduced)
-        else
-          for (var i = 0; i < items.length; i++)
-            _MoveRow(
-              key: ValueKey('plan-row-$i'),
-              index: i + 1,
-              layout: rowLayouts[i],
-              item: CoachRoutineItem(
-                exerciseId: items[i].exerciseId,
-                dose: items[i].detailDose,
-              ),
-              exercise: lib.tryGet(items[i].exerciseId),
-              text: textOf(i),
-              // Row 1 receives the hero, rows 2…shown+1 a strip flyer: each
-              // shows its own thumbnail once its flyer has landed; rows
-              // hidden behind +N fade in place.
-              thumb: reduced
-                  ? _expand
-                  : i <= shownCount
-                  ? atEnd
-                  : anim(_Timeline.inPlace),
-              reduced: reduced,
-            ),
-      ],
-      note: p.adjustmentsLabel,
-      footer: Row(
-        children: [
-          CoachTextAction(
-            key: ValueKey('plan-save-${p.id}'),
-            icon: CoachGlyph.bookmark,
-            iconFilled: widget.saved,
-            color: widget.saved
-                ? CoachUiTheme.of(context).colors.accentText
-                : CoachUiTheme.of(context).colors.text,
-            label: widget.saved
-                ? CoachUiTheme.of(context).strings.saved
-                : CoachUiTheme.of(context).strings.save,
-            onPressed: widget.saved ? null : widget.onSave,
-            boxed: true,
-          ),
-          const Spacer(),
-          // The ▶ appears here (it is laid over the card, anchored bottom-right).
-          const SizedBox(width: CoachStartButton.size),
-        ],
+    final details = CoachPlanExpanded._dialog(
+      plan: p,
+      library: lib,
+      expanded: _expanded,
+      onCollapse: _toggle,
+      onAction: widget.onSave,
+      onStart: widget.onStart,
+      dialog: _PlanExpandedDialog(
+        progress: _expand,
+        height: _height,
+        fade: arrive,
+        reduced: reduced,
+        clip: single,
+        topPad: single ? _Details.pad : 0,
+        header: single ? null : SizedBox(height: headerH),
+        rows: rowLayouts,
+        cues: single ? cues : null,
+        textOf: textOf,
+        thumbOf: (i) => reduced
+            ? _expand
+            : i <= shownCount
+            ? atEnd
+            : anim(_Timeline.inPlace),
+        saved: widget.saved,
       ),
     );
 
@@ -1638,7 +1593,7 @@ class _Header extends StatelessWidget {
   final String title;
   final String meta;
   final Key openKey;
-  final VoidCallback onOpen;
+  final VoidCallback? onOpen;
   final Animation<double> progress;
   final Animation<double> fade;
   final bool reduced;
@@ -1686,6 +1641,18 @@ class _Header extends StatelessWidget {
       ) +
       bottom;
 
+  Widget _openTarget(BuildContext context, {required Widget child}) =>
+      onOpen == null
+      ? child
+      : CoachPressable(
+          key: openKey,
+          semanticLabel: CoachUiTheme.of(context).strings.planDetails(title),
+          scale: 1,
+          haptic: CoachHaptic.selection,
+          onTap: onOpen,
+          child: child,
+        );
+
   @override
   Widget build(BuildContext context) => SizedBox(
     height: height,
@@ -1725,14 +1692,8 @@ class _Header extends StatelessWidget {
                     begin: const Offset(0, .12),
                     end: Offset.zero,
                   ).animate(reduced ? kAlwaysCompleteAnimation : fade),
-                  child: CoachPressable(
-                    key: openKey,
-                    semanticLabel: CoachUiTheme.of(
-                      context,
-                    ).strings.planDetails(title),
-                    scale: 1,
-                    haptic: CoachHaptic.selection,
-                    onTap: onOpen,
+                  child: _openTarget(
+                    context,
                     child: Align(
                       alignment: Alignment.topLeft,
                       child: Column(

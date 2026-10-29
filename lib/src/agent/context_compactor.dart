@@ -10,6 +10,7 @@ import 'action_search.dart';
 import 'action_tags.dart';
 import 'agent_prompt.dart';
 import 'catalog_data_gaps.dart';
+import 'plan_focus.dart';
 import 'session_state.dart';
 import 'skill_disclosure.dart';
 
@@ -32,7 +33,11 @@ class ContextCompactor {
     bool previousTaskFinished = false,
     Set<int> supersededFailureMessageIndexes = const {},
   }) {
-    final summary = _summary(state, catalog, language, profile);
+    final focus = focusPlanSummary(state, catalog, language);
+    final summary = {
+      ..._summary(state, catalog, language, profile),
+      'focus_plan': ?focus,
+    };
     final candidateIds = <String>{
       for (final row
           in summary['candidates'] as List<List<Object?>>? ??

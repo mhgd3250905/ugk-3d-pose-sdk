@@ -532,7 +532,9 @@ class NodeGates {
           for (final entry in state.plans.entries)
             entry.key: [
               for (var i = 0; i < entry.value.length; i++)
-                if (i == entry.value.length - 1)
+                if (i == entry.value.length - 1 &&
+                    (state.focusPlanId == null ||
+                        entry.key == state.focusPlanId))
                   CoachPlanVersion(
                     version: entry.value[i].version,
                     plan: entry.value[i].plan,

@@ -22,6 +22,7 @@ extension TrustedCardTiming on PlanBuilder {
       return fail('invalid_refit', saved.id);
     }
     final turn = state.userTurns.lastOrNull?.turn ?? 0;
+    final focused = state.focusPlanId == saved.id;
     if ((state.lastOperationRequestTurn ?? state.params['operation']?.turn) ==
             turn &&
         state.params['operation']?.value == 'replace_all') {
@@ -154,6 +155,12 @@ extension TrustedCardTiming on PlanBuilder {
           shadow.setRange = IntRange(low, high);
           shadow.sets = shadow.sets.clamp(low, high);
         }
+        if (focused && groups[blocks[bi].id]![ii].$1.segments.isEmpty) {
+          // A focused ordinary item can be re-timed from its saved work dose;
+          // segmented groups keep their independent proxy work unchanged.
+          shadow.work = proxies.single.work;
+          shadow.workRange = proxies.single.workRange;
+        }
       }
     }
     TrainingPlan render(List<_DraftBlock> source, [bool? extreme]) {
@@ -195,12 +202,12 @@ extension TrustedCardTiming on PlanBuilder {
                           reps:
                               original.segments.isEmpty &&
                                   original.mode == DoseMode.reps
-                              ? amount(proxies.single)
+                              ? amount(focused ? shadow : proxies.single)
                               : null,
                           workSeconds:
                               original.segments.isEmpty &&
                                   original.mode == DoseMode.time
-                              ? amount(proxies.single)
+                              ? amount(focused ? shadow : proxies.single)
                               : null,
                           segments: [
                             for (

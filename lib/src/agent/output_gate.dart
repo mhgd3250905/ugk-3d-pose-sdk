@@ -313,7 +313,9 @@ class OutputGate {
         catalog,
         minPicks: profile.minActions,
       );
-      final refitted = plan.items.any((item) => item.segments.isNotEmpty)
+      final refitted =
+          next.focusPlanId == active ||
+              plan.items.any((item) => item.segments.isNotEmpty)
           ? builder.refit(next, plan, language: language)
           : builder.draft(
               next,

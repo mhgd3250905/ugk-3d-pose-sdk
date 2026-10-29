@@ -173,6 +173,40 @@ class CoachPlanVersion {
       );
 }
 
+/// The saved host plan from which the current discussion was imported.
+///
+/// [baseVersion] stays at the version selected by the host while edits append
+/// later SDK versions, so the host can identify the saved plan being revised.
+class CoachSavedPlanRef {
+  const CoachSavedPlanRef({
+    required this.externalId,
+    required this.baseVersion,
+  });
+
+  final String externalId;
+  final int baseVersion;
+
+  Map<String, Object?> toJson() => {
+    'externalId': externalId,
+    'baseVersion': baseVersion,
+  };
+
+  factory CoachSavedPlanRef.fromJson(Map<String, Object?> json) =>
+      CoachSavedPlanRef(
+        externalId: json['externalId'] as String,
+        baseVersion: json['baseVersion'] as int,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is CoachSavedPlanRef &&
+      other.externalId == externalId &&
+      other.baseVersion == baseVersion;
+
+  @override
+  int get hashCode => Object.hash(externalId, baseVersion);
+}
+
 /// Complete state: messages, fixed task progress, sourced conditions and plans.
 ///
 /// Collection inputs and exported JSON are copied recursively, so callers
@@ -190,6 +224,8 @@ class CoachSessionState {
     List<String> picks = const [],
     Map<String, List<CoachPlanVersion>> plans = const {},
     this.activePlanId,
+    this.focusPlanId,
+    this.savedRef,
     this.lastDeliveredPlanId,
     this.lastDeliveredVersion,
     this.lastDeliveredTurn,
@@ -228,6 +264,11 @@ class CoachSessionState {
 
   /// Current draft plan, independent of retained previous task plans.
   final String? activePlanId;
+
+  /// The external plan currently being discussed, retained until cleared.
+  final String? focusPlanId;
+  final CoachSavedPlanRef? savedRef;
+
   final String? lastDeliveredPlanId;
   final int? lastDeliveredVersion;
   final int? lastDeliveredTurn;
@@ -261,6 +302,9 @@ class CoachSessionState {
     Map<String, List<CoachPlanVersion>>? plans,
     String? activePlanId,
     bool clearActivePlanId = false,
+    String? focusPlanId,
+    CoachSavedPlanRef? savedRef,
+    bool clearPlanFocus = false,
     String? lastDeliveredPlanId,
     int? lastDeliveredVersion,
     int? lastDeliveredTurn,
@@ -285,6 +329,8 @@ class CoachSessionState {
     picks: picks ?? this.picks,
     plans: plans ?? this.plans,
     activePlanId: clearActivePlanId ? null : activePlanId ?? this.activePlanId,
+    focusPlanId: clearPlanFocus ? null : focusPlanId ?? this.focusPlanId,
+    savedRef: clearPlanFocus ? null : savedRef ?? this.savedRef,
     lastDeliveredPlanId: clearLastDelivered
         ? null
         : lastDeliveredPlanId ?? this.lastDeliveredPlanId,
@@ -335,6 +381,8 @@ class CoachSessionState {
     },
     if (!legacyPlanFallback || activePlanId != null)
       'activePlanId': activePlanId,
+    if (focusPlanId != null) 'focusPlanId': focusPlanId,
+    if (savedRef != null) 'savedRef': savedRef!.toJson(),
     if (lastDeliveredPlanId != null) 'lastDeliveredPlanId': lastDeliveredPlanId,
     if (lastDeliveredVersion != null)
       'lastDeliveredVersion': lastDeliveredVersion,
@@ -379,6 +427,10 @@ class CoachSessionState {
             ],
         },
         activePlanId: json['activePlanId'] as String?,
+        focusPlanId: json['focusPlanId'] as String?,
+        savedRef: json['savedRef'] == null
+            ? null
+            : CoachSavedPlanRef.fromJson(_map(json['savedRef'])),
         lastDeliveredPlanId: json['lastDeliveredPlanId'] as String?,
         lastDeliveredVersion: json['lastDeliveredVersion'] as int?,
         lastDeliveredTurn: json['lastDeliveredTurn'] as int?,

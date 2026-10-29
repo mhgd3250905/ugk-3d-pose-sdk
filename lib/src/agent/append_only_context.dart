@@ -10,6 +10,7 @@ import '../profile/coach_profile.dart';
 import 'action_search.dart';
 import 'context_budget.dart';
 import 'context_turn_ledger.dart';
+import 'plan_focus.dart';
 import 'session_state.dart';
 
 class AppendOnlyPreparedContext {
@@ -301,6 +302,8 @@ class AppendOnlyContext {
           },
       };
     }
+    final focus = focusPlanSummary(state, catalog, language);
+    if (focus != null) summary['focus_plan'] = focus;
     return LlmMessage.user('$statePrefix${jsonEncode(summary)}');
   }
 }

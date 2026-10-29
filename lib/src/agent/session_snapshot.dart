@@ -3,6 +3,7 @@ library;
 
 import 'dart:convert';
 
+import '../plan/plan_codec.dart';
 import '../tools/ask_user.dart';
 import 'context_turn_ledger.dart';
 import 'session_state.dart';
@@ -264,9 +265,10 @@ void _validateState(Map<String, Object?> state) {
   ]) {
     _nullableInteger(state[key]);
   }
-  for (final key in ['activePlanId', 'lastDeliveredPlanId']) {
+  for (final key in ['activePlanId', 'focusPlanId', 'lastDeliveredPlanId']) {
     _nullableString(state[key]);
   }
+  _validatePlanFocus(state);
   if (state['recommendationHintShown'] != null &&
       state['recommendationHintShown'] is! bool) {
     throw const FormatException('Invalid recommendation hint state');
@@ -277,6 +279,55 @@ void _validateState(Map<String, Object?> state) {
   if (state['hostValues'] != null) _object(state['hostValues']);
   if (state['completedContextLedger'] != null) {
     _validateLedger(_object(state['completedContextLedger']));
+  }
+}
+
+void _validatePlanFocus(Map<String, Object?> state) {
+  final focus = _nullableString(state['focusPlanId']);
+  final rawRef = state['savedRef'];
+  if (focus == null) {
+    if (rawRef != null) {
+      throw const FormatException('Saved plan reference without a focus');
+    }
+    return;
+  }
+  if (focus.isEmpty || rawRef == null) {
+    throw const FormatException('Missing focused saved plan reference');
+  }
+  final ref = _object(rawRef);
+  final externalId = _string(ref['externalId']);
+  final baseVersion = _integer(ref['baseVersion']);
+  if (externalId.trim().isEmpty ||
+      focus != 'ext:$externalId' ||
+      baseVersion < 1) {
+    throw const FormatException('Invalid focused saved plan reference');
+  }
+  final versions = _object(state['plans'])[focus];
+  if (versions == null) {
+    throw const FormatException('Missing focused plan');
+  }
+  var previous = 0;
+  var hasBase = false;
+  for (final rawVersion in _array(versions)) {
+    final version = _object(rawVersion);
+    final number = _integer(version['version']);
+    if (number <= previous) {
+      throw const FormatException('Invalid focused plan version order');
+    }
+    previous = number;
+    hasBase |= number == baseVersion;
+    final plan = _object(version['plan']);
+    final decoded = const PlanCodec().decodeStrict(plan);
+    if (!decoded.ok ||
+        plan['id'] != focus ||
+        _string(plan['title']).trim().isEmpty ||
+        decoded.plan!.blocks.isEmpty ||
+        decoded.plan!.blocks.any((block) => block.items.isEmpty)) {
+      throw const FormatException('Invalid focused plan content');
+    }
+  }
+  if (!hasBase) {
+    throw const FormatException('Missing focused plan base version');
   }
 }
 

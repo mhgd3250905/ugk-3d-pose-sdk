@@ -64,6 +64,34 @@ class AgentTask {
       );
     }
     final previous = state.task;
+    final focusId = state.focusPlanId;
+    if (type == 'plan' &&
+        focusId != null &&
+        state.plans[focusId]?.isNotEmpty == true) {
+      // An explicitly focused saved plan is the editing target even when a
+      // model starts a fresh task or another plan was delivered previously.
+      // Its admitted conditions and actions already completed the first steps.
+      final nodes = [
+        for (final id in planNodes)
+          CoachNodeState(
+            id: id,
+            status: switch (id) {
+              'planning' => 'current',
+              'review' || 'output' => 'pending',
+              _ => 'done',
+            },
+          ),
+      ];
+      return NodeResult(
+        state.copyWith(
+          task: CoachTaskState(type: type, nodes: nodes, reused: true),
+          activePlanId: focusId,
+          consecutiveEmptySearches: 0,
+          clearPendingSearchTurn: true,
+        ),
+        changes: nodes,
+      );
+    }
     // A delivered plan remains the editable version. Explicit resume opens its
     // editing stages before search, without losing the accumulated candidates.
     if (reuse == true &&

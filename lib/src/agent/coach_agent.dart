@@ -26,6 +26,7 @@ import '../llm/llm_client.dart';
 import '../llm/llm_types.dart';
 import '../llm/openai_compatible_client.dart';
 import '../plan/coach_context.dart';
+import '../plan/plan_codec.dart';
 import '../plan/plan_issue.dart';
 import '../plan/plan_validator.dart';
 import '../plan/training_plan.dart';
@@ -47,6 +48,7 @@ import 'context_budget.dart';
 import 'context_turn_ledger.dart';
 import 'node_gates.dart';
 import 'plan_checker.dart';
+import 'plan_focus.dart';
 import 'session_params.dart';
 import 'session_snapshot.dart';
 import 'session_state.dart';
@@ -68,6 +70,7 @@ part 'memory_tool_handler.dart';
 part 'ask_commit_handler.dart';
 part 'output_commit_handler.dart';
 part 'session_snapshot_handler.dart';
+part 'external_plan_focus_handler.dart';
 
 /// Persist alongside a delivered plan card to restore its planning conditions.
 /// [planId] binds the snapshot to that exact card. A snapshot for another plan
@@ -422,6 +425,7 @@ class CoachAgent {
   List<ContextRequestDiagnostics> get contextRequestDiagnostics =>
       List.unmodifiable(_contextRequestDiagnostics);
   CoachSessionState _sessionState = CoachSessionState();
+  CoachSessionState? _focusTurnBase;
   int _hostSafetyRevision = 0;
   Set<String>? _latestExplicitAvoid;
   // 只追踪曾看过用户记忆的响应；记忆从未开启的工具推理必须完整回传。
@@ -454,6 +458,39 @@ class CoachAgent {
   /// Immutable structured state, including original accepted user messages.
   CoachSessionState get sessionState => _sessionState;
 
+  /// Current host-saved plan selected for discussion; no model call is made.
+  CoachPlanFocus? get planFocus => currentPlanFocus(_sessionState);
+
+  CoachPlanFocusResult focusExternalPlan({
+    required String externalId,
+    required TrainingPlan plan,
+    String? title,
+  }) => _focusExternalPlan(externalId: externalId, plan: plan, title: title);
+
+  /// Clears the binding and cancels an in-flight turn based on it. Completed
+  /// plans and history remain; late results cannot restore a cleared focus.
+  bool clearPlanFocus() {
+    if (_sessionState.focusPlanId == null && _sessionState.savedRef == null) {
+      return true;
+    }
+    if (isBusy) {
+      _generation++;
+      _sessionState = _focusTurnBase ?? _sessionState;
+      _focusTurnBase = null;
+      _busyGen = null;
+      _resetSig.complete();
+      _resetSig = Completer<void>();
+      _modelContext = null;
+      _modelEpochKey = null;
+    }
+    _sessionState = _sessionState.copyWith(clearPlanFocus: true);
+    _snapshotInterrupted = null;
+    _snapshotTurnQuestion = null;
+    _modelContext = null;
+    _modelEpochKey = null;
+    return true;
+  }
+
   /// Captures facts only, including a point-in-time interrupted in-flight turn.
   CoachSessionSnapshot exportSession({
     List<CoachRecommendationSnapshot> recommendations = const [],
@@ -468,7 +505,15 @@ class CoachAgent {
   /// Used by the owning conversation controller; no model call is made.
   bool restoreSessionSnapshot(CoachSessionSnapshot snapshot) {
     try {
-      return _restoreSessionSnapshot(snapshot);
+      // Public callers may construct a snapshot directly, bypassing fromJson.
+      // Apply the same focused-plan validation before assigning live state.
+      final checked =
+          snapshot.isValid &&
+              (snapshot.sessionState.focusPlanId != null ||
+                  snapshot.sessionState.savedRef != null)
+          ? CoachSessionSnapshot.fromJson(snapshot.toJson())
+          : snapshot;
+      return _restoreSessionSnapshot(checked);
     } on Object {
       _emitEvent(
         AgentEvent(
@@ -582,6 +627,7 @@ class CoachAgent {
           ..._sessionState.plans,
           plan.id: matching == null ? [...versions, previous] : versions,
         },
+        activePlanId: plan.id,
         lastDeliveredPlanId: plan.id,
         lastDeliveredVersion: previous.version,
         lastDeliveredTurn: _sessionState.userTurns.isEmpty
@@ -722,7 +768,7 @@ class CoachAgent {
       turnId: _ids.next('turn'),
       status: TurnStatus.fallback,
       text: text,
-      plan: admitted,
+      plan: admitted.withSessionVersion(_sessionState),
     );
     _completeContextTurn(
       result: result,
@@ -740,6 +786,10 @@ class CoachAgent {
     final task = _sessionState.task;
     if (task?.type != 'plan' || task!.nodes.last.status == 'done') {
       return null;
+    }
+    final focusId = _sessionState.focusPlanId;
+    if (focusId != null && _sessionState.plans[focusId]?.isNotEmpty == true) {
+      plan = plan.copyWith(id: focusId);
     }
     final catalog = _catalog();
     final checked = PlanChecker(
@@ -790,6 +840,7 @@ class CoachAgent {
     _modelEpochKey = null;
     _contextRequestDiagnostics.clear();
     _sessionState = CoachSessionState();
+    _focusTurnBase = null;
     _hostSafetyRevision++;
     _latestExplicitAvoid = null;
     _memoryReasoning.clear();
@@ -1132,6 +1183,7 @@ class CoachAgent {
     final gen = _generation;
     _busyGen = gen;
     final previousSession = _sessionState;
+    _focusTurnBase = previousSession;
     final previousQuestion = _pendingConfirmation;
     final dismissRevision = _confirmationDismissRevision;
     final safetyRevision = _hostSafetyRevision;
@@ -1232,7 +1284,10 @@ class CoachAgent {
       }
       rethrow;
     } finally {
-      if (_busyGen == gen) _busyGen = null;
+      if (_busyGen == gen) {
+        _busyGen = null;
+        _focusTurnBase = null;
+      }
     }
   }
 
@@ -1406,6 +1461,7 @@ class CoachAgent {
         memorySummary: summary,
         userText: text,
         locale: context.language,
+        hasPlanFocus: _sessionState.focusPlanId != null,
       );
     }
 

@@ -13,6 +13,7 @@ import 'node_gates.dart';
 import 'session_state.dart';
 
 part 'plan_timing.dart';
+part 'plan_focus_edit.dart';
 
 class DraftResult {
   const DraftResult(
@@ -150,8 +151,15 @@ class PlanBuilder {
         {'edit', 'replace_all'}.contains(confirmedOperation?.value)) {
       suppliedOperation = confirmedOperation!.value;
     }
-    final deliveredId = state.lastDeliveredPlanId;
-    final deliveredVersion = state.lastDeliveredVersion;
+    final focused = state.plans[state.focusPlanId]?.lastOrNull;
+    final focusPlan = focused == null
+        ? null
+        : const PlanCodec().decode(focused.plan);
+    final usedSourceIndices = <int>{};
+    final deliveredId = focused == null
+        ? state.lastDeliveredPlanId
+        : state.focusPlanId;
+    final deliveredVersion = focused?.version ?? state.lastDeliveredVersion;
     final deliveredVersions = deliveredId == null
         ? const <CoachPlanVersion>[]
         : state.plans[deliveredId] ?? const <CoachPlanVersion>[];
@@ -176,7 +184,8 @@ class PlanBuilder {
         suppliedOperation as String? ??
         (sameTurnRepair ? latest.operation : null) ??
         (delivered != null &&
-                (state.activePlanId == deliveredId ||
+                (focused != null ||
+                    state.activePlanId == deliveredId ||
                     arguments['plan_id'] == deliveredId)
             ? 'edit'
             : null);
@@ -364,6 +373,27 @@ class PlanBuilder {
           }
         }
         final actionId = item['id'] as String;
+        int? sourceIndex;
+        if (focusPlan != null &&
+            operation == 'edit' &&
+            item.containsKey('sourceIndex')) {
+          final rawIndex = item['sourceIndex'];
+          final originals = focusPlan.items.toList();
+          if (rawIndex is! int ||
+              rawIndex < 1 ||
+              rawIndex > originals.length ||
+              originals[rawIndex - 1].exerciseId != actionId ||
+              !usedSourceIndices.add(rawIndex)) {
+            return fail(
+              'invalid_source_index',
+              'blocks[$bi].items[$ii].sourceIndex',
+              '当前 focus_plan 中与动作ID相符且未复用的1-based index',
+              rawIndex,
+              '保留旧项时引用其真实 index；新增动作不传 sourceIndex。',
+            );
+          }
+          sourceIndex = rawIndex;
+        }
         final drill = catalog[actionId];
         if (drill == null ||
             !state.seenActionIds.contains(actionId) ||
@@ -421,14 +451,23 @@ class PlanBuilder {
           restRange.max,
         );
         items.add(
-          _DraftItem(drill, sets, work, rest, setsRange, workRange, restRange),
+          _DraftItem(
+            drill,
+            sets,
+            work,
+            rest,
+            setsRange,
+            workRange,
+            restRange,
+            sourceIndex: sourceIndex,
+          ),
         );
       }
       final grouped = <_DraftItem>[];
       for (final item in items) {
-        final existing = grouped
-            .where((v) => v.drill.id == item.drill.id)
-            .firstOrNull;
+        final existing = focused == null
+            ? grouped.where((v) => v.drill.id == item.drill.id).firstOrNull
+            : null;
         if (existing == null) {
           grouped.add(item);
         } else {
@@ -453,7 +492,10 @@ class PlanBuilder {
         roundRest: profile.limits.restBetweenRoundsSeconds.min,
       );
       final originalOrder = grouped.map((item) => item.drill.id).join(',');
-      _stableMainOrder(block);
+      // In focused editing, item positions are user-visible references. Keep
+      // the supplied ordered replacement/insert/delete instead of re-sorting
+      // unrelated actions around the requested position.
+      if (focused == null) _stableMainOrder(block);
       if (originalOrder != block.items.map((item) => item.drill.id).join(',')) {
         notes.add(
           language.toLowerCase().startsWith('en')
@@ -506,6 +548,21 @@ class PlanBuilder {
       goals.cast<String>(),
       blocks.map((b) => b.kind),
     );
+    if (focused != null && operation == 'edit') {
+      return _draftFocused(
+        state,
+        working,
+        focusPlan!,
+        blocks,
+        title: title,
+        minutes: minutes,
+        legacyGoal: legacyGoal,
+        changes: changes,
+        extras: extras,
+        notes: notes,
+        language: language,
+      );
+    }
     TrainingPlan asPlan(List<_DraftBlock> source) {
       final equipment = <String>{
         for (final b in source)
@@ -855,14 +912,24 @@ class _DraftItem {
     this.rest,
     this.setRange,
     this.workRange,
-    this.restRange,
-  );
+    this.restRange, {
+    this.sourceIndex,
+  });
   final Drill drill;
+  final int? sourceIndex;
   int sets, work, rest;
   IntRange setRange, workRange;
   final IntRange restRange;
-  _DraftItem copy() =>
-      _DraftItem(drill, sets, work, rest, setRange, workRange, restRange);
+  _DraftItem copy() => _DraftItem(
+    drill,
+    sets,
+    work,
+    rest,
+    setRange,
+    workRange,
+    restRange,
+    sourceIndex: sourceIndex,
+  );
   PlanItem toPlanItem() => PlanItem(
     exerciseId: drill.id,
     mode: drill.defaultDose.mode,

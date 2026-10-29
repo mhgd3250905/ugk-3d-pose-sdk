@@ -6,11 +6,13 @@ import 'dart:async';
 import '../llm/cancel_token.dart';
 import '../llm/llm_types.dart';
 import '../plan/coach_context.dart';
+import '../plan/plan_issue.dart';
 import '../plan/training_plan.dart';
 import '../tools/ask_user.dart';
 import '../tools/coach_session.dart';
 import '../tools/tool_gate.dart';
 import 'coach_agent.dart';
+import 'plan_focus.dart';
 import 'session_snapshot.dart';
 
 /// Presentation/history; live or snapshot-restored questions are answerable.
@@ -100,6 +102,7 @@ class CoachConversationState {
     this.isWaiting = false,
     this.error,
     this.lastResult,
+    this.focus,
   }) : messages = List.unmodifiable(messages),
        admittedPlans = List.unmodifiable([
          for (final message in messages) ?message.plan,
@@ -111,6 +114,7 @@ class CoachConversationState {
   final List<ValidatedPlan> admittedPlans;
   final Object? error;
   final CoachTurnResult? lastResult;
+  final CoachPlanFocus? focus;
 }
 
 /// Owns sends and the lifecycle of the supplied [agent], without Flutter.
@@ -142,6 +146,68 @@ class CoachConversationController {
   bool _restoredPendingQuestion = false;
 
   CoachConversationState get state => _state;
+
+  /// Read the current selection immediately; observe [states] or
+  /// [addListener] for selections, edits, restores and clearing.
+  CoachPlanFocus? get focus => _state.focus;
+
+  /// Imports a complete saved plan without sending a model request. Invalid
+  /// plans, a disposed controller or an in-flight send leave all state intact.
+  CoachPlanFocusResult focusExternalPlan({
+    required String externalId,
+    required TrainingPlan plan,
+    String? title,
+  }) {
+    if (_disposed || _state.isWaiting) {
+      return CoachPlanFocusResult.failure([
+        PlanIssue(
+          _disposed ? 'disposed' : 'busy',
+          _disposed ? '会话已关闭。' : '请在当前请求结束后选择计划。',
+        ),
+      ]);
+    }
+    final result = agent.focusExternalPlan(
+      externalId: externalId,
+      plan: plan,
+      title: title,
+    );
+    if (!result.ok) return result;
+    _restoredPendingQuestion = false;
+    _publish(
+      CoachConversationState._(
+        messages: _closedMessages(_state.pendingQuestion?.id),
+        lastResult: _state.lastResult,
+        error: _state.error,
+      ),
+    );
+    return result;
+  }
+
+  /// Clears the discussion binding without deleting plans or resetting the
+  /// active draft. An in-flight turn using the focus is cancelled. Returns
+  /// false only when the controller is disposed.
+  bool clearPlanFocus() {
+    if (_disposed) return false;
+    final cancelling = focus != null && (_state.isWaiting || agent.isBusy);
+    if (cancelling) {
+      _cancel();
+      _restoredPendingQuestion = false;
+      agent.dismissConfirmation();
+    }
+    agent.clearPlanFocus();
+    _publish(
+      CoachConversationState._(
+        messages: cancelling
+            ? _closedMessages(_state.pendingQuestion?.id)
+            : _state.messages,
+        pendingQuestion: cancelling ? null : _state.pendingQuestion,
+        isWaiting: cancelling ? false : _state.isWaiting,
+        lastResult: _state.lastResult,
+        error: _state.error,
+      ),
+    );
+    return true;
+  }
 
   /// Broadcast state changes; read [state] immediately for the initial value.
   Stream<CoachConversationState> get states => _states.stream;
@@ -784,8 +850,15 @@ class CoachConversationController {
 
   void _publish(CoachConversationState state) {
     if (_disposed) return;
-    _state = state;
-    _states.add(state);
+    _state = CoachConversationState._(
+      messages: state.messages,
+      pendingQuestion: state.pendingQuestion,
+      isWaiting: state.isWaiting,
+      error: state.error,
+      lastResult: state.lastResult,
+      focus: agent.planFocus,
+    );
+    _states.add(_state);
     for (final listener in List.of(_listeners)) {
       if (_listeners.contains(listener)) {
         try {

@@ -21,10 +21,36 @@ import 'coach_tools.dart';
 
 /// 通过门禁的计划。只能由 [ToolGate] 构造。
 final class ValidatedPlan {
-  ValidatedPlan._(this.plan, List<PlanIssue> warnings)
-    : warnings = List.unmodifiable(warnings);
+  ValidatedPlan._(
+    this.plan,
+    List<PlanIssue> warnings, {
+    this.version,
+    this.savedRef,
+  }) : warnings = List.unmodifiable(warnings);
   final TrainingPlan plan;
   final List<PlanIssue> warnings;
+
+  /// Present for versioned Agent deliveries. Older admission APIs can omit it.
+  final int? version;
+
+  /// The host save this edited card derives from, with its original base.
+  final CoachSavedPlanRef? savedRef;
+
+  /// Attaches provenance only when these admitted contents are the state's
+  /// latest stored version. This cannot admit or replace any plan contents.
+  ValidatedPlan withSessionVersion(CoachSessionState state) {
+    final latest = state.plans[plan.id]?.lastOrNull;
+    if (latest == null ||
+        jsonEncode(latest.plan) != jsonEncode(plan.toJson())) {
+      return this;
+    }
+    return ValidatedPlan._(
+      plan,
+      warnings,
+      version: latest.version,
+      savedRef: state.focusPlanId == plan.id ? state.savedRef : null,
+    );
+  }
 }
 
 class ValidatedAction {
@@ -196,7 +222,20 @@ class ToolGate {
     ];
     final plan = prepared.plan == null
         ? null
-        : ValidatedPlan._(prepared.plan!, warnings);
+        : ValidatedPlan._(
+            prepared.plan!,
+            warnings,
+            version: prepared
+                .nodeResult!
+                .state
+                .plans[prepared.plan!.id]
+                ?.lastOrNull
+                ?.version,
+            savedRef:
+                prepared.nodeResult!.state.focusPlanId == prepared.plan!.id
+                ? prepared.nodeResult!.state.savedRef
+                : null,
+          );
     final actions = prepared.actions == null
         ? null
         : ValidatedActions._([

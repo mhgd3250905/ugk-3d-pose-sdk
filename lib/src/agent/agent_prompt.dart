@@ -15,13 +15,14 @@ import '../prompt/prompts.g.dart';
 import '../prompt/tool_prompt.dart';
 import '../tools/coach_tools.dart';
 import 'action_tags.dart';
+import 'plan_focus.dart';
 import 'session_params.dart';
 import 'session_state.dart';
 import 'skill_files.dart';
 import 'user_memory.dart';
 
 /// Agent 内核修订号。改 `prompts/agent_kernel.md` 或 `skills/` 语义时手动加一。
-const agentKernelRevision = 13;
+const agentKernelRevision = 14;
 
 abstract final class AgentTools {
   static const read = 'read';
@@ -178,7 +179,7 @@ abstract final class AgentTools {
           'additionalProperties': false,
         },
       ),
-      const LlmTool(
+      LlmTool(
         name: draftPlan,
         description: '标题/分块/ID配时排序核对；代码算剂量轮数。note不写动作剂量，看卡片；show_plan交付。',
         parameters: {
@@ -203,6 +204,13 @@ abstract final class AgentTools {
                       'type': 'object',
                       'properties': {
                         'id': {'type': 'string'},
+                        if (sessionState?.focusPlanId != null)
+                          'sourceIndex': {
+                            'type': 'integer',
+                            'minimum': 1,
+                            'description':
+                                'focus_plan.items.index；保留旧项时填，新增省略。',
+                          },
                       },
                       'required': ['id'],
                       'additionalProperties': false,
@@ -472,10 +480,11 @@ class AgentPromptBuilder {
     int questionsAsked = 0,
     String trainingParameters = '',
     String locale = 'zh',
+    bool hasPlanFocus = false,
   }) {
     final v = profile.vars;
     final labels = {'home': '居家', 'office': '办公室', 'gym': '健身房'};
-    return PromptTemplate(kernel).render({
+    final rendered = PromptTemplate(kernel).render({
       'appName': profile.appName,
       'locale': locale,
       'canary': canary,
@@ -504,6 +513,7 @@ class AgentPromptBuilder {
           ? '\n# 用户记忆\n$memorySummary\n'
           : '',
     }, where: 'agent_kernel');
+    return hasPlanFocus ? '$rendered\n$planFocusSystemRules' : rendered;
   }
 
   String hash(String system) =>

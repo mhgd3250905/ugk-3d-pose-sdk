@@ -26,7 +26,7 @@ import 'package:ugk_coach_ui/ugk_coach_ui.dart';
 
 ## 对外接口
 
-`CoachPlanExpanded` 公开复用计划卡展开内容，支持宿主控制的 `expanded`、收起回调、可替换的左底动作及 ▶ 回调。独立实例内置 280ms 高度变化和前 180ms 内容淡入；原 `CoachPlanCard` 使用同一组件的内部适配，保留原视觉与行为。[接入与参数](docs/plan-expanded.md)。
+`CoachPlanExpanded` 独占单层卡片外壳，支持宿主控制的 `expanded`、收起回调、左底动作及 ▶ 回调。可选 `header` / `collapsedSummary` / `onToggle` 供“我的计划”启用常驻顶部、摘要切换和整块点击；展开内容使用 280ms 高度变化、延迟 60ms 后 180ms 淡入。原对话卡复用外壳并保持原布局与交互。[接入与参数](docs/plan-expanded.md)。
 
 ### 从 0.1.x 迁移
 

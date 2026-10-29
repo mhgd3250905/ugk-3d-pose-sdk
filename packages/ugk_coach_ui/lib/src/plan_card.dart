@@ -942,13 +942,10 @@ class _PlanCardState extends State<CoachPlanCard>
     Animation<double> textOf(int i) =>
         reduced ? _expand : anim((t, b) => timeline.text(i, t, b));
     final arrive = reduced ? _expand : anim(_Timeline.open);
-    final details = CoachPlanExpanded._dialog(
+    final details = _PlanExpandedDetails(
       plan: p,
       library: lib,
-      expanded: _expanded,
-      onCollapse: _toggle,
       onAction: widget.onSave,
-      onStart: widget.onStart,
       dialog: _PlanExpandedDialog(
         progress: _expand,
         height: _height,
@@ -1279,11 +1276,15 @@ class _PlanCardState extends State<CoachPlanCard>
       );
     }
 
-    Widget card = CoachCardSurface(
-      radius: CoachRadius.lg,
+    Widget card = CoachPlanExpanded._dialog(
+      plan: p,
+      library: lib,
+      expanded: _expanded,
+      onCollapse: _toggle,
+      onStart: widget.onStart,
+      onAction: widget.onSave,
       width: width,
-      padding: const EdgeInsets.all(_inset),
-      child: content,
+      canvas: content,
     );
 
     // The stable wrapper preserves the card and its padding hit region.

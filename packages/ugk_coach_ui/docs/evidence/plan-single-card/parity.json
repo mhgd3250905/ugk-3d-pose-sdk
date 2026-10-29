@@ -1,0 +1,24 @@
+{
+  "baseline": "475a5d84b5d0fce839d9d4475da22a6d1ce2df19",
+  "renderer": "Flutter widget test, local CJK font, pixel ratio 2",
+  "frames": [
+    {
+      "file": "plan-card-collapsed.png",
+      "beforeSha256": "ffaf3bd1ef2f8c038d218e5054419252ec5a3f57f5cd15ad3b5b496615c0a3a5",
+      "afterSha256": "ffaf3bd1ef2f8c038d218e5054419252ec5a3f57f5cd15ad3b5b496615c0a3a5",
+      "identical": true
+    },
+    {
+      "file": "plan-card-expanded.png",
+      "beforeSha256": "aa6c694bd2ad1d11f61340880d5f7611ba61dbd08c435caeaa1c36ba30042dc8",
+      "afterSha256": "aa6c694bd2ad1d11f61340880d5f7611ba61dbd08c435caeaa1c36ba30042dc8",
+      "identical": true
+    },
+    {
+      "file": "plan-card-expanding-250ms.png",
+      "beforeSha256": "843d0ecde2ce4b5b86ad488ba375c167dec0e3bc19e61f3b43f1204c6f1eaadc",
+      "afterSha256": "843d0ecde2ce4b5b86ad488ba375c167dec0e3bc19e61f3b43f1204c6f1eaadc",
+      "identical": true
+    }
+  ]
+}

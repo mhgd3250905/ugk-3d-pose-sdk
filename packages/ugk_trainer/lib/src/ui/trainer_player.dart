@@ -420,6 +420,11 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   bool _saveFailed = false;
   bool _doneHandled = false;
   bool _closing = false;
+  bool _exitingEarly = false;
+  _EarlyExitFrame? _earlyExitFrame;
+  Future<bool>? _earlyExitSave;
+  Timer? _earlyExitProgressTimer;
+  bool _showEarlyExitProgress = false;
   bool _disposed = false;
   bool _soundEnabled = true;
   bool _interruptionActive = false;
@@ -582,6 +587,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _audioOwner++;
     _terminalAudio?.cancel();
     _terminalAudio = null;
+    _earlyExitProgressTimer?.cancel();
     _timer?.cancel();
     _startTimer?.cancel();
     _navigationVoice?.cancel();
@@ -693,7 +699,13 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _tick() {
-    if (_disposed || !mounted || _preview || (_paused && !_engine.done)) return;
+    if (_disposed ||
+        !mounted ||
+        _preview ||
+        _earlyExitFrame != null ||
+        (_paused && !_engine.done)) {
+      return;
+    }
     final t = _t;
     if (_navigationCoalescing) {
       // Navigation settles only presentation and speech, never the clock.
@@ -745,6 +757,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _prioritizeMedia() {
+    if (_exitingEarly) return;
     final scheduler = _mediaPrefetcher;
     if ((widget.poseHubCatalog == null && widget.poseHubActionOf == null) ||
         scheduler == null ||
@@ -775,25 +788,29 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   void _onDone(double t) {
     if (_doneHandled) return;
     _doneHandled = true;
-    _retireMedia();
+    if (!_exitingEarly) _retireMedia();
     _endedAt ??= t;
     _clock.stop();
     // Keep the closing line (including queued tails) audible before ending
     // the silent loop and the foreground hold. A replay cancels this owner.
-    var tail = 4.0;
-    for (final line in _queue.log) {
-      final remaining = line.end - t + VoiceQueue.tailGrace;
-      if (remaining > tail) tail = remaining;
+    if (!_exitingEarly) {
+      var tail = 4.0;
+      for (final line in _queue.log) {
+        final remaining = line.end - t + VoiceQueue.tailGrace;
+        if (remaining > tail) tail = remaining;
+      }
+      final owner = _audioOwner;
+      final hold = _hold;
+      _terminalAudio = Timer(Duration(microseconds: (tail * 1e6).ceil()), () {
+        _terminalAudio = null;
+        if (_disposed || owner != _audioOwner || !_engine.done) return;
+        unawaited(_endAudio());
+        hold?.release();
+      });
     }
-    final owner = _audioOwner;
-    final hold = _hold;
-    _terminalAudio = Timer(Duration(microseconds: (tail * 1e6).ceil()), () {
-      _terminalAudio = null;
-      if (_disposed || owner != _audioOwner || !_engine.done) return;
-      unawaited(_endAudio());
-      hold?.release();
-    });
-    unawaited(_save());
+    final saving = _save();
+    if (_exitingEarly) _earlyExitSave = saving;
+    unawaited(saving);
   }
 
   Future<void> _endAudio() {
@@ -852,6 +869,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     final owner = ++_audioOwner;
     _terminalAudio?.cancel();
     _terminalAudio = null;
+    _earlyExitProgressTimer?.cancel();
+    _earlyExitProgressTimer = null;
+    _earlyExitFrame = null;
+    _earlyExitSave = null;
+    _exitingEarly = false;
+    _showEarlyExitProgress = false;
     _navigationVoice?.cancel();
     _navigationVoice = null;
     _navigationCoalescing = false;
@@ -942,6 +965,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   /// The big number in the ring: the rep, the self-paced target or the
   /// seconds left.
   String _counterValue(SessionPhase p, double t) {
+    if (_exitingEarly) return _earlyExitFrame!.counter;
     if (p.isWork && p.selfPaced) return '${p.reps ?? ''}';
     final rep = p.repAt(_engine.elapsedIn(t));
     if (rep != null) return '$rep';
@@ -1382,7 +1406,28 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         ],
       ),
     );
-    if (ok == true) _endEarly();
+    if (ok == true && mounted && !_engine.done) {
+      // Finish the data engine as before, but keep its last presentation:
+      // finish() moves its phase/index straight to done.
+      final t = _t;
+      _earlyExitFrame = _EarlyExitFrame(
+        phase: _phase,
+        index: _engine.index,
+        completedExercises: _engine.completedExercises,
+        secondsLeft: _engine.secondsLeft(t),
+        counter: _counterValue(_phase, t),
+        awaitingCompletion: _engine.awaitingCompletion,
+      );
+      _exitingEarly = true;
+      _hold?.setPlaybackState(paused: true);
+      _navigationVoice?.cancel();
+      _earlyExitProgressTimer = Timer(const Duration(milliseconds: 400), () {
+        if (mounted && _exitingEarly && _closing) {
+          setState(() => _showEarlyExitProgress = true);
+        }
+      });
+      _endEarly();
+    }
     return ok == true;
   }
 
@@ -1401,17 +1446,28 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       if (!await _confirmClose() || !mounted) return;
       // A confirmed early exit and system back share the same save as the
       // done view. Keep the result and retry action on screen if it fails.
-      if (await _save() && mounted && await _completeReceipt() && mounted) {
+      final saved = await (_exitingEarly ? _earlyExitSave! : _save());
+      if (saved && mounted && await _completeReceipt() && mounted) {
         nav.pop(_completionReceipt);
+      } else if (mounted && _exitingEarly) {
+        _retireMedia();
+        unawaited(_endAudio());
+        _hold?.release();
+        setState(() => _exitingEarly = false);
       }
     } finally {
+      _earlyExitProgressTimer?.cancel();
+      _earlyExitProgressTimer = null;
+      if (mounted && _showEarlyExitProgress) {
+        setState(() => _showEarlyExitProgress = false);
+      }
       _closing = false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final p = _phase;
+    final p = _exitingEarly ? _earlyExitFrame!.phase : _phase;
     final d = p.exerciseId == null ? null : widget.drillOf(p.exerciseId!);
     return PopScope(
       canPop: false,
@@ -1427,15 +1483,57 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
           key: _materialScope,
           builder: (_) => Scaffold(
             backgroundColor: _th.mediaStage,
-            body: _engine.done
-                ? TrainerResultStage(
-                    theme: _th,
-                    child: SafeArea(child: _doneView()),
-                  )
-                : _sessionView(p, d),
+            body: _playerBody(p, d),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _playerBody(SessionPhase phase, TrainerDrill? drill) {
+    if (_engine.done && !_exitingEarly) {
+      final result = TrainerResultStage(
+        theme: _th,
+        child: SafeArea(child: _doneView()),
+      );
+      if (_earlyExitFrame == null) return result;
+      return TweenAnimationBuilder<double>(
+        key: const ValueKey('early-exit-failure'),
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        child: result,
+        builder: (_, opacity, child) => Opacity(opacity: opacity, child: child),
+      );
+    }
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        IgnorePointer(
+          ignoring: _exitingEarly,
+          child: TickerMode(
+            enabled: !_exitingEarly,
+            child: _sessionView(phase, drill),
+          ),
+        ),
+        if (_exitingEarly && _showEarlyExitProgress)
+          Center(
+            child: TweenAnimationBuilder<double>(
+              key: const ValueKey('early-exit-progress'),
+              tween: Tween(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 150),
+              child: SizedBox.square(
+                dimension: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: _th.accent,
+                ),
+              ),
+              builder: (_, opacity, child) =>
+                  Opacity(opacity: opacity, child: child),
+            ),
+          ),
+      ],
     );
   }
 
@@ -1556,7 +1654,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   Widget _media(SessionPhase p, TrainerDrill d, TrainerTheme theme) {
     final req = TrainerMediaRequest(
       drill: d,
-      paused: _preview ? false : _paused,
+      paused: _exitingEarly || (!_preview && _paused),
       mirrored: p.side == Side.left,
       theme: theme,
       strings: _s,
@@ -1568,8 +1666,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       final media = PoseHubPackMedia(
         action: action,
         baseUri: widget.poseHubMediaBaseUri ?? Uri(),
-        playing: _preview || !_engine.done,
-        paused: _preview ? false : _paused,
+        playing: _preview || _exitingEarly || !_engine.done,
+        paused: _exitingEarly || (!_preview && _paused),
         // The stage already supplies the opaque background. Keep the
         // bundled transparent still transparent here so the floor behind it
         // is visible while the video initializes.
@@ -1587,7 +1685,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     return DrillMediaView(
       key: const ValueKey('player-media'),
       media: m,
-      paused: _preview ? false : _paused,
+      paused: _exitingEarly || (!_preview && _paused),
       mirrored: p.side == Side.left,
       radius: 0,
       stage: _th.mediaStage,
@@ -1603,7 +1701,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         p.kind == PhaseKind.rest ||
         p.kind == PhaseKind.roundRest ||
         p.kind == PhaseKind.prep;
-    final done = _engine.completedExercises;
+    final done = _exitingEarly
+        ? _earlyExitFrame!.completedExercises
+        : _engine.completedExercises;
     final label = switch (p.kind) {
       PhaseKind.prep => _s.prepFirst,
       PhaseKind.rest when p.nextExerciseId != null => _s.restNext,
@@ -2454,7 +2554,11 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   /// 完成本组: a compact emerald pill in the transport's number slot, just
   /// above the pause button (sdk-stage-r8).
   Widget? _completeButton() {
-    if (!_engine.awaitingCompletion) return null;
+    if (!(_exitingEarly
+        ? _earlyExitFrame!.awaitingCompletion
+        : _engine.awaitingCompletion)) {
+      return null;
+    }
     return Center(
       key: const ValueKey('complete-set'),
       child: ConstrainedBox(
@@ -2489,7 +2593,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   Widget? _nextUp(SessionPhase p) {
     final phases = _engine.phases;
     SessionPhase? next;
-    for (var i = _engine.index + 1; i < phases.length; i++) {
+    final index = _exitingEarly ? _earlyExitFrame!.index : _engine.index;
+    for (var i = index + 1; i < phases.length; i++) {
       final q = phases[i];
       if (q.kind == PhaseKind.work &&
           q.exerciseId != null &&
@@ -2575,7 +2680,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   /// reading as one label.
   Widget _digits(SessionPhase p, double t) {
     final counted = p.countedOnClock;
-    final left = _engine.secondsLeft(t);
+    final left = _exitingEarly
+        ? _earlyExitFrame!.secondsLeft
+        : _engine.secondsLeft(t);
     final working = p.isWork;
     if (working && p.selfPaced) {
       // 完成本组 takes the number slot above the pause button (the dose
@@ -2667,4 +2774,23 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
           )
         : null,
   );
+}
+
+/// Presentation values whose engine getters change immediately on finish().
+class _EarlyExitFrame {
+  const _EarlyExitFrame({
+    required this.phase,
+    required this.index,
+    required this.completedExercises,
+    required this.secondsLeft,
+    required this.counter,
+    required this.awaitingCompletion,
+  });
+
+  final SessionPhase phase;
+  final int index;
+  final int completedExercises;
+  final int secondsLeft;
+  final String counter;
+  final bool awaitingCompletion;
 }

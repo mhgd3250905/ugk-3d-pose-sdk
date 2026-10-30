@@ -179,7 +179,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('close')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('close-confirm')));
-    await tester.pumpAndSettle();
+    // A slow early save keeps a live progress spinner after 400ms. Inspect the
+    // pending operation without waiting for that intentionally looping ticker.
+    await tester.pump(const Duration(milliseconds: 600));
     expect(popped, isEmpty);
     expect(saved.single.endedEarly, isTrue);
     gate.completeError(StateError('disk full'));

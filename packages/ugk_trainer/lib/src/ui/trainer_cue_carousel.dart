@@ -104,7 +104,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
     if (widget.preparing || _sheetOpen || widget.cues.isEmpty) return;
     _timer = Timer(delay, () {
       if (!mounted) return;
-      _move(1);
+      if (TickerMode.valuesOf(context).enabled) _move(1);
       _schedule();
     });
   }

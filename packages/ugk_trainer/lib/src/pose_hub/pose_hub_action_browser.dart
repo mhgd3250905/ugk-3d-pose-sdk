@@ -127,6 +127,7 @@ class PoseHubActionBrowser extends StatefulWidget {
     this.voice,
     this.onStartTraining,
     this.onCompleted,
+    this.onOpenPractice,
   });
   final PoseHubAppTestCatalog catalog;
   final Uri mediaBaseUri;
@@ -136,6 +137,14 @@ class PoseHubActionBrowser extends StatefulWidget {
   final TrainerVoice? voice;
   final VoidCallback? onStartTraining;
   final Future<void> Function(SessionResult result)? onCompleted;
+
+  /// Lets the host open the fully configured single-practice page.
+  ///
+  /// Null preserves the built-in MaterialPageRoute. When supplied, this is
+  /// called instead of pushing a route; the host owns navigation. The page
+  /// exposes the selected action, resolved theme and all existing practice
+  /// inputs, which can be reused when adding host start/exit or media hooks.
+  final ValueChanged<PoseHubSinglePracticePage>? onOpenPractice;
   @override
   State<PoseHubActionBrowser> createState() => _PoseHubActionBrowserState();
 }
@@ -175,6 +184,26 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
   );
 
   Color _selectedForeground(TrainerTheme theme) => theme.accentText;
+
+  void _openPractice(PoseHubPackAction action, TrainerTheme theme) {
+    final page = PoseHubSinglePracticePage(
+      action: action,
+      mediaBaseUri: widget.mediaBaseUri,
+      theme: theme,
+      onFinished: widget.onPracticeFinished,
+      mediaPreparer: widget.mediaPreparer,
+      voice: widget.voice,
+      startMode: TrainerStartMode.preview,
+      onStartTraining: widget.onStartTraining,
+      onCompleted: widget.onCompleted,
+    );
+    final open = widget.onOpenPractice;
+    if (open != null) {
+      open(page);
+      return;
+    }
+    Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => page));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -279,21 +308,7 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
                               label: action.nameZh,
                               child: GestureDetector(
                                 key: ValueKey('posehub-action-${action.id}'),
-                                onTap: () => Navigator.of(context).push<void>(
-                                  MaterialPageRoute(
-                                    builder: (_) => PoseHubSinglePracticePage(
-                                      action: action,
-                                      mediaBaseUri: widget.mediaBaseUri,
-                                      theme: theme,
-                                      onFinished: widget.onPracticeFinished,
-                                      mediaPreparer: widget.mediaPreparer,
-                                      voice: widget.voice,
-                                      startMode: TrainerStartMode.preview,
-                                      onStartTraining: widget.onStartTraining,
-                                      onCompleted: widget.onCompleted,
-                                    ),
-                                  ),
-                                ),
+                                onTap: () => _openPractice(action, theme),
                                 child: DecoratedBox(
                                   key: ValueKey(
                                     'posehub-card-surface-${action.id}',
@@ -565,6 +580,10 @@ class PoseHubSinglePracticePage extends StatelessWidget {
     this.startMode = TrainerStartMode.training,
     this.onStartTraining,
     this.onCompleted,
+    this.startGate,
+    this.beforeExitPop,
+    this.onExitStarted,
+    this.mediaBuilder,
   });
   final PoseHubPackAction action;
   final Uri mediaBaseUri;
@@ -575,6 +594,35 @@ class PoseHubSinglePracticePage extends StatelessWidget {
   final TrainerStartMode startMode;
   final VoidCallback? onStartTraining;
   final Future<void> Function(SessionResult result)? onCompleted;
+
+  /// Delays an initially training session, with [TrainerPlayer.startGate]
+  /// semantics. Until it settles, the clock, ticks, audio and keep-alive do
+  /// not start, and media requests are paused. Errors release the gate;
+  /// leaving first prevents startup and saving. Preview ignores the gate.
+  /// Null preserves immediate startup.
+  final Future<void>? startGate;
+
+  /// Awaits host exit work after saving and receipt completion, before pop.
+  ///
+  /// Forwarded to [TrainerPlayer.beforeExitPop], including its one-second
+  /// timeout and error handling. Save failure and preview exit do not call
+  /// it. Closing before [startGate] settles awaits it without saving.
+  final Future<void> Function()? beforeExitPop;
+
+  /// Announces a confirmed exit synchronously, before saving begins.
+  ///
+  /// Forwarded to [TrainerPlayer.onExitStarted]; called once until replay.
+  /// The host may begin exit motion here and await it in [beforeExitPop].
+  /// Preview exit does not call it. Null retains the existing exit flow.
+  final VoidCallback? onExitStarted;
+
+  /// Replaces the media stage using [TrainerPlayer.mediaBuilder] semantics.
+  ///
+  /// Called on the first build, so the host can return a preloaded poster
+  /// immediately. Honor [TrainerMediaRequest.paused] to avoid playback while
+  /// gated or paused. Null keeps the existing Pose-Hub media and cover.
+  /// This builder owns the full media stage, not an overlay on SDK video.
+  final TrainerMediaBuilder? mediaBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -646,6 +694,10 @@ class PoseHubSinglePracticePage extends StatelessWidget {
       startMode: startMode,
       onStartTraining: onStartTraining,
       onCompleted: onCompleted,
+      startGate: startGate,
+      beforeExitPop: beforeExitPop,
+      onExitStarted: onExitStarted,
+      mediaBuilder: mediaBuilder,
       drillOf: (id) => id == action.id
           ? TrainerDrill(
               id: id,

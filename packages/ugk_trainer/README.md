@@ -1,5 +1,8 @@
 # ugk_trainer 0.4.2
 
+动作库与单练可选的宿主导航、延迟开始、退出钩子及预加载媒体接入见
+[动作库与单练入口](docs/single-practice-entry.md)。省略新参数时保留既有行为。
+
 ## 训练体验修复（待验收分支）
 
 新增可选视频展示阶段 `TrainerStartMode.preview`、共享要点轮播及半屏完整步骤、真实训练数据完成页和可选感受完成事件。默认仍直接训练；旧 `onFinished` 自动保存保留，新增 `onCompleted` 可用同一 session ID 更新感受。[接入与兼容说明](docs/training-ux.md)，[浅深前后截图](../../docs/visuals/training-ux-1/README.md)。本轮不修改视频素材、取景或裁切。

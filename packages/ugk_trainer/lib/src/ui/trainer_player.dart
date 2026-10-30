@@ -51,6 +51,8 @@ import 'trainer_surface.dart';
 import 'trainer_theme.dart';
 import 'ugk_play_pause_button.dart';
 
+part 'trainer_chrome.dart';
+
 /// What the player needs to show one exercise.
 class TrainerDrill {
   const TrainerDrill({
@@ -259,6 +261,10 @@ class TrainerPlayer extends StatefulWidget {
     this.startMode = TrainerStartMode.training,
     this.onStartTraining,
     this.onCompleted,
+    this.startGate,
+    this.chromeAnimation,
+    this.beforeExitPop,
+    this.onExitStarted,
     this.rhythms = const {},
     this.rhythmDefaults = const RhythmDefaults(),
     this.showExtendRest = false,
@@ -305,6 +311,42 @@ class TrainerPlayer extends StatefulWidget {
   /// receipt under the same session ID when Finish or Train again is tapped.
   /// A failed callback stays on the completion page and can be retried.
   final Future<void> Function(SessionResult result)? onCompleted;
+
+  /// Delays an initially training session until this future settles.
+  ///
+  /// Null preserves immediate startup. While waiting, media is paused and
+  /// the initial countdown is fixed; no training clock, tick timer, audio or
+  /// keep-alive starts. The result recorder starts when this gate settles.
+  /// Errors also release the gate. Leaving or disposing first prevents both
+  /// startup and saving. Preview mode keeps its existing start-button flow.
+  /// The future is captured on mount; replacing it does not re-gate a session.
+  final Future<void>? startGate;
+
+  /// Host-driven progress for training controls and the completion view.
+  ///
+  /// Null preserves the existing layout. Drive linearly from 0 to 1 over
+  /// 280 ms for the specified stagger; reverse uses the exit curves. Media
+  /// and the floor are unaffected. Controls ignore input below 1. Reduced
+  /// motion retains opacity only; preview ignores this animation. After a
+  /// failed exit save, the completion view ignores it so retry stays visible.
+  final Animation<double>? chromeAnimation;
+
+  /// Runs after a successful save and completion receipt, just before pop.
+  ///
+  /// The host may await its exit animation and switch video back to a poster.
+  /// Closing stays locked until this finishes; errors or a one-second timeout
+  /// still allow pop. It is not called after save failure or for preview exit.
+  /// Exiting before [startGate] opens also awaits it, without saving a result.
+  final Future<void> Function()? beforeExitPop;
+
+  /// Synchronously announces a confirmed exit before saving begins.
+  ///
+  /// Called when early exit is confirmed, Finish is tapped, or an unstarted
+  /// gated session is closed. It runs once until replay, so repeated clicks
+  /// cannot restart host exit motion. It can overlap motion with saving;
+  /// [beforeExitPop] then waits for that motion. Preview exit does not call it.
+  /// A thrown callback does not block the exit.
+  final VoidCallback? onExitStarted;
 
   /// Rhythm by exercise id ([rhythmsFromCatalog]); missing: by dose.
   final Map<String, Rhythm> rhythms;
@@ -420,6 +462,14 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   bool _saveFailed = false;
   bool _doneHandled = false;
   bool _closing = false;
+  bool _waitingForStart = false;
+  bool _trainingStarted = false;
+  bool _leavingBeforeStart = false;
+  bool _screenAwakeHeld = false;
+  bool _exitStarted = false;
+  bool _exitSaveFailed = false;
+  Timer? _exitPopTimer;
+  Completer<void>? _exitPopWait;
   bool _exitingEarly = false;
   _EarlyExitFrame? _earlyExitFrame;
   Future<bool>? _earlyExitSave;
@@ -539,11 +589,16 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _runner = SessionRunner(SessionEngine(_builder.phases(_plan)), _script);
     if (_engine.done) _preview = false;
     _configureMedia();
-    _recorder = SessionRecorder(
-      plan: _plan,
-      totalExercises: _occurrences,
-      sessionId: widget.sessionId,
-    );
+    _waitingForStart =
+        widget.startMode == TrainerStartMode.training &&
+        widget.startGate != null;
+    if (!_waitingForStart) {
+      _recorder = SessionRecorder(
+        plan: _plan,
+        totalExercises: _occurrences,
+        sessionId: widget.sessionId,
+      );
+    }
     _saver = ResultSaver(widget.onFinished);
     _completionSaver = ResultSaver((result) async {
       await widget.onCompleted?.call(result);
@@ -555,14 +610,19 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       settings: _soundSettings,
       onStarted: _onCueStarted,
     );
-    if (!_preview && (_voice.settings.voice || _voice.settings.chimes)) {
+    if (!_preview &&
+        !_waitingForStart &&
+        (_voice.settings.voice || _voice.settings.chimes)) {
       unawaited(_voice.output.begin());
     }
     if (_voice.output case final InterruptibleVoiceOutput out) {
       _interruptions = out.interruptions.listen(_onInterruption);
     }
-    ScreenAwake.acquire();
-    if (!_preview && widget.keepAlive) {
+    if (!_waitingForStart) {
+      ScreenAwake.acquire();
+      _screenAwakeHeld = true;
+    }
+    if (!_preview && !_waitingForStart && widget.keepAlive) {
       _hold = TrainingHold.begin(
         Duration(seconds: (_runner.planSeconds + widget.prepSeconds).round()),
         mediaPlayback: _voice.settings.voice || _voice.settings.chimes,
@@ -575,14 +635,73 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         ),
       );
     }
-    if (!_preview) _clock.start();
+    if (!_preview && !_waitingForStart) {
+      _trainingStarted = true;
+      _clock.start();
+    }
+    if (!_waitingForStart) {
+      _timer = Timer.periodic(widget.tick, (_) => _tick());
+      WidgetsBinding.instance.addPostFrameCallback((_) => _tick());
+    }
+    final gate = widget.startGate;
+    if (gate != null) unawaited(_awaitStartGate(gate));
+  }
+
+  Future<void> _awaitStartGate(Future<void> gate) async {
+    // Subscribe immediately, including to an already failed future, but use
+    // an async completer so SynchronousFuture cannot resume inside initState.
+    final ready = Completer<void>();
+    unawaited(
+      gate.then<void>(
+        (_) => ready.complete(),
+        onError: (Object _, StackTrace _) => ready.complete(),
+      ),
+    );
+    await ready.future;
+    if (_disposed ||
+        !mounted ||
+        !_waitingForStart ||
+        _leavingBeforeStart ||
+        ModalRoute.of(context)?.isActive == false) {
+      return;
+    }
+    _recorder = SessionRecorder(
+      plan: _plan,
+      totalExercises: _occurrences,
+      sessionId: widget.sessionId,
+    );
+    _waitingForStart = false;
+    _trainingStarted = true;
+    if (_voice.settings.voice || _voice.settings.chimes) {
+      unawaited(_voice.output.begin());
+    }
+    ScreenAwake.acquire();
+    _screenAwakeHeld = true;
+    if (widget.keepAlive) {
+      _hold = TrainingHold.begin(
+        Duration(seconds: (_runner.planSeconds + widget.prepSeconds).round()),
+        mediaPlayback: _voice.settings.voice || _voice.settings.chimes,
+        notice: TrainingNotice(
+          channelName: _s.notificationChannel,
+          channelDescription: _s.notificationChannelDescription,
+          title: _s.notificationTitle,
+          text: _s.notificationText,
+          icon: widget.notificationIcon,
+        ),
+      );
+    }
+    _clock.start();
     _timer = Timer.periodic(widget.tick, (_) => _tick());
+    setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) => _tick());
   }
 
   @override
   void dispose() {
     _disposed = true;
+    _exitPopTimer?.cancel();
+    final exitWait = _exitPopWait;
+    if (exitWait != null && !exitWait.isCompleted) exitWait.complete();
     _mediaPrefetcher?.dispose();
     _audioOwner++;
     _terminalAudio?.cancel();
@@ -593,11 +712,13 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _navigationVoice?.cancel();
     _progress.dispose();
     unawaited(_interruptions?.cancel());
-    ScreenAwake.release();
-    _queue.cancelAll(_t);
-    unawaited(_endAudio());
+    if (_screenAwakeHeld) ScreenAwake.release();
+    if (!_waitingForStart) {
+      _queue.cancelAll(_t);
+      unawaited(_endAudio());
+    }
     _hold?.release();
-    if (!_preview && !_recorder.finished) {
+    if (_trainingStarted && !_recorder.finished) {
       // Closed without the done view (route removed): still record it.
       _runner.finish(_t);
       _endedAt ??= _t;
@@ -649,6 +770,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         setState(() {
           _preview = false;
           _startingTraining = false;
+          _trainingStarted = true;
           _clock.start();
         });
         _tick();
@@ -702,6 +824,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (_disposed ||
         !mounted ||
         _preview ||
+        _waitingForStart ||
         _earlyExitFrame != null ||
         (_paused && !_engine.done)) {
       return;
@@ -875,6 +998,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _earlyExitSave = null;
     _exitingEarly = false;
     _showEarlyExitProgress = false;
+    _exitStarted = false;
+    _exitSaveFailed = false;
     _navigationVoice?.cancel();
     _navigationVoice = null;
     _navigationCoalescing = false;
@@ -973,7 +1098,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _onInterruption(AudioInterruption e) {
-    if (!mounted || _engine.done) return;
+    if (!mounted || _engine.done || _waitingForStart) return;
     if (e == AudioInterruption.ended) {
       _interruptionActive = false;
       return;
@@ -988,6 +1113,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   void _togglePause({bool announce = true}) {
     if (_preview ||
+        _waitingForStart ||
         _engine.done ||
         _audioRestarting ||
         (_paused && _interruptionActive)) {
@@ -1027,6 +1153,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _after(void Function() change, {bool settleVoice = false}) {
+    if (_waitingForStart) return;
     // Leading edge: a switch outside a running window speaks immediately.
     // Switches inside it are merged and only the final target speaks.
     final leading = !settleVoice || _navigationVoice == null;
@@ -1117,6 +1244,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   void _previous() => _after(() => _runner.previous(_t), settleVoice: true);
 
   void _extendRest() {
+    if (_waitingForStart) return;
     if (_runner.extendRest(_t)) {
       _queue.cancelAll(_t);
       final remaining =
@@ -1134,6 +1262,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   void _skipSegment() => _after(() => _runner.skipSegment(_t));
 
   void _toggleSound() {
+    if (_waitingForStart) return;
     _queue.cancelAll(_t);
     // What a navigation burst "already announced" depends on the sound state;
     // never let it suppress speech after sound is switched.
@@ -1147,7 +1276,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _completeSet() {
-    if (_paused || !_engine.awaitingCompletion) return;
+    if (_waitingForStart || _paused || !_engine.awaitingCompletion) return;
     unawaited(HapticFeedback.lightImpact());
     _queue.cancelAll(_t);
     _submit(_runner.completeSet(_t), _t);
@@ -1216,6 +1345,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   Future<void> _discomfort({SessionPhase? completedPhase}) async {
+    if (_waitingForStart) return;
     if (_engine.done) return;
     final wasRunning = !_paused;
     final interruptionRevision = _interruptionRevision;
@@ -1390,7 +1520,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
               minimumSize: const Size(64, 44),
               shape: const StadiumBorder(),
             ),
-            onPressed: () => Navigator.pop(c, true),
+            onPressed: () {
+              _notifyExitStarted();
+              if (c.mounted) Navigator.pop(c, true);
+            },
             child: Text(_s.closeConfirm, style: TextStyle(color: _th.muted)),
           ),
           FilledButton(
@@ -1443,25 +1576,83 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         nav.pop();
         return;
       }
+      if (_waitingForStart) {
+        _leavingBeforeStart = true;
+        _notifyExitStarted();
+        if (widget.beforeExitPop != null) await _waitBeforeExitPop();
+        if (mounted && ModalRoute.of(context)?.isActive != false) nav.pop();
+        return;
+      }
+      if (_engine.done) _notifyExitStarted();
       if (!await _confirmClose() || !mounted) return;
       // A confirmed early exit and system back share the same save as the
       // done view. Keep the result and retry action on screen if it fails.
       final saved = await (_exitingEarly ? _earlyExitSave! : _save());
       if (saved && mounted && await _completeReceipt() && mounted) {
-        nav.pop(_completionReceipt);
-      } else if (mounted && _exitingEarly) {
-        _retireMedia();
-        unawaited(_endAudio());
-        _hold?.release();
-        setState(() => _exitingEarly = false);
+        _stopEarlyExitProgress();
+        if (widget.beforeExitPop != null) await _waitBeforeExitPop();
+        if (mounted && ModalRoute.of(context)?.isActive != false) {
+          nav.pop(_completionReceipt);
+        }
+      } else if (mounted) {
+        if (_exitingEarly) {
+          _retireMedia();
+          unawaited(_endAudio());
+          _hold?.release();
+        }
+        setState(() {
+          _exitSaveFailed = true;
+          _exitingEarly = false;
+        });
       }
     } finally {
-      _earlyExitProgressTimer?.cancel();
-      _earlyExitProgressTimer = null;
-      if (mounted && _showEarlyExitProgress) {
-        setState(() => _showEarlyExitProgress = false);
-      }
+      _stopEarlyExitProgress();
       _closing = false;
+    }
+  }
+
+  void _notifyExitStarted() {
+    if (_exitStarted) return;
+    _exitStarted = true;
+    try {
+      widget.onExitStarted?.call();
+    } on Object {
+      // A host animation callback must not prevent saving or leaving.
+    }
+  }
+
+  Future<void> _waitBeforeExitPop() async {
+    if (_disposed || !mounted) return;
+    final done = Completer<void>();
+    _exitPopWait = done;
+    void release() {
+      if (!done.isCompleted) done.complete();
+    }
+
+    final timer = Timer(const Duration(seconds: 1), release);
+    _exitPopTimer = timer;
+    unawaited(
+      Future<void>.sync(widget.beforeExitPop!).then<void>(
+        (_) => release(),
+        onError: (Object _, StackTrace _) => release(),
+      ),
+    );
+    try {
+      await done.future;
+    } finally {
+      timer.cancel();
+      if (identical(_exitPopWait, done)) {
+        _exitPopWait = null;
+        _exitPopTimer = null;
+      }
+    }
+  }
+
+  void _stopEarlyExitProgress() {
+    _earlyExitProgressTimer?.cancel();
+    _earlyExitProgressTimer = null;
+    if (mounted && _showEarlyExitProgress) {
+      setState(() => _showEarlyExitProgress = false);
     }
   }
 
@@ -1491,19 +1682,22 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   Widget _playerBody(SessionPhase phase, TrainerDrill? drill) {
-    if (_engine.done && !_exitingEarly) {
+    if (_engine.done && !_exitingEarly && !_waitingForStart) {
       final result = TrainerResultStage(
         theme: _th,
         child: SafeArea(child: _doneView()),
       );
-      if (_earlyExitFrame == null) return result;
-      return TweenAnimationBuilder<double>(
-        key: const ValueKey('early-exit-failure'),
-        tween: Tween(begin: 0, end: 1),
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        child: result,
-        builder: (_, opacity, child) => Opacity(opacity: opacity, child: child),
+      if (_earlyExitFrame == null) return _chromeDone(result);
+      return _chromeDone(
+        TweenAnimationBuilder<double>(
+          key: const ValueKey('early-exit-failure'),
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          child: result,
+          builder: (_, opacity, child) =>
+              Opacity(opacity: opacity, child: child),
+        ),
       );
     }
     return Stack(
@@ -1845,28 +2039,32 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                         child: Align(
                           alignment: Alignment.bottomCenter,
                           heightFactor: 1,
-                          child: _fade(
-                            alignment: Alignment.bottomCenter,
-                            sizeToCurrent: true,
-                            displayCues.isEmpty
-                                ? const SizedBox.shrink()
-                                : IgnorePointer(
-                                    ignoring: _startingTraining,
-                                    child: TrainerCueCarousel(
-                                      key: ValueKey('cues-${d?.id}'),
-                                      cues: displayCues,
-                                      steps: cues,
-                                      precautions: d?.precautions ?? const [],
-                                      theme: _th,
-                                      preparing:
-                                          !_preview && p.kind == PhaseKind.prep,
-                                      sheetTitle: _s.howTo,
-                                      precautionsTitle: _s.precautions,
-                                      semanticLabel: _s.instructionsLabel,
-                                      closeLabel: _s.closeInstructions,
-                                      onExpandedChanged: _cueSheetChanged,
+                          child: _chromeLayer(
+                            _fade(
+                              alignment: Alignment.bottomCenter,
+                              sizeToCurrent: true,
+                              displayCues.isEmpty
+                                  ? const SizedBox.shrink()
+                                  : IgnorePointer(
+                                      ignoring: _startingTraining,
+                                      child: TrainerCueCarousel(
+                                        key: ValueKey('cues-${d?.id}'),
+                                        cues: displayCues,
+                                        steps: cues,
+                                        precautions: d?.precautions ?? const [],
+                                        theme: _th,
+                                        preparing:
+                                            !_preview &&
+                                            p.kind == PhaseKind.prep,
+                                        sheetTitle: _s.howTo,
+                                        precautionsTitle: _s.precautions,
+                                        semanticLabel: _s.instructionsLabel,
+                                        closeLabel: _s.closeInstructions,
+                                        onExpandedChanged: _cueSheetChanged,
+                                      ),
                                     ),
-                                  ),
+                            ),
+                            _TrainerChromeLayer.cues,
                           ),
                         ),
                       ),
@@ -1910,47 +2108,52 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                     child: AnimatedOpacity(
                       duration: const Duration(milliseconds: 250),
                       opacity: !_preview || _startingTraining ? 1 : 0,
-                      child: Row(
-                        key: const ValueKey('top-hud'),
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: _fade(
-                                topPendant ??
-                                    const SizedBox.shrink(
-                                      key: ValueKey('tag-none'),
-                                    ),
-                              ),
-                            ),
-                          ),
-                          if (showDiscomfort) ...[
-                            const SizedBox(width: TrainerSpace.x2),
-                            Semantics(
-                              excludeSemantics: true,
-                              button: true,
-                              label: _s.discomfort,
-                              onTap: _discomfort,
-                              child: GestureDetector(
-                                key: const ValueKey('discomfort'),
-                                behavior: HitTestBehavior.opaque,
-                                onTap: _discomfort,
-                                child: Padding(
-                                  // 32 px chip, 44 px touch target.
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 6,
-                                  ),
-                                  child: _tag(
-                                    _s.discomfort,
-                                    icon: CupertinoIcons.waveform_path_ecg,
-                                    color: _mediaCaution,
-                                  ),
+                      child: _chromeLayer(
+                        Row(
+                          key: const ValueKey('top-hud'),
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
+                                child: _fade(
+                                  topPendant ??
+                                      const SizedBox.shrink(
+                                        key: ValueKey('tag-none'),
+                                      ),
                                 ),
                               ),
                             ),
+                            if (showDiscomfort) ...[
+                              const SizedBox(width: TrainerSpace.x2),
+                              Semantics(
+                                excludeSemantics: true,
+                                button: true,
+                                label: _s.discomfort,
+                                onTap: _discomfort,
+                                child: GestureDetector(
+                                  key: const ValueKey('discomfort'),
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: _discomfort,
+                                  child: Padding(
+                                    // 32 px chip, 44 px touch target.
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 6,
+                                    ),
+                                    child: _tag(
+                                      _s.discomfort,
+                                      icon: CupertinoIcons.waveform_path_ecg,
+                                      color: _mediaCaution,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
+                        _TrainerChromeLayer.hud,
                       ),
                     ),
                   ),
@@ -1962,14 +2165,17 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
               top: 0,
               child: SafeArea(
                 bottom: false,
-                child: _infoCard(
-                  p,
-                  label,
-                  d,
-                  rest,
-                  current: current,
-                  done: done,
-                  still: still,
+                child: _chromeLayer(
+                  _infoCard(
+                    p,
+                    label,
+                    d,
+                    rest,
+                    current: current,
+                    done: done,
+                    still: still,
+                  ),
+                  _TrainerChromeLayer.info,
                 ),
               ),
             ),
@@ -2366,52 +2572,71 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_hasOptionalControls) _optionalControls(p),
-            SizedBox(
-              height: _digitsH,
-              // Scale down rather than clip if a host theme's numerals run
-              // taller than the slot (sdk-stage-r9).
-              child: Center(
-                child: RepaintBoundary(
-                  child: FittedBox(fit: BoxFit.scaleDown, child: _digits(p, t)),
+            if (_hasOptionalControls)
+              _chromeLayer(
+                _optionalControls(p),
+                _TrainerChromeLayer.transportControls,
+              ),
+            _chromeLayer(
+              SizedBox(
+                height: _digitsH,
+                // Scale down rather than clip if a host theme's numerals run
+                // taller than the slot (sdk-stage-r9).
+                child: Center(
+                  child: RepaintBoundary(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: _digits(p, t),
+                    ),
+                  ),
                 ),
               ),
+              _TrainerChromeLayer.transportDigits,
             ),
             const SizedBox(height: _digitsGap),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                RepaintBoundary(
-                  child: _circle(
-                    key: const ValueKey('prev'),
-                    icon: CupertinoIcons.backward_end_fill,
-                    tooltip: _s.previous,
-                    size: 56,
-                    onPressed: _previous,
+                _chromeLayer(
+                  RepaintBoundary(
+                    child: _circle(
+                      key: const ValueKey('prev'),
+                      icon: CupertinoIcons.backward_end_fill,
+                      tooltip: _s.previous,
+                      size: 56,
+                      onPressed: _previous,
+                    ),
                   ),
+                  _TrainerChromeLayer.previous,
                 ),
-                UgkPlayPauseButton(
-                  key: const ValueKey('pause'),
-                  isPlaying: !_paused,
-                  progress: _progress,
-                  onTap: _togglePause,
-                  theme: _th.copyWith(pausedColor: _th.accent),
-                  strings: _s,
-                  trackColor: _th.track,
-                  progressColor: rest || p.kind == PhaseKind.switchSide
-                      ? _th.muted
-                      : _th.accent,
-                  knobColor: _th.ringKnob,
-                  ringSize: _ringD,
-                ),
-                RepaintBoundary(
-                  child: _circle(
-                    key: const ValueKey('skip'),
-                    icon: CupertinoIcons.forward_end_fill,
-                    tooltip: _s.skip,
-                    size: 56,
-                    onPressed: _skip,
+                _chromeLayer(
+                  UgkPlayPauseButton(
+                    key: const ValueKey('pause'),
+                    isPlaying: !_paused,
+                    progress: _progress,
+                    onTap: _togglePause,
+                    theme: _th.copyWith(pausedColor: _th.accent),
+                    strings: _s,
+                    trackColor: _th.track,
+                    progressColor: rest || p.kind == PhaseKind.switchSide
+                        ? _th.muted
+                        : _th.accent,
+                    knobColor: _th.ringKnob,
+                    ringSize: _ringD,
                   ),
+                  _TrainerChromeLayer.pause,
+                ),
+                _chromeLayer(
+                  RepaintBoundary(
+                    child: _circle(
+                      key: const ValueKey('skip'),
+                      icon: CupertinoIcons.forward_end_fill,
+                      tooltip: _s.skip,
+                      size: 56,
+                      onPressed: _skip,
+                    ),
+                  ),
+                  _TrainerChromeLayer.next,
                 ),
               ],
             ),

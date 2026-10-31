@@ -1,5 +1,8 @@
 # ugk_coach · 三 App 共用的 AI 训练助理 SDK
 
+统一对话模块的归属、配置档、白名单素材隔离、SF 搬迁与验收方案见
+[教练对话模块设计稿](docs/coach-chat-module-design.md)（仅文档，实施及 App 升级另行审核）。
+
 main 多轮执行、轮间估时修正及 HipLab / SF 原稿对账见[main rounds 修复](docs/main-rounds.md)。
 
 新增的任务摘要、生成卡片、交付过渡、讨论标签与训练滑动路由见

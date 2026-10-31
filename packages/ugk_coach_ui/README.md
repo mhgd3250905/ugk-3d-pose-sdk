@@ -1,5 +1,8 @@
 # ugk_coach_ui 0.3.1
 
+新增通用生成卡片、交付过渡和当前讨论标签的接入见
+[Coach UI Kit](../../docs/coach-ui-kit.md)。原组件默认行为保持不变。
+
 `0.3.0` 沿用已选定的扁平实色配色，仅优化套路卡标题留白和透明人物首图尺寸，新增一次补齐训练参数的分组问答 `form`。页面、内容卡片、抬升控件三个层级、1px 低对比描边和轻固定阴影继续使用；颜色仍来自注入的 `CoachUiColors` / `CoachMediaPalette`，提供浅深默认值与完整 `copyWith`。从 0.1.x 升级仍需完成下方迁移；旧穷举 `CoachQuestionMode` 分支须新增 `form`。
 
 聊天/套路卡的既有位置、进入动画、展开测量与媒体飞行保留。`CoachUiBuilders.media`、`cutoutTopInset`、透明素材边界及原回调继续使用；透明的是人物素材及普通淡入动画，内容承载面保持不透明。列表的 `topInset` / `fadeTop` 保留，顶部滚动边缘遮罩不属于材质表面。

@@ -1,5 +1,8 @@
 # ugk_trainer 0.4.2
 
+新增 TrainerSlideRoute 的 gate、滑动退场和保存失败恢复接入见
+[Coach UI Kit](../../docs/coach-ui-kit.md)。原有路由选择和播放器默认行为保持不变。
+
 动作库与单练可选的宿主导航、延迟开始、退出钩子及预加载媒体接入见
 [动作库与单练入口](docs/single-practice-entry.md)。省略新参数时保留既有行为。
 

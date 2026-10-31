@@ -27,9 +27,35 @@ class CoachUiColors {
     required this.mediaLabelSurface,
     Color? cardSurface,
     Color? cardBorder,
+    Color? taskAccent,
+    Color? taskCardSurface,
+    Color? taskCardBorder,
+    Color? taskGlow,
+    Color? taskText,
+    Color? taskMuted,
+    Color? taskChipSurface,
+    Color? taskOrbFill,
+    Color? taskProgressTrack,
+    Color? taskChipBorder,
+    Color? taskHalo,
+    Color? taskShadowNear,
+    Color? taskShadowFar,
     this.primaryForeground = const Color(0xFFFFFFFF),
   }) : _cardSurface = cardSurface,
-       _cardBorder = cardBorder;
+       _cardBorder = cardBorder,
+       _taskAccent = taskAccent,
+       _taskCardSurface = taskCardSurface,
+       _taskCardBorder = taskCardBorder,
+       _taskGlow = taskGlow,
+       _taskText = taskText,
+       _taskMuted = taskMuted,
+       _taskChipSurface = taskChipSurface,
+       _taskOrbFill = taskOrbFill,
+       _taskProgressTrack = taskProgressTrack,
+       _taskChipBorder = taskChipBorder,
+       _taskHalo = taskHalo,
+       _taskShadowNear = taskShadowNear,
+       _taskShadowFar = taskShadowFar;
   final Brightness brightness;
   final Color text, muted, faint;
 
@@ -43,6 +69,10 @@ class CoachUiColors {
   final CoachMediaPalette stage;
   final Color emphasis, onEmphasis, onMedia, mediaLabelSurface;
   final Color? _cardSurface, _cardBorder;
+  final Color? _taskAccent, _taskCardSurface, _taskCardBorder, _taskGlow;
+  final Color? _taskText, _taskMuted, _taskChipSurface, _taskOrbFill;
+  final Color? _taskProgressTrack, _taskChipBorder, _taskHalo;
+  final Color? _taskShadowNear, _taskShadowFar;
   final Color primaryForeground;
 
   /// Shared action-card surfaces; hosts can override these semantic tokens.
@@ -54,6 +84,46 @@ class CoachUiColors {
       (isDark
           ? const Color.from(alpha: .08, red: 1, green: 1, blue: 1)
           : const Color(0xFFE3E8E6));
+
+  /// Task-card roles default to the approved SmartFit light/dark palette.
+  /// Existing component colours retain their previous defaults.
+  Color get taskAccent =>
+      _taskAccent ??
+      (isDark ? const Color(0xFF7AD4D5) : const Color(0xFF0E7673));
+  Color get taskCardSurface =>
+      _taskCardSurface ??
+      (isDark ? const Color(0xFF19262B) : const Color(0xFFFFFFFF));
+  Color get taskCardBorder =>
+      _taskCardBorder ??
+      (isDark ? Colors.white : Colors.black).withValues(
+        alpha: isDark ? .08 : .06,
+      );
+  Color get taskGlow =>
+      _taskGlow ?? taskAccent.withValues(alpha: isDark ? .10 : .06);
+  Color get taskText =>
+      _taskText ?? (isDark ? const Color(0xFFF2F3F5) : const Color(0xFF121614));
+  Color get taskMuted =>
+      _taskMuted ??
+      (isDark ? const Color(0xFFA0A4AC) : const Color(0xFF5D6661));
+  Color get taskChipSurface =>
+      _taskChipSurface ?? taskAccent.withValues(alpha: isDark ? .18 : .10);
+  Color get taskOrbFill =>
+      _taskOrbFill ?? taskAccent.withValues(alpha: isDark ? .14 : .08);
+  Color get taskProgressTrack =>
+      _taskProgressTrack ??
+      (isDark ? Colors.white : Colors.black).withValues(
+        alpha: isDark ? .10 : .08,
+      );
+  Color get taskChipBorder =>
+      _taskChipBorder ??
+      (isDark ? Colors.white : Colors.black).withValues(
+        alpha: isDark ? .12 : .10,
+      );
+  Color get taskHalo => _taskHalo ?? taskAccent.withValues(alpha: .15);
+  Color get taskShadowNear =>
+      _taskShadowNear ?? Colors.black.withValues(alpha: .04);
+  Color get taskShadowFar =>
+      _taskShadowFar ?? Colors.black.withValues(alpha: .06);
   bool get isDark => brightness == Brightness.dark;
 
   static final light = CoachUiColors.fromTheme(ThemeData.light());
@@ -82,6 +152,19 @@ class CoachUiColors {
     Color? mediaLabelSurface,
     Color? cardSurface,
     Color? cardBorder,
+    Color? taskAccent,
+    Color? taskCardSurface,
+    Color? taskCardBorder,
+    Color? taskGlow,
+    Color? taskText,
+    Color? taskMuted,
+    Color? taskChipSurface,
+    Color? taskOrbFill,
+    Color? taskProgressTrack,
+    Color? taskChipBorder,
+    Color? taskHalo,
+    Color? taskShadowNear,
+    Color? taskShadowFar,
     Color? primaryForeground,
   }) => CoachUiColors(
     brightness: brightness ?? this.brightness,
@@ -106,6 +189,19 @@ class CoachUiColors {
     mediaLabelSurface: mediaLabelSurface ?? this.mediaLabelSurface,
     cardSurface: cardSurface ?? _cardSurface,
     cardBorder: cardBorder ?? _cardBorder,
+    taskAccent: taskAccent ?? _taskAccent,
+    taskCardSurface: taskCardSurface ?? _taskCardSurface,
+    taskCardBorder: taskCardBorder ?? _taskCardBorder,
+    taskGlow: taskGlow ?? _taskGlow,
+    taskText: taskText ?? _taskText,
+    taskMuted: taskMuted ?? _taskMuted,
+    taskChipSurface: taskChipSurface ?? _taskChipSurface,
+    taskOrbFill: taskOrbFill ?? _taskOrbFill,
+    taskProgressTrack: taskProgressTrack ?? _taskProgressTrack,
+    taskChipBorder: taskChipBorder ?? _taskChipBorder,
+    taskHalo: taskHalo ?? _taskHalo,
+    taskShadowNear: taskShadowNear ?? _taskShadowNear,
+    taskShadowFar: taskShadowFar ?? _taskShadowFar,
     primaryForeground: primaryForeground ?? this.primaryForeground,
   );
   factory CoachUiColors.fromTheme(ThemeData theme) {
@@ -180,6 +276,11 @@ class CoachUiStrings {
     this.actionUnavailable = 'Action unavailable',
     this.planDetails = _details,
     this.timeLabel = _time,
+    this.taskThinkingTitle = '正在想怎么练',
+    this.taskReadingStatus = '读懂你的需求',
+    this.taskCancel = '取消',
+    this.planFocusTitle = _focusTitle,
+    this.clearPlanFocus = '取消讨论计划',
   });
   final String expand, collapse, expandDetails, collapseDetails;
   final String save, saved, start, cancel, preparing, progressHint;
@@ -187,6 +288,13 @@ class CoachUiStrings {
   final String planFromActions, actionUnavailable;
   final String Function(String title) planDetails;
   final String Function(DateTime at, DateTime now) timeLabel;
+
+  /// Fixed copy for the additive task bubble and current-plan label.
+  /// Sourced task/parameter copy is supplied as ordinary widget data.
+  final String taskThinkingTitle, taskReadingStatus, taskCancel;
+  final String Function(String title) planFocusTitle;
+  final String clearPlanFocus;
+  static String _focusTitle(String title) => '正在讨论：$title';
   static String _details(String title) => 'Routine details: $title';
   static String _time(DateTime at, DateTime now) =>
       '${at.year}-${at.month.toString().padLeft(2, '0')}-${at.day.toString().padLeft(2, '0')} '

@@ -23,6 +23,7 @@ export 'src/pose_hub/pose_hub_pack_media.dart';
 export 'src/ui/countdown_ring.dart';
 export 'src/ui/trainer_cue_carousel.dart';
 export 'src/ui/trainer_player.dart';
+export 'src/ui/trainer_slide_route.dart';
 export 'src/ui/trainer_stage.dart';
 export 'src/ui/trainer_strings.dart';
 export 'src/ui/trainer_surface.dart';

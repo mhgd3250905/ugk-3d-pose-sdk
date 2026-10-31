@@ -13,6 +13,7 @@ export 'src/agent/plan_focus.dart' show CoachPlanFocus, CoachPlanFocusResult;
 export 'src/agent/session_snapshot.dart';
 export 'src/agent/session_state.dart';
 export 'src/agent/skill_files.dart';
+export 'src/agent/task_summary.dart';
 export 'src/agent/user_memory.dart';
 export 'src/assistant/coach_assistant.dart';
 export 'src/assistant/conversation.dart';

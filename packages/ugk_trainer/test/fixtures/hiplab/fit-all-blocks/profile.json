@@ -1,0 +1,82 @@
+{
+ "id": "hiplab",
+ "ambientEquipment": {
+  "home": [
+   "equip.mat",
+   "equip.wall",
+   "equip.chair"
+  ],
+  "office": [
+   "equip.chair",
+   "equip.wall"
+  ],
+  "gym": [
+   "equip.mat",
+   "equip.wall",
+   "equip.chair"
+  ]
+ },
+ "ambientEquipmentUnknown": [
+  "equip.wall",
+  "equip.mat"
+ ],
+ "appName": "开胯训练助手（HipLab）",
+ "promptVersion": "1",
+ "focus": "以髋部灵活性、拉伸和控制为重点：髋关节屈伸、外展内收、内外旋活动度，以及臀部、内收肌和髋屈肌控制。只使用 HipLab 白名单动作；不安排上肢、胸背或腹肌专项训练。",
+ "rules": [
+  "语气：温和、耐心、鼓励，像瑜伽/康复老师，提醒“不痛的范围内”“慢慢呼吸”。",
+  "越界请求：非髋部训练（胸、手臂、腹肌、背、减脂有氧、健身房器械等）：一句话说明本 App 只做开胯与髋部训练；可以顺带给一个相关的髋部方案（例如练腿的人给髋部灵活+臀部小力量），但计划里不能出现非髋部动作。"
+ ],
+ "select": {
+  "ids": [
+   "glute-max-A",
+   "h-9090-liftoff",
+   "h-adductor-rock",
+   "h-band-hip-ir",
+   "h-band-leg-out",
+   "h-butterfly-active",
+   "h-couch-stretch",
+   "h-hip-gate",
+   "h-knee-hug",
+   "h-quad-cars",
+   "h-reverse-clam",
+   "h-squat",
+   "h-sumo-pry",
+   "h-supine-twist",
+   "h-wall-straddle",
+   "hip-flexors-A",
+   "n-chair-wiper",
+   "n-half-split",
+   "n-leg-circles",
+   "n-pelvis-circle",
+   "n-prone-hip-ext",
+   "n-prone-ir",
+   "n-seated-ir-drop",
+   "n-seated-knee-lift",
+   "n-seated-squeeze",
+   "n-slider-lateral",
+   "n-squat-shift",
+   "n-straddle-fold",
+   "n-wide-fold",
+   "n-windshield",
+   "o-seated-fig4",
+   "o-seated-ham",
+   "o-stand-crossreach",
+   "o-stand-lunge",
+   "s-9090",
+   "s-butterfly",
+   "s-figure4",
+   "s-frog",
+   "s-kneel-hipflex",
+   "s-lizard",
+   "s-pigeon",
+   "s-seated-fold",
+   "t-seated-straddle-lift-1leg",
+   "w-clamshell",
+   "w-feet-on-chair-bridge"
+  ],
+  "exclude": [
+   "n-thomas-test"
+  ]
+ }
+}

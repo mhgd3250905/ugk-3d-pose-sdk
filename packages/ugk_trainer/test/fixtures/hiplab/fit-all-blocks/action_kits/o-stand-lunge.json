@@ -1,0 +1,119 @@
+{
+ "schema": "action-kit@1",
+ "id": "o-stand-lunge",
+ "display": {
+  "name": {
+   "zh": "扶椅站姿弓步屈髋拉伸",
+   "en": "Standing lunge hip flexor stretch"
+  },
+  "point": {
+   "zh": "扶住椅子，后侧臀部收紧，髋往前推",
+   "en": "Hold the chair, squeeze the back glute, hips forward"
+  },
+  "cautions": [
+   "腰"
+  ],
+  "targets": [
+   "extension"
+  ],
+  "methods": [
+   "flexibility"
+  ],
+  "level": "beginner",
+  "sided": true,
+  "firstSide": "right",
+  "poster": {
+   "dark": "assets/drill_media/hip-o-stand-lunge.jpg",
+   "light": "assets/drill_media/light/hip-o-stand-lunge.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/o-stand-lunge.js",
+   "specSha256": "c2f3984febb97819713bbbbea85196498fa6f95c8cb1a5e869cc89e580b4beaa"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-o-stand-lunge.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 3.8
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-o-stand-lunge.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 3.8,
+    "sha256": "fe9acadae3ea18e463bf98f543bc986d1a5579824746e6b3cf058ec704046221",
+    "bytes": 310615
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "open",
+  "reps": [
+   [
+    0.65,
+    3.45,
+    4.16,
+    6.96
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "hold",
+  "unit": "seconds",
+  "sided": true,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": null,
+   "sets": 1,
+   "seconds": 30,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "hold": {
+   "entrySeconds": 2.8
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.o-stand-lunge": {
+    "zh": "扶椅站姿弓步屈髋拉伸",
+    "en": "Standing lunge hip flexor stretch"
+   },
+   "point.o-stand-lunge": {
+    "zh": "扶住椅子，后侧臀部收紧，髋往前推",
+    "en": "Hold the chair, squeeze the back glute, hips forward"
+   }
+  },
+  "prepare": [
+   "drill.o-stand-lunge",
+   "point.o-stand-lunge"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.release",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": "p.right_first",
+  "coach": [
+   "cue.flexibility.1",
+   "cue.flexibility.2"
+  ],
+  "midHold": {
+   "half": "p.half",
+   "last10": "p.last10",
+   "countdown": 5
+  }
+ },
+ "review": {
+  "why": "static stretch; spec shows one slow entry",
+  "flags": []
+ }
+}

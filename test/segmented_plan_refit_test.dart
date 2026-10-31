@@ -234,19 +234,50 @@ void main() {
   );
 
   test(
-    'segment bounds include work the heuristic does not explore and prove only legal impossibility',
+    'segment work fallback fits legal doses while bounds prove only real impossibility',
     () {
-      final best = builder.refit(ready(1), saved);
+      final original = ready(1);
+      final best = builder.refit(original, saved);
+      // Original work does not fit one minute. Search its legal segment work
+      // only after the ordinary sets/rounds search, keeping all segment metadata.
       expect(best.ok, isTrue);
-      expect(
-        best.planId,
-        saved.id,
-        reason:
-            'fixed original work is too long, but legal lower segment work is not',
-      );
+      expect(best.planId, saved.id);
       expect(best.feasibility, isNull);
-      expect(best.durationErrorPercent, greaterThan(10));
-      expect(card(best).items.single.segments.last.workSeconds, 60);
+      expect(best.durationErrorPercent, lessThanOrEqualTo(10));
+      expect(best.toJson()['withinTolerance'], isTrue);
+      expect(original.plans[saved.id]!.length, 1);
+      expect(original.plans[saved.id]!.single.plan, saved.toJson());
+      expect(best.state.plans[saved.id]!.length, 2);
+      final fitted = card(best).items.single;
+      final before = saved.items.single;
+      expect(fitted.note, before.note);
+      expect(
+        fitted.segments.map((part) => part.id),
+        before.segments.map((part) => part.id),
+      );
+      for (final (index, part) in fitted.segments.indexed) {
+        final originalPart = before.segments[index];
+        expect(part.exerciseId, originalPart.exerciseId);
+        expect(part.mode, originalPart.mode);
+        expect(part.label, originalPart.label);
+        expect(part.rhythm, originalPart.rhythm);
+        expect(part.holdSeconds, originalPart.holdSeconds);
+      }
+      expect(
+        fitted.segments.first.reps,
+        inInclusiveRange(profile.limits.reps.min, profile.limits.reps.max),
+      );
+      expect(
+        fitted.segments.last.workSeconds,
+        inInclusiveRange(
+          profile.limits.workSeconds.min,
+          profile.limits.workSeconds.max,
+        ),
+      );
+      expect(
+        fitted.segments.map((part) => part.toJson()).toList(),
+        isNot(before.segments.map((part) => part.toJson()).toList()),
+      );
       final impossible = builder.refit(
         ready(
           1,

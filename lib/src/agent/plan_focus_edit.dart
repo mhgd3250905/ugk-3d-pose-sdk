@@ -84,9 +84,18 @@ extension FocusedPlanDraft on PlanBuilder {
       working = added.state;
       changes.addAll(added.changes);
     }
-    // Only an actual duration/dose request invokes the fitter. Merely changing
-    // a selected action must not reset all other saved items to catalogue doses.
-    if (minutes != current.targetMinutes || working.params['dose'] != null) {
+    // Preserve saved doses when the ordered edit still meets its target. If
+    // it does not, fit before committing a version, rather than storing an
+    // approximate version and appending another during show_plan.
+    final target = minutes * 60.0;
+    final candidateSeconds = PlanBuilder._duration.estimateSeconds(
+      candidate,
+      catalog,
+    );
+    if (minutes != current.targetMinutes ||
+        working.params['dose'] != null ||
+        (candidateSeconds - target).abs() >
+            target * math.min(.1, profile.limits.durationTolerance) + 1e-9) {
       final fitted = refit(working, candidate, language: language);
       return DraftResult(
         fitted.planId == null ? original : fitted.state,

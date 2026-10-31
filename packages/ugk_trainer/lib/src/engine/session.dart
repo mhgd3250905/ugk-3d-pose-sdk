@@ -100,7 +100,7 @@ class SessionPhase {
   final int set;
   final int sets;
 
-  /// 1-based main/circuit round and total rounds (0 for a single round).
+  /// 1-based block round and total rounds (0 for a single round).
   final int round;
   final int rounds;
   final Side? side;
@@ -153,7 +153,7 @@ class SessionPhase {
       'r$round/$rounds ${side?.name ?? ''} ${seconds.toStringAsFixed(1)}s';
 }
 
-/// One occurrence of an item in play order (main/circuit rounds repeat items).
+/// One occurrence of an item in play order (block rounds repeat items).
 class _Occurrence {
   _Occurrence(
     this.block,
@@ -250,9 +250,7 @@ class SessionBuilder {
     final out = <_Occurrence>[];
     for (final (bi, b) in plan.blocks.indexed) {
       final circuit = b.type == BlockType.circuit && b.rounds > 1;
-      final repeated =
-          (b.type == BlockType.main || b.type == BlockType.circuit) &&
-          b.rounds > 1;
+      final repeated = b.rounds > 1;
       final rounds = repeated ? b.rounds : 1;
       for (var r = 1; r <= rounds; r++) {
         for (final (ii, item) in b.items.indexed) {

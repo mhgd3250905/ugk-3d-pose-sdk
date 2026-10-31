@@ -1,0 +1,136 @@
+{
+  "baselineSdkCommit": "caa6817c51b3cb09c46909288d83aa88bdc2dbd4",
+  "sourceCapture": {
+    "path": "E:/AII-3D/hiplab-releases/coach-v2-plus24-20261031/live/results.json",
+    "sha256": "82dab1f1055003772682c06171f929b1e15b49dec6ecf7ece12c3404fba6eaf4",
+    "caseIndex": 2
+  },
+  "sourceProfile": {
+    "path": "assets/coach/hiplab.json",
+    "sha256": "638b1797561da2cac23cb66ce25449e3e81efe01a103e3360cc4ee3a8ed0f920"
+  },
+  "sourceCatalog": {
+    "path": "assets/coach/catalog.json",
+    "sha256": "e3a82ee49833b8f7baf626f0eeb033cfa53429105ac13eaaab12560067269c9f",
+    "projection": "Unchanged original metadata and all original drill objects needed by seen/picks/prior plan/current selected actions."
+  },
+  "sourceVoiceManifest": {
+    "path": "assets/voice/manifest.json",
+    "sha256": "f797320fbf4114284405f079b8df9a4b915de19093e876643ccb99d5eb168564"
+  },
+  "reconstruction": "The capture has no raw draft_plan HTTP body or pre-draft snapshot. Reconstruct the before-draft state exactly as the reproduction note: retain version1, reset planning/current and review/output/pending, and lastDeliveredVersion/Turn to1. Draft arguments contain the delivered title and ordered selected IDs only; they are a structure projection, not an asserted captured model response. All other state fields are unchanged.",
+  "targetSeconds": 300,
+  "prepSeconds": 15,
+  "baselineCardSeconds": 335,
+  "baselineNativeSeconds": 349,
+  "baselineVoiceExtensionSeconds": 3,
+  "baselineFitLogCount": 49,
+  "capturedPlanCanonicalSha256": "d7e91cd630bb3f00c8ced67fd444ada8616addba85068a6ad7137dc48c4c31b3",
+  "exerciseIds": [
+    "n-leg-circles",
+    "h-hip-gate",
+    "s-9090",
+    "h-adductor-rock",
+    "o-stand-lunge",
+    "n-seated-ir-drop"
+  ],
+  "catalogExerciseIds": [
+    "h-adductor-rock",
+    "h-butterfly-active",
+    "h-couch-stretch",
+    "h-hip-gate",
+    "h-knee-hug",
+    "h-sumo-pry",
+    "h-wall-straddle",
+    "n-chair-wiper",
+    "n-leg-circles",
+    "n-pelvis-circle",
+    "n-prone-ir",
+    "n-seated-ir-drop",
+    "n-wide-fold",
+    "n-windshield",
+    "o-seated-fig4",
+    "o-stand-lunge",
+    "s-9090",
+    "s-butterfly",
+    "s-figure4",
+    "s-frog",
+    "s-kneel-hipflex"
+  ],
+  "sourceNativeTiming": {
+    "planId": "plan-1793424335540-2",
+    "targetSeconds": 300,
+    "sdkEstimateSeconds": 335.0,
+    "cardDurationErrorRatio": 0.11666666666666667,
+    "cardWithinTolerance": false,
+    "nativePlanSeconds": 334.0,
+    "nativePrepSeconds": 15.0,
+    "nativeTotalSeconds": 349.0,
+    "nativeDurationErrorRatio": 0.16333333333333333,
+    "nativeWithinTolerance": false,
+    "withinTolerance": false,
+    "nativeOccurrences": 6,
+    "nativeWorkPhases": 12,
+    "nativeEngineVisitSeconds": 349.0,
+    "fullyCompletedOccurrences": 6,
+    "completePlanPreserved": true,
+    "voiceAwareSwitchTiming": true,
+    "executionBuilder": "AI player bundled zh voice timing",
+    "plannerPlanSeconds": 331.0,
+    "plannerPrepSeconds": 15.0,
+    "plannerTotalSeconds": 346.0,
+    "voiceSwitchExtensionSeconds": 3.0
+  },
+  "files": {
+    "action_kits/h-adductor-rock.json": {
+      "sha256": "d2c9051d33d3552c698d3688b163e152613968470a1002689e2e617eaa847cef"
+    },
+    "action_kits/h-hip-gate.json": {
+      "sha256": "6c17057c9f54ff67a04e277f0f4400c8d13c7d9ec1307c99b4a6d3cca6bc871d"
+    },
+    "action_kits/n-leg-circles.json": {
+      "sha256": "c956400dad1538a73d3c60689f2f62f92865f15e2fc48748fdc7ac2a48ce77a9"
+    },
+    "action_kits/n-seated-ir-drop.json": {
+      "sha256": "2092f98a2aa7544917910d415f4082053fa235de5a89bf2f497bcd4f948e61b6"
+    },
+    "action_kits/o-stand-lunge.json": {
+      "sha256": "4278cf56b089d5dd67cfc3821e522658bc61f7152c5a8a10e1f6ef376e2160a7"
+    },
+    "action_kits/s-9090.json": {
+      "sha256": "46d67083124f9f1f7a425ef5b559b85001ebe936f96ddf1396cd979da9267825"
+    },
+    "captured-fit-log.json": {
+      "sha256": "c4aa37383d87dc4f2533470def394ab155a03283506989ed9bc8a3d09ef00984"
+    },
+    "captured-plan.json": {
+      "sha256": "d1dabfdd215e98e0155b88061317400f7bd93e6c17d2baef675e429b86aac6ea"
+    },
+    "catalog.json": {
+      "sha256": "148620afe5af37148f9de80c9afa6c1ee258c5a2e64eb64aab9bf5d882e533e6"
+    },
+    "draft-arguments.json": {
+      "sha256": "db16384de9eb552be1e5a8e64397456065fb9fb3817c419e3667e195d825e96a"
+    },
+    "profile.json": {
+      "sha256": "638b1797561da2cac23cb66ce25449e3e81efe01a103e3360cc4ee3a8ed0f920"
+    },
+    "state-before-reconstructed.json": {
+      "sha256": "92d63e9dc264738e3f73359b7e04407ab1dd68507ca0e6bfde438cccb0852834"
+    },
+    "voice-manifest.json": {
+      "sha256": "f797320fbf4114284405f079b8df9a4b915de19093e876643ccb99d5eb168564"
+    },
+    "action_kits/n-pelvis-circle.json": {
+      "sha256": "a5d0dfd63e04a3330f7d4cc0e3b17f9c2f72da07852597b8ec6bf9a21d309a16"
+    },
+    "action_kits/s-butterfly.json": {
+      "sha256": "60cd0fb7c5a6488266da6a70cf05b19c7e12e091f1013b22b56be4e7b479a0d4"
+    }
+  },
+  "matrixWarmupIds": [
+    "n-pelvis-circle",
+    "s-butterfly",
+    "h-hip-gate"
+  ]
+}

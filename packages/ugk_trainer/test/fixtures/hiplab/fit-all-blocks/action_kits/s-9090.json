@@ -1,0 +1,120 @@
+{
+ "schema": "action-kit@1",
+ "id": "s-9090",
+ "display": {
+  "name": {
+   "zh": "90/90 坐姿换髋",
+   "en": "Ninety-ninety hip switch"
+  },
+  "point": {
+   "zh": "两条腿都成直角，坐直，再左右换",
+   "en": "Both legs at right angles, sit tall, then switch sides"
+  },
+  "cautions": [
+   "膝"
+  ],
+  "targets": [
+   "external_rotation",
+   "internal_rotation"
+  ],
+  "methods": [
+   "flexibility"
+  ],
+  "level": "beginner",
+  "sided": true,
+  "firstSide": "right",
+  "poster": {
+   "dark": "assets/drill_media/hip-s-9090.jpg",
+   "light": "assets/drill_media/light/hip-s-9090.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/s-9090-r2.js",
+   "specSha256": "81d8d8629e9c90559dd715465ad4002e6bc7d3baa6a5e261eb3ad97a55f4aa2e"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-s-9090.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 3.8
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-s-9090.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 3.8,
+    "sha256": "fc57e34d364730cd713caba8945d02d0e85910e0564674539bda1c1b24594608",
+    "bytes": 385067
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "open",
+  "reps": [
+   [
+    0.65,
+    3.45,
+    4.16,
+    6.96
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "hold",
+  "unit": "seconds",
+  "sided": true,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": null,
+   "sets": 1,
+   "seconds": 35,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "hold": {
+   "entrySeconds": 2.8
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.s-9090": {
+    "zh": "90/90 坐姿换髋",
+    "en": "Ninety-ninety hip switch"
+   },
+   "point.s-9090": {
+    "zh": "两条腿都成直角，坐直，再左右换",
+    "en": "Both legs at right angles, sit tall, then switch sides"
+   }
+  },
+  "prepare": [
+   "drill.s-9090",
+   "point.s-9090"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.release",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": "p.right_first",
+  "coach": [
+   "cue.flexibility.1",
+   "cue.flexibility.2"
+  ],
+  "midHold": {
+   "half": "p.half",
+   "last10": "p.last10",
+   "countdown": 5
+  }
+ },
+ "review": {
+  "why": "static stretch",
+  "flags": []
+ }
+}

@@ -1,0 +1,125 @@
+{
+ "schema": "action-kit@1",
+ "id": "n-seated-ir-drop",
+ "display": {
+  "name": {
+   "zh": "坐姿后撑单膝内倒",
+   "en": "Seated knee drop-in"
+  },
+  "point": {
+   "zh": "手在身后撑地，一侧膝盖向内倒",
+   "en": "Hands behind you, drop one knee inward"
+  },
+  "cautions": [
+   "膝"
+  ],
+  "targets": [
+   "internal_rotation"
+  ],
+  "methods": [
+   "flexibility"
+  ],
+  "level": "beginner",
+  "sided": true,
+  "firstSide": "right",
+  "poster": {
+   "dark": "assets/drill_media/hip-n-seated-ir-drop.jpg",
+   "light": "assets/drill_media/light/hip-n-seated-ir-drop.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/n-seated-ir-drop.js",
+   "specSha256": "48e44c56e8c7de96f905d2f572c85368cab18ac313ba2413942c22726c49676a"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-n-seated-ir-drop.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 2.2
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-n-seated-ir-drop.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 2.2,
+    "sha256": "f8693f38170db9aa67f1bf0ed8e202b765c5065f661a6190c2873a147ebfc1b5",
+    "bytes": 428102
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "drop",
+  "reps": [
+   [
+    0.47,
+    1.64,
+    2.93,
+    3.78
+   ],
+   [
+    4.47,
+    5.64,
+    6.93,
+    7.78
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "hold",
+  "unit": "seconds",
+  "sided": true,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": null,
+   "sets": 1,
+   "seconds": 30,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "hold": {
+   "entrySeconds": 1.15
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.n-seated-ir-drop": {
+    "zh": "坐姿后撑单膝内倒",
+    "en": "Seated knee drop-in"
+   },
+   "point.n-seated-ir-drop": {
+    "zh": "手在身后撑地，一侧膝盖向内倒",
+    "en": "Hands behind you, drop one knee inward"
+   }
+  },
+  "prepare": [
+   "drill.n-seated-ir-drop",
+   "point.n-seated-ir-drop"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.release",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": "p.right_first",
+  "coach": [
+   "cue.flexibility.1",
+   "cue.flexibility.2"
+  ],
+  "midHold": {
+   "half": "p.half",
+   "last10": "p.last10",
+   "countdown": 5
+  }
+ },
+ "review": {
+  "why": "training dose: one side held for the dose seconds, then switch; the demo alternating sides every 4 s only loops as a demonstration",
+  "flags": []
+ }
+}

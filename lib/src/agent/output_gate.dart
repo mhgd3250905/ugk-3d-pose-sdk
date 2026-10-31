@@ -288,8 +288,17 @@ class OutputGate {
       for (final id in ids) ...?catalog[id]?.equipment,
     }..remove('none');
     final minutes = next.params['minutes']?.value as int;
+    final targetSeconds = minutes * 60.0;
+    final tolerance = profile.limits.durationTolerance.clamp(0.0, .1);
+    bool durationFits(TrainingPlan candidate) =>
+        (const PlanDuration().estimateSeconds(candidate, catalog) -
+                targetSeconds)
+            .abs() <=
+        targetSeconds * tolerance + 1e-9;
     final needsRefit =
-        plan.targetMinutes != minutes || !_matchesConfirmedDose(next, plan);
+        plan.targetMinutes != minutes ||
+        !_matchesConfirmedDose(next, plan) ||
+        !durationFits(plan);
     if (needsRefit) {
       final reopened = gate.parametersChanged(
         next,
@@ -360,6 +369,22 @@ class OutputGate {
           '配时误差 ${refitted.durationErrorPercent!.toStringAsFixed(1)}%。',
         );
       }
+    }
+    // Restored cards may predate the strict fitter. Neither an old successful
+    // check nor a cached estimate can authorize a newly out-of-range delivery.
+    if (!durationFits(plan)) {
+      final seconds = const PlanDuration().estimateSeconds(plan, catalog);
+      return fail(
+        nodeError(
+          'duration_fit_failed',
+          'plan.duration',
+          {'targetSeconds': targetSeconds, 'tolerancePercent': tolerance * 100},
+          {'estimatedSeconds': seconds},
+          language.toLowerCase().startsWith('en')
+              ? 'Adjust one selected action under the existing rules and submit a new draft; do not deliver an approximate plan.'
+              : '按既有规则增减一个已选动作并重出草稿；不要交付超出容差的近似计划。',
+        ),
+      );
     }
     if (plan.equipment.toSet().difference(actualEquipment).isNotEmpty ||
         actualEquipment.difference(plan.equipment.toSet()).isNotEmpty) {

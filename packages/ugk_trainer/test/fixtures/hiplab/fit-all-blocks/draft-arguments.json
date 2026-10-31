@@ -1,0 +1,38 @@
+{
+  "title": "5 分钟开胯新一套",
+  "blocks": [
+    {
+      "kind": "warmup",
+      "items": [
+        {
+          "id": "n-leg-circles"
+        },
+        {
+          "id": "h-hip-gate"
+        }
+      ]
+    },
+    {
+      "kind": "main",
+      "items": [
+        {
+          "id": "s-9090"
+        },
+        {
+          "id": "h-adductor-rock"
+        },
+        {
+          "id": "o-stand-lunge"
+        }
+      ]
+    },
+    {
+      "kind": "cooldown",
+      "items": [
+        {
+          "id": "n-seated-ir-drop"
+        }
+      ]
+    }
+  ]
+}

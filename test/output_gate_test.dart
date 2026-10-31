@@ -341,8 +341,8 @@ void main() {
   test(
     'stale segmented card is re-timed without flattening or an extra question',
     () {
-      // Keep this as a genuine within-10% success fixture. The old 7-minute
-      // target now lands at 479 seconds; 8 minutes remains attainable at 479.
+      // Keep this as a genuine within-10% success fixture. At the caa6817c
+      // baseline 7 minutes landed at 479s; this 8-minute result stays 479s.
       final source = staleSegmentedState(8);
       final changed = showPlan(source);
       expect(
@@ -373,36 +373,34 @@ void main() {
     },
   );
 
-  test(
-    'the original seven-minute segmented refit reports its heuristic gap',
-    () {
-      final source = staleSegmentedState(7);
-      final saved = const PlanCodec().decode(source.plans['p']!.last.plan);
-      final refitted = PlanBuilder(
-        profile,
-        catalog,
-        minPicks: profile.minActions,
-      ).refit(source, saved);
-      expect(refitted.ok, isTrue);
-      expect(refitted.feasibility, isNull);
-      expect(refitted.state.plans['p']!.last.estimateSec, 479);
-      expect(refitted.durationErrorPercent, closeTo(59 / 420 * 100, 1e-9));
-      expect(refitted.toJson()['withinTolerance'], isFalse);
+  test('seven-minute segmented refit searches rest and meets the target', () {
+    final source = staleSegmentedState(7);
+    final saved = const PlanCodec().decode(source.plans['p']!.last.plan);
+    final refitted = PlanBuilder(
+      profile,
+      catalog,
+      minPicks: profile.minActions,
+    ).refit(source, saved);
+    expect(refitted.ok, isTrue);
+    expect(refitted.feasibility, isNull);
+    // Searching legal rest now reaches 439s instead of the old 479s gap.
+    expect(refitted.state.plans['p']!.last.estimateSec, 439);
+    expect(refitted.durationErrorPercent, closeTo(19 / 420 * 100, 1e-9));
+    expect(refitted.toJson()['withinTolerance'], isTrue);
 
-      final changed = showPlan(source);
-      expect(changed.ok, isTrue);
-      expect(changed.needsUserChoice, isFalse);
-      final delivered = changed.card!.plan!.plan;
-      expect(delivered.targetMinutes, 7);
-      expect(
-        delivered.items.single.segments.single.toJson(),
-        saved.items.single.segments.single.toJson(),
-      );
-      expect(const PlanDuration().estimateSeconds(delivered, catalog), 479);
-      expect(changed.notices, contains('配时误差 14.0%。'));
-      expect(source.plans['p']!.single.version, 1);
-    },
-  );
+    final changed = showPlan(source);
+    expect(changed.ok, isTrue);
+    expect(changed.needsUserChoice, isFalse);
+    final delivered = changed.card!.plan!.plan;
+    expect(delivered.targetMinutes, 7);
+    expect(
+      delivered.items.single.segments.single.toJson(),
+      saved.items.single.segments.single.toJson(),
+    );
+    expect(const PlanDuration().estimateSeconds(delivered, catalog), 439);
+    expect(changed.notices, contains('配时误差 4.5%。'));
+    expect(source.plans['p']!.single.version, 1);
+  });
 
   test(
     'agent asks once for infeasible restored refit without rejection or card',

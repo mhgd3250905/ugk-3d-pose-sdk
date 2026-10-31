@@ -1,0 +1,1022 @@
+{
+  "userTurns": [
+    {
+      "turn": 1,
+      "text": "在家开胯10分钟入门"
+    },
+    {
+      "turn": 2,
+      "text": "推荐几个拉大腿内侧的动作"
+    },
+    {
+      "turn": 3,
+      "text": "换一套，缩短到5分钟"
+    }
+  ],
+  "task": {
+    "type": "plan",
+    "nodes": [
+      {
+        "id": "understand",
+        "status": "done",
+        "stamp": "准备推荐动作",
+        "doneAtTurn": 2
+      },
+      {
+        "id": "parameters",
+        "status": "updated",
+        "stamp": "居家（你说的） · 灵活/活动度、拉伸、内收肌群、髋屈肌、臀大肌（你说的） · 徒手（可用椅子/凳子/瑜伽垫/墙）（默认） · 5 分钟（你说的） · 初学（你说的） · 无伤痛（默认）",
+        "doneAtTurn": 3
+      },
+      {
+        "id": "actions",
+        "status": "done",
+        "stamp": "选了 9 个动作",
+        "doneAtTurn": 2
+      },
+      {
+        "id": "planning",
+        "status": "current"
+      },
+      {
+        "id": "review",
+        "status": "pending"
+      },
+      {
+        "id": "output",
+        "status": "pending"
+      }
+    ],
+    "reused": true
+  },
+  "params": {
+    "scene": {
+      "value": "home",
+      "source": "user",
+      "quote": "在家",
+      "turn": 1
+    },
+    "minutes": {
+      "value": 5,
+      "source": "user",
+      "quote": "缩短到5分钟",
+      "turn": 3
+    },
+    "level": {
+      "value": 1,
+      "source": "user",
+      "quote": "入门",
+      "turn": 1
+    },
+    "goal": {
+      "value": [
+        "purpose.mobility",
+        "purpose.stretch",
+        "body.inner_thigh",
+        "body.hip_flexors",
+        "body.glute_max"
+      ],
+      "source": "user",
+      "quote": "开胯",
+      "turn": 1
+    },
+    "equipment": {
+      "value": [],
+      "source": "default",
+      "turn": 1
+    },
+    "limits": {
+      "value": [],
+      "source": "default",
+      "turn": 1
+    },
+    "operation": {
+      "value": "replace_all",
+      "source": "user",
+      "quote": "换一套",
+      "turn": 3
+    }
+  },
+  "seenActionIds": [
+    "h-adductor-rock",
+    "h-butterfly-active",
+    "h-wall-straddle",
+    "n-wide-fold",
+    "s-butterfly",
+    "h-hip-gate",
+    "n-chair-wiper",
+    "n-leg-circles",
+    "n-pelvis-circle",
+    "n-prone-ir",
+    "n-seated-ir-drop",
+    "n-windshield",
+    "s-9090",
+    "h-couch-stretch",
+    "h-knee-hug",
+    "h-sumo-pry",
+    "o-seated-fig4",
+    "o-stand-lunge",
+    "s-figure4",
+    "s-frog",
+    "s-kneel-hipflex"
+  ],
+  "picks": [
+    "h-adductor-rock",
+    "h-wall-straddle",
+    "n-wide-fold",
+    "s-butterfly",
+    "n-leg-circles",
+    "h-hip-gate",
+    "s-9090",
+    "o-stand-lunge",
+    "n-seated-ir-drop"
+  ],
+  "plans": {
+    "plan-1793424335540-2": [
+      {
+        "version": 1,
+        "plan": {
+          "schemaVersion": 1,
+          "id": "plan-1793424335540-2",
+          "source": "ai",
+          "title": "居家开胯入门",
+          "summary": "居家开胯入门",
+          "goal": "relax",
+          "scene": "home",
+          "equipment": [
+            "mat"
+          ],
+          "level": 1,
+          "targetMinutes": 10,
+          "blocks": [
+            {
+              "id": "b1",
+              "name": "warmup",
+              "type": "warmup",
+              "rounds": 1,
+              "restBetweenRoundsSeconds": 0,
+              "items": [
+                {
+                  "exerciseId": "n-pelvis-circle",
+                  "mode": "reps",
+                  "sets": 1,
+                  "reps": 4,
+                  "perSide": false,
+                  "restSeconds": 15
+                },
+                {
+                  "exerciseId": "h-butterfly-active",
+                  "mode": "reps",
+                  "sets": 1,
+                  "reps": 6,
+                  "perSide": false,
+                  "restSeconds": 15
+                }
+              ]
+            },
+            {
+              "id": "b2",
+              "name": "main",
+              "type": "main",
+              "rounds": 2,
+              "restBetweenRoundsSeconds": 0,
+              "items": [
+                {
+                  "exerciseId": "s-butterfly",
+                  "mode": "time",
+                  "sets": 1,
+                  "workSeconds": 40,
+                  "perSide": false,
+                  "restSeconds": 15
+                },
+                {
+                  "exerciseId": "s-figure4",
+                  "mode": "time",
+                  "sets": 1,
+                  "workSeconds": 38,
+                  "perSide": true,
+                  "restSeconds": 15
+                },
+                {
+                  "exerciseId": "s-kneel-hipflex",
+                  "mode": "time",
+                  "sets": 1,
+                  "workSeconds": 30,
+                  "perSide": true,
+                  "restSeconds": 15
+                }
+              ]
+            },
+            {
+              "id": "b3",
+              "name": "cooldown",
+              "type": "cooldown",
+              "rounds": 1,
+              "restBetweenRoundsSeconds": 0,
+              "items": [
+                {
+                  "exerciseId": "n-windshield",
+                  "mode": "reps",
+                  "sets": 1,
+                  "reps": 8,
+                  "perSide": false,
+                  "restSeconds": 15
+                },
+                {
+                  "exerciseId": "h-knee-hug",
+                  "mode": "reps",
+                  "sets": 1,
+                  "reps": 6,
+                  "perSide": false,
+                  "restSeconds": 15
+                }
+              ]
+            }
+          ],
+          "notes": [],
+          "safetyNotes": []
+        },
+        "estimateSec": 629.0,
+        "fitLog": [
+          {
+            "blockId": "b2",
+            "actionId": null,
+            "field": "rounds",
+            "before": 1,
+            "after": 2,
+            "beforeEstimatedSec": 402.0,
+            "afterEstimatedSec": 637.0
+          },
+          {
+            "blockId": "b2",
+            "actionId": "s-figure4",
+            "field": "seconds",
+            "before": 40,
+            "after": 39,
+            "beforeEstimatedSec": 637.0,
+            "afterEstimatedSec": 633.0
+          },
+          {
+            "blockId": "b2",
+            "actionId": "s-figure4",
+            "field": "seconds",
+            "before": 39,
+            "after": 38,
+            "beforeEstimatedSec": 633.0,
+            "afterEstimatedSec": 629.0
+          }
+        ],
+        "check": null,
+        "createdAtTurn": 1
+      }
+    ]
+  },
+  "activePlanId": "plan-1793424335540-2",
+  "lastDeliveredPlanId": "plan-1793424335540-2",
+  "lastDeliveredVersion": 1,
+  "lastDeliveredTurn": 1,
+  "lastOperationRequestTurn": 3,
+  "completedContextLedger": {
+    "turns": [
+      {
+        "turn": 1,
+        "userText": "在家开胯10分钟入门",
+        "finalDeliveryText": "先站姿和仰卧轻轻唤醒髋部，再从内侧、臀部到髋前侧慢慢打开，最后雨刷式与抱膝收尾放松。全程在不痛的范围内，呼吸放慢，有牵扯感就停住等它松开，不憋气、不弹震。",
+        "deliveries": [
+          {
+            "type": "plan",
+            "plan_id": "plan-1793424335540-2",
+            "version": 1,
+            "actionIds": [
+              "n-pelvis-circle",
+              "h-butterfly-active",
+              "s-butterfly",
+              "s-figure4",
+              "s-kneel-hipflex",
+              "n-windshield",
+              "h-knee-hug"
+            ]
+          }
+        ],
+        "askQuestions": [],
+        "params": {
+          "scene": {
+            "value": "home",
+            "source": "user",
+            "quote": "在家",
+            "turn": 1
+          },
+          "minutes": {
+            "value": 10,
+            "source": "user",
+            "quote": "10分钟",
+            "turn": 1
+          },
+          "level": {
+            "value": 1,
+            "source": "user",
+            "quote": "入门",
+            "turn": 1
+          },
+          "goal": {
+            "value": [
+              "purpose.mobility",
+              "purpose.stretch",
+              "body.inner_thigh",
+              "body.hip_flexors",
+              "body.glute_max"
+            ],
+            "source": "user",
+            "quote": "开胯",
+            "turn": 1
+          },
+          "equipment": {
+            "value": [],
+            "source": "default",
+            "turn": 1
+          },
+          "limits": {
+            "value": [],
+            "source": "default",
+            "turn": 1
+          }
+        },
+        "task": {
+          "type": "plan",
+          "nodes": [
+            {
+              "id": "understand",
+              "status": "done",
+              "stamp": "准备训练计划",
+              "doneAtTurn": 1
+            },
+            {
+              "id": "parameters",
+              "status": "done",
+              "stamp": "居家（你说的） · 灵活/活动度、拉伸、内收肌群、髋屈肌、臀大肌（你说的） · 徒手（可用椅子/凳子/瑜伽垫/墙）（默认） · 10 分钟（你说的） · 初学（你说的） · 无伤痛（默认）",
+              "doneAtTurn": 1
+            },
+            {
+              "id": "actions",
+              "status": "done",
+              "stamp": "选了 7 个动作",
+              "doneAtTurn": 1
+            },
+            {
+              "id": "planning",
+              "status": "done",
+              "stamp": "已编排计划，约 10.5 分钟",
+              "doneAtTurn": 1
+            },
+            {
+              "id": "review",
+              "status": "done",
+              "stamp": "目录、安全、器材和目标核对完成 · 实际用到环境物：瑜伽垫",
+              "doneAtTurn": 1
+            },
+            {
+              "id": "output",
+              "status": "done",
+              "stamp": "已交付 · 实际用到环境物：瑜伽垫",
+              "doneAtTurn": 1
+            }
+          ],
+          "reused": false
+        },
+        "picks": [
+          "n-pelvis-circle",
+          "h-butterfly-active",
+          "s-butterfly",
+          "s-figure4",
+          "s-kneel-hipflex",
+          "n-windshield",
+          "h-knee-hug"
+        ],
+        "candidates": [
+          [
+            "h-adductor-rock",
+            "四足单腿侧伸后摇",
+            "body.inner_thigh",
+            "reps",
+            1
+          ],
+          [
+            "h-butterfly-active",
+            "仰卧蝴蝶主动开合",
+            "body.inner_thigh",
+            "reps",
+            1
+          ],
+          [
+            "h-hip-gate",
+            "扶椅站姿开髋门",
+            "body.hip_flexors",
+            "reps",
+            1
+          ],
+          [
+            "h-knee-hug",
+            "仰卧抱膝",
+            "body.erectors",
+            "reps",
+            1
+          ],
+          [
+            "h-wall-straddle",
+            "靠墙仰卧 V 字分腿",
+            "body.inner_thigh",
+            "seconds",
+            1
+          ],
+          [
+            "n-chair-wiper",
+            "坐椅雨刷（膝内倒）",
+            "body.hip_abductors",
+            "reps",
+            1
+          ],
+          [
+            "n-leg-circles",
+            "仰卧直腿画圈",
+            "body.hip_flexors",
+            "reps",
+            1
+          ],
+          [
+            "n-pelvis-circle",
+            "站姿骨盆画圈",
+            "body.hip_flexors",
+            "reps",
+            1
+          ],
+          [
+            "n-prone-ir",
+            "俯卧小腿外摆",
+            "body.hip_abductors",
+            "reps",
+            1
+          ],
+          [
+            "n-seated-ir-drop",
+            "坐姿后撑单膝内倒",
+            "body.glute_max",
+            "seconds",
+            1
+          ],
+          [
+            "n-wide-fold",
+            "站姿宽距体前屈（扶椅）",
+            "body.inner_thigh",
+            "seconds",
+            1
+          ],
+          [
+            "n-windshield",
+            "仰卧雨刷式",
+            "body.glute_max",
+            "reps",
+            1
+          ],
+          [
+            "o-seated-fig4",
+            "坐姿四字前压",
+            "body.glute_max",
+            "seconds",
+            1
+          ],
+          [
+            "o-stand-lunge",
+            "扶椅站姿弓步屈髋拉伸",
+            "body.hip_flexors",
+            "seconds",
+            1
+          ],
+          [
+            "s-9090",
+            "90/90 坐姿换髋",
+            "body.glute_max",
+            "seconds",
+            1
+          ],
+          [
+            "s-butterfly",
+            "蝴蝶式",
+            "body.inner_thigh",
+            "seconds",
+            1
+          ],
+          [
+            "s-figure4",
+            "仰卧 4 字拉伸",
+            "body.glute_max",
+            "seconds",
+            1
+          ],
+          [
+            "s-kneel-hipflex",
+            "半跪髋屈肌拉伸",
+            "body.hip_flexors",
+            "seconds",
+            1
+          ]
+        ],
+        "currentPlanRef": {
+          "type": "plan",
+          "plan_id": "plan-1793424335540-2",
+          "version": 1,
+          "actionIds": [
+            "n-pelvis-circle",
+            "h-butterfly-active",
+            "s-butterfly",
+            "s-figure4",
+            "s-kneel-hipflex",
+            "n-windshield",
+            "h-knee-hug"
+          ]
+        },
+        "loadedSkillNames": [
+          "ask",
+          "action-library",
+          "plan-training"
+        ],
+        "seenActionIds": [
+          "h-adductor-rock",
+          "h-butterfly-active",
+          "h-hip-gate",
+          "h-knee-hug",
+          "h-wall-straddle",
+          "n-chair-wiper",
+          "n-leg-circles",
+          "n-pelvis-circle",
+          "n-prone-ir",
+          "n-seated-ir-drop",
+          "n-wide-fold",
+          "n-windshield",
+          "o-seated-fig4",
+          "o-stand-lunge",
+          "s-9090",
+          "s-butterfly",
+          "s-figure4",
+          "s-kneel-hipflex"
+        ],
+        "outcome": "completed"
+      },
+      {
+        "turn": 2,
+        "userText": "推荐几个拉大腿内侧的动作",
+        "finalDeliveryText": "都针对大腿内侧（内收肌）：四足后摇和靠墙分腿是仰卧放松开合，宽距体前屈扶椅站姿，蝴蝶式垫上静拉。全程不痛的范围内，呼吸放慢，有牵扯感就停住等它松开，不弹震、不憋气。",
+        "deliveries": [
+          {
+            "type": "actions",
+            "actionIds": [
+              "h-adductor-rock",
+              "h-wall-straddle",
+              "n-wide-fold",
+              "s-butterfly"
+            ]
+          }
+        ],
+        "askQuestions": [],
+        "params": {
+          "scene": {
+            "value": "home",
+            "source": "user",
+            "quote": "在家",
+            "turn": 1
+          },
+          "minutes": {
+            "value": 10,
+            "source": "user",
+            "quote": "10分钟",
+            "turn": 1
+          },
+          "level": {
+            "value": 1,
+            "source": "user",
+            "quote": "入门",
+            "turn": 1
+          },
+          "goal": {
+            "value": [
+              "purpose.mobility",
+              "purpose.stretch",
+              "body.inner_thigh",
+              "body.hip_flexors",
+              "body.glute_max"
+            ],
+            "source": "user",
+            "quote": "开胯",
+            "turn": 1
+          },
+          "equipment": {
+            "value": [],
+            "source": "default",
+            "turn": 1
+          },
+          "limits": {
+            "value": [],
+            "source": "default",
+            "turn": 1
+          }
+        },
+        "task": {
+          "type": "recommend",
+          "nodes": [
+            {
+              "id": "understand",
+              "status": "done",
+              "stamp": "准备推荐动作",
+              "doneAtTurn": 2
+            },
+            {
+              "id": "parameters",
+              "status": "done",
+              "stamp": "居家（你说的） · 灵活/活动度、拉伸、内收肌群、髋屈肌、臀大肌（你说的） · 徒手（可用椅子/凳子/瑜伽垫/墙）（默认） · 10 分钟（你说的） · 初学（你说的） · 无伤痛（默认）",
+              "doneAtTurn": 2
+            },
+            {
+              "id": "actions",
+              "status": "done",
+              "stamp": "选了 4 个动作",
+              "doneAtTurn": 2
+            },
+            {
+              "id": "output",
+              "status": "done",
+              "stamp": "已交付",
+              "doneAtTurn": 2
+            }
+          ],
+          "reused": false
+        },
+        "picks": [
+          "h-adductor-rock",
+          "h-wall-straddle",
+          "n-wide-fold",
+          "s-butterfly"
+        ],
+        "candidates": [
+          [
+            "h-adductor-rock",
+            "四足单腿侧伸后摇",
+            "body.inner_thigh",
+            "reps",
+            1
+          ],
+          [
+            "h-butterfly-active",
+            "仰卧蝴蝶主动开合",
+            "body.inner_thigh",
+            "reps",
+            1
+          ],
+          [
+            "h-wall-straddle",
+            "靠墙仰卧 V 字分腿",
+            "body.inner_thigh",
+            "seconds",
+            1
+          ],
+          [
+            "n-wide-fold",
+            "站姿宽距体前屈（扶椅）",
+            "body.inner_thigh",
+            "seconds",
+            1
+          ],
+          [
+            "s-butterfly",
+            "蝴蝶式",
+            "body.inner_thigh",
+            "seconds",
+            1
+          ]
+        ],
+        "loadedSkillNames": [
+          "action-coaching"
+        ],
+        "seenActionIds": [
+          "h-adductor-rock",
+          "h-butterfly-active",
+          "h-wall-straddle",
+          "n-wide-fold",
+          "s-butterfly"
+        ],
+        "outcome": "completed"
+      },
+      {
+        "turn": 3,
+        "userText": "换一套，缩短到5分钟",
+        "finalDeliveryText": "换了一套：仰卧画圈和扶椅开髋门先唤醒髋部，再靠 90/90、四足后摇和站姿弓步分别打开臀部、大腿内侧和髋前侧，最后坐姿单膝内倒放松。全程不痛的范围内，慢慢呼吸，有牵扯感就停住等它松开，不弹震、不憋气。",
+        "deliveries": [
+          {
+            "type": "plan",
+            "plan_id": "plan-1793424335540-2",
+            "version": 2,
+            "actionIds": [
+              "n-leg-circles",
+              "h-hip-gate",
+              "s-9090",
+              "h-adductor-rock",
+              "o-stand-lunge",
+              "n-seated-ir-drop"
+            ]
+          }
+        ],
+        "askQuestions": [],
+        "params": {
+          "scene": {
+            "value": "home",
+            "source": "user",
+            "quote": "在家",
+            "turn": 1
+          },
+          "minutes": {
+            "value": 5,
+            "source": "user",
+            "quote": "缩短到5分钟",
+            "turn": 3
+          },
+          "level": {
+            "value": 1,
+            "source": "user",
+            "quote": "入门",
+            "turn": 1
+          },
+          "goal": {
+            "value": [
+              "purpose.mobility",
+              "purpose.stretch",
+              "body.inner_thigh",
+              "body.hip_flexors",
+              "body.glute_max"
+            ],
+            "source": "user",
+            "quote": "开胯",
+            "turn": 1
+          },
+          "equipment": {
+            "value": [],
+            "source": "default",
+            "turn": 1
+          },
+          "limits": {
+            "value": [],
+            "source": "default",
+            "turn": 1
+          },
+          "operation": {
+            "value": "replace_all",
+            "source": "user",
+            "quote": "换一套",
+            "turn": 3
+          }
+        },
+        "task": {
+          "type": "plan",
+          "nodes": [
+            {
+              "id": "understand",
+              "status": "done",
+              "stamp": "准备推荐动作",
+              "doneAtTurn": 2
+            },
+            {
+              "id": "parameters",
+              "status": "updated",
+              "stamp": "居家（你说的） · 灵活/活动度、拉伸、内收肌群、髋屈肌、臀大肌（你说的） · 徒手（可用椅子/凳子/瑜伽垫/墙）（默认） · 5 分钟（你说的） · 初学（你说的） · 无伤痛（默认）",
+              "doneAtTurn": 3
+            },
+            {
+              "id": "actions",
+              "status": "done",
+              "stamp": "选了 9 个动作",
+              "doneAtTurn": 2
+            },
+            {
+              "id": "planning",
+              "status": "done",
+              "stamp": "已编排计划，约 5.6 分钟",
+              "doneAtTurn": 3
+            },
+            {
+              "id": "review",
+              "status": "done",
+              "stamp": "目录、安全、器材和目标核对完成 · 实际用到环境物：椅子/凳子、瑜伽垫",
+              "doneAtTurn": 3
+            },
+            {
+              "id": "output",
+              "status": "done",
+              "stamp": "已交付 · 实际用到环境物：椅子/凳子、瑜伽垫",
+              "doneAtTurn": 3
+            }
+          ],
+          "reused": true
+        },
+        "picks": [
+          "h-adductor-rock",
+          "h-wall-straddle",
+          "n-wide-fold",
+          "s-butterfly",
+          "n-leg-circles",
+          "h-hip-gate",
+          "s-9090",
+          "o-stand-lunge",
+          "n-seated-ir-drop"
+        ],
+        "candidates": [
+          [
+            "h-adductor-rock",
+            "四足单腿侧伸后摇",
+            "body.inner_thigh",
+            "reps",
+            1
+          ],
+          [
+            "h-butterfly-active",
+            "仰卧蝴蝶主动开合",
+            "body.inner_thigh",
+            "reps",
+            1
+          ],
+          [
+            "h-wall-straddle",
+            "靠墙仰卧 V 字分腿",
+            "body.inner_thigh",
+            "seconds",
+            1
+          ],
+          [
+            "n-wide-fold",
+            "站姿宽距体前屈（扶椅）",
+            "body.inner_thigh",
+            "seconds",
+            1
+          ],
+          [
+            "s-butterfly",
+            "蝴蝶式",
+            "body.inner_thigh",
+            "seconds",
+            1
+          ],
+          [
+            "h-hip-gate",
+            "扶椅站姿开髋门",
+            "body.hip_flexors",
+            "reps",
+            1
+          ],
+          [
+            "n-chair-wiper",
+            "坐椅雨刷（膝内倒）",
+            "body.hip_abductors",
+            "reps",
+            1
+          ],
+          [
+            "n-leg-circles",
+            "仰卧直腿画圈",
+            "body.hip_flexors",
+            "reps",
+            1
+          ],
+          [
+            "n-pelvis-circle",
+            "站姿骨盆画圈",
+            "body.hip_flexors",
+            "reps",
+            1
+          ],
+          [
+            "n-prone-ir",
+            "俯卧小腿外摆",
+            "body.hip_abductors",
+            "reps",
+            1
+          ],
+          [
+            "n-seated-ir-drop",
+            "坐姿后撑单膝内倒",
+            "body.glute_max",
+            "seconds",
+            1
+          ],
+          [
+            "n-windshield",
+            "仰卧雨刷式",
+            "body.glute_max",
+            "reps",
+            1
+          ],
+          [
+            "s-9090",
+            "90/90 坐姿换髋",
+            "body.glute_max",
+            "seconds",
+            1
+          ],
+          [
+            "h-couch-stretch",
+            "沙发拉伸（后脚搭矮凳）",
+            "body.hip_flexors",
+            "seconds",
+            3
+          ],
+          [
+            "h-knee-hug",
+            "仰卧抱膝",
+            "body.erectors",
+            "reps",
+            1
+          ],
+          [
+            "h-sumo-pry",
+            "相扑深蹲肘推膝停留",
+            "body.inner_thigh",
+            "reps",
+            3
+          ],
+          [
+            "o-seated-fig4",
+            "坐姿四字前压",
+            "body.glute_max",
+            "seconds",
+            1
+          ],
+          [
+            "o-stand-lunge",
+            "扶椅站姿弓步屈髋拉伸",
+            "body.hip_flexors",
+            "seconds",
+            1
+          ],
+          [
+            "s-figure4",
+            "仰卧 4 字拉伸",
+            "body.glute_max",
+            "seconds",
+            1
+          ],
+          [
+            "s-frog",
+            "青蛙式",
+            "body.inner_thigh",
+            "seconds",
+            3
+          ],
+          [
+            "s-kneel-hipflex",
+            "半跪髋屈肌拉伸",
+            "body.hip_flexors",
+            "seconds",
+            1
+          ]
+        ],
+        "currentPlanRef": {
+          "type": "plan",
+          "plan_id": "plan-1793424335540-2",
+          "version": 2,
+          "actionIds": [
+            "n-leg-circles",
+            "h-hip-gate",
+            "s-9090",
+            "h-adductor-rock",
+            "o-stand-lunge",
+            "n-seated-ir-drop"
+          ]
+        },
+        "loadedSkillNames": [
+          "ask",
+          "action-library",
+          "plan-training"
+        ],
+        "seenActionIds": [
+          "h-adductor-rock",
+          "h-butterfly-active",
+          "h-wall-straddle",
+          "n-wide-fold",
+          "s-butterfly",
+          "h-hip-gate",
+          "n-chair-wiper",
+          "n-leg-circles",
+          "n-pelvis-circle",
+          "n-prone-ir",
+          "n-seated-ir-drop",
+          "n-windshield",
+          "s-9090",
+          "h-couch-stretch",
+          "h-knee-hug",
+          "h-sumo-pry",
+          "o-seated-fig4",
+          "o-stand-lunge",
+          "s-figure4",
+          "s-frog",
+          "s-kneel-hipflex"
+        ],
+        "outcome": "completed"
+      }
+    ]
+  }
+}

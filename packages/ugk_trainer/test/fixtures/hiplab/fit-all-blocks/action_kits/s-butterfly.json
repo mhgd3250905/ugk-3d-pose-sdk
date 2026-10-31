@@ -1,0 +1,120 @@
+{
+ "schema": "action-kit@1",
+ "id": "s-butterfly",
+ "display": {
+  "name": {
+   "zh": "蝴蝶式",
+   "en": "Butterfly"
+  },
+  "point": {
+   "zh": "脚心对脚心，坐直，让膝盖自然落下",
+   "en": "Soles together, sit tall, let the knees drop"
+  },
+  "cautions": [
+   "内收肌根"
+  ],
+  "targets": [
+   "external_rotation",
+   "abduction"
+  ],
+  "methods": [
+   "flexibility"
+  ],
+  "level": "beginner",
+  "sided": false,
+  "firstSide": null,
+  "poster": {
+   "dark": "assets/drill_media/hip-s-butterfly.jpg",
+   "light": "assets/drill_media/light/hip-s-butterfly.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/s-butterfly.js",
+   "specSha256": "67b29f53ee83bdc31f5e8b2f5526205b94d814ffbcf771e7cc7c4b9a7564b866"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-s-butterfly.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 3.8
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-s-butterfly.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 3.8,
+    "sha256": "f2cc1d919ea218bdde4611fcd76f8a514e4d744c1b5bf863e05377d334efc26b",
+    "bytes": 462924
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "open",
+  "reps": [
+   [
+    0.65,
+    3.45,
+    4.16,
+    6.96
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "hold",
+  "unit": "seconds",
+  "sided": false,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": null,
+   "sets": 1,
+   "seconds": 40,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "hold": {
+   "entrySeconds": 2.8
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.s-butterfly": {
+    "zh": "蝴蝶式",
+    "en": "Butterfly"
+   },
+   "point.s-butterfly": {
+    "zh": "脚心对脚心，坐直，让膝盖自然落下",
+    "en": "Soles together, sit tall, let the knees drop"
+   }
+  },
+  "prepare": [
+   "drill.s-butterfly",
+   "point.s-butterfly"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.release",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": null,
+  "coach": [
+   "cue.flexibility.1",
+   "cue.flexibility.2"
+  ],
+  "midHold": {
+   "half": "p.half",
+   "last10": "p.last10",
+   "countdown": 5
+  }
+ },
+ "review": {
+  "why": "static stretch",
+  "flags": []
+ }
+}

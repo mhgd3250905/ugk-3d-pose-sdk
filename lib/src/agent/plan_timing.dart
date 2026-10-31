@@ -1,8 +1,9 @@
 part of 'plan_builder.dart';
 
 /// Re-times a previously admitted card without flattening its performed parts.
-/// The existing heuristic changes only its usual rounds/sets stages here;
-/// segment work remains unchanged except for source-validated dose parameters.
+/// Ordinary items in every block can change work/sets/rounds within their
+/// catalogue/profile ranges. Saved segment work is a final fitting stage;
+/// their order, IDs, rhythm and other metadata remain intact.
 extension TrustedCardTiming on PlanBuilder {
   DraftResult refit(
     CoachSessionState state,
@@ -22,7 +23,6 @@ extension TrustedCardTiming on PlanBuilder {
       return fail('invalid_refit', saved.id);
     }
     final turn = state.userTurns.lastOrNull?.turn ?? 0;
-    final focused = state.focusPlanId == saved.id;
     if ((state.lastOperationRequestTurn ?? state.params['operation']?.turn) ==
             turn &&
         state.params['operation']?.value == 'replace_all') {
@@ -68,7 +68,7 @@ extension TrustedCardTiming on PlanBuilder {
             parent,
             item.sets,
             0,
-            item.restSeconds,
+            item.restSeconds.clamp(rest.min, rest.max),
             sets,
             const IntRange(0, 0),
             rest,
@@ -103,8 +103,8 @@ extension TrustedCardTiming on PlanBuilder {
             _DraftItem(
               drill,
               item.sets,
-              amount,
-              item.restSeconds,
+              amount.clamp(work.min, work.max),
+              item.restSeconds.clamp(rest.min, rest.max),
               sets,
               work,
               rest,
@@ -117,11 +117,17 @@ extension TrustedCardTiming on PlanBuilder {
       _DraftBlock wrap(List<_DraftItem> items) => _DraftBlock(
         block.id,
         kind,
-        block.rounds,
+        block.rounds.clamp(
+          profile.limits.rounds.min,
+          profile.limits.rounds.max,
+        ),
         items,
         roundsRange: profile.limits.rounds,
         roundRestRange: profile.limits.restBetweenRoundsSeconds,
-        roundRest: block.restBetweenRoundsSeconds,
+        roundRest: block.restBetweenRoundsSeconds.clamp(
+          profile.limits.restBetweenRoundsSeconds.min,
+          profile.limits.restBetweenRoundsSeconds.max,
+        ),
       );
       blocks.add(wrap(shadows));
       doseBlocks.add(wrap(works));
@@ -155,11 +161,13 @@ extension TrustedCardTiming on PlanBuilder {
           shadow.setRange = IntRange(low, high);
           shadow.sets = shadow.sets.clamp(low, high);
         }
-        if (focused && groups[blocks[bi].id]![ii].$1.segments.isEmpty) {
-          // A focused ordinary item can be re-timed from its saved work dose;
-          // segmented groups keep their independent proxy work unchanged.
+        if (groups[blocks[bi].id]![ii].$1.segments.isEmpty) {
+          // Ordinary items are searchable in every block. Segmented groups
+          // keep their independent proxy work rather than being flattened.
           shadow.work = proxies.single.work;
           shadow.workRange = proxies.single.workRange;
+        } else {
+          shadow.parts = [for (final proxy in proxies) proxy.copy()];
         }
       }
     }
@@ -193,8 +201,12 @@ extension TrustedCardTiming on PlanBuilder {
               'items': [
                 for (var ii = 0; ii < source[bi].items.length; ii++)
                   (() {
-                    final (original, proxies) = groups[source[bi].id]![ii];
+                    final (original, originalParts) =
+                        groups[source[bi].id]![ii];
                     final shadow = source[bi].items[ii];
+                    final proxies = shadow.parts.isEmpty
+                        ? originalParts
+                        : shadow.parts;
                     return original
                         .copyWith(
                           sets: shadow.sets,
@@ -202,12 +214,12 @@ extension TrustedCardTiming on PlanBuilder {
                           reps:
                               original.segments.isEmpty &&
                                   original.mode == DoseMode.reps
-                              ? amount(focused ? shadow : proxies.single)
+                              ? amount(shadow)
                               : null,
                           workSeconds:
                               original.segments.isEmpty &&
                                   original.mode == DoseMode.time
-                              ? amount(focused ? shadow : proxies.single)
+                              ? amount(shadow)
                               : null,
                           segments: [
                             for (
@@ -269,6 +281,14 @@ extension TrustedCardTiming on PlanBuilder {
     _fit(blocks, target, estimate, log);
     final plan = render(blocks);
     final seconds = PlanBuilder._duration.estimateSeconds(plan, catalog);
+    final durationFailure = _durationFailure(
+      state,
+      seconds,
+      target,
+      log,
+      language: language,
+    );
+    if (durationFailure != null) return durationFailure;
     final version = previous!.map((v) => v.version).reduce(math.max) + 1;
     return DraftResult(
       state.copyWith(
@@ -474,6 +494,9 @@ Map<String, Object?> _timingBounds(
           item.sets = maximum ? item.setRange.max : item.setRange.min;
           item.work = maximum ? item.workRange.max : item.workRange.min;
           item.rest = maximum ? item.restRange.max : item.restRange.min;
+          for (final part in item.parts) {
+            part.work = maximum ? part.workRange.max : part.workRange.min;
+          }
         }),
   ];
   final minimum =

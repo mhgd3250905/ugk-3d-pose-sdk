@@ -352,9 +352,10 @@ class PlanBuilder {
       if (raw.containsKey('rounds')) {
         ignoredDoseFields.add('blocks[$bi].rounds');
       }
-      final rounds = kind == 'main'
-          ? 1.clamp(profile.limits.rounds.min, profile.limits.rounds.max)
-          : 1;
+      final rounds = 1.clamp(
+        profile.limits.rounds.min,
+        profile.limits.rounds.max,
+      );
       final items = <_DraftItem>[];
       for (var ii = 0; ii < (raw['items'] as List).length; ii++) {
         final item = (raw['items'] as List)[ii];
@@ -614,6 +615,15 @@ class PlanBuilder {
     _fit(blocks, target, estimate, log);
     final plan = asPlan(blocks);
     final seconds = _duration.estimateSeconds(plan, catalog);
+    final durationFailure = _durationFailure(
+      state,
+      seconds,
+      target,
+      log,
+      notes: notes,
+      language: language,
+    );
+    if (durationFailure != null) return durationFailure;
     final previous = state.plans[id] ?? const <CoachPlanVersion>[];
     final version = previous.isEmpty
         ? 1
@@ -732,6 +742,35 @@ class PlanBuilder {
     return min > max ? null : IntRange(min, max);
   }
 
+  // Failure to find a fitting integer dose is recoverable, not a proof that
+  // the user's conditions are impossible. Never commit an approximate card.
+  DraftResult? _durationFailure(
+    CoachSessionState state,
+    double seconds,
+    double target,
+    List<Map<String, Object?>> log, {
+    List<String> notes = const [],
+    String language = 'zh',
+  }) {
+    final tolerance = math.min(.1, profile.limits.durationTolerance);
+    if ((seconds - target).abs() <= target * tolerance + 1e-9) return null;
+    return DraftResult(
+      state,
+      fitLog: List.unmodifiable(log),
+      notes: List.unmodifiable(notes),
+      durationErrorPercent: (seconds - target).abs() / target * 100,
+      error: nodeError(
+        'duration_fit_failed',
+        'plan.duration',
+        {'targetSec': target, 'toleranceRatio': tolerance},
+        {'estimatedSec': seconds},
+        language.toLowerCase().startsWith('en')
+            ? 'Adjust the selected actions and submit a new draft; search for another compliant action if needed. If confirmed doses prevent fitting, ask which condition to change. Do not deliver this approximate plan.'
+            : '请按现有动作选择规则增减一个合规动作后重新提交草稿；候选不足时先搜索。若明确剂量限制无法调整，请询问用户取舍，不要交付此近似计划。',
+      ),
+    );
+  }
+
   void _fit(
     List<_DraftBlock> blocks,
     double target,
@@ -739,7 +778,9 @@ class PlanBuilder {
     List<Map<String, Object?>> log,
   ) {
     final initialSeconds = estimate(blocks);
-    if ((initialSeconds - target).abs() <= target * .1) return;
+    final tolerance = math.min(.1, profile.limits.durationTolerance);
+    final fitTolerance = math.min(.05, tolerance);
+    if ((initialSeconds - target).abs() <= target * tolerance) return;
     List<_DraftBlock> copy(List<_DraftBlock> source) => [
       for (final block in source) block.cloneWithout(const {}),
     ];
@@ -751,8 +792,9 @@ class PlanBuilder {
     void attempt(
       List<_DraftBlock> candidate,
       int startStage,
-      List<Map<String, Object?>> changes,
-    ) {
+      List<Map<String, Object?>> changes, {
+      bool segmentWork = false,
+    }) {
       var current = estimate(candidate);
       void saveIfBetter() {
         if ((current - target).abs() < (chosenSeconds - target).abs()) {
@@ -763,111 +805,166 @@ class PlanBuilder {
       }
 
       saveIfBetter();
-      for (var stage = startStage; stage < 4; stage++) {
-        if ((current - target).abs() <= target * .05) break;
-        final direction = current < target ? 1 : -1;
-        while ((current - target).abs() > target * .05) {
-          final edits = <_Edit>[];
-          for (final block in candidate) {
-            if (stage == 0 && block.kind == 'main') {
-              if (block.rounds + direction >= 1 &&
-                  block.rounds + direction <= 4 &&
-                  block.roundsRange.contains(block.rounds + direction)) {
+      // Revisit stages after crossing the target: reducing one action's sets
+      // and increasing another can fit even when either change alone cannot.
+      final visited = <String>{};
+      while ((current - target).abs() > target * fitTolerance) {
+        final signature = [
+          for (final block in candidate)
+            '${block.rounds}:${block.roundRest}:'
+                '${block.items.map((item) => '${item.sets},${item.work},${item.rest},${item.parts.map((part) => part.work).join(',')}').join(';')}',
+        ].join('|');
+        if (!visited.add(signature)) break;
+        for (var stage = startStage; stage < (segmentWork ? 9 : 8); stage++) {
+          if ((current - target).abs() <= target * fitTolerance) break;
+          final direction = current < target ? 1 : -1;
+          while ((current - target).abs() > target * fitTolerance) {
+            final edits = <_Edit>[];
+            for (final block in candidate) {
+              if ((stage == 0 && block.kind == 'main') ||
+                  (stage == 5 && block.kind != 'main')) {
+                if (block.roundsRange.contains(block.rounds + direction)) {
+                  edits.add(
+                    _Edit(
+                      block.id,
+                      null,
+                      'rounds',
+                      () => block.rounds,
+                      (v) => block.rounds = v,
+                    ),
+                  );
+                }
+              }
+              for (final item in block.items) {
+                if (((stage == 1 && block.kind == 'main') ||
+                        (stage == 4 && block.kind != 'main')) &&
+                    item.sets + direction >= item.setRange.min &&
+                    item.sets + direction <= item.setRange.max) {
+                  edits.add(
+                    _Edit(
+                      block.id,
+                      item.drill.id,
+                      'sets',
+                      () => item.sets,
+                      (v) => item.sets = v,
+                    ),
+                  );
+                }
+                if (((stage == 2 && block.kind == 'main') ||
+                        (stage == 3 && block.kind != 'main')) &&
+                    item.parts.isEmpty &&
+                    item.work + direction >= item.workRange.min &&
+                    item.work + direction <= item.workRange.max) {
+                  edits.add(
+                    _Edit(
+                      block.id,
+                      item.drill.id,
+                      item.drill.defaultDose.mode == DoseMode.reps
+                          ? 'reps'
+                          : 'seconds',
+                      () => item.work,
+                      (v) => item.work = v,
+                    ),
+                  );
+                }
+                if (stage == 6 &&
+                    item.rest + direction >= item.restRange.min &&
+                    item.rest + direction <= item.restRange.max) {
+                  edits.add(
+                    _Edit(
+                      block.id,
+                      item.drill.id,
+                      'restSeconds',
+                      () => item.rest,
+                      (value) => item.rest = value,
+                    ),
+                  );
+                }
+                // Preserve existing group work whenever earlier stages fit.
+                // Otherwise search performed segments without flattening them.
+                if (stage == 8) {
+                  for (final part in item.parts) {
+                    if (!part.workRange.contains(part.work + direction)) {
+                      continue;
+                    }
+                    edits.add(
+                      _Edit(
+                        block.id,
+                        part.drill.id,
+                        part.drill.defaultDose.mode == DoseMode.reps
+                            ? 'reps'
+                            : 'seconds',
+                        () => part.work,
+                        (value) => part.work = value,
+                      ),
+                    );
+                  }
+                }
+              }
+              if (stage == 7 &&
+                  block.roundRestRange.contains(block.roundRest + direction)) {
                 edits.add(
                   _Edit(
                     block.id,
                     null,
-                    'rounds',
-                    () => block.rounds,
-                    (v) => block.rounds = v,
+                    'restBetweenRoundsSeconds',
+                    () => block.roundRest,
+                    (value) => block.roundRest = value,
                   ),
                 );
               }
             }
-            for (final item in block.items) {
-              if (stage == 1 &&
-                  block.kind == 'main' &&
-                  item.sets + direction >= item.setRange.min &&
-                  item.sets + direction <= item.setRange.max) {
-                edits.add(
-                  _Edit(
-                    block.id,
-                    item.drill.id,
-                    'sets',
-                    () => item.sets,
-                    (v) => item.sets = v,
-                  ),
-                );
-              }
-              if (((stage == 2 && block.kind == 'main') ||
-                      (stage == 3 &&
-                          block.kind != 'main' &&
-                          item.drill.defaultDose.mode == DoseMode.time)) &&
-                  item.work + direction >= item.workRange.min &&
-                  item.work + direction <= item.workRange.max) {
-                edits.add(
-                  _Edit(
-                    block.id,
-                    item.drill.id,
-                    item.drill.defaultDose.mode == DoseMode.reps
-                        ? 'reps'
-                        : 'seconds',
-                    () => item.work,
-                    (v) => item.work = v,
-                  ),
-                );
+            _Edit? best;
+            var bestSeconds = double.infinity;
+            for (final edit in edits) {
+              final old = edit.get();
+              edit.set(old + direction);
+              final value = estimate(candidate);
+              edit.set(old);
+              if ((value - current).abs() < 1e-9) continue;
+              if (best == null ||
+                  (value - target).abs() < (bestSeconds - target).abs()) {
+                best = edit;
+                bestSeconds = value;
               }
             }
-          }
-          _Edit? best;
-          var bestSeconds = double.infinity;
-          for (final edit in edits) {
-            final old = edit.get();
-            edit.set(old + direction);
-            final value = estimate(candidate);
-            edit.set(old);
-            if (best == null ||
-                (value - target).abs() < (bestSeconds - target).abs()) {
-              best = edit;
-              bestSeconds = value;
+            if (best == null) break;
+            final before = best.get();
+            final beforeSeconds = current;
+            best.set(before + direction);
+            current = bestSeconds;
+            changes.add({
+              'blockId': best.blockId,
+              'actionId': best.actionId,
+              'field': best.field,
+              'before': before,
+              'after': best.get(),
+              'beforeEstimatedSec': beforeSeconds,
+              'afterEstimatedSec': current,
+            });
+            saveIfBetter();
+            if ((direction > 0 && current >= target) ||
+                (direction < 0 && current <= target)) {
+              break;
             }
-          }
-          if (best == null) break;
-          final before = best.get();
-          final beforeSeconds = current;
-          best.set(before + direction);
-          current = bestSeconds;
-          changes.add({
-            'blockId': best.blockId,
-            'actionId': best.actionId,
-            'field': best.field,
-            'before': before,
-            'after': best.get(),
-            'beforeEstimatedSec': beforeSeconds,
-            'afterEstimatedSec': current,
-          });
-          saveIfBetter();
-          if ((direction > 0 && current >= target) ||
-              (direction < 0 && current <= target)) {
-            break;
           }
         }
       }
     }
 
     attempt(copy(initial), 0, []);
-    // Explore alternatives for each main block independently, followed by the
-    // same ordered later stages. This is bounded by four times the block count.
-    // It does not claim a global optimum across multiple blocks.
+    // Explore each block's legal rounds, not a hard-coded main-only 1..4.
+    // Later passes revisit all dose stages so compensating edits remain legal.
     for (
       var i = 0;
-      i < initial.length && (chosenSeconds - target).abs() > target * .05;
+      i < initial.length &&
+          (chosenSeconds - target).abs() > target * fitTolerance;
       i++
     ) {
-      if (initial[i].kind != 'main') continue;
       for (
-        var rounds = 1;
-        rounds <= 4 && (chosenSeconds - target).abs() > target * .05;
+        var rounds = initial[i].roundsRange.min;
+        rounds <= initial[i].roundsRange.max &&
+            (chosenSeconds - target).abs() > target * fitTolerance;
         rounds++
       ) {
         if (rounds == initial[i].rounds ||
@@ -876,7 +973,7 @@ class PlanBuilder {
         }
         final candidate = copy(initial);
         candidate[i].rounds = rounds;
-        attempt(candidate, 1, [
+        attempt(candidate, initial[i].kind == 'main' ? 1 : 0, [
           {
             'blockId': initial[i].id,
             'actionId': null,
@@ -888,6 +985,105 @@ class PlanBuilder {
           },
         ]);
       }
+    }
+    // Legal endpoint seeds also expose compensating edits that a pass from
+    // catalogue defaults can miss. The result is still checked at delivery;
+    // a search miss is never represented as a proof of infeasibility.
+    for (final maximum in [false, true]) {
+      if ((chosenSeconds - target).abs() <= target * tolerance) break;
+      final candidate = copy(initial);
+      final changes = <Map<String, Object?>>[];
+      void seed(_Edit edit, int value) {
+        final before = edit.get();
+        if (before == value) return;
+        final beforeSeconds = estimate(candidate);
+        edit.set(value);
+        changes.add({
+          'blockId': edit.blockId,
+          'actionId': edit.actionId,
+          'field': edit.field,
+          'before': before,
+          'after': value,
+          'beforeEstimatedSec': beforeSeconds,
+          'afterEstimatedSec': estimate(candidate),
+        });
+      }
+
+      for (final block in candidate) {
+        seed(
+          _Edit(
+            block.id,
+            null,
+            'rounds',
+            () => block.rounds,
+            (value) => block.rounds = value,
+          ),
+          maximum ? block.roundsRange.max : block.roundsRange.min,
+        );
+        seed(
+          _Edit(
+            block.id,
+            null,
+            'restBetweenRoundsSeconds',
+            () => block.roundRest,
+            (value) => block.roundRest = value,
+          ),
+          maximum ? block.roundRestRange.max : block.roundRestRange.min,
+        );
+        for (final item in block.items) {
+          seed(
+            _Edit(
+              block.id,
+              item.drill.id,
+              'sets',
+              () => item.sets,
+              (value) => item.sets = value,
+            ),
+            maximum ? item.setRange.max : item.setRange.min,
+          );
+          seed(
+            _Edit(
+              block.id,
+              item.drill.id,
+              item.drill.defaultDose.mode == DoseMode.reps ? 'reps' : 'seconds',
+              () => item.work,
+              (value) => item.work = value,
+            ),
+            maximum ? item.workRange.max : item.workRange.min,
+          );
+          seed(
+            _Edit(
+              block.id,
+              item.drill.id,
+              'restSeconds',
+              () => item.rest,
+              (value) => item.rest = value,
+            ),
+            maximum ? item.restRange.max : item.restRange.min,
+          );
+          for (final part in item.parts) {
+            seed(
+              _Edit(
+                block.id,
+                part.drill.id,
+                part.drill.defaultDose.mode == DoseMode.reps
+                    ? 'reps'
+                    : 'seconds',
+                () => part.work,
+                (value) => part.work = value,
+              ),
+              maximum ? part.workRange.max : part.workRange.min,
+            );
+          }
+        }
+      }
+      attempt(candidate, 0, changes);
+    }
+    if ((chosenSeconds - target).abs() > target * tolerance &&
+        chosen.any(
+          (block) => block.items.any((item) => item.parts.isNotEmpty),
+        )) {
+      attempt(copy(chosen), 0, List.of(chosenLog), segmentWork: true);
     }
     blocks
       ..clear()
@@ -914,12 +1110,14 @@ class _DraftItem {
     this.workRange,
     this.restRange, {
     this.sourceIndex,
+    this.parts = const [],
   });
   final Drill drill;
   final int? sourceIndex;
   int sets, work, rest;
   IntRange setRange, workRange;
   final IntRange restRange;
+  List<_DraftItem> parts;
   _DraftItem copy() => _DraftItem(
     drill,
     sets,
@@ -929,6 +1127,7 @@ class _DraftItem {
     workRange,
     restRange,
     sourceIndex: sourceIndex,
+    parts: [for (final part in parts) part.copy()],
   );
   PlanItem toPlanItem() => PlanItem(
     exerciseId: drill.id,

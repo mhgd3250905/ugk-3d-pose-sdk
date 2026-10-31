@@ -1,0 +1,6192 @@
+{
+  "format": "pose-hub-catalog",
+  "formatVersion": 1,
+  "version": "0.1.0",
+  "generatedAt": "2026-10-19T23:59:26+08:00",
+  "source": {
+    "repo": "mhgd3250905/3D-Pose-Hub",
+    "commit": "b6c6bd9",
+    "inputs": [
+      {
+        "repo": "mhgd3250905/Sport-Helper",
+        "commit": "6d4eb30"
+      },
+      {
+        "repo": "mhgd3250905/HipLab",
+        "commit": "cdbb14c"
+      },
+      {
+        "repo": "mhgd3250905/3D-Body",
+        "commit": "2be8cca"
+      }
+    ],
+    "hiplabSnapshot": {
+      "sdkCommit": "76829bd290ff86cbce4f9029657cc2a20e3f2ef4",
+      "filter": {
+        "apps": [
+          "hiplab"
+        ]
+      }
+    },
+    "hiplabDoseSource": {
+      "path": "assets/action_kits/index.json",
+      "sha256": "be4c05c66e86e32152a30b523553d654e2c1820b722b7fffce1a32174e060396",
+      "rules": "HipLab action-kit training defaults including holdSeconds; first video repSeconds is the complete kit cycle; no motion IDs added",
+      "alignedCatalog": {
+        "sdkCommit": "66dd98a549c1ff5fedecb626a7c88583090a1440",
+        "path": "packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog/catalog.json",
+        "version": "0.3.0",
+        "sha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983",
+        "unitCorrections": [
+          "h-adductor-rock",
+          "h-knee-hug",
+          "h-sumo-pry",
+          "n-pelvis-circle",
+          "n-seated-ir-drop",
+          "n-seated-knee-lift",
+          "n-seated-squeeze",
+          "n-squat-shift"
+        ]
+      }
+    }
+  },
+  "taxonomy": {
+    "categories": {
+      "strength": {
+        "zh": "力量",
+        "en": "Strength"
+      },
+      "core": {
+        "zh": "核心",
+        "en": "Core"
+      },
+      "cardio": {
+        "zh": "有氧",
+        "en": "Cardio"
+      },
+      "mobility": {
+        "zh": "灵活/活动度",
+        "en": "Mobility"
+      },
+      "stretch": {
+        "zh": "拉伸",
+        "en": "Stretch"
+      }
+    },
+    "muscleGroups": {
+      "deltoids": {
+        "zh": "三角肌"
+      },
+      "rotator-cuff": {
+        "zh": "肩袖肌群"
+      },
+      "triceps": {
+        "zh": "肱三头肌"
+      },
+      "biceps": {
+        "zh": "肱二头肌"
+      },
+      "forearms": {
+        "zh": "前臂 · 腕屈伸肌"
+      },
+      "serratus": {
+        "zh": "前锯肌"
+      },
+      "scapular": {
+        "zh": "斜方肌中下部 · 菱形肌"
+      },
+      "chest": {
+        "zh": "胸大肌"
+      },
+      "lats": {
+        "zh": "背阔肌"
+      },
+      "abs": {
+        "zh": "腹直肌（含深层腹横肌）"
+      },
+      "obliques": {
+        "zh": "腹斜肌"
+      },
+      "erectors": {
+        "zh": "竖脊肌"
+      },
+      "hip-flexors": {
+        "zh": "髋屈肌"
+      },
+      "glute-max": {
+        "zh": "臀大肌"
+      },
+      "hip-abductors": {
+        "zh": "臀中肌 · 髋外展"
+      },
+      "adductors": {
+        "zh": "内收肌群"
+      },
+      "quadriceps": {
+        "zh": "股四头肌"
+      },
+      "hamstrings": {
+        "zh": "腘绳肌"
+      },
+      "calves": {
+        "zh": "小腿三头肌"
+      },
+      "tibialis": {
+        "zh": "胫骨前肌"
+      }
+    },
+    "equipment": {
+      "mat": {
+        "zh": "瑜伽垫",
+        "scenes": [
+          "home",
+          "gym"
+        ]
+      },
+      "chair": {
+        "zh": "椅子/凳子",
+        "scenes": [
+          "home",
+          "office",
+          "gym"
+        ]
+      },
+      "wall": {
+        "zh": "墙",
+        "scenes": [
+          "home",
+          "office",
+          "gym"
+        ]
+      },
+      "block": {
+        "zh": "瑜伽砖（可用厚书代替）",
+        "scenes": [
+          "home",
+          "gym"
+        ]
+      },
+      "band": {
+        "zh": "弹力带",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "dumbbell": {
+        "zh": "哑铃",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "slider": {
+        "zh": "滑垫（可用毛巾代替）",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "kettlebell": {
+        "zh": "壶铃",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "parallettes": {
+        "zh": "平行杆（俯撑架）",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "pullup-bar": {
+        "zh": "单杠",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "foam-roller": {
+        "zh": "泡沫轴",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "swiss-ball": {
+        "zh": "瑞士球",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "dip-bars": {
+        "zh": "双杠",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "rings": {
+        "zh": "吊环",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "cable": {
+        "zh": "绳索器械",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "landmine": {
+        "zh": "地雷杆",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "roman-chair": {
+        "zh": "45° 罗马椅",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "ghd": {
+        "zh": "GHD 臀腿训练器",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "reverse-hyper": {
+        "zh": "反向背伸机",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "hip-abductor-machine": {
+        "zh": "髋外展机",
+        "scenes": [
+          "gym"
+        ]
+      },
+      "leg-extension-machine": {
+        "zh": "腿屈伸机",
+        "scenes": [
+          "gym"
+        ]
+      }
+    },
+    "positions": {
+      "standing": {
+        "zh": "站姿",
+        "floor": false
+      },
+      "seated": {
+        "zh": "坐姿",
+        "floor": false
+      },
+      "supine": {
+        "zh": "仰卧",
+        "floor": true
+      },
+      "prone": {
+        "zh": "俯卧/俯撑",
+        "floor": true
+      },
+      "quadruped": {
+        "zh": "四足跪撑",
+        "floor": true
+      },
+      "kneeling": {
+        "zh": "跪姿",
+        "floor": true
+      },
+      "side_lying": {
+        "zh": "侧卧/侧撑",
+        "floor": true
+      },
+      "support": {
+        "zh": "器械支撑（平行杆/双杠/吊环）",
+        "floor": false
+      },
+      "hanging": {
+        "zh": "悬垂",
+        "floor": false
+      }
+    },
+    "scenes": {
+      "home": {
+        "zh": "居家"
+      },
+      "office": {
+        "zh": "办公室"
+      },
+      "gym": {
+        "zh": "健身房"
+      }
+    },
+    "cautions": [
+      "膝",
+      "腰",
+      "肩",
+      "手腕",
+      "颈",
+      "髋",
+      "大腿内侧"
+    ],
+    "rules": {
+      "sceneMatch": "动作 scenes 含请求场所即可用；健身房请求额外接受 scenes 含 home 的动作（健身房有垫/凳/墙）。办公室请求不接受 floor=true 的体位。",
+      "equipmentByScene": "用户没说器械时：home 默认有 mat/chair/wall/block；office 默认有 chair/wall；gym 默认有全部器械。徒手 = equipment 为空。"
+    }
+  },
+  "apps": {
+    "hiplab": {
+      "name": "开胯训练助手 HipLab",
+      "repo": "mhgd3250905/HipLab",
+      "commit": "cdbb14c",
+      "mediaFormat": "action-kit@1"
+    }
+  },
+  "drills": [
+    {
+      "id": "h-adductor-rock",
+      "name": {
+        "zh": "四足单腿侧伸后摇",
+        "en": "Quadruped Adductor Rock-Back"
+      },
+      "purpose": "拉伸大腿内侧",
+      "category": "stretch",
+      "muscles": [
+        "大腿内侧"
+      ],
+      "muscleGroups": [
+        "adductors"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "position": "quadruped",
+      "unilateral": true,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 1,
+        "reps": 5,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "reps": [
+          1,
+          10
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "一条腿向侧面伸直，臀部慢慢往后坐",
+          "臀部向后摇，大腿内侧拉长"
+        ]
+      },
+      "primaryCue": 0,
+      "cautions": [
+        "膝"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:abduction",
+        "hip:flexion"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/h-adductor-rock.js",
+          "sha256": "d8d0601eb573cac10093a6d8fe6faec47040fbe22ab269801666b62f3f12eddd",
+          "revisionOf": null,
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/h-adductor-rock/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 2.4
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-h-adductor-rock.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-h-adductor-rock.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "h-adductor-rock/h-adductor-rock.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "b17db170723c52865cd1d891cb349b435115f5edeac400fd5dd71b39c86577f8",
+              "bytes": 31021
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "h-adductor-rock/h-adductor-rock.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "c8cd6a809953ec840825b106d6941370ecf9716b5820fbf44e2de334f1c07d34",
+              "bytes": 11204
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/h-adductor-rock/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "showsSide": "right",
+              "repSeconds": 4.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-h-adductor-rock.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-h-adductor-rock.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "h-adductor-rock/h-adductor-rock.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "217e0ad9e61421fbdd7652d8d649a8b653b3cd3c07c2957b900145507b6a79dc",
+              "bytes": 1158836
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "h-adductor-rock/h-adductor-rock.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "5203ab740be5ed9b09d39943b36a2568bc6a73329f2a2664132aa2fa4b6a5f1b",
+              "bytes": 1128681
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "四足单腿侧伸后摇"
+              },
+              "ms": {
+                "zh": 1834
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "四足单腿侧伸后摇，拉伸大腿内侧"
+              },
+              "ms": {
+                "zh": 3251
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "一条腿向侧面伸直，臀部慢慢往后坐"
+              },
+              "ms": {
+                "zh": 3437
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "臀部向后摇，大腿内侧拉长"
+              },
+              "ms": {
+                "zh": 2647
+              }
+            },
+            {
+              "id": "side_switch",
+              "role": "side_switch",
+              "text": {
+                "zh": "左侧同样，一条腿向侧面伸直，臀部慢慢往后坐"
+              },
+              "ms": {
+                "zh": 4551
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，臀部向后摇，大腿内侧拉长"
+              },
+              "ms": {
+                "zh": 5132
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "四足单腿侧伸后摇，完成"
+              },
+              "ms": {
+                "zh": 2531
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/h-adductor-rock/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.h-adductor-rock",
+                "point.h-adductor-rock"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/h-adductor-rock/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "h-butterfly-active",
+      "name": {
+        "zh": "仰卧蝴蝶主动开合",
+        "en": "Supine Butterfly Active Open-Close"
+      },
+      "purpose": "活动大腿内侧",
+      "category": "mobility",
+      "muscles": [
+        "大腿内侧"
+      ],
+      "muscleGroups": [
+        "adductors"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "position": "supine",
+      "unilateral": false,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 1,
+        "reps": 6,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "reps": [
+          1,
+          12
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "仰卧，脚心相对",
+          "脚心相对，膝盖慢慢打开再收回",
+          "膝主动打开再合上"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:abduction",
+        "hip:adduction",
+        "hip:external_rotation"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/h-butterfly-active.js",
+          "sha256": "58be080dfcac5075cb466e7c990e4b1a171da4bc77fb652a6b8865131ff13bb5",
+          "revisionOf": null,
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/h-butterfly-active/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 2.3
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-h-butterfly-active.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-h-butterfly-active.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "h-butterfly-active/h-butterfly-active.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "e679450b6eae73b561a9a36f66be73f4ccac4353cf387c8d9f385a0b34e10fe2",
+              "bytes": 32443
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "h-butterfly-active/h-butterfly-active.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "32fde0ca24d2c2056d0936451270fff069e7848a2727ba2b93609161481c2240",
+              "bytes": 11528
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/h-butterfly-active/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "repSeconds": 4.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-h-butterfly-active.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-h-butterfly-active.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "h-butterfly-active/h-butterfly-active.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "ebe4055c3e540d239b5cf379ef3ebbab0c8dbbff8f5308e6ee87caf9bcdc093a",
+              "bytes": 1322973
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "h-butterfly-active/h-butterfly-active.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "0e49a8d3b860922fee3144297e7fad7f9c3a4a2876353287508850d1b8cf7684",
+              "bytes": 1300454
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "仰卧蝴蝶主动开合"
+              },
+              "ms": {
+                "zh": 1672
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "仰卧蝴蝶主动开合，活动大腿内侧"
+              },
+              "ms": {
+                "zh": 3135
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "仰卧，脚心相对"
+              },
+              "ms": {
+                "zh": 1602
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "脚心相对，膝盖慢慢打开再收回"
+              },
+              "ms": {
+                "zh": 3065
+              }
+            },
+            {
+              "id": "cue3",
+              "role": "cue",
+              "text": {
+                "zh": "膝主动打开再合上"
+              },
+              "ms": {
+                "zh": 1718
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，膝主动打开再合上"
+              },
+              "ms": {
+                "zh": 4203
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "仰卧蝴蝶主动开合，完成"
+              },
+              "ms": {
+                "zh": 2392
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/h-butterfly-active/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.h-butterfly-active",
+                "point.h-butterfly-active"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/h-butterfly-active/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "h-couch-stretch",
+      "name": {
+        "zh": "沙发拉伸（后脚搭矮凳）",
+        "en": "Couch Stretch (Rear Foot on a Stool)"
+      },
+      "purpose": "后脚搭椅的沙发拉伸，深度拉伸髋前侧与大腿前侧",
+      "category": "stretch",
+      "muscles": [
+        "髋屈肌",
+        "股四头肌"
+      ],
+      "muscleGroups": [
+        "hip-flexors",
+        "quadriceps"
+      ],
+      "equipment": [
+        "chair"
+      ],
+      "position": "kneeling",
+      "unilateral": true,
+      "level": 3,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "time",
+        "sets": 1,
+        "seconds": 40,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "seconds": [
+          20,
+          80
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "后脚背靠椅面",
+          "后脚搭高，收紧臀部，髋往前送"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [
+        "膝",
+        "腰"
+      ],
+      "contraindications": [],
+      "alternative": "s-kneel-hipflex",
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:extension"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/h-couch-stretch.js",
+          "sha256": "717616a1d48eaf389c904c37f71e67ddfeaf1b5a4c4b080c65d920760c186ef5",
+          "revisionOf": null,
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/h-couch-stretch/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 3.8
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-h-couch-stretch.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-h-couch-stretch.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "h-couch-stretch/h-couch-stretch.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "9c82e3e2eb549b693d32e1bdcc4434d1e4276884059a56ef1b1956c120236f34",
+              "bytes": 26113
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "h-couch-stretch/h-couch-stretch.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "97d3c77525432095860c6c0e2a1addebd9045604e53c705fa5cf2b5089a8d3ae",
+              "bytes": 9862
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/h-couch-stretch/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-h-couch-stretch.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-h-couch-stretch.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "h-couch-stretch/h-couch-stretch.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "9df8bb7e4f3cf703906b5be8e7e290f576715743aa386fa322a7991f19980222",
+              "bytes": 864752
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "h-couch-stretch/h-couch-stretch.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "9bfe1a3a959f3fb23180296c84ceb282bc027b66be3673c1beaa16c0b16f512c",
+              "bytes": 853258
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "沙发拉伸，后脚搭矮凳"
+              },
+              "ms": {
+                "zh": 2159
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "沙发拉伸，后脚搭矮凳，拉伸髋前侧和大腿前侧"
+              },
+              "ms": {
+                "zh": 4737
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "后脚背靠椅面"
+              },
+              "ms": {
+                "zh": 1277
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "后脚搭高，收紧臀部，髋往前送"
+              },
+              "ms": {
+                "zh": 3042
+              }
+            },
+            {
+              "id": "side_switch",
+              "role": "side_switch",
+              "text": {
+                "zh": "左侧同样，后脚搭高，收紧臀部，髋往前送"
+              },
+              "ms": {
+                "zh": 4203
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，后脚搭高，收紧臀部，髋往前送"
+              },
+              "ms": {
+                "zh": 5596
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "沙发拉伸，后脚搭矮凳，完成"
+              },
+              "ms": {
+                "zh": 2856
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/h-couch-stretch/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.h-couch-stretch",
+                "point.h-couch-stretch"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/h-couch-stretch/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "h-hip-gate",
+      "name": {
+        "zh": "扶椅站姿开髋门",
+        "en": "Chair-Supported Hip Gate Opener"
+      },
+      "purpose": "活动髋前侧和臀部外侧",
+      "category": "mobility",
+      "muscles": [
+        "髋屈肌",
+        "臀中肌"
+      ],
+      "muscleGroups": [
+        "hip-flexors",
+        "hip-abductors"
+      ],
+      "equipment": [
+        "chair"
+      ],
+      "position": "standing",
+      "unilateral": true,
+      "level": 1,
+      "scenes": [
+        "home",
+        "office"
+      ],
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 1,
+        "reps": 6,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "reps": [
+          1,
+          12
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "扶椅站稳，抬膝",
+          "扶住椅子，膝盖抬高，向外画圈打开"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:abduction",
+        "hip:external_rotation",
+        "hip:flexion",
+        "hip:internal_rotation",
+        "office"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/h-hip-gate.js",
+          "sha256": "f65d09ec9010e2c5aecaea4a0a0bb912b3ef7af8ff3b941e74adea080ae325b6",
+          "revisionOf": null,
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/h-hip-gate/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 1.6
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-h-hip-gate.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-h-hip-gate.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "h-hip-gate/h-hip-gate.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "d2afab5e072c565168cd61aa11d154f98e0337286d49c62ba7bbe9491fd2ea62",
+              "bytes": 22852
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "h-hip-gate/h-hip-gate.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "2575414a98e90eb61ddb6bc6597fef700d7ea9df3b033a5ae795816450924bd6",
+              "bytes": 8260
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/h-hip-gate/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "repSeconds": 4.0,
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-h-hip-gate.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-h-hip-gate.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "h-hip-gate/h-hip-gate.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "0ca7e5a2f988a33b080096d6a6bd039426f2e221eeb833e50fb586aeee59f547",
+              "bytes": 755488
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "h-hip-gate/h-hip-gate.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "700f6a6709a34a213a4e7f5c3489c46416a6c28a010289e43e11f562c81c3fe2",
+              "bytes": 755110
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "扶椅站姿开髋门"
+              },
+              "ms": {
+                "zh": 1533
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "扶椅站姿开髋门，活动髋前侧和臀部外侧"
+              },
+              "ms": {
+                "zh": 3901
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "扶椅站稳，抬膝"
+              },
+              "ms": {
+                "zh": 1625
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "扶住椅子，膝盖抬高，向外画圈打开"
+              },
+              "ms": {
+                "zh": 3413
+              }
+            },
+            {
+              "id": "side_switch",
+              "role": "side_switch",
+              "text": {
+                "zh": "左侧同样，扶住椅子，膝盖抬高，向外画圈打开"
+              },
+              "ms": {
+                "zh": 4505
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，扶住椅子，膝盖抬高，向外画圈打开"
+              },
+              "ms": {
+                "zh": 5944
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "扶椅站姿开髋门，完成"
+              },
+              "ms": {
+                "zh": 2183
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/h-hip-gate/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.h-hip-gate",
+                "point.h-hip-gate"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/h-hip-gate/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "h-knee-hug",
+      "name": {
+        "zh": "仰卧抱膝",
+        "en": "Supine Knees-to-Chest"
+      },
+      "purpose": "仰卧抱膝，放松下背和臀部（睡前常用）",
+      "category": "stretch",
+      "muscles": [
+        "竖脊肌",
+        "臀大肌"
+      ],
+      "muscleGroups": [
+        "erectors",
+        "glute-max"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "position": "supine",
+      "unilateral": false,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 1,
+        "reps": 6,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "reps": [
+          1,
+          12
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "双手抱膝，慢慢呼吸",
+          "膝靠向胸口，腰背放松"
+        ]
+      },
+      "primaryCue": 0,
+      "cautions": [
+        "髋"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:flexion"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/h-knee-hug-r2.js",
+          "sha256": "73db57f4a968ef93b49cad8dfa07838791f5a2808ae6d1add6b36b3f12ae3e2a",
+          "revisionOf": "h-knee-hug",
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/h-knee-hug/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 2.5
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-h-knee-hug.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-h-knee-hug.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "h-knee-hug/h-knee-hug.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "f2e59ccd01434b18b6dee1037a449468e0bda42d60511ca138c92d0a409bed08",
+              "bytes": 26972
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "h-knee-hug/h-knee-hug.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "63a1b4c7982d37106c7d75f7b910f075a8c3560e8abf397dc4e3fb3ad922f430",
+              "bytes": 10434
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/h-knee-hug/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "repSeconds": 4.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-h-knee-hug.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-h-knee-hug.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "h-knee-hug/h-knee-hug.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "c7e92cbddb62e175b3262f6be4617631ab270268cce8f54105983541e8dce590",
+              "bytes": 859163
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "h-knee-hug/h-knee-hug.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "08f47f1d469ab4e622e22bb2b40e38e9cfaf0b210b39d00f0fa56fd9f3803705",
+              "bytes": 853963
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "仰卧抱膝"
+              },
+              "ms": {
+                "zh": 929
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "仰卧抱膝，拉伸下背和臀部"
+              },
+              "ms": {
+                "zh": 2461
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "双手抱膝，慢慢呼吸"
+              },
+              "ms": {
+                "zh": 2043
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "膝靠向胸口，腰背放松"
+              },
+              "ms": {
+                "zh": 2252
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，膝靠向胸口，腰背放松"
+              },
+              "ms": {
+                "zh": 4760
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "仰卧抱膝，完成"
+              },
+              "ms": {
+                "zh": 1625
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/h-knee-hug/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.h-knee-hug",
+                "point.h-knee-hug"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/h-knee-hug/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "h-sumo-pry",
+      "name": {
+        "zh": "相扑深蹲肘推膝停留",
+        "en": "Sumo Squat Hold with Elbow Pry"
+      },
+      "purpose": "拉伸大腿内侧和臀部",
+      "category": "stretch",
+      "muscles": [
+        "大腿内侧",
+        "臀大肌"
+      ],
+      "muscleGroups": [
+        "adductors",
+        "glute-max"
+      ],
+      "equipment": [],
+      "position": "standing",
+      "unilateral": false,
+      "level": 3,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 1,
+        "reps": 3,
+        "restSeconds": 15,
+        "holdSeconds": 10
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "reps": [
+          1,
+          6
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "宽站深蹲，手合十",
+          "蹲低，手肘把膝盖轻轻向外推",
+          "肘把膝往外推，胸口挺起"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [
+        "膝"
+      ],
+      "contraindications": [],
+      "alternative": "h-squat",
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:abduction",
+        "hip:external_rotation",
+        "hip:flexion"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/h-sumo-pry.js",
+          "sha256": "2822e6600f341862bc8491d7e58b35876bddc53c0635a727d69ec270baadac7a",
+          "revisionOf": null,
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/h-sumo-pry/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 2.6
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-h-sumo-pry.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-h-sumo-pry.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "h-sumo-pry/h-sumo-pry.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "611d84c88cbc6c693fb5c1f78e3a9382024415504cef9e35cac910a9d69869f8",
+              "bytes": 25631
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "h-sumo-pry/h-sumo-pry.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "425eedf72dd8a6d7daae9ab123b9325f7994df7a35b0a5336be8ff928215a5ed",
+              "bytes": 9164
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/h-sumo-pry/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "repSeconds": 12.35
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-h-sumo-pry.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-h-sumo-pry.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "h-sumo-pry/h-sumo-pry.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "8438bf21bfc8c303dd2d2b59d3af749d9ef5acb1eff24951cfbce97d7ca57a9d",
+              "bytes": 1014064
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "h-sumo-pry/h-sumo-pry.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "896d8cb11b09a136fca3f2512b11c6ecd11d240bf53615a0bdae91e5b5f81747",
+              "bytes": 1004159
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "相扑深蹲肘推膝停留"
+              },
+              "ms": {
+                "zh": 2043
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "相扑深蹲肘推膝停留，拉伸大腿内侧和臀部"
+              },
+              "ms": {
+                "zh": 4040
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "宽站深蹲，手合十"
+              },
+              "ms": {
+                "zh": 1950
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "蹲低，手肘把膝盖轻轻向外推"
+              },
+              "ms": {
+                "zh": 2926
+              }
+            },
+            {
+              "id": "cue3",
+              "role": "cue",
+              "text": {
+                "zh": "肘把膝往外推，胸口挺起"
+              },
+              "ms": {
+                "zh": 2392
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，肘把膝往外推，胸口挺起"
+              },
+              "ms": {
+                "zh": 4853
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "相扑深蹲肘推膝停留，完成"
+              },
+              "ms": {
+                "zh": 2717
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/h-sumo-pry/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.h-sumo-pry",
+                "point.h-sumo-pry"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/h-sumo-pry/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "h-wall-straddle",
+      "name": {
+        "zh": "靠墙仰卧 V 字分腿",
+        "en": "Legs-Up-the-Wall Straddle"
+      },
+      "purpose": "靠墙仰卧 V 字分腿，被动拉伸大腿内侧（横叉入门）",
+      "category": "stretch",
+      "muscles": [
+        "大腿内侧",
+        "腘绳肌"
+      ],
+      "muscleGroups": [
+        "adductors",
+        "hamstrings"
+      ],
+      "equipment": [
+        "wall"
+      ],
+      "position": "supine",
+      "unilateral": false,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "time",
+        "sets": 1,
+        "seconds": 60,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "seconds": [
+          30,
+          120
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "臀部贴墙，腿靠墙",
+          "腿靠墙，让双腿自然向两侧打开",
+          "双腿慢慢分开下落"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:abduction"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/h-wall-straddle.js",
+          "sha256": "e2119b273d8fc552dbaa2adab7fa09d76103d78b861f46ed1a422f93e911cf28",
+          "revisionOf": null,
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/h-wall-straddle/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 4.5
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-h-wall-straddle.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-h-wall-straddle.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "h-wall-straddle/h-wall-straddle.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "3a2f3c48e8c6ecdc00ad917223317e5ca6f598f3a38ef56dcdc0ab3e3ba40236",
+              "bytes": 30655
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "h-wall-straddle/h-wall-straddle.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "061f43d29ec7ba2145d0d2f91afe874ff7672983f2f067e3e94f33a7f4e4b5f9",
+              "bytes": 11763
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/h-wall-straddle/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-h-wall-straddle.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-h-wall-straddle.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "h-wall-straddle/h-wall-straddle.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "522b96099b2cb495759dce255750cc3906de3f7f62b7127e9ea9684f97ecf1d2",
+              "bytes": 1257911
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "h-wall-straddle/h-wall-straddle.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "e65ff8e641bd5cf34414cd679c0d3d892b047055285c203f0991d3a7881abb0a",
+              "bytes": 1236793
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "靠墙仰卧 V 字分腿"
+              },
+              "ms": {
+                "zh": 1765
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "靠墙仰卧 V 字分腿，拉伸大腿内侧和大腿后侧"
+              },
+              "ms": {
+                "zh": 4458
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "臀部贴墙，腿靠墙"
+              },
+              "ms": {
+                "zh": 1950
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "腿靠墙，让双腿自然向两侧打开"
+              },
+              "ms": {
+                "zh": 3111
+              }
+            },
+            {
+              "id": "cue3",
+              "role": "cue",
+              "text": {
+                "zh": "双腿慢慢分开下落"
+              },
+              "ms": {
+                "zh": 1834
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，双腿慢慢分开下落"
+              },
+              "ms": {
+                "zh": 4272
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "靠墙仰卧 V 字分腿，完成"
+              },
+              "ms": {
+                "zh": 2531
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/h-wall-straddle/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.h-wall-straddle",
+                "point.h-wall-straddle"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/h-wall-straddle/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "n-chair-wiper",
+      "name": {
+        "zh": "坐椅雨刷（膝内倒）",
+        "en": "Seated Knee Drop-In"
+      },
+      "purpose": "膝内倒，活动臀部",
+      "category": "mobility",
+      "muscles": [
+        "臀中肌",
+        "臀大肌"
+      ],
+      "muscleGroups": [
+        "hip-abductors",
+        "glute-max"
+      ],
+      "equipment": [
+        "chair"
+      ],
+      "position": "seated",
+      "unilateral": false,
+      "level": 1,
+      "scenes": [
+        "home",
+        "office"
+      ],
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 1,
+        "reps": 6,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "reps": [
+          1,
+          12
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "坐椅，双脚分开",
+          "坐在椅子上，小腿向外摆，膝盖向内倒",
+          "双膝交替向内倒"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [
+        "膝"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:internal_rotation",
+        "office"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/n-chair-wiper.js",
+          "sha256": "5f336da54c7fb677ae7c421f23a41705ee297c5145cb12d92a1045d5f1fdfde9",
+          "revisionOf": null,
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/n-chair-wiper/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 2.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-n-chair-wiper.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-n-chair-wiper.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "n-chair-wiper/n-chair-wiper.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "4fa32cac55ff6763fa32bad6e086469f2558f8fce8e1287915be870c61ce3d6a",
+              "bytes": 22763
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "n-chair-wiper/n-chair-wiper.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "88544a48b1f76f434bb9564c6aa4add0e873988e13b1a178a88c981e1e95d904",
+              "bytes": 7816
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/n-chair-wiper/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "repSeconds": 4.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-n-chair-wiper.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-n-chair-wiper.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "n-chair-wiper/n-chair-wiper.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "89ed1aeaa261f18566565b7436289d999e391256ce8aa9c93eb7014bd7a1c52f",
+              "bytes": 650817
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "n-chair-wiper/n-chair-wiper.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "a2bb65f1963f2a58ee0a40253ace10027a77d248333dc1d1649dd66deab4182a",
+              "bytes": 660680
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "坐椅雨刷，膝内倒"
+              },
+              "ms": {
+                "zh": 1788
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "坐椅雨刷，膝内倒，活动臀部"
+              },
+              "ms": {
+                "zh": 2763
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "坐椅，双脚分开"
+              },
+              "ms": {
+                "zh": 1695
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "坐在椅子上，小腿向外摆，膝盖向内倒"
+              },
+              "ms": {
+                "zh": 3437
+              }
+            },
+            {
+              "id": "cue3",
+              "role": "cue",
+              "text": {
+                "zh": "双膝交替向内倒"
+              },
+              "ms": {
+                "zh": 1602
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，双膝交替向内倒"
+              },
+              "ms": {
+                "zh": 4063
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "坐椅雨刷，膝内倒，完成"
+              },
+              "ms": {
+                "zh": 2508
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/n-chair-wiper/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.n-chair-wiper",
+                "point.n-chair-wiper"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/n-chair-wiper/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "n-leg-circles",
+      "name": {
+        "zh": "仰卧直腿画圈",
+        "en": "Supine Straight-Leg Circles"
+      },
+      "purpose": "活动髋前侧和臀部外侧",
+      "category": "mobility",
+      "muscles": [
+        "髋屈肌",
+        "臀中肌"
+      ],
+      "muscleGroups": [
+        "hip-flexors",
+        "hip-abductors"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "position": "supine",
+      "unilateral": true,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 1,
+        "reps": 4,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "reps": [
+          1,
+          8
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "仰卧，一腿伸直上举",
+          "腿伸直，慢慢画圈，骨盆不动"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [
+        "腰"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:abduction",
+        "hip:adduction",
+        "hip:flexion"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/n-leg-circles.js",
+          "sha256": "36041116f7706901d5bbebf549c69e12ce6f175548776e0f7ac1ef02db29e013",
+          "revisionOf": null,
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/n-leg-circles/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 2.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-n-leg-circles.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-n-leg-circles.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "n-leg-circles/n-leg-circles.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "2acd403f9c1e9f0f88f1fdd6d7701327ef6e2fbaf8669ec9dca6def0ef9c1313",
+              "bytes": 27368
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "n-leg-circles/n-leg-circles.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "b17fcfce103423a47e68e82774b5ac8d3a635a023aad0a7170c90c54c418d20a",
+              "bytes": 9694
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/n-leg-circles/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "repSeconds": 8.0,
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-n-leg-circles.mp4",
+              "loopSeconds": 12.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-n-leg-circles.mp4",
+              "loopSeconds": 12.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "n-leg-circles/n-leg-circles.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "26ca853a3e67aaa7f88949a4329b52018b11d580c9e538c9c9fb803efc9fa49b",
+              "bytes": 1488748
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "n-leg-circles/n-leg-circles.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "15a78a1499cea49d9fd712987dae56105598f7865d44911df431420634bb8310",
+              "bytes": 1490103
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "仰卧直腿画圈"
+              },
+              "ms": {
+                "zh": 1393
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "仰卧直腿画圈，活动髋前侧和臀部外侧"
+              },
+              "ms": {
+                "zh": 3762
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "仰卧，一腿伸直上举"
+              },
+              "ms": {
+                "zh": 2020
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "腿伸直，慢慢画圈，骨盆不动"
+              },
+              "ms": {
+                "zh": 2833
+              }
+            },
+            {
+              "id": "side_switch",
+              "role": "side_switch",
+              "text": {
+                "zh": "左侧同样，腿伸直，慢慢画圈，骨盆不动"
+              },
+              "ms": {
+                "zh": 3924
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，腿伸直，慢慢画圈，骨盆不动"
+              },
+              "ms": {
+                "zh": 5341
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "仰卧直腿画圈，完成"
+              },
+              "ms": {
+                "zh": 2067
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/n-leg-circles/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.n-leg-circles",
+                "point.n-leg-circles"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/n-leg-circles/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "n-pelvis-circle",
+      "name": {
+        "zh": "站姿骨盆画圈",
+        "en": "Standing Pelvis Circles"
+      },
+      "purpose": "活动髋前侧和臀部",
+      "category": "mobility",
+      "muscles": [
+        "髋屈肌",
+        "臀大肌",
+        "臀中肌"
+      ],
+      "muscleGroups": [
+        "hip-flexors",
+        "glute-max",
+        "hip-abductors"
+      ],
+      "equipment": [],
+      "position": "standing",
+      "unilateral": false,
+      "level": 1,
+      "scenes": [
+        "home",
+        "office"
+      ],
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 1,
+        "reps": 4,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "reps": [
+          1,
+          8
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "双手叉腰，膝微屈",
+          "双脚不动，骨盆慢慢画圈"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:abduction",
+        "hip:adduction",
+        "hip:extension",
+        "hip:flexion",
+        "office"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/n-pelvis-circle.js",
+          "sha256": "5e1e140167ac622a79c2874e5957b1bb1f12799d26e4950857b36c32e4690381",
+          "revisionOf": null,
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/n-pelvis-circle/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 1.1
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-n-pelvis-circle.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-n-pelvis-circle.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "n-pelvis-circle/n-pelvis-circle.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "838358517463e5e42d2f864201898edd750bdc9534f16b8d758ce30c33a964fc",
+              "bytes": 19964
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "n-pelvis-circle/n-pelvis-circle.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "68397419c6b604c99d8ce5ffdc452e146f145e285f7484ecd96c720e8aa3b49d",
+              "bytes": 7411
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/n-pelvis-circle/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "repSeconds": 8.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-n-pelvis-circle.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-n-pelvis-circle.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "n-pelvis-circle/n-pelvis-circle.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "2cd6b09af2b364e64100451e552cbe12c339ccf3109f99bf6c1cc0912a138245",
+              "bytes": 667257
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "n-pelvis-circle/n-pelvis-circle.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "c01779e4aaa28c608f3005564f1aa32d01044ff7aa82e62bf411eb768117c5b6",
+              "bytes": 658914
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "站姿骨盆画圈"
+              },
+              "ms": {
+                "zh": 1370
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "站姿骨盆画圈，活动髋前侧和臀部"
+              },
+              "ms": {
+                "zh": 3204
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "双手叉腰，膝微屈"
+              },
+              "ms": {
+                "zh": 1904
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "双脚不动，骨盆慢慢画圈"
+              },
+              "ms": {
+                "zh": 2368
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，双脚不动，骨盆慢慢画圈"
+              },
+              "ms": {
+                "zh": 4853
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "站姿骨盆画圈，完成"
+              },
+              "ms": {
+                "zh": 2067
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/n-pelvis-circle/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.n-pelvis-circle",
+                "point.n-pelvis-circle"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/n-pelvis-circle/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "n-prone-ir",
+      "name": {
+        "zh": "俯卧小腿外摆",
+        "en": "Prone Hip Internal Rotation"
+      },
+      "purpose": "活动臀部",
+      "category": "mobility",
+      "muscles": [
+        "臀中肌",
+        "臀大肌"
+      ],
+      "muscleGroups": [
+        "hip-abductors",
+        "glute-max"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "position": "prone",
+      "unilateral": false,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 1,
+        "reps": 8,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "reps": [
+          1,
+          16
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "俯卧屈膝 90 度",
+          "趴着，屈膝，小腿向外侧摆"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [
+        "膝"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:internal_rotation"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/n-prone-ir.js",
+          "sha256": "5dc95dd335ea18a21b1b2a1f0b3faa876cf5f3f936c64649d079a19dcb3f32d5",
+          "revisionOf": null,
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/n-prone-ir/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 2.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-n-prone-ir.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-n-prone-ir.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "n-prone-ir/n-prone-ir.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "8b2759c053736686f1be58013b1bed033c622d16c6b5552033a3be03824fb879",
+              "bytes": 33069
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "n-prone-ir/n-prone-ir.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "54fa2feb84396065613d66e580d3b3ec887f02e094b301a84f842524fb79461e",
+              "bytes": 11327
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/n-prone-ir/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "repSeconds": 4.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-n-prone-ir.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-n-prone-ir.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "n-prone-ir/n-prone-ir.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "6b5d33d75ca5255b7750a97bef33fa6f198a4a81aab78efe0308411903e0a9b3",
+              "bytes": 1267666
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "n-prone-ir/n-prone-ir.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "e1c7826d397a8dfc4f481655c67ba04beffc449c34b2e7a9595c01469751b761",
+              "bytes": 1237794
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "俯卧小腿外摆"
+              },
+              "ms": {
+                "zh": 1324
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "俯卧小腿外摆，活动臀部"
+              },
+              "ms": {
+                "zh": 2299
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "俯卧屈膝 90 度"
+              },
+              "ms": {
+                "zh": 1440
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "趴着，屈膝，小腿向外侧摆"
+              },
+              "ms": {
+                "zh": 2763
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，趴着，屈膝，小腿向外侧摆"
+              },
+              "ms": {
+                "zh": 5248
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "俯卧小腿外摆，完成"
+              },
+              "ms": {
+                "zh": 1997
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/n-prone-ir/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.n-prone-ir",
+                "point.n-prone-ir"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/n-prone-ir/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "n-seated-ir-drop",
+      "name": {
+        "zh": "坐姿后撑单膝内倒",
+        "en": "Seated Hip Internal-Rotation Drop"
+      },
+      "purpose": "活动臀部",
+      "category": "mobility",
+      "muscles": [
+        "臀大肌",
+        "臀中肌"
+      ],
+      "muscleGroups": [
+        "glute-max",
+        "hip-abductors"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "position": "seated",
+      "unilateral": true,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "time",
+        "sets": 1,
+        "seconds": 30,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "seconds": [
+          15,
+          60
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "坐地后撑，屈膝",
+          "手在身后撑地，一侧膝盖向内倒"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [
+        "膝"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:internal_rotation"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/n-seated-ir-drop.js",
+          "sha256": "48e44c56e8c7de96f905d2f572c85368cab18ac313ba2413942c22726c49676a",
+          "revisionOf": null,
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/n-seated-ir-drop/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 2.2
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-n-seated-ir-drop.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-n-seated-ir-drop.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "n-seated-ir-drop/n-seated-ir-drop.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "d4c08faaabea401586722966be5b996b5eb578407278515236f1fdf5242fb106",
+              "bytes": 23006
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "n-seated-ir-drop/n-seated-ir-drop.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "34e12dccb484043e80646521ac3b6f6812461800f64f59a8f9034fd0a20ad8d8",
+              "bytes": 8173
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/n-seated-ir-drop/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "repSeconds": 3.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-n-seated-ir-drop.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-n-seated-ir-drop.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "n-seated-ir-drop/n-seated-ir-drop.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "52ccc09fcb5d5b709322d959601ffecc25141ed01dcd64ebf582039fd38ef873",
+              "bytes": 775665
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "n-seated-ir-drop/n-seated-ir-drop.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "e58216c8bc9b7d90cb9d3fa0e9c79b54af115d84e9bac2abaa55bc85c324af96",
+              "bytes": 778618
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "坐姿后撑单膝内倒"
+              },
+              "ms": {
+                "zh": 1788
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "坐姿后撑单膝内倒，活动臀部"
+              },
+              "ms": {
+                "zh": 2949
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "坐地后撑，屈膝"
+              },
+              "ms": {
+                "zh": 1672
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "手在身后撑地，一侧膝盖向内倒"
+              },
+              "ms": {
+                "zh": 2879
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，手在身后撑地，一侧膝盖向内倒"
+              },
+              "ms": {
+                "zh": 5364
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "坐姿后撑单膝内倒，完成"
+              },
+              "ms": {
+                "zh": 2717
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/n-seated-ir-drop/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.n-seated-ir-drop",
+                "point.n-seated-ir-drop"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/n-seated-ir-drop/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "reviewed",
+        "notes": [
+          "人工更正：HipLab sided=true，『每侧 30 秒』；SmartFit pack 写成 false（需同步）"
+        ]
+      }
+    },
+    {
+      "id": "n-wide-fold",
+      "name": {
+        "zh": "站姿宽距体前屈（扶椅）",
+        "en": "Standing Wide-Leg Fold (Chair)"
+      },
+      "purpose": "扶椅，拉伸大腿内侧和大腿后侧",
+      "category": "stretch",
+      "muscles": [
+        "大腿内侧",
+        "腘绳肌"
+      ],
+      "muscleGroups": [
+        "adductors",
+        "hamstrings"
+      ],
+      "equipment": [
+        "chair"
+      ],
+      "position": "standing",
+      "unilateral": false,
+      "level": 1,
+      "scenes": [
+        "home",
+        "office"
+      ],
+      "defaultDose": {
+        "mode": "time",
+        "sets": 1,
+        "seconds": 40,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "seconds": [
+          20,
+          80
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "双脚宽站，手扶椅",
+          "双脚分开，扶住椅子，从髋部往前折",
+          "背平向前倾，大腿内后侧拉长"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [
+        "腰"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:abduction",
+        "hip:flexion",
+        "office"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/n-wide-fold.js",
+          "sha256": "94f49696bdc8a7464ed3cf1ccaf2180220229da07d1deeccad05aaa8a1834452",
+          "revisionOf": null,
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/n-wide-fold/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 3.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-n-wide-fold.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-n-wide-fold.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "n-wide-fold/n-wide-fold.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "17ab5ec8d5d333d6e4c546db67f5d10a6705e706a2a8c4a0044cf7c242102ba9",
+              "bytes": 34617
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "n-wide-fold/n-wide-fold.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "dd6e0ee273a18ebc8aa0c748a44dd6ab316ad1bf2d6438183b0f112eb2ec8ae5",
+              "bytes": 14503
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/n-wide-fold/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-n-wide-fold.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-n-wide-fold.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "n-wide-fold/n-wide-fold.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "f2c1fe89574669898631667eca9a30e7c267d5272c0e1040144d1d2c18a33af4",
+              "bytes": 1338094
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "n-wide-fold/n-wide-fold.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "2d8429deeb80cc8ccb76974f1719b7f4c7e011330275a6103bc375c74c2ce453",
+              "bytes": 1332675
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "站姿宽距体前屈，扶椅"
+              },
+              "ms": {
+                "zh": 2252
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "站姿宽距体前屈，扶椅，拉伸大腿内侧和大腿后侧"
+              },
+              "ms": {
+                "zh": 4899
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "双脚宽站，手扶椅"
+              },
+              "ms": {
+                "zh": 1950
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "双脚分开，扶住椅子，从髋部往前折"
+              },
+              "ms": {
+                "zh": 3460
+              }
+            },
+            {
+              "id": "cue3",
+              "role": "cue",
+              "text": {
+                "zh": "背平向前倾，大腿内后侧拉长"
+              },
+              "ms": {
+                "zh": 2972
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，背平向前倾，大腿内后侧拉长"
+              },
+              "ms": {
+                "zh": 5410
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "站姿宽距体前屈，扶椅，完成"
+              },
+              "ms": {
+                "zh": 2972
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/n-wide-fold/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.n-wide-fold",
+                "point.n-wide-fold"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/n-wide-fold/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "n-windshield",
+      "name": {
+        "zh": "仰卧雨刷式",
+        "en": "Supine Windshield Wipers"
+      },
+      "purpose": "活动臀部",
+      "category": "mobility",
+      "muscles": [
+        "臀大肌",
+        "臀中肌"
+      ],
+      "muscleGroups": [
+        "glute-max",
+        "hip-abductors"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "position": "supine",
+      "unilateral": false,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 1,
+        "reps": 8,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "reps": [
+          1,
+          16
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "仰卧屈膝，双脚宽踩",
+          "双膝一起慢慢左右倒，肩膀贴地"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:external_rotation",
+        "hip:internal_rotation"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/n-windshield.js",
+          "sha256": "10d16b2ccd6c637b95b6f134236e6fa3c6bccc7943f9be72712cdc5b829f3b75",
+          "revisionOf": null,
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/n-windshield/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 2.2
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-n-windshield.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-n-windshield.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "n-windshield/n-windshield.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "c3d89cff3fb3f5a559d4b610094bf9d2b3f417a7ec3057fe4a22175841d3166f",
+              "bytes": 32792
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "n-windshield/n-windshield.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "bbe7db88b573a87c4dad0992f3192f616fe8b6fb85a3c4472c704fdcf8717346",
+              "bytes": 11608
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/n-windshield/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "repSeconds": 4.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-n-windshield.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-n-windshield.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "n-windshield/n-windshield.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "01638d1609543b5a420ed29d459e07ab02c6325373dce57d61cc5be7376c830d",
+              "bytes": 1335896
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "n-windshield/n-windshield.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "d05ed862e25abe4e52a8082de964c97e7a9d35807ac927263827c69299f2ea2b",
+              "bytes": 1314966
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "仰卧雨刷式"
+              },
+              "ms": {
+                "zh": 1161
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "仰卧雨刷式，活动臀部"
+              },
+              "ms": {
+                "zh": 2159
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "仰卧屈膝，双脚宽踩"
+              },
+              "ms": {
+                "zh": 2113
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "双膝一起慢慢左右倒，肩膀贴地"
+              },
+              "ms": {
+                "zh": 3111
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，双膝一起慢慢左右倒，肩膀贴地"
+              },
+              "ms": {
+                "zh": 5642
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "仰卧雨刷式，完成"
+              },
+              "ms": {
+                "zh": 1881
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/n-windshield/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.n-windshield",
+                "point.n-windshield"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/n-windshield/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "o-seated-fig4",
+      "name": {
+        "zh": "坐姿四字前压",
+        "en": "Seated Figure-4 Stretch"
+      },
+      "purpose": "拉伸臀部",
+      "category": "stretch",
+      "muscles": [
+        "臀大肌"
+      ],
+      "muscleGroups": [
+        "glute-max"
+      ],
+      "equipment": [
+        "chair"
+      ],
+      "position": "seated",
+      "unilateral": true,
+      "level": 1,
+      "scenes": [
+        "home",
+        "office"
+      ],
+      "defaultDose": {
+        "mode": "time",
+        "sets": 1,
+        "seconds": 25,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "seconds": [
+          15,
+          50
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "脚踝搭在膝盖上，背挺直往前压",
+          "背挺直向前倾，臀部拉长"
+        ]
+      },
+      "primaryCue": 0,
+      "cautions": [
+        "膝"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:external_rotation",
+        "office"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/o-seated-fig4.js",
+          "sha256": "66a147a7da04a444f705bcd3e2fd23788a1349c533847bba9f1a36ae32a0ac48",
+          "revisionOf": null,
+          "modelProfile": null
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/o-seated-fig4/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 3.8
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-o-seated-fig4.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-o-seated-fig4.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "o-seated-fig4/o-seated-fig4.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "6d54a7a009317b4e7cdd499890acb949c6e8687ee365393c9be0c3b0f828b495",
+              "bytes": 26834
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "o-seated-fig4/o-seated-fig4.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "aae25e884909968fe73f1ad63fc34abccbc24e3b90bd3cdb4fda7ca0530486f1",
+              "bytes": 9473
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/o-seated-fig4/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-o-seated-fig4.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-o-seated-fig4.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "o-seated-fig4/o-seated-fig4.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "902070022797b98ba7a5e7d13629544136689f91614440c1d7fdd0110bf4cf9f",
+              "bytes": 723632
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "o-seated-fig4/o-seated-fig4.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "f44333331d01b4af0c166308eb1740f795d3a1ca094bf6b033d7a9661ce02fc2",
+              "bytes": 723766
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "坐姿四字前压"
+              },
+              "ms": {
+                "zh": 1393
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "坐姿四字前压，拉伸臀部"
+              },
+              "ms": {
+                "zh": 2392
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "脚踝搭在膝盖上，背挺直往前压"
+              },
+              "ms": {
+                "zh": 2879
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "背挺直向前倾，臀部拉长"
+              },
+              "ms": {
+                "zh": 2461
+              }
+            },
+            {
+              "id": "side_switch",
+              "role": "side_switch",
+              "text": {
+                "zh": "左侧同样，脚踝搭在膝盖上，背挺直往前压"
+              },
+              "ms": {
+                "zh": 3971
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，背挺直向前倾，臀部拉长"
+              },
+              "ms": {
+                "zh": 5201
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "坐姿四字前压，完成"
+              },
+              "ms": {
+                "zh": 2090
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/o-seated-fig4/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.o-seated-fig4",
+                "point.o-seated-fig4"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/o-seated-fig4/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "o-stand-lunge",
+      "name": {
+        "zh": "扶椅站姿弓步屈髋拉伸",
+        "en": "Chair-Supported Standing Hip Flexor Stretch"
+      },
+      "purpose": "拉伸髋前侧",
+      "category": "stretch",
+      "muscles": [
+        "髋屈肌"
+      ],
+      "muscleGroups": [
+        "hip-flexors"
+      ],
+      "equipment": [
+        "chair"
+      ],
+      "position": "standing",
+      "unilateral": true,
+      "level": 1,
+      "scenes": [
+        "home",
+        "office"
+      ],
+      "defaultDose": {
+        "mode": "time",
+        "sets": 1,
+        "seconds": 30,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "seconds": [
+          15,
+          60
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "扶椅成弓步，后腿伸直",
+          "扶住椅子，后侧臀部收紧，髋往前推"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [
+        "腰"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:extension",
+        "office"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/o-stand-lunge.js",
+          "sha256": "c2f3984febb97819713bbbbea85196498fa6f95c8cb1a5e869cc89e580b4beaa",
+          "revisionOf": null,
+          "modelProfile": null
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/o-stand-lunge/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 3.8
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-o-stand-lunge.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-o-stand-lunge.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "o-stand-lunge/o-stand-lunge.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "2ae39217fa3993e0a4f5a214f505a4d0a01363ca4642deb504186ba14f70231c",
+              "bytes": 21955
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "o-stand-lunge/o-stand-lunge.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "b0e0fef20c797ea42e99b0523f6f73c38a80dedd8b27e911a5c3c4a2eaae7961",
+              "bytes": 7561
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/o-stand-lunge/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-o-stand-lunge.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-o-stand-lunge.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "o-stand-lunge/o-stand-lunge.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "4e726fab301df7b114050a0b928a365a9d046eba870297d366677c86c72371c2",
+              "bytes": 603092
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "o-stand-lunge/o-stand-lunge.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "21c2848abbdf03fdf19585ffcea8a8fcd8f68ab28c726ebd1a8a7823bf5391db",
+              "bytes": 595513
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "扶椅站姿弓步屈髋拉伸"
+              },
+              "ms": {
+                "zh": 2206
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "扶椅站姿弓步屈髋拉伸，拉伸髋前侧"
+              },
+              "ms": {
+                "zh": 3529
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "扶椅成弓步，后腿伸直"
+              },
+              "ms": {
+                "zh": 2229
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "扶住椅子，后侧臀部收紧，髋往前推"
+              },
+              "ms": {
+                "zh": 3553
+              }
+            },
+            {
+              "id": "side_switch",
+              "role": "side_switch",
+              "text": {
+                "zh": "左侧同样，扶住椅子，后侧臀部收紧，髋往前推"
+              },
+              "ms": {
+                "zh": 4598
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，扶住椅子，后侧臀部收紧，髋往前推"
+              },
+              "ms": {
+                "zh": 6060
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "扶椅站姿弓步屈髋拉伸，完成"
+              },
+              "ms": {
+                "zh": 2856
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/o-stand-lunge/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.o-stand-lunge",
+                "point.o-stand-lunge"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/o-stand-lunge/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "s-9090",
+      "name": {
+        "zh": "90/90 坐姿换髋",
+        "en": "90/90 Hip Stretch"
+      },
+      "purpose": "90/90 坐姿换髋，活动髋内外旋",
+      "category": "mobility",
+      "muscles": [
+        "臀大肌"
+      ],
+      "muscleGroups": [
+        "glute-max"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "position": "seated",
+      "unilateral": true,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "time",
+        "sets": 1,
+        "seconds": 35,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "seconds": [
+          20,
+          70
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "双腿各屈 90 度",
+          "两条腿都成直角，坐直，再左右换",
+          "左右换边，躯干直立"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [
+        "膝"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:external_rotation",
+        "hip:internal_rotation"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/s-9090-r2.js",
+          "sha256": "81d8d8629e9c90559dd715465ad4002e6bc7d3baa6a5e261eb3ad97a55f4aa2e",
+          "revisionOf": "s-9090",
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/s-9090/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 3.8
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-s-9090.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-s-9090.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "s-9090/s-9090.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "3bfc3cc8d3725aaf16caf5cf89110faef7d2379c1fa0829db36bfac3f3bc5df1",
+              "bytes": 20957
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "s-9090/s-9090.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "cd361b296bb8c0f0d4ac3e08c44ff3f6e57c6d7719ca903aab544f8757942b61",
+              "bytes": 7087
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/s-9090/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-s-9090.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-s-9090.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "s-9090/s-9090.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "c7900c5c419924ab522b23c1212b4ea60b2b3faff6dd0424179f0be58ab57b87",
+              "bytes": 673379
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "s-9090/s-9090.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "394815a615ecd18b5e9d760ce0235491e29f028022b33fbb87a832a6a9a3c724",
+              "bytes": 671706
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "90 90 坐姿换髋"
+              },
+              "ms": {
+                "zh": 1950
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "90 90 坐姿换髋，活动臀部"
+              },
+              "ms": {
+                "zh": 2624
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "双腿各屈 90 度"
+              },
+              "ms": {
+                "zh": 1602
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "两条腿都成直角，坐直，再左右换"
+              },
+              "ms": {
+                "zh": 3228
+              }
+            },
+            {
+              "id": "cue3",
+              "role": "cue",
+              "text": {
+                "zh": "左右换边，躯干直立"
+              },
+              "ms": {
+                "zh": 2020
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，左右换边，躯干直立"
+              },
+              "ms": {
+                "zh": 4528
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "90 90 坐姿换髋，完成"
+              },
+              "ms": {
+                "zh": 2345
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/s-9090/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.s-9090",
+                "point.s-9090"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/s-9090/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "reviewed",
+        "notes": [
+          "人工更正：HipLab sided=true，『每侧 35 秒』；SmartFit pack 写成 false（需同步）"
+        ]
+      }
+    },
+    {
+      "id": "s-butterfly",
+      "name": {
+        "zh": "蝴蝶式",
+        "en": "Seated Butterfly Stretch"
+      },
+      "purpose": "拉伸大腿内侧",
+      "category": "stretch",
+      "muscles": [
+        "大腿内侧"
+      ],
+      "muscleGroups": [
+        "adductors"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "position": "seated",
+      "unilateral": false,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "time",
+        "sets": 1,
+        "seconds": 40,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "seconds": [
+          20,
+          80
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "脚心对脚心，坐直，让膝盖自然落下",
+          "膝盖自然下落，不硬压"
+        ]
+      },
+      "primaryCue": 0,
+      "cautions": [],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:abduction",
+        "hip:external_rotation"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/s-butterfly.js",
+          "sha256": "67b29f53ee83bdc31f5e8b2f5526205b94d814ffbcf771e7cc7c4b9a7564b866",
+          "revisionOf": null,
+          "modelProfile": null
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/s-butterfly/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 3.8
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-s-butterfly.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-s-butterfly.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "s-butterfly/s-butterfly.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "a92620b4218ef79afb4454f1c7e23683d7e6ceab90e4e46d9394b62094c9aa89",
+              "bytes": 26045
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "s-butterfly/s-butterfly.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "adebb5e7fb92fbbaead5d2d402b9f83e96931c801262f216dd65aa7bc1a008d8",
+              "bytes": 10174
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/s-butterfly/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-s-butterfly.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-s-butterfly.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "s-butterfly/s-butterfly.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "8041c2082e39ba82fc08657061f451d9e16bc1919e9f78e5e633c95f9c930aa8",
+              "bytes": 844691
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "s-butterfly/s-butterfly.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "bdd56f1df2cf7ce0865685ec04dd085a8a91d73a77bc60b2bacea0e9f02bf8ce",
+              "bytes": 839040
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "蝴蝶式"
+              },
+              "ms": {
+                "zh": 813
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "蝴蝶式，拉伸大腿内侧"
+              },
+              "ms": {
+                "zh": 2299
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "脚心对脚心，坐直，让膝盖自然落下"
+              },
+              "ms": {
+                "zh": 3367
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "膝盖自然下落，不硬压"
+              },
+              "ms": {
+                "zh": 2113
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，膝盖自然下落，不硬压"
+              },
+              "ms": {
+                "zh": 4574
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "蝴蝶式，完成"
+              },
+              "ms": {
+                "zh": 1533
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/s-butterfly/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.s-butterfly",
+                "point.s-butterfly"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/s-butterfly/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "s-figure4",
+      "name": {
+        "zh": "仰卧 4 字拉伸",
+        "en": "Supine Figure-4 Stretch"
+      },
+      "purpose": "仰卧 4 字拉伸臀部，膝不受扭力，膝不适时可替代鸽子式",
+      "category": "stretch",
+      "muscles": [
+        "臀大肌"
+      ],
+      "muscleGroups": [
+        "glute-max"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "position": "supine",
+      "unilateral": true,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "time",
+        "sets": 1,
+        "seconds": 40,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "seconds": [
+          20,
+          80
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "脚踝搭在另一侧膝盖上，把腿拉向胸口",
+          "抱住大腿拉向胸口"
+        ]
+      },
+      "primaryCue": 0,
+      "cautions": [],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:external_rotation"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/s-figure4.js",
+          "sha256": "cca7676b36347c5c44a56efa9847eef733182d4bfeea5954da55fee148278800",
+          "revisionOf": null,
+          "modelProfile": null
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/s-figure4/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 3.8
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-s-figure4.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-s-figure4.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "s-figure4/s-figure4.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "ea0931d66bbea6e6f7c27977d6263fe4af1c66f6c665610072e156f33cfc4075",
+              "bytes": 29236
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "s-figure4/s-figure4.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "c422ff0b904e65daee200b27fb0ef7f0d9f879b21e9fb33795cb06ae135443af",
+              "bytes": 11144
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/s-figure4/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-s-figure4.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-s-figure4.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "s-figure4/s-figure4.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "a42121ce21598d7aeaa31fb02008c10114ac23b3b996c22549de35486d824008",
+              "bytes": 833556
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "s-figure4/s-figure4.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "90aa9b4ce06768b627a9338f50373fb6f32a1ee1dc27d1edc1ba1e72afcfcb50",
+              "bytes": 830854
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "仰卧 4 字拉伸"
+              },
+              "ms": {
+                "zh": 1324
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "仰卧 4 字拉伸，拉伸臀部"
+              },
+              "ms": {
+                "zh": 2392
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "脚踝搭在另一侧膝盖上，把腿拉向胸口"
+              },
+              "ms": {
+                "zh": 3390
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "抱住大腿拉向胸口"
+              },
+              "ms": {
+                "zh": 1741
+              }
+            },
+            {
+              "id": "side_switch",
+              "role": "side_switch",
+              "text": {
+                "zh": "左侧同样，脚踝搭在另一侧膝盖上，把腿拉向胸口"
+              },
+              "ms": {
+                "zh": 4551
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，抱住大腿拉向胸口"
+              },
+              "ms": {
+                "zh": 4272
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "仰卧 4 字拉伸，完成"
+              },
+              "ms": {
+                "zh": 2043
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/s-figure4/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.s-figure4",
+                "point.s-figure4"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/s-figure4/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    },
+    {
+      "id": "s-frog",
+      "name": {
+        "zh": "青蛙式"
+      },
+      "purpose": "拉伸大腿内侧",
+      "category": "stretch",
+      "muscles": [
+        "大腿内侧"
+      ],
+      "muscleGroups": [
+        "adductors"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "position": "quadruped",
+      "unilateral": false,
+      "level": 3,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "time",
+        "sets": 1,
+        "seconds": 60,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "seconds": [
+          30,
+          120
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "膝盖向两侧打开，脚尖朝外，臀部慢慢往后坐"
+        ]
+      },
+      "primaryCue": 0,
+      "cautions": [
+        "膝"
+      ],
+      "contraindications": [],
+      "alternative": "s-butterfly",
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:abduction",
+        "hip:external_rotation"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/s-frog-r2.js",
+          "sha256": "3acf8825596f68d494ca1cb938fc76cdabe7f8cdf3c2827c71ba3ce408eabffa",
+          "revisionOf": "s-frog",
+          "modelProfile": "training-human-v2"
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/s-frog/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 3.8
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-s-frog.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-s-frog.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "s-frog/s-frog.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "39101bc8ab35345b1bf77a3e2bd5aa2d1ed39d1da58ddbb02d7582ce70537f26",
+              "bytes": 18890
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "s-frog/s-frog.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "27fe0e1af33cf8da3c5b82cf0f44cf33af63ba9e3ba4449136a0e657efd492d7",
+              "bytes": 6474
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/s-frog/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-s-frog.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-s-frog.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "s-frog/s-frog.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "3b44392a7d2955d2ea0df3ff41fd3067477ce742d438aa3b280018035a3c1fd7",
+              "bytes": 485993
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "s-frog/s-frog.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "6c8f90487b66cd4692a9182cbd62fd681c215647aded99df7b85116c4ddfbe55",
+              "bytes": 466202
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "青蛙式"
+              },
+              "ms": {
+                "zh": 813
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "青蛙式，拉伸大腿内侧"
+              },
+              "ms": {
+                "zh": 2252
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "膝盖向两侧打开，脚尖朝外，臀部慢慢往后坐"
+              },
+              "ms": {
+                "zh": 4226
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，膝盖向两侧打开，脚尖朝外，臀部慢慢往后坐"
+              },
+              "ms": {
+                "zh": 6780
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "青蛙式，完成"
+              },
+              "ms": {
+                "zh": 1533
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/s-frog/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.s-frog",
+                "point.s-frog"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/s-frog/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "reviewed",
+        "notes": [
+          "人工更正：SmartFit pack muscleGroups 为空，按 Pose-Hub 目标高亮补"
+        ]
+      }
+    },
+    {
+      "id": "s-kneel-hipflex",
+      "name": {
+        "zh": "半跪髋屈肌拉伸",
+        "en": "Half-Kneeling Hip Flexor Stretch"
+      },
+      "purpose": "拉伸髋前侧",
+      "category": "stretch",
+      "muscles": [
+        "髋屈肌"
+      ],
+      "muscleGroups": [
+        "hip-flexors"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "position": "kneeling",
+      "unilateral": true,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "time",
+        "sets": 1,
+        "seconds": 30,
+        "restSeconds": 15
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "seconds": [
+          15,
+          60
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "半跪，躯干直立",
+          "后侧臀部收紧，髋慢慢往前推"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [
+        "膝"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "apps": [
+        "hiplab",
+        "smartfit"
+      ],
+      "tags": [
+        "hip",
+        "hip:extension"
+      ],
+      "assets": {
+        "spec": {
+          "status": "ok",
+          "path": "drill-anim/specs/s-kneel-hipflex.js",
+          "sha256": "e5ce7dfa048f12a7ea8b7436e0af4972d179c6766652c98739f1438f85dafee2",
+          "revisionOf": null,
+          "modelProfile": null
+        },
+        "releases": [
+          "0.1.0",
+          "0.2.0"
+        ],
+        "cover": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/s-kneel-hipflex/cover.jpg",
+              "width": 540,
+              "height": 540,
+              "coverSeconds": 3.8
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-s-kneel-hipflex.jpg"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-s-kneel-hipflex.jpg"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "s-kneel-hipflex/s-kneel-hipflex.dark.poster.1080.jpg",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "ace059917836bef70468684709ff3aee2853ca56b23d2d30d5dab12f642f1147",
+              "bytes": 21631
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "s-kneel-hipflex/s-kneel-hipflex.dark.poster.540.jpg",
+              "width": 540,
+              "height": 540,
+              "sha256": "0842fd0cf8625f436cad29e1cbb2bfb1b1ca7474c3f1f463e500ea2e97757e66",
+              "bytes": 7522
+            }
+          ]
+        },
+        "video": {
+          "status": "ok",
+          "sources": [
+            {
+              "app": "smartfit",
+              "path": "assets/packs/s-kneel-hipflex/demo.mp4",
+              "width": 720,
+              "height": 720,
+              "loopSeconds": 8.0,
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "dark",
+              "path": "assets/drill_media/hip-s-kneel-hipflex.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "hiplab",
+              "variant": "light",
+              "path": "assets/drill_media/light/hip-s-kneel-hipflex.mp4",
+              "loopSeconds": 8.0,
+              "release": "0.2.0",
+              "showsSide": "right"
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.1.0",
+              "variant": "dark",
+              "path": "s-kneel-hipflex/s-kneel-hipflex.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "6137f61bb11e65bcb22a7977f57ef8772c37df62b214833c9fffb4d909686a33",
+              "bytes": 534390
+            },
+            {
+              "app": "pose-hub",
+              "release": "0.2.0",
+              "variant": "dark",
+              "path": "s-kneel-hipflex/s-kneel-hipflex.dark.1080.mp4",
+              "width": 1080,
+              "height": 1080,
+              "sha256": "b4b74268769f3798f9d72a04312aeea88e2b0463b25a8c8e9eb40ddd779ce1d2",
+              "bytes": 524563
+            }
+          ]
+        },
+        "voice": {
+          "status": "ok",
+          "languages": [
+            "en",
+            "zh"
+          ],
+          "lines": [
+            {
+              "id": "name",
+              "role": "name",
+              "text": {
+                "zh": "半跪髋屈肌拉伸"
+              },
+              "ms": {
+                "zh": 1556
+              }
+            },
+            {
+              "id": "intro",
+              "role": "intro",
+              "text": {
+                "zh": "半跪髋屈肌拉伸，拉伸髋前侧"
+              },
+              "ms": {
+                "zh": 2810
+              }
+            },
+            {
+              "id": "cue1",
+              "role": "cue",
+              "text": {
+                "zh": "半跪，躯干直立"
+              },
+              "ms": {
+                "zh": 1649
+              }
+            },
+            {
+              "id": "cue2",
+              "role": "cue",
+              "text": {
+                "zh": "后侧臀部收紧，髋慢慢往前推"
+              },
+              "ms": {
+                "zh": 2856
+              }
+            },
+            {
+              "id": "side_switch",
+              "role": "side_switch",
+              "text": {
+                "zh": "左侧同样，后侧臀部收紧，髋慢慢往前推"
+              },
+              "ms": {
+                "zh": 4040
+              }
+            },
+            {
+              "id": "rest",
+              "role": "rest",
+              "text": {
+                "zh": "放松一下。下一组记住，后侧臀部收紧，髋慢慢往前推"
+              },
+              "ms": {
+                "zh": 5410
+              }
+            },
+            {
+              "id": "finish",
+              "role": "finish",
+              "text": {
+                "zh": "半跪髋屈肌拉伸，完成"
+              },
+              "ms": {
+                "zh": 2252
+              }
+            }
+          ],
+          "audio": [
+            {
+              "app": "smartfit",
+              "pathPattern": "assets/packs/s-kneel-hipflex/voice/{lang}/{line}.m4a",
+              "languages": [
+                "zh"
+              ]
+            },
+            {
+              "app": "hiplab",
+              "pathPattern": "assets/voice/{lang}/{line}.m4a",
+              "languages": [
+                "en",
+                "zh"
+              ],
+              "keys": [
+                "drill.s-kneel-hipflex",
+                "point.s-kneel-hipflex"
+              ]
+            }
+          ]
+        },
+        "drillPack": {
+          "app": "smartfit",
+          "path": "assets/packs/s-kneel-hipflex/pack.json",
+          "version": "1.0.0"
+        }
+      },
+      "completeness": {
+        "complete": true,
+        "missing": []
+      },
+      "review": {
+        "status": "auto",
+        "notes": []
+      }
+    }
+  ]
+}

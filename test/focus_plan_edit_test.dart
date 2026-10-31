@@ -325,6 +325,9 @@ void main() {
     'replacing a focused item preserves custom doses and block metadata',
     () {
       final custom = saved.copyWith(
+        // These custom two-round doses total about 28 minutes, not 10. Keep
+        // this a dose-preservation fixture rather than a duration repair.
+        targetMinutes: 28,
         blocks: [
           PlanBlock(
             id: 'saved-main',
@@ -456,6 +459,8 @@ void main() {
       ],
     );
     final custom = saved.copyWith(
+      // Two rounds retain their full saved work (~22 minutes after editing).
+      targetMinutes: 22,
       blocks: [
         PlanBlock(
           id: 'segmented-block',
@@ -548,7 +553,8 @@ void main() {
     test(
       'sourceIndex retains duplicate occurrence $retainedIndex after deletion',
       () {
-        final custom = repeatedPlan();
+        // After deleting either occurrence the preserved work is near 9 min.
+        final custom = repeatedPlan().copyWith(targetMinutes: 9);
         final prior = AgentTask.start(withPlan(custom), 'plan').state;
         final result = builder.draft(
           prior,

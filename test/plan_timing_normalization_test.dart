@@ -108,7 +108,10 @@ void main() {
   test(
     'legacy doses of any type are ignored, with exactly the baseline card',
     () {
-      final baseline = builder.draft(ready(3), draft(), newPlanId: 'p');
+      // A fixed 100-second work item cannot fit 180 seconds in this integer
+      // rounds/sets domain. Keep this test about legacy fields using a legal
+      // four-minute target instead; the gap itself is covered below.
+      final baseline = builder.draft(ready(4), draft(), newPlanId: 'p');
       final payload = draft();
       final block = (payload['blocks'] as List).first as Map;
       block['rounds'] = {'malformed': true};
@@ -118,9 +121,12 @@ void main() {
         'seconds': '10000',
         'reps': -1,
       };
-      final normalized = builder.draft(ready(3), payload, newPlanId: 'p');
+      final normalized = builder.draft(ready(4), payload, newPlanId: 'p');
+      expect(baseline.ok, isTrue);
       expect(normalized.ok, isTrue);
       expect(plan(normalized), plan(baseline));
+      expect(normalized.state.plans['p']!.single.estimateSec, 225);
+      expect(normalized.durationErrorPercent, closeTo(6.25, .001));
       expect(normalized.note, contains('已忽略'));
       expect(normalized.notes.single, contains('4'));
     },
@@ -128,8 +134,9 @@ void main() {
   test(
     'structured fit changes include stable block/action identity and measured before/after time',
     () {
-      final result = builder.draft(ready(3), draft(), newPlanId: 'p');
+      final result = builder.draft(ready(4), draft(), newPlanId: 'p');
       expect(result.ok, isTrue);
+      expect(result.durationErrorPercent, closeTo(6.25, .001));
       expect(result.fitLog, isNotEmpty);
       final step = result.fitLog.first;
       expect(step['blockId'], 'b1');
@@ -137,7 +144,7 @@ void main() {
       expect(step['before'], 1);
       expect(step['after'], 2);
       expect(step['beforeEstimatedSec'], 110);
-      // 240 -> 225: the round rest replaces, rather than adds to, transition.
+      // Round rest replaces, rather than adds to, the action transition.
       expect(step['afterEstimatedSec'], 225);
       final restored = CoachSessionState.fromJson(
         jsonDecode(jsonEncode(result.state.toJson())) as Map<String, Object?>,
@@ -146,31 +153,31 @@ void main() {
     },
   );
   test(
-    'an interior integer-dose gap delivers heuristic best, with its error and no duration rejection',
+    'an interior integer-dose gap returns a retryable failure without a card',
     () {
-      // Legal endpoints 110/225 straddle 180; neither meets ±10%. This is not
-      // interval impossibility and must not be sent back as a model mistake.
-      final result = builder.draft(
-        ready(
-          3,
-          dose: [
-            {'field': 'sets', 'value': 1},
-          ],
-        ),
-        draft(),
-        newPlanId: 'p',
+      // Legal endpoints 110/225 straddle 180; neither meets ±10%. It is not an
+      // interval proof of impossibility, but an approximate card is forbidden.
+      final original = ready(
+        3,
+        dose: [
+          {'field': 'sets', 'value': 1},
+        ],
       );
-      expect(result.ok, isTrue);
-      expect(result.planId, 'p');
+      final result = builder.draft(original, draft(), newPlanId: 'p');
+      expect(result.ok, isFalse);
+      expect(result.error!['code'], 'duration_fit_failed');
+      expect(result.planId, isNull);
+      expect(result.version, isNull);
+      expect(result.state, same(original));
+      expect(result.state.plans, isEmpty);
       expect(result.feasibility, isNull);
-      // One repeated boundary no longer contributes an extra 15 seconds.
-      expect(result.state.plans['p']!.single.estimateSec, 225);
+      expect(result.error!['actual'], {'estimatedSec': 225.0});
       expect(result.durationErrorPercent, closeTo(25, .001));
       expect(result.toJson()['withinTolerance'], isFalse);
     },
   );
   test(
-    'bounds include legal unsearched rounds and rest, so the heuristic cannot falsely prove impossibility',
+    'legal rounds and round rest are searched before declaring a timing gap',
     () {
       const broadProfile = CoachProfile(
         id: 'timing',
@@ -190,9 +197,17 @@ void main() {
       expect(result.ok, isTrue);
       expect(result.feasibility, isNull);
       expect(result.planId, 'broad');
-      // Four searched rounds have three boundaries: 500 - 3 * 15 = 455.
-      expect(result.state.plans['broad']!.single.estimateSec, 455);
-      expect(result.durationErrorPercent, greaterThan(10));
+      // The earlier work-only search stopped at 455 seconds. Round rest now
+      // participates throughout its existing legal range and fits the target.
+      expect(result.state.plans['broad']!.single.estimateSec, 1259);
+      expect(result.durationErrorPercent, closeTo(59 / 12, .001));
+      expect(result.toJson()['withinTolerance'], isTrue);
+      expect(
+        result.fitLog.any(
+          (step) => step['field'] == 'restBetweenRoundsSeconds',
+        ),
+        isTrue,
+      );
     },
   );
 

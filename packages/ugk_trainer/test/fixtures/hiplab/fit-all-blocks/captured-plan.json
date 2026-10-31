@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "id": "plan-1793424335540-2",
+  "source": "ai",
+  "title": "5 分钟开胯新一套",
+  "summary": "5 分钟开胯新一套",
+  "goal": "relax",
+  "scene": "home",
+  "equipment": [
+    "mat",
+    "chair"
+  ],
+  "level": 1,
+  "targetMinutes": 5,
+  "blocks": [
+    {
+      "id": "b1",
+      "name": "warmup",
+      "type": "warmup",
+      "rounds": 1,
+      "restBetweenRoundsSeconds": 0,
+      "items": [
+        {
+          "exerciseId": "n-leg-circles",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 4,
+          "perSide": true,
+          "restSeconds": 15
+        },
+        {
+          "exerciseId": "h-hip-gate",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 6,
+          "perSide": true,
+          "restSeconds": 15
+        }
+      ]
+    },
+    {
+      "id": "b2",
+      "name": "main",
+      "type": "main",
+      "rounds": 1,
+      "restBetweenRoundsSeconds": 0,
+      "items": [
+        {
+          "exerciseId": "s-9090",
+          "mode": "time",
+          "sets": 1,
+          "workSeconds": 20,
+          "perSide": true,
+          "restSeconds": 15
+        },
+        {
+          "exerciseId": "h-adductor-rock",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 1,
+          "perSide": true,
+          "restSeconds": 15
+        },
+        {
+          "exerciseId": "o-stand-lunge",
+          "mode": "time",
+          "sets": 1,
+          "workSeconds": 15,
+          "perSide": true,
+          "restSeconds": 15
+        }
+      ]
+    },
+    {
+      "id": "b3",
+      "name": "cooldown",
+      "type": "cooldown",
+      "rounds": 1,
+      "restBetweenRoundsSeconds": 0,
+      "items": [
+        {
+          "exerciseId": "n-seated-ir-drop",
+          "mode": "time",
+          "sets": 1,
+          "workSeconds": 15,
+          "perSide": true,
+          "restSeconds": 15
+        }
+      ]
+    }
+  ],
+  "notes": [],
+  "safetyNotes": []
+}

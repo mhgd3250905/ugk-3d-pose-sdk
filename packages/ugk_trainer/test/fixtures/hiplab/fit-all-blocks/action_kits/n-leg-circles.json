@@ -1,0 +1,147 @@
+{
+ "schema": "action-kit@1",
+ "id": "n-leg-circles",
+ "display": {
+  "name": {
+   "zh": "仰卧直腿画圈",
+   "en": "Supine leg circles"
+  },
+  "point": {
+   "zh": "腿伸直，慢慢画圈，骨盆不动",
+   "en": "Leg straight, draw slow circles, pelvis still"
+  },
+  "cautions": [
+   "腰"
+  ],
+  "targets": [
+   "flexion",
+   "abduction",
+   "adduction"
+  ],
+  "methods": [
+   "control"
+  ],
+  "level": "beginner",
+  "sided": true,
+  "firstSide": "right",
+  "poster": {
+   "dark": "assets/drill_media/hip-n-leg-circles.jpg",
+   "light": "assets/drill_media/light/hip-n-leg-circles.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/n-leg-circles.js",
+   "specSha256": "36041116f7706901d5bbebf549c69e12ce6f175548776e0f7ac1ef02db29e013"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-n-leg-circles.mp4",
+    "loopSeconds": 12.0,
+    "posterTime": 2.0
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-n-leg-circles.mp4",
+    "loopSeconds": 12.0,
+    "posterTime": 2.0,
+    "sha256": "d91e79c5a49371cd8488fdcbcd2c1436b572f81610834cb6e65c577e56dc7179",
+    "bytes": 838799
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 12,
+  "track": "work",
+  "reps": [
+   [
+    0.0,
+    2.71,
+    4.5,
+    12.0
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "rep_cycle",
+  "unit": "reps",
+  "sided": true,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": 4,
+   "sets": 1,
+   "seconds": null,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "cycle": {
+   "seconds": 8.0,
+   "offset": 0.0,
+   "phases": [
+    {
+     "id": "go",
+     "seconds": 3.6,
+     "cue": "w.circle_fwd"
+    },
+    {
+     "id": "rest",
+     "seconds": 0.4
+    },
+    {
+     "id": "back",
+     "seconds": 3.6,
+     "cue": "w.circle_rev"
+    },
+    {
+     "id": "rest",
+     "seconds": 0.4
+    }
+   ],
+   "source": "training parameters (kit_rules phases)"
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.n-leg-circles": {
+    "zh": "仰卧直腿画圈",
+    "en": "Supine leg circles"
+   },
+   "point.n-leg-circles": {
+    "zh": "腿伸直，慢慢画圈，骨盆不动",
+    "en": "Leg straight, draw slow circles, pelvis still"
+   },
+   "w.circle_fwd": {
+    "zh": "向前画圈",
+    "en": "Circle forward"
+   },
+   "w.circle_rev": {
+    "zh": "反着画回来",
+    "en": "Now reverse"
+   }
+  },
+  "prepare": [
+   "drill.n-leg-circles",
+   "point.n-leg-circles"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.nice",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": "p.right_first",
+  "coach": [
+   "cue.control.1",
+   "cue.control.2"
+  ],
+  "midHold": null
+ },
+ "review": {
+  "why": "training dose 「每侧 正反各 N 圈」: one count = one forward circle + one reverse circle, 3.6 s a circle (the demo draws two circles in 7.2 s); the demo's cross-over part only loops as a demonstration",
+  "flags": []
+ }
+}

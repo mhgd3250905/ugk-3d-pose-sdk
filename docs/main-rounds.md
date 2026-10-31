@@ -1,7 +1,7 @@
 # main 多轮执行与配时对账
 
 基线：SDK main `5321e85710a09e22da9e173ff443ac4567ab2f08`。
-分支：`codex/main-rounds`。本次交付仅本地提交，等待开哥确认后合 main；不打 tag。
+分支：`codex/main-rounds`。推送本分支供 Hark 审核，审核前不合 main；不打 tag。
 
 ## 修复范围
 
@@ -60,9 +60,89 @@ HipLab 卡片和含准备执行的 10/7 秒差额可以逐项对账：宿主准�
 这些外部 lead。若训练器也使用 10 秒准备，执行总时长为 619/302 秒。
 
 SF 原稿只有一轮，本次轮次/轮间修复不改变它。其已有 32 秒差异来自另一处目录/节奏
-口径：当时 AI 目录投影没有 `assets.videos.repSeconds`，Coach 按每次 3 秒估算；宿主用
+口径：当时 AI 目录投影没有视频源的 `repSeconds`，Coach 按每次 3 秒估算；宿主用
 `rhythm.execution`，深蹲多 10 秒、靠墙天使多 10 秒、反向卷腹多 12 秒。测试显式保留
 原稿与差额，没有注入 cadence、改变剂量或把契约容差放宽到 32 秒。
+
+### SF 宿主如何统一目录估算与执行节奏（仅接入说明）
+
+本节说明宿主后续怎么配置，不在本分支实施。SF 原稿及回归仍保留卡片 313 秒、执行
+345 秒的现场事实。宿主应在创建 CoachAgent/PlanBuilder 之前生成一致的目录视图，
+同时把同一份节奏配置传给 TrainerPlayer，而不是修改已验收的原始素材包或计划剂量。
+
+**字段入口：** 普通 `mode=reps` 动作的 Coach 估时读取原始 catalog JSON 的
+`drills[*].assets.video.sources[*].repSeconds`（单位：秒/次）；Dart 对应
+`Drill.assets.videos` 中首个 `repSeconds > 0` 的视频源。缺省回退为 3 秒/次。
+JSON 中是单数 `video.sources`，不是 `assets.videos`。有效源还必须有 `app` 和真实
+`path`，否则解析器会丢弃该条记录。应更新估时实际选中的首个有效源，避免前面的旧值
+仍优先生效；只在数组末尾追加新值不保证生效。
+
+例如，宿主在传给 Coach 的目录视图中补齐深蹲的周期：
+
+```json
+{
+  "id": "h-squat",
+  "assets": {
+    "video": {
+      "status": "ok",
+      "sources": [
+        {
+          "app": "pose-hub",
+          "path": "media/h-squat/h-squat-r3/h-squat.rgb-alpha.mp4",
+          "repSeconds": 4.0
+        }
+      ]
+    }
+  }
+}
+```
+
+这是字段示意，宿主合并时保留动作和资产的其他字段。示例 path 来自该原稿的
+`files.video.path`；宿主使用自己已校验媒体版本中的真实值。
+修改的是传入 `Catalog.fromJson(...)` 的规划目录视图，不重写下载清单、原文件或校验 SHA。
+
+**不带额外起拍的统一周期方案：** 对这份 SF 原稿的四个计次动作，目录与执行共用下列
+秒/次值：`h-squat=4`、`h-wall-angel=4`、`h-reverse-crunch=4`、`w-dead-bug=3`。
+将这些值分别写入上述目录字段，并显式覆盖执行节奏：
+
+```dart
+const repSecondsById = <String, double>{
+  'h-squat': 4,
+  'h-wall-angel': 4,
+  'h-reverse-crunch': 4,
+  'w-dead-bug': 3,
+};
+final rhythms = rhythmsFromCatalog(
+  coachCatalog, // 已补齐视频源 repSeconds 的同一份目录。
+  overrides: {
+    ...existingExecutionRhythms, // 保留其他动作的既有配置。
+    for (final entry in repSecondsById.entries)
+      entry.key: Rhythm.fromRepSeconds(entry.value),
+  },
+);
+// 将 rhythms 传给 TrainerPlayer；Coach 使用上面的 coachCatalog。
+```
+
+按此配置对该原稿做临时内存对照，卡片与 phase 总和均为 344 秒；未回写宿主、素材或
+夹具，原始回归的 313/345 秒仍保持不变。
+
+`Rhythm.fromRepSeconds` 的 lead 为 0，执行每侧每组时长为 `reps × repSeconds`，与普通
+计次估时一致。计时动作继续使用计划 `workSeconds`；准备、换侧及过渡参数也应统一。
+显式 overrides 很重要：`rhythmsFromCatalog` 优先级是 overrides、顶层 `rhythm`、
+目录 holdSeconds、视频源 repSeconds、默认值。SF 的嵌套 `rhythm.execution` 是宿主
+适配约定，需要宿主解析后传 overrides；仅补该嵌套对象不会让 Coach 自动读取它。
+
+**保留原 execution/lead 的方案：** 固定起拍是一次性开销，不是每次周期。这份原稿的
+深蹲有 1 秒 lead，仅将目录周期补成 4 秒仍会留下这 1 秒；不要把它均摊成一个随 reps
+变化的“每次秒数”。若宿主保留含 lead、细分相位及对应语音的原始 execution，应把这些
+开销单独对账；卡片的实际排程时长可用同一 `SessionBuilder(rhythms: ..., prepSeconds: ...)`
+排出的 `phases(plan)` 累加 `seconds` 获取（含准备），而非它不含准备的 `planSeconds`。
+普通计次的 `PlanDuration` 当前不读取该固定 lead；让 Coach 配时也支持完整 execution
+仍需后续独立对齐，不能把单独改卡片显示当作配时器已对齐。
+
+恒速无 lead 方案会改变原先的起拍及细分相位语音，宿主需按自己的执行体验选择；本分支
+不切换任何宿主节奏、不修改上述真实夹具，也不处理这 32 秒差异。宿主完成配置后应以
+同一原稿、相同准备参数比较 Coach 估时与实际 phase 总和，再刷新或重新生成卡片估时。
 
 真实原稿、最小目录、原始 kits/执行节奏以及 SHA/捕获位置分别位于：
 

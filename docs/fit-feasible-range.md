@@ -76,7 +76,7 @@ SF 原椅起立为手动计次，336 秒是规划下界，不能说成原计划�
 
 | 包 | 全量测试 | `dart analyze --fatal-infos` |
 | --- | ---: | --- |
-| ugk_coach | 1359 通过（新增 17） | 0 问题 |
+| ugk_coach | 1365 通过（新增 23） | 0 问题 |
 | ugk_coach_ui | 158 通过 | 0 问题 |
 | ugk_trainer | 531 通过（新增 2） | 0 问题 |
 
@@ -95,3 +95,21 @@ Coach 命令为 `dart test --concurrency=1 --reporter expanded`；两个 Flutter
 `flutter test --no-pub --reporter expanded`。最终日志在对应包 `build/fit-feasible-range/`；
 第一次旧预期失败另存 coach-tests-initial.log。格式、diff check、文档链接、8 个 SF
 夹具哈希和原始采集哈希均通过核验。公开导出文件与 pubspec 没有改动。
+
+### 审核补测
+
+在 `cf6976242f61ae97ab36cb19adc43d9fec5f210c` 上只补 6 项测试和本说明，运行代码、
+配时搜索、提示词、目录及公开 API 均不变；等待 SF 真实模型复验，不合 main、不打 tag。
+
+- 3 项回合上限测试分别模拟：被拦后仍重复同一个 ask_user、连续提交不同但仍超差的
+  选择、反问与超差草稿交替。配置 maxSteps=5，并将其他重试/空转预算设为 8 以隔离
+  步数上限；断言恰好 5 次请求、AgentStepLimitExceeded、预备的第 6 次哨兵未消费，
+  不触发 fallback、不返回计划或问题、不追加失败版本，也不把 output 标成完成。
+- 3 项空选择测试覆盖 blocks=[]、所有块 items=[] 和空目录。空组合的范围为准备阶段
+  10–10 秒，返回 add_action 重建指引，不走旧 no_selected_actions 澄清路径；没有
+  候选时保持空列表且不保存计划。有合法候选时，从未变更状态重提草稿，仅保存满足
+  目标的 300 秒 v1。
+
+本次重新运行 Coach 全量及 fatal-info 分析；UI 158、Trainer 531 为上一提交已通过的
+三包门禁结果，运行代码与各自测试未变，未重复运行。补测日志在根包
+`build/fit-feasible-range-review/`。以上均为离线测试，不代表 SF 已完成真实模型复验。

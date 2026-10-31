@@ -391,4 +391,105 @@ void main() {
       );
     },
   );
+
+  for (final normalizedEmptyBlocks in [false, true]) {
+    test(
+      '${normalizedEmptyBlocks ? 'all-empty item blocks' : 'empty block list'} '
+      'returns range guidance and can be rebuilt without a question',
+      () {
+        final catalog = Catalog(
+          version: 'empty-selection',
+          drills: [_drill('seen', 290), _drill('unseen', 280)],
+        );
+        final builder = PlanBuilder(_profile, catalog, minPicks: 1);
+        final before = _state(['seen'], userText: '在家五分钟全身训练');
+        final snapshot = before.toJson();
+        final result = builder.draft(
+          before,
+          _draft(normalizedEmptyBlocks ? [[], []] : []),
+          newPlanId: 'must-not-save-empty',
+        );
+        final receipt = _diagnostic(result);
+        expect(result.ok, isFalse);
+        expect(result.error!['code'], 'duration_fit_failed');
+        expect(result.feasibility, isNull);
+        expect(result.planId, isNull);
+        expect(result.version, isNull);
+        expect(result.state, same(before));
+        expect(result.state.toJson(), snapshot);
+        expect(result.state.plans, isEmpty);
+        expect(receipt['status'], 'requires_rebuild');
+        expect(receipt['reason'], 'maximum_below_target');
+        expect(receipt['minEstimatedSec'], 10);
+        expect(receipt['maxEstimatedSec'], 10);
+        expect(receipt['direction'], 'add_action');
+        expect(receipt['needsDraftRebuild'], isTrue);
+        expect(receipt['clarificationAllowed'], isFalse);
+        expect(receipt['needsUserChoice'], isNot(isTrue));
+        final additions = _candidates(receipt, 'addCandidates');
+        expect(additions.map((candidate) => candidate['actionId']).toSet(), {
+          'seen',
+          'unseen',
+        });
+        final seen = additions.singleWhere(
+          (value) => value['actionId'] == 'seen',
+        );
+        final unseen = additions.singleWhere(
+          (value) => value['actionId'] == 'unseen',
+        );
+        expect(seen['requiresSearch'], isFalse);
+        expect(unseen['requiresSearch'], isTrue);
+        expect(seen['minEstimatedSec'], 300);
+        expect(seen['maxEstimatedSec'], 300);
+        expect(seen['rangeOverlapsTarget'], isTrue);
+
+        // Reuse the unchanged pre-error session and a reported, already-seen
+        // candidate. An empty intermediate selection never becomes a version.
+        final repaired = builder.draft(
+          result.state,
+          _draft([
+            [seen['actionId']! as String],
+          ]),
+          newPlanId: 'repaired',
+        );
+        expect(repaired.ok, isTrue, reason: '${repaired.toJson()}');
+        expect(repaired.feasibility, isNull);
+        expect(repaired.version, 1);
+        final version = repaired.state.plans[repaired.planId]!.single;
+        expect(version.estimateSec, 300);
+        expect(repaired.toJson()['withinTolerance'], isTrue);
+        expect(
+          repaired.state.plans.containsKey('must-not-save-empty'),
+          isFalse,
+        );
+      },
+    );
+  }
+
+  test(
+    'empty selection with no eligible addition remains a recoverable failure',
+    () {
+      final catalog = Catalog(version: 'empty-catalogue', drills: const []);
+      final before = _state([], userText: '在家五分钟全身训练');
+      final result = PlanBuilder(
+        _profile,
+        catalog,
+        minPicks: 1,
+      ).draft(before, _draft([]), newPlanId: 'must-not-save-empty');
+      final receipt = _diagnostic(result);
+      expect(result.ok, isFalse);
+      expect(result.error!['code'], 'duration_fit_failed');
+      expect(result.feasibility, isNull);
+      expect(result.state, same(before));
+      expect(result.state.plans, isEmpty);
+      expect(receipt['minEstimatedSec'], 10);
+      expect(receipt['maxEstimatedSec'], 10);
+      expect(receipt['direction'], 'add_action');
+      expect(_candidates(receipt, 'addCandidates'), isEmpty);
+      expect(receipt['addCandidateCount'], 0);
+      expect(receipt['needsDraftRebuild'], isTrue);
+      expect(receipt['clarificationAllowed'], isFalse);
+      expect(receipt['needsUserChoice'], isNot(isTrue));
+    },
+  );
 }

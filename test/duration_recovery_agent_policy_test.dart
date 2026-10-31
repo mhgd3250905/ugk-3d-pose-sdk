@@ -303,4 +303,137 @@ void main() {
     expect(result.question?.question, '你想在家还是办公室练？');
     expect(client.requests, hasLength(1));
   });
+
+  for (final strategy in [
+    'repeated asks',
+    'invalid redrafts',
+    'alternating retries',
+  ]) {
+    test(
+      '$strategy stop at maxSteps without a question or approximate plan',
+      () async {
+        const maxSteps = 5;
+        final catalog = Catalog(
+          version: 'unrepaired-combinations',
+          drills: [
+            _drill('alpha', 180, maximum: 300),
+            _drill('beta', 180, maximum: 300),
+            _drill('gamma', 180, maximum: 300),
+          ],
+        );
+        final retries = switch (strategy) {
+          'repeated asks' => [
+            (id: 'ask-0', ask: true, ids: <String>[]),
+            (id: 'ask-1', ask: true, ids: <String>[]),
+            (id: 'ask-2', ask: true, ids: <String>[]),
+          ],
+          'invalid redrafts' => [
+            (id: 'draft-0', ask: false, ids: ['alpha', 'gamma']),
+            (id: 'draft-1', ask: false, ids: ['beta', 'gamma']),
+            (id: 'draft-2', ask: false, ids: ['gamma', 'alpha', 'beta']),
+          ],
+          _ => [
+            (id: 'ask-0', ask: true, ids: <String>[]),
+            (id: 'draft-0', ask: false, ids: ['alpha', 'gamma']),
+            (id: 'ask-1', ask: true, ids: <String>[]),
+          ],
+        };
+        var previous = 'bad-draft';
+        var sentinelConsumed = false;
+        var fallbackCalls = 0;
+        late final CoachAgent agent;
+        final client = FakeLlmClient([
+          _setup(),
+          _draft(previous, ['alpha', 'beta']),
+          for (final retry in retries)
+            (LlmRequest request) {
+              final rejected = _receipt(request, previous);
+              expect(rejected['ok'], isFalse);
+              expect(rejected['code'], 'duration_fit_failed');
+              expect(rejected['minEstimatedSec'], greaterThan(330));
+              expect(rejected['needsDraftRebuild'], isTrue);
+              expect(rejected['clarificationAllowed'], isFalse);
+              expect(rejected['plan_id'], isNull);
+              expect(agent.sessionState.plans.values.expand((v) => v), isEmpty);
+              expect(agent.sessionState.task!.nodes.last.status, isNot('done'));
+              previous = retry.id;
+              return retry.ask
+                  ? _calls([
+                      _call(retry.id, AgentTools.askUser, {
+                        // Identical arguments exercise repeated asks; unique IDs
+                        // still preserve the tool-response protocol.
+                        'question': '要延长训练时长吗？',
+                        'mode': 'text',
+                      }),
+                    ])
+                  : _draft(retry.id, retry.ids);
+            },
+          (LlmRequest request) {
+            sentinelConsumed = true;
+            return _draft('must-not-run', ['alpha']);
+          },
+        ], latency: Duration.zero);
+        agent = CoachAgent(
+          client: client,
+          catalog: () => catalog,
+          profile: _profile,
+          enableUserMemory: false,
+          maxRequestRetries: 0,
+          maxSteps: maxSteps,
+          // Isolate the step cap from duplicate/idle and rejection budgets.
+          maxStallSteps: maxSteps + 3,
+          maxResubmits: maxSteps + 3,
+          fallback: (_) {
+            fallbackCalls++;
+            return const SessionFallbackReply(
+              'Must not replace the requested plan',
+            );
+          },
+        );
+        addTearDown(agent.dispose);
+        final events = <AgentEvent>[];
+        final sub = agent.events.listen(events.add);
+        addTearDown(sub.cancel);
+
+        final result = await agent.send(_user);
+
+        expect(result.status, TurnStatus.error);
+        expect(result.error, isA<AgentStepLimitExceeded>());
+        expect((result.error! as AgentStepLimitExceeded).maxSteps, maxSteps);
+        expect(result.steps, maxSteps);
+        expect(client.requests, hasLength(maxSteps));
+        expect(client.remaining, 1);
+        expect(sentinelConsumed, isFalse);
+        expect(fallbackCalls, 0);
+        expect(result.plan, isNull);
+        expect(result.actions, isNull);
+        expect(result.question, isNull);
+        expect(result.isPlanningFailure, isTrue);
+        expect(agent.sessionState.plans.values.expand((v) => v), isEmpty);
+        expect(agent.sessionState.lastDeliveredPlanId, isNull);
+        expect(agent.sessionState.lastDeliveredVersion, isNull);
+        expect(agent.sessionState.task!.nodes.last.status, isNot('done'));
+        expect(
+          events.where((event) => event.kind == AgentEventKind.askUser),
+          isEmpty,
+        );
+        expect(
+          events.where(
+            (event) =>
+                event.kind == AgentEventKind.node &&
+                event.node?.id == 'output' &&
+                event.node?.status == 'done',
+          ),
+          isEmpty,
+        );
+        expect(
+          events
+              .where((event) => event.kind == AgentEventKind.done)
+              .single
+              .status,
+          TurnStatus.error,
+        );
+      },
+    );
+  }
 }

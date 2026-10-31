@@ -3,6 +3,14 @@ import 'package:flutter/services.dart';
 
 import 'theme.dart';
 
+/// Builds a host-drawn focus glyph at the component's size and current colour.
+///
+/// The returned widget is constrained to [size] square and inherits the same
+/// size and [color] through [IconTheme]. The label retains ownership of layout
+/// and the clear button's hit target, semantics and activation.
+typedef CoachPlanFocusIconBuilder =
+    Widget Function(BuildContext context, double size, Color color);
+
 // Ported from Sport-Helper@13c0bb4; theme, copy and glyphs are host inputs.
 /// A presentation of the SDK's current plan; the host owns its selection.
 class PlanFocusLabel extends StatefulWidget {
@@ -13,6 +21,8 @@ class PlanFocusLabel extends StatefulWidget {
     this.bottomGap = 0,
     this.icon = Icons.bookmark_border,
     this.clearIcon = Icons.close,
+    this.iconBuilder,
+    this.clearIconBuilder,
   });
 
   final String? title;
@@ -20,6 +30,17 @@ class PlanFocusLabel extends StatefulWidget {
 
   /// Host-selected glyphs; neither requires an app-specific icon font.
   final IconData icon, clearIcon;
+
+  /// Optional host rendering in place of [icon], using the 14 px accent glyph.
+  ///
+  /// When omitted, the existing [IconData] rendering is unchanged.
+  final CoachPlanFocusIconBuilder? iconBuilder;
+
+  /// Optional host rendering in place of [clearIcon], using the muted colour.
+  ///
+  /// The glyph remains 14 px inside the existing 28 px clear hit target.
+  /// When omitted, the existing [IconData] rendering is unchanged.
+  final CoachPlanFocusIconBuilder? clearIconBuilder;
 
   /// Retained with the outgoing label so the input never closes its gap early.
   final double bottomGap;
@@ -186,6 +207,15 @@ class _PlanFocusLabelState extends State<PlanFocusLabel>
     super.dispose();
   }
 
+  Widget _customIcon(CoachPlanFocusIconBuilder builder, Color color) =>
+      SizedBox.square(
+        dimension: 14,
+        child: IconTheme(
+          data: IconThemeData(size: 14, color: color),
+          child: Builder(builder: (context) => builder(context, 14, color)),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final title = _displayTitle;
@@ -228,7 +258,9 @@ class _PlanFocusLabelState extends State<PlanFocusLabel>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(widget.icon, size: 14, color: primary),
+                      widget.iconBuilder == null
+                          ? Icon(widget.icon, size: 14, color: primary)
+                          : _customIcon(widget.iconBuilder!, primary),
                       const SizedBox(width: 6),
                       Flexible(
                         child: AnimatedSwitcher(
@@ -261,11 +293,16 @@ class _PlanFocusLabelState extends State<PlanFocusLabel>
                         child: SizedBox.square(
                           dimension: 28,
                           child: Center(
-                            child: Icon(
-                              widget.clearIcon,
-                              size: 14,
-                              color: style.colors.taskMuted,
-                            ),
+                            child: widget.clearIconBuilder == null
+                                ? Icon(
+                                    widget.clearIcon,
+                                    size: 14,
+                                    color: style.colors.taskMuted,
+                                  )
+                                : _customIcon(
+                                    widget.clearIconBuilder!,
+                                    style.colors.taskMuted,
+                                  ),
                           ),
                         ),
                       ),

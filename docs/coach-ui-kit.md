@@ -90,6 +90,7 @@ const CoachTaskBubble({
   bool visualComplete = false,
   VoidCallback? onCancel,
   ImageProvider? Function(String actionId)? cutoutFor,
+  CoachTaskCutoutBuilder? cutoutBuilder,
 });
 
 const CoachDeliveryTransition({
@@ -107,6 +108,8 @@ const PlanFocusLabel({
   double bottomGap = 0,
   IconData icon = Icons.bookmark_border,
   IconData clearIcon = Icons.close,
+  CoachPlanFocusIconBuilder? iconBuilder,
+  CoachPlanFocusIconBuilder? clearIconBuilder,
 });
 ```
 
@@ -179,6 +182,96 @@ successful；output 已完成但仍 waiting 时不提前显示勾。交付成功
 
 focus 标签保留 28px 高、圆角 14、180ms 进入、120ms 原位淡出、150ms 换标题；bottomGap
 与退场标签一起保留到消失。标题和清除行为由宿主拥有，不隐式修改会话。
+
+## 自绘图标与剪影插槽（ui-kit-slots）
+
+此增量从 `caa6817c51b3cb09c46909288d83aa88bdc2dbd4` 开发，仅增加可选参数；
+省略它们时仍使用原来的 IconData / cutoutFor 路径。两个 builder 类型和组件均从
+`package:ugk_coach_ui/ugk_coach_ui.dart` 公开导出，不增加运行时依赖。
+
+```dart
+typedef CoachPlanFocusIconBuilder = Widget Function(
+  BuildContext context, double size, Color color,
+);
+// PlanFocusLabel 新增：
+final CoachPlanFocusIconBuilder? iconBuilder;
+final CoachPlanFocusIconBuilder? clearIconBuilder;
+
+typedef CoachTaskCutoutBuilder = Widget Function(
+  BuildContext context, String actionId, Size size, Brightness brightness,
+);
+// CoachTaskBubble 新增：
+final CoachTaskCutoutBuilder? cutoutBuilder;
+```
+
+`iconBuilder` 优先于 `icon`，`clearIconBuilder` 优先于 `clearIcon`，互不影响。
+组件把图标约束在 14×14，传入对应的当前主题颜色，同时提供相同的 IconTheme；
+左侧为 taskAccent，清除图标为 taskMuted。清除按钮的 28×28 点击区域、语义、
+键盘激活和按压动效仍由组件管理，宿主只提供绘制 Widget，不再包第二个按钮。
+主题变化会重新传入颜色。
+
+SmartFit 的 `SfIcon` 可以原样传入，无需转换为 IconData 或另做字体：
+
+```dart
+PlanFocusLabel(
+  title: controller.focus?.title,
+  onClear: controller.clearPlanFocus,
+  iconBuilder: (context, size, color) =>
+      SfIcon(SfGlyph.bookmark, size: size, color: color),
+  clearIconBuilder: (context, size, color) =>
+      SfIcon(SfGlyph.close, size: size, color: color),
+  bottomGap: 8,
+);
+```
+
+`cutoutBuilder` 优先于 `cutoutFor`；启用后不再调用后者，picks 中的动作按原顺序参与
+轮播，宿主应先过滤没有可用素材的动作。空 picks 仍显示呼吸核心。
+size 是实际剪影可绘制的 **32×32**：圆球保持 44×44，原来的四边 6px 内边距保留；
+brightness 来自当前 CoachUiTheme 的颜色主题。返回的 Widget 置于既有圆球
+RepaintBoundary 内，组件仍只有四个 RepaintBoundary；宿主不必再加重绘边界。
+默认图片的圆形裁剪与语义排除仅用于 cutoutFor，builder 路径由宿主自行控制绘制、
+裁剪和动作名称语义。原首张延迟、淡入、缩放、轮播、完成态和减弱动效保持共用，
+CoachDeliveryTransition 保留生成卡完成过程时也透传 builder。
+
+SmartFit 可复用现有 SfAlphaAsset，使旧 app_test_pack 的 alpha bounds/sourceRect
+裁剪和动作名语义继续由同一个 Widget 实现；posehub-r1 素材仍走它已有的原图路径。
+以下示例中 library 是宿主 ExerciseLibrary，sfPoster 使用宿主当前深浅色素材选择逻辑。
+需要保留原圆形外沿时，可像示例一样由 renderer 返回 ClipOval：
+
+```dart
+CoachTaskBubble(
+  picks: summary.picks.where(library.contains).toList(growable: false),
+  title: summary.title,
+  status: summary.status,
+  phase: summary.phase,
+  parameters: summary.parameters,
+  complete: summary.complete,
+  waiting: waiting,
+  onCancel: cancel,
+  cutoutBuilder: (context, actionId, size, brightness) {
+    final exercise = library[actionId];
+    final asset = exercise.media.alphaThumbnail ??
+        exercise.media.alphaCover ?? sfPoster(exercise);
+    return ClipOval(child: SizedBox.fromSize(
+      size: size,
+      child: SfAlphaAsset(asset: asset, fit: BoxFit.contain,
+        alignment: Alignment.center, semanticLabel: exercise.name),
+    ));
+  },
+);
+```
+
+核对来源为 SF `Sport-Helper-coach-ui-kit/docs/ui-kit-sdk-gaps-2026-10-31.md`：
+文档只列出上述两项接口缺口，没有第三项待补的 SDK 接口。原始素材、宿主缓存与资源
+包、诊断桥和真实训练验收继续由宿主负责；本增量不修改 SF 工作树。
+默认路径使用基线 caa6817c 的浅/深色 golden 对照，基线生成方式见
+[golden 说明](../packages/ugk_coach_ui/test/goldens/ui-kit-slots/README.md)。
+
+本增量新增 20 项 UI 测试：8 项 focus 插槽、8 项剪影 renderer、4 项默认路径 golden
+（16 张浅/深色基准帧）。三包全量测试为 ugk_coach **1305**、ugk_coach_ui **178**、
+ugk_trainer **485**，均通过；三包 `dart analyze --fatal-infos` 均为 0 问题。
+另用独立临时宿主直接导入 SF 原文件中的 SfIcon、SfAlphaAsset 和 ExerciseLibrary，
+对上面的两个适配示例执行静态分析，结果为 0 问题；未修改 SF 文件或依赖配置。
 
 ## 训练路由
 

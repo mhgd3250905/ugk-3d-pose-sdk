@@ -1,0 +1,43 @@
+{
+  "baselineCommit": "caa6817c51b3cb09c46909288d83aa88bdc2dbd4",
+  "sourceSha256": {
+    "packages/ugk_coach_ui/lib/src/chat_list.dart": "e7a49d80a08312b805f604cabf3a533a215fc73fa49050b1987fbb48b82dbf21",
+    "packages/ugk_coach_ui/lib/src/coach_delivery_transition.dart": "d46143537155a6532bcc241bcc079ac44c61e7642b311617803bea4f5935f945",
+    "packages/ugk_coach_ui/lib/src/failure_bubble.dart": "7145efc0ed1b057cbe731fdec915e1da1b2f4fd9f55424543c670f0e120772e8",
+    "packages/ugk_coach_ui/lib/src/message_widgets.dart": "984eb4b81e3b9d8cc92c8cda8c3b3686c1dfc525891f10f3a334d26f8802f6da",
+    "packages/ugk_coach_ui/lib/src/models.dart": "c16182421aed567bb1dcae90e4356108f082553203e54810f2a5dfdda4f8a104",
+    "packages/ugk_coach_ui/lib/src/plan_card.dart": "e00bc82f6165d9445940e46fb6101871e08128b7241907dfb32a3f4ead5441ee",
+    "packages/ugk_coach_ui/lib/src/plan_expanded.dart": "706619bf44c020bf78dab91594dfe89975f13aa869827202af763fd459fc309c",
+    "packages/ugk_coach_ui/lib/src/plan_focus_label.dart": "c371c58839e6560641485cac5940b28d458dc90d2c042bdf4cc92067d11f67b4",
+    "packages/ugk_coach_ui/lib/src/primitives.dart": "c0cb027473c4bb040cd41eea818838cc0a2b3e045abfe12a7f8e10ddcec9ebe6",
+    "packages/ugk_coach_ui/lib/src/question_bubble.dart": "b663f89acd61ffd08d380140ab4994da2955a425c0eb7c54fbe6d20257bc9f61",
+    "packages/ugk_coach_ui/lib/src/recommend_card.dart": "146634b39da3725d7140534fa37b8c1778a47982f317fe4588e7f778423d1c05",
+    "packages/ugk_coach_ui/lib/src/task_bubble.dart": "bc7e37a37fbc4c1ebfff861786aad58d086dee83f3fad48d0d59b60185e46c1c",
+    "packages/ugk_coach_ui/lib/src/task_bubble_tokens.dart": "4de3053c189faedea861b0665be0e3f5550c46c7aa5d523340e61f3adc8bcf54",
+    "packages/ugk_coach_ui/lib/src/theme.dart": "d08e8089b4fbc104d25d30627b20aeb1644e0a974e7d1cd8c8a0cdf905b230df",
+    "packages/ugk_coach_ui/lib/ugk_coach_ui.dart": "b25bf662a43dfce5b699fd915307e778c488bf8c1ac658768e5d559d7d7972ba"
+  },
+  "harnessSha256": "21969ae01b5b81023ab001e127a1465b4af739b3f04f4ad60475eb8cff6ea7ac",
+  "goldenSha256": {
+    "focus-enter-90ms-dark.png": "a449379104b4caf774774f2b2c16077d56ad0e4ddac84941b04c33d558e6969a",
+    "focus-enter-90ms-light.png": "3b72ae01d8250f6e5ed2df973f7adce0906426900970c40990b17cda48273cfc",
+    "focus-exit-60ms-dark.png": "6efa27a8e12511d31993a92bf4097484991cd8a5b1c624d634493cb02bd10c47",
+    "focus-exit-60ms-light.png": "01ce7cfd36698ccd1d132075c6e38e2d748b325490dc135d48927dd1c75b26ae",
+    "focus-old-icon-data-dark.png": "8b9ead38eb47a3b975b1ea2e61c6196a40c15ff04b024be92a6621b8dd382b05",
+    "focus-old-icon-data-light.png": "5c77a4b7973f233de15d4ce4ea87384102d4b20ec870b9bc3c3d787720c43974",
+    "focus-visible-dark.png": "c14d9118b75c043163d4cfa179855229deddc2c43202e8f572f810b6264a9884",
+    "focus-visible-light.png": "e6946723778fca373d210d63d4ed60bb34230a0d169bfec3a9db14c07a12a130",
+    "task-breath-450ms-dark.png": "4dea7346ef3ed0d1d44e4da7982c244c81e28aab9ea9d47520ebfe47c17614d2",
+    "task-breath-450ms-light.png": "5392a8b3293aa6e769bdca80441b86bfd77792813c9779e1ecc62312cef75031",
+    "task-complete-260ms-dark.png": "af1101cbe0495fb5b7c85e53bce9bf5b9c87cf42ee5cf5e394d5d1d07fc00ad2",
+    "task-complete-260ms-light.png": "b0365f7e96dfaa0128bf9aca06922d28101b2fa08e5d1ada9220e22c1fe830d3",
+    "task-cutout-crossfade-1025ms-dark.png": "619ac9db2083140808d98675b79c966588684cc89d0c8e955d72815daf2e8e0f",
+    "task-cutout-crossfade-1025ms-light.png": "dfbd652e8277135c651bc826c6e5380f741c0c30e6f3e84e12e478203ccde86b",
+    "task-cutout-reveal-305ms-dark.png": "aa55b17c79d7410ddc8113d8f2c00e0e43c2d31f384fc8517c489efb8d92edbe",
+    "task-cutout-reveal-305ms-light.png": "45ce3dd13f0b8565626107bd2e918fa4fbbff135d46938b1eee609cff4a211b4"
+  },
+  "materialIconsFont": {
+    "sdkRelativePath": "bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf",
+    "sha256": "d9865b671a09d683d13a863089d8825e0f61a37696ce5d7d448bc8023aa62453"
+  }
+}

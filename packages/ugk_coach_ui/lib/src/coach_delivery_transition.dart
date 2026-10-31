@@ -110,6 +110,7 @@ class _CoachDeliveryTransitionState extends State<CoachDeliveryTransition>
         picks: bubble.picks,
         complete: bubble.complete,
         cutoutFor: bubble.cutoutFor,
+        cutoutBuilder: bubble.cutoutBuilder,
         waiting: bubble.waiting,
         onCancel: bubble.onCancel,
         visualComplete: true,

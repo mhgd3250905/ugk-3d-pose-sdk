@@ -21,6 +21,7 @@ export 'src/question_bubble.dart';
 export 'src/failure_bubble.dart';
 export 'src/plan_card.dart';
 export 'src/recommend_card.dart';
-export 'src/task_bubble.dart' show CoachTaskBubble;
+export 'src/task_bubble.dart' show CoachTaskBubble, CoachTaskCutoutBuilder;
 export 'src/coach_delivery_transition.dart' show CoachDeliveryTransition;
-export 'src/plan_focus_label.dart' show PlanFocusLabel;
+export 'src/plan_focus_label.dart'
+    show PlanFocusLabel, CoachPlanFocusIconBuilder;

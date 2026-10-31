@@ -6,11 +6,26 @@ import 'primitives.dart';
 import 'task_bubble_tokens.dart';
 import 'theme.dart';
 
+/// Builds one picked-action silhouette in the card's existing animation layer.
+///
+/// [size] is the available drawable frame (32 by 32 logical pixels inside the
+/// 44-pixel orb's existing six-pixel inset). [brightness] follows [CoachUiTheme].
+/// The host owns painting, cropping and image semantics; the card retains its
+/// layout, reveal/crossfade motion and four existing repaint boundaries.
+typedef CoachTaskCutoutBuilder =
+    Widget Function(
+      BuildContext context,
+      String actionId,
+      Size size,
+      Brightness brightness,
+    );
+
 /// Preparation card driven only by ordinary presentation data.
 ///
 /// Hosts may pass a summary from their domain layer without coupling this
 /// package to a coaching SDK or exercise catalogue. [cutoutFor] supplies the
 /// verified light/dark image for each picked action; null images use the orb.
+/// [cutoutBuilder] optionally replaces the default image drawing and cropping.
 class CoachTaskBubble extends StatefulWidget {
   const CoachTaskBubble({
     super.key,
@@ -24,6 +39,7 @@ class CoachTaskBubble extends StatefulWidget {
     this.visualComplete = false,
     this.onCancel,
     this.cutoutFor,
+    this.cutoutBuilder,
   }) : assert(phase >= 0 && phase <= 4);
 
   /// Already formatted title and status; null uses the theme's default copy.
@@ -40,6 +56,14 @@ class CoachTaskBubble extends StatefulWidget {
   final bool visualComplete;
   final VoidCallback? onCancel;
   final ImageProvider? Function(String actionId)? cutoutFor;
+
+  /// Optional host renderer, taking precedence over [cutoutFor].
+  ///
+  /// When supplied, all [picks] enter the existing silhouette rotation and
+  /// [cutoutFor] is not called. Return the complete cropped/rendered image
+  /// widget, including any desired semantics. No SDK oval clip or image
+  /// semantics exclusion wraps it. Empty [picks] still display the orb core.
+  final CoachTaskCutoutBuilder? cutoutBuilder;
 
   @override
   State<CoachTaskBubble> createState() => _CoachTaskBubbleState();
@@ -124,9 +148,12 @@ class _CoachTaskBubbleState extends State<CoachTaskBubble>
   }
 
   List<String> get _picks => widget.picks;
-  List<({String id, ImageProvider image})> get _selected => [
+  List<({String id, ImageProvider? image})> get _selected => [
     for (final id in _picks)
-      if (widget.cutoutFor?.call(id) case final image?) (id: id, image: image),
+      if (widget.cutoutBuilder != null)
+        (id: id, image: null)
+      else if (widget.cutoutFor?.call(id) case final image?)
+        (id: id, image: image),
   ];
   // Source output may finish before a reply is admitted. While waiting only
   // the delivery wrapper's successful marker may show the success check.
@@ -644,7 +671,7 @@ class _CoachTaskBubbleState extends State<CoachTaskBubble>
               CoachTaskBubbleTokens.completionDetail.inMicroseconds)
           .clamp(0.0, 1.0);
 
-  Widget _thumbnails(List<({String id, ImageProvider image})> selected) {
+  Widget _thumbnails(List<({String id, ImageProvider? image})> selected) {
     final current = _reduced == true ? 0 : _imageIndex % selected.length;
     final next = (current + 1) % selected.length;
     final cycle =
@@ -656,54 +683,70 @@ class _CoachTaskBubbleState extends State<CoachTaskBubble>
         : ((elapsed - CoachTaskBubbleTokens.silhouetteHold.inMicroseconds) /
                   CoachTaskBubbleTokens.silhouetteFade.inMicroseconds)
               .clamp(0.0, 1.0);
+    final images = Stack(
+      fit: StackFit.expand,
+      children: [
+        Opacity(
+          opacity: 1 - blend,
+          child: Transform.scale(
+            // Outgoing image eases back to .94 while fading (prototype
+            // drops .show, reversing both transitions).
+            scale:
+                1 -
+                (1 - CoachTaskBubbleTokens.imageInitialScale) *
+                    Curves.easeOutCubic.transform(blend) -
+                (1 - CoachTaskBubbleTokens.imageInitialScale) *
+                    (1 - Curves.easeOutCubic.transform(_revealProgress)),
+            child: _thumbnail(selected[current]),
+          ),
+        ),
+        if (blend > 0)
+          Opacity(
+            opacity: blend,
+            child: Transform.scale(
+              scale:
+                  CoachTaskBubbleTokens.imageInitialScale +
+                  (1 - CoachTaskBubbleTokens.imageInitialScale) *
+                      Curves.easeOutCubic.transform(blend),
+              child: _thumbnail(selected[next]),
+            ),
+          ),
+      ],
+    );
     return Padding(
       key: const ValueKey('generation-thumbnails'),
       padding: const EdgeInsets.all(CoachTaskBubbleTokens.thumbnailInset),
       child: Opacity(
         opacity: (1 - _completionDetail) * _revealProgress,
-        child: ClipOval(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Opacity(
-                opacity: 1 - blend,
-                child: Transform.scale(
-                  // Outgoing image eases back to .94 while fading (prototype
-                  // drops .show, reversing both transitions).
-                  scale:
-                      1 -
-                      (1 - CoachTaskBubbleTokens.imageInitialScale) *
-                          Curves.easeOutCubic.transform(blend) -
-                      (1 - CoachTaskBubbleTokens.imageInitialScale) *
-                          (1 - Curves.easeOutCubic.transform(_revealProgress)),
-                  child: _thumbnail(selected[current]),
-                ),
-              ),
-              if (blend > 0)
-                Opacity(
-                  opacity: blend,
-                  child: Transform.scale(
-                    scale:
-                        CoachTaskBubbleTokens.imageInitialScale +
-                        (1 - CoachTaskBubbleTokens.imageInitialScale) *
-                            Curves.easeOutCubic.transform(blend),
-                    child: _thumbnail(selected[next]),
-                  ),
-                ),
-            ],
-          ),
-        ),
+        child: widget.cutoutBuilder == null ? ClipOval(child: images) : images,
       ),
     );
   }
 
-  Widget _thumbnail(({String id, ImageProvider image}) selected) => Image(
-    key: ValueKey('generation-thumbnail-${selected.id}'),
-    image: selected.image,
-    fit: BoxFit.contain,
-    alignment: Alignment.center,
-    excludeFromSemantics: true,
-  );
+  Widget _thumbnail(({String id, ImageProvider? image}) selected) {
+    final builder = widget.cutoutBuilder;
+    if (builder != null) {
+      return KeyedSubtree(
+        key: ValueKey('generation-thumbnail-${selected.id}'),
+        child: builder(
+          context,
+          selected.id,
+          const Size.square(
+            CoachTaskBubbleTokens.animationSize -
+                2 * CoachTaskBubbleTokens.thumbnailInset,
+          ),
+          CoachUiTheme.of(context).colors.brightness,
+        ),
+      );
+    }
+    return Image(
+      key: ValueKey('generation-thumbnail-${selected.id}'),
+      image: selected.image!,
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
+      excludeFromSemantics: true,
+    );
+  }
 
   Widget _progressBar() => AnimatedBuilder(
     animation: Listenable.merge([_progress, _band]),

@@ -10,6 +10,18 @@ extension TrustedCardTiming on PlanBuilder {
     TrainingPlan saved, {
     String language = 'zh',
   }) {
+    try {
+      return _refit(state, saved, language: language);
+    } on PlanExecutionTimingException catch (error) {
+      return _executionTimingRejected(state, error, language: language);
+    }
+  }
+
+  DraftResult _refit(
+    CoachSessionState state,
+    TrainingPlan saved, {
+    String language = 'zh',
+  }) {
     DraftResult fail(String code, Object? actual) => DraftResult(
       state,
       error: nodeError(code, 'plan', '已收录且符合当前条件的原计划', actual, '重新选择合法动作。'),
@@ -254,14 +266,19 @@ extension TrustedCardTiming on PlanBuilder {
     }
 
     double estimate(List<_DraftBlock> source) =>
-        PlanBuilder._duration.estimateSeconds(render(source), catalog);
+        _executionSeconds(render(source));
     final target = minutes * 60.0;
-    final bounds = _timingBounds(
-      blocks,
+    final bounds = _executionBounds(
+      render(_timingExtreme(blocks, false), false),
+      render(_timingExtreme(blocks, true), true),
       target,
-      estimate,
-      estimateExtreme: (source, maximum) => PlanBuilder._duration
-          .estimateSeconds(render(source, maximum), catalog),
+      _timingBounds(
+        blocks,
+        target,
+        estimate,
+        estimateExtreme: (source, maximum) =>
+            _executionSeconds(render(source, maximum)),
+      ),
     );
     Map<String, Object?> recovery() => _durationRecovery(
       state,
@@ -271,9 +288,11 @@ extension TrustedCardTiming on PlanBuilder {
       language: language,
     );
     if (conflicts.isNotEmpty || bounds['status'] == 'infeasible') {
+      final candidate = render(blocks);
       return _durationRejected(
         state,
-        seconds: estimate(blocks),
+        seconds: PlanBuilder._duration.estimateSeconds(candidate, catalog),
+        execution: _executionOf(candidate),
         target: target,
         recovery: recovery(),
         conflicts: conflicts,
@@ -281,9 +300,10 @@ extension TrustedCardTiming on PlanBuilder {
       );
     }
     final log = <Map<String, Object?>>[];
-    _fit(blocks, target, estimate, log);
+    _fit(blocks, target, (source) => _fitSeconds(render(source), target), log);
     final plan = render(blocks);
     final seconds = PlanBuilder._duration.estimateSeconds(plan, catalog);
+    final execution = _executionOf(plan);
     final durationFailure = _durationFailure(
       state,
       seconds,
@@ -291,6 +311,7 @@ extension TrustedCardTiming on PlanBuilder {
       log,
       language: language,
       recovery: recovery,
+      execution: execution,
     );
     if (durationFailure != null) return durationFailure;
     final version = previous!.map((v) => v.version).reduce(math.max) + 1;
@@ -315,7 +336,8 @@ extension TrustedCardTiming on PlanBuilder {
       version: version,
       estimateMinutes: (seconds / 6).round() / 10,
       fitLog: log,
-      durationErrorPercent: (seconds - target).abs() / target * 100,
+      durationErrorPercent: _durationErrorPercent(seconds, execution, target),
+      executionTiming: execution,
       notes: [
         language.toLowerCase().startsWith('en')
             ? 'Preserved the saved segments and re-timed their groups with confirmed doses.'

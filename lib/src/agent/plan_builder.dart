@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import '../catalog/catalog.dart';
 import '../plan/plan_codec.dart';
+import '../plan/plan_execution_timing.dart';
 import '../plan/training_plan.dart';
 import '../profile/coach_profile.dart';
 import 'agent_task.dart';
@@ -15,6 +16,7 @@ import 'session_state.dart';
 part 'plan_timing.dart';
 part 'plan_focus_edit.dart';
 part 'plan_duration_recovery.dart';
+part 'plan_execution_fit.dart';
 
 class DraftResult {
   const DraftResult(
@@ -30,6 +32,7 @@ class DraftResult {
     this.notes = const [],
     this.feasibility,
     this.durationErrorPercent,
+    this.executionTiming,
     this.error,
   });
   final CoachSessionState state;
@@ -44,6 +47,7 @@ class DraftResult {
   final List<String> notes;
   final Map<String, Object?>? feasibility;
   final double? durationErrorPercent;
+  final PlanExecutionTiming? executionTiming;
   final Map<String, Object?>? error;
   bool get ok => error == null;
   Map<String, Object?> toJson() => {
@@ -56,6 +60,8 @@ class DraftResult {
     if (fitLog.isNotEmpty) 'fitLog': fitLog,
     if (note != null) 'note': note,
     if (notes.isNotEmpty) 'notes': notes,
+    if (executionTiming case final timing?)
+      'executionTiming': _executionTimingJson(timing),
     if (feasibility != null) ...{
       'status': 'infeasible',
       'needsUserChoice': true,
@@ -69,14 +75,32 @@ class DraftResult {
 }
 
 class PlanBuilder {
-  PlanBuilder(this.profile, this.catalog, {required int minPicks})
-    : gate = NodeGates(profile, catalog, minPicks: minPicks);
+  PlanBuilder(
+    this.profile,
+    this.catalog, {
+    required int minPicks,
+    this.executionTiming,
+  }) : gate = NodeGates(profile, catalog, minPicks: minPicks);
   final CoachProfile profile;
   final Catalog catalog;
   final NodeGates gate;
+  final PlanExecutionTimingCallback? executionTiming;
   static const _duration = PlanDuration();
 
   DraftResult draft(
+    CoachSessionState state,
+    Map<String, Object?> arguments, {
+    required String newPlanId,
+    String language = 'zh',
+  }) {
+    try {
+      return _draft(state, arguments, newPlanId: newPlanId, language: language);
+    } on PlanExecutionTimingException catch (error) {
+      return _executionTimingRejected(state, error, language: language);
+    }
+  }
+
+  DraftResult _draft(
     CoachSessionState state,
     Map<String, Object?> arguments, {
     required String newPlanId,
@@ -576,13 +600,18 @@ class PlanBuilder {
     }
 
     double estimate(List<_DraftBlock> source) =>
-        _duration.estimateSeconds(asPlan(source), catalog);
+        _executionSeconds(asPlan(source));
     final conflicts = _applyDoseConstraints(
       blocks,
       state.params['dose']?.value,
       profile.limits.rounds,
     );
-    final bounds = _timingBounds(blocks, target, estimate);
+    final bounds = _executionBounds(
+      asPlan(_timingExtreme(blocks, false)),
+      asPlan(_timingExtreme(blocks, true)),
+      target,
+      _timingBounds(blocks, target, estimate),
+    );
     Map<String, Object?> recovery() => _durationRecovery(
       state,
       asPlan(_timingExtreme(blocks, false)),
@@ -591,9 +620,11 @@ class PlanBuilder {
       language: language,
     );
     if (conflicts.isNotEmpty || bounds['status'] == 'infeasible') {
+      final candidate = asPlan(blocks);
       return _durationRejected(
         state,
-        seconds: estimate(blocks),
+        seconds: _duration.estimateSeconds(candidate, catalog),
+        execution: _executionOf(candidate),
         target: target,
         recovery: recovery(),
         conflicts: conflicts,
@@ -601,9 +632,10 @@ class PlanBuilder {
         language: language,
       );
     }
-    _fit(blocks, target, estimate, log);
+    _fit(blocks, target, (source) => _fitSeconds(asPlan(source), target), log);
     final plan = asPlan(blocks);
     final seconds = _duration.estimateSeconds(plan, catalog);
+    final execution = _executionOf(plan);
     final durationFailure = _durationFailure(
       state,
       seconds,
@@ -612,6 +644,7 @@ class PlanBuilder {
       notes: notes,
       language: language,
       recovery: recovery,
+      execution: execution,
     );
     if (durationFailure != null) return durationFailure;
     final previous = state.plans[id] ?? const <CoachPlanVersion>[];
@@ -720,7 +753,8 @@ class PlanBuilder {
                     : '已忽略旧模型剂量，由配时器计算。',
             ].join(' '),
       notes: List.unmodifiable(notes),
-      durationErrorPercent: (seconds - target).abs() / target * 100,
+      durationErrorPercent: _durationErrorPercent(seconds, execution, target),
+      executionTiming: execution,
       error: error,
       changes: List.unmodifiable(changes),
     );
@@ -742,9 +776,15 @@ class PlanBuilder {
     List<String> notes = const [],
     String language = 'zh',
     required Map<String, Object?> Function() recovery,
+    PlanExecutionTiming? execution,
   }) {
     final tolerance = math.min(.1, profile.limits.durationTolerance);
-    if ((seconds - target).abs() <= target * tolerance + 1e-9) return null;
+    if ((seconds - target).abs() <= target * tolerance + 1e-9 &&
+        (execution == null ||
+            (execution.totalSeconds - target).abs() <=
+                target * tolerance + 1e-9)) {
+      return null;
+    }
     return _durationRejected(
       state,
       seconds: seconds,
@@ -753,6 +793,7 @@ class PlanBuilder {
       log: log,
       notes: notes,
       language: language,
+      execution: execution,
     );
   }
 
@@ -765,6 +806,7 @@ class PlanBuilder {
     List<Map<String, Object?>> conflicts = const [],
     List<String> notes = const [],
     String language = 'zh',
+    PlanExecutionTiming? execution,
   }) {
     final verifiedDose = recovery['userConfirmedDose'] == true;
     // These conflicts cannot be repaired by selecting a different free action:
@@ -816,13 +858,21 @@ class PlanBuilder {
       state,
       fitLog: List.unmodifiable(log),
       notes: List.unmodifiable(notes),
-      durationErrorPercent: (seconds - target).abs() / target * 100,
+      durationErrorPercent: _durationErrorPercent(seconds, execution, target),
+      executionTiming: execution,
       error: {
         ...nodeError(
           'duration_fit_failed',
           'plan.duration',
           {'targetSec': target, 'toleranceRatio': recovery['toleranceRatio']},
-          {'estimatedSec': seconds},
+          {
+            'estimatedSec': seconds,
+            if (execution != null) ...{
+              'cardSec': seconds,
+              'executedSec': execution.totalSeconds,
+              'executionTiming': _executionTimingJson(execution),
+            },
+          },
           diagnostics['fix'] as String,
         ),
         ...diagnostics,

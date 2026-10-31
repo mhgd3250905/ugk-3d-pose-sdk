@@ -17,9 +17,12 @@ extension _DurationRecovery on PlanBuilder {
     final upper = target * (1 + tolerance);
     final minimum = (bounds['minEstimatedSec'] as num).toDouble();
     final maximum = (bounds['maxEstimatedSec'] as num).toDouble();
-    final direction = minimum > upper
+    final minimumCard = (bounds['minCardSec'] as num?)?.toDouble();
+    final maximumCard = (bounds['maxCardSec'] as num?)?.toDouble();
+    final direction =
+        minimum > upper || minimumCard != null && minimumCard > upper
         ? 'remove_action'
-        : maximum < lower
+        : maximum < lower || maximumCard != null && maximumCard < lower
         ? 'add_action'
         : 'adjust_selection';
     final dose = _recoveryUserDose(state);
@@ -34,6 +37,20 @@ extension _DurationRecovery on PlanBuilder {
     Map<String, Object?> range(TrainingPlan min, TrainingPlan max) {
       final lo = PlanBuilder._duration.estimateSeconds(min, catalog);
       final hi = PlanBuilder._duration.estimateSeconds(max, catalog);
+      if (executionTiming != null) {
+        final measured = _executionBounds(min, max, target, {
+          'minEstimatedSec': lo,
+          'maxEstimatedSec': hi,
+        });
+        return {
+          ...measured,
+          'rangeOverlapsTarget':
+              (measured['minExecutedSec'] as double) <= upper + 1e-9 &&
+              (measured['maxExecutedSec'] as double) >= lower - 1e-9 &&
+              lo <= upper + 1e-9 &&
+              hi >= lower - 1e-9,
+        };
+      }
       return {
         'minEstimatedSec': lo,
         'maxEstimatedSec': hi,
@@ -206,8 +223,58 @@ extension _DurationRecovery on PlanBuilder {
       }
     }
     final hasUserLocks = dose.isNotEmpty || confirmedActionIds.isNotEmpty;
+    final cardLockedMinimum = lockedMinimum;
+    final cardMinimumKnown = lockedMinimumKnown;
+    // A native lower-bound proof needs fixed placements. Otherwise keep the
+    // conservative card proof and request a rebuilt draft, rather than invent
+    // execution overhead or prove an unconstrained placement impossible.
+    double? executionLockedMinimum;
+    if (executionTiming != null && locked.isNotEmpty) {
+      final pinnedPlacements = locked.every(
+        (id) => dose.any(
+          (entry) => entry['actionId'] == id && entry['blockId'] is String,
+        ),
+      );
+      final lockedPlan = minimumPlan.copyWith(
+        blocks: [
+          for (final block in minimumPlan.blocks)
+            if (block.items.any(
+              (item) => item.segments.isEmpty
+                  ? locked.contains(item.exerciseId)
+                  : item.segments.any(
+                      (part) => locked.contains(part.exerciseId),
+                    ),
+            ))
+              PlanBlock(
+                id: block.id,
+                name: block.name,
+                type: block.type,
+                rounds: block.rounds,
+                restBetweenRoundsSeconds: block.restBetweenRoundsSeconds,
+                items: [
+                  for (final item in block.items)
+                    if (item.segments.isEmpty &&
+                        locked.contains(item.exerciseId))
+                      item,
+                ],
+              ),
+        ],
+      );
+      if (pinnedPlacements &&
+          lockedPlan.exerciseIds.containsAll(locked) &&
+          _recoveryConstraintsStillMatch(lockedPlan, dose)) {
+        executionLockedMinimum = _executionOf(lockedPlan)!.totalSeconds;
+      }
+      lockedMinimumKnown = executionLockedMinimum != null;
+      if (executionLockedMinimum != null) {
+        lockedMinimum = executionLockedMinimum;
+      }
+    }
     final lockedMinimumExceedsTarget =
-        hasUserLocks && lockedMinimumKnown && lockedMinimum > upper + 1e-9;
+        hasUserLocks &&
+        ((cardMinimumKnown && cardLockedMinimum > upper + 1e-9) ||
+            (executionLockedMinimum != null &&
+                executionLockedMinimum > upper + 1e-9));
     final repairPossible = [
       ...removals,
       ...additions,
@@ -247,6 +314,9 @@ extension _DurationRecovery on PlanBuilder {
       'userConfirmedDose': dose.isNotEmpty,
       'confirmedActionIds': locked.toList()..sort(),
       if (lockedMinimumKnown) 'lockedMinimumSec': lockedMinimum,
+      if (executionTiming != null && cardMinimumKnown)
+        'lockedMinimumCardSec': cardLockedMinimum,
+      'lockedMinimumExecutedSec': ?executionLockedMinimum,
       'clarificationAllowed': lockedMinimumExceedsTarget,
       'needsDraftRebuild': !lockedMinimumExceedsTarget,
       if (lockedMinimumExceedsTarget)

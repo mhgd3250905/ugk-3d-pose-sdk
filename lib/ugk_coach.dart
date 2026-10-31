@@ -36,6 +36,7 @@ export 'src/llm/llm_types.dart';
 export 'src/llm/openai_compatible_client.dart';
 export 'src/plan/coach_context.dart';
 export 'src/plan/plan_codec.dart';
+export 'src/plan/plan_execution_timing.dart';
 export 'src/plan/plan_issue.dart';
 export 'src/plan/plan_validator.dart';
 export 'src/plan/training_plan.dart';

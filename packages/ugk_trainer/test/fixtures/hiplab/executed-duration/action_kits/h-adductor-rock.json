@@ -1,0 +1,152 @@
+{
+ "schema": "action-kit@1",
+ "id": "h-adductor-rock",
+ "display": {
+  "name": {
+   "zh": "四足单腿侧伸后摇",
+   "en": "Quadruped adductor rock-back"
+  },
+  "point": {
+   "zh": "一条腿向侧面伸直，臀部慢慢往后坐",
+   "en": "One leg out to the side, sit your hips back slowly"
+  },
+  "cautions": [
+   "膝"
+  ],
+  "targets": [
+   "abduction",
+   "flexion"
+  ],
+  "methods": [
+   "flexibility"
+  ],
+  "level": "beginner",
+  "sided": true,
+  "firstSide": "right",
+  "poster": {
+   "dark": "assets/drill_media/hip-h-adductor-rock.jpg",
+   "light": "assets/drill_media/light/hip-h-adductor-rock.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/h-adductor-rock.js",
+   "specSha256": "d8d0601eb573cac10093a6d8fe6faec47040fbe22ab269801666b62f3f12eddd"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-h-adductor-rock.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 2.4
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-h-adductor-rock.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 2.4,
+    "sha256": "b1206bfae95a03928754fa3b2e02ea781f1e3bda3488eb4b48520db302679e3d",
+    "bytes": 605199
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "rock",
+  "reps": [
+   [
+    0.4,
+    1.81,
+    2.94,
+    3.87
+   ],
+   [
+    4.4,
+    5.81,
+    6.93,
+    7.78
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "rep_updown",
+  "unit": "reps",
+  "sided": true,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": 5,
+   "sets": 1,
+   "seconds": null,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "cycle": {
+   "seconds": 4.0,
+   "offset": 0.4,
+   "phases": [
+    {
+     "id": "go",
+     "seconds": 1.4,
+     "cue": "w.sit_back"
+    },
+    {
+     "id": "hold",
+     "seconds": 1.15
+    },
+    {
+     "id": "back",
+     "seconds": 0.95,
+     "cue": "w.come_forward"
+    },
+    {
+     "id": "rest",
+     "seconds": 0.5
+    }
+   ],
+   "source": "measured: track 'rock' 3 %/97 % crossings, rep 1 of 2"
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.h-adductor-rock": {
+    "zh": "四足单腿侧伸后摇",
+    "en": "Quadruped adductor rock-back"
+   },
+   "point.h-adductor-rock": {
+    "zh": "一条腿向侧面伸直，臀部慢慢往后坐",
+    "en": "One leg out to the side, sit your hips back slowly"
+   },
+   "w.sit_back": {
+    "zh": "往后坐",
+    "en": "Sit back"
+   },
+   "w.come_forward": {
+    "zh": "回来",
+    "en": "Come forward"
+   }
+  },
+  "prepare": [
+   "drill.h-adductor-rock",
+   "point.h-adductor-rock"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.nice",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": "p.right_first",
+  "coach": [
+   "cue.flexibility.1",
+   "cue.flexibility.2"
+  ],
+  "midHold": null
+ },
+ "review": {
+  "why": "spec: 2 rocks / 8 s: 1.8 s back, 0.8 s hold, 1.4 s forward",
+  "flags": []
+ }
+}

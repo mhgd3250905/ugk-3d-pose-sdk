@@ -92,10 +92,15 @@ extension FocusedPlanDraft on PlanBuilder {
       candidate,
       catalog,
     );
+    final candidateExecution = _executionOf(candidate);
     if (minutes != current.targetMinutes ||
         working.params['dose'] != null ||
         (candidateSeconds - target).abs() >
-            target * math.min(.1, profile.limits.durationTolerance) + 1e-9) {
+            target * math.min(.1, profile.limits.durationTolerance) + 1e-9 ||
+        candidateExecution != null &&
+            (candidateExecution.totalSeconds - target).abs() >
+                target * math.min(.1, profile.limits.durationTolerance) +
+                    1e-9) {
       final fitted = refit(working, candidate, language: language);
       return DraftResult(
         fitted.planId == null ? original : fitted.state,
@@ -108,6 +113,7 @@ extension FocusedPlanDraft on PlanBuilder {
         notes: [...notes, ...fitted.notes],
         feasibility: fitted.feasibility,
         durationErrorPercent: fitted.durationErrorPercent,
+        executionTiming: fitted.executionTiming,
         error: fitted.error,
       );
     }
@@ -132,6 +138,27 @@ extension FocusedPlanDraft on PlanBuilder {
     final versions = original.plans[current.id]!;
     final version = versions.map((v) => v.version).reduce(math.max) + 1;
     final seconds = PlanBuilder._duration.estimateSeconds(plan, catalog);
+    final execution = _executionOf(plan);
+    final durationFailure = _durationFailure(
+      original,
+      seconds,
+      target,
+      const [],
+      language: language,
+      recovery: () => _durationRecovery(
+        working,
+        plan,
+        plan,
+        _executionBounds(plan, plan, target, {
+          'targetSec': target,
+          'minEstimatedSec': seconds,
+          'maxEstimatedSec': seconds,
+        }),
+        language: language,
+      ),
+      execution: execution,
+    );
+    if (durationFailure != null) return durationFailure;
     final next = working.copyWith(
       activePlanId: current.id,
       plans: {
@@ -157,8 +184,8 @@ extension FocusedPlanDraft on PlanBuilder {
       legacyGoal: legacyGoal,
       changes: changes,
       notes: [...notes, '已保留未改动作的原剂量和分段结构。'],
-      durationErrorPercent:
-          (seconds - minutes * 60).abs() / (minutes * 60) * 100,
+      durationErrorPercent: _durationErrorPercent(seconds, execution, target),
+      executionTiming: execution,
       structure: [
         for (final block in plan.blocks)
           {

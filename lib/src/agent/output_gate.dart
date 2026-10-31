@@ -3,6 +3,7 @@ library;
 
 import '../catalog/catalog.dart';
 import '../plan/plan_codec.dart';
+import '../plan/plan_execution_timing.dart';
 import '../plan/plan_validator.dart';
 import '../plan/training_plan.dart';
 import '../profile/coach_profile.dart';
@@ -29,6 +30,7 @@ class OutputPreparation {
     this.warnings = const [],
     this.warningDetails = const [],
     this.error,
+    this.executionTiming,
   });
   final NodeResult? nodeResult;
   final String note;
@@ -43,6 +45,7 @@ class OutputPreparation {
   final List<String> warnings;
   final List<Map<String, Object?>> warningDetails;
   final Map<String, Object?>? error;
+  final PlanExecutionTiming? executionTiming;
   bool get ok => error == null;
 }
 
@@ -52,14 +55,40 @@ class OutputGate {
     this.catalog, {
     this.extraRules = const [],
     this.enforceDrillDoseRange = false,
+    this.executionTiming,
   }) : gate = NodeGates(profile, catalog, minPicks: profile.minActions);
   final CoachProfile profile;
   final Catalog catalog;
   final List<PlanRule> extraRules;
   final bool enforceDrillDoseRange;
+  final PlanExecutionTimingCallback? executionTiming;
   final NodeGates gate;
 
   OutputPreparation prepare(
+    CoachSessionState state,
+    String tool,
+    Object? arguments, {
+    String language = 'zh',
+  }) {
+    try {
+      return _prepare(state, tool, arguments, language: language);
+    } on PlanExecutionTimingException catch (error) {
+      return OutputPreparation(
+        nodeResult: NodeResult(state),
+        error: nodeError(
+          error.code,
+          'plan.executionTiming',
+          'valid synchronous player timeline with ordered block durations',
+          {'reason': error.reason},
+          language.toLowerCase().startsWith('en')
+              ? 'Repair the host execution-timing callback before delivering a plan; do not fall back to card duration.'
+              : '修复宿主执行时长回调后再交付计划，禁止回退到卡片时长。',
+        ),
+      );
+    }
+  }
+
+  OutputPreparation _prepare(
     CoachSessionState state,
     String tool,
     Object? arguments, {
@@ -287,14 +316,36 @@ class OutputGate {
     final actualEquipment = <String>{
       for (final id in ids) ...?catalog[id]?.equipment,
     }..remove('none');
+    final equipmentWasStale =
+        plan.equipment.toSet().difference(actualEquipment).isNotEmpty ||
+        actualEquipment.difference(plan.equipment.toSet()).isNotEmpty;
+    // A host callback may use any candidate fields. Measure the same normalized
+    // equipment metadata that will actually be delivered, rather than a stale
+    // restored card. The null path retains the original normalization order.
+    if (executionTiming != null && equipmentWasStale) {
+      plan = const PlanCodec().decode({
+        ...plan.toJson(),
+        'equipment': actualEquipment.toList(),
+      });
+    }
     final minutes = next.params['minutes']?.value as int;
     final targetSeconds = minutes * 60.0;
     final tolerance = profile.limits.durationTolerance.clamp(0.0, .1);
-    bool durationFits(TrainingPlan candidate) =>
-        (const PlanDuration().estimateSeconds(candidate, catalog) -
-                targetSeconds)
-            .abs() <=
-        targetSeconds * tolerance + 1e-9;
+    PlanExecutionTiming? executionOf(TrainingPlan candidate) =>
+        executionTiming == null
+        ? null
+        : evaluatePlanExecutionTiming(candidate, executionTiming!);
+    bool durationFits(TrainingPlan candidate) {
+      final execution = executionOf(candidate);
+      return (const PlanDuration().estimateSeconds(candidate, catalog) -
+                      targetSeconds)
+                  .abs() <=
+              targetSeconds * tolerance + 1e-9 &&
+          (execution == null ||
+              (execution.totalSeconds - targetSeconds).abs() <=
+                  targetSeconds * tolerance + 1e-9);
+    }
+
     final needsRefit =
         plan.targetMinutes != minutes ||
         !_matchesConfirmedDose(next, plan) ||
@@ -321,6 +372,7 @@ class OutputGate {
         profile,
         catalog,
         minPicks: profile.minActions,
+        executionTiming: executionTiming,
       );
       final refitted =
           next.focusPlanId == active ||
@@ -374,19 +426,24 @@ class OutputGate {
     // check nor a cached estimate can authorize a newly out-of-range delivery.
     if (!durationFits(plan)) {
       final seconds = const PlanDuration().estimateSeconds(plan, catalog);
+      final execution = executionOf(plan);
       return fail(
         nodeError(
           'duration_fit_failed',
           'plan.duration',
           {'targetSeconds': targetSeconds, 'tolerancePercent': tolerance * 100},
-          {'estimatedSeconds': seconds},
+          {
+            'estimatedSeconds': seconds,
+            if (execution != null) 'executedSeconds': execution.totalSeconds,
+          },
           language.toLowerCase().startsWith('en')
               ? 'Adjust one selected action under the existing rules and submit a new draft; do not deliver an approximate plan.'
               : '按既有规则增减一个已选动作并重出草稿；不要交付超出容差的近似计划。',
         ),
       );
     }
-    if (plan.equipment.toSet().difference(actualEquipment).isNotEmpty ||
+    if (executionTiming != null && equipmentWasStale ||
+        plan.equipment.toSet().difference(actualEquipment).isNotEmpty ||
         actualEquipment.difference(plan.equipment.toSet()).isNotEmpty) {
       plan = const PlanCodec().decode({
         ...plan.toJson(),
@@ -410,6 +467,22 @@ class OutputGate {
         },
       );
       notices.add('已从实际动作同步卡片器械字段。');
+    }
+    final finalExecution = executionOf(plan);
+    if (finalExecution != null &&
+        (finalExecution.totalSeconds - targetSeconds).abs() >
+            targetSeconds * tolerance + 1e-9) {
+      return fail(
+        nodeError(
+          'duration_fit_failed',
+          'plan.duration',
+          {'targetSeconds': targetSeconds, 'tolerancePercent': tolerance * 100},
+          {'executedSeconds': finalExecution.totalSeconds},
+          language.toLowerCase().startsWith('en')
+              ? 'Rebuild a draft that fits both the card and actual player timeline; do not deliver this plan.'
+              : '重出卡片和播放器时间线都满足时长的草稿；不要交付当前计划。',
+        ),
+      );
     }
     final selected = gate.check(
       next,
@@ -470,6 +543,7 @@ class OutputGate {
       noteTruncated: normalized.truncated,
       notices: notices,
       plan: plan,
+      executionTiming: finalExecution,
       warnings: warnings,
       warningDetails: [
         for (final detail

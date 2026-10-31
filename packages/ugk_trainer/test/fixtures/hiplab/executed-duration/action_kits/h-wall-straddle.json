@@ -1,0 +1,120 @@
+{
+ "schema": "action-kit@1",
+ "id": "h-wall-straddle",
+ "display": {
+  "name": {
+   "zh": "靠墙仰卧 V 字分腿",
+   "en": "Wall straddle"
+  },
+  "point": {
+   "zh": "腿靠墙，让双腿自然向两侧打开",
+   "en": "Legs up the wall, let them fall open to the sides"
+  },
+  "cautions": [
+   "内收肌根"
+  ],
+  "targets": [
+   "abduction"
+  ],
+  "methods": [
+   "relax",
+   "flexibility"
+  ],
+  "level": "beginner",
+  "sided": false,
+  "firstSide": null,
+  "poster": {
+   "dark": "assets/drill_media/hip-h-wall-straddle.jpg",
+   "light": "assets/drill_media/light/hip-h-wall-straddle.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/h-wall-straddle.js",
+   "specSha256": "e2119b273d8fc552dbaa2adab7fa09d76103d78b861f46ed1a422f93e911cf28"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-h-wall-straddle.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 4.5
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-h-wall-straddle.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 4.5,
+    "sha256": "3ae94698ee8e9c1945e37570d305dd493ba48020c88017bb36e963dc6a25049f",
+    "bytes": 770807
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "open",
+  "reps": [
+   [
+    0.64,
+    2.97,
+    5.93,
+    7.48
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "hold",
+  "unit": "seconds",
+  "sided": false,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": null,
+   "sets": 1,
+   "seconds": 60,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "hold": {
+   "entrySeconds": 2.35
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.h-wall-straddle": {
+    "zh": "靠墙仰卧 V 字分腿",
+    "en": "Wall straddle"
+   },
+   "point.h-wall-straddle": {
+    "zh": "腿靠墙，让双腿自然向两侧打开",
+    "en": "Legs up the wall, let them fall open to the sides"
+   }
+  },
+  "prepare": [
+   "drill.h-wall-straddle",
+   "point.h-wall-straddle"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.release",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": null,
+  "coach": [
+   "cue.relax.1",
+   "cue.relax.2"
+  ],
+  "midHold": {
+   "half": "p.half",
+   "last10": "p.last10",
+   "countdown": 5
+  }
+ },
+ "review": {
+  "why": "static stretch",
+  "flags": []
+ }
+}

@@ -97,8 +97,13 @@ extension DraftToolHandler on StructuredToolHandler {
       prepared = selected.state;
       changes.addAll(selected.changes);
     }
-    final result = PlanBuilder(profile, catalog, minPicks: profile.minActions)
-        .draft(
+    final result =
+        PlanBuilder(
+          profile,
+          catalog,
+          minPicks: profile.minActions,
+          executionTiming: executionTiming,
+        ).draft(
           prepared,
           args.cast<String, Object?>(),
           newPlanId: newPlanId(),

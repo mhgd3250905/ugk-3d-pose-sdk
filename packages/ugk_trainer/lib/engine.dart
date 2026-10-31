@@ -3,6 +3,7 @@
 /// and tools.
 library;
 
+export 'src/engine/plan_execution_timing.dart';
 export 'src/engine/session.dart';
 export 'src/result/session_result.dart';
 export 'src/rhythm/action_kind.dart';

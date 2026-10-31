@@ -13,6 +13,7 @@ import '../catalog/catalog.dart';
 import '../llm/llm_types.dart';
 import '../plan/coach_context.dart';
 import '../plan/plan_codec.dart';
+import '../plan/plan_execution_timing.dart';
 import '../plan/plan_issue.dart';
 import '../plan/plan_validator.dart';
 import '../plan/training_plan.dart';
@@ -26,8 +27,13 @@ final class ValidatedPlan {
     List<PlanIssue> warnings, {
     this.version,
     this.savedRef,
+    this.executionTiming,
   }) : warnings = List.unmodifiable(warnings);
   final TrainingPlan plan;
+
+  /// Actual player timeline, or an estimate when it contains manual counting.
+  /// Present only for Agent v2 deliveries using an execution-timing callback.
+  final PlanExecutionTiming? executionTiming;
   final List<PlanIssue> warnings;
 
   /// Present for versioned Agent deliveries. Older admission APIs can omit it.
@@ -49,6 +55,7 @@ final class ValidatedPlan {
       warnings,
       version: latest.version,
       savedRef: state.focusPlanId == plan.id ? state.savedRef : null,
+      executionTiming: executionTiming,
     );
   }
 }
@@ -155,6 +162,7 @@ class ToolGate {
     this.canary,
     this.extraRules = const [],
     this.enforceDrillDoseRange = false,
+    this.executionTiming,
   });
 
   final Catalog catalog;
@@ -164,6 +172,10 @@ class ToolGate {
   final String? canary;
   final List<PlanRule> extraRules;
   final bool enforceDrillDoseRange;
+
+  /// Player timeline measurement for Agent v2 fitting and output validation.
+  /// Null keeps the legacy card-duration path.
+  final PlanExecutionTimingCallback? executionTiming;
 
   late final Set<String> _whitelist = CoachTools.whitelist(
     profile,
@@ -190,6 +202,7 @@ class ToolGate {
       catalog,
       extraRules: extraRules,
       enforceDrillDoseRange: enforceDrillDoseRange,
+      executionTiming: executionTiming,
     ).prepare(state, tool, arguments, language: language);
     if (!prepared.ok) {
       return AgentOutputResult(
@@ -235,6 +248,7 @@ class ToolGate {
                 prepared.nodeResult!.state.focusPlanId == prepared.plan!.id
                 ? prepared.nodeResult!.state.savedRef
                 : null,
+            executionTiming: prepared.executionTiming,
           );
     final actions = prepared.actions == null
         ? null

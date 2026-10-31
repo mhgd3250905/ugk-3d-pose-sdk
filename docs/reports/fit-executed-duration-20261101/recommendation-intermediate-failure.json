@@ -1,0 +1,427 @@
+{
+  "schemaVersion": 1,
+  "scope": "Public-record audit only; no model rerun, source changes or new model requests",
+  "claimBoundary": {
+    "finalPlanDualDurationGatePassed": 14,
+    "finalPlansChecked": 14,
+    "completeThreeTurnConversationsPassed": 13,
+    "conversationsChecked": 14,
+    "turnStatuses": {
+      "ok": 41,
+      "error": 1
+    },
+    "turnsChecked": 42,
+    "allFortyTwoTurnsSuccessful": false
+  },
+  "source": {
+    "case": "build/fit-executed-duration/live-smartfit-20261101-r1/five-3.json",
+    "caseSha256": "ffe472247656aecbccfeb77d743464377e46a5c6040d6e2849fc3018ad69c3f0",
+    "timeline": "build/fit-executed-duration/live-smartfit-20261101-r1/timeline.jsonl",
+    "timelineSha256": "64d142e37f2998dc3e7d02e881a021ce399d851bcd67895df03b458ccbf46964",
+    "sdkSourceSha256": "d0f5ede16d339c6931622b72f2c16156ba6fec41979030384e34a78e1fe10366",
+    "originalEvidencePreserved": true
+  },
+  "failedTurn": {
+    "turn": 2,
+    "input": "推荐几个拉大腿内侧的动作",
+    "status": "error",
+    "modelCalls": 5,
+    "elapsedMs": 10514,
+    "text": "",
+    "question": null,
+    "isPlanningFailure": false,
+    "errorType": null
+  },
+  "termination": {
+    "failureCode": "unseen_actions",
+    "failureField": "picks",
+    "rejectedShowActionsCalls": 3,
+    "maxResubmits": 2,
+    "reason": "The third rejected terminal output exceeded the default maxResubmits budget; no exception was thrown, so errorType remains null.",
+    "httpStatuses": [
+      200,
+      200,
+      200,
+      200,
+      200
+    ],
+    "executionTimingFailure": false
+  },
+  "rejectedOutputs": [
+    {
+      "request": {
+        "modelCall": 6,
+        "turn": 2,
+        "agentStep": 1,
+        "toolCallId": "call_00_QjDNrC8sGq9QhQhAjnZg9246",
+        "name": "show_actions",
+        "arguments": {
+          "ids": [
+            "s-butterfly",
+            "h-butterfly-active",
+            "h-adductor-rock"
+          ],
+          "note": "三个都针对大腿内侧：静态蝴蝶式找拉伸感，仰卧开合和四足侧伸后摇适合先动起来热身。呼吸别憋，有牵扯感即可，不弹震、不追疼。"
+        }
+      },
+      "capturedResult": {
+        "observedInModelCall": 11,
+        "jsonPath": "$.calls[10].request.messages[4].content",
+        "toolCallId": "call_00_QjDNrC8sGq9QhQhAjnZg9246",
+        "receipt": {
+          "ok": false,
+          "code": "unseen_actions",
+          "field": "picks",
+          "expected": "已由 search_actions 返回的动作",
+          "actual": [
+            "s-butterfly",
+            "h-butterfly-active",
+            "h-adductor-rock"
+          ],
+          "fix": "先搜索动作再选取。",
+          "candidateCount": 0,
+          "minimum": 1,
+          "candidates": []
+        }
+      }
+    },
+    {
+      "request": {
+        "modelCall": 8,
+        "turn": 2,
+        "agentStep": 3,
+        "toolCallId": "call_00_0OVFZjdBocika3XBmPpB2805",
+        "name": "show_actions",
+        "arguments": {
+          "ids": [
+            "s-butterfly",
+            "h-butterfly-active",
+            "h-adductor-rock"
+          ],
+          "note": "三个都针对大腿内侧：先用四足侧伸后摇和仰卧蝴蝶开合把髋内侧活动开，再用蝴蝶式静止拉伸。呼吸别憋，有牵扯感即可，不弹震、不追疼。垫上做更舒服。"
+        }
+      },
+      "capturedResult": {
+        "observedInModelCall": 11,
+        "jsonPath": "$.calls[10].request.messages[8].content",
+        "toolCallId": "call_00_0OVFZjdBocika3XBmPpB2805",
+        "receipt": {
+          "ok": false,
+          "code": "unseen_actions",
+          "field": "picks",
+          "expected": "已由 search_actions 返回的动作",
+          "actual": [
+            "s-butterfly",
+            "h-butterfly-active",
+            "h-adductor-rock"
+          ],
+          "fix": "先搜索动作再选取。",
+          "candidateCount": 0,
+          "minimum": 1,
+          "candidates": []
+        }
+      }
+    },
+    {
+      "request": {
+        "modelCall": 10,
+        "turn": 2,
+        "agentStep": 5,
+        "toolCallId": "call_00_igVjKl00OAcNCzm3RhAs2653",
+        "name": "show_actions",
+        "arguments": {
+          "ids": [
+            "s-butterfly",
+            "h-butterfly-active",
+            "h-adductor-rock"
+          ],
+          "note": "三个都针对大腿内侧：先用四足侧伸后摇和仰卧蝴蝶开合把髋内侧活动开，再用蝴蝶式静止拉一拉。呼吸别憋，有牵扯感即可，不弹震、不追疼。"
+        }
+      },
+      "capturedResult": {
+        "observedInModelCall": 11,
+        "jsonPath": "$.calls[10].request.messages[13].content",
+        "toolCallId": "call_00_igVjKl00OAcNCzm3RhAs2653",
+        "receipt": {
+          "ok": false,
+          "code": "unseen_actions",
+          "field": "picks",
+          "expected": "已由 search_actions 返回的动作",
+          "actual": [
+            "s-butterfly",
+            "h-butterfly-active",
+            "h-adductor-rock"
+          ],
+          "fix": "先搜索动作再选取。",
+          "candidateCount": 0,
+          "minimum": 1,
+          "candidates": []
+        }
+      }
+    }
+  ],
+  "intermediateSearch": {
+    "request": {
+      "modelCall": 7,
+      "turn": 2,
+      "agentStep": 2,
+      "toolCallId": "call_00_6GIAZFXGpt0B5rpO2Gsp2770",
+      "name": "search_actions",
+      "arguments": {
+        "tags": [
+          "purpose.stretch",
+          "purpose.mobility",
+          "body.inner_thigh",
+          "scene.home",
+          "equip.mat"
+        ],
+        "limit": 20
+      }
+    },
+    "capturedResult": {
+      "observedInModelCall": 8,
+      "jsonPath": "$.calls[7].request.messages[6].content",
+      "toolCallId": "call_00_6GIAZFXGpt0B5rpO2Gsp2770",
+      "receipt": {
+        "ok": true,
+        "items": [
+          {
+            "id": "h-adductor-rock",
+            "doseMode": "reps",
+            "level": 1
+          },
+          {
+            "id": "h-butterfly-active",
+            "doseMode": "reps",
+            "level": 1
+          },
+          {
+            "id": "s-butterfly",
+            "doseMode": "seconds",
+            "level": 1
+          },
+          {
+            "id": "s-frog",
+            "doseMode": "seconds",
+            "level": 3
+          }
+        ],
+        "filter": {
+          "scene": "home",
+          "equipment": "瑜伽垫",
+          "limits": [],
+          "hiddenEquipmentCount": 0
+        },
+        "format": {
+          "data": [
+            "body_index",
+            "equipment_indices",
+            "position_index",
+            "scene_indices",
+            "mode",
+            "dose",
+            "range",
+            "set_seconds"
+          ],
+          "body": [
+            "body.abs",
+            "body.biceps",
+            "body.calves",
+            "body.chest",
+            "body.core",
+            "body.deltoids",
+            "body.erectors",
+            "body.forearms",
+            "body.glute_max",
+            "body.hamstrings",
+            "body.hip_abductors",
+            "body.hip_flexors",
+            "body.inner_thigh",
+            "body.lats",
+            "body.obliques",
+            "body.quadriceps",
+            "body.rotator_cuff",
+            "body.scapular",
+            "body.serratus",
+            "body.tibialis",
+            "body.triceps"
+          ],
+          "equipment": [
+            "equip.band",
+            "equip.block",
+            "equip.cable",
+            "equip.chair",
+            "equip.dip_bars",
+            "equip.dumbbell",
+            "equip.foam_roller",
+            "equip.ghd",
+            "equip.hip_abductor_machine",
+            "equip.kettlebell",
+            "equip.landmine",
+            "equip.leg_extension_machine",
+            "equip.mat",
+            "equip.parallettes",
+            "equip.pullup_bar",
+            "equip.reverse_hyper",
+            "equip.rings",
+            "equip.roman_chair",
+            "equip.slider",
+            "equip.swiss_ball",
+            "equip.wall"
+          ],
+          "position": [
+            "hanging",
+            "kneeling",
+            "prone",
+            "quadruped",
+            "seated",
+            "side_lying",
+            "standing",
+            "supine",
+            "support"
+          ],
+          "scene": [
+            "gym",
+            "home",
+            "office"
+          ],
+          "mode": [
+            "reps",
+            "seconds"
+          ],
+          "dose": [
+            "sets",
+            "reps_or_seconds_per_side",
+            "rest_seconds"
+          ],
+          "range": [
+            "sets",
+            "reps_or_seconds_per_side",
+            "rest_seconds"
+          ],
+          "set_seconds": "estimated seconds for one set, including both sides and side switch"
+        },
+        "summary": "已按 home / 瑜伽垫 / 无伤痛 过滤，另有 0 个需要器材的动作未显示。以下 4 个之前已返回，仅列 id。"
+      }
+    }
+  },
+  "intermediateCheck": {
+    "request": {
+      "modelCall": 9,
+      "turn": 2,
+      "agentStep": 4,
+      "toolCallId": "call_00_lQ0SVZNDeObaiCLTDiFb5509",
+      "name": "check",
+      "arguments": {
+        "node": "actions",
+        "picks": [
+          "s-butterfly",
+          "h-butterfly-active",
+          "h-adductor-rock"
+        ]
+      }
+    },
+    "capturedResult": {
+      "observedInModelCall": 10,
+      "jsonPath": "$.calls[9].request.messages[11].content",
+      "toolCallId": "call_00_lQ0SVZNDeObaiCLTDiFb5509",
+      "receipt": {
+        "ok": true,
+        "task": {
+          "type": "plan",
+          "nodes": [
+            {
+              "id": "understand",
+              "status": "done",
+              "stamp": "准备训练计划",
+              "doneAtTurn": 1
+            },
+            {
+              "id": "parameters",
+              "status": "done",
+              "stamp": "居家（你说的） · 内收肌群、髋屈肌、拉伸（你说的） · 瑜伽垫（你说的） · 10 分钟（你说的） · 初学（你说的） · 无伤痛（默认）",
+              "doneAtTurn": 1
+            },
+            {
+              "id": "actions",
+              "status": "done",
+              "stamp": "选了 8 个动作",
+              "doneAtTurn": 1
+            },
+            {
+              "id": "planning",
+              "status": "done",
+              "stamp": "已编排计划，约 10.4 分钟",
+              "doneAtTurn": 1
+            },
+            {
+              "id": "review",
+              "status": "done",
+              "stamp": "目录、安全、器材和目标核对完成 · 实际用到环境物：瑜伽垫",
+              "doneAtTurn": 1
+            },
+            {
+              "id": "output",
+              "status": "done",
+              "stamp": "已交付 · 实际用到环境物：瑜伽垫",
+              "doneAtTurn": 1
+            }
+          ],
+          "reused": false
+        }
+      }
+    }
+  },
+  "rootCause": {
+    "observed": "The model did not start a recommend task. Its show_actions calls repeatedly returned unseen_actions despite a successful search in between. The check(actions) receipt still refers to the previous completed plan task.",
+    "sourceAnalysis": "OutputGate temporarily starts recommend when the previous task is plan; AgentTask.start clears seenActionIds for the new task. Rejection restores the original plan task. Subsequent search populates that old plan task, so a later show_actions starts recommend and clears seenActionIds again.",
+    "unchangedFromBase": "700d0100f1cb42ef122e774a6ee0076d1916b5e5",
+    "relevantLogicIdenticalToBase": true,
+    "paths": [
+      "lib/src/agent/output_gate.dart",
+      "lib/src/agent/agent_task.dart",
+      "lib/src/agent/coach_agent.dart",
+      "lib/src/agent/node_gates.dart"
+    ]
+  },
+  "editingBaseline": {
+    "beforeFailedSecondTurn": {
+      "observedInModelCall": 6,
+      "jsonPath": "$.calls[5].request.messages[14].content",
+      "plan": {
+        "plan_id": "plan-1793467080343-2",
+        "version": 1,
+        "title": "居家髋部与大腿内侧拉伸",
+        "estimateSec": 625.0
+      },
+      "parsedCurrentStatePath": "$.plan"
+    },
+    "atThirdTurnStart": {
+      "observedInModelCall": 11,
+      "jsonPath": "$.calls[10].request.messages[15].content",
+      "plan": {
+        "plan_id": "plan-1793467080343-2",
+        "version": 1,
+        "title": "居家髋部与大腿内侧拉伸",
+        "estimateSec": 625.0
+      },
+      "parsedCurrentStatePath": "$.plan"
+    },
+    "samePlanAndVersion": true,
+    "failedSecondTurnCommittedNewPlan": false,
+    "thirdTurnOperation": "replace_all",
+    "finalPlanId": "plan-1793467080343-2",
+    "finalVersion": 3,
+    "cardSeconds": 310.0,
+    "executionSeconds": 315.0,
+    "containsManualCounting": true,
+    "conclusion": "The failed recommendation did not replace the active first-turn plan v1. The third turn starts from that same plan, then creates its own replacement versions and delivers v3. Its final plan duration gate passes; the second recommendation request itself failed."
+  },
+  "privacy": {
+    "sourceFields": "Public requests/tool calls/tool receipts and final results only",
+    "reasoningIncluded": false,
+    "systemPromptsIncluded": false,
+    "headersIncluded": false,
+    "credentialsIncluded": false
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "id": "call_00_Tkw9VYCQQZAzi5ZKIvoi6790",
+  "tool": "draft_plan",
+  "receipt": {
+    "ok": true,
+    "plan_id": "plan-1793464639921-2",
+    "version": 2,
+    "estimateMinutes": 5.4,
+    "legacyGoal": "relax",
+    "structure": [
+      {
+        "blockId": "b1",
+        "kind": "warmup",
+        "rounds": 1,
+        "items": 2
+      },
+      {
+        "blockId": "b2",
+        "kind": "main",
+        "rounds": 1,
+        "items": 3
+      },
+      {
+        "blockId": "b3",
+        "kind": "cooldown",
+        "rounds": 1,
+        "items": 1
+      }
+    ],
+    "durationErrorPercent": 8.666666666666668,
+    "withinTolerance": true,
+    "check": {
+      "ok": true,
+      "summary": "计划检查通过。"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "blocks": [
+    {
+      "kind": "warmup",
+      "items": [
+        {
+          "id": "h-butterfly-active"
+        },
+        {
+          "id": "n-pelvis-circle"
+        }
+      ]
+    },
+    {
+      "kind": "main",
+      "items": [
+        {
+          "id": "s-butterfly"
+        },
+        {
+          "id": "n-wide-fold"
+        },
+        {
+          "id": "h-adductor-rock"
+        }
+      ]
+    },
+    {
+      "kind": "cooldown",
+      "items": [
+        {
+          "id": "h-wall-straddle"
+        }
+      ]
+    }
+  ],
+  "title": "大腿内侧开胯短练"
+}

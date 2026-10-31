@@ -1,0 +1,147 @@
+{
+  "baselineSdkCommit": "700d0100f1cb42ef122e774a6ee0076d1916b5e5",
+  "sourceCapture": {
+    "path": "E:/AII-3D/hiplab-releases/coach-v2-plus26-20261101/trial-03/live/results.json",
+    "sha256": "caef5fcfe676a6bf374f83106b54db351376cbaee9313ab9362551661c9924b7",
+    "caseIndex": 2
+  },
+  "sourceFiles": {
+    "profile.json": {
+      "path": "assets/coach/hiplab.json",
+      "sha256": "638b1797561da2cac23cb66ce25449e3e81efe01a103e3360cc4ee3a8ed0f920"
+    },
+    "voice-manifest.json": {
+      "path": "assets/voice/manifest.json",
+      "sha256": "f797320fbf4114284405f079b8df9a4b915de19093e876643ccb99d5eb168564"
+    },
+    "action_kits/h-butterfly-active.json": {
+      "path": "assets/action_kits/h-butterfly-active.json",
+      "sha256": "517a62549b26b4ee18c4e8b90d0e8c1bab4932e87d5ebb294494d75c4748ea1e"
+    },
+    "action_kits/n-pelvis-circle.json": {
+      "path": "assets/action_kits/n-pelvis-circle.json",
+      "sha256": "a5d0dfd63e04a3330f7d4cc0e3b17f9c2f72da07852597b8ec6bf9a21d309a16"
+    },
+    "action_kits/s-butterfly.json": {
+      "path": "assets/action_kits/s-butterfly.json",
+      "sha256": "60cd0fb7c5a6488266da6a70cf05b19c7e12e091f1013b22b56be4e7b479a0d4"
+    },
+    "action_kits/n-wide-fold.json": {
+      "path": "assets/action_kits/n-wide-fold.json",
+      "sha256": "5380e5e2430c8db7dfc1831f33ab02f089ee9364f2731a62277961bea69235c8"
+    },
+    "action_kits/h-adductor-rock.json": {
+      "path": "assets/action_kits/h-adductor-rock.json",
+      "sha256": "d2c9051d33d3552c698d3688b163e152613968470a1002689e2e617eaa847cef"
+    },
+    "action_kits/h-wall-straddle.json": {
+      "path": "assets/action_kits/h-wall-straddle.json",
+      "sha256": "7fb21d1b5ebeb945499b4ec63bb9fbbb4937c5757c9dcec92ce87a10ded48520"
+    }
+  },
+  "sourceCatalog": {
+    "path": "assets/coach/catalog.json",
+    "sha256": "e3a82ee49833b8f7baf626f0eeb033cfa53429105ac13eaaab12560067269c9f",
+    "projection": "Unchanged source metadata and unchanged drill objects referenced by captured seen/picks/prior/current plans."
+  },
+  "captured": {
+    "captured-plan.json": "cases[2].plan",
+    "captured-state.json": "cases[2].state",
+    "captured-native-timing.json": "cases[2].nativeTiming",
+    "draft-arguments.json": "JSON-decoded cases[2].requests[3].toolCalls[0].arguments (actual model draft call)",
+    "captured-draft-receipt.json": "cases[2].toolReceipts draft_plan (observed in next request; no terminal show_plan receipt is fabricated)"
+  },
+  "reconstruction": "The capture exposes actual model draft arguments, its actual observed receipt, delivered plan, and final state, but no pre-draft snapshot. state-before-reconstructed.json is explicitly reconstructed: retain only version1 of the active plan; restore lastDeliveredPlanId/Version/Turn from cases[1].state; reset planning/current and review/output/pending, removing those three nodes stamps/doneAtTurn. All other final-state fields are unchanged. It is replay input, not an asserted captured HTTP body.",
+  "targetSeconds": 300,
+  "prepSeconds": 15,
+  "baselineCardSeconds": 326,
+  "baselineNativeSeconds": 335,
+  "baselineManualEstimate": false,
+  "baselineAuthoredLeadExtensionSeconds": 4,
+  "baselineVoiceSwitchExtensionSeconds": 0,
+  "exerciseIds": [
+    "h-butterfly-active",
+    "n-pelvis-circle",
+    "s-butterfly",
+    "n-wide-fold",
+    "h-adductor-rock",
+    "h-wall-straddle"
+  ],
+  "catalogExerciseIds": [
+    "h-9090-liftoff",
+    "h-adductor-rock",
+    "h-butterfly-active",
+    "h-hip-gate",
+    "h-quad-cars",
+    "h-sumo-pry",
+    "h-supine-twist",
+    "h-wall-straddle",
+    "n-chair-wiper",
+    "n-leg-circles",
+    "n-pelvis-circle",
+    "n-prone-ir",
+    "n-seated-ir-drop",
+    "n-squat-shift",
+    "n-wide-fold",
+    "n-windshield",
+    "o-stand-lunge",
+    "s-9090",
+    "s-butterfly",
+    "s-figure4",
+    "s-frog"
+  ],
+  "capturedPlanCanonicalSha256": "c82a4a21fc268ad9875e21f76efcfec5251697dc6cf3ea132cc0fa1e9ccc922a",
+  "files": {
+    "action_kits/h-adductor-rock.json": {
+      "sha256": "d2c9051d33d3552c698d3688b163e152613968470a1002689e2e617eaa847cef"
+    },
+    "action_kits/h-butterfly-active.json": {
+      "sha256": "517a62549b26b4ee18c4e8b90d0e8c1bab4932e87d5ebb294494d75c4748ea1e"
+    },
+    "action_kits/h-wall-straddle.json": {
+      "sha256": "7fb21d1b5ebeb945499b4ec63bb9fbbb4937c5757c9dcec92ce87a10ded48520"
+    },
+    "action_kits/n-pelvis-circle.json": {
+      "sha256": "a5d0dfd63e04a3330f7d4cc0e3b17f9c2f72da07852597b8ec6bf9a21d309a16"
+    },
+    "action_kits/n-wide-fold.json": {
+      "sha256": "5380e5e2430c8db7dfc1831f33ab02f089ee9364f2731a62277961bea69235c8"
+    },
+    "action_kits/s-butterfly.json": {
+      "sha256": "60cd0fb7c5a6488266da6a70cf05b19c7e12e091f1013b22b56be4e7b479a0d4"
+    },
+    "captured-draft-receipt.json": {
+      "sha256": "a192b127780a15c3a148e56ae3ff45439617ef1011d4c727ebbd78c73b606db2"
+    },
+    "captured-native-timing.json": {
+      "sha256": "94d0635f3f3428feccc1831da1fcc854c95b482443b55d6839a7745f816a0887"
+    },
+    "captured-plan.json": {
+      "sha256": "38f9a1766c1cd359c8688dcd6959c4a9ee43a41f1d5fdd4d25df8ee518cf5c97"
+    },
+    "captured-state.json": {
+      "sha256": "0957c55ab62c52dcaf4999026f4c71f454cd9d833782c60c4974461cbff512f1"
+    },
+    "catalog.json": {
+      "sha256": "b9f775cda219d6a9d1fd89d0cdffbfc91a9843e95e19923a4b573129f6e5ce01"
+    },
+    "draft-arguments.json": {
+      "sha256": "4b5ee8b8dccd0794664f8021de29d853a50d584fe6fa75ffc66ff081690a0f15"
+    },
+    "profile.json": {
+      "sha256": "638b1797561da2cac23cb66ce25449e3e81efe01a103e3360cc4ee3a8ed0f920"
+    },
+    "state-before-reconstructed.json": {
+      "sha256": "40783f5b569f668789af19d7a59a7c458c37032a5a5829b823f01d7dee9df332"
+    },
+    "voice-manifest.json": {
+      "sha256": "f797320fbf4114284405f079b8df9a4b915de19093e876643ccb99d5eb168564"
+    }
+  },
+  "sourceAppCommitAtReportReview": "b3d64e102230b3ab67c88989f81b9217cc9a4ae1",
+  "sourceReport": {
+    "path": "E:/AII-3D/hiplab-releases/coach-v2-plus26-20261101/sdk-native-duration-repro.md",
+    "sha256": "3aa80f517eaa2ff15cfafb158c99c46cb769faa17931f19c2f9f4f97f03be9a3",
+    "phaseTableProvenance": "The report independently reconstructed its phase table; the new test executes SessionBuilder and SessionEngine to verify that table against the actual capture totals."
+  }
+}

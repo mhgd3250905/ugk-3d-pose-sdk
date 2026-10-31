@@ -27,6 +27,7 @@ import '../llm/llm_types.dart';
 import '../llm/openai_compatible_client.dart';
 import '../plan/coach_context.dart';
 import '../plan/plan_codec.dart';
+import '../plan/plan_execution_timing.dart';
 import '../plan/plan_issue.dart';
 import '../plan/plan_validator.dart';
 import '../plan/training_plan.dart';
@@ -251,6 +252,7 @@ class CoachAgent {
     this.maxHistoryChars = 40000,
     this.extraRules = const [],
     this.enforceDrillDoseRange = false,
+    this.executionTiming,
     this.enableUserMemory = true,
     UserMemoryStore? memoryStore,
     this.memoryLimits = const MemoryLimits(),
@@ -310,6 +312,15 @@ class CoachAgent {
   final int maxHistoryChars;
   final List<PlanRule> extraRules;
   final bool enforceDrillDoseRange;
+
+  /// Optional synchronous, pure, no-I/O measurement of the player's timeline.
+  ///
+  /// Use the same configured SessionBuilder as the player. When supplied, draft
+  /// fitting, feasible ranges and delivery require both this duration and card
+  /// duration to fit the target. A thrown/invalid result blocks delivery; it
+  /// never falls back to card duration. Null preserves the existing card-only
+  /// behavior. Manual-counting timelines remain labelled 估算.
+  final PlanExecutionTimingCallback? executionTiming;
 
   /// 用户记忆开关（运行时可切）。关闭时 remember / forget 工具、user-memory skill、记忆摘要都不出现。
   bool enableUserMemory;
@@ -985,6 +996,7 @@ class CoachAgent {
     canary: prompts.canary,
     extraRules: extraRules,
     enforceDrillDoseRange: enforceDrillDoseRange,
+    executionTiming: executionTiming,
   );
 
   ContextTurnLedger _completedLedger() =>
@@ -2036,6 +2048,7 @@ class CoachAgent {
         newPlanId: () => _ids.next('plan'),
         extraRules: extraRules,
         enforceDrillDoseRange: enforceDrillDoseRange,
+        executionTiming: executionTiming,
         files: fs,
       );
       final skills = SkillToolHandler(fs, readSet, reads, listed);
@@ -2401,6 +2414,23 @@ class CoachAgent {
         try {
           final receipt = jsonDecode(results[t.id]!);
           if (receipt is Map) {
+            final code = receipt['code'];
+            if ((t.name == AgentTools.draftPlan ||
+                    t.name == AgentTools.showPlan) &&
+                (code == 'execution_timing_callback_failed' ||
+                    code == 'invalid_execution_timing')) {
+              final actual = receipt['actual'];
+              final timingReason = actual is Map ? actual['reason'] : null;
+              error = PlanExecutionTimingException(
+                code: code as String,
+                reason: timingReason is String
+                    ? timingReason
+                    : 'invalid_measurement',
+              );
+              lastErrors = [PlanIssue(code, receipt['fix'] as String)];
+              reason = FallbackReason.invalidOutput;
+              toolFailure = true;
+            }
             final extraNotes = <String>[...?normalizedBatch.notes[t.id]];
             final feasibility = receipt['feasibility'];
             final needsRebuild =
@@ -2526,6 +2556,21 @@ class CoachAgent {
           for (var i = 0; i < orderedResults.length; i++)
             resultMessage(i, orderedResults[i]),
         ]);
+      // A model cannot repair a host callback or its invalid measurement.
+      // Return the safe explicit error without another model request, question
+      // or preset fallback. The failed candidate was never committed.
+      if (error is PlanExecutionTimingException) {
+        calls.add(
+          _Call.ok(
+            step,
+            res,
+            CallOutcome.rejected,
+            retry: tag,
+            codes: [for (final issue in lastErrors) issue.code],
+          ),
+        );
+        break agentSteps;
+      }
       if (terminalQuestion != null) {
         submissions++;
         final question = terminalQuestion;

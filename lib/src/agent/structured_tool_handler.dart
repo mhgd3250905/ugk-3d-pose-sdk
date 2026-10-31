@@ -5,6 +5,7 @@ library;
 import 'dart:convert';
 
 import '../catalog/catalog.dart';
+import '../plan/plan_execution_timing.dart';
 import '../plan/plan_validator.dart';
 import '../profile/coach_profile.dart';
 import 'action_search.dart';
@@ -53,6 +54,7 @@ class StructuredToolHandler {
     required this.newPlanId,
     this.extraRules = const [],
     this.enforceDrillDoseRange = false,
+    this.executionTiming,
     this.files,
   });
   final CoachProfile profile;
@@ -60,6 +62,7 @@ class StructuredToolHandler {
   final String Function() newPlanId;
   final List<PlanRule> extraRules;
   final bool enforceDrillDoseRange;
+  final PlanExecutionTimingCallback? executionTiming;
   final SkillFiles? files;
 
   Object? _decode(String raw) {

@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "id": "plan-1793418275537-2",
+  "source": "ai",
+  "title": "居家开胯入门",
+  "summary": "居家开胯入门",
+  "goal": "relax",
+  "scene": "home",
+  "equipment": [
+    "chair",
+    "mat"
+  ],
+  "level": 1,
+  "targetMinutes": 10,
+  "blocks": [
+    {
+      "id": "b1",
+      "name": "warmup",
+      "type": "warmup",
+      "rounds": 1,
+      "restBetweenRoundsSeconds": 0,
+      "items": [
+        {
+          "exerciseId": "n-pelvis-circle",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 4,
+          "perSide": false,
+          "restSeconds": 15
+        },
+        {
+          "exerciseId": "h-hip-gate",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 6,
+          "perSide": true,
+          "restSeconds": 15
+        },
+        {
+          "exerciseId": "h-butterfly-active",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 6,
+          "perSide": false,
+          "restSeconds": 15
+        }
+      ]
+    },
+    {
+      "id": "b2",
+      "name": "main",
+      "type": "main",
+      "rounds": 2,
+      "restBetweenRoundsSeconds": 0,
+      "items": [
+        {
+          "exerciseId": "s-9090",
+          "mode": "time",
+          "sets": 1,
+          "workSeconds": 20,
+          "perSide": true,
+          "restSeconds": 15
+        },
+        {
+          "exerciseId": "s-butterfly",
+          "mode": "time",
+          "sets": 1,
+          "workSeconds": 38,
+          "perSide": false,
+          "restSeconds": 15
+        },
+        {
+          "exerciseId": "o-seated-fig4",
+          "mode": "time",
+          "sets": 1,
+          "workSeconds": 15,
+          "perSide": true,
+          "restSeconds": 15
+        }
+      ]
+    },
+    {
+      "id": "b3",
+      "name": "cooldown",
+      "type": "cooldown",
+      "rounds": 1,
+      "restBetweenRoundsSeconds": 0,
+      "items": [
+        {
+          "exerciseId": "h-knee-hug",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 6,
+          "perSide": false,
+          "restSeconds": 15
+        },
+        {
+          "exerciseId": "h-supine-twist",
+          "mode": "time",
+          "sets": 1,
+          "workSeconds": 40,
+          "perSide": true,
+          "restSeconds": 15
+        }
+      ]
+    }
+  ],
+  "notes": [],
+  "safetyNotes": []
+}

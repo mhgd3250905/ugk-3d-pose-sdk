@@ -2453,9 +2453,14 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   /// (`第 2/3 组 · 左侧`, `左侧 · 30 秒`), else the block name (`热身`). Prep / rest / switch: the phase label · the
   /// dose coming up.
   String _subline(SessionPhase p, String label) {
+    String withRound(String text) => p.rounds > 1
+        ? [_s.roundOf(p.round, p.rounds), if (text.isNotEmpty) text].join(' · ')
+        : text;
     final item = p.item;
     final dose = item == null ? null : _dose(item, phase: p);
-    if (label.isNotEmpty) return dose == null ? label : '$label · $dose';
+    if (label.isNotEmpty) {
+      return withRound(dose == null ? label : '$label · $dose');
+    }
     final parts = <String>[
       if (p.sets > 1) _s.setOf(p.set, p.sets),
       if (p.side != null) _s.sideName(p.side!),
@@ -2465,13 +2470,13 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     // 完成本组 holds the transport slot (sdk-stage-r9). It leads, so a
     // narrow card ellipsizes the set / side, never the target.
     if (p.selfPaced && dose != null) {
-      return [dose, ...parts].join(' · ');
+      return withRound([dose, ...parts].join(' · '));
     }
     // Clock-counted sets show their dose at the transport.
     if (parts.length < 2 && dose != null && !p.countedOnClock) {
       parts.add(dose);
     }
-    return parts.isEmpty ? p.blockName : parts.join(' · ');
+    return withRound(parts.isEmpty ? p.blockName : parts.join(' · '));
   }
 
   /// Workout progress: one short segment per exercise (filled = done, tinted

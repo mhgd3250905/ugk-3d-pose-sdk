@@ -1,0 +1,151 @@
+{
+ "schema": "action-kit@1",
+ "id": "h-knee-hug",
+ "display": {
+  "name": {
+   "zh": "仰卧抱膝",
+   "en": "Supine knee hug"
+  },
+  "point": {
+   "zh": "双手抱膝，慢慢呼吸",
+   "en": "Hug your knees and breathe slowly"
+  },
+  "cautions": [
+   "髋前侧夹痛"
+  ],
+  "targets": [
+   "flexion"
+  ],
+  "methods": [
+   "relax"
+  ],
+  "level": "beginner",
+  "sided": false,
+  "firstSide": null,
+  "poster": {
+   "dark": "assets/drill_media/hip-h-knee-hug.jpg",
+   "light": "assets/drill_media/light/hip-h-knee-hug.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/h-knee-hug-r2.js",
+   "specSha256": "73db57f4a968ef93b49cad8dfa07838791f5a2808ae6d1add6b36b3f12ae3e2a"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-h-knee-hug.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 2.5
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-h-knee-hug.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 2.5,
+    "sha256": "fbdb81482d10af00f0758829d111c97eaf4228132016786bb19f8365280d43de",
+    "bytes": 455889
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "hug",
+  "reps": [
+   [
+    0.6,
+    2.01,
+    3.03,
+    3.88
+   ],
+   [
+    4.6,
+    6.01,
+    7.03,
+    7.88
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "rep_breath",
+  "unit": "reps",
+  "sided": false,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": 6,
+   "sets": 1,
+   "seconds": null,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "cycle": {
+   "seconds": 4.0,
+   "offset": 0.6,
+   "phases": [
+    {
+     "id": "go",
+     "seconds": 1.4,
+     "cue": "w.exhale_hug"
+    },
+    {
+     "id": "hold",
+     "seconds": 1.0
+    },
+    {
+     "id": "back",
+     "seconds": 0.85,
+     "cue": "w.inhale_release"
+    },
+    {
+     "id": "rest",
+     "seconds": 0.75
+    }
+   ],
+   "source": "measured: track 'hug' 3 %/97 % crossings, rep 1 of 2"
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.h-knee-hug": {
+    "zh": "仰卧抱膝",
+    "en": "Supine knee hug"
+   },
+   "point.h-knee-hug": {
+    "zh": "双手抱膝，慢慢呼吸",
+    "en": "Hug your knees and breathe slowly"
+   },
+   "w.exhale_hug": {
+    "zh": "呼气，抱紧",
+    "en": "Breathe out, hug in"
+   },
+   "w.inhale_release": {
+    "zh": "吸气，放松",
+    "en": "Breathe in, let go"
+   }
+  },
+  "prepare": [
+   "drill.h-knee-hug",
+   "point.h-knee-hug"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.nice",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": null,
+  "coach": [
+   "cue.relax.1",
+   "cue.relax.2"
+  ],
+  "midHold": null
+ },
+ "review": {
+  "why": "spec r2: 8 s / two breaths – hug on the exhale, release on the inhale",
+  "flags": []
+ }
+}

@@ -1,0 +1,1455 @@
+{
+  "format": "pose-hub-catalog",
+  "formatVersion": 1,
+  "version": "0.3.0",
+  "drills": [
+    {
+      "id": "h-reverse-crunch",
+      "nameZh": "反向卷腹",
+      "muscleGroups": [
+        "abs"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "rhythm": {
+        "fps": 30,
+        "frames": 240,
+        "durationSeconds": 8,
+        "coverFrame": 30,
+        "policy": "unchanged-frozen-source-motion",
+        "execution": {
+          "kind": "rep_updown",
+          "leadSeconds": 0.0,
+          "phases": [
+            {
+              "id": "go",
+              "seconds": 4.0
+            }
+          ],
+          "source": "repSeconds"
+        },
+        "executionStatus": "inherited-unreviewed",
+        "executionSource": {
+          "path": "catalog/catalog.json",
+          "actionId": "h-reverse-crunch",
+          "sha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983"
+        },
+        "videoLoopIsTrainingDose": false
+      },
+      "source": {
+        "branch": "codex/action-library-v2-production",
+        "commit": "960b486f2e2d64f431ab24299a94dfe925e0562b",
+        "spec": {
+          "path": "drill-anim/specs/h-reverse-crunch.js",
+          "sha256": "df6a0a0b2efcc3226c9cbe95d6da6257c18d4ab85e05e66625369dceb52d34b4"
+        },
+        "mediaSet": "formal-first-pass",
+        "model": {
+          "format": "pose-hub-production-model",
+          "formatVersion": 1,
+          "modelProfile": "training-human-v2plus",
+          "modelVersion": "1.0.0-rc2",
+          "alignClavicles": false,
+          "v2plus": {
+            "outfit": "compression",
+            "torso": "base",
+            "limbs": "base",
+            "hands": "base",
+            "skin": "realistic"
+          },
+          "head": "original-v2",
+          "adoption": "User selected the updated original appearance on 2026-10-21; local integration awaiting main approval. Colour skins remain optional.",
+          "id": "training-human-v2plus",
+          "version": "1.0.0-rc2",
+          "manifestSha256": "ec2bc815ded157dbc7673e283ed9b6bb1baa710a39ce3a02f88453e8d7fb0a1d"
+        }
+      },
+      "revision": "h-reverse-crunch",
+      "state": "ready-test-unreviewed",
+      "reviewed": false,
+      "releaseEligible": false,
+      "family": "h-reverse-crunch",
+      "muscleGroupsZh": "腹直肌（含深层腹横肌）",
+      "equipmentZh": "瑜伽垫",
+      "trainingDefinitionComplete": true,
+      "trainingSemantics": {
+        "status": "complete-unreviewed",
+        "reviewed": false,
+        "releaseEligible": false,
+        "batchId": "inherited-142",
+        "definitionComplete": true,
+        "missingRequiredFields": [],
+        "unknownFields": [],
+        "evidence": [
+          {
+            "path": "catalog/catalog.json",
+            "bytes": 581839,
+            "sha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983",
+            "actionId": "h-reverse-crunch",
+            "note": "Exact-ID inherited definition; historical approval is not transferred.",
+            "sourcePath": "catalog/catalog.json",
+            "root": "pack"
+          }
+        ],
+        "videoLoopIsTrainingDose": false
+      },
+      "purpose": "练腹部",
+      "category": "core",
+      "muscles": [
+        "腹直肌"
+      ],
+      "position": "supine",
+      "unilateral": false,
+      "level": 2,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 3,
+        "reps": 12,
+        "restSeconds": 30
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          4
+        ],
+        "reps": [
+          6,
+          18
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "仰卧屈膝抬腿",
+          "屈膝把骨盆卷离地面，慢慢放回",
+          "卷起骨盆，膝向胸口靠近"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [
+        "腰"
+      ],
+      "contraindications": [],
+      "alternative": "h-crunch",
+      "files": {
+        "video": {
+          "path": "media/h-reverse-crunch/h-reverse-crunch.rgb-alpha.mp4",
+          "bytes": 806645,
+          "sha256": "b007ee25dd75c38ffc757418d48c5333ce244db5dfce060d7cc327ba0933965e",
+          "width": 720,
+          "height": 1440,
+          "codec": "h264",
+          "pixelFormat": "yuv420p",
+          "assetName": "h-reverse-crunch.rgb-alpha.mp4",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/h-reverse-crunch/h-reverse-crunch.rgb-alpha.mp4"
+        },
+        "cover": {
+          "path": "media/h-reverse-crunch/h-reverse-crunch.cover.alpha.webp",
+          "bytes": 19498,
+          "sha256": "537576498e6b6561a867c205ef86c58399aff12569fb8282a54a09e804d670a9",
+          "width": 640,
+          "height": 640,
+          "alpha": true,
+          "assetName": "h-reverse-crunch.cover.alpha.webp",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/h-reverse-crunch/h-reverse-crunch.cover.alpha.webp"
+        },
+        "thumbnail": {
+          "path": "media/h-reverse-crunch/h-reverse-crunch.thumbnail.alpha.webp",
+          "bytes": 4652,
+          "sha256": "a9ea0d31e72d9940f09ca91f091aefb3313c84e0f1d584e28bd3f64051dc62a4",
+          "width": 192,
+          "height": 192,
+          "alpha": true,
+          "assetName": "h-reverse-crunch.thumbnail.alpha.webp",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/h-reverse-crunch/h-reverse-crunch.thumbnail.alpha.webp"
+        }
+      },
+      "qa": {
+        "report": {
+          "path": "qa/h-reverse-crunch/decode-check.json",
+          "bytes": 1700,
+          "sha256": "3beb97f3c2706201ba775d1319a824d3651676a2477ecb398c9d33b7f34388c1"
+        },
+        "metrics": {
+          "framesDecoded": 240,
+          "alphaMae": 0.06480350597993827,
+          "semiTransparentAlphaMae": 1.4563754355776302,
+          "visibleShadowAlphaMae": 1.2347510645772362,
+          "visibleShadowSamples": 2365493,
+          "transparentAlphaLeakMax": 47,
+          "compositeRgbMae": {
+            "white": 0.2644959946201989,
+            "dark": 0.23161822970250343,
+            "cyan": 0.2478556295010288
+          },
+          "semiTransparentCompositeRgbMae": {
+            "white": 1.8312284929414286,
+            "dark": 1.0296591586194046,
+            "cyan": 1.442690379754509
+          },
+          "sampleFrames": [
+            {
+              "frame": 0,
+              "semiTransparentPixels": 18552,
+              "visibleShadowPixels": 9846,
+              "alphaMae": 0.04881365740740741
+            },
+            {
+              "frame": 30,
+              "semiTransparentPixels": 19461,
+              "visibleShadowPixels": 10625,
+              "alphaMae": 0.07129436728395061
+            },
+            {
+              "frame": 239,
+              "semiTransparentPixels": 18508,
+              "visibleShadowPixels": 9846,
+              "alphaMae": 0.07482445987654321
+            }
+          ],
+          "framingPassed": true,
+          "framing": {
+            "sourceFramesChecked": 240,
+            "sourceEdgeFrames": {
+              "body": [],
+              "shadow": []
+            },
+            "sourceShadowComplete": true,
+            "sourceBodyComplete": true,
+            "framingPassed": true
+          },
+          "decodedBoundaryBandPixels": 12,
+          "decodedBoundaryAlphaMax": 0,
+          "decodeProtocol": "Decode tagged BT.709 limited-range video to full-range RGB; bottom red is straight alpha.",
+          "passed": true,
+          "referenceCache": {
+            "format": "pose-hub-alpha-reference-cache@1",
+            "bytes": 622080000,
+            "sha256": "f040ffade380287eddfce5aafe190dd91fa803103c708ce37328d7206025a60e",
+            "frames": 240,
+            "readVerified": true,
+            "reference": "exact pre-pack RGBA and visible-shadow mask generated during this encode"
+          }
+        }
+      },
+      "availableForApp": true,
+      "availableForTraining": true,
+      "name": {
+        "zh": "反向卷腹"
+      }
+    },
+    {
+      "id": "h-squat",
+      "nameZh": "徒手深蹲",
+      "muscleGroups": [
+        "quadriceps",
+        "glute-max"
+      ],
+      "equipment": [],
+      "rhythm": {
+        "fps": 30,
+        "frames": 240,
+        "durationSeconds": 8,
+        "coverFrame": 63,
+        "policy": "unchanged-frozen-source-motion",
+        "execution": {
+          "kind": "rep_updown",
+          "leadSeconds": 1.0,
+          "phases": [
+            {
+              "id": "go",
+              "seconds": 1.15,
+              "cue": "w.squat_down"
+            },
+            {
+              "id": "hold",
+              "seconds": 0.7
+            },
+            {
+              "id": "back",
+              "seconds": 1.1,
+              "cue": "w.stand_up"
+            },
+            {
+              "id": "rest",
+              "seconds": 1.05
+            }
+          ],
+          "reps": 8,
+          "source": "hiplab"
+        },
+        "executionStatus": "inherited-unreviewed",
+        "executionSource": {
+          "path": "catalog/catalog.json",
+          "actionId": "h-squat",
+          "sha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983"
+        },
+        "videoLoopIsTrainingDose": false
+      },
+      "source": {
+        "branch": "codex/action-library-v2-production",
+        "commit": "960b486f2e2d64f431ab24299a94dfe925e0562b",
+        "spec": {
+          "path": "drill-anim/specs/h-squat-r2.js",
+          "sha256": "7900bbd851ef7cf52caaca787c478ecbc621cde6cb93573a03f25368ee31464a"
+        },
+        "mediaSet": "b001",
+        "model": {
+          "format": "pose-hub-production-model",
+          "formatVersion": 1,
+          "modelProfile": "training-human-v2plus",
+          "modelVersion": "1.0.0-rc2",
+          "alignClavicles": false,
+          "v2plus": {
+            "outfit": "compression",
+            "torso": "base",
+            "limbs": "base",
+            "hands": "base",
+            "skin": "realistic"
+          },
+          "head": "original-v2",
+          "adoption": "User selected the updated original appearance on 2026-10-21; local integration awaiting main approval. Colour skins remain optional.",
+          "id": "training-human-v2plus",
+          "version": "1.0.0-rc2",
+          "manifestSha256": "ec2bc815ded157dbc7673e283ed9b6bb1baa710a39ce3a02f88453e8d7fb0a1d"
+        }
+      },
+      "revision": "h-squat-r3",
+      "state": "ready-test-unreviewed",
+      "reviewed": false,
+      "releaseEligible": false,
+      "family": "h-squat",
+      "muscleGroupsZh": "股四头肌、臀大肌",
+      "equipmentZh": "无额外器械",
+      "trainingDefinitionComplete": true,
+      "trainingSemantics": {
+        "status": "complete-unreviewed",
+        "reviewed": false,
+        "releaseEligible": false,
+        "batchId": "inherited-142",
+        "definitionComplete": true,
+        "missingRequiredFields": [],
+        "unknownFields": [],
+        "evidence": [
+          {
+            "path": "catalog/catalog.json",
+            "bytes": 581839,
+            "sha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983",
+            "actionId": "h-squat",
+            "note": "Exact-ID inherited definition; historical approval is not transferred.",
+            "sourcePath": "catalog/catalog.json",
+            "root": "pack"
+          }
+        ],
+        "videoLoopIsTrainingDose": false
+      },
+      "purpose": "练大腿前侧和臀部",
+      "category": "strength",
+      "muscles": [
+        "股四头肌",
+        "臀大肌"
+      ],
+      "position": "standing",
+      "unilateral": false,
+      "level": 1,
+      "scenes": [
+        "home",
+        "office"
+      ],
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 3,
+        "reps": 12,
+        "restSeconds": 30
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          4
+        ],
+        "reps": [
+          6,
+          18
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "脚略宽于髋，脚尖微外",
+          "臀部向后下坐，膝盖和脚尖同向"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [
+        "膝"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "sourceRevision": "h-squat-r2",
+      "mediaRevision": "h-squat-r3",
+      "repairReason": "Rebuild complete body/props/shadow framing across the entire cycle with transparent margins; source motion unchanged",
+      "files": {
+        "video": {
+          "path": "media/h-squat/h-squat-r3/h-squat.rgb-alpha.mp4",
+          "bytes": 1002257,
+          "sha256": "63acd5b00f6e058532448fdc2e55298459488e0981527261e21d1310247abf93",
+          "width": 720,
+          "height": 1440,
+          "codec": "h264",
+          "pixelFormat": "yuv420p",
+          "assetName": "h-squat.rgb-alpha.mp4",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/h-squat/h-squat-r3/h-squat.rgb-alpha.mp4"
+        },
+        "cover": {
+          "path": "media/h-squat/h-squat-r3/h-squat.cover.alpha.webp",
+          "bytes": 16364,
+          "sha256": "cd8e52226cc4d00cb6e038430953cc81aea7bba056c955c686367f5e0758f626",
+          "width": 640,
+          "height": 640,
+          "alpha": true,
+          "assetName": "h-squat.cover.alpha.webp",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/h-squat/h-squat-r3/h-squat.cover.alpha.webp"
+        },
+        "thumbnail": {
+          "path": "media/h-squat/h-squat-r3/h-squat.thumbnail.alpha.webp",
+          "bytes": 3600,
+          "sha256": "9161f13ebe729b7c48ca5bb5d69e55477804e9981d2e3feb534ae903672bb0b8",
+          "width": 192,
+          "height": 192,
+          "alpha": true,
+          "assetName": "h-squat.thumbnail.alpha.webp",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/h-squat/h-squat-r3/h-squat.thumbnail.alpha.webp"
+        }
+      },
+      "qa": {
+        "report": {
+          "path": "qa/h-squat/h-squat-r3/decode-check.json",
+          "bytes": 1237,
+          "sha256": "6ed9a7953f6692d36eac684d39b477cecdee24abef34aee54ec632155d37f27e"
+        },
+        "metrics": {
+          "framesDecoded": 240,
+          "alphaMae": 0.06414106706532922,
+          "semiTransparentAlphaMae": 1.5922841082517862,
+          "visibleShadowAlphaMae": 1.2724798155374877,
+          "visibleShadowSamples": 2253466,
+          "transparentAlphaLeakMax": 36,
+          "compositeRgbMae": {
+            "white": 0.1574277986754115,
+            "dark": 0.1315826287079904,
+            "cyan": 0.144410199116941
+          },
+          "semiTransparentCompositeRgbMae": {
+            "white": 2.1138956771316244,
+            "dark": 1.3723020201373424,
+            "cyan": 1.7600468653444004
+          },
+          "sampleFrames": [
+            {
+              "frame": 0,
+              "semiTransparentPixels": 16956,
+              "visibleShadowPixels": 10126,
+              "alphaMae": 0.046440972222222224
+            },
+            {
+              "frame": 239,
+              "semiTransparentPixels": 16963,
+              "visibleShadowPixels": 10131,
+              "alphaMae": 0.0709741512345679
+            }
+          ],
+          "framingPassed": true,
+          "framing": {
+            "sourceFramesChecked": 240,
+            "sourceEdgeFrames": {
+              "body": [],
+              "shadow": []
+            },
+            "sourceShadowComplete": true,
+            "sourceBodyComplete": true,
+            "framingPassed": true
+          },
+          "decodedBoundaryBandPixels": 12,
+          "decodedBoundaryAlphaMax": 0,
+          "decodeProtocol": "Decode tagged BT.709 limited-range video to full-range RGB; bottom red is straight alpha.",
+          "passed": true
+        }
+      },
+      "availableForApp": true,
+      "availableForTraining": true,
+      "name": {
+        "zh": "徒手深蹲"
+      }
+    },
+    {
+      "id": "h-wall-angel",
+      "nameZh": "靠墙天使",
+      "muscleGroups": [
+        "chest",
+        "lats",
+        "scapular"
+      ],
+      "equipment": [
+        "wall"
+      ],
+      "rhythm": {
+        "fps": 30,
+        "frames": 240,
+        "durationSeconds": 8,
+        "coverFrame": 60,
+        "policy": "unchanged-frozen-source-motion",
+        "execution": {
+          "kind": "rep_updown",
+          "leadSeconds": 0.0,
+          "phases": [
+            {
+              "id": "go",
+              "seconds": 4.0
+            }
+          ],
+          "source": "repSeconds"
+        },
+        "executionStatus": "inherited-unreviewed",
+        "executionSource": {
+          "path": "catalog/catalog.json",
+          "actionId": "h-wall-angel",
+          "sha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983"
+        },
+        "videoLoopIsTrainingDose": false
+      },
+      "source": {
+        "branch": "codex/action-library-v2-production",
+        "commit": "960b486f2e2d64f431ab24299a94dfe925e0562b",
+        "spec": {
+          "path": "drill-anim/specs/h-wall-angel.js",
+          "sha256": "82c1b94c4d7841041129a9be5a63a6c189850ae0b8eeb67fef582c13c0075efe"
+        },
+        "mediaSet": "formal-first-pass",
+        "model": {
+          "format": "pose-hub-production-model",
+          "formatVersion": 1,
+          "modelProfile": "training-human-v2plus",
+          "modelVersion": "1.0.0-rc2",
+          "alignClavicles": false,
+          "v2plus": {
+            "outfit": "compression",
+            "torso": "base",
+            "limbs": "base",
+            "hands": "base",
+            "skin": "realistic"
+          },
+          "head": "original-v2",
+          "adoption": "User selected the updated original appearance on 2026-10-21; local integration awaiting main approval. Colour skins remain optional.",
+          "id": "training-human-v2plus",
+          "version": "1.0.0-rc2",
+          "manifestSha256": "ec2bc815ded157dbc7673e283ed9b6bb1baa710a39ce3a02f88453e8d7fb0a1d"
+        }
+      },
+      "revision": "h-wall-angel-complete-alpha-r2",
+      "state": "ready-test-unreviewed",
+      "reviewed": false,
+      "releaseEligible": false,
+      "family": "h-wall-angel",
+      "muscleGroupsZh": "胸大肌、背阔肌、斜方肌中下部 · 菱形肌",
+      "equipmentZh": "墙",
+      "trainingDefinitionComplete": true,
+      "trainingSemantics": {
+        "status": "complete-unreviewed",
+        "reviewed": false,
+        "releaseEligible": false,
+        "batchId": "inherited-142",
+        "definitionComplete": true,
+        "missingRequiredFields": [],
+        "unknownFields": [],
+        "evidence": [
+          {
+            "path": "catalog/catalog.json",
+            "bytes": 581839,
+            "sha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983",
+            "actionId": "h-wall-angel",
+            "note": "Exact-ID inherited definition; historical approval is not transferred.",
+            "sourcePath": "catalog/catalog.json",
+            "root": "pack"
+          }
+        ],
+        "videoLoopIsTrainingDose": false
+      },
+      "purpose": "活动胸部、背部和上背",
+      "category": "mobility",
+      "muscles": [
+        "胸大肌",
+        "背阔肌",
+        "菱形肌·中下斜方"
+      ],
+      "position": "standing",
+      "unilateral": false,
+      "level": 1,
+      "scenes": [
+        "home",
+        "office"
+      ],
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 2,
+        "reps": 10,
+        "restSeconds": 10
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          3
+        ],
+        "reps": [
+          5,
+          15
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "背、头贴墙，手臂成 W",
+          "后背和手臂贴墙，慢慢向上滑再向下",
+          "手臂沿墙上滑，腰不离墙"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [
+        "肩"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "sourceRevision": "h-wall-angel",
+      "mediaRevision": "h-wall-angel-complete-alpha-r2",
+      "repairReason": "Technical complete person/equipment/cast-shadow framing and transparent margins; frozen source motion unchanged",
+      "files": {
+        "video": {
+          "path": "media/h-wall-angel/h-wall-angel-complete-alpha-r2/h-wall-angel.rgb-alpha.mp4",
+          "bytes": 189976,
+          "sha256": "1b2aac8146ae2dc20133de1b97988b0e982aed0223d62042836f6c7e7999af2e",
+          "width": 720,
+          "height": 1440,
+          "codec": "h264",
+          "pixelFormat": "yuv420p",
+          "assetName": "h-wall-angel.rgb-alpha.mp4",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/h-wall-angel/h-wall-angel-complete-alpha-r2/h-wall-angel.rgb-alpha.mp4"
+        },
+        "cover": {
+          "path": "media/h-wall-angel/h-wall-angel-complete-alpha-r2/h-wall-angel.cover.alpha.webp",
+          "bytes": 10382,
+          "sha256": "0b415107cacbbee7c4badd3b98e67c2e981f37ee597f8271d31a53a26249eb7b",
+          "width": 640,
+          "height": 640,
+          "alpha": true,
+          "assetName": "h-wall-angel.cover.alpha.webp",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/h-wall-angel/h-wall-angel-complete-alpha-r2/h-wall-angel.cover.alpha.webp"
+        },
+        "thumbnail": {
+          "path": "media/h-wall-angel/h-wall-angel-complete-alpha-r2/h-wall-angel.thumbnail.alpha.webp",
+          "bytes": 2678,
+          "sha256": "d2839774aa4c142b76c4251401a4f8d4e60ca8cdf69654f3499ff36e7937bd27",
+          "width": 192,
+          "height": 192,
+          "alpha": true,
+          "assetName": "h-wall-angel.thumbnail.alpha.webp",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/h-wall-angel/h-wall-angel-complete-alpha-r2/h-wall-angel.thumbnail.alpha.webp"
+        }
+      },
+      "qa": {
+        "report": {
+          "path": "qa/h-wall-angel/h-wall-angel-complete-alpha-r2/decode-check.json",
+          "bytes": 1701,
+          "sha256": "35a646f6cdaac03602f7dccfab95806fdd4f4e9aa6e726ed7f37ff643566143d"
+        },
+        "metrics": {
+          "framesDecoded": 240,
+          "alphaMae": 0.06879886831275721,
+          "semiTransparentAlphaMae": 0.9993324141690599,
+          "visibleShadowAlphaMae": 0.9679500617357629,
+          "visibleShadowSamples": 5981946,
+          "transparentAlphaLeakMax": 22,
+          "compositeRgbMae": {
+            "white": 0.2626610778892318,
+            "dark": 0.20818497352966392,
+            "cyan": 0.2412810088734568
+          },
+          "semiTransparentCompositeRgbMae": {
+            "white": 1.1106538707759164,
+            "dark": 0.286518192715983,
+            "cyan": 0.7983347722482385
+          },
+          "sampleFrames": [
+            {
+              "frame": 0,
+              "semiTransparentPixels": 32271,
+              "visibleShadowPixels": 24882,
+              "alphaMae": 0.07233989197530864
+            },
+            {
+              "frame": 60,
+              "semiTransparentPixels": 32895,
+              "visibleShadowPixels": 25877,
+              "alphaMae": 0.06551890432098766
+            },
+            {
+              "frame": 239,
+              "semiTransparentPixels": 32263,
+              "visibleShadowPixels": 24855,
+              "alphaMae": 0.0814332561728395
+            }
+          ],
+          "framingPassed": true,
+          "framing": {
+            "sourceFramesChecked": 240,
+            "sourceEdgeFrames": {
+              "body": [],
+              "shadow": []
+            },
+            "sourceShadowComplete": true,
+            "sourceBodyComplete": true,
+            "framingPassed": true
+          },
+          "decodedBoundaryBandPixels": 12,
+          "decodedBoundaryAlphaMax": 0,
+          "decodeProtocol": "Decode tagged BT.709 limited-range video to full-range RGB; bottom red is straight alpha.",
+          "passed": true,
+          "referenceCache": {
+            "format": "pose-hub-alpha-reference-cache@1",
+            "bytes": 622080000,
+            "sha256": "cd01624953b44c7391f5a7b35266a495ab78ac0643a81b699d9e90bdc8c2a356",
+            "frames": 240,
+            "readVerified": true,
+            "reference": "exact pre-pack RGBA and visible-shadow mask generated during this encode"
+          }
+        }
+      },
+      "availableForApp": true,
+      "availableForTraining": true,
+      "name": {
+        "zh": "靠墙天使"
+      }
+    },
+    {
+      "id": "s-butterfly",
+      "nameZh": "蝴蝶式",
+      "muscleGroups": [
+        "adductors"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "rhythm": {
+        "fps": 30,
+        "frames": 240,
+        "durationSeconds": 8,
+        "coverFrame": 114,
+        "policy": "unchanged-frozen-source-motion",
+        "execution": {
+          "kind": "hold",
+          "leadSeconds": 1.0,
+          "source": "hiplab"
+        },
+        "executionStatus": "inherited-unreviewed",
+        "executionSource": {
+          "path": "catalog/catalog.json",
+          "actionId": "s-butterfly",
+          "sha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983"
+        },
+        "videoLoopIsTrainingDose": false
+      },
+      "source": {
+        "branch": "codex/action-library-v2-production",
+        "commit": "960b486f2e2d64f431ab24299a94dfe925e0562b",
+        "spec": {
+          "path": "drill-anim/specs/s-butterfly-r2.js",
+          "sha256": "b654c107aeb5af5edeac580a2441915ee4f643cdc89f93ff5fc5a579367a0d87"
+        },
+        "mediaSet": "formal-first-pass",
+        "model": {
+          "format": "pose-hub-production-model",
+          "formatVersion": 1,
+          "modelProfile": "training-human-v2plus",
+          "modelVersion": "1.0.0-rc2",
+          "alignClavicles": false,
+          "v2plus": {
+            "outfit": "compression",
+            "torso": "base",
+            "limbs": "base",
+            "hands": "base",
+            "skin": "realistic"
+          },
+          "head": "original-v2",
+          "adoption": "User selected the updated original appearance on 2026-10-21; local integration awaiting main approval. Colour skins remain optional.",
+          "id": "training-human-v2plus",
+          "version": "1.0.0-rc2",
+          "manifestSha256": "ec2bc815ded157dbc7673e283ed9b6bb1baa710a39ce3a02f88453e8d7fb0a1d"
+        }
+      },
+      "revision": "s-butterfly-r2",
+      "state": "ready-test-unreviewed",
+      "reviewed": false,
+      "releaseEligible": false,
+      "family": "s-butterfly",
+      "muscleGroupsZh": "内收肌群",
+      "equipmentZh": "瑜伽垫",
+      "trainingDefinitionComplete": true,
+      "trainingSemantics": {
+        "status": "complete-unreviewed",
+        "reviewed": false,
+        "releaseEligible": false,
+        "batchId": "inherited-142",
+        "definitionComplete": true,
+        "missingRequiredFields": [],
+        "unknownFields": [],
+        "evidence": [
+          {
+            "path": "catalog/catalog.json",
+            "bytes": 581839,
+            "sha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983",
+            "actionId": "s-butterfly",
+            "note": "Exact-ID inherited definition; historical approval is not transferred.",
+            "sourcePath": "catalog/catalog.json",
+            "root": "pack"
+          }
+        ],
+        "videoLoopIsTrainingDose": false
+      },
+      "purpose": "拉伸大腿内侧",
+      "category": "stretch",
+      "muscles": [
+        "大腿内侧"
+      ],
+      "position": "seated",
+      "unilateral": false,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "time",
+        "sets": 1,
+        "seconds": 40,
+        "restSeconds": 10
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          2
+        ],
+        "seconds": [
+          20,
+          80
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "脚心对脚心，坐直，让膝盖自然落下",
+          "膝盖自然下落，不硬压"
+        ]
+      },
+      "primaryCue": 0,
+      "cautions": [
+        "大腿内侧"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "files": {
+        "video": {
+          "path": "media/s-butterfly/s-butterfly.rgb-alpha.mp4",
+          "bytes": 855104,
+          "sha256": "2df21e9aaf2dea5acfd16b4cb601563db909fdf0891aad80fef7037b4831418e",
+          "width": 720,
+          "height": 1440,
+          "codec": "h264",
+          "pixelFormat": "yuv420p",
+          "assetName": "s-butterfly.rgb-alpha.mp4",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/s-butterfly/s-butterfly.rgb-alpha.mp4"
+        },
+        "cover": {
+          "path": "media/s-butterfly/s-butterfly.cover.alpha.webp",
+          "bytes": 27214,
+          "sha256": "635d6606847d5d1efdae82e1ad07c12e556b414f317ee00c67f67ba2c4917b35",
+          "width": 640,
+          "height": 640,
+          "alpha": true,
+          "assetName": "s-butterfly.cover.alpha.webp",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/s-butterfly/s-butterfly.cover.alpha.webp"
+        },
+        "thumbnail": {
+          "path": "media/s-butterfly/s-butterfly.thumbnail.alpha.webp",
+          "bytes": 5432,
+          "sha256": "8fa2db79be34b0c27d7c94c112f1b9f0166e74ba98b2f9ca31b4589c721b5949",
+          "width": 192,
+          "height": 192,
+          "alpha": true,
+          "assetName": "s-butterfly.thumbnail.alpha.webp",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/s-butterfly/s-butterfly.thumbnail.alpha.webp"
+        }
+      },
+      "qa": {
+        "report": {
+          "path": "qa/s-butterfly/decode-check.json",
+          "bytes": 1698,
+          "sha256": "2c4b95b69f56741e36fa3e30c64c856a3aa1d7a927cb30ab1eadebebe29131b7"
+        },
+        "metrics": {
+          "framesDecoded": 240,
+          "alphaMae": 0.0873915412808642,
+          "semiTransparentAlphaMae": 1.2082542217202354,
+          "visibleShadowAlphaMae": 1.0453135425358353,
+          "visibleShadowSamples": 3349705,
+          "transparentAlphaLeakMax": 23,
+          "compositeRgbMae": {
+            "white": 0.5510141702031893,
+            "dark": 0.5151166436256859,
+            "cyan": 0.5335257469564472
+          },
+          "semiTransparentCompositeRgbMae": {
+            "white": 1.6068117019193424,
+            "dark": 1.06686174914289,
+            "cyan": 1.355811871772652
+          },
+          "sampleFrames": [
+            {
+              "frame": 0,
+              "semiTransparentPixels": 36601,
+              "visibleShadowPixels": 17607,
+              "alphaMae": 0.0852565586419753
+            },
+            {
+              "frame": 114,
+              "semiTransparentPixels": 28096,
+              "visibleShadowPixels": 11006,
+              "alphaMae": 0.07252121913580246
+            },
+            {
+              "frame": 239,
+              "semiTransparentPixels": 36567,
+              "visibleShadowPixels": 17602,
+              "alphaMae": 0.11601658950617284
+            }
+          ],
+          "framingPassed": true,
+          "framing": {
+            "sourceFramesChecked": 240,
+            "sourceEdgeFrames": {
+              "body": [],
+              "shadow": []
+            },
+            "sourceShadowComplete": true,
+            "sourceBodyComplete": true,
+            "framingPassed": true
+          },
+          "decodedBoundaryBandPixels": 12,
+          "decodedBoundaryAlphaMax": 0,
+          "decodeProtocol": "Decode tagged BT.709 limited-range video to full-range RGB; bottom red is straight alpha.",
+          "passed": true,
+          "referenceCache": {
+            "format": "pose-hub-alpha-reference-cache@1",
+            "bytes": 622080000,
+            "sha256": "2ed04a467416680dab7f4a1f0633de1a813a77fb9efc14e2ae6c21f66800804c",
+            "frames": 240,
+            "readVerified": true,
+            "reference": "exact pre-pack RGBA and visible-shadow mask generated during this encode"
+          }
+        }
+      },
+      "availableForApp": true,
+      "availableForTraining": true,
+      "name": {
+        "zh": "蝴蝶式"
+      }
+    },
+    {
+      "id": "s-kneel-hipflex",
+      "nameZh": "半跪髋屈肌拉伸",
+      "muscleGroups": [
+        "hip-flexors"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "rhythm": {
+        "fps": 30,
+        "frames": 240,
+        "durationSeconds": 8,
+        "coverFrame": 114,
+        "policy": "unchanged-frozen-source-motion",
+        "execution": {
+          "kind": "hold",
+          "leadSeconds": 1.0,
+          "source": "hiplab"
+        },
+        "executionStatus": "inherited-unreviewed",
+        "executionSource": {
+          "path": "catalog/catalog.json",
+          "actionId": "s-kneel-hipflex",
+          "sha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983"
+        },
+        "videoLoopIsTrainingDose": false
+      },
+      "source": {
+        "branch": "codex/action-library-v2-production",
+        "commit": "960b486f2e2d64f431ab24299a94dfe925e0562b",
+        "spec": {
+          "path": "drill-anim/specs/s-kneel-hipflex.js",
+          "sha256": "e5ce7dfa048f12a7ea8b7436e0af4972d179c6766652c98739f1438f85dafee2"
+        },
+        "mediaSet": "formal-first-pass",
+        "model": {
+          "format": "pose-hub-production-model",
+          "formatVersion": 1,
+          "modelProfile": "training-human-v2plus",
+          "modelVersion": "1.0.0-rc2",
+          "alignClavicles": false,
+          "v2plus": {
+            "outfit": "compression",
+            "torso": "base",
+            "limbs": "base",
+            "hands": "base",
+            "skin": "realistic"
+          },
+          "head": "original-v2",
+          "adoption": "User selected the updated original appearance on 2026-10-21; local integration awaiting main approval. Colour skins remain optional.",
+          "id": "training-human-v2plus",
+          "version": "1.0.0-rc2",
+          "manifestSha256": "ec2bc815ded157dbc7673e283ed9b6bb1baa710a39ce3a02f88453e8d7fb0a1d"
+        }
+      },
+      "revision": "s-kneel-hipflex",
+      "state": "ready-test-unreviewed",
+      "reviewed": false,
+      "releaseEligible": false,
+      "family": "s-kneel-hipflex",
+      "muscleGroupsZh": "髋屈肌",
+      "equipmentZh": "瑜伽垫",
+      "trainingDefinitionComplete": true,
+      "trainingSemantics": {
+        "status": "complete-unreviewed",
+        "reviewed": false,
+        "releaseEligible": false,
+        "batchId": "inherited-142",
+        "definitionComplete": true,
+        "missingRequiredFields": [],
+        "unknownFields": [],
+        "evidence": [
+          {
+            "path": "catalog/catalog.json",
+            "bytes": 581839,
+            "sha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983",
+            "actionId": "s-kneel-hipflex",
+            "note": "Exact-ID inherited definition; historical approval is not transferred.",
+            "sourcePath": "catalog/catalog.json",
+            "root": "pack"
+          }
+        ],
+        "videoLoopIsTrainingDose": false
+      },
+      "purpose": "拉伸髋前侧",
+      "category": "stretch",
+      "muscles": [
+        "髋屈肌"
+      ],
+      "position": "kneeling",
+      "unilateral": true,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "time",
+        "sets": 1,
+        "seconds": 30,
+        "restSeconds": 10
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          2
+        ],
+        "seconds": [
+          15,
+          60
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "半跪，躯干直立",
+          "后侧臀部收紧，髋慢慢往前推"
+        ]
+      },
+      "primaryCue": 1,
+      "cautions": [
+        "膝",
+        "腰"
+      ],
+      "contraindications": [],
+      "alternative": null,
+      "files": {
+        "video": {
+          "path": "media/s-kneel-hipflex/s-kneel-hipflex.rgb-alpha.mp4",
+          "bytes": 602980,
+          "sha256": "490d810629f3d041d52cafc15a4cd0e55c841e6f4540a27c1f99dfba0e54fdac",
+          "width": 720,
+          "height": 1440,
+          "codec": "h264",
+          "pixelFormat": "yuv420p",
+          "assetName": "s-kneel-hipflex.rgb-alpha.mp4",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/s-kneel-hipflex/s-kneel-hipflex.rgb-alpha.mp4"
+        },
+        "cover": {
+          "path": "media/s-kneel-hipflex/s-kneel-hipflex.cover.alpha.webp",
+          "bytes": 16642,
+          "sha256": "363f0c527ba69dcfed0bd156d3a14d482428e7972762a19e64b6b9baa216e39c",
+          "width": 640,
+          "height": 640,
+          "alpha": true,
+          "assetName": "s-kneel-hipflex.cover.alpha.webp",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/s-kneel-hipflex/s-kneel-hipflex.cover.alpha.webp"
+        },
+        "thumbnail": {
+          "path": "media/s-kneel-hipflex/s-kneel-hipflex.thumbnail.alpha.webp",
+          "bytes": 4012,
+          "sha256": "5eea0aae2d8bc4cf0d69f326640d8ba0e7cff2998385d5ef13eaff4a966781a9",
+          "width": 192,
+          "height": 192,
+          "alpha": true,
+          "assetName": "s-kneel-hipflex.thumbnail.alpha.webp",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/s-kneel-hipflex/s-kneel-hipflex.thumbnail.alpha.webp"
+        }
+      },
+      "qa": {
+        "report": {
+          "path": "qa/s-kneel-hipflex/decode-check.json",
+          "bytes": 1704,
+          "sha256": "408da5b1215db8f5d0cc6fe88173a48fe0010da7ca086561dd9c8cb6599a184c"
+        },
+        "metrics": {
+          "framesDecoded": 240,
+          "alphaMae": 0.04659829121656379,
+          "semiTransparentAlphaMae": 1.2666010913044734,
+          "visibleShadowAlphaMae": 1.043418138709884,
+          "visibleShadowSamples": 1342918,
+          "transparentAlphaLeakMax": 43,
+          "compositeRgbMae": {
+            "white": 0.17180012752914953,
+            "dark": 0.1555349151234568,
+            "cyan": 0.16303961441186557
+          },
+          "semiTransparentCompositeRgbMae": {
+            "white": 1.9381467205648337,
+            "dark": 1.4457682119401636,
+            "cyan": 1.6889332913828896
+          },
+          "sampleFrames": [
+            {
+              "frame": 0,
+              "semiTransparentPixels": 15168,
+              "visibleShadowPixels": 5750,
+              "alphaMae": 0.037640817901234566
+            },
+            {
+              "frame": 114,
+              "semiTransparentPixels": 14861,
+              "visibleShadowPixels": 5475,
+              "alphaMae": 0.041861496913580244
+            },
+            {
+              "frame": 239,
+              "semiTransparentPixels": 15184,
+              "visibleShadowPixels": 5747,
+              "alphaMae": 0.056809413580246916
+            }
+          ],
+          "framingPassed": true,
+          "framing": {
+            "sourceFramesChecked": 240,
+            "sourceEdgeFrames": {
+              "body": [],
+              "shadow": []
+            },
+            "sourceShadowComplete": true,
+            "sourceBodyComplete": true,
+            "framingPassed": true
+          },
+          "decodedBoundaryBandPixels": 12,
+          "decodedBoundaryAlphaMax": 0,
+          "decodeProtocol": "Decode tagged BT.709 limited-range video to full-range RGB; bottom red is straight alpha.",
+          "passed": true,
+          "referenceCache": {
+            "format": "pose-hub-alpha-reference-cache@1",
+            "bytes": 622080000,
+            "sha256": "8969a0a1d808fee860b3715665e7c1f8289157b4095af132753ef93845b6ab39",
+            "frames": 240,
+            "readVerified": true,
+            "reference": "exact pre-pack RGBA and visible-shadow mask generated during this encode"
+          }
+        }
+      },
+      "availableForApp": true,
+      "availableForTraining": true,
+      "name": {
+        "zh": "半跪髋屈肌拉伸"
+      }
+    },
+    {
+      "id": "w-dead-bug",
+      "nameZh": "死虫式",
+      "muscleGroups": [
+        "abs"
+      ],
+      "equipment": [
+        "mat"
+      ],
+      "rhythm": {
+        "fps": 30,
+        "frames": 240,
+        "durationSeconds": 8,
+        "coverFrame": 56,
+        "policy": "unchanged-frozen-source-motion",
+        "execution": {
+          "kind": "rep_updown",
+          "leadSeconds": 0.0,
+          "phases": [
+            {
+              "id": "go",
+              "seconds": 3.0
+            }
+          ],
+          "source": "repSeconds"
+        },
+        "executionStatus": "inherited-unreviewed",
+        "executionSource": {
+          "path": "catalog/catalog.json",
+          "actionId": "w-dead-bug",
+          "sha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983"
+        },
+        "videoLoopIsTrainingDose": false
+      },
+      "source": {
+        "branch": "codex/action-library-v2-production",
+        "commit": "960b486f2e2d64f431ab24299a94dfe925e0562b",
+        "spec": {
+          "path": "drill-anim/specs/w-dead-bug-r2.js",
+          "sha256": "3f9a007890add3f27f3f7871a6050eba2a4eb81d704d161a237b592c7ed42b4d"
+        },
+        "mediaSet": "pilot-r2",
+        "model": {
+          "format": "pose-hub-production-model",
+          "formatVersion": 1,
+          "modelProfile": "training-human-v2plus",
+          "modelVersion": "1.0.0-rc2",
+          "alignClavicles": false,
+          "v2plus": {
+            "outfit": "compression",
+            "torso": "base",
+            "limbs": "base",
+            "hands": "base",
+            "skin": "realistic"
+          },
+          "head": "original-v2",
+          "adoption": "User selected the updated original appearance on 2026-10-21; local integration awaiting main approval. Colour skins remain optional.",
+          "id": "training-human-v2plus",
+          "version": "1.0.0-rc2",
+          "manifestSha256": "ec2bc815ded157dbc7673e283ed9b6bb1baa710a39ce3a02f88453e8d7fb0a1d"
+        }
+      },
+      "revision": "w-dead-bug-r2",
+      "state": "ready-test-unreviewed",
+      "reviewed": false,
+      "releaseEligible": false,
+      "family": "w-dead-bug",
+      "muscleGroupsZh": "腹直肌（含深层腹横肌）",
+      "equipmentZh": "瑜伽垫",
+      "trainingDefinitionComplete": true,
+      "trainingSemantics": {
+        "status": "complete-unreviewed",
+        "reviewed": false,
+        "releaseEligible": false,
+        "batchId": "inherited-142",
+        "definitionComplete": true,
+        "missingRequiredFields": [],
+        "unknownFields": [],
+        "evidence": [
+          {
+            "path": "catalog/catalog.json",
+            "bytes": 581839,
+            "sha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983",
+            "actionId": "w-dead-bug",
+            "note": "Exact-ID inherited definition; historical approval is not transferred.",
+            "sourcePath": "catalog/catalog.json",
+            "root": "pack"
+          }
+        ],
+        "videoLoopIsTrainingDose": false
+      },
+      "purpose": "练腹部",
+      "category": "core",
+      "muscles": [
+        "腹直肌"
+      ],
+      "position": "supine",
+      "unilateral": false,
+      "level": 1,
+      "scenes": [
+        "home"
+      ],
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 3,
+        "reps": 10,
+        "restSeconds": 30
+      },
+      "doseRange": {
+        "sets": [
+          1,
+          4
+        ],
+        "reps": [
+          5,
+          15
+        ],
+        "restSeconds": [
+          0,
+          60
+        ]
+      },
+      "cues": {
+        "zh": [
+          "下背紧贴地面，对侧手脚慢慢伸远",
+          "对侧手脚慢慢下放，腰不离地"
+        ]
+      },
+      "primaryCue": 0,
+      "cautions": [],
+      "contraindications": [],
+      "alternative": null,
+      "files": {
+        "video": {
+          "path": "media/w-dead-bug/w-dead-bug.rgb-alpha.mp4",
+          "bytes": 910169,
+          "sha256": "19ff9ba3af2937a8d8f764b6f222983e15574c62894319829668f2aa3214540d",
+          "width": 720,
+          "height": 1440,
+          "codec": "h264",
+          "pixelFormat": "yuv420p",
+          "assetName": "w-dead-bug.rgb-alpha.mp4",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/w-dead-bug/w-dead-bug.rgb-alpha.mp4"
+        },
+        "cover": {
+          "path": "media/w-dead-bug/w-dead-bug.cover.alpha.webp",
+          "bytes": 20726,
+          "sha256": "5301251c968632b7eb5adbf3b4fd2a1f5b003670f6e14ef0d10e6a7636053a7f",
+          "width": 640,
+          "height": 640,
+          "alpha": true,
+          "assetName": "w-dead-bug.cover.alpha.webp",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/w-dead-bug/w-dead-bug.cover.alpha.webp"
+        },
+        "thumbnail": {
+          "path": "media/w-dead-bug/w-dead-bug.thumbnail.alpha.webp",
+          "bytes": 4598,
+          "sha256": "af3cccac0dcf3ba208ff76991bf721f4e90a3cc3c2eddc974b9e2342a31ffd87",
+          "width": 192,
+          "height": 192,
+          "alpha": true,
+          "assetName": "w-dead-bug.thumbnail.alpha.webp",
+          "downloadUrl": "https://media.uuugk.win/pack/r1-v3/media/w-dead-bug/w-dead-bug.thumbnail.alpha.webp"
+        }
+      },
+      "qa": {
+        "report": {
+          "path": "qa/w-dead-bug/decode-check.json",
+          "bytes": 1687,
+          "sha256": "dc96b84610b20449d6b7da3b55e9154af13c1c3114c00269d766705ea2342d60"
+        },
+        "metrics": {
+          "framesDecoded": 240,
+          "alphaMae": 0.06376334233539095,
+          "semiTransparentAlphaMae": 1.4226593108382344,
+          "visibleShadowAlphaMae": 0.9618748190509704,
+          "visibleShadowSamples": 1523219,
+          "transparentAlphaLeakMax": 34,
+          "compositeRgbMae": {
+            "white": 0.21697629458161866,
+            "dark": 0.19690956147119343,
+            "cyan": 0.20411688475222908
+          },
+          "semiTransparentCompositeRgbMae": {
+            "white": 1.94366075829603,
+            "dark": 1.4450368044378432,
+            "cyan": 1.6430774710202947
+          },
+          "sampleFrames": [
+            {
+              "frame": 0,
+              "semiTransparentPixels": 19086,
+              "visibleShadowPixels": 8497,
+              "alphaMae": 0.048152006172839504
+            },
+            {
+              "frame": 56,
+              "semiTransparentPixels": 14467,
+              "visibleShadowPixels": 3085,
+              "alphaMae": 0.045071373456790124
+            },
+            {
+              "frame": 239,
+              "semiTransparentPixels": 19068,
+              "visibleShadowPixels": 8515,
+              "alphaMae": 0.08
+            }
+          ],
+          "framingPassed": true,
+          "framing": {
+            "sourceFramesChecked": 240,
+            "sourceEdgeFrames": {
+              "body": [],
+              "shadow": []
+            },
+            "sourceShadowComplete": true,
+            "sourceBodyComplete": true,
+            "framingPassed": true
+          },
+          "decodedBoundaryBandPixels": 12,
+          "decodedBoundaryAlphaMax": 0,
+          "decodeProtocol": "Decode tagged BT.709 limited-range video to full-range RGB; bottom red is straight alpha.",
+          "passed": true,
+          "referenceCache": {
+            "format": "pose-hub-alpha-reference-cache@1",
+            "bytes": 622080000,
+            "sha256": "690cbfd2cdd892785daf5f30c3ed95ebe92d63b58fada0fa4807953a57fd6398",
+            "frames": 240,
+            "readVerified": true,
+            "reference": "exact pre-pack RGBA and visible-shadow mask generated during this encode"
+          }
+        }
+      },
+      "availableForApp": true,
+      "availableForTraining": true,
+      "name": {
+        "zh": "死虫式"
+      }
+    }
+  ]
+}

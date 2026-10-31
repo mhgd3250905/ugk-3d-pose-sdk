@@ -286,11 +286,15 @@ class PlanDuration {
     var first = true;
     for (final b in p.blocks) {
       for (var r = 0; r < b.rounds; r++) {
+        var firstInRound = true;
         for (final i in b.items) {
           final d = c[i.exerciseId];
           if (d == null) continue;
-          if (!first) total += transitionSeconds;
+          // The round rest already replaces the transition into its first
+          // action, just as in SessionBuilder. Do not charge both pauses.
+          if (!first && (r == 0 || !firstInRound)) total += transitionSeconds;
           first = false;
+          firstInRound = false;
           final sides = i.perSide ? 2 : 1;
           final work = i.segments.isEmpty
               ? (i.mode == DoseMode.reps ? (i.reps ?? 10) * repSeconds(d) : (i.workSeconds ?? 30).toDouble())

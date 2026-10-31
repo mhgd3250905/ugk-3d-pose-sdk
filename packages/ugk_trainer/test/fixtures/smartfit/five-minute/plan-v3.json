@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "id": "ext:saved-1793278048881673",
+  "source": "ai",
+  "title": "5分钟徒手全身计划",
+  "summary": "只读复现用的已保存计划，非模型本轮生成。",
+  "goal": "relax",
+  "scene": "home",
+  "equipment": [
+    "wall",
+    "mat"
+  ],
+  "level": 1,
+  "targetMinutes": 5,
+  "blocks": [
+    {
+      "id": "main",
+      "name": "主训练",
+      "type": "main",
+      "rounds": 1,
+      "restBetweenRoundsSeconds": 0,
+      "items": [
+        {
+          "exerciseId": "h-squat",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 9,
+          "perSide": false,
+          "restSeconds": 15
+        },
+        {
+          "exerciseId": "h-wall-angel",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 10,
+          "perSide": false,
+          "restSeconds": 15
+        },
+        {
+          "exerciseId": "w-dead-bug",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 10,
+          "perSide": false,
+          "restSeconds": 30
+        },
+        {
+          "exerciseId": "h-reverse-crunch",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 12,
+          "perSide": false,
+          "restSeconds": 15
+        },
+        {
+          "exerciseId": "s-butterfly",
+          "mode": "time",
+          "sets": 1,
+          "workSeconds": 40,
+          "perSide": false,
+          "restSeconds": 15
+        },
+        {
+          "exerciseId": "s-kneel-hipflex",
+          "mode": "time",
+          "sets": 1,
+          "workSeconds": 30,
+          "perSide": true,
+          "restSeconds": 15
+        }
+      ]
+    }
+  ],
+  "notes": [],
+  "safetyNotes": []
+}

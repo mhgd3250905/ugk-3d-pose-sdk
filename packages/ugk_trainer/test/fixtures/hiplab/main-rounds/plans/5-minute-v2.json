@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "id": "plan-1793418275537-2",
+  "source": "ai",
+  "title": "大腿内侧开胯短练",
+  "summary": "大腿内侧开胯短练",
+  "goal": "relax",
+  "scene": "home",
+  "equipment": [
+    "mat",
+    "wall",
+    "chair"
+  ],
+  "level": 1,
+  "targetMinutes": 5,
+  "blocks": [
+    {
+      "id": "b1",
+      "name": "warmup",
+      "type": "warmup",
+      "rounds": 1,
+      "restBetweenRoundsSeconds": 0,
+      "items": [
+        {
+          "exerciseId": "h-adductor-rock",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 5,
+          "perSide": true,
+          "restSeconds": 15
+        }
+      ]
+    },
+    {
+      "id": "b2",
+      "name": "main",
+      "type": "main",
+      "rounds": 2,
+      "restBetweenRoundsSeconds": 0,
+      "items": [
+        {
+          "exerciseId": "s-butterfly",
+          "mode": "time",
+          "sets": 1,
+          "workSeconds": 20,
+          "perSide": false,
+          "restSeconds": 15
+        },
+        {
+          "exerciseId": "h-wall-straddle",
+          "mode": "time",
+          "sets": 1,
+          "workSeconds": 45,
+          "perSide": false,
+          "restSeconds": 15
+        }
+      ]
+    },
+    {
+      "id": "b3",
+      "name": "cooldown",
+      "type": "cooldown",
+      "rounds": 1,
+      "restBetweenRoundsSeconds": 0,
+      "items": [
+        {
+          "exerciseId": "n-wide-fold",
+          "mode": "time",
+          "sets": 1,
+          "workSeconds": 40,
+          "perSide": false,
+          "restSeconds": 15
+        }
+      ]
+    }
+  ],
+  "notes": [],
+  "safetyNotes": []
+}

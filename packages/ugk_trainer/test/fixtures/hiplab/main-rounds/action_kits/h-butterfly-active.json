@@ -1,0 +1,153 @@
+{
+ "schema": "action-kit@1",
+ "id": "h-butterfly-active",
+ "display": {
+  "name": {
+   "zh": "仰卧蝴蝶主动开合",
+   "en": "Active supine butterfly"
+  },
+  "point": {
+   "zh": "脚心相对，膝盖慢慢打开再收回",
+   "en": "Soles together, open the knees slowly and bring them back"
+  },
+  "cautions": [
+   "内收肌根"
+  ],
+  "targets": [
+   "external_rotation",
+   "abduction",
+   "adduction"
+  ],
+  "methods": [
+   "control"
+  ],
+  "level": "beginner",
+  "sided": false,
+  "firstSide": null,
+  "poster": {
+   "dark": "assets/drill_media/hip-h-butterfly-active.jpg",
+   "light": "assets/drill_media/light/hip-h-butterfly-active.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/h-butterfly-active.js",
+   "specSha256": "58be080dfcac5075cb466e7c990e4b1a171da4bc77fb652a6b8865131ff13bb5"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-h-butterfly-active.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 2.3
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-h-butterfly-active.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 2.3,
+    "sha256": "1accf72ff6537b5b4e330f0caf60f438895793b9092828b19bea387cfdb5f3fa",
+    "bytes": 757123
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "open",
+  "reps": [
+   [
+    0.4,
+    1.81,
+    2.74,
+    3.67
+   ],
+   [
+    4.4,
+    5.81,
+    6.74,
+    7.67
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "rep_updown",
+  "unit": "reps",
+  "sided": false,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": 6,
+   "sets": 1,
+   "seconds": null,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "cycle": {
+   "seconds": 4.0,
+   "offset": 0.4,
+   "phases": [
+    {
+     "id": "go",
+     "seconds": 1.4,
+     "cue": "w.open"
+    },
+    {
+     "id": "hold",
+     "seconds": 0.95
+    },
+    {
+     "id": "back",
+     "seconds": 0.95,
+     "cue": "w.close"
+    },
+    {
+     "id": "rest",
+     "seconds": 0.7
+    }
+   ],
+   "source": "measured: track 'open' 3 %/97 % crossings, rep 1 of 2"
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.h-butterfly-active": {
+    "zh": "仰卧蝴蝶主动开合",
+    "en": "Active supine butterfly"
+   },
+   "point.h-butterfly-active": {
+    "zh": "脚心相对，膝盖慢慢打开再收回",
+    "en": "Soles together, open the knees slowly and bring them back"
+   },
+   "w.open": {
+    "zh": "打开",
+    "en": "Open"
+   },
+   "w.close": {
+    "zh": "合拢",
+    "en": "Close"
+   }
+  },
+  "prepare": [
+   "drill.h-butterfly-active",
+   "point.h-butterfly-active"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.nice",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": null,
+  "coach": [
+   "cue.control.1",
+   "cue.control.2"
+  ],
+  "midHold": null
+ },
+ "review": {
+  "why": "spec: 2 reps / 8 s: 1.8 s open, 0.6 s hold, 1.2 s close",
+  "flags": []
+ }
+}

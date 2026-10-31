@@ -1,5 +1,7 @@
 # ugk_coach · 三 App 共用的 AI 训练助理 SDK
 
+main 多轮执行、轮间估时修正及 HipLab / SF 原稿对账见[main rounds 修复](docs/main-rounds.md)。
+
 新增的任务摘要、生成卡片、交付过渡、讨论标签与训练滑动路由见
 [Coach UI Kit 接入](docs/coach-ui-kit.md)。原有组件继续保持默认行为。
 

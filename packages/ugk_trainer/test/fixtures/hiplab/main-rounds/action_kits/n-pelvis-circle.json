@@ -1,0 +1,146 @@
+{
+ "schema": "action-kit@1",
+ "id": "n-pelvis-circle",
+ "display": {
+  "name": {
+   "zh": "站姿骨盆画圈",
+   "en": "Standing pelvic circles"
+  },
+  "point": {
+   "zh": "双脚不动，骨盆慢慢画圈",
+   "en": "Feet still, draw slow circles with your pelvis"
+  },
+  "cautions": [],
+  "targets": [
+   "flexion",
+   "extension",
+   "abduction",
+   "adduction"
+  ],
+  "methods": [
+   "relax"
+  ],
+  "level": "beginner",
+  "sided": false,
+  "firstSide": null,
+  "poster": {
+   "dark": "assets/drill_media/hip-n-pelvis-circle.jpg",
+   "light": "assets/drill_media/light/hip-n-pelvis-circle.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/n-pelvis-circle.js",
+   "specSha256": "5e1e140167ac622a79c2874e5957b1bb1f12799d26e4950857b36c32e4690381"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-n-pelvis-circle.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 1.1
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-n-pelvis-circle.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 1.1,
+    "sha256": "251768aab6f451749b40d9c63e97c56d47212e9cf5c43058da545b070f6c75cd",
+    "bytes": 318598
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "circle",
+  "reps": [
+   [
+    0.02,
+    0.59,
+    7.42,
+    8.0
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "rep_cycle",
+  "unit": "reps",
+  "sided": false,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": 4,
+   "sets": 1,
+   "seconds": null,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "cycle": {
+   "seconds": 8.0,
+   "offset": 0.0,
+   "phases": [
+    {
+     "id": "go",
+     "seconds": 3.6,
+     "cue": "w.pelvis_one_way"
+    },
+    {
+     "id": "rest",
+     "seconds": 0.4
+    },
+    {
+     "id": "back",
+     "seconds": 3.6,
+     "cue": "w.pelvis_other_way"
+    },
+    {
+     "id": "rest",
+     "seconds": 0.4
+    }
+   ],
+   "source": "training parameters (kit_rules phases)"
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.n-pelvis-circle": {
+    "zh": "站姿骨盆画圈",
+    "en": "Standing pelvic circles"
+   },
+   "point.n-pelvis-circle": {
+    "zh": "双脚不动，骨盆慢慢画圈",
+    "en": "Feet still, draw slow circles with your pelvis"
+   },
+   "w.pelvis_one_way": {
+    "zh": "顺着画一圈",
+    "en": "Circle one way"
+   },
+   "w.pelvis_other_way": {
+    "zh": "反着画一圈",
+    "en": "Now the other way"
+   }
+  },
+  "prepare": [
+   "drill.n-pelvis-circle",
+   "point.n-pelvis-circle"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.nice",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": null,
+  "coach": [
+   "cue.relax.1",
+   "cue.relax.2"
+  ],
+  "midHold": null
+ },
+ "review": {
+  "why": "spec: circle 0.2–3.8 s, other way 4.2–7.8 s; \"正反各 N 圈\" = N counts",
+  "flags": []
+ }
+}

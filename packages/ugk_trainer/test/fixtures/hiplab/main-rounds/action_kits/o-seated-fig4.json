@@ -1,0 +1,119 @@
+{
+ "schema": "action-kit@1",
+ "id": "o-seated-fig4",
+ "display": {
+  "name": {
+   "zh": "坐姿四字前压",
+   "en": "Seated figure four"
+  },
+  "point": {
+   "zh": "脚踝搭在膝盖上，背挺直往前压",
+   "en": "Ankle on the knee, keep the back straight and lean forward"
+  },
+  "cautions": [
+   "膝"
+  ],
+  "targets": [
+   "external_rotation"
+  ],
+  "methods": [
+   "flexibility"
+  ],
+  "level": "beginner",
+  "sided": true,
+  "firstSide": "right",
+  "poster": {
+   "dark": "assets/drill_media/hip-o-seated-fig4.jpg",
+   "light": "assets/drill_media/light/hip-o-seated-fig4.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/o-seated-fig4.js",
+   "specSha256": "66a147a7da04a444f705bcd3e2fd23788a1349c533847bba9f1a36ae32a0ac48"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-o-seated-fig4.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 3.8
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-o-seated-fig4.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 3.8,
+    "sha256": "87719bfcdfe642d5b28333308f310fe0d301e64a4bcf01e1ec396bc02cdd775f",
+    "bytes": 395496
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "open",
+  "reps": [
+   [
+    0.65,
+    3.45,
+    4.16,
+    6.96
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "hold",
+  "unit": "seconds",
+  "sided": true,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": null,
+   "sets": 1,
+   "seconds": 25,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "hold": {
+   "entrySeconds": 2.8
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.o-seated-fig4": {
+    "zh": "坐姿四字前压",
+    "en": "Seated figure four"
+   },
+   "point.o-seated-fig4": {
+    "zh": "脚踝搭在膝盖上，背挺直往前压",
+    "en": "Ankle on the knee, keep the back straight and lean forward"
+   }
+  },
+  "prepare": [
+   "drill.o-seated-fig4",
+   "point.o-seated-fig4"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.release",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": "p.right_first",
+  "coach": [
+   "cue.flexibility.1",
+   "cue.flexibility.2"
+  ],
+  "midHold": {
+   "half": "p.half",
+   "last10": "p.last10",
+   "countdown": 5
+  }
+ },
+ "review": {
+  "why": "static stretch",
+  "flags": []
+ }
+}

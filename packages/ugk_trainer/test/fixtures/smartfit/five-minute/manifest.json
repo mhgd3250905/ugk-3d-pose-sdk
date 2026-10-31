@@ -1,0 +1,88 @@
+{
+  "description": "Exact real-model edited SmartFit five-minute v3 accepted by the SDK, retained separately from the main-rounds bug fixtures.",
+  "sourceAppCommit": "94e924fe287770f56d4e8ceeedd521e2871267da",
+  "sourceAppCheckout": "E:/AII-3D/3D-Sport-AI/Sport-Helper-plan-focus",
+  "sourceSdkCommit": "b490eec43b408a8a35ce81a7830833bc6a3ff278",
+  "sourceCapture": {
+    "path": "E:/AII-3D/3D-Sport-AI/deliveries/plan-focus-plus43/live/turns.json",
+    "sha256": "8c4e11b02d266e94210ac78bee9f8e47fe85b70058704691be7644e39dbb9ef2",
+    "jsonPointer": "/2/displayMessages/1/plan",
+    "matchingSnapshotPointer": "/2/snapshot/sessionState/plans/ext:saved-1793278048881673/2/plan"
+  },
+  "sourceCardSummary": {
+    "path": "E:/AII-3D/3D-Sport-AI/deliveries/plan-focus-plus43/live-summary.json",
+    "sha256": "85f8eb720d3df7ce5c0ada4ed2ee01c2f1521569e97cd2660af068be253dcfb9",
+    "jsonPointer": "/2/estimateSec"
+  },
+  "sourceCatalog": {
+    "path": "E:/AII-3D/3D-Sport-AI/deliveries/feedback-r1-part1-plus37-r2/pub-cache/git/ugk-3d-pose-sdk-b490eec43b408a8a35ce81a7830833bc6a3ff278/packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json",
+    "sha256": "75881cf91621c967f80732f0219f23e85b35e8bde5d1a51ee75dec5f7c5edd36",
+    "bytes": 2896158,
+    "projection": "SDK PoseHubAppTestCatalog.fromBytes(originalPackBytes).toAiCatalog().raw, selecting only the exact six drill objects used by this plan. No canonical semantic catalog argument was supplied, as in the original CoachV2Fixtures.load."
+  },
+  "sourceAppFiles": {
+    "test/support/coach_v2_fixtures.dart": "8e7f5d82d8a5e7fa872f0dbde932834a0b7b81fb41b5e81ee0687fe854471bda",
+    "lib/app/app_test_content.dart": "cb4069b622911f7dd431d813f0d1896c5eedeed772708397a5d98d29ce343ece",
+    "lib/domain/session.dart": "5be2100379b4b7cc493e0227d3895371021b26c66551757353107b29de5318ee",
+    "lib/ui/player_page.dart": "b7b545408a4b6dc5f7d3a2e4f59688b535f6cc976f43219e4c66cc1dbe56fec9"
+  },
+  "plan": {
+    "file": "plan-v3.json",
+    "version": 3,
+    "targetSeconds": 300,
+    "capturedCardEstimateSeconds": 313,
+    "sourcePlanCanonicalSha256": "26a4abffed84b078f0958c53ae69c6f05ec59376c48d2cb487828fcfd312a4d2",
+    "sourceLineage": "The model edited an imported diagnostic saved plan. Its inherited summary explicitly describes that seed and remains unchanged. This is not a new from-scratch plan or a personal device/session export."
+  },
+  "nativeReplay": {
+    "hostPrepSeconds": 10,
+    "expectedPlanSecondsExcludingPrep": 335,
+    "expectedTotalSecondsIncludingPrep": 345,
+    "expectedOccurrences": 6,
+    "rounds": 1,
+    "executionRhythms": "AppTestContent._executionRhythm reads each raw drill.rhythm.execution and supplies Rhythm.fromJson as rhythmsFromCatalog overrides; these six drills have no defaultDose.holdSeconds override. TrainerPlayer and the App session adapter use the default 10-second prep.",
+    "cadenceDifferenceSeconds": {
+      "h-squat": 10,
+      "h-wall-angel": 10,
+      "h-reverse-crunch": 12
+    },
+    "cadenceDifferenceExplanation": "The captured AI projection has no assets.videos.repSeconds; Coach therefore estimates counted reps at its 3-second default. Actual execution uses squat 4-second cycles with a one-second lead, wall-angel and reverse-crunch 4-second cycles, dead-bug 3-second cycles. The 32-second difference predates and is unaffected by the main-round fix.",
+    "modelRequests": 0,
+    "deviceOperated": false
+  },
+  "preservation": "The plan is semantically identical to both original capture locations. Catalog objects are the actual SDK AI projection, retaining all raw action metadata plus the SDK-projected name. No user turns, conversation state, requests or credentials are included. Original unreviewed/release flags are retained.",
+  "drills": {
+    "h-reverse-crunch": {
+      "sourceActionCanonicalSha256": "74c54b6922af4203a5be29d717088578520b885e1aa8c9a3cff735ecde2f9afe",
+      "sourceProjectedDrillCanonicalSha256": "f219053247b7b355fdcf000dcb51eb5f34bd3ca761267342532f15afbe98c9bb"
+    },
+    "h-squat": {
+      "sourceActionCanonicalSha256": "9416f91d8ce12dcde03159bc75455301871deae48c0967b51b3749ae5859cbca",
+      "sourceProjectedDrillCanonicalSha256": "5a5ea3a0905252374104f7deb2479215ff5021ef899bf84b965f50c85ed513df"
+    },
+    "h-wall-angel": {
+      "sourceActionCanonicalSha256": "053bf62ecfdff1606523c74383bf9e1fdcf757ec40ade165e657a4887c8152ad",
+      "sourceProjectedDrillCanonicalSha256": "a9975f3eb1aef47ab5ab57162a0097a37714e3c36e47808d9d65e440f30e7010"
+    },
+    "s-butterfly": {
+      "sourceActionCanonicalSha256": "a356bd100a7a95c8df9a7ca9a407585d8205d42c8fb945b6c1cc4570155ca4a1",
+      "sourceProjectedDrillCanonicalSha256": "762d468dc68cd269f29881f9bbc4caef232932657d0459f6bcb886b27f670731"
+    },
+    "s-kneel-hipflex": {
+      "sourceActionCanonicalSha256": "3dd2511c99e18c1dd51d9304645c8c117c3f18f2893974315cff17a412b7def2",
+      "sourceProjectedDrillCanonicalSha256": "fad0bea0c1cf340f4003ddbd8ff192b8b1aa531369a0690bb33d528c274daf8d"
+    },
+    "w-dead-bug": {
+      "sourceActionCanonicalSha256": "b31e8e2ee9eecd9a7ef07b31f98153adebaea08f0408b04ca6fe4e90b6c5c4c1",
+      "sourceProjectedDrillCanonicalSha256": "f9c3aec4effd7fc422703e32d28a9094ed6398e2cdfdbb02a2cb57b275a61310"
+    }
+  },
+  "files": {
+    "plan-v3.json": {
+      "sha256": "67d833cd2fdbdb9559cf13428f2ca27bfccfc1b7d6e4ec927c333fc8ccbeb994"
+    },
+    "catalog.json": {
+      "sha256": "f344448585875b57a1b8329354eaaef204ad5196152c0c84a4e4e93cb1fa29b6"
+    }
+  }
+}

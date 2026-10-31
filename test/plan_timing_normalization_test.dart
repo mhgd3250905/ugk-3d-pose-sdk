@@ -137,7 +137,8 @@ void main() {
       expect(step['before'], 1);
       expect(step['after'], 2);
       expect(step['beforeEstimatedSec'], 110);
-      expect(step['afterEstimatedSec'], 240);
+      // 240 -> 225: the round rest replaces, rather than adds to, transition.
+      expect(step['afterEstimatedSec'], 225);
       final restored = CoachSessionState.fromJson(
         jsonDecode(jsonEncode(result.state.toJson())) as Map<String, Object?>,
       );
@@ -147,7 +148,7 @@ void main() {
   test(
     'an interior integer-dose gap delivers heuristic best, with its error and no duration rejection',
     () {
-      // Legal endpoints 110/240 straddle 180; neither meets ±10%. This is not
+      // Legal endpoints 110/225 straddle 180; neither meets ±10%. This is not
       // interval impossibility and must not be sent back as a model mistake.
       final result = builder.draft(
         ready(
@@ -162,8 +163,9 @@ void main() {
       expect(result.ok, isTrue);
       expect(result.planId, 'p');
       expect(result.feasibility, isNull);
-      expect(result.state.plans['p']!.single.estimateSec, 240);
-      expect(result.durationErrorPercent, closeTo(100 / 3, .001));
+      // One repeated boundary no longer contributes an extra 15 seconds.
+      expect(result.state.plans['p']!.single.estimateSec, 225);
+      expect(result.durationErrorPercent, closeTo(25, .001));
       expect(result.toJson()['withinTolerance'], isFalse);
     },
   );
@@ -188,7 +190,8 @@ void main() {
       expect(result.ok, isTrue);
       expect(result.feasibility, isNull);
       expect(result.planId, 'broad');
-      expect(result.state.plans['broad']!.single.estimateSec, 500);
+      // Four searched rounds have three boundaries: 500 - 3 * 15 = 455.
+      expect(result.state.plans['broad']!.single.estimateSec, 455);
       expect(result.durationErrorPercent, greaterThan(10));
     },
   );
@@ -212,7 +215,8 @@ void main() {
     expect(result.ok, isTrue);
     expect(result.feasibility!['reason'], 'maximum_below_target');
     expect(result.feasibility!['minEstimatedSec'], 110);
-    expect(result.feasibility!['maxEstimatedSec'], 640);
+    // Two rounds of three 100-second sets + 10 prep + one 15-second rest.
+    expect(result.feasibility!['maxEstimatedSec'], 625);
     expect(result.planId, isNull);
   });
   test(

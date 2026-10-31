@@ -1,5 +1,8 @@
 # ugk_trainer 0.4.2
 
+main 块现按 rounds 整块重复，保留每轮分组、双侧与分段；轮间休息沿用原 circuit 口径。
+接入无 API 变化，真实计划重放与期望值审计见[main rounds 修复](../../docs/main-rounds.md)。
+
 新增 TrainerSlideRoute 的 gate、滑动退场和保存失败恢复接入见
 [Coach UI Kit](../../docs/coach-ui-kit.md)。原有路由选择和播放器默认行为保持不变。
 

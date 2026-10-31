@@ -1,0 +1,120 @@
+{
+ "schema": "action-kit@1",
+ "id": "n-wide-fold",
+ "display": {
+  "name": {
+   "zh": "站姿宽距体前屈（扶椅/扶砖）",
+   "en": "Wide-stance forward fold"
+  },
+  "point": {
+   "zh": "双脚分开，扶住椅子，从髋部往前折",
+   "en": "Feet wide, hold the chair, fold from the hips"
+  },
+  "cautions": [
+   "腰"
+  ],
+  "targets": [
+   "abduction",
+   "flexion"
+  ],
+  "methods": [
+   "flexibility"
+  ],
+  "level": "beginner",
+  "sided": false,
+  "firstSide": null,
+  "poster": {
+   "dark": "assets/drill_media/hip-n-wide-fold.jpg",
+   "light": "assets/drill_media/light/hip-n-wide-fold.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/n-wide-fold.js",
+   "specSha256": "94f49696bdc8a7464ed3cf1ccaf2180220229da07d1deeccad05aaa8a1834452"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-n-wide-fold.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 3.0
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-n-wide-fold.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 3.0,
+    "sha256": "e379f1808697215a26217d1f31a29c89973739d87751415dbf7a898756ecbcc9",
+    "bytes": 763009
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "fold",
+  "reps": [
+   [
+    0.74,
+    2.37,
+    4.85,
+    6.56
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "hold",
+  "unit": "seconds",
+  "sided": false,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": null,
+   "sets": 1,
+   "seconds": 40,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "hold": {
+   "entrySeconds": 1.65
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.n-wide-fold": {
+    "zh": "站姿宽距体前屈（扶椅/扶砖）",
+    "en": "Wide-stance forward fold"
+   },
+   "point.n-wide-fold": {
+    "zh": "双脚分开，扶住椅子，从髋部往前折",
+    "en": "Feet wide, hold the chair, fold from the hips"
+   }
+  },
+  "prepare": [
+   "drill.n-wide-fold",
+   "point.n-wide-fold"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.release",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": null,
+  "coach": [
+   "cue.flexibility.1",
+   "cue.flexibility.2"
+  ],
+  "midHold": {
+   "half": "p.half",
+   "last10": "p.last10",
+   "countdown": 5
+  }
+ },
+ "review": {
+  "why": "static stretch",
+  "flags": []
+ }
+}

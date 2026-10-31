@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:test/test.dart';
 import 'package:ugk_coach/src/agent/agent_task.dart';
+import 'package:ugk_coach/src/agent/plan_builder.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
@@ -282,61 +283,67 @@ void main() {
     expect(changed.state.task!.nodes.last.status, 'pending');
   });
 
+  CoachSessionState staleSegmentedState(int minutes) {
+    final old = state();
+    final plan = {
+      ...old.plans['p']!.last.plan,
+      'equipment': <String>[],
+      'blocks': [
+        {
+          'id': 'b1',
+          'name': '分段训练',
+          'type': 'main',
+          'rounds': 1,
+          'restBetweenRoundsSeconds': 0,
+          'items': [
+            {
+              'exerciseId': 'n-windshield',
+              'mode': 'reps',
+              'sets': 6,
+              'reps': 8,
+              'perSide': false,
+              'restSeconds': 10,
+              'segments': [
+                {
+                  'id': 'work',
+                  'exerciseId': 'h-squat',
+                  'mode': 'reps',
+                  'reps': 12,
+                  'label': '保留动作节奏',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    return old.copyWith(
+      params: {
+        ...old.params,
+        'minutes': param(minutes),
+        'goal': param(['purpose.strength']),
+      },
+      picks: ['h-squat'],
+      seenActionIds: {'h-squat'},
+      plans: {
+        'p': [
+          CoachPlanVersion(
+            version: 1,
+            plan: plan,
+            estimateSec: 625,
+            fitLog: const [],
+          ),
+        ],
+      },
+    );
+  }
+
   test(
     'stale segmented card is re-timed without flattening or an extra question',
     () {
-      final old = state();
-      final plan = {
-        ...old.plans['p']!.last.plan,
-        'equipment': <String>[],
-        'blocks': [
-          {
-            'id': 'b1',
-            'name': '分段训练',
-            'type': 'main',
-            'rounds': 1,
-            'restBetweenRoundsSeconds': 0,
-            'items': [
-              {
-                'exerciseId': 'n-windshield',
-                'mode': 'reps',
-                'sets': 6,
-                'reps': 8,
-                'perSide': false,
-                'restSeconds': 10,
-                'segments': [
-                  {
-                    'id': 'work',
-                    'exerciseId': 'h-squat',
-                    'mode': 'reps',
-                    'reps': 12,
-                    'label': '保留动作节奏',
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      };
-      final source = old.copyWith(
-        params: {
-          ...old.params,
-          'minutes': param(7),
-          'goal': param(['purpose.strength']),
-        },
-        picks: ['h-squat'],
-        seenActionIds: {'h-squat'},
-        plans: {
-          'p': [
-            CoachPlanVersion(
-              version: 1,
-              plan: plan,
-              estimateSec: 625,
-              fitLog: const [],
-            ),
-          ],
-        },
-      );
+      // Keep this as a genuine within-10% success fixture. The old 7-minute
+      // target now lands at 479 seconds; 8 minutes remains attainable at 479.
+      final source = staleSegmentedState(8);
       final changed = showPlan(source);
       expect(
         changed.ok,
@@ -345,17 +352,55 @@ void main() {
       );
       expect(changed.needsUserChoice, isFalse);
       final delivered = changed.card!.plan!.plan;
-      expect(delivered.targetMinutes, 7);
+      expect(delivered.targetMinutes, 8);
       expect(delivered.blocks.single.id, 'b1');
       expect(delivered.items.single.exerciseId, 'n-windshield');
       expect(
         delivered.items.single.segments.single.toJson(),
-        const PlanCodec().decode(plan).items.single.segments.single.toJson(),
+        const PlanCodec()
+            .decode(source.plans['p']!.last.plan)
+            .items
+            .single
+            .segments
+            .single
+            .toJson(),
       );
       expect(delivered.equipment, isEmpty);
       final seconds = const PlanDuration().estimateSeconds(delivered, catalog);
-      expect((seconds - 420).abs() / 420, lessThanOrEqualTo(.1));
+      expect(seconds, 479);
+      expect((seconds - 480).abs() / 480, lessThanOrEqualTo(.1));
       expect(changed.state.plans['p']!.last.estimateSec, seconds);
+    },
+  );
+
+  test(
+    'the original seven-minute segmented refit reports its heuristic gap',
+    () {
+      final source = staleSegmentedState(7);
+      final saved = const PlanCodec().decode(source.plans['p']!.last.plan);
+      final refitted = PlanBuilder(
+        profile,
+        catalog,
+        minPicks: profile.minActions,
+      ).refit(source, saved);
+      expect(refitted.ok, isTrue);
+      expect(refitted.feasibility, isNull);
+      expect(refitted.state.plans['p']!.last.estimateSec, 479);
+      expect(refitted.durationErrorPercent, closeTo(59 / 420 * 100, 1e-9));
+      expect(refitted.toJson()['withinTolerance'], isFalse);
+
+      final changed = showPlan(source);
+      expect(changed.ok, isTrue);
+      expect(changed.needsUserChoice, isFalse);
+      final delivered = changed.card!.plan!.plan;
+      expect(delivered.targetMinutes, 7);
+      expect(
+        delivered.items.single.segments.single.toJson(),
+        saved.items.single.segments.single.toJson(),
+      );
+      expect(const PlanDuration().estimateSeconds(delivered, catalog), 479);
+      expect(changed.notices, contains('配时误差 14.0%。'));
+      expect(source.plans['p']!.single.version, 1);
     },
   );
 

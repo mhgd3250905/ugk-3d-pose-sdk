@@ -317,7 +317,7 @@ class SessionScript {
         VoiceCall.next,
         id,
         p.segment?.toPlanItem(p.item!) ?? p.item!,
-        withSets: p.rounds == 0,
+        withSets: p.rounds == 0 || p.sets > 1,
       );
       final cues = cueKeys(id);
       // The dose matters more than the point: never drop it to make room.

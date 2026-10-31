@@ -1,0 +1,130 @@
+{
+  "description": "Two unmodified real HipLab Coach Agent v2 plans that exposed Trainer ignoring main.rounds=2.",
+  "sourceSdkCommit": "66dd98a549c1ff5fedecb626a7c88583090a1440",
+  "sourceAppCommit": "d0a0181d22d8eb1c4f6c774ebe02b2d8c3ffbfa9",
+  "sourceAppCheckout": "E:/AII-3D/3D-Hip-worktrees/coach-v2/3D-Hip",
+  "sourceCapture": {
+    "path": "E:/AII-3D/hiplab-releases/coach-v2-20261031/live/results.json",
+    "sha256": "579c23a032212510492fc6dd9be1e0fdc99ece93ea71ce6b27ff4a3bd68d7999"
+  },
+  "sourceCatalog": {
+    "path": "assets/coach/catalog.json",
+    "sha256": "e3a82ee49833b8f7baf626f0eeb033cfa53429105ac13eaaab12560067269c9f",
+    "transformation": "Retain original metadata and exact drill objects for the union of exerciseIds in the two plans; exclude other drills."
+  },
+  "sourceNativeMetrics": {
+    "path": "E:/AII-3D/hiplab-releases/coach-v2-20261031/live/native-metrics.json",
+    "sha256": "29493bb14f3c79ca839f7fa7475430e2eded5221cf6bf65e348b57b19c6f3c84"
+  },
+  "sourceSummary": {
+    "path": "E:/AII-3D/hiplab-releases/coach-v2-20261031/live/summary.json",
+    "sha256": "cc2c0789bd5e9a7302dc98696a348984a2ea4d30c6a16108f926bf776441041e"
+  },
+  "nativeReplay": {
+    "source": "tools/coach/coach_v2_native_metrics.dart",
+    "rhythms": "Rhythm.fromActionKitJson applied to each original raw action-kit JSON",
+    "prepSeconds": 15,
+    "modelRequests": 0,
+    "deviceOperated": false,
+    "timingNote": "historicalNativePlanSeconds excludes prep; cardEstimateSeconds already includes the Coach default 10-second prep. Native timings are offline schedules, not device measurements."
+  },
+  "preservation": "Plans preserve every captured field and dose. Kits are byte-for-byte source copies. Catalog drill objects are unchanged; only drills outside the plans are removed. No conversation state, requests, credentials or private probe content is included.",
+  "cases": [
+    {
+      "file": "plans/10-minute-v1.json",
+      "sourceCaseIndex": 0,
+      "sourceJsonPointer": "/cases/0/plan",
+      "planVersion": 1,
+      "targetSeconds": 600,
+      "cardEstimateSeconds": 629.0,
+      "historicalNativePlanSeconds": 446,
+      "historicalNativeOccurrences": 8,
+      "nativePrepSeconds": 15,
+      "historicalNativeTotalSeconds": 461,
+      "expectedOccurrences": 11,
+      "sourcePlanCanonicalSha256": "4cd32925452f957230f7b390252947879c18072a90c7c0d081e6c159a1818460"
+    },
+    {
+      "file": "plans/5-minute-v2.json",
+      "sourceCaseIndex": 2,
+      "sourceJsonPointer": "/cases/2/plan",
+      "planVersion": 2,
+      "targetSeconds": 300,
+      "cardEstimateSeconds": 315.0,
+      "historicalNativePlanSeconds": 197,
+      "historicalNativeOccurrences": 4,
+      "nativePrepSeconds": 15,
+      "historicalNativeTotalSeconds": 212,
+      "expectedOccurrences": 6,
+      "sourcePlanCanonicalSha256": "fe9ac5907e7d3f7f46b2269f301bcfd97a9f2ab6e2350d923d84eca76e2170f3"
+    }
+  ],
+  "exerciseIds": [
+    "h-adductor-rock",
+    "h-butterfly-active",
+    "h-hip-gate",
+    "h-knee-hug",
+    "h-supine-twist",
+    "h-wall-straddle",
+    "n-pelvis-circle",
+    "n-wide-fold",
+    "o-seated-fig4",
+    "s-9090",
+    "s-butterfly"
+  ],
+  "files": {
+    "plans/10-minute-v1.json": {
+      "sha256": "f24f8c0be573b79bffb6c198b6155f5a171b17f7e6d346e9a706f7cf57dfe03e"
+    },
+    "plans/5-minute-v2.json": {
+      "sha256": "b70ac0a1acd9c8e735aee72f15a0d32d0cdcf4fad287e54171cc2debbf7f853d"
+    },
+    "catalog.json": {
+      "sha256": "6e3aa70b4f4c8e6bdf1f7ef34cefd5312e09a7103a0fbc6edebaae036477a1af"
+    },
+    "action_kits/h-adductor-rock.json": {
+      "sha256": "d2c9051d33d3552c698d3688b163e152613968470a1002689e2e617eaa847cef",
+      "sourcePath": "assets/action_kits/h-adductor-rock.json"
+    },
+    "action_kits/h-butterfly-active.json": {
+      "sha256": "517a62549b26b4ee18c4e8b90d0e8c1bab4932e87d5ebb294494d75c4748ea1e",
+      "sourcePath": "assets/action_kits/h-butterfly-active.json"
+    },
+    "action_kits/h-hip-gate.json": {
+      "sha256": "6c17057c9f54ff67a04e277f0f4400c8d13c7d9ec1307c99b4a6d3cca6bc871d",
+      "sourcePath": "assets/action_kits/h-hip-gate.json"
+    },
+    "action_kits/h-knee-hug.json": {
+      "sha256": "e87adb13ebe13fe397f26f64b98e2215bdca6f03c1c3df1a449bcda6cea8b848",
+      "sourcePath": "assets/action_kits/h-knee-hug.json"
+    },
+    "action_kits/h-supine-twist.json": {
+      "sha256": "6bb0039d2b0cf452f801ab33df65242db2a9236543e3f782dfb87bad2c5db952",
+      "sourcePath": "assets/action_kits/h-supine-twist.json"
+    },
+    "action_kits/h-wall-straddle.json": {
+      "sha256": "7fb21d1b5ebeb945499b4ec63bb9fbbb4937c5757c9dcec92ce87a10ded48520",
+      "sourcePath": "assets/action_kits/h-wall-straddle.json"
+    },
+    "action_kits/n-pelvis-circle.json": {
+      "sha256": "a5d0dfd63e04a3330f7d4cc0e3b17f9c2f72da07852597b8ec6bf9a21d309a16",
+      "sourcePath": "assets/action_kits/n-pelvis-circle.json"
+    },
+    "action_kits/n-wide-fold.json": {
+      "sha256": "5380e5e2430c8db7dfc1831f33ab02f089ee9364f2731a62277961bea69235c8",
+      "sourcePath": "assets/action_kits/n-wide-fold.json"
+    },
+    "action_kits/o-seated-fig4.json": {
+      "sha256": "556fa50c39b773747a9474dc52f1d9e6fc9d0f02d7ffdc1c201190a7f5b42b9a",
+      "sourcePath": "assets/action_kits/o-seated-fig4.json"
+    },
+    "action_kits/s-9090.json": {
+      "sha256": "46d67083124f9f1f7a425ef5b559b85001ebe936f96ddf1396cd979da9267825",
+      "sourcePath": "assets/action_kits/s-9090.json"
+    },
+    "action_kits/s-butterfly.json": {
+      "sha256": "60cd0fb7c5a6488266da6a70cf05b19c7e12e091f1013b22b56be4e7b479a0d4",
+      "sourcePath": "assets/action_kits/s-butterfly.json"
+    }
+  }
+}

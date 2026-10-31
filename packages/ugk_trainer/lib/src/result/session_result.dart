@@ -81,7 +81,7 @@ enum ItemStatus { completed, partial, skipped, notReached }
 /// Optional, user-reported feeling selected on the completion page.
 enum TrainingFeeling { easy, justRight, tired, uncomfortable }
 
-/// One plan item (a circuit item over all its rounds).
+/// One plan item, including every main/circuit round in its block.
 class ItemResult {
   const ItemResult({
     required this.exerciseId,
@@ -318,7 +318,10 @@ class SessionRecorder {
     for (final (bi, b) in plan.blocks.indexed) {
       final circuit = b.type == BlockType.circuit && b.rounds > 1;
       for (final (ii, item) in b.items.indexed) {
-        final planned = circuit ? b.rounds : item.sets;
+        final mainRounds = b.type == BlockType.main && b.rounds > 1
+            ? b.rounds
+            : 1;
+        final planned = circuit ? b.rounds : item.sets * mainRounds;
         final mine = engine.visits.where(
           (v) => v.phase.blockIndex == bi && v.phase.itemInBlock == ii,
         );

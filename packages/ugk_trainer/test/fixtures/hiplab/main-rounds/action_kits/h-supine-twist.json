@@ -1,0 +1,126 @@
+{
+ "schema": "action-kit@1",
+ "id": "h-supine-twist",
+ "display": {
+  "name": {
+   "zh": "仰卧屈膝扭转",
+   "en": "Supine bent-knee twist"
+  },
+  "point": {
+   "zh": "双膝倒向一侧，肩膀贴地",
+   "en": "Drop both knees to one side, shoulders stay down"
+  },
+  "cautions": [
+   "腰"
+  ],
+  "targets": [
+   "adduction",
+   "internal_rotation"
+  ],
+  "methods": [
+   "relax"
+  ],
+  "level": "beginner",
+  "sided": true,
+  "firstSide": "right",
+  "poster": {
+   "dark": "assets/drill_media/hip-h-supine-twist.jpg",
+   "light": "assets/drill_media/light/hip-h-supine-twist.jpg"
+  }
+ },
+ "media": {
+  "poseHub": {
+   "version": "0.2.0",
+   "spec": "drill-anim/specs/h-supine-twist-r2.js",
+   "specSha256": "14103d9993b464853abb2502345f60bb83c2a52ecfa7ee7456b81d14385a4299"
+  },
+  "video": {
+   "dark": {
+    "asset": "assets/drill_media/hip-h-supine-twist.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 2.3
+   },
+   "light": {
+    "asset": "assets/drill_media/light/hip-h-supine-twist.mp4",
+    "loopSeconds": 8.0,
+    "posterTime": 2.3,
+    "sha256": "1581847d1903c6084167ca1b56cb1b8877f454a29728022fa78c988a6cd98cb4",
+    "bytes": 543817
+   }
+  }
+ },
+ "animation": {
+  "loopSeconds": 8,
+  "track": "tw",
+  "reps": [
+   [
+    0.46,
+    1.55,
+    3.03,
+    3.88
+   ],
+   [
+    4.46,
+    5.55,
+    7.03,
+    7.88
+   ]
+  ],
+  "source": "Pose-Hub spec timeline (measured)"
+ },
+ "training": {
+  "kind": "hold",
+  "unit": "seconds",
+  "sided": true,
+  "leadSeconds": 1.0,
+  "defaults": {
+   "reps": null,
+   "sets": 1,
+   "seconds": 40,
+   "holdSeconds": null,
+   "restSeconds": 15
+  },
+  "hold": {
+   "entrySeconds": 1.1
+  }
+ },
+ "voice": {
+  "lines": {
+   "drill.h-supine-twist": {
+    "zh": "仰卧屈膝扭转",
+    "en": "Supine bent-knee twist"
+   },
+   "point.h-supine-twist": {
+    "zh": "双膝倒向一侧，肩膀贴地",
+    "en": "Drop both knees to one side, shoulders stay down"
+   }
+  },
+  "prepare": [
+   "drill.h-supine-twist",
+   "point.h-supine-twist"
+  ],
+  "go": "p.go",
+  "count": "n.{k}",
+  "lastRep": "p.last_rep",
+  "nextSet": "p.again",
+  "end": "p.release",
+  "switch": {
+   "left": "p.switch_left",
+   "right": "p.switch_right"
+  },
+  "firstSide": "p.right_first",
+  "coach": [
+   "cue.relax.1",
+   "cue.relax.2"
+  ],
+  "midHold": {
+   "half": "p.half",
+   "last10": "p.last10",
+   "countdown": 5
+  }
+ },
+ "review": {
+  "why": "dose is a timed hold",
+  "flags": []
+ }
+}

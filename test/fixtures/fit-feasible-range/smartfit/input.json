@@ -1,0 +1,15 @@
+{
+  "userText": "在家徒手5分钟全身训练，初级，没有伤病，没有额外器械。请直接给一张能按计时或自动计次跟练的完整计划。",
+  "baselineSdkCommit": "99c14495685f160019e10340ea6f0de6418a65b9",
+  "selectedIds": [
+    "h-chair-sit-to-stand",
+    "h-squat",
+    "h-incline-pushup",
+    "h-good-morning",
+    "h-doorframe-forearms-pec-native-r3"
+  ],
+  "baselineMinimumSec": 336,
+  "baselineMaximumSec": 14044,
+  "baselineAsked": true,
+  "baselineAdmittedPlan": false
+}

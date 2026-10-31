@@ -1,0 +1,56 @@
+{
+  "h-chair-sit-to-stand": {
+    "kind": "self_paced"
+  },
+  "h-squat": {
+    "kind": "rep_updown",
+    "leadSeconds": 1.0,
+    "phases": [
+      {
+        "id": "go",
+        "seconds": 1.15,
+        "cue": "w.squat_down"
+      },
+      {
+        "id": "hold",
+        "seconds": 0.7
+      },
+      {
+        "id": "back",
+        "seconds": 1.1,
+        "cue": "w.stand_up"
+      },
+      {
+        "id": "rest",
+        "seconds": 1.05
+      }
+    ],
+    "reps": 8
+  },
+  "h-incline-pushup": {
+    "kind": "rep_updown",
+    "leadSeconds": 0.0,
+    "phases": [
+      {
+        "id": "go",
+        "seconds": 4.0
+      }
+    ],
+    "source": "repSeconds"
+  },
+  "h-good-morning": {
+    "kind": "rep_updown",
+    "leadSeconds": 0.0,
+    "phases": [
+      {
+        "id": "go",
+        "seconds": 4.0
+      }
+    ],
+    "source": "repSeconds"
+  },
+  "h-doorframe-forearms-pec-native-r3": {
+    "kind": "hold",
+    "leadSeconds": 0.0
+  }
+}

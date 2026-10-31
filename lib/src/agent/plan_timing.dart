@@ -263,18 +263,21 @@ extension TrustedCardTiming on PlanBuilder {
       estimateExtreme: (source, maximum) => PlanBuilder._duration
           .estimateSeconds(render(source, maximum), catalog),
     );
+    Map<String, Object?> recovery() => _durationRecovery(
+      state,
+      render(_timingExtreme(blocks, false), false),
+      render(_timingExtreme(blocks, true), true),
+      bounds,
+      language: language,
+    );
     if (conflicts.isNotEmpty || bounds['status'] == 'infeasible') {
-      return DraftResult(
+      return _durationRejected(
         state,
-        feasibility: {
-          ...bounds,
-          if (conflicts.isNotEmpty) ...{
-            'status': 'infeasible',
-            'reason': 'explicit_dose_conflict',
-            'conflicts': conflicts,
-          },
-          'fix': '请说明已确认条件的冲突，询问用户愿意调整时长还是剂量。',
-        },
+        seconds: estimate(blocks),
+        target: target,
+        recovery: recovery(),
+        conflicts: conflicts,
+        language: language,
       );
     }
     final log = <Map<String, Object?>>[];
@@ -287,6 +290,7 @@ extension TrustedCardTiming on PlanBuilder {
       target,
       log,
       language: language,
+      recovery: recovery,
     );
     if (durationFailure != null) return durationFailure;
     final version = previous!.map((v) => v.version).reduce(math.max) + 1;
@@ -474,6 +478,23 @@ List<Map<String, Object?>> _applyDoseConstraints(
   return conflicts;
 }
 
+List<_DraftBlock> _timingExtreme(List<_DraftBlock> blocks, bool maximum) => [
+  for (final block in blocks)
+    block.cloneWithout(const {})
+      ..rounds = maximum ? block.roundsRange.max : block.roundsRange.min
+      ..roundRest = maximum
+          ? block.roundRestRange.max
+          : block.roundRestRange.min
+      ..items.forEach((item) {
+        item.sets = maximum ? item.setRange.max : item.setRange.min;
+        item.work = maximum ? item.workRange.max : item.workRange.min;
+        item.rest = maximum ? item.restRange.max : item.restRange.min;
+        for (final part in item.parts) {
+          part.work = maximum ? part.workRange.max : part.workRange.min;
+        }
+      }),
+];
+
 /// Duration is monotone in every legal positive dose component. These extrema
 /// prove only interval impossibility; an interior gap or the bounded heuristic
 /// failing to find a closer point is deliberately not called infeasible.
@@ -483,22 +504,7 @@ Map<String, Object?> _timingBounds(
   double Function(List<_DraftBlock>) estimate, {
   double Function(List<_DraftBlock>, bool)? estimateExtreme,
 }) {
-  List<_DraftBlock> extreme(bool maximum) => [
-    for (final block in blocks)
-      block.cloneWithout(const {})
-        ..rounds = maximum ? block.roundsRange.max : block.roundsRange.min
-        ..roundRest = maximum
-            ? block.roundRestRange.max
-            : block.roundRestRange.min
-        ..items.forEach((item) {
-          item.sets = maximum ? item.setRange.max : item.setRange.min;
-          item.work = maximum ? item.workRange.max : item.workRange.min;
-          item.rest = maximum ? item.restRange.max : item.restRange.min;
-          for (final part in item.parts) {
-            part.work = maximum ? part.workRange.max : part.workRange.min;
-          }
-        }),
-  ];
+  List<_DraftBlock> extreme(bool maximum) => _timingExtreme(blocks, maximum);
   final minimum =
       estimateExtreme?.call(extreme(false), false) ?? estimate(extreme(false));
   final maximum =

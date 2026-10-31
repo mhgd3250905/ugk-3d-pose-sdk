@@ -14,6 +14,7 @@ import 'session_state.dart';
 
 part 'plan_timing.dart';
 part 'plan_focus_edit.dart';
+part 'plan_duration_recovery.dart';
 
 class DraftResult {
   const DraftResult(
@@ -530,19 +531,6 @@ class PlanBuilder {
             : '已忽略 ${ignoredDoseFields.length} 个旧模型剂量字段；剂量和轮数由目录及已确认参数计算。',
       );
     }
-    if (blocks.isEmpty) {
-      return DraftResult(
-        state,
-        notes: notes,
-        feasibility: {
-          'status': 'infeasible',
-          'reason': 'no_selected_actions',
-          'fix': language.toLowerCase().startsWith('en')
-              ? 'No actions were selected. Explain that the current conditions have no plan or ask whether to adjust them.'
-              : '当前没有已选动作，请说明无法生成计划或询问是否调整条件，不要反复提交空计划。',
-        },
-      );
-    }
     final target = minutes * 60.0;
     final legacyGoal = resolveLegacyGoal(
       profile,
@@ -595,21 +583,22 @@ class PlanBuilder {
       profile.limits.rounds,
     );
     final bounds = _timingBounds(blocks, target, estimate);
+    Map<String, Object?> recovery() => _durationRecovery(
+      state,
+      asPlan(_timingExtreme(blocks, false)),
+      asPlan(_timingExtreme(blocks, true)),
+      bounds,
+      language: language,
+    );
     if (conflicts.isNotEmpty || bounds['status'] == 'infeasible') {
-      return DraftResult(
+      return _durationRejected(
         state,
+        seconds: estimate(blocks),
+        target: target,
+        recovery: recovery(),
+        conflicts: conflicts,
         notes: notes,
-        feasibility: {
-          ...bounds,
-          if (conflicts.isNotEmpty) ...{
-            'status': 'infeasible',
-            'reason': 'explicit_dose_conflict',
-            'conflicts': conflicts,
-          },
-          'fix': language.toLowerCase().startsWith('en')
-              ? 'Explain the conflict and ask which confirmed condition the user wants to adjust.'
-              : '请说明已确认条件的冲突，询问用户愿意调整时长还是剂量；不要反复提交同一条件。',
-        },
+        language: language,
       );
     }
     _fit(blocks, target, estimate, log);
@@ -622,6 +611,7 @@ class PlanBuilder {
       log,
       notes: notes,
       language: language,
+      recovery: recovery,
     );
     if (durationFailure != null) return durationFailure;
     final previous = state.plans[id] ?? const <CoachPlanVersion>[];
@@ -751,23 +741,93 @@ class PlanBuilder {
     List<Map<String, Object?>> log, {
     List<String> notes = const [],
     String language = 'zh',
+    required Map<String, Object?> Function() recovery,
   }) {
     final tolerance = math.min(.1, profile.limits.durationTolerance);
     if ((seconds - target).abs() <= target * tolerance + 1e-9) return null;
+    return _durationRejected(
+      state,
+      seconds: seconds,
+      target: target,
+      recovery: recovery(),
+      log: log,
+      notes: notes,
+      language: language,
+    );
+  }
+
+  DraftResult _durationRejected(
+    CoachSessionState state, {
+    required double seconds,
+    required double target,
+    required Map<String, Object?> recovery,
+    List<Map<String, Object?>> log = const [],
+    List<Map<String, Object?>> conflicts = const [],
+    List<String> notes = const [],
+    String language = 'zh',
+  }) {
+    final verifiedDose = recovery['userConfirmedDose'] == true;
+    // These conflicts cannot be repaired by selecting a different free action:
+    // a pinned action has a wrong mode/range, two explicit values disagree, or
+    // a required value lies outside the profile for every possible action.
+    final doseConflict =
+        verifiedDose &&
+        conflicts.any((conflict) {
+          if (conflict['reason'] == 'conflicting_explicit_values') return true;
+          if (conflict['reason'] == 'no_selected_action_matches_constraint') {
+            return false;
+          }
+          if (conflict['actionId'] is String) return true;
+          final value = conflict['actual'];
+          final range = switch (conflict['field']) {
+            'rounds' => profile.limits.rounds,
+            'sets' => profile.limits.sets,
+            'reps' => profile.limits.reps,
+            'seconds' => profile.limits.workSeconds,
+            _ => null,
+          };
+          return value is int && range != null && !range.contains(value);
+        });
+    final diagnostics = <String, Object?>{
+      ...recovery,
+      if (conflicts.isNotEmpty) ...{
+        'reason': 'explicit_dose_conflict',
+        'conflicts': conflicts,
+      },
+      if (doseConflict) ...{
+        'status': 'infeasible',
+        'clarificationAllowed': true,
+        'needsDraftRebuild': false,
+        'clarificationProof': 'confirmed_dose_cannot_be_repaired_by_selection',
+        'fix': language.toLowerCase().startsWith('en')
+            ? 'The confirmed dose itself conflicts with its permitted range or mode. Ask which confirmed requirement the user wants to change.'
+            : '用户明确剂量本身与允许范围或模式冲突，增删未确认动作也无法解决；请询问用户愿意调整哪项已确认条件。',
+      },
+    };
+    if (diagnostics['clarificationAllowed'] == true) {
+      return DraftResult(
+        state,
+        notes: List.unmodifiable(notes),
+        fitLog: List.unmodifiable(log),
+        feasibility: diagnostics,
+      );
+    }
     return DraftResult(
       state,
       fitLog: List.unmodifiable(log),
       notes: List.unmodifiable(notes),
       durationErrorPercent: (seconds - target).abs() / target * 100,
-      error: nodeError(
-        'duration_fit_failed',
-        'plan.duration',
-        {'targetSec': target, 'toleranceRatio': tolerance},
-        {'estimatedSec': seconds},
-        language.toLowerCase().startsWith('en')
-            ? 'Adjust the selected actions and submit a new draft; search for another compliant action if needed. If confirmed doses prevent fitting, ask which condition to change. Do not deliver this approximate plan.'
-            : '请按现有动作选择规则增减一个合规动作后重新提交草稿；候选不足时先搜索。若明确剂量限制无法调整，请询问用户取舍，不要交付此近似计划。',
-      ),
+      error: {
+        ...nodeError(
+          'duration_fit_failed',
+          'plan.duration',
+          {'targetSec': target, 'toleranceRatio': recovery['toleranceRatio']},
+          {'estimatedSec': seconds},
+          diagnostics['fix'] as String,
+        ),
+        ...diagnostics,
+        'ok': false,
+      },
     );
   }
 

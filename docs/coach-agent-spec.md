@@ -200,7 +200,7 @@ profile 改动：删掉 profiles/*.json 和提示词里类似“居家默认有�
 - 同块重复动作合并剂量；主体稳定排序，不增删不同动作。连续同部位/拮抗覆盖按目标的一次 warning，单部位不适用；热身/放松 purpose、三段阈值也仅一次 warning，不拦交付。取消硬 min3，1个合规动作可交付；没有合规动作正常说明或询问调整。
 - 新 `draft_plan` schema 只有 title、blocks(kind/items[id])；模型剂量和轮数一律忽略并说明。ID/版本归代码；整体替换意图通过带 user/quote 的 `set_params.operation` 表达。旧调用有效 operation 保留为兼容别名，当前轮有来源的账本优先，非法别名忽略；差异率底线仍保留。
 - 用户明确剂量通过 `set_params.dose` 保存：value 为 `{field,value,actionId?,blockId?}` 数组，field 为 sets/reps/seconds/rounds；必须 user 和真实 quote，完整保存/恢复。省略作用域时 sets 用于所有动作，reps 用于计次动作，seconds 用于计时动作，rounds 用于主体；其他阶段轮数用 blockId 明确。不能用目录默认值冒充用户明确要求；冲突时正常询问取舍。
-- 配时搜索覆盖热身、主体、放松的次数/秒数、组数及 profile 合法轮数，保留 fitLog 的 blockId/actionId/field/before/after/beforeEstimatedSec/afterEstimatedSec。只有合法剂量域最小值仍超容差或最大值仍不足时，才证明时长不可行并给结构化原因；明确剂量冲突也列原因并询问。搜索仍超 10%（profile 更严格时从严）返回可恢复的 duration_fit_failed，不保存或交付近似计划，由模型按既有动作选择规则调整一个动作后重出草稿，或询问明确条件的取舍；不以搜索未找到宣称无解，Checker 不重复报 plan_duration。此条由 2026-10-31 fit-all-blocks 更新，替代早期“近似交付”行为。
+- 配时搜索覆盖热身、主体、放松的次数/秒数、组数及 profile 合法轮数，保留 fitLog 的 blockId/actionId/field/before/after/beforeEstimatedSec/afterEstimatedSec，不改变配时搜索顺序。当前所选组合的合法下界超预算或上界不足，不等于用户目标在整个动作库无解：无用户确认锁时返回 duration_fit_failed，带 minEstimatedSec/maxEstimatedSec、增删方向与候选，让模型按既有选择规则重出草稿；不得反问是否改时长。搜索仍超 10%（profile 更严格时从严）也走此修复回执，不保存或交付近似计划。只有可验证的用户明确动作/剂量本身构成冲突，且增删未确认动作无法消除冲突时，才允许澄清；目录固定默认剂量、模型 picks 和 focus 导入本身不算用户锁定。一次增删未奏效或搜索未找到，均不能当成全局无解证明。Checker 不重复报 plan_duration。此条由 2026-10-31 fit-feasible-range 更新，替代组合范围失败即澄清的行为。
 - 本轮不新增全局最优求解器，不自动改写 note 数字/器材事实，不改宿主 extraRules；这些边界单独记录在评审包。
 
 ## 2026-10-28 dc3f757 评审后：信息与状态修复

@@ -327,7 +327,7 @@ void main() {
     (1, 'minimum_exceeds_target'),
     (60, 'maximum_below_target'),
   ]) {
-    test('proven bound $reason retains the user-choice outcome', () {
+    test('selected bound $reason rebuilds without claiming user conflict', () {
       final catalog = Catalog(
         version: 'bounds',
         drills: [_drill('a', amount: 100)],
@@ -349,10 +349,23 @@ void main() {
               },
             ],
           }, newPlanId: 'bound');
-      expect(result.ok, isTrue);
+      expect(result.ok, isFalse);
+      expect(result.error!['code'], 'duration_fit_failed');
       expect(result.planId, isNull);
       expect(result.state, same(state));
-      expect(result.feasibility!['reason'], reason);
+      expect(result.feasibility, isNull);
+      final receipt = result.toJson();
+      expect(receipt['reason'], reason);
+      expect(receipt['minEstimatedSec'], 110);
+      expect(receipt['maxEstimatedSec'], 225);
+      expect(receipt['toleranceRatio'], .1);
+      expect(
+        receipt['direction'],
+        minutes == 1 ? 'remove_action' : 'add_action',
+      );
+      expect(receipt['needsUserChoice'], isNot(isTrue));
+      expect(receipt['needsDraftRebuild'], isTrue);
+      expect(receipt['clarificationAllowed'], isFalse);
     });
   }
 }

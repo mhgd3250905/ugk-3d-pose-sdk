@@ -1,0 +1,33 @@
+[
+  [
+    {
+      "id": "offline-recorded-1-1",
+      "name": "start_task",
+      "arguments": "{\"type\": \"plan\"}"
+    },
+    {
+      "id": "offline-recorded-1-2",
+      "name": "set_params",
+      "arguments": "{\"fields\": {\"scene\": {\"value\": \"home\", \"source\": \"user\", \"quote\": \"在家徒手\"}, \"minutes\": {\"value\": 5, \"source\": \"user\", \"quote\": \"5分钟全身训练\"}, \"goal\": {\"value\": [\"purpose.strength\"], \"source\": \"user\", \"quote\": \"全身训练\"}, \"level\": {\"value\": 1, \"source\": \"user\", \"quote\": \"初级\"}, \"equipment\": {\"value\": [], \"source\": \"user\", \"quote\": \"没有额外器械\"}}}"
+    }
+  ],
+  [
+    {
+      "id": "offline-recorded-2-1",
+      "name": "search_actions",
+      "arguments": "{\"tags\": [\"scene.home\", \"purpose.strength\", \"level.1\"], \"limit\": 20}"
+    },
+    {
+      "id": "offline-recorded-2-2",
+      "name": "search_actions",
+      "arguments": "{\"tags\": [\"scene.home\", \"purpose.stretch\", \"level.1\"], \"limit\": 12}"
+    }
+  ],
+  [
+    {
+      "id": "offline-recorded-3-1",
+      "name": "draft_plan",
+      "arguments": "{\"title\": \"居家全身徒手循环\", \"blocks\": [{\"kind\": \"warmup\", \"items\": [{\"id\": \"h-chair-sit-to-stand\"}]}, {\"kind\": \"main\", \"items\": [{\"id\": \"h-squat\"}, {\"id\": \"h-incline-pushup\"}, {\"id\": \"h-good-morning\"}]}, {\"kind\": \"cooldown\", \"items\": [{\"id\": \"h-doorframe-forearms-pec-native-r3\"}]}]}"
+    }
+  ]
+]

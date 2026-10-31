@@ -1,0 +1,128 @@
+{
+  "userTurns": [
+    {
+      "turn": 1,
+      "text": "在家徒手5分钟全身训练，初级，没有伤病，没有额外器械。请直接给一张能按计时或自动计次跟练的完整计划。"
+    }
+  ],
+  "task": {
+    "type": "plan",
+    "nodes": [
+      {
+        "id": "understand",
+        "status": "done",
+        "stamp": "准备训练计划",
+        "doneAtTurn": 1
+      },
+      {
+        "id": "parameters",
+        "status": "done",
+        "stamp": "居家（你说的） · 力量（你说的） · 徒手（可用椅子/凳子/瑜伽垫/墙）（你说的） · 5 分钟（你说的） · 初学（你说的） · 无伤痛（默认）",
+        "doneAtTurn": 1
+      },
+      {
+        "id": "actions",
+        "status": "current",
+        "stamp": null,
+        "doneAtTurn": null
+      },
+      {
+        "id": "planning",
+        "status": "pending",
+        "stamp": null,
+        "doneAtTurn": null
+      },
+      {
+        "id": "review",
+        "status": "pending",
+        "stamp": null,
+        "doneAtTurn": null
+      },
+      {
+        "id": "output",
+        "status": "pending",
+        "stamp": null,
+        "doneAtTurn": null
+      }
+    ],
+    "reused": false
+  },
+  "params": {
+    "scene": {
+      "value": "home",
+      "source": "user",
+      "quote": "在家徒手",
+      "turn": 1
+    },
+    "minutes": {
+      "value": 5,
+      "source": "user",
+      "quote": "5分钟全身训练",
+      "turn": 1
+    },
+    "goal": {
+      "value": [
+        "purpose.strength"
+      ],
+      "source": "user",
+      "quote": "全身训练",
+      "turn": 1
+    },
+    "level": {
+      "value": 1,
+      "source": "user",
+      "quote": "初级",
+      "turn": 1
+    },
+    "equipment": {
+      "value": [],
+      "source": "user",
+      "quote": "没有额外器械",
+      "turn": 1
+    },
+    "limits": {
+      "value": [],
+      "source": "default",
+      "turn": 1
+    }
+  },
+  "seenActionIds": [
+    "deltoids-A",
+    "h-calf-raise",
+    "h-chair-kickback",
+    "h-chair-sit-to-stand",
+    "h-donkey-kick",
+    "h-good-morning",
+    "h-incline-pushup",
+    "h-kneeling-pushup",
+    "h-reverse-clam",
+    "h-side-er",
+    "h-side-leg-raise",
+    "h-squat",
+    "h-superman",
+    "h-tabletop",
+    "h-tib-raise",
+    "n-prone-hip-ext",
+    "o-chair-knee-extension",
+    "o-seated-calf-raise",
+    "rotator-cuff-A",
+    "scapular-A",
+    "h-adductor-rock",
+    "h-banana",
+    "h-bilateral-upper-back-hug",
+    "h-chair-lat",
+    "h-chair-tspine",
+    "h-cobra",
+    "h-doorframe-forearms-pec-native-r3",
+    "h-knee-hug",
+    "h-overhead-triceps-stretch",
+    "h-seated-reachback",
+    "h-sleeper-stretch",
+    "h-standing-wrist-extensor-stretch"
+  ],
+  "picks": [],
+  "plans": {
+    "plan-1793432846892-1": []
+  },
+  "activePlanId": "plan-1793432846892-1"
+}

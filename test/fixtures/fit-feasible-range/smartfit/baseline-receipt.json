@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "status": "infeasible",
+  "needsUserChoice": true,
+  "feasibility": {
+    "status": "infeasible",
+    "reason": "minimum_exceeds_target",
+    "targetSec": 300.0,
+    "toleranceRatio": 0.1,
+    "boundBasis": "catalogue/profile ranges including segment work, rest and rounds; confirmed dose locked",
+    "minEstimatedSec": 336.0,
+    "maxEstimatedSec": 14044.0,
+    "fix": "请说明已确认条件的冲突，询问用户愿意调整时长还是剂量；不要反复提交同一条件。"
+  },
+  "asked": true,
+  "awaitingUser": true,
+  "notes": [
+    "已根据结构化不可行原因暂停询问取舍，未要求模型继续试算。"
+  ]
+}

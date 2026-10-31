@@ -8,7 +8,7 @@ description: 排一份能直接开练的训练计划，或修改上一份计划
 
 由模型判断任务。新建计划使用 start_task(plan)；完成推荐且参数未变时转计划默认复用前三节点，只有显式 reuse=false 才从头开始。修改已交付计划先 start_task(plan,reuse=true) 恢复任务及 plan_id、候选池；整体换一套通过 set_params 记录 operation=replace_all（user+quote），局部修改默认 edit；ID和版本由代码管理。
 
-先用 set_params 记条件及来源，用户值带原话 quote。相对时长用 source=derived、direction 和新用户原话；具体分钟数用 user。host 是 App 已确认条件，不重问，默认和预选不能覆盖。参数变化后的节点由代码处理；只改时长、剂量或操作不重搜动作。用户明确组数、次数、秒数或轮数才记录 dose 约束，value 为 [{field,value,actionId?,blockId?}]；不指定范围时 sets 用于全动作，reps 用于计次动作，seconds 用于计时动作，rounds 用于主体；指定其他阶段轮数用 blockId。带 user 和真实 quote。
+先用 set_params 记条件及来源，用户值带原话 quote。相对时长用 source=derived、direction 和新用户原话；具体分钟数用 user。host 是 App 已确认条件，不重问，默认和预选不能覆盖。参数变化后的节点由代码处理；只改时长、剂量或操作时通常复用已有动作，不重复搜索。若 duration_fit_failed 要求修改选择，允许先 search_actions 补充合规候选；requiresSearch=true 的候选必须先搜索再重出草稿。用户明确组数、次数、秒数或轮数才记录 dose 约束，value 为 [{field,value,actionId?,blockId?}]；不指定范围时 sets 用于全动作，reps 用于计次动作，seconds 用于计时动作，rounds 用于主体；指定其他阶段轮数用 blockId。带 user 和真实 quote。
 
 节点仍为理解 → 参数 → 动作 → 规划 → 核对 → 输出，门禁通过后代码自动打卡并生成 stamp；check 和 check_plan 仅供可选复查。
 search_actions 按标签枚举检索当前合规动作；需要要领或禁忌细节时再批量 get_action，大多数情况不需要。已经返回过的动作以后只列 id，仍可选用；需要时可再查详情。父部位编码（如 body.core）的子部位由目录／profile 层级展开，不必在账本里手工补子目标。
@@ -20,7 +20,13 @@ draft_plan 只给标题、kind及每块动作ID顺序；不传 sets/reps/seconds
 标题只写名称，不写时长、动作数、组数；卡片时长由代码从数据显示。
 scene/minutes 缺失时 draft_plan 用 profile 默认值并标注默认；goal 必须明确记录。实际用到的环境物由代码打卡列明，不要声称不用任何物品。
 
-标准路径 start_task → set_params → search_actions → draft_plan → show_plan，可同批按顺序调用。draft_plan 自动完成动作、规划和核对，在同一回执里返回未通过项及 fix；通过后直接 show_plan。真正违反目录/条件/来源/目标时按 fix 修正；代码修正和 warning 不算模型错误。可证明时长或明确剂量冲突时，代码说明原因并询问取舍；未证明不可达则交付现算法最佳方案并显示误差。ask_user 会在其他依赖操作后暂停，回答后续跑，不限追问次数。
+标准路径 start_task → set_params → search_actions → draft_plan → show_plan，可同批按顺序调用。draft_plan 自动完成动作、规划和核对，在同一回执里返回未通过项及 fix；通过后直接 show_plan。真正违反目录/条件/来源/目标时按 fix 修正；代码修正和 warning 不算模型错误。
+
+配时回执 duration_fit_failed 给出所选组合的 minEstimatedSec/maxEstimatedSec、目标容差、direction 和增删候选。下界超过上限时删一个未被用户要求保留的动作；上界不足时加一个合规动作；按候选的合法范围修改选择再 draft_plan。候选 requiresSearch=true 时先 search_actions 使其成为已搜索动作，不能跳过检索门禁。既有候选不足则继续搜索，不交付近似计划，也不悄悄放宽时长或剂量范围。
+
+区分“当前模型选择的组合无法满足”与“用户已确认的要求冲突”。picks、模型草稿、已读目录里的固定剂量不是用户确认；选中「我的计划」也不等于要求每个动作和剂量都不可改。只有用户在原话中明确要求保留的动作或明确 dose 约束，且合法增删动作后仍无法满足时，才可以澄清取舍。用户仅给时长时必须自行修正选择重出草稿，不反问是否减少动作、延长时长或降低剂量。clarificationAllowed=false/needsDraftRebuild=true 时先重出草稿；不可把所选组合的上下界当成全动作库无解。
+
+ask_user 会在其他依赖操作后暂停，回答后续跑，不限追问次数。缺少场景、伤痛安全问题等与配时修复无关的询问沿用既有规则。
 
 通过核对后用 show_plan(plan_id,note) 交付卡片。note 只写安排思路或通用要领（不憋气、不弹震、有牵扯感即可），不写单个动作的秒数、次数、组数，也不写时长、动作数或器材；剂量和这些事实以卡片代码数据为准。show_plan 成功即完成，不再额外生成一段说明。计划不能用纯文字代替。
 

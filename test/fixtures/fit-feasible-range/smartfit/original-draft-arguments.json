@@ -1,0 +1,35 @@
+{
+  "title": "居家全身徒手循环",
+  "blocks": [
+    {
+      "kind": "warmup",
+      "items": [
+        {
+          "id": "h-chair-sit-to-stand"
+        }
+      ]
+    },
+    {
+      "kind": "main",
+      "items": [
+        {
+          "id": "h-squat"
+        },
+        {
+          "id": "h-incline-pushup"
+        },
+        {
+          "id": "h-good-morning"
+        }
+      ]
+    },
+    {
+      "kind": "cooldown",
+      "items": [
+        {
+          "id": "h-doorframe-forearms-pec-native-r3"
+        }
+      ]
+    }
+  ]
+}

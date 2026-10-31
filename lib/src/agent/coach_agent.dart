@@ -1543,6 +1543,10 @@ class CoachAgent {
     String? lastSig;
     var repeat = 0, idle = 0;
     var warned = false;
+    // A rejected model-selected combination is a request to rebuild, not a
+    // new user decision. Keep this private to the current turn; a later user
+    // message may introduce different requirements.
+    Map<String, Object?>? durationRebuild;
 
     // 取消 / reset：保留已发生调用的记账与元数据，但不返回可渲染内容、不写历史和记忆。
     Future<CoachTurnResult> cancelled(int step) async {
@@ -2336,6 +2340,25 @@ class CoachAgent {
               break agentSteps;
             }
           case AgentTools.askUser:
+            if (durationRebuild != null && _sessionState.task?.type == 'plan') {
+              terminalRejected = true;
+              toolFailure = true;
+              results[t.id] = jsonEncode({
+                ...nodeError(
+                  'duration_fit_failed',
+                  'plan.duration',
+                  '先修正动作选择并重出满足时长的草稿',
+                  'ask_user',
+                  '',
+                ),
+                ...durationRebuild,
+                'ok': false,
+                'fix': context.language.toLowerCase().startsWith('en')
+                    ? 'Rebuild the draft using the reported range, direction and candidates before asking. The user did not authorize this model-selected combination as fixed; keep the requested duration.'
+                    : '请先按回执的合法范围、增删方向和候选重出草稿，不要反问用户是否调整时长。模型选择的动作组合不是用户确认的固定要求。',
+              });
+              break;
+            }
             final handled = terminal.ask(
               t.arguments,
               toolIndex + 1,
@@ -2379,7 +2402,34 @@ class CoachAgent {
           final receipt = jsonDecode(results[t.id]!);
           if (receipt is Map) {
             final extraNotes = <String>[...?normalizedBatch.notes[t.id]];
-            if (receipt['status'] == 'infeasible') {
+            final feasibility = receipt['feasibility'];
+            final needsRebuild =
+                receipt['needsDraftRebuild'] == true ||
+                (feasibility is Map &&
+                    feasibility['needsDraftRebuild'] == true);
+            final clarificationAllowed =
+                receipt['clarificationAllowed'] ??
+                (feasibility is Map
+                    ? feasibility['clarificationAllowed']
+                    : null);
+            if (needsRebuild && clarificationAllowed != true) {
+              durationRebuild = {
+                if (feasibility is Map)
+                  ...Map<String, Object?>.from(feasibility),
+                ...Map<String, Object?>.from(receipt),
+                'needsDraftRebuild': true,
+                'clarificationAllowed': false,
+              };
+            } else if (t.name == AgentTools.draftPlan &&
+                receipt['ok'] == true &&
+                receipt['plan_id'] is String) {
+              durationRebuild = null;
+            } else if (terminalOutput != null) {
+              durationRebuild = null;
+            }
+            if (receipt['status'] == 'infeasible' &&
+                (!needsRebuild || clarificationAllowed == true) &&
+                clarificationAllowed != false) {
               final feasibility = receipt['feasibility'];
               final target = feasibility is Map
                   ? feasibility['targetSec']

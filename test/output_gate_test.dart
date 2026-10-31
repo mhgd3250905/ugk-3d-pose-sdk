@@ -267,21 +267,30 @@ void main() {
     );
   }
 
-  test('infeasible refit is a normal choice with original card preserved', () {
-    final source = impossible();
-    final changed = showPlan(source);
-    expect(changed.ok, isTrue);
-    expect(changed.needsUserChoice, isTrue);
-    expect(changed.feasibility!['status'], 'infeasible');
-    expect(changed.card, isNull);
-    expect(changed.state.plans['p']!.last.plan, source.plans['p']!.last.plan);
-    expect(changed.state.params['minutes']!.value, 3);
-    expect(
-      changed.state.task!.nodes.singleWhere((n) => n.id == 'planning').status,
-      'current',
-    );
-    expect(changed.state.task!.nodes.last.status, 'pending');
-  });
+  test(
+    'unconfirmed out-of-range combination requests rebuild and preserves card',
+    () {
+      final source = impossible();
+      final before = source.toJson();
+      final changed = showPlan(source);
+      expect(changed.ok, isFalse);
+      expect(changed.needsUserChoice, isFalse);
+      expect(changed.feasibility, isNull);
+      expect(changed.error!['code'], 'duration_fit_failed');
+      expect(changed.error!['minEstimatedSec'], greaterThan(198));
+      expect(changed.error!['maxEstimatedSec'], isA<num>());
+      expect(changed.error!['direction'], 'remove_action');
+      expect(changed.error!['removeCandidates'], isNotEmpty);
+      expect(changed.error!['clarificationAllowed'], isFalse);
+      expect(changed.error!['needsDraftRebuild'], isTrue);
+      expect(changed.card, isNull);
+      expect(changed.state.toJson(), before);
+      expect(changed.changes, isEmpty);
+      expect(changed.state.plans['p']!.last.plan, source.plans['p']!.last.plan);
+      expect(changed.state.params['minutes']!.value, 3);
+      expect(changed.state.task!.nodes.last.status, 'current');
+    },
+  );
 
   CoachSessionState staleSegmentedState(int minutes) {
     final old = state();
@@ -403,7 +412,7 @@ void main() {
   });
 
   test(
-    'agent asks once for infeasible restored refit without rejection or card',
+    'agent rebuilds an unconfirmed restored combination and delivers without asking',
     () async {
       final admitted = showPlan(state()).card!.plan!;
       final client = FakeLlmClient([
@@ -419,6 +428,84 @@ void main() {
           finishReason: 'tool_calls',
           model: 'fake',
         ),
+        (LlmRequest request) {
+          final failed =
+              jsonDecode(
+                    request.messages
+                        .lastWhere((m) => m.toolCallId == 'show')
+                        .content,
+                  )
+                  as Map;
+          expect(failed['code'], 'duration_fit_failed');
+          expect(failed['direction'], 'remove_action');
+          expect(failed['clarificationAllowed'], isFalse);
+          expect(failed['removeCandidates'], isNotEmpty);
+          // The prior model selection is not a user-locked action list.
+          // Retain the saved dose fields and use a smaller compliant subset.
+          return LlmResponse(
+            content: '',
+            toolCalls: [
+              LlmToolCall(
+                id: 'rebuild-operation',
+                name: AgentTools.setParams,
+                arguments: jsonEncode({
+                  'fields': {
+                    'operation': {
+                      'value': 'edit',
+                      'source': 'user',
+                      'quote': '按已确认条件调整',
+                    },
+                  },
+                }),
+              ),
+              LlmToolCall(
+                id: 'rebuild',
+                name: AgentTools.draftPlan,
+                arguments: jsonEncode({
+                  'plan_id': 'p',
+                  'title': '开胯活动',
+                  'blocks': [
+                    {
+                      'kind': 'main',
+                      'items': [
+                        {'id': 'n-windshield'},
+                        {'id': 's-figure4'},
+                        {'id': 's-butterfly'},
+                      ],
+                    },
+                  ],
+                }),
+              ),
+            ],
+            finishReason: 'tool_calls',
+            model: 'fake',
+          );
+        },
+        (LlmRequest request) {
+          final drafted =
+              jsonDecode(
+                    request.messages
+                        .lastWhere((m) => m.toolCallId == 'rebuild')
+                        .content,
+                  )
+                  as Map;
+          expect(drafted['ok'], isTrue, reason: '$drafted');
+          return LlmResponse(
+            content: '',
+            toolCalls: [
+              LlmToolCall(
+                id: 'repaired-show',
+                name: CoachTools.showPlan,
+                arguments: jsonEncode({
+                  'plan_id': drafted['plan_id'],
+                  'note': '量力而行。',
+                }),
+              ),
+            ],
+            finishReason: 'tool_calls',
+            model: 'fake',
+          );
+        },
       ]);
       final agent = CoachAgent(
         client: client,
@@ -439,16 +526,30 @@ void main() {
           sessionState: impossible(),
         ),
       );
+      final original = impossible().plans['p']!.single.plan;
       final result = await agent.send('按已确认条件调整');
       expect(
         result.status,
         TurnStatus.ok,
         reason: '${result.error} ${result.issues}',
       );
-      expect(result.question, isNotNull);
-      expect(result.plan, isNull);
+      expect(result.question, isNull);
+      expect(result.plan, isNotNull);
+      final seconds = const PlanDuration().estimateSeconds(
+        result.plan!.plan,
+        catalog,
+      );
+      expect(seconds, 189);
+      expect(seconds, inInclusiveRange(162, 198));
+      expect(result.plan!.plan.exerciseIds, {
+        'n-windshield',
+        's-figure4',
+        's-butterfly',
+      });
+      expect(agent.sessionState.plans['p']!.first.plan, original);
+      expect(agent.sessionState.plans['p'], hasLength(2));
       expect(result.issues, isEmpty);
-      expect(client.requests, hasLength(1));
+      expect(client.requests, hasLength(3));
     },
   );
 }

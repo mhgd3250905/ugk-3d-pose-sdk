@@ -299,21 +299,32 @@ void main() {
   }
 
   test(
-    'proven infeasible restored card asks a question without a new version',
+    'unconfirmed action outside bounds requires rebuilding without a new version',
     () {
       final source = _saved(minutes: 1, lockSets: true);
+      final before = source.toJson();
       final result = _show(source);
-      expect(result.ok, isTrue);
-      expect(result.needsUserChoice, isTrue);
-      expect(result.feasibility!['reason'], 'minimum_exceeds_target');
+      expect(result.ok, isFalse);
+      expect(result.needsUserChoice, isFalse);
+      expect(result.feasibility, isNull);
+      expect(result.error!['code'], 'duration_fit_failed');
+      expect(result.error!['minEstimatedSec'], 110);
+      expect(result.error!['maxEstimatedSec'], 225);
+      expect(result.error!['direction'], 'remove_action');
+      expect(result.error!['userConfirmedDose'], isTrue);
+      expect(result.error!['confirmedActionIds'], isEmpty);
+      expect(result.error!['clarificationAllowed'], isFalse);
+      expect(result.error!['needsDraftRebuild'], isTrue);
       expect(result.card, isNull);
+      expect(result.state.toJson(), before);
+      expect(result.changes, isEmpty);
       expect(result.state.plans['p']!.single.version, 1);
       expect(
         result.state.plans['p']!.single.plan,
         source.plans['p']!.single.plan,
       );
       expect(result.state.lastDeliveredVersion, 1);
-      expect(result.state.task!.nodes.last.status, 'pending');
+      expect(result.state.task!.nodes.last.status, 'current');
     },
   );
 }

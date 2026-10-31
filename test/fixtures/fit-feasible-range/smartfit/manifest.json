@@ -1,0 +1,39 @@
+{
+  "baselineSdkCommit": "99c14495685f160019e10340ea6f0de6418a65b9",
+  "sourceCapture": {
+    "path": "E:\\AII-3D\\3D-Sport-AI\\deliveries\\sdk-kit-plus51-sdk99c1449-20261031/live-durations-99c1449/plan-5-minutes.json",
+    "sha256": "6382e8d3f47d3b44ac994ed450f7fb89f43c9badb67fee5b180d186824270e76"
+  },
+  "sourceDiagnosisDirectory": "E:/AII-3D/3D-Sport-AI/Sport-Helper-coach-ui-kit/docs/reports/sdk-ui-kit-plus51-sdk99c1449/offline-five-minute-diagnosis",
+  "sourceArtifacts": {
+    "offline-replay.json": "312ca666768f01090727e96cabb094bfa4ed7d95894c08c92ffe58746ee74f83",
+    "requests-and-pre-call-states.json": "9875e8d7d59342fa5778ba3322e6a40d5a37f66277fb795d6ddbd07612f4829e",
+    "formal-profile.json": "22ed02cff44e1446e4dd92eb0b9dc0934b36078fdd89849ba45b3437c61c2906",
+    "replayed-tool-calls.json": "5c83c270beaf07e7e00b9c4d00d3471ebee6640c0b5c113338131096c416a88d"
+  },
+  "sourceCatalog": {
+    "sdkPath": "packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json",
+    "sha256": "75881cf91621c967f80732f0219f23e85b35e8bde5d1a51ee75dec5f7c5edd36",
+    "semanticPath": "packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog/catalog.json",
+    "semanticSha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983",
+    "projection": "SDK toAiCatalog plus unchanged SF _planningCadence; retain original32 seen drills in originalorder; all5 selected raw definitions structurally identical to captured offline replay."
+  },
+  "selectedRawCanonicalSha256": {
+    "h-chair-sit-to-stand": "c27b1872ebd264106e0f41adc0ce34124d810c0d5bace9643ee731bfba2c9d15",
+    "h-squat": "9d39c6c1f0c6eed1b452fa721d591227e2880f49eeee904024494ecd97d02a94",
+    "h-incline-pushup": "4b806c8bd02e591a3e7cbc21faf8e034916f54df662f290826171df959f8b930",
+    "h-good-morning": "e03f86bd165bee98ad5d330cb813a43927f85e74fd818cf5fafe5bc18577814d",
+    "h-doorframe-forearms-pec-native-r3": "4c3fc65271a2333d9e8c50db79ef1ef0f9604b56088b96ab1fc1fb7e672c7e54"
+  },
+  "continuation": "Original3batches preserved; any repair draft/show response appended by tests is synthetic FakeLlmClient continuation, not a newly sampled model response. No network/model request/device actions.",
+  "files": {
+    "baseline-receipt.json": "79e33ed382c7c4f8bb93afbf22f7da094e0f3eb76f49478154f90289ea76e901",
+    "catalog.json": "50a1c150f039f809f2f54f6e25c86a52cf9ffa093738d789c7b0228f5b25309e",
+    "execution-rhythms.json": "2c474e3f060fb39f47602bf53739a85a56fe61721a6b701f43440d98381e73f7",
+    "input.json": "f6883c578706072a677d324ac0b138788ffba04194fc40dd044dbdf7585183ac",
+    "original-draft-arguments.json": "4b0f7c50ddbc70211768b82062c3ee7d75eeb5d38aca9deffd0b6f1099846185",
+    "pre-draft-state.json": "88596f34977c7da1b0fb21e2762809b91c935a63af151519336cea6055aee170",
+    "profile.json": "22ed02cff44e1446e4dd92eb0b9dc0934b36078fdd89849ba45b3437c61c2906",
+    "recorded-tool-batches.json": "ff54f6afd6338d0149893e32eab791f65ba6911a5a3a3f2975c65dfb4abf083b"
+  }
+}

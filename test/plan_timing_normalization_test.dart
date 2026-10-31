@@ -212,30 +212,49 @@ void main() {
   );
 
   test(
-    'proven minimum longer than target is a structured non-rejection without a card',
+    'selected minimum longer than target returns removal guidance without asking',
     () {
       final original = ready(1);
       final result = builder.draft(original, draft(), newPlanId: 'p');
-      expect(result.ok, isTrue);
-      expect(result.toJson()['status'], 'infeasible');
-      expect(result.toJson()['needsUserChoice'], isTrue);
-      expect(result.feasibility!['reason'], 'minimum_exceeds_target');
-      expect(result.feasibility!['minEstimatedSec'], 110);
+      final receipt = result.toJson();
+      expect(result.ok, isFalse);
+      expect(result.error!['code'], 'duration_fit_failed');
+      expect(result.feasibility, isNull);
+      expect(receipt['status'], 'requires_rebuild');
+      expect(receipt['needsUserChoice'], isNot(isTrue));
+      expect(receipt['reason'], 'minimum_exceeds_target');
+      expect(receipt['minEstimatedSec'], 110);
+      expect(receipt['maxEstimatedSec'], 625);
+      expect(receipt['toleranceRatio'], .1);
+      expect(receipt['direction'], 'remove_action');
+      expect(receipt['needsDraftRebuild'], isTrue);
+      expect(receipt['clarificationAllowed'], isFalse);
       expect(result.planId, isNull);
       expect(result.state, same(original));
     },
   );
-  test('proven maximum shorter than target reports both bounds', () {
-    final result = builder.draft(ready(60), draft(), newPlanId: 'p');
-    expect(result.ok, isTrue);
-    expect(result.feasibility!['reason'], 'maximum_below_target');
-    expect(result.feasibility!['minEstimatedSec'], 110);
+  test('selected maximum shorter than target reports bounds and additions', () {
+    final original = ready(60);
+    final result = builder.draft(original, draft(), newPlanId: 'p');
+    final receipt = result.toJson();
+    expect(result.ok, isFalse);
+    expect(result.error!['code'], 'duration_fit_failed');
+    expect(result.feasibility, isNull);
+    expect(receipt['status'], 'requires_rebuild');
+    expect(receipt['needsUserChoice'], isNot(isTrue));
+    expect(receipt['reason'], 'maximum_below_target');
+    expect(receipt['minEstimatedSec'], 110);
     // Two rounds of three 100-second sets + 10 prep + one 15-second rest.
-    expect(result.feasibility!['maxEstimatedSec'], 625);
+    expect(receipt['maxEstimatedSec'], 625);
+    expect(receipt['toleranceRatio'], .1);
+    expect(receipt['direction'], 'add_action');
+    expect(receipt['needsDraftRebuild'], isTrue);
+    expect(receipt['clarificationAllowed'], isFalse);
     expect(result.planId, isNull);
+    expect(result.state, same(original));
   });
   test(
-    'explicit sets and rounds remain locked; conflict asks for user choice',
+    'global dose remains locked while selection retry precedes an unproved question',
     () {
       final good = builder.draft(
         ready(
@@ -251,20 +270,29 @@ void main() {
       expect(good.ok, isTrue);
       expect(items(good).single['sets'], 3);
       expect(((plan(good)['blocks'] as List).first as Map)['rounds'], 1);
-      final conflict = builder.draft(
-        ready(
-          1,
-          dose: [
-            {'field': 'sets', 'value': 3},
-            {'field': 'rounds', 'value': 1},
-          ],
-        ),
-        draft(),
-        newPlanId: 'p',
+      final original = ready(
+        1,
+        dose: [
+          {'field': 'sets', 'value': 3},
+          {'field': 'rounds', 'value': 1},
+        ],
       );
-      expect(conflict.ok, isTrue);
+      final conflict = builder.draft(original, draft(), newPlanId: 'p');
+      expect(conflict.ok, isFalse);
+      expect(conflict.error!['code'], 'duration_fit_failed');
       expect(conflict.planId, isNull);
-      expect(conflict.feasibility!['reason'], 'minimum_exceeds_target');
+      expect(conflict.feasibility, isNull);
+      expect(conflict.state, same(original));
+      final receipt = conflict.toJson();
+      expect(receipt['reason'], 'minimum_exceeds_target');
+      expect(receipt['minEstimatedSec'], 310);
+      expect(receipt['maxEstimatedSec'], 310);
+      expect(receipt['direction'], 'remove_action');
+      expect(receipt['needsUserChoice'], isNot(isTrue));
+      expect(receipt['userConfirmedDose'], isTrue);
+      expect(receipt['confirmedActionIds'], isEmpty);
+      expect(receipt['needsDraftRebuild'], isTrue);
+      expect(receipt['clarificationAllowed'], isFalse);
       final outOfRange = builder.draft(
         ready(
           5,

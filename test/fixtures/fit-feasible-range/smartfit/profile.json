@@ -1,0 +1,255 @@
+{
+  "id": "smartfit",
+  "appName": "智能健身助手（SmartFit）",
+  "promptVersion": "1",
+  "focus": "全身通用：力量、核心、低冲击有氧、拉伸放松都可以，按用户目标组合。\n徒手可使用当前场景的环境物；额外器械须由用户或 App 明确提供。\n办公室只用站姿和坐姿，不趴不躺不跪；椅子和墙默认可用；用户明确排除时不使用。\n全身训练注意推/拉、上/下肢、前/后侧平衡。",
+  "rules": [
+    "语气：清楚、友好、务实，一两句说明为什么这样排。",
+    "越界请求：库里没有的动作（如波比跳、跑步、游泳、具体器械名）不能出现；说明库里没有，用最接近的库内动作代替并在 notes 写明替换。"
+  ],
+  "select": {},
+  "scenes": {
+    "home": {
+      "label": "居家",
+      "assumedEquipment": [],
+      "acceptDrillScenes": [
+        "home"
+      ]
+    },
+    "office": {
+      "label": "办公室",
+      "assumedEquipment": [],
+      "acceptDrillScenes": [
+        "office"
+      ],
+      "forbidFloor": true
+    },
+    "gym": {
+      "label": "健身房",
+      "assumedEquipment": [],
+      "acceptDrillScenes": [
+        "gym",
+        "home"
+      ]
+    }
+  },
+  "defaultScene": "home",
+  "goals": [
+    "relax",
+    "mobility",
+    "strength",
+    "core",
+    "fullbody",
+    "warmup",
+    "cooldown"
+  ],
+  "limits": {
+    "sets": [
+      1,
+      6
+    ],
+    "reps": [
+      1,
+      30
+    ],
+    "workSeconds": [
+      10,
+      120
+    ],
+    "restSeconds": [
+      0,
+      180
+    ],
+    "rounds": [
+      1,
+      6
+    ],
+    "restBetweenRoundsSeconds": [
+      0,
+      300
+    ],
+    "minutes": [
+      3,
+      60
+    ],
+    "maxItems": 24,
+    "durationTolerance": 0.4
+  },
+  "minActions": 3,
+  "planRules": {
+    "warmupFromMinutes": 9,
+    "cooldownFromMinutes": 9,
+    "exemptWarmupForPureStretch": true,
+    "focusRatio": 0.5,
+    "maxSameMuscleInRow": 3,
+    "replaceAllMinDiff": 0.5,
+    "derivedStep": {
+      "min": 0.2,
+      "max": 0.5
+    },
+    "antagonisticPairs": []
+  },
+  "legacyGoalMap": [
+    {
+      "anyOf": [
+        "purpose.stretch"
+      ],
+      "goal": "relax"
+    },
+    {
+      "anyOf": [
+        "purpose.mobility"
+      ],
+      "goal": "mobility"
+    },
+    {
+      "anyOf": [],
+      "onlyBlocks": [
+        "warmup"
+      ],
+      "goal": "warmup"
+    },
+    {
+      "anyOf": [],
+      "onlyBlocks": [
+        "cooldown"
+      ],
+      "goal": "cooldown"
+    },
+    {
+      "anyOf": [
+        "body.core",
+        "body.abs",
+        "body.obliques",
+        "body.erectors"
+      ],
+      "bodyOnlyOf": [
+        "body.core",
+        "body.abs",
+        "body.obliques",
+        "body.erectors"
+      ],
+      "goal": "core"
+    },
+    {
+      "anyOf": [
+        "body.biceps",
+        "body.chest",
+        "body.deltoids",
+        "body.forearms",
+        "body.lats",
+        "body.rotator_cuff",
+        "body.scapular",
+        "body.serratus",
+        "body.triceps",
+        "body.inner_thigh",
+        "body.calves",
+        "body.glute_max",
+        "body.hamstrings",
+        "body.hip_abductors",
+        "body.hip_flexors",
+        "body.quadriceps",
+        "body.tibialis",
+        "body.core",
+        "body.abs",
+        "body.obliques",
+        "body.erectors"
+      ],
+      "bodyRegions": {
+        "upper": [
+          "body.biceps",
+          "body.chest",
+          "body.deltoids",
+          "body.forearms",
+          "body.lats",
+          "body.rotator_cuff",
+          "body.scapular",
+          "body.serratus",
+          "body.triceps"
+        ],
+        "lower": [
+          "body.inner_thigh",
+          "body.calves",
+          "body.glute_max",
+          "body.hamstrings",
+          "body.hip_abductors",
+          "body.hip_flexors",
+          "body.quadriceps",
+          "body.tibialis"
+        ],
+        "core": [
+          "body.core",
+          "body.abs",
+          "body.obliques",
+          "body.erectors"
+        ]
+      },
+      "minBodyRegions": 2,
+      "goal": "fullbody"
+    },
+    {
+      "anyOf": [
+        "purpose.strength",
+        "body.biceps",
+        "body.chest",
+        "body.deltoids",
+        "body.forearms",
+        "body.lats",
+        "body.rotator_cuff",
+        "body.scapular",
+        "body.serratus",
+        "body.triceps",
+        "body.inner_thigh",
+        "body.calves",
+        "body.glute_max",
+        "body.hamstrings",
+        "body.hip_abductors",
+        "body.hip_flexors",
+        "body.quadriceps",
+        "body.tibialis",
+        "body.core",
+        "body.abs",
+        "body.obliques",
+        "body.erectors"
+      ],
+      "goal": "strength"
+    },
+    {
+      "anyOf": [],
+      "fallback": true,
+      "goal": "fullbody"
+    }
+  ],
+  "bodyGroups": {
+    "body.core": [
+      "body.abs",
+      "body.obliques",
+      "body.erectors"
+    ]
+  },
+  "ambientEquipment": {
+    "home": [
+      "equip.mat",
+      "equip.wall",
+      "equip.chair"
+    ],
+    "office": [
+      "equip.chair",
+      "equip.wall"
+    ],
+    "gym": [
+      "equip.mat",
+      "equip.wall",
+      "equip.chair"
+    ]
+  },
+  "ambientEquipmentUnknown": [
+    "equip.wall",
+    "equip.mat"
+  ],
+  "vars": {
+    "defaultMinutes": "15",
+    "defaultLevel": "1",
+    "fallbackTemplates": "fullbody-bodyweight"
+  }
+}

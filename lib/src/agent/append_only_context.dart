@@ -304,6 +304,18 @@ class AppendOnlyContext {
     }
     final focus = focusPlanSummary(state, catalog, language);
     if (focus != null) summary['focus_plan'] = focus;
+    if (state.actionScopeIdentity != null) {
+      final turn = state.userTurns.lastOrNull?.turn;
+      summary['action_scope'] = {
+        'identity': state.actionScopeIdentity,
+        'userText': state.userTurns.lastOrNull?.text,
+        'assessmentRequired': state.scopeAssessmentTurn != turn,
+        'records': [
+          for (final record in state.scopeDecisionRecords)
+            if (record['turn'] == turn && record['superseded'] != true) record,
+        ],
+      };
+    }
     return LlmMessage.user('$statePrefix${jsonEncode(summary)}');
   }
 }

@@ -7,6 +7,7 @@ extension ParamsToolHandler on StructuredToolHandler {
     String language,
     List<MemoryEntry> memory,
   ) {
+    beginTool(AgentTools.setParams);
     final result = SessionParams(
       ActionTags(profile, catalog),
     ).set(state, args, memory: memory);

@@ -4,6 +4,7 @@ library;
 import 'dart:convert';
 
 import '../llm/llm_types.dart';
+import 'batch_handler.dart';
 
 class NormalizedToolArguments {
   const NormalizedToolArguments(this.value, this.notes);
@@ -69,8 +70,9 @@ class NormalizedToolBatch {
   final Map<String, List<String>> notes;
 }
 
-/// Move only the presentation pause behind its dependent operations. Renaming
-/// duplicate call IDs is reflected in the assistant message and every receipt.
+/// Normalize a typed dependency batch before execution. Every original call
+/// remains represented; renamed IDs and execution order are reflected in the
+/// assistant message and every receipt.
 NormalizedToolBatch normalizeToolBatch(LlmResponse original) {
   final reserved = original.toolCalls.map((call) => call.id).toSet();
   final used = <String>{};
@@ -87,16 +89,32 @@ NormalizedToolBatch normalizeToolBatch(LlmResponse original) {
     }
     calls.add(LlmToolCall(id: id, name: call.name, arguments: call.arguments));
   }
+  // A successful card completes the turn. Preserve the existing priority of
+  // any ask_user pause over delivery, including when the model wrote it after
+  // a show. Other trailing calls remain beyond the first show boundary so a
+  // mutation cannot become a prerequisite of an admitted card.
+  final output = calls.indexWhere(
+    (call) => {'show_plan', 'show_actions'}.contains(call.name),
+  );
+  final boundary = output < 0 ? calls.length : output;
+  final prefix = calls.take(boundary).toList();
+  final typed = ToolBatch.orderedCalls([
+    ...prefix.where((call) => call.name != 'ask_user'),
+  ]);
   final ordered = [
-    ...calls.where(
-      (call) => !{'ask_user', 'show_plan', 'show_actions'}.contains(call.name),
-    ),
+    ...typed,
     ...calls.where((call) => call.name == 'ask_user'),
-    ...calls.where((call) => {'show_plan', 'show_actions'}.contains(call.name)),
+    ...calls.skip(boundary).where((call) => call.name != 'ask_user'),
   ];
   if (calls.indexed.any((entry) => ordered[entry.$1].id != entry.$2.id)) {
-    for (final call in ordered.where((call) => call.name == 'ask_user')) {
-      (notes[call.id] ??= []).add('已先执行同批其他操作，再暂停询问。');
+    for (var index = 0; index < ordered.length; index++) {
+      final call = ordered[index];
+      if (call.id == calls[index].id) continue;
+      (notes[call.id] ??= []).add(
+        call.name == 'ask_user'
+            ? '已先执行同批其他操作，再暂停询问。'
+            : '已按类型依赖顺序执行同批调用，所有工具及ID均保留。',
+      );
     }
   }
   if (notes.isEmpty) return NormalizedToolBatch(original, const {});

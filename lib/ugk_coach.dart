@@ -6,6 +6,7 @@
 library;
 
 export 'src/agent/agent_prompt.dart';
+export 'src/agent/agent_spans.dart';
 export 'src/agent/coach_agent.dart';
 export 'src/agent/coach_conversation_controller.dart';
 export 'src/agent/context_turn_ledger.dart';
@@ -45,6 +46,7 @@ export 'src/prompt/default_prompts.dart';
 export 'src/prompt/prompt_builder.dart';
 export 'src/prompt/prompt_template.dart';
 export 'src/prompt/tool_prompt.dart';
+export 'src/scope/action_scope.dart';
 export 'src/tools/ask_user.dart';
 export 'src/tools/coach_session.dart';
 export 'src/tools/coach_tools.dart';

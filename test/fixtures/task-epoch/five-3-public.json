@@ -1,0 +1,940 @@
+{
+  "schemaVersion": 1,
+  "sourceCaseSha256": "ffe472247656aecbccfeb77d743464377e46a5c6040d6e2849fc3018ad69c3f0",
+  "sourceReport": "docs/reports/fit-executed-duration-20261101/recommendation-intermediate-failure.json",
+  "sourceKind": "original public user messages, tool call envelopes and delivered plan only",
+  "privacy": {
+    "reasoningIncluded": false,
+    "systemMessagesIncluded": false,
+    "headersIncluded": false,
+    "credentialsIncluded": false
+  },
+  "inputs": [
+    "在家拉伸10分钟，入门，徒手和瑜伽垫，重点大腿内侧和髋部，无不适",
+    "推荐几个拉大腿内侧的动作",
+    "换一套，改成5分钟"
+  ],
+  "initialSavedVersion": {
+    "version": 1,
+    "plan": {
+      "schemaVersion": 1,
+      "id": "plan-1793467080343-2",
+      "source": "ai",
+      "title": "居家髋部与大腿内侧拉伸",
+      "summary": "居家髋部与大腿内侧拉伸",
+      "goal": "relax",
+      "scene": "home",
+      "equipment": [
+        "mat"
+      ],
+      "level": 1,
+      "targetMinutes": 10,
+      "blocks": [
+        {
+          "id": "b1",
+          "name": "warmup",
+          "type": "warmup",
+          "rounds": 1,
+          "restBetweenRoundsSeconds": 0,
+          "items": [
+            {
+              "exerciseId": "n-pelvis-circle",
+              "mode": "reps",
+              "sets": 1,
+              "reps": 4,
+              "perSide": false,
+              "restSeconds": 15
+            },
+            {
+              "exerciseId": "h-quadruped-rockback",
+              "mode": "reps",
+              "sets": 1,
+              "reps": 5,
+              "perSide": false,
+              "restSeconds": 15
+            }
+          ]
+        },
+        {
+          "id": "b2",
+          "name": "main",
+          "type": "main",
+          "rounds": 2,
+          "restBetweenRoundsSeconds": 0,
+          "items": [
+            {
+              "exerciseId": "s-butterfly",
+              "mode": "time",
+              "sets": 1,
+              "workSeconds": 40,
+              "perSide": false,
+              "restSeconds": 10
+            },
+            {
+              "exerciseId": "s-kneel-hipflex",
+              "mode": "time",
+              "sets": 1,
+              "workSeconds": 15,
+              "perSide": true,
+              "restSeconds": 10
+            },
+            {
+              "exerciseId": "s-9090",
+              "mode": "time",
+              "sets": 1,
+              "workSeconds": 22,
+              "perSide": true,
+              "restSeconds": 10
+            },
+            {
+              "exerciseId": "n-thomas-test",
+              "mode": "time",
+              "sets": 1,
+              "workSeconds": 30,
+              "perSide": true,
+              "restSeconds": 10
+            }
+          ]
+        },
+        {
+          "id": "b3",
+          "name": "cooldown",
+          "type": "cooldown",
+          "rounds": 1,
+          "restBetweenRoundsSeconds": 0,
+          "items": [
+            {
+              "exerciseId": "h-butterfly-active",
+              "mode": "reps",
+              "sets": 1,
+              "reps": 10,
+              "perSide": false,
+              "restSeconds": 10
+            }
+          ]
+        }
+      ],
+      "notes": [],
+      "safetyNotes": []
+    },
+    "estimateSec": 625.0,
+    "fitLog": [
+      {
+        "blockId": "b2",
+        "actionId": null,
+        "field": "rounds",
+        "before": 1,
+        "after": 2,
+        "beforeEstimatedSec": 442.0,
+        "afterEstimatedSec": 759.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 30,
+        "after": 29,
+        "beforeEstimatedSec": 759.0,
+        "afterEstimatedSec": 755.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 29,
+        "after": 28,
+        "beforeEstimatedSec": 755.0,
+        "afterEstimatedSec": 751.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 28,
+        "after": 27,
+        "beforeEstimatedSec": 751.0,
+        "afterEstimatedSec": 747.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 27,
+        "after": 26,
+        "beforeEstimatedSec": 747.0,
+        "afterEstimatedSec": 743.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 26,
+        "after": 25,
+        "beforeEstimatedSec": 743.0,
+        "afterEstimatedSec": 739.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 25,
+        "after": 24,
+        "beforeEstimatedSec": 739.0,
+        "afterEstimatedSec": 735.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 24,
+        "after": 23,
+        "beforeEstimatedSec": 735.0,
+        "afterEstimatedSec": 731.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 23,
+        "after": 22,
+        "beforeEstimatedSec": 731.0,
+        "afterEstimatedSec": 727.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 22,
+        "after": 21,
+        "beforeEstimatedSec": 727.0,
+        "afterEstimatedSec": 723.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 21,
+        "after": 20,
+        "beforeEstimatedSec": 723.0,
+        "afterEstimatedSec": 719.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 20,
+        "after": 19,
+        "beforeEstimatedSec": 719.0,
+        "afterEstimatedSec": 715.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 19,
+        "after": 18,
+        "beforeEstimatedSec": 715.0,
+        "afterEstimatedSec": 711.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 18,
+        "after": 17,
+        "beforeEstimatedSec": 711.0,
+        "afterEstimatedSec": 707.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 17,
+        "after": 16,
+        "beforeEstimatedSec": 707.0,
+        "afterEstimatedSec": 703.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-kneel-hipflex",
+        "field": "seconds",
+        "before": 16,
+        "after": 15,
+        "beforeEstimatedSec": 703.0,
+        "afterEstimatedSec": 699.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 40,
+        "after": 39,
+        "beforeEstimatedSec": 699.0,
+        "afterEstimatedSec": 695.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 39,
+        "after": 38,
+        "beforeEstimatedSec": 695.0,
+        "afterEstimatedSec": 691.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 38,
+        "after": 37,
+        "beforeEstimatedSec": 691.0,
+        "afterEstimatedSec": 687.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 37,
+        "after": 36,
+        "beforeEstimatedSec": 687.0,
+        "afterEstimatedSec": 683.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 36,
+        "after": 35,
+        "beforeEstimatedSec": 683.0,
+        "afterEstimatedSec": 679.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 35,
+        "after": 34,
+        "beforeEstimatedSec": 679.0,
+        "afterEstimatedSec": 675.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 34,
+        "after": 33,
+        "beforeEstimatedSec": 675.0,
+        "afterEstimatedSec": 671.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 33,
+        "after": 32,
+        "beforeEstimatedSec": 671.0,
+        "afterEstimatedSec": 667.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 32,
+        "after": 31,
+        "beforeEstimatedSec": 667.0,
+        "afterEstimatedSec": 663.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 31,
+        "after": 30,
+        "beforeEstimatedSec": 663.0,
+        "afterEstimatedSec": 659.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 30,
+        "after": 29,
+        "beforeEstimatedSec": 659.0,
+        "afterEstimatedSec": 655.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 29,
+        "after": 28,
+        "beforeEstimatedSec": 655.0,
+        "afterEstimatedSec": 651.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 28,
+        "after": 27,
+        "beforeEstimatedSec": 651.0,
+        "afterEstimatedSec": 647.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 27,
+        "after": 26,
+        "beforeEstimatedSec": 647.0,
+        "afterEstimatedSec": 643.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 26,
+        "after": 25,
+        "beforeEstimatedSec": 643.0,
+        "afterEstimatedSec": 639.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 25,
+        "after": 24,
+        "beforeEstimatedSec": 639.0,
+        "afterEstimatedSec": 635.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 24,
+        "after": 23,
+        "beforeEstimatedSec": 635.0,
+        "afterEstimatedSec": 631.0
+      },
+      {
+        "blockId": "b2",
+        "actionId": "s-9090",
+        "field": "seconds",
+        "before": 23,
+        "after": 22,
+        "beforeEstimatedSec": 631.0,
+        "afterEstimatedSec": 627.0
+      }
+    ],
+    "check": {
+      "ok": true,
+      "errors": [],
+      "rules": {
+        "safety": {
+          "ok": true,
+          "expected": "所有动作在范围内且不触发限制",
+          "actual": {
+            "conflicts": {},
+            "unavailable": []
+          }
+        },
+        "equipment": {
+          "ok": true,
+          "expected": [
+            "equip.mat",
+            "equip.wall",
+            "equip.chair"
+          ],
+          "actual": []
+        },
+        "card_conditions": {
+          "ok": true,
+          "normalized": false,
+          "expected": {
+            "targetMinutes": 10,
+            "equipment": [
+              "mat"
+            ]
+          },
+          "actual": {
+            "targetMinutes": 10,
+            "equipment": [
+              "mat"
+            ]
+          }
+        },
+        "structure": {
+          "ok": true,
+          "severity": "warning",
+          "applicable": false,
+          "expected": {
+            "warmup": false,
+            "cooldown": true
+          },
+          "actual": {
+            "warmup": true,
+            "cooldown": true
+          }
+        },
+        "block_purpose": {
+          "ok": true,
+          "severity": "warning",
+          "applicable": false,
+          "expected": {
+            "warmup/cooldown": [
+              "purpose.stretch",
+              "purpose.mobility",
+              "purpose.breath",
+              "purpose.activation"
+            ]
+          },
+          "actual": []
+        },
+        "focus_body": {
+          "ok": true,
+          "expected": "main ≥ 50% 含 body.inner_thigh、body.hip_flexors",
+          "actual": "3/4"
+        },
+        "focus_purpose": {
+          "ok": true,
+          "expected": "main ≥ 50% 含 purpose.stretch",
+          "actual": "3/4"
+        },
+        "balance_sequence": {
+          "ok": true,
+          "severity": "warning",
+          "applicable": false,
+          "expected": 3,
+          "actual": 1
+        },
+        "balance_antagonists": {
+          "ok": true,
+          "severity": "warning",
+          "applicable": false,
+          "expected": 0,
+          "actual": []
+        },
+        "balance": {
+          "ok": true,
+          "severity": "warning",
+          "applicable": true,
+          "actual": {
+            "longest": 1,
+            "missingPairs": []
+          },
+          "expected": {
+            "maxSameMuscleInRow": 3
+          }
+        },
+        "legacy": {
+          "ok": true,
+          "expected": "旧计划结构和安全约束通过",
+          "actual": []
+        }
+      }
+    },
+    "createdAtTurn": 1
+  },
+  "batches": [
+    {
+      "modelCall": 1,
+      "userTurn": 1,
+      "tools": [
+        {
+          "id": "call_00_MMwmNI2WrvWtOCfvCSNd5458",
+          "name": "start_task",
+          "arguments": {
+            "type": "plan"
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": 2,
+      "userTurn": 1,
+      "tools": [
+        {
+          "id": "call_00_KvGdFe86aRIQ7LbjI7kl9943",
+          "name": "set_params",
+          "arguments": {
+            "fields": {
+              "scene": {
+                "value": "home",
+                "source": "user",
+                "quote": "在家拉伸"
+              },
+              "minutes": {
+                "value": 10,
+                "source": "user",
+                "quote": "拉伸10分钟"
+              },
+              "level": {
+                "value": 1,
+                "source": "user",
+                "quote": "入门"
+              },
+              "equipment": {
+                "value": [
+                  "equip.mat"
+                ],
+                "source": "user",
+                "quote": "徒手和瑜伽垫"
+              },
+              "goal": {
+                "value": [
+                  "body.inner_thigh",
+                  "body.hip_flexors",
+                  "purpose.stretch"
+                ],
+                "source": "user",
+                "quote": "重点大腿内侧和髋部"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": 3,
+      "userTurn": 1,
+      "tools": [
+        {
+          "id": "call_00_ET_VwBe4Z2L9eMEpWRdADqG5823",
+          "name": "search_actions",
+          "arguments": {
+            "tags": [
+              "purpose.stretch",
+              "body.inner_thigh",
+              "body.hip_flexors",
+              "scene.home",
+              "equip.mat"
+            ],
+            "limit": 20
+          }
+        },
+        {
+          "id": "call_01_ET_iD4eIGKeK5HARaeOftX71538",
+          "name": "search_actions",
+          "arguments": {
+            "tags": [
+              "purpose.mobility",
+              "body.inner_thigh",
+              "body.hip_flexors",
+              "body.glute_max",
+              "scene.home"
+            ],
+            "limit": 20
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": 4,
+      "userTurn": 1,
+      "tools": [
+        {
+          "id": "call_00_lMf25Zuh51ZBU78dYX0F3024",
+          "name": "draft_plan",
+          "arguments": {
+            "title": "居家髋部与大腿内侧拉伸",
+            "blocks": [
+              {
+                "kind": "warmup",
+                "items": [
+                  {
+                    "id": "n-pelvis-circle"
+                  },
+                  {
+                    "id": "h-quadruped-rockback"
+                  }
+                ]
+              },
+              {
+                "kind": "main",
+                "items": [
+                  {
+                    "id": "s-butterfly"
+                  },
+                  {
+                    "id": "s-kneel-hipflex"
+                  },
+                  {
+                    "id": "n-thomas-test"
+                  },
+                  {
+                    "id": "s-9090"
+                  }
+                ]
+              },
+              {
+                "kind": "cooldown",
+                "items": [
+                  {
+                    "id": "h-butterfly-active"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": 5,
+      "userTurn": 1,
+      "tools": [
+        {
+          "id": "call_00_Gi13DcuRoEO6FCepAQ549548",
+          "name": "show_plan",
+          "arguments": {
+            "plan_id": "plan-1793467080343-2",
+            "note": "先活动髋关节热身，再集中拉伸大腿内侧和髋前侧，最后用主动开合收尾。全程呼吸自然、不弹震，有牵扯感即可，感到疼就减小幅度；垫上做更舒服。"
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": 6,
+      "userTurn": 2,
+      "tools": [
+        {
+          "id": "call_00_QjDNrC8sGq9QhQhAjnZg9246",
+          "name": "show_actions",
+          "arguments": {
+            "ids": [
+              "s-butterfly",
+              "h-butterfly-active",
+              "h-adductor-rock"
+            ],
+            "note": "三个都针对大腿内侧：静态蝴蝶式找拉伸感，仰卧开合和四足侧伸后摇适合先动起来热身。呼吸别憋，有牵扯感即可，不弹震、不追疼。"
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": 7,
+      "userTurn": 2,
+      "tools": [
+        {
+          "id": "call_00_6GIAZFXGpt0B5rpO2Gsp2770",
+          "name": "search_actions",
+          "arguments": {
+            "tags": [
+              "purpose.stretch",
+              "purpose.mobility",
+              "body.inner_thigh",
+              "scene.home",
+              "equip.mat"
+            ],
+            "limit": 20
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": 8,
+      "userTurn": 2,
+      "tools": [
+        {
+          "id": "call_00_0OVFZjdBocika3XBmPpB2805",
+          "name": "show_actions",
+          "arguments": {
+            "ids": [
+              "s-butterfly",
+              "h-butterfly-active",
+              "h-adductor-rock"
+            ],
+            "note": "三个都针对大腿内侧：先用四足侧伸后摇和仰卧蝴蝶开合把髋内侧活动开，再用蝴蝶式静止拉伸。呼吸别憋，有牵扯感即可，不弹震、不追疼。垫上做更舒服。"
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": 9,
+      "userTurn": 2,
+      "tools": [
+        {
+          "id": "call_00_lQ0SVZNDeObaiCLTDiFb5509",
+          "name": "check",
+          "arguments": {
+            "node": "actions",
+            "picks": [
+              "s-butterfly",
+              "h-butterfly-active",
+              "h-adductor-rock"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": 10,
+      "userTurn": 2,
+      "tools": [
+        {
+          "id": "call_00_igVjKl00OAcNCzm3RhAs2653",
+          "name": "show_actions",
+          "arguments": {
+            "ids": [
+              "s-butterfly",
+              "h-butterfly-active",
+              "h-adductor-rock"
+            ],
+            "note": "三个都针对大腿内侧：先用四足侧伸后摇和仰卧蝴蝶开合把髋内侧活动开，再用蝴蝶式静止拉一拉。呼吸别憋，有牵扯感即可，不弹震、不追疼。"
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": 11,
+      "userTurn": 3,
+      "tools": [
+        {
+          "id": "call_00_ZbQ4l3z7RUz4U0EaaZve1176",
+          "name": "set_params",
+          "arguments": {
+            "fields": {
+              "minutes": {
+                "value": 5,
+                "source": "user",
+                "quote": "改成5分钟",
+                "direction": "shorter"
+              },
+              "operation": {
+                "value": "replace_all",
+                "source": "user",
+                "quote": "换一套"
+              }
+            }
+          }
+        },
+        {
+          "id": "call_01_ANeSwQzEeQHX9ENySlAT8304",
+          "name": "search_actions",
+          "arguments": {
+            "limit": 20,
+            "tags": [
+              "purpose.stretch",
+              "purpose.mobility",
+              "body.inner_thigh",
+              "body.hip_flexors",
+              "scene.home",
+              "equip.mat",
+              "level.1"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": 12,
+      "userTurn": 3,
+      "tools": [
+        {
+          "id": "call_00_SD2HskwC3r4adv5CD3G61583",
+          "name": "draft_plan",
+          "arguments": {
+            "blocks": [
+              {
+                "kind": "warmup",
+                "items": [
+                  {
+                    "id": "n-pelvis-circle"
+                  },
+                  {
+                    "id": "h-quadruped-rockback"
+                  }
+                ]
+              },
+              {
+                "kind": "main",
+                "items": [
+                  {
+                    "id": "h-adductor-rock"
+                  },
+                  {
+                    "id": "s-butterfly"
+                  },
+                  {
+                    "id": "s-kneel-hipflex"
+                  }
+                ]
+              },
+              {
+                "kind": "cooldown",
+                "items": [
+                  {
+                    "id": "h-butterfly-active"
+                  }
+                ]
+              }
+            ],
+            "title": "5 分钟髋部与大腿内侧拉伸"
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": 13,
+      "userTurn": 3,
+      "tools": [
+        {
+          "id": "call_00_cYRU1e98JGz5ClQ4Ndce7019",
+          "name": "draft_plan",
+          "arguments": {
+            "blocks": [
+              {
+                "items": [
+                  {
+                    "id": "n-pelvis-circle"
+                  },
+                  {
+                    "id": "h-quadruped-rockback"
+                  }
+                ],
+                "kind": "warmup"
+              },
+              {
+                "items": [
+                  {
+                    "id": "h-adductor-rock"
+                  },
+                  {
+                    "id": "s-butterfly"
+                  },
+                  {
+                    "id": "n-leg-circles"
+                  }
+                ],
+                "kind": "main"
+              },
+              {
+                "items": [
+                  {
+                    "id": "s-kneel-hipflex"
+                  }
+                ],
+                "kind": "cooldown"
+              }
+            ],
+            "title": "5 分钟髋部与大腿内侧拉伸"
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": 14,
+      "userTurn": 3,
+      "tools": [
+        {
+          "id": "call_00_ET_KoIl1NFZwLGm55S0ZVpS1634",
+          "name": "show_plan",
+          "arguments": {
+            "plan_id": "plan-1793467080343-2",
+            "note": "压到 5 分钟：站姿画圈＋四足后坐先把髋打开，主体用四足侧伸后摇、蝴蝶式、仰卧直腿画圈集中大腿内侧和髋前侧，最后半跪髋屈肌拉伸收尾。有牵扯感即可，别弹震、别追疼。"
+          }
+        }
+      ]
+    }
+  ]
+}

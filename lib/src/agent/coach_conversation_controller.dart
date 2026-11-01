@@ -75,6 +75,7 @@ class CoachConversationMessage {
     Map<String, List<String>>? answeredForm,
     AskUserQuestion? question,
     ValidatedActions? actions,
+    ValidatedPlan? plan,
     bool clearActions = false,
   }) => CoachConversationMessage(
     id: id,
@@ -85,7 +86,7 @@ class CoachConversationMessage {
     questionAnswered: questionAnswered ?? this.questionAnswered,
     answeredChoices: answeredChoices ?? this.answeredChoices,
     answeredForm: answeredForm ?? this.answeredForm,
-    plan: plan,
+    plan: plan ?? this.plan,
     planState: planState,
     actions: clearActions ? null : actions ?? this.actions,
     turnId: turnId,
@@ -692,6 +693,7 @@ class CoachConversationController {
     CoachPlanState? planState,
   }) {
     if (_disposed) return;
+    messages = _validateScopedHistory(messages, planState: planState);
     _cancel();
     _restoredPendingQuestion = false;
     agent.reset();
@@ -764,10 +766,21 @@ class CoachConversationController {
     List<CoachConversationMessage> messages,
   ) {
     if (_disposed) return;
+    if (agent.scopeManifest != null) {
+      messages = _validateScopedHistory(messages);
+      if (!agent.canRestoreSessionSnapshot(snapshot)) {
+        agent.restoreSessionSnapshot(snapshot);
+        return;
+      }
+    }
     _cancel();
     final generation = _generation;
     if (!agent.restoreSessionSnapshot(snapshot)) {
-      if (!_disposed && _generation == generation) restoreHistory(messages);
+      if (agent.scopeManifest == null &&
+          !_disposed &&
+          _generation == generation) {
+        restoreHistory(messages);
+      }
       return;
     }
     if (_disposed || _generation != generation) return;
@@ -817,6 +830,72 @@ class CoachConversationController {
   }
 
   Future<void> dispose() => _disposal ??= _dispose();
+
+  /// Hosts call this gate immediately before handing a plan to their player.
+  /// No playback/model/session operation is started here.
+  ValidatedPlan? prepareTraining(
+    TrainingPlan plan, {
+    CoachContext context = const CoachContext(),
+  }) => agent.prepareTraining(plan, context: context);
+
+  List<CoachConversationMessage> _validateScopedHistory(
+    List<CoachConversationMessage> messages, {
+    CoachPlanState? planState,
+  }) {
+    final scope = agent.actionScope;
+    if (scope == null) return messages;
+    final admitted = <CoachConversationMessage>[];
+    for (final message in messages) {
+      final plan = message.plan?.plan;
+      final stored = plan == null
+          ? null
+          : planState?.planId == plan.id
+          ? planState
+          : message.planState?.planId == plan.id
+          ? message.planState
+          : null;
+      // Display history is re-admitted against its stored confirmed context.
+      // It is not permission to start playback under today's safety state.
+      final ownPlan = plan == null
+          ? null
+          : agent
+                .gateFor(scope.catalog)
+                .admitTraining(
+                  plan,
+                  context: stored?.context ?? const CoachContext(),
+                );
+      if (plan != null &&
+          (!agent.canRestorePlan(plan, planState: stored) || ownPlan == null)) {
+        throw const FormatException('action_scope_violation');
+      }
+      if (message.actions?.items.any((item) => !scope.contains(item.id)) ??
+          false) {
+        throw const FormatException('action_scope_violation');
+      }
+      if (message.actions?.items.any(
+            (item) => scope.validateReferences(item.drill.raw).isNotEmpty,
+          ) ??
+          false) {
+        throw const FormatException('action_scope_violation');
+      }
+      final ownActions = message.actions == null
+          ? null
+          : agent.restoreRecommendation(
+              CoachRecommendationSnapshot(
+                messageId: message.id,
+                actionIds: message.actions!.items
+                    .map((item) => item.id)
+                    .toList(),
+                note: message.text,
+              ),
+            );
+      if (message.actions != null && ownActions == null) {
+        throw const FormatException('action_scope_violation');
+      }
+      admitted.add(message.copyWith(plan: ownPlan, actions: ownActions));
+    }
+    return admitted;
+  }
 
   Future<void> _dispose() async {
     _cancel();

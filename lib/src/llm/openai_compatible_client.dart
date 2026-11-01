@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 
+import '../agent/agent_spans.dart';
 import '../config/auth.dart';
 import '../config/llm_config.dart';
 import '../config/pricing.dart';
@@ -125,6 +126,9 @@ class OpenAiCompatibleClient implements LlmClient {
       }),
     );
     http.Response res;
+    CoachAgentSpanHandle? span;
+    int? statusCode;
+    int? responseBytes;
     try {
       Map<String, String> headers;
       try {
@@ -160,7 +164,14 @@ class OpenAiCompatibleClient implements LlmClient {
               ...headers,
             })
             ..body = body;
+      span = CoachAgentSpanRecorder.startCurrent(
+        CoachAgentSpanKind.http,
+        'chat.completions',
+        attributes: {'requestBytes': req.bodyBytes.length},
+      );
       res = await http.Response.fromStream(await _http.send(req));
+      statusCode = res.statusCode;
+      responseBytes = res.bodyBytes.length;
     } on http.RequestAbortedException {
       if (timedOut) {
         throw LlmException(
@@ -177,6 +188,20 @@ class OpenAiCompatibleClient implements LlmClient {
       // dart:io SocketException / HandshakeException 等（不 import dart:io，保持 Web 可用）。
       throw LlmException(LlmErrorKind.network, '$e');
     } finally {
+      span?.finish(
+        ok: statusCode == 200,
+        reason: timedOut
+            ? 'timeout'
+            : statusCode == null
+            ? 'transport_error'
+            : statusCode == 200
+            ? null
+            : 'http_$statusCode',
+        attributes: {
+          'statusCode': ?statusCode,
+          'responseBytes': ?responseBytes,
+        },
+      );
       timer.cancel();
       if (!abort.isCompleted) abort.complete();
     }

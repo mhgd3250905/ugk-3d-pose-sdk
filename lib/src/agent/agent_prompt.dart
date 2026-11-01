@@ -16,6 +16,7 @@ import '../prompt/tool_prompt.dart';
 import '../tools/coach_tools.dart';
 import 'action_tags.dart';
 import 'plan_focus.dart';
+import 'scope_protocol.dart';
 import 'session_params.dart';
 import 'session_state.dart';
 import 'skill_files.dart';
@@ -412,6 +413,22 @@ abstract final class AgentTools {
         ),
       ],
     ];
+    if (sessionState?.actionScopeIdentity != null) {
+      final index = tools.indexWhere((tool) => tool.name == setParams);
+      final original = tools[index];
+      final properties = Map<String, Object?>.from(
+        original.parameters['properties']! as Map,
+      );
+      final fields = Map<String, Object?>.from(properties['fields']! as Map);
+      properties['fields'] = {...fields, 'minProperties': 0};
+      properties['scope_request'] = CoachScopeToolProtocol.schema;
+      tools[index] = LlmTool(
+        name: original.name,
+        description:
+            '${original.description} 本App每轮还需scope_request范围判断；仅判断时fields可为空对象。',
+        parameters: {...original.parameters, 'properties': properties},
+      );
+    }
     return [
       for (final tool in tools)
         LlmTool(

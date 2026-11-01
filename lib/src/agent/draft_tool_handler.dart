@@ -4,8 +4,10 @@ extension DraftToolHandler on StructuredToolHandler {
   StructuredToolResult draft(
     CoachSessionState state,
     String raw,
-    String language,
-  ) {
+    String language, {
+    SkillDisclosures? disclosures,
+  }) {
+    beginTool(AgentTools.draftPlan);
     final args = _decode(raw);
     if (args is! Map || args.keys.any((key) => key is! String)) {
       return StructuredToolResult(
@@ -21,14 +23,70 @@ extension DraftToolHandler on StructuredToolHandler {
         ),
       );
     }
-    final gates = NodeGates(profile, catalog, minPicks: profile.minActions);
     var prepared = state;
+    StructuredToolResult? switched;
+    if (state.task?.type != 'plan') {
+      if (args['blocks'] is! List || (args['blocks'] as List).isEmpty) {
+        return StructuredToolResult(
+          state,
+          jsonEncode(
+            nodeError(
+              'invalid_draft',
+              'blocks',
+              '非空计划块数组',
+              args['blocks'],
+              '提供包含动作选择的计划块。',
+            ),
+          ),
+        );
+      }
+      final started = task(
+        state,
+        AgentTools.startTask,
+        jsonEncode({'type': 'plan'}),
+        language,
+        disclosures: disclosures,
+        allocatePlanReference: false,
+      );
+      if ((jsonDecode(started.response) as Map)['ok'] != true) return started;
+      switched = started;
+      prepared = started.state;
+    }
+    final taskCheckpoint = prepared;
+    StructuredToolResult finish(StructuredToolResult result) {
+      if (switched == null) return result;
+      final taskReceipt = jsonDecode(switched.response) as Map;
+      final response = jsonDecode(result.response) as Map;
+      final next = identical(result.state, state)
+          ? taskCheckpoint
+          : result.state;
+      return StructuredToolResult(
+        next,
+        jsonEncode({
+          ...response,
+          'task': next.task?.toJson(),
+          'skills': taskReceipt['skills'],
+          'profile': taskReceipt['profile'],
+          'notices': [
+            if (response['notices'] is List) ...response['notices'] as List,
+            '已按 draft_plan 的类型准备同一计划任务，未创建未验证的计划版本。',
+          ],
+        }),
+        changes: [...switched.changes, ...result.changes],
+        fresh: switched.fresh || result.fresh,
+        accessed: result.accessed,
+        fullSkills: {...switched.fullSkills, ...result.fullSkills},
+        requiredSkills: {...switched.requiredSkills, ...result.requiredSkills},
+      );
+    }
+
+    final gates = NodeGates(profile, catalog, minPicks: profile.minActions);
     final changes = <CoachNodeState>[];
-    if (state.task?.type == 'plan') {
+    if (prepared.task?.type == 'plan') {
       final defaults = <String, Object?>{
-        if (state.params['scene']?.value == null)
+        if (prepared.params['scene']?.value == null)
           'scene': {'value': profile.defaultScene, 'source': 'default'},
-        if (state.params['minutes']?.value == null &&
+        if (prepared.params['minutes']?.value == null &&
             int.tryParse(profile.vars['defaultMinutes'] ?? '') != null)
           'minutes': {
             'value': int.parse(profile.vars['defaultMinutes']!),
@@ -37,14 +95,14 @@ extension DraftToolHandler on StructuredToolHandler {
       };
       if (defaults.isNotEmpty) {
         final filled = setParams(
-          state,
+          prepared,
           {'fields': defaults},
           language,
           const [],
         );
         final receipt = jsonDecode(filled.response) as Map;
         if (receipt['ok'] != true) {
-          return StructuredToolResult(state, filled.response);
+          return finish(StructuredToolResult(state, filled.response));
         }
         prepared = filled.state;
         changes.addAll(filled.changes);
@@ -58,15 +116,17 @@ extension DraftToolHandler on StructuredToolHandler {
           key,
     ];
     if (missing.isNotEmpty) {
-      return StructuredToolResult(
-        state,
-        jsonEncode(
-          nodeError(
-            'missing_parameters',
-            'params',
-            ['scene', 'goal', 'minutes'],
-            missing,
-            '通过 set_params 补齐缺少的参数。',
+      return finish(
+        StructuredToolResult(
+          state,
+          jsonEncode(
+            nodeError(
+              'missing_parameters',
+              'params',
+              ['scene', 'goal', 'minutes'],
+              missing,
+              '通过 set_params 补齐缺少的参数。',
+            ),
           ),
         ),
       );
@@ -92,7 +152,7 @@ extension DraftToolHandler on StructuredToolHandler {
         language: language,
       );
       if (!selected.ok) {
-        return StructuredToolResult(state, jsonEncode(selected.error));
+        return finish(StructuredToolResult(state, jsonEncode(selected.error)));
       }
       prepared = selected.state;
       changes.addAll(selected.changes);
@@ -111,14 +171,16 @@ extension DraftToolHandler on StructuredToolHandler {
         );
     if (result.planId == null) {
       if (result.feasibility != null) {
-        return StructuredToolResult(
-          prepared,
-          jsonEncode(result.toJson()),
-          changes: changes,
-          fresh: true,
+        return finish(
+          StructuredToolResult(
+            prepared,
+            jsonEncode(result.toJson()),
+            changes: changes,
+            fresh: true,
+          ),
         );
       }
-      return StructuredToolResult(state, jsonEncode(result.toJson()));
+      return finish(StructuredToolResult(state, jsonEncode(result.toJson())));
     }
     changes.addAll(result.changes);
     var next = result.state;
@@ -148,11 +210,13 @@ extension DraftToolHandler on StructuredToolHandler {
         receipt.addAll(review);
       }
     }
-    return StructuredToolResult(
-      next,
-      jsonEncode(receipt),
-      changes: changes,
-      fresh: true,
+    return finish(
+      StructuredToolResult(
+        next,
+        jsonEncode(receipt),
+        changes: changes,
+        fresh: true,
+      ),
     );
   }
 }

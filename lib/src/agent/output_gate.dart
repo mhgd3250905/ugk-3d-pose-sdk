@@ -96,14 +96,20 @@ class OutputGate {
   }) {
     var next = state;
     final changes = <CoachNodeState>[];
+    // A typed, structurally valid output may establish the effective task.
+    // Keep that boundary on rejection, while rolling back unvalidated picks,
+    // graph advancement and draft/refit work after the checkpoint.
+    var checkpoint = state;
+    var checkpointChanges = const <CoachNodeState>[];
     final notices = <String>[];
     final warnings = <String>[];
     OutputPreparation fail(Map<String, Object?> error) => OutputPreparation(
       nodeResult: NodeResult(
-        state.copyWith(
+        checkpoint.copyWith(
           recommendationHintShown: next.recommendationHintShown,
           emittedWarningCodes: next.emittedWarningCodes,
         ),
+        changes: checkpointChanges,
       ),
       notices: notices,
       error: error,
@@ -129,6 +135,14 @@ class OutputGate {
           '提供所选动作或当前计划。',
         ),
       );
+    }
+    if (tool == CoachTools.showActions) {
+      final ids = arguments['ids'] ?? const [];
+      if (ids is! List || ids.any((id) => id is! String)) {
+        return fail(
+          nodeError('invalid_ids', 'ids', '动作ID数组', ids, '提供已选动作的ID。'),
+        );
+      }
     }
     final requiredType = tool == CoachTools.showPlan ? 'plan' : 'recommend';
     final expected = requiredType == 'plan'
@@ -159,11 +173,25 @@ class OutputGate {
           : started.state;
       changes.addAll(started.changes);
       notices.add('已按模型选择的交付工具准备对应任务节点。');
+      final draftId =
+          next.activePlanId ??
+          (next.legacyPlanFallback && next.plans.length == 1
+              ? next.plans.keys.single
+              : null);
+      if (requiredType != 'plan' ||
+          draftId != null && next.plans[draftId]?.isNotEmpty == true) {
+        // Keep parameter validation first, as on the existing output path.
+        // Without a real draft an invalid show_plan must not leave a new plan
+        // task behind and prevent the model repairing it with a text answer.
+        checkpoint = next;
+        checkpointChanges = List.unmodifiable(started.changes);
+      }
     }
     final parameter = gate.check(next, 'parameters', language: language);
     if (!parameter.ok) return fail(parameter.error!);
     next = parameter.state;
     changes.addAll(parameter.changes);
+    if (requiredType == 'plan') next = gate.resumeVisiblePlanActions(next);
     final note = arguments['note'];
     final normalized = normalizeOutputNote(
       note is String ? note : '',

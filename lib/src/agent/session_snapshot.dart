@@ -239,6 +239,7 @@ void _validateState(Map<String, Object?> state) {
   _validateTask(state['task']);
   _validateParams(_object(state['params']));
   _strings(state['seenActionIds']);
+  if (state['pendingSearchIds'] != null) _strings(state['pendingSearchIds']);
   _strings(state['picks']);
   _array(state['candidates']);
   _strings(state['loadedSkillNames']);
@@ -262,6 +263,7 @@ void _validateState(Map<String, Object?> state) {
     'lastDeliveredTurn',
     'lastOperationRequestTurn',
     'consecutiveEmptySearches',
+    'scopeAssessmentTurn',
   ]) {
     _nullableInteger(state[key]);
   }
@@ -269,6 +271,12 @@ void _validateState(Map<String, Object?> state) {
     _nullableString(state[key]);
   }
   _validatePlanFocus(state);
+  _nullableString(state['actionScopeIdentity']);
+  if (state['scopeDecisionRecords'] != null) {
+    for (final record in _array(state['scopeDecisionRecords'])) {
+      _object(record);
+    }
+  }
   if (state['recommendationHintShown'] != null &&
       state['recommendationHintShown'] is! bool) {
     throw const FormatException('Invalid recommendation hint state');

@@ -18,6 +18,7 @@ import '../plan/plan_issue.dart';
 import '../plan/plan_validator.dart';
 import '../plan/training_plan.dart';
 import '../profile/coach_profile.dart';
+import '../scope/action_scope.dart';
 import 'coach_tools.dart';
 
 /// 通过门禁的计划。只能由 [ToolGate] 构造。
@@ -163,6 +164,7 @@ class ToolGate {
     this.extraRules = const [],
     this.enforceDrillDoseRange = false,
     this.executionTiming,
+    this.finalizeNote,
   });
 
   final Catalog catalog;
@@ -176,6 +178,7 @@ class ToolGate {
   /// Player timeline measurement for Agent v2 fitting and output validation.
   /// Null keeps the legacy card-duration path.
   final PlanExecutionTimingCallback? executionTiming;
+  final String Function(TrainingPlan? plan, String note)? finalizeNote;
 
   late final Set<String> _whitelist = CoachTools.whitelist(
     profile,
@@ -207,6 +210,7 @@ class ToolGate {
     if (!prepared.ok) {
       return AgentOutputResult(
         state: prepared.nodeResult?.state ?? state,
+        changes: prepared.nodeResult?.changes ?? const [],
         notices: prepared.notices,
         error: prepared.error,
       );
@@ -256,13 +260,39 @@ class ToolGate {
             for (final drill in prepared.actions!)
               ValidatedAction._(drill, null),
           ], warnings);
+    final String note;
+    try {
+      note = finalizeNote?.call(prepared.plan, prepared.note) ?? prepared.note;
+    } on CoachScopeDisclosureException catch (error) {
+      return AgentOutputResult(
+        state: state,
+        error: {
+          'ok': false,
+          'code': error.code,
+          'field': 'scope_disclosure',
+          'needsDraftRebuild': true,
+          'clarificationAllowed': false,
+          'fix': '按本轮范围处理记录重新draft；采用项必须真实在最终计划中，不得只改文字声称包含。',
+        },
+      );
+    }
+    if (canary != null && note.contains(canary!)) {
+      return AgentOutputResult(
+        state: state,
+        error: const {
+          'ok': false,
+          'code': 'canary_leak',
+          'fix': '停止交付，不输出内部标记。',
+        },
+      );
+    }
     return AgentOutputResult(
       state: prepared.nodeResult!.state,
       changes: prepared.nodeResult!.changes,
       noteTruncated: prepared.noteTruncated,
       notices: prepared.notices,
       card: GateResult._(
-        text: prepared.note,
+        text: note,
         plan: plan,
         actions: actions,
         warnings: warnings,
@@ -414,6 +444,34 @@ class ToolGate {
   ]) {
     final r = _validator.validate(plan, context);
     return r.ok ? ValidatedPlan._(plan, r.warnings) : null;
+  }
+
+  /// Final playback admission using this gate's catalog and the host's actual
+  /// timeline. This never fits, truncates or substitutes a saved plan.
+  ValidatedPlan? admitTraining(
+    TrainingPlan plan, {
+    CoachContext context = const CoachContext(),
+  }) {
+    final report = _validator.validate(plan, context);
+    if (!report.ok) return null;
+    final target = plan.targetMinutes * 60.0;
+    final tolerance = profile.limits.durationTolerance;
+    if (!tolerance.isFinite || tolerance < 0 || target <= 0) return null;
+    final allowed = target * (tolerance < .1 ? tolerance : .1);
+    bool fits(double seconds) =>
+        seconds.isFinite && (seconds - target).abs() <= allowed + 1e-9;
+    if (!fits(const PlanDuration().estimateSeconds(plan, catalog))) return null;
+    PlanExecutionTiming? timing;
+    final callback = executionTiming;
+    if (callback != null) {
+      try {
+        timing = evaluatePlanExecutionTiming(plan, callback);
+        if (!fits(timing.totalSeconds)) return null;
+      } on PlanExecutionTimingException {
+        return null;
+      }
+    }
+    return ValidatedPlan._(plan, report.warnings, executionTiming: timing);
   }
 
   ValidatedActions? _checkActions(

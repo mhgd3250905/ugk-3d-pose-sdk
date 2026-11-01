@@ -8,6 +8,7 @@ import '../plan/plan_codec.dart';
 import '../plan/plan_execution_timing.dart';
 import '../plan/training_plan.dart';
 import '../profile/coach_profile.dart';
+import 'agent_spans.dart';
 import 'agent_task.dart';
 import 'legacy_goal.dart';
 import 'node_gates.dart';
@@ -882,6 +883,26 @@ class PlanBuilder {
   }
 
   void _fit(
+    List<_DraftBlock> blocks,
+    double target,
+    double Function(List<_DraftBlock>) estimate,
+    List<Map<String, Object?>> log,
+  ) {
+    final span = CoachAgentSpanRecorder.startCurrent(
+      CoachAgentSpanKind.fit,
+      'plan.fit',
+      attributes: {'targetSeconds': target, 'blocks': blocks.length},
+    );
+    try {
+      _fitCore(blocks, target, estimate, log);
+      span?.finish(attributes: {'doseAdjustments': log.length});
+    } on Object catch (error) {
+      span?.finish(ok: false, reason: error.runtimeType.toString());
+      rethrow;
+    }
+  }
+
+  void _fitCore(
     List<_DraftBlock> blocks,
     double target,
     double Function(List<_DraftBlock>) estimate,

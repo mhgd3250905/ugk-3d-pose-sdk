@@ -220,6 +220,7 @@ class CoachSessionState {
     this.consecutiveEmptySearches = 0,
     this.recommendationHintShown = false,
     this.pendingSearchTurn,
+    Set<String> pendingSearchIds = const {},
     Set<String> emittedWarningCodes = const {},
     List<String> picks = const [],
     Map<String, List<CoachPlanVersion>> plans = const {},
@@ -233,9 +234,13 @@ class CoachSessionState {
     this.legacyPlanFallback = false,
     Map<String, Object?> hostValues = const {},
     Map<String, Object?>? completedContextLedger,
+    this.actionScopeIdentity,
+    this.scopeAssessmentTurn,
+    List<Map<String, Object?>> scopeDecisionRecords = const [],
   }) : userTurns = List.unmodifiable(userTurns),
        params = Map.unmodifiable(params),
        seenActionIds = Set.unmodifiable(seenActionIds),
+       pendingSearchIds = Set.unmodifiable(pendingSearchIds),
        emittedWarningCodes = Set.unmodifiable(emittedWarningCodes),
        picks = List.unmodifiable(picks),
        plans = Map.unmodifiable({
@@ -245,7 +250,10 @@ class CoachSessionState {
        hostValues = _freezeMap(hostValues),
        completedContextLedger = completedContextLedger == null
            ? null
-           : _freezeMap(completedContextLedger);
+           : _freezeMap(completedContextLedger),
+       scopeDecisionRecords = List.unmodifiable(
+         scopeDecisionRecords.map(_freezeMap),
+       );
 
   final List<CoachUserTurn> userTurns;
   final CoachTaskState? task;
@@ -258,6 +266,10 @@ class CoachSessionState {
   /// Whether this task has already suggested broadening a sparse body search.
   final bool recommendationHintShown;
   final int? pendingSearchTurn;
+
+  /// Only IDs returned by successful search in [pendingSearchTurn]. A typed
+  /// task switch may reuse this checkpoint, never the previous task's pool.
+  final Set<String> pendingSearchIds;
   final Set<String> emittedWarningCodes;
   final List<String> picks;
   final Map<String, List<CoachPlanVersion>> plans;
@@ -286,6 +298,9 @@ class CoachSessionState {
 
   /// Completed-turn facts only; never raw model reasoning or tool history.
   final Map<String, Object?>? completedContextLedger;
+  final String? actionScopeIdentity;
+  final int? scopeAssessmentTurn;
+  final List<Map<String, Object?>> scopeDecisionRecords;
 
   CoachSessionState copyWith({
     List<CoachUserTurn>? userTurns,
@@ -296,6 +311,7 @@ class CoachSessionState {
     int? consecutiveEmptySearches,
     bool? recommendationHintShown,
     int? pendingSearchTurn,
+    Set<String>? pendingSearchIds,
     bool clearPendingSearchTurn = false,
     Set<String>? emittedWarningCodes,
     List<String>? picks,
@@ -313,6 +329,10 @@ class CoachSessionState {
     Map<String, Object?>? hostValues,
     Map<String, Object?>? completedContextLedger,
     bool clearCompletedContextLedger = false,
+    String? actionScopeIdentity,
+    int? scopeAssessmentTurn,
+    bool clearScopeAssessment = false,
+    List<Map<String, Object?>>? scopeDecisionRecords,
   }) => CoachSessionState(
     userTurns: userTurns ?? this.userTurns,
     task: clearTask ? null : task ?? this.task,
@@ -325,6 +345,9 @@ class CoachSessionState {
     pendingSearchTurn: clearPendingSearchTurn
         ? null
         : pendingSearchTurn ?? this.pendingSearchTurn,
+    pendingSearchIds: clearPendingSearchTurn
+        ? const {}
+        : pendingSearchIds ?? this.pendingSearchIds,
     emittedWarningCodes: emittedWarningCodes ?? this.emittedWarningCodes,
     picks: picks ?? this.picks,
     plans: plans ?? this.plans,
@@ -349,6 +372,11 @@ class CoachSessionState {
     completedContextLedger: clearCompletedContextLedger
         ? null
         : completedContextLedger ?? this.completedContextLedger,
+    actionScopeIdentity: actionScopeIdentity ?? this.actionScopeIdentity,
+    scopeAssessmentTurn: clearScopeAssessment
+        ? null
+        : scopeAssessmentTurn ?? this.scopeAssessmentTurn,
+    scopeDecisionRecords: scopeDecisionRecords ?? this.scopeDecisionRecords,
   );
 
   CoachSessionState appendUserTurn(String text) => copyWith(
@@ -372,6 +400,8 @@ class CoachSessionState {
       'consecutiveEmptySearches': consecutiveEmptySearches,
     if (recommendationHintShown) 'recommendationHintShown': true,
     if (pendingSearchTurn != null) 'pendingSearchTurn': pendingSearchTurn,
+    if (pendingSearchIds.isNotEmpty)
+      'pendingSearchIds': pendingSearchIds.toList(),
     if (emittedWarningCodes.isNotEmpty)
       'emittedWarningCodes': emittedWarningCodes.toList(),
     'picks': List<String>.of(picks),
@@ -392,6 +422,10 @@ class CoachSessionState {
     if (hostValues.isNotEmpty) 'hostValues': _thaw(hostValues),
     if (completedContextLedger != null)
       'completedContextLedger': _thaw(completedContextLedger),
+    if (actionScopeIdentity != null) 'actionScopeIdentity': actionScopeIdentity,
+    if (scopeAssessmentTurn != null) 'scopeAssessmentTurn': scopeAssessmentTurn,
+    if (scopeDecisionRecords.isNotEmpty)
+      'scopeDecisionRecords': scopeDecisionRecords.map(_thaw).toList(),
   };
 
   factory CoachSessionState.fromJson(Map<String, Object?> json) =>
@@ -414,6 +448,9 @@ class CoachSessionState {
         recommendationHintShown:
             json['recommendationHintShown'] as bool? ?? false,
         pendingSearchTurn: json['pendingSearchTurn'] as int?,
+        pendingSearchIds: (json['pendingSearchIds'] as List<Object?>? ?? const [])
+            .cast<String>()
+            .toSet(),
         emittedWarningCodes:
             (json['emittedWarningCodes'] as List<Object?>? ?? const [])
                 .cast<String>()
@@ -440,6 +477,13 @@ class CoachSessionState {
         completedContextLedger: json['completedContextLedger'] == null
             ? null
             : _map(json['completedContextLedger']),
+        actionScopeIdentity: json['actionScopeIdentity'] as String?,
+        scopeAssessmentTurn: json['scopeAssessmentTurn'] as int?,
+        scopeDecisionRecords: [
+          for (final value
+              in json['scopeDecisionRecords'] as List<Object?>? ?? const [])
+            _map(value),
+        ],
       );
 }
 

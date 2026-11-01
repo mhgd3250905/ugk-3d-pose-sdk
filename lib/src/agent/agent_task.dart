@@ -88,6 +88,7 @@ class AgentTask {
           activePlanId: focusId,
           consecutiveEmptySearches: 0,
           clearPendingSearchTurn: true,
+          pendingSearchIds: const {},
         ),
         changes: nodes,
       );
@@ -124,6 +125,8 @@ class AgentTask {
         state.copyWith(
           task: previous.copyWith(nodes: nodes, reused: true),
           consecutiveEmptySearches: 0,
+          clearPendingSearchTurn: true,
+          pendingSearchIds: const {},
         ),
         changes: nodes
             .where((n) => ['planning', 'review', 'output'].contains(n.id))
@@ -164,17 +167,22 @@ class AgentTask {
           ),
     ];
     final preservePendingSearch =
-        previous == null &&
         state.pendingSearchTurn != null &&
         state.pendingSearchTurn == state.userTurns.lastOrNull?.turn;
+    final pendingIds = state.pendingSearchIds.isNotEmpty || previous != null
+        ? state.pendingSearchIds
+        : state.seenActionIds;
     final next = state.copyWith(
       task: CoachTaskState(type: type, nodes: nodes, reused: reuse),
       clearActivePlanId: true,
       picks: reuse ? state.picks : const [],
-      seenActionIds: reuse || preservePendingSearch
+      seenActionIds: reuse
           ? state.seenActionIds
+          : preservePendingSearch
+          ? pendingIds
           : const {},
       clearPendingSearchTurn: true,
+      pendingSearchIds: const {},
       emittedWarningCodes: reuse ? state.emittedWarningCodes : const {},
       consecutiveEmptySearches: 0,
       recommendationHintShown: reuse ? state.recommendationHintShown : false,

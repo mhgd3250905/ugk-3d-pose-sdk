@@ -1,4 +1,4 @@
-/// Stateless handlers for structured Agent tools. State is returned to the
+/// Batch-local handlers for structured Agent tools. State is returned to the
 /// calling loop, which owns cancellation, memory epochs, and event delivery.
 library;
 
@@ -64,6 +64,14 @@ class StructuredToolHandler {
   final bool enforceDrillDoseRange;
   final PlanExecutionTimingCallback? executionTiming;
   final SkillFiles? files;
+  _SearchReuse? _lastSearch;
+
+  /// The owning tool loop calls this for every executed call, including memory
+  /// tools handled elsewhere. Only immediately consecutive searches may reuse
+  /// a receipt; handlers themselves are recreated for each HTTP response.
+  void beginTool(String name) {
+    if (name != AgentTools.searchActions) _lastSearch = null;
+  }
 
   Object? _decode(String raw) {
     try {
@@ -72,4 +80,19 @@ class StructuredToolHandler {
       return null;
     }
   }
+}
+
+class _SearchReuse {
+  _SearchReuse({
+    required this.task,
+    required this.signature,
+    required Map<String, Object?> receipt,
+    required Iterable<String> ids,
+  }) : receipt = Map.unmodifiable(receipt),
+       ids = Set.unmodifiable(ids);
+
+  final CoachTaskState? task;
+  final String signature;
+  final Map<String, Object?> receipt;
+  final Set<String> ids;
 }

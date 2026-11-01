@@ -32,6 +32,7 @@ import '../plan/plan_issue.dart';
 import '../plan/plan_validator.dart';
 import '../plan/training_plan.dart';
 import '../profile/coach_profile.dart';
+import '../scope/action_scope.dart';
 import '../tools/ask_user.dart';
 import '../tools/coach_session.dart';
 import '../tools/coach_tools.dart';
@@ -42,6 +43,7 @@ import 'action_search.dart';
 import 'action_tags.dart';
 import 'agent_prompt.dart';
 import 'agent_resilience.dart';
+import 'agent_spans.dart';
 import 'agent_task.dart';
 import 'append_only_context.dart';
 import 'batch_handler.dart';
@@ -50,6 +52,7 @@ import 'context_turn_ledger.dart';
 import 'node_gates.dart';
 import 'plan_checker.dart';
 import 'plan_focus.dart';
+import 'scope_protocol.dart';
 import 'session_params.dart';
 import 'session_snapshot.dart';
 import 'session_state.dart';
@@ -72,6 +75,7 @@ part 'ask_commit_handler.dart';
 part 'output_commit_handler.dart';
 part 'session_snapshot_handler.dart';
 part 'external_plan_focus_handler.dart';
+part 'scope_session_handler.dart';
 
 /// Persist alongside a delivered plan card to restore its planning conditions.
 /// [planId] binds the snapshot to that exact card. A snapshot for another plan
@@ -228,7 +232,7 @@ class CoachAgent {
   CoachAgent({
     required this.client,
     required Catalog Function() catalog,
-    required this.profile,
+    required CoachProfile profile,
     this.fallback,
     UsageSink? usage,
     AgentPromptBuilder? prompts,
@@ -253,24 +257,44 @@ class CoachAgent {
     this.extraRules = const [],
     this.enforceDrillDoseRange = false,
     this.executionTiming,
+    CoachAgentSpanObserver? onSpan,
+    this.scopeManifest,
+    this.scopePolicy,
     this.enableUserMemory = true,
     UserMemoryStore? memoryStore,
     this.memoryLimits = const MemoryLimits(),
     String? appId,
     Clock clock = systemClock,
     IdGenerator? ids,
-  }) : _catalog = catalog,
+  }) : _catalogSource = catalog,
+       _sourceProfile = profile,
        usage = usage ?? MemoryUsageSink(),
        prompts = prompts ?? AgentPromptBuilder(),
        memoryStore = memoryStore ?? InMemoryUserMemoryStore(),
        appId = appId ?? profile.id,
        _clock = clock,
        _ids = ids ?? IdGenerator(clock: clock),
+       _spans = CoachAgentSpanRecorder(onSpan: onSpan),
        _sleep = sleep ?? Future<void>.delayed,
-       _random = random ?? math.Random().nextDouble;
+       _random = random ?? math.Random().nextDouble {
+    if (scopeManifest != null && this.appId != scopeManifest!.appId) {
+      throw const CoachActionScopeConfigurationException(
+        'app_scope_mismatch',
+        'appId',
+      );
+    }
+    final scope = _refreshActionScope();
+    this.profile = scope?.profile ?? profile;
+    _sessionState = CoachSessionState(actionScopeIdentity: scope?.identity);
+  }
 
   final LlmClient client;
-  final CoachProfile profile;
+  late final CoachProfile profile;
+  final CoachProfile _sourceProfile;
+  final CoachActionScopeManifest? scopeManifest;
+  final CoachScopeConversationPolicy? scopePolicy;
+  CoachActionScope? _actionScope;
+  Catalog? _scopeSource;
   final SessionFallback? fallback;
   final UsageSink usage;
   final AgentPromptBuilder prompts;
@@ -327,9 +351,10 @@ class CoachAgent {
   final UserMemoryStore memoryStore;
   final MemoryLimits memoryLimits;
   final String appId;
-  final Catalog Function() _catalog;
+  final Catalog Function() _catalogSource;
   final Clock _clock;
   final IdGenerator _ids;
+  final CoachAgentSpanRecorder _spans;
   final Future<void> Function(Duration) _sleep;
   final double Function() _random;
 
@@ -472,6 +497,20 @@ class CoachAgent {
   /// Current host-saved plan selected for discussion; no model call is made.
   CoachPlanFocus? get planFocus => currentPlanFocus(_sessionState);
 
+  /// The only planning/admission catalog when an explicit manifest is bound.
+  CoachActionScope? get actionScope => _refreshActionScope();
+
+  /// Immutable, code-validated scope adjustments, including original user text.
+  List<CoachScopeDecisionRecord> get scopeRecords => _readScopeRecords();
+
+  /// Re-admits a card immediately before the host starts playback. Scope,
+  /// safety and both configured duration gates are checked again; no fitting,
+  /// model request or session mutation is performed.
+  ValidatedPlan? prepareTraining(
+    TrainingPlan plan, {
+    CoachContext context = const CoachContext(),
+  }) => _prepareScopedTraining(plan, context);
+
   CoachPlanFocusResult focusExternalPlan({
     required String externalId,
     required TrainingPlan plan,
@@ -516,6 +555,16 @@ class CoachAgent {
   /// Used by the owning conversation controller; no model call is made.
   bool restoreSessionSnapshot(CoachSessionSnapshot snapshot) {
     try {
+      if (!canRestoreSessionSnapshot(snapshot)) {
+        _emitEvent(
+          AgentEvent(
+            _ids.next('restore'),
+            AgentEventKind.snapshotRestoreFallback,
+            path: 'action_scope_violation',
+          ),
+        );
+        return false;
+      }
       // Public callers may construct a snapshot directly, bypassing fromJson.
       // Apply the same focused-plan validation before assigning live state.
       final checked =
@@ -540,6 +589,33 @@ class CoachAgent {
   /// Re-admits a historical recommendation for display without changing state.
   ValidatedActions? restoreRecommendation(CoachRecommendationSnapshot ref) =>
       _restoreRecommendation(ref);
+
+  /// Read-only scope preflight; an invalid portable snapshot must not reset or
+  /// cancel the current conversation merely because legacy fallback exists.
+  bool canRestoreSessionSnapshot(CoachSessionSnapshot snapshot) {
+    if (scopeManifest == null) return true;
+    try {
+      return snapshot.isValid && _isScopedSnapshotValid(snapshot);
+    } on Object {
+      return false;
+    }
+  }
+
+  /// A validated object from another catalog is not authorization here.
+  bool canRestorePlan(TrainingPlan plan, {CoachPlanState? planState}) {
+    final scope = _refreshActionScope();
+    if (scope == null) return true;
+    try {
+      final state = planState?.planId == plan.id
+          ? planState?.sessionState
+          : null;
+      return scope.validatePlan(plan).isEmpty &&
+          (state == null || _isScopedStateValid(state));
+    } on Object {
+      return false;
+    }
+  }
+
   int get turnCount => _turns;
 
   /// 本次任务已成功交付的澄清问题数；跨 send 保留，成功交付计划/动作卡或 reset 时清零。
@@ -583,12 +659,17 @@ class CoachAgent {
     List<String> restoredUserTurns = const [],
     List<LlmMessage> restoredMessages = const [],
   }) {
+    if (!canRestorePlan(admitted.plan, planState: planState)) {
+      throw const FormatException('action_scope_violation');
+    }
     _modelContext = null;
     _modelEpochKey = null;
     _contextCoveredHistory.clear();
     final plan = admitted.plan;
     final stored = planState?.planId == plan.id ? planState : null;
-    _sessionState = stored?.sessionState ?? CoachSessionState();
+    _sessionState =
+        stored?.sessionState ??
+        CoachSessionState(actionScopeIdentity: _refreshActionScope()?.identity);
     final saved = stored?.context;
     final context = CoachContext(
       scene: saved?.scene ?? plan.scene,
@@ -676,6 +757,7 @@ class CoachAgent {
     _hostSafetyRevision++;
     _latestExplicitAvoid = nextAvoid;
     final cat = _catalog();
+    final beforeScope = _scopeConditions(_sessionState);
     final updated = SessionParams(
       ActionTags(profile, cat),
     ).applyHost(_sessionState, CoachContext(avoid: nextAvoid));
@@ -694,7 +776,10 @@ class CoachAgent {
                 _confirmedPlanContext?.language ??
                 'zh',
           );
-    _sessionState = nodes.state;
+    _sessionState =
+        scopeManifest != null && beforeScope != _scopeConditions(nodes.state)
+        ? _invalidateScopeAssessment(nodes.state)
+        : nodes.state;
     CoachContext replace(CoachContext c) => CoachContext(
       scene: c.scene,
       equipment: c.equipment,
@@ -709,7 +794,12 @@ class CoachAgent {
     if (_confirmedPlanContext != null) {
       _confirmedPlanContext = replace(_confirmedPlanContext!);
     }
-    if (nodes.changes.isNotEmpty) _emitNodeChanges(_ids.next('host'), nodes);
+    if (nodes.changes.isNotEmpty) {
+      _emitNodeChanges(
+        _ids.next('host'),
+        NodeResult(_sessionState, changes: nodes.changes),
+      );
+    }
   }
 
   /// Explicitly invalidate an unanswered confirmation. A previously confirmed
@@ -732,7 +822,11 @@ class CoachAgent {
     if (!_planningFailure || isBusy || isFull) return null;
     final admitted = _admitPreset(plan);
     if (admitted == null) return null;
-    final text = _planSummary(admitted.plan, _catalog());
+    final text = _scopeFinalText(
+      admitted.plan,
+      _planSummary(admitted.plan, _catalog()),
+    );
+    final scopeSourceTurn = _sessionState.userTurns.lastOrNull?.turn;
     final previousLedger = _completedLedger();
     const userMessage = LlmMessage.user('用预设方案');
     final deliveredMessage = LlmMessage.assistant(text, reasoning: '');
@@ -765,6 +859,17 @@ class CoachAgent {
       lastDeliveredPlanId: delivered.id,
       lastDeliveredVersion: version,
       lastDeliveredTurn: _sessionState.userTurns.last.turn,
+      scopeDecisionRecords: [
+        for (final record in _sessionState.scopeDecisionRecords)
+          if (scopeManifest != null &&
+              record['turn'] == scopeSourceTurn &&
+              record['superseded'] != true)
+            CoachScopeDecisionRecord.fromJson(
+              record,
+            ).bindToPlan(delivered.id, version).toJson()
+          else
+            record,
+      ],
     );
     _questionsAsked = 0;
     _pendingConfirmation = null;
@@ -794,6 +899,9 @@ class CoachAgent {
   }
 
   ValidatedPlan? _admitPreset(TrainingPlan plan) {
+    if (scopeManifest != null && (!_scopeAssessedNow || _scopeRefusesPlan)) {
+      return null;
+    }
     final task = _sessionState.task;
     if (task?.type != 'plan' || task!.nodes.last.status == 'done') {
       return null;
@@ -807,7 +915,7 @@ class CoachAgent {
       profile,
       catalog,
       minPicks: profile.minActions,
-      extraRules: extraRules,
+      extraRules: _effectivePlanRules,
       enforceDrillDoseRange: enforceDrillDoseRange,
     ).validateTemplate(_sessionState, plan);
     if (!checked.ok) return null;
@@ -827,7 +935,16 @@ class CoachAgent {
       level: params['level']?.value as int?,
       avoid: {for (final code in limits) tags.limitValue(code) ?? code},
     );
-    return gateFor(catalog).admitTemplate(plan, context);
+    final gate = gateFor(catalog);
+    if (scopeManifest == null) return gate.admitTemplate(plan, context);
+    final admitted = gate.admitTraining(plan, context: context);
+    if (admitted == null) return null;
+    try {
+      _scopeFinalText(plan, '');
+    } on CoachScopeDisclosureException {
+      return null;
+    }
+    return admitted;
   }
 
   int get historyChars => _history.fold(0, (n, m) => n + _chars(m));
@@ -850,7 +967,9 @@ class CoachAgent {
     _modelContext = null;
     _modelEpochKey = null;
     _contextRequestDiagnostics.clear();
-    _sessionState = CoachSessionState();
+    _sessionState = CoachSessionState(
+      actionScopeIdentity: _refreshActionScope()?.identity,
+    );
     _focusTurnBase = null;
     _hostSafetyRevision++;
     _latestExplicitAvoid = null;
@@ -871,7 +990,7 @@ class CoachAgent {
 
   /// 当前虚拟文件系统（按 profile + 目录实例 + 记忆开关缓存；目录更新后自动重建）。
   SkillFiles files([Catalog? catalog]) {
-    final c = catalog ?? _catalog();
+    final c = scopeManifest == null ? catalog ?? _catalog() : _catalog();
     final key = (p: profile, c: c, m: enableUserMemory);
     if (_files != null && _filesKey == key) return _files!;
     _filesKey = key;
@@ -991,12 +1110,13 @@ class CoachAgent {
   }
 
   ToolGate gateFor(Catalog c) => ToolGate(
-    catalog: c,
+    catalog: scopeManifest == null ? c : _catalog(),
     profile: profile,
     canary: prompts.canary,
-    extraRules: extraRules,
+    extraRules: _effectivePlanRules,
     enforceDrillDoseRange: enforceDrillDoseRange,
     executionTiming: executionTiming,
+    finalizeNote: scopeManifest == null ? null : _scopeFinalText,
   );
 
   ContextTurnLedger _completedLedger() =>
@@ -1256,13 +1376,11 @@ class CoachAgent {
       _snapshotTurnQuestion = previousQuestion;
       _sessionState = _sessionState.appendUserTurn(userText);
       acceptedInput = true;
-      final result = await _run(
-        turnId,
-        text,
-        context,
-        cancel,
-        gen,
-        confirmedForm,
+      final result = await _spans.run(
+        () => _run(turnId, text, context, cancel, gen, confirmedForm),
+        turnId: turnId,
+        taskId: _sessionState.task?.type,
+        epoch: _modelEpochCounter,
       );
       if (result.status == TurnStatus.cancelled && _generation == gen) {
         _snapshotInterrupted = _captureSessionSnapshot(
@@ -1466,7 +1584,7 @@ class CoachAgent {
           summary = '';
         }
       }
-      return prompts.system(
+      final base = prompts.system(
         profile,
         fs,
         memory: memoryOn,
@@ -1475,6 +1593,9 @@ class CoachAgent {
         locale: context.language,
         hasPlanFocus: _sessionState.focusPlanId != null,
       );
+      return scopeManifest == null
+          ? base
+          : '$base\n${CoachScopeToolProtocol.system(_scopeConversationPolicy)}';
     }
 
     var system = '';
@@ -1823,7 +1944,11 @@ class CoachAgent {
               req.messages,
             ).sources.keys.map((path) => path.replaceFirst('/SKILL.md', '')),
           );
-          final f = client.complete(req, cancel: child)..ignore();
+          final f = _spans.run(
+            () => client.complete(req, cancel: child),
+            taskId: _sessionState.task?.type,
+            epoch: _modelEpochCounter,
+          )..ignore();
           res = await Future.any<LlmResponse>([
             f,
             child.whenCancelled.then<LlmResponse>(
@@ -1965,7 +2090,31 @@ class CoachAgent {
           break;
         }
         turnMsgs.add(assistant(response));
+        if (!_scopeAssessedNow) {
+          lastErrors = const [
+            PlanIssue('scope_assessment_required', '尚未校验本轮需求的动作范围'),
+          ];
+          calls.add(
+            _Call.ok(
+              step,
+              res,
+              CallOutcome.rejected,
+              retry: tag,
+              codes: const ['scope_assessment_required'],
+            ),
+          );
+          if (++rejected > maxResubmits) break;
+          turnMsgs.add(
+            LlmMessage.user(
+              '（系统回执）先用 set_params 的 scope_request 完成本轮范围记录；'
+              'quote 必须逐字等于当前状态 action_scope.userText。'
+              '不要生成新用户原话，也不要新增工具。原 task 和已检索来源继续有效。',
+            ),
+          );
+          continue;
+        }
         if (g.ok &&
+            !_scopeRefusesPlan &&
             _sessionState.task?.type == 'plan' &&
             _sessionState.task!.nodes.last.status != 'done') {
           lastErrors = const [PlanIssue('missing_plan', '训练计划未生成')];
@@ -1981,6 +2130,7 @@ class CoachAgent {
           break;
         }
         if (g.ok) {
+          final deliveredText = _scopeFinalText(null, g.text);
           calls.add(
             _Call.ok(
               step,
@@ -1993,12 +2143,14 @@ class CoachAgent {
             TurnStatus.ok,
             rejected == 0 ? TurnOutcome.model : TurnOutcome.rewritten,
             step,
-            text: g.text,
+            text: deliveredText,
             commit: () {
               _turns++;
               _history
                 ..add(userMsg)
-                ..add(assistant(response, content: g.text, history: true));
+                ..add(
+                  assistant(response, content: deliveredText, history: true),
+                );
             },
           );
         }
@@ -2046,7 +2198,7 @@ class CoachAgent {
         profile,
         cat,
         newPlanId: () => _ids.next('plan'),
-        extraRules: extraRules,
+        extraRules: _effectivePlanRules,
         enforceDrillDoseRange: enforceDrillDoseRange,
         executionTiming: executionTiming,
         files: fs,
@@ -2074,466 +2226,613 @@ class CoachAgent {
       var fresh = false;
       for (var toolIndex = 0; toolIndex < res.toolCalls.length; toolIndex++) {
         final t = res.toolCalls[toolIndex];
-        if (terminalQuestion != null) {
-          results[t.id] = jsonEncode({
-            'ok': true,
-            'deferred': true,
-            'reason': 'awaiting_user',
-            'notes': ['本批已暂停询问；此操作在收到用户回答后继续。'],
-          });
-          orderedResults.add(results[t.id]!);
-          continue;
-        }
-        if (batch.failed) {
-          batch.skipped(t.id);
-          orderedResults.add(results[t.id]!);
-          continue;
-        }
-        // Host settings may change while the model request is in flight.
-        context = ledgerContext(context);
-        bool? toolFailure;
-        if (t.name == AgentTools.draftPlan ||
-            t.name == AgentTools.checkPlan ||
-            t.name == AgentTools.showPlan ||
-            (t.name == AgentTools.startTask && _arg(t, 'type') == 'plan') ||
-            (t.name == AgentTools.setParams &&
-                _sessionState.task?.type == 'plan')) {
-          attemptedPlanning = true;
-        }
-        switch (t.name) {
-          case AgentTools.draftPlan:
-            final handled = structured.draft(
-              _sessionState,
-              t.arguments,
-              context.language,
-            );
-            _sessionState = handled.state;
-            if (handled.changes.isNotEmpty) {
-              _emitNodeChanges(
-                turnId,
-                NodeResult(handled.state, changes: handled.changes),
-              );
+        final toolSpan = _spans.start(
+          CoachAgentSpanKind.tool,
+          t.name,
+          taskId: _sessionState.task?.type,
+          epoch: _modelEpochCounter,
+          toolCallId: t.id,
+          attributes: {'modelStep': step, 'toolIndex': toolIndex + 1},
+        );
+        try {
+          if (terminalQuestion != null) {
+            results[t.id] = jsonEncode({
+              'ok': true,
+              'deferred': true,
+              'reason': 'awaiting_user',
+              'notes': ['本批已暂停询问；此操作在收到用户回答后继续。'],
+            });
+            orderedResults.add(results[t.id]!);
+            continue;
+          }
+          if (batch.failed) {
+            batch.skipped(t.id);
+            orderedResults.add(results[t.id]!);
+            continue;
+          }
+          // Host settings may change while the model request is in flight.
+          context = ledgerContext(context);
+          bool? toolFailure;
+          if (t.name == AgentTools.draftPlan ||
+              t.name == AgentTools.checkPlan ||
+              t.name == AgentTools.showPlan ||
+              (t.name == AgentTools.startTask && _arg(t, 'type') == 'plan') ||
+              (t.name == AgentTools.setParams &&
+                  _sessionState.task?.type == 'plan')) {
+            attemptedPlanning = true;
+          }
+          structured.beginTool(t.name);
+          final scopeProblem = _scopeToolProblem(t, context.language);
+          if (scopeProblem != null) {
+            results[t.id] = jsonEncode(scopeProblem);
+            terminalRejected = {
+              AgentTools.showPlan,
+              AgentTools.showActions,
+              AgentTools.askUser,
+            }.contains(t.name);
+            if (t.name == AgentTools.showPlan ||
+                t.name == AgentTools.showActions) {
+              attemptedOutput = true;
             }
-            fresh = fresh || handled.fresh;
-            results[t.id] = handled.response;
-          case AgentTools.searchActions || AgentTools.getAction:
-            final handled = structured.search(
-              _sessionState,
-              t.name,
-              t.arguments,
-              context.language,
-            );
-            _sessionState = handled.state;
-            fresh = fresh || handled.fresh;
-            for (final id in handled.accessed) {
-              if (readSet.add('get_action:$id')) fresh = true;
-            }
-            results[t.id] = handled.response;
-          case AgentTools.startTask || AgentTools.check:
-            final handled = structured.task(
-              _sessionState,
-              t.name,
-              t.arguments,
-              context.language,
-              disclosures: visibleDisclosures(),
-            );
-            if (handled.requiredSkills.isNotEmpty) {
-              disclosuresByIndex[toolIndex] = SkillDisclosureMessage(
-                t.id,
-                handled.response,
-                fullSkills: handled.fullSkills,
-                requiredSkills: handled.requiredSkills,
-              );
-            }
-            _sessionState = handled.state;
-            if (t.name == AgentTools.startTask && handled.fresh) {
-              _questionsAsked = 0;
-              _pendingConfirmation = null;
-            }
-            if (handled.changes.isNotEmpty) {
-              _emitNodeChanges(
-                turnId,
-                NodeResult(handled.state, changes: handled.changes),
-              );
-            }
-            fresh = fresh || handled.fresh;
-            results[t.id] = handled.response;
-          case AgentTools.setParams:
-            Object? args;
-            try {
-              args = jsonDecode(t.arguments);
-            } on FormatException {
-              results[t.id] = jsonEncode(
-                nodeError(
-                  'invalid_json',
-                  'arguments',
-                  '合法 JSON 对象',
-                  '无效 JSON',
-                  '提供包含 fields 的合法 JSON 对象。',
+            batch.mark(toolIndex + 1, t.id);
+            orderedResults.add(results[t.id]!);
+            continue;
+          }
+          switch (t.name) {
+            case AgentTools.draftPlan:
+              final handled = _spans.run(
+                () => structured.draft(
+                  _sessionState,
+                  t.arguments,
+                  context.language,
+                  disclosures: visibleDisclosures(),
                 ),
+                taskId: 'plan',
+                epoch: _modelEpochCounter,
+                toolCallId: t.id,
+                parentId: toolSpan.id,
               );
-              break;
-            }
-            List<MemoryEntry> savedMemory = const [];
-            if (memoryOn && memoryAllowed()) {
-              try {
-                savedMemory = await memory();
-              } on Object {
-                savedMemory = const [];
+              if (handled.requiredSkills.isNotEmpty) {
+                disclosuresByIndex[toolIndex] = SkillDisclosureMessage(
+                  t.id,
+                  handled.response,
+                  fullSkills: handled.fullSkills,
+                  requiredSkills: handled.requiredSkills,
+                );
               }
-            }
-            if (dead()) return cancelled(step);
-            if (!memoryAllowed()) savedMemory = const [];
-            final handled = structured.setParams(
-              _sessionState,
-              args,
-              context.language,
-              savedMemory,
-            );
-            _sessionState = handled.state;
-            context = ledgerContext(context);
-            if (handled.changes.isNotEmpty) {
-              _emitNodeChanges(
-                turnId,
-                NodeResult(handled.state, changes: handled.changes),
-              );
-            }
-            if (handled.fresh) {
-              fresh = true;
-              _pendingConfirmation = null;
-            }
-            results[t.id] = handled.response;
-          case AgentTools.read:
-            final path = SkillFiles.normalize(_arg(t, 'path') ?? '');
-            if (skills.blocked(path, read: true, hasTask: true) &&
-                (fs.read(path) != null || fs.ls(path) != null)) {
-              final handled = structured.readActions(
+              final scope = _refreshActionScope();
+              if (scope != null) {
+                final receipt = jsonDecode(handled.response);
+                if (receipt is Map &&
+                    receipt['ok'] == true &&
+                    receipt['plan_id'] is String) {
+                  final id = receipt['plan_id'] as String;
+                  final version = handled.state.plans[id]?.lastOrNull;
+                  final decoded = version == null
+                      ? null
+                      : const PlanCodec().decodeStrict(version.plan);
+                  try {
+                    if (decoded == null || !decoded.ok) {
+                      throw const CoachScopeDisclosureException(
+                        'invalid_final_scope',
+                      );
+                    }
+                    scope.disclosureFor(
+                      _scopeTurnRecords(),
+                      decoded.plan!,
+                      '',
+                      policy: _scopeConversationPolicy,
+                    );
+                  } on CoachScopeDisclosureException catch (failure) {
+                    results[t.id] = jsonEncode({
+                      ...nodeError(
+                        failure.code,
+                        'scope',
+                        '采用代码回执中的范围内替代动作',
+                        id,
+                        '草稿未写入plans；按scope记录中的adoptedActionId重新检索并编排。',
+                      ),
+                      'needsDraftRebuild': true,
+                      'clarificationAllowed': false,
+                    });
+                    disclosuresByIndex.remove(toolIndex);
+                    break;
+                  }
+                }
+              }
+              _sessionState = _bindScopePlanRecords(handled.state);
+              if (handled.changes.isNotEmpty) {
+                _emitNodeChanges(
+                  turnId,
+                  NodeResult(handled.state, changes: handled.changes),
+                );
+              }
+              fresh = fresh || handled.fresh;
+              results[t.id] = handled.response;
+            case AgentTools.searchActions || AgentTools.getAction:
+              final handled = structured.search(
                 _sessionState,
-                path,
+                t.name,
+                t.arguments,
                 context.language,
               );
               _sessionState = handled.state;
-              results[t.id] = handled.response;
               fresh = fresh || handled.fresh;
               for (final id in handled.accessed) {
                 if (readSet.add('get_action:$id')) fresh = true;
               }
-              break;
-            }
-            if (!skills.blocked(
-              path,
-              read: true,
-              hasTask: _sessionState.task != null,
-            )) {
-              emit(AgentEventKind.reading, step: step, path: path);
-              if (dead()) return cancelled(step);
-              if (path.startsWith('${SkillFiles.userMemory}/')) {
-                memResultIds.add(t.id);
-              }
-            }
-            final handled = skills.execute(
-              t.id,
-              path,
-              read: true,
-              hasTask: _sessionState.task != null,
-              disclosures: visibleDisclosures(),
-            );
-            if (handled.fullRead) {
-              disclosuresByIndex[toolIndex] = SkillDisclosureMessage(
-                t.id,
-                handled.response,
-                fullRead: true,
-              );
-            }
-            results[t.id] = handled.response;
-            toolFailure = handled.failed;
-            fresh = fresh || handled.fresh;
-          case AgentTools.checkPlan:
-            emit(AgentEventKind.checking, step: step);
-            if (dead()) return cancelled(step);
-            final handled = structured.checkPlan(
-              _sessionState,
-              t.arguments,
-              language: context.language,
-            );
-            _sessionState = handled.state;
-            if (handled.changes.isNotEmpty) {
-              _emitNodeChanges(
-                turnId,
-                NodeResult(handled.state, changes: handled.changes),
-              );
-            }
-            fresh = fresh || handled.fresh;
-            results[t.id] = handled.response;
-          case AgentTools.remember || AgentTools.forget when memoryOn:
-            final kindName = _arg(t, 'kind');
-            final memoryEpoch = turnMemoryEpoch;
-            emit(AgentEventKind.memory, step: step, path: kindName);
-            if (dead()) return cancelled(step);
-            memResultIds.add(t.id);
-            fresh = true;
-            var memoryTimedOut = false;
-            final pending = _memoryOp(
-              t,
-              valid: () =>
-                  !dead() &&
-                  !memoryTimedOut &&
-                  enableUserMemory &&
-                  memoryEpoch == _memEpoch,
-              epoch: memoryEpoch,
-            );
-            results[t.id] =
-                await Future.any<String>([
-                  pending,
-                  if (cancel != null)
-                    cancel.whenCancelled.then((_) => _memoryError('cancelled')),
-                  resetSig.future.then((_) => _memoryError('cancelled')),
-                ]).timeout(
-                  turnTimeout - turnWatch.elapsed,
-                  onTimeout: () {
-                    memoryTimedOut = true;
-                    return _memoryError('timeout');
-                  },
-                );
-            if (dead()) {
-              calls.add(_Call.ok(step, res, CallOutcome.cancelled, retry: tag));
-              return cancelled(step);
-            }
-            if (t.name == AgentTools.forget &&
-                memoryEpoch == _memEpoch &&
-                jsonDecode(results[t.id]!) is Map &&
-                (jsonDecode(results[t.id]!) as Map)['ok'] == true) {
-              // Forgetting is an explicit privacy epoch, just like clearing.
-              privacyPreservedReceipts.add(t.id);
-              _memEpoch++;
-              turnMemoryEpoch = _memEpoch;
-              forceContextRebuild = true;
-              privacyRedactedResponses.addAll([
-                response,
-                res,
-                executedResponse,
-              ]);
-              final safeCurrent = _withoutMemory(
-                turnMsgs,
-                memResultIds,
-                privateReasoning: memoryReasoning,
-                preserveMemoryResultIds: privacyPreservedReceipts,
-              );
-              turnMsgs
-                ..clear()
-                ..addAll(safeCurrent);
-              _modelContext = null;
-              _modelEpochKey = null;
-              final sanitized = _withoutMemory(
-                _history,
-                const {},
-                privateReasoning: _memoryReasoning,
-              );
-              _history
-                ..clear()
-                ..addAll(sanitized);
-              _memoryReasoning.clear();
-            }
-            if (memoryTimedOut) {
-              calls.add(
-                _Call.ok(
-                  step,
-                  res,
-                  CallOutcome.toolStep,
-                  retry: tag,
-                  codes: const ['timeout'],
-                ),
-              );
-              error = AgentRequestFailed(
-                AgentFailureKind.turnTimeout,
-                errorClass: RequestErrorClass.timeout,
-                attempts: tag + 1,
-              );
-              reason = FallbackReason.timeout;
-              break agentSteps;
-            }
-          case AgentTools.askUser:
-            if (durationRebuild != null && _sessionState.task?.type == 'plan') {
-              terminalRejected = true;
-              toolFailure = true;
-              results[t.id] = jsonEncode({
-                ...nodeError(
-                  'duration_fit_failed',
-                  'plan.duration',
-                  '先修正动作选择并重出满足时长的草稿',
-                  'ask_user',
-                  '',
-                ),
-                ...durationRebuild,
-                'ok': false,
-                'fix': context.language.toLowerCase().startsWith('en')
-                    ? 'Rebuild the draft using the reported range, direction and candidates before asking. The user did not authorize this model-selected combination as fixed; keep the requested duration.'
-                    : '请先按回执的合法范围、增删方向和候选重出草稿，不要反问用户是否调整时长。模型选择的动作组合不是用户确认的固定要求。',
-              });
-              break;
-            }
-            final handled = terminal.ask(
-              t.arguments,
-              toolIndex + 1,
-              res.toolCalls.length,
-              language: context.language,
-            );
-            terminalRejected = handled.rejected;
-            terminalQuestion = handled.question;
-            results[t.id] = handled.response;
-          case AgentTools.showActions || AgentTools.showPlan:
-            attemptedOutput = true;
-            final handled = terminal.show(
-              _sessionState,
-              t.name,
-              t.arguments,
-              language: context.language,
-            );
-            terminalRejected = handled.rejected;
-            terminalOutput = handled.output;
-            _sessionState = handled.state ?? _sessionState;
-            if (handled.changes.isNotEmpty) {
-              _emitNodeChanges(
-                turnId,
-                NodeResult(_sessionState, changes: handled.changes),
-              );
-            }
-            results[t.id] = handled.response;
-          default:
-            results[t.id] = jsonEncode(
-              nodeError(
-                'unknown_tool',
-                'tool',
-                '已提供的工具',
+              results[t.id] = handled.response;
+            case AgentTools.startTask || AgentTools.check:
+              final handled = structured.task(
+                _sessionState,
                 t.name,
-                '使用当前工具列表中的名称。',
-              ),
-            );
-        }
-        if (dead()) return cancelled(step);
-        try {
-          final receipt = jsonDecode(results[t.id]!);
-          if (receipt is Map) {
-            final code = receipt['code'];
-            if ((t.name == AgentTools.draftPlan ||
-                    t.name == AgentTools.showPlan) &&
-                (code == 'execution_timing_callback_failed' ||
-                    code == 'invalid_execution_timing')) {
-              final actual = receipt['actual'];
-              final timingReason = actual is Map ? actual['reason'] : null;
-              error = PlanExecutionTimingException(
-                code: code as String,
-                reason: timingReason is String
-                    ? timingReason
-                    : 'invalid_measurement',
+                t.arguments,
+                context.language,
+                disclosures: visibleDisclosures(),
+                allocatePlanReference: scopeManifest == null,
               );
-              lastErrors = [PlanIssue(code, receipt['fix'] as String)];
-              reason = FallbackReason.invalidOutput;
-              toolFailure = true;
-            }
-            final extraNotes = <String>[...?normalizedBatch.notes[t.id]];
-            final feasibility = receipt['feasibility'];
-            final needsRebuild =
-                receipt['needsDraftRebuild'] == true ||
-                (feasibility is Map &&
-                    feasibility['needsDraftRebuild'] == true);
-            final clarificationAllowed =
-                receipt['clarificationAllowed'] ??
-                (feasibility is Map
-                    ? feasibility['clarificationAllowed']
-                    : null);
-            if (needsRebuild && clarificationAllowed != true) {
-              durationRebuild = {
-                if (feasibility is Map)
-                  ...Map<String, Object?>.from(feasibility),
-                ...Map<String, Object?>.from(receipt),
-                'needsDraftRebuild': true,
-                'clarificationAllowed': false,
-              };
-            } else if (t.name == AgentTools.draftPlan &&
-                receipt['ok'] == true &&
-                receipt['plan_id'] is String) {
-              durationRebuild = null;
-            } else if (terminalOutput != null) {
-              durationRebuild = null;
-            }
-            if (receipt['status'] == 'infeasible' &&
-                (!needsRebuild || clarificationAllowed == true) &&
-                clarificationAllowed != false) {
-              final feasibility = receipt['feasibility'];
-              final target = feasibility is Map
-                  ? feasibility['targetSec']
-                  : null;
-              final reason = feasibility is Map ? feasibility['reason'] : null;
-              final requiresRebuild =
-                  feasibility is Map &&
-                  feasibility['status'] == 'requires_rebuild';
-              final targetMinutes = target is num
-                  ? (target / 60).toStringAsFixed(1)
-                  : null;
-              final english = context.language.toLowerCase().startsWith('en');
-              final providedQuestion = receipt['message'];
-              final question =
-                  providedQuestion is String &&
-                      providedQuestion.trim().isNotEmpty
-                  ? providedQuestion
-                  : requiresRebuild
-                  ? (english
-                        ? 'This saved plan needs to be rebuilt before changing its duration. Would you prefer to rebuild the selected actions or keep the current plan?'
-                        : '这份已保存计划需要重新编排后才能调整时长。你希望用已有动作重新编排，还是保留当前计划？')
-                  : reason == 'derived_minutes_unavailable'
-                  ? (english
-                        ? 'The requested duration change has no supported value. Would you prefer to keep the current duration or adjust the request?'
-                        : '当前支持的时长范围内没有符合这次调整要求的数值。你希望保留当前时长，还是调整本次要求？')
-                  : english
-                  ? 'The selected actions within the permitted dose ranges cannot fit${targetMinutes == null ? " the requested duration" : " $targetMinutes minutes"}. Would you prefer to change the duration, the dose, or the selected actions?'
-                  : '当前动作在允许剂量范围内无法同时满足${targetMinutes == null ? "要求的时长" : "$targetMinutes 分钟"}。你希望调整时长、剂量，还是动作选择？';
-              terminalQuestion = AskUserGate.check(
-                jsonEncode({'question': question, 'mode': 'text'}),
-                language: context.language,
-              ).question;
-              receipt['asked'] = true;
-              receipt['awaitingUser'] = true;
-              extraNotes.add('已根据结构化不可行原因暂停询问取舍，未要求模型继续试算。');
-            }
-            if (extraNotes.isNotEmpty) {
-              results[t.id] = jsonEncode({
-                ...receipt,
-                'notes': [
-                  if (receipt['notes'] is List) ...receipt['notes'] as List,
-                  ...extraNotes,
-                ],
-              });
-              final disclosure = disclosuresByIndex[toolIndex];
-              if (disclosure != null) {
+              if (handled.requiredSkills.isNotEmpty) {
                 disclosuresByIndex[toolIndex] = SkillDisclosureMessage(
                   t.id,
-                  results[t.id]!,
-                  fullRead: disclosure.fullRead,
-                  fullSkills: disclosure.fullSkills,
-                  requiredSkills: disclosure.requiredSkills,
+                  handled.response,
+                  fullSkills: handled.fullSkills,
+                  requiredSkills: handled.requiredSkills,
                 );
               }
+              _sessionState = handled.state;
+              if (t.name == AgentTools.startTask && handled.fresh) {
+                _questionsAsked = 0;
+                _pendingConfirmation = null;
+              }
+              if (handled.changes.isNotEmpty) {
+                _emitNodeChanges(
+                  turnId,
+                  NodeResult(handled.state, changes: handled.changes),
+                );
+              }
+              fresh = fresh || handled.fresh;
+              results[t.id] = handled.response;
+            case AgentTools.setParams:
+              Object? args;
+              try {
+                args = jsonDecode(t.arguments);
+              } on FormatException {
+                results[t.id] = jsonEncode(
+                  nodeError(
+                    'invalid_json',
+                    'arguments',
+                    '合法 JSON 对象',
+                    '无效 JSON',
+                    '提供包含 fields 的合法 JSON 对象。',
+                  ),
+                );
+                break;
+              }
+              List<MemoryEntry> savedMemory = const [];
+              if (memoryOn && memoryAllowed()) {
+                try {
+                  savedMemory = await memory();
+                } on Object {
+                  savedMemory = const [];
+                }
+              }
+              if (dead()) return await cancelled(step);
+              if (!memoryAllowed()) savedMemory = const [];
+              final beforeParams = _sessionState;
+              final scopedArgs =
+                  scopeManifest != null && args is Map<String, Object?>
+                  ? <String, Object?>{
+                      'fields': args['fields'] ?? <String, Object?>{},
+                      for (final entry in args.entries)
+                        if (entry.key != 'scope_request' &&
+                            entry.key != 'fields')
+                          entry.key: entry.value,
+                    }
+                  : args;
+              final handled = structured.setParams(
+                beforeParams,
+                scopedArgs,
+                context.language,
+                savedMemory,
+              );
+              var updated = handled.state;
+              var responseText = handled.response;
+              final paramReceipt = jsonDecode(responseText);
+              if (scopeManifest != null &&
+                  paramReceipt is Map &&
+                  paramReceipt['ok'] == true) {
+                if (args is Map<String, Object?> &&
+                    args.containsKey('scope_request')) {
+                  try {
+                    final assessment = _assessScope(
+                      updated,
+                      args['scope_request'],
+                      context,
+                    );
+                    updated = assessment.state;
+                    responseText = jsonEncode({
+                      ...paramReceipt,
+                      'scope': assessment.receipt,
+                    });
+                  } on FormatException catch (failure) {
+                    results[t.id] = jsonEncode(
+                      nodeError(
+                        failure.message,
+                        'scope_request',
+                        '本轮真实原话与已校验条件',
+                        'invalid_scope_request',
+                        'scope_request.quote逐字等于action_scope.userText；字段与scope schema一致；本次参数和范围记录均未提交。',
+                      ),
+                    );
+                    break;
+                  }
+                } else if (_scopeConditions(beforeParams) !=
+                    _scopeConditions(updated)) {
+                  updated = _invalidateScopeAssessment(updated);
+                }
+              }
+              _sessionState = updated;
+              context = ledgerContext(context);
+              if (handled.changes.isNotEmpty) {
+                _emitNodeChanges(
+                  turnId,
+                  NodeResult(updated, changes: handled.changes),
+                );
+              }
+              if (handled.fresh) {
+                fresh = true;
+                _pendingConfirmation = null;
+              }
+              results[t.id] = responseText;
+            case AgentTools.read:
+              final path = SkillFiles.normalize(_arg(t, 'path') ?? '');
+              if (skills.blocked(path, read: true, hasTask: true) &&
+                  (fs.read(path) != null || fs.ls(path) != null)) {
+                final handled = structured.readActions(
+                  _sessionState,
+                  path,
+                  context.language,
+                );
+                _sessionState = handled.state;
+                results[t.id] = handled.response;
+                fresh = fresh || handled.fresh;
+                for (final id in handled.accessed) {
+                  if (readSet.add('get_action:$id')) fresh = true;
+                }
+                break;
+              }
+              if (!skills.blocked(
+                path,
+                read: true,
+                hasTask: _sessionState.task != null,
+              )) {
+                emit(AgentEventKind.reading, step: step, path: path);
+                if (dead()) return await cancelled(step);
+                if (path.startsWith('${SkillFiles.userMemory}/')) {
+                  memResultIds.add(t.id);
+                }
+              }
+              final handled = skills.execute(
+                t.id,
+                path,
+                read: true,
+                hasTask: _sessionState.task != null,
+                disclosures: visibleDisclosures(),
+              );
+              if (handled.fullRead) {
+                disclosuresByIndex[toolIndex] = SkillDisclosureMessage(
+                  t.id,
+                  handled.response,
+                  fullRead: true,
+                );
+              }
+              results[t.id] = handled.response;
+              toolFailure = handled.failed;
+              fresh = fresh || handled.fresh;
+            case AgentTools.checkPlan:
+              emit(AgentEventKind.checking, step: step);
+              if (dead()) return await cancelled(step);
+              final handled = structured.checkPlan(
+                _sessionState,
+                t.arguments,
+                language: context.language,
+              );
+              _sessionState = handled.state;
+              if (handled.changes.isNotEmpty) {
+                _emitNodeChanges(
+                  turnId,
+                  NodeResult(handled.state, changes: handled.changes),
+                );
+              }
+              fresh = fresh || handled.fresh;
+              results[t.id] = handled.response;
+            case AgentTools.remember || AgentTools.forget when memoryOn:
+              final kindName = _arg(t, 'kind');
+              final memoryEpoch = turnMemoryEpoch;
+              emit(AgentEventKind.memory, step: step, path: kindName);
+              if (dead()) return await cancelled(step);
+              memResultIds.add(t.id);
+              fresh = true;
+              var memoryTimedOut = false;
+              final pending = _memoryOp(
+                t,
+                valid: () =>
+                    !dead() &&
+                    !memoryTimedOut &&
+                    enableUserMemory &&
+                    memoryEpoch == _memEpoch,
+                epoch: memoryEpoch,
+              );
+              results[t.id] =
+                  await Future.any<String>([
+                    pending,
+                    if (cancel != null)
+                      cancel.whenCancelled.then(
+                        (_) => _memoryError('cancelled'),
+                      ),
+                    resetSig.future.then((_) => _memoryError('cancelled')),
+                  ]).timeout(
+                    turnTimeout - turnWatch.elapsed,
+                    onTimeout: () {
+                      memoryTimedOut = true;
+                      return _memoryError('timeout');
+                    },
+                  );
+              if (dead()) {
+                calls.add(
+                  _Call.ok(step, res, CallOutcome.cancelled, retry: tag),
+                );
+                return await cancelled(step);
+              }
+              if (t.name == AgentTools.forget &&
+                  memoryEpoch == _memEpoch &&
+                  jsonDecode(results[t.id]!) is Map &&
+                  (jsonDecode(results[t.id]!) as Map)['ok'] == true) {
+                // Forgetting is an explicit privacy epoch, just like clearing.
+                privacyPreservedReceipts.add(t.id);
+                _memEpoch++;
+                turnMemoryEpoch = _memEpoch;
+                forceContextRebuild = true;
+                privacyRedactedResponses.addAll([
+                  response,
+                  res,
+                  executedResponse,
+                ]);
+                final safeCurrent = _withoutMemory(
+                  turnMsgs,
+                  memResultIds,
+                  privateReasoning: memoryReasoning,
+                  preserveMemoryResultIds: privacyPreservedReceipts,
+                );
+                turnMsgs
+                  ..clear()
+                  ..addAll(safeCurrent);
+                _modelContext = null;
+                _modelEpochKey = null;
+                final sanitized = _withoutMemory(
+                  _history,
+                  const {},
+                  privateReasoning: _memoryReasoning,
+                );
+                _history
+                  ..clear()
+                  ..addAll(sanitized);
+                _memoryReasoning.clear();
+              }
+              if (memoryTimedOut) {
+                calls.add(
+                  _Call.ok(
+                    step,
+                    res,
+                    CallOutcome.toolStep,
+                    retry: tag,
+                    codes: const ['timeout'],
+                  ),
+                );
+                error = AgentRequestFailed(
+                  AgentFailureKind.turnTimeout,
+                  errorClass: RequestErrorClass.timeout,
+                  attempts: tag + 1,
+                );
+                reason = FallbackReason.timeout;
+                break agentSteps;
+              }
+            case AgentTools.askUser:
+              if (durationRebuild != null &&
+                  _sessionState.task?.type == 'plan') {
+                terminalRejected = true;
+                toolFailure = true;
+                results[t.id] = jsonEncode({
+                  ...nodeError(
+                    'duration_fit_failed',
+                    'plan.duration',
+                    '先修正动作选择并重出满足时长的草稿',
+                    'ask_user',
+                    '',
+                  ),
+                  ...durationRebuild,
+                  'ok': false,
+                  'fix': context.language.toLowerCase().startsWith('en')
+                      ? 'Rebuild the draft using the reported range, direction and candidates before asking. The user did not authorize this model-selected combination as fixed; keep the requested duration.'
+                      : '请先按回执的合法范围、增删方向和候选重出草稿，不要反问用户是否调整时长。模型选择的动作组合不是用户确认的固定要求。',
+                });
+                break;
+              }
+              final handled = terminal.ask(
+                t.arguments,
+                toolIndex + 1,
+                res.toolCalls.length,
+                language: context.language,
+              );
+              terminalRejected = handled.rejected;
+              terminalQuestion = handled.question;
+              results[t.id] = handled.response;
+            case AgentTools.showActions || AgentTools.showPlan:
+              attemptedOutput = true;
+              final handled = _spans.run(
+                () => terminal.show(
+                  _sessionState,
+                  t.name,
+                  t.arguments,
+                  language: context.language,
+                ),
+                taskId: _sessionState.task?.type,
+                epoch: _modelEpochCounter,
+                toolCallId: t.id,
+                parentId: toolSpan.id,
+              );
+              terminalRejected = handled.rejected;
+              terminalOutput = handled.output;
+              _sessionState = _bindScopePlanRecords(
+                handled.state ?? _sessionState,
+              );
+              if (handled.changes.isNotEmpty) {
+                _emitNodeChanges(
+                  turnId,
+                  NodeResult(_sessionState, changes: handled.changes),
+                );
+              }
+              results[t.id] = handled.response;
+            default:
+              results[t.id] = jsonEncode(
+                nodeError(
+                  'unknown_tool',
+                  'tool',
+                  '已提供的工具',
+                  t.name,
+                  '使用当前工具列表中的名称。',
+                ),
+              );
+          }
+          if (dead()) return await cancelled(step);
+          try {
+            final receipt = jsonDecode(results[t.id]!);
+            if (receipt is Map) {
+              final code = receipt['code'];
+              if ((t.name == AgentTools.draftPlan ||
+                      t.name == AgentTools.showPlan) &&
+                  (code == 'execution_timing_callback_failed' ||
+                      code == 'invalid_execution_timing')) {
+                final actual = receipt['actual'];
+                final timingReason = actual is Map ? actual['reason'] : null;
+                error = PlanExecutionTimingException(
+                  code: code as String,
+                  reason: timingReason is String
+                      ? timingReason
+                      : 'invalid_measurement',
+                );
+                lastErrors = [PlanIssue(code, receipt['fix'] as String)];
+                reason = FallbackReason.invalidOutput;
+                toolFailure = true;
+              }
+              final extraNotes = <String>[...?normalizedBatch.notes[t.id]];
+              final feasibility = receipt['feasibility'];
+              final needsRebuild =
+                  receipt['needsDraftRebuild'] == true ||
+                  (feasibility is Map &&
+                      feasibility['needsDraftRebuild'] == true);
+              final clarificationAllowed =
+                  receipt['clarificationAllowed'] ??
+                  (feasibility is Map
+                      ? feasibility['clarificationAllowed']
+                      : null);
+              if (needsRebuild && clarificationAllowed != true) {
+                durationRebuild = {
+                  if (feasibility is Map)
+                    ...Map<String, Object?>.from(feasibility),
+                  ...Map<String, Object?>.from(receipt),
+                  'needsDraftRebuild': true,
+                  'clarificationAllowed': false,
+                };
+              } else if (t.name == AgentTools.draftPlan &&
+                  receipt['ok'] == true &&
+                  receipt['plan_id'] is String) {
+                durationRebuild = null;
+              } else if (terminalOutput != null) {
+                durationRebuild = null;
+              }
+              if (receipt['status'] == 'infeasible' &&
+                  (!needsRebuild || clarificationAllowed == true) &&
+                  clarificationAllowed != false) {
+                final feasibility = receipt['feasibility'];
+                final target = feasibility is Map
+                    ? feasibility['targetSec']
+                    : null;
+                final reason = feasibility is Map
+                    ? feasibility['reason']
+                    : null;
+                final requiresRebuild =
+                    feasibility is Map &&
+                    feasibility['status'] == 'requires_rebuild';
+                final targetMinutes = target is num
+                    ? (target / 60).toStringAsFixed(1)
+                    : null;
+                final english = context.language.toLowerCase().startsWith('en');
+                final providedQuestion = receipt['message'];
+                final question =
+                    providedQuestion is String &&
+                        providedQuestion.trim().isNotEmpty
+                    ? providedQuestion
+                    : requiresRebuild
+                    ? (english
+                          ? 'This saved plan needs to be rebuilt before changing its duration. Would you prefer to rebuild the selected actions or keep the current plan?'
+                          : '这份已保存计划需要重新编排后才能调整时长。你希望用已有动作重新编排，还是保留当前计划？')
+                    : reason == 'derived_minutes_unavailable'
+                    ? (english
+                          ? 'The requested duration change has no supported value. Would you prefer to keep the current duration or adjust the request?'
+                          : '当前支持的时长范围内没有符合这次调整要求的数值。你希望保留当前时长，还是调整本次要求？')
+                    : english
+                    ? 'The selected actions within the permitted dose ranges cannot fit${targetMinutes == null ? " the requested duration" : " $targetMinutes minutes"}. Would you prefer to change the duration, the dose, or the selected actions?'
+                    : '当前动作在允许剂量范围内无法同时满足${targetMinutes == null ? "要求的时长" : "$targetMinutes 分钟"}。你希望调整时长、剂量，还是动作选择？';
+                terminalQuestion = AskUserGate.check(
+                  jsonEncode({'question': question, 'mode': 'text'}),
+                  language: context.language,
+                ).question;
+                receipt['asked'] = true;
+                receipt['awaitingUser'] = true;
+                extraNotes.add('已根据结构化不可行原因暂停询问取舍，未要求模型继续试算。');
+              }
+              if (extraNotes.isNotEmpty) {
+                results[t.id] = jsonEncode({
+                  ...receipt,
+                  'notes': [
+                    if (receipt['notes'] is List) ...receipt['notes'] as List,
+                    ...extraNotes,
+                  ],
+                });
+                final disclosure = disclosuresByIndex[toolIndex];
+                if (disclosure != null) {
+                  disclosuresByIndex[toolIndex] = SkillDisclosureMessage(
+                    t.id,
+                    results[t.id]!,
+                    fullRead: disclosure.fullRead,
+                    fullSkills: disclosure.fullSkills,
+                    requiredSkills: disclosure.requiredSkills,
+                  );
+                }
+              }
             }
+          } on FormatException {
+            // Plain skill results retain their exact disclosure text.
           }
-        } on FormatException {
-          // Plain skill results retain their exact disclosure text.
-        }
-        batch.mark(toolIndex + 1, t.id, failure: toolFailure);
-        orderedResults.add(results[t.id]!);
-        if (terminalOutput != null) {
-          for (
-            var later = toolIndex + 1;
-            later < res.toolCalls.length;
-            later++
-          ) {
-            batch.skippedAfterCompletion(
-              res.toolCalls[later].id,
-              toolIndex + 1,
-            );
-            orderedResults.add(results[res.toolCalls[later].id]!);
+          batch.mark(toolIndex + 1, t.id, failure: toolFailure);
+          orderedResults.add(results[t.id]!);
+          if (terminalOutput != null) {
+            for (
+              var later = toolIndex + 1;
+              later < res.toolCalls.length;
+              later++
+            ) {
+              batch.skippedAfterCompletion(
+                res.toolCalls[later].id,
+                toolIndex + 1,
+              );
+              orderedResults.add(results[res.toolCalls[later].id]!);
+            }
+            break;
           }
-          break;
+        } finally {
+          _completeToolSpan(toolSpan, t, results[t.id]);
         }
       }
       if (leaked) {

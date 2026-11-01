@@ -7,7 +7,9 @@ extension TaskToolHandler on StructuredToolHandler {
     String raw,
     String language, {
     SkillDisclosures? disclosures,
+    bool allocatePlanReference = true,
   }) {
+    beginTool(tool);
     var decoded = _decode(raw);
     final normalization = <String>[];
     if (decoded is String) {
@@ -168,7 +170,35 @@ extension TaskToolHandler on StructuredToolHandler {
     }
     if (result.ok &&
         tool == AgentTools.startTask &&
+        next.task?.nodes
+                .where((node) => node.status == 'current')
+                .firstOrNull
+                ?.id ==
+            'parameters') {
+      // Starting a typed task does not erase conditions already admitted from
+      // the host or literal user quotes. Run the same parameter gate; missing
+      // conditions still leave the task at this node instead of being guessed.
+      final parameters = NodeGates(
+        profile,
+        catalog,
+        minPicks: profile.minActions,
+      ).check(next, 'parameters', language: language);
+      if (parameters.ok) {
+        next = parameters.state;
+        changes.addAll(parameters.changes);
+      }
+    }
+    if (result.ok && tool == AgentTools.startTask && args['type'] == 'plan') {
+      next = NodeGates(
+        profile,
+        catalog,
+        minPicks: profile.minActions,
+      ).resumeVisiblePlanActions(next);
+    }
+    if (result.ok &&
+        tool == AgentTools.startTask &&
         args['type'] == 'plan' &&
+        allocatePlanReference &&
         next.activePlanId == null) {
       var id = newPlanId();
       while (next.plans.containsKey(id)) {

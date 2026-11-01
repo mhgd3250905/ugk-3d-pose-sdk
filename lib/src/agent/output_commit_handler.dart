@@ -13,7 +13,9 @@ extension _OutputCommitHandler on CoachAgent {
     required LlmMessage userMessage,
     required LlmMessage Function() visibleAssistant,
   }) {
-    _sessionState = output.state;
+    _sessionState = card.plan == null
+        ? output.state
+        : _bindScopePlanRecords(output.state, force: true);
     if (card.plan != null) {
       final deliveredId = card.plan!.plan.id;
       final versions = _sessionState.plans[deliveredId];

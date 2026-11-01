@@ -56,7 +56,7 @@ extension _ExternalPlanFocusHandler on CoachAgent {
       final report = PlanValidator(
         catalog: cat,
         profile: profile,
-        extraRules: extraRules,
+        extraRules: _effectivePlanRules,
         enforceDrillDoseRange: enforceDrillDoseRange,
       ).validate(imported, context);
       if (!report.ok) return CoachPlanFocusResult.failure(report.errors);

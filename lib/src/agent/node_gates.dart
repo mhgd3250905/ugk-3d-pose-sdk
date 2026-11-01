@@ -2,6 +2,7 @@
 library;
 
 import '../catalog/catalog.dart';
+import '../plan/plan_codec.dart';
 import '../profile/coach_profile.dart';
 import 'action_tags.dart';
 import 'agent_task.dart';
@@ -476,6 +477,22 @@ class NodeGates {
     Set<String>? changedFields,
     Set<String>? valueChangedFields,
   }) {
+    final actualChanges = valueChangedFields ?? changedFields;
+    final planningOnly =
+        actualChanges != null &&
+        actualChanges.isNotEmpty &&
+        actualChanges.every(
+          (field) =>
+              field == 'minutes' || field == 'dose' || field == 'operation',
+        );
+    if (actualChanges == null || actualChanges.isNotEmpty && !planningOnly) {
+      // A search receipt can cross a typed task boundary only while the exact
+      // admission conditions under which it was produced are still current.
+      state = state.copyWith(
+        clearPendingSearchTurn: true,
+        pendingSearchIds: const {},
+      );
+    }
     final task = state.task;
     if (task == null) return NodeResult(state);
     final paramIndex = task.nodes.indexWhere((n) => n.id == 'parameters');
@@ -484,7 +501,6 @@ class NodeGates {
       return NodeResult(state);
     }
     final actionIndex = task.nodes.indexWhere((n) => n.id == 'actions');
-    final actualChanges = valueChangedFields ?? changedFields;
     final planningIndex = task.nodes.indexWhere((n) => n.id == 'planning');
     final preserveActions =
         task.type == 'plan' &&
@@ -506,6 +522,15 @@ class NodeGates {
       doneAtTurn: _turn(state),
     );
     changes.add(nodes[paramIndex]);
+    if (task.type == 'recommend' && planningOnly) {
+      // These values change a future plan's dosage, not the recommendation's
+      // action admission. Retain a completed recommendation for typed reuse;
+      // importantly, do not invalidate another task's delivered plan checks.
+      return NodeResult(
+        state.copyWith(task: task.copyWith(nodes: nodes)),
+        changes: List.unmodifiable(changes),
+      );
+    }
     if (actualChanges != null && actualChanges.isEmpty) {
       return NodeResult(
         state.copyWith(task: task.copyWith(nodes: nodes)),
@@ -532,7 +557,8 @@ class NodeGates {
           for (final entry in state.plans.entries)
             entry.key: [
               for (var i = 0; i < entry.value.length; i++)
-                if (i == entry.value.length - 1 &&
+                if (task.type == 'plan' &&
+                    i == entry.value.length - 1 &&
                     (state.focusPlanId == null ||
                         entry.key == state.focusPlanId))
                   CoachPlanVersion(
@@ -680,6 +706,36 @@ class NodeGates {
 
   List<String> catalogWarnings(CoachSessionState state, Iterable<String> ids) =>
       CatalogDataGaps(tags).warnings(state, ids);
+
+  /// Re-admit visible actions of the actual edit target, not IDs supplied in a
+  /// new model draft. A recommendation's separate pool never becomes the edit
+  /// baseline. Every retained action is checked against the current catalogue,
+  /// profile, equipment and safety before it can enter the plan task ledger.
+  CoachSessionState resumeVisiblePlanActions(CoachSessionState state) {
+    if (state.task?.type != 'plan') return state;
+    final focused = state.focusPlanId;
+    final operation = state.params['operation'];
+    final turn = state.userTurns.lastOrNull?.turn ?? 0;
+    final requestedAt = state.lastOperationRequestTurn ?? operation?.turn;
+    final editRequested =
+        requestedAt == turn &&
+        {'edit', 'replace_all'}.contains(operation?.value);
+    final id = focused ?? (editRequested ? state.lastDeliveredPlanId : null);
+    if (id == null) return state;
+    final versions = state.plans[id] ?? const <CoachPlanVersion>[];
+    final version = focused != null
+        ? versions.lastOrNull
+        : versions
+              .where((entry) => entry.version == state.lastDeliveredVersion)
+              .firstOrNull;
+    if (version == null) return state;
+    final decoded = const PlanCodec().decodeStrict(version.plan);
+    if (!decoded.ok) return state;
+    final admitted = decoded.plan!.exerciseIds.where(
+      (value) => actionProblem(state, value) == null,
+    );
+    return state.copyWith(seenActionIds: {...state.seenActionIds, ...admitted});
+  }
 
   CoachPlanVersion? _version(CoachSessionState state, String? id) {
     if (state.activePlanId != null && id != null && id != state.activePlanId) {

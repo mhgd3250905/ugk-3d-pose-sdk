@@ -21,7 +21,8 @@ class TerminalToolResult {
   final AskUserQuestion? question;
   final AgentOutputResult? output;
 
-  /// Receipt-only metadata after a rejected show; nodes and picks are intact.
+  /// A rejected show may commit its valid typed task boundary. Unvalidated
+  /// selections and plans are never committed with that boundary.
   final CoachSessionState? state;
   final List<CoachNodeState> changes;
   final bool rejected;
@@ -100,6 +101,7 @@ class TerminalToolHandler {
         jsonEncode(output.error),
         rejected: true,
         state: output.state,
+        changes: output.changes,
       );
     }
     if (output.unavailable) {

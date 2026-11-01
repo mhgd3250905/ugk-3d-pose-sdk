@@ -234,7 +234,9 @@ void main() {
   ];
   for (final invalid in invalidCases) {
     test(
-      '${invalid.id} rejects invalid input and skips later search',
+      invalid.id == 'tag'
+          ? 'tag query fails without skipping an independent search'
+          : '${invalid.id} rejects invalid input and skips later search',
       () async {
         final client = FakeLlmClient([
           _calls([
@@ -257,6 +259,11 @@ void main() {
           return;
         }
         expect(_feedback(request, invalid.id)['code'], invalid.code);
+        if (invalid.name == AgentTools.searchActions) {
+          expect(_feedback(request, 'skipped-search')['ok'], isTrue);
+          expect(coach.sessionState.seenActionIds, isNotEmpty);
+          return;
+        }
         expect(
           _feedback(request, 'skipped-search')['code'],
           'skipped_after_error',

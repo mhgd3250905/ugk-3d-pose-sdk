@@ -88,7 +88,6 @@ CoachActionScopeManifest coachScopeFixtureManifest(
 }) => CoachActionScopeManifest.fromCatalogBytes(
   appId: coachScopeFixtureProfile.id,
   catalogBytes: utf8.encode(jsonEncode(catalog.toJson())),
-  planningCatalog: catalog,
   allowedActionIds: ids,
 );
 

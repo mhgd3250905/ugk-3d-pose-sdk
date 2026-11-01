@@ -6,7 +6,7 @@
 
 ## 已存在的能力与新增层
 
-当前设计基线为已合入 SDK main 的 `3fbd179063e9b8433cadd5387295ac07b7b93800`、SF
+初版设计基线为 SDK `3fbd179063e9b8433cadd5387295ac07b7b93800`、SF
 `3eb2a9e88ef4d28e02f4cf306c1716d61baa7f10`。
 SDK 现有 `CoachConversationController` 已提供 `send`、`answerText`、
 `answerChoices`、`answerForm`、`skipQuestion`、`cancel`、`newConversation`、
@@ -22,7 +22,7 @@ plans、activePlan/focus、问题回答状态或历史折叠逻辑。模块可�
 第二套模型事实，也不会自动进入模型历史。
 
 已拍板的实施依赖为 `ugk_coach_chat → ugk_coach + ugk_coach_ui + ugk_trainer_runtime`。
-`ugk_trainer_runtime` 是已批准拆分、尚未实现的无全量动作素材播放内核；旧 `ugk_trainer` 作为兼容外壳
+`ugk_trainer_runtime` 已在第 1 批完成拆分，是不含动作专属素材的播放内核；旧 `ugk_trainer` 作为兼容外壳
 转导出同一内核。`SessionResult`、`SessionBuilder` 与执行回调扩展必须是**相同 Dart
 类型和同一份实现**，不复制一套 DTO。`ugk_coach_ui` 继续只收普通展示数据、不依赖
 Coach；纯 Dart 核心不反向引用 Flutter/chat；新模块不 import 任何 App 路径或全局单例。
@@ -105,7 +105,7 @@ class CoachChatController extends ChangeNotifier {
 `CoachChatState` 暴露只读消息行、suggestions、waiting、当前表单/安全流程、保存状态、
 focus、`actionScopeNotice` 和操作错误。消息行中的计划只引用 gate-admitted 的 `ValidatedPlan` 或明确的
 不可用占位，不提供“任意 JSON 伪造已验证计划”的公开构造器。`CoachChatPlanReference`
-包含计划 ID、版本与内容摘要，由模块签发而非任意公开构造，不能只以标题查找；来自
+包含实际计划、计划 ID 与版本，由模块完成准入后返回，不能只以标题查找；来自
 “我的计划”的入口须先准入。
 `CoachChatPlanDetailsPage` 复用原 SF 详情体验，可供宿主“我的计划”薄壳使用；聊天不再
 通过回调 push 一整页 SF `PlanPage`。
@@ -114,8 +114,8 @@ focus、`actionScopeNotice` 和操作错误。消息行中的计划只引用 gat
 它返回合法只读 reference、明确的 scope 修复 preview 或拒绝原因，验证当前 profile/
 scope、结构与剂量；没有通过就不能靠构造 reference 打开可执行详情。该准备入口不改
 Core plans、active/focus、messages，不导入外部计划，不发模型请求，查看详情不会成为
-“已选中讨论”。reference 绑定具体内容摘要、scope 身份和其独立保存绑定，不能拿同 ID
-不同内容替用。详情可读准入不授权开练；点击训练时仍 fresh 校验 scope、剂量、安全与
+“已选中讨论”。reference 保留这份计划及其保存记录的版本，不能拿同 ID 的另一份
+内容替用。详情可读准入不授权开练；点击训练时仍校验当前白名单、剂量、安全与
 卡片/执行双时长，并使用同一个 builder。需要讨论时才显式走 sendPlanToConversation。
 
 `CoachChatCommand` 使用枚举/有类型的 payload，区分 `newConversation`、`showHistory`、
@@ -275,23 +275,18 @@ abstract interface class CoachPlanStorageAdapter {
 
 // 请求模式：create / copy / update；update 必须带期望 revision。
 class CoachPlanWriteRequest {
-  // admittedPlan、sdkVersion、savedRef、mode、name、idempotencyKey
-  // externalId、saveBindingId、expectedStorageRevision（仅 update）
+  // admittedPlan、sdkVersion、savedRef、mode、name
+  // externalId、expectedStorageRevision（仅 update）
 }
 class CoachSavedPlanSnapshot {
   // externalId、title、完整 TrainingPlan、sdkVersion?
   // storageRevision（宿主不透明 CAS token）、更新时间
 }
-class CoachPlanSaveBinding {
-  // 不可变、模块签发的 saveBindingId
-  // externalId、sdkBaseVersion、sourceContentDigest
-  // sourceMessageId 或 importId、originalStorageRevision
-}
 ```
 
 所有读写适配都属于宿主存储域，不由 SDK 新建另一个计划库。“我的计划”与聊天使用
-同一适配数据源。保存前重新准入动作 ID/剂量/版本；`ValidatedPlan` 也不能绕过运行中
-配置身份检查。update 原子比较 `expectedStorageRevision`；结果显式区分成功、冲突、
+同一适配数据源。保存前重新准入动作 ID/剂量/版本；`ValidatedPlan` 也须按当前白名单
+检查。update 原子比较 `expectedStorageRevision`；结果显式区分成功、冲突、
 已删除、不可写和失败。对已删除或冲突的记录，保留卡片并显示原更新/另存选择，不
 静默覆盖、自动创建同名替代记录或把失败 toast 写成成功。
 
@@ -302,30 +297,18 @@ class CoachPlanSaveBinding {
 - `storageRevision` 是宿主计划库的并发更新凭据。模块在选择已保存计划时记住它，
   更新用该值 CAS；它不能用 savedRef.baseVersion、计划名或内容哈希代替。
 
-保存授权必须绑定**这一张卡的来源**，不能维护 `externalId → 最新 storageRevision`
-全局映射后让旧卡读取。每次明确的导入/选择创建不可变 `saveBindingId`，绑定
-`(externalId, SDK baseVersion, sourceContentDigest, sourceMessageId 或 importId)`
-与当时的 `originalStorageRevision`。卡片及其编辑后消息引用对应 binding；SDK 相同
-内容复用同一计划版本，也不能合并两次导入的 binding 或覆盖旧卡的 CAS token。
-宿主 store 的 changes/read 最新记录只刷新存在性/展示信息，不会自动授予旧卡新 token。
+每张卡直接保留所选记录的 externalId、SDK baseVersion 和 storageRevision。更新时
+把这张卡的 storageRevision 作为 expectedStorageRevision 交给宿主适配器做 CAS。
+宿主记录已经变化时返回冲突，由用户选择刷新目标或另存；其他卡片读到新记录时，
+不会自动替换旧卡的保存版本。
 
-两个消息同时修改同一保存记录时，只有符合原 revision 的一项成功；另一项明确冲突。
-重复点击或重试使用稳定 idempotencyKey（namespace/消息 ID/SDK version/binding/操作），
-适配器返回同一次写结果。用户选择“另存”才创建新 externalId；不会改动旧保存。
-成功后由适配器返回新 storageRevision，回执只关联该次 idempotencyKey、原卡片、
-提交版本和 binding，不全局给同 externalId 的旧卡或其他消息授信，也不覆写旧 binding。
-卡片保存状态可以根据该回执更新；该次已授权的成功结果可以派生**新的继任 binding**，
-绑定刚保存的确切内容/版本与新 token，仅供这个成功结果之后产生的编辑继承。已存在
-旧卡、并行编辑分支及其 binding 仍保留原 token，不因某次写成功而获新授权。
-因此“更新→继续编辑→再次更新”无需无谓增加确认弹窗，而旧卡仍不能覆盖外部或其他
-分支的新内容。外部 changes/read 后想刷新旧卡目标，必须用户明确选择并生成对应新
-binding；不能更新 Agent 的 SDK 编辑基准去假装模型重新选中过保存计划。
+保存成功由适配器返回新的 storageRevision，这张卡及其后续编辑使用新值；其他旧卡
+仍保留原值。重复点击沿用原 SF 的保存中状态和宿主保存处理，只有 adapter 写入一次。
+另存成功才使用新的 externalId。快照按卡保存这些普通字段，恢复时原样带回。
 
-必须补并发回归：S 在 r1 导入为 SDK base v1，旧编辑卡 v2 引用 B1/r1；宿主把 S 改成
-r2，再显式导入为 SDK base v3，产生 B2/r2。旧卡更新仍携带 B1/r1，必须 CAS 冲突，
-不能借 B2 或最新索引覆盖 r2。export→restore 后也必须如此；同 externalId/同内容的
-SDK 版本复用也不得改写 B1，成功写入的幂等回执不能改变其他旧卡授权。
-再补同一成功保存结果的后续编辑能持继任 binding 正常更新，同时旧分支仍冲突的用例。
+并发回归采用普通版本比较：S/r1 产生两张编辑卡，宿主或其中一张卡更新到 r2 后，
+另一张卡仍带 r1，必须返回冲突。保存成功的卡继续编辑可用 r2 更新；export→restore
+后也保持同样行为。SDK baseVersion 只表示会话编辑基准，不用于通过宿主 CAS。
 
 ### 发到对话
 
@@ -339,8 +322,8 @@ SDK 版本复用也不得改写 B1，成功写入的幂等回执不能改变其�
 
 已有保存计划不采用普通新请求的自动替代/删除后直接导入路径。范围不合法时，先拒绝
 这一导入事务，原保存、原消息与讨论绑定保持不动；预览只列明范围内可能的替代/
-删除方案、受影响项和是否仍需生成，不写数据库，不调用 Core focus。预览身份绑定
-当前 profile/scope、源计划内容摘要及原 storageRevision，过期后重新校验。
+删除方案、受影响项和是否仍需生成，不写数据库，不调用 Core focus。执行预览操作前
+重新读取所选保存记录；storageRevision 有变化时刷新预览，再按当前 profile 校验。
 
 两个 CTA 的语义明确分开：
 
@@ -359,9 +342,9 @@ SDK 版本复用也不得改写 B1，成功写入的幂等回执不能改变其�
 原普通计划行为展示；“未保存候选直接 focus”属于以后单独评估的需求，不是本次
 抽取的实施前提。任何 CTA 都不能暗中改宿主库，也不能宣称原非法计划已成功导入。
 
-成功时模块按原 SF 展示外部计划与讨论标签，并把显示历史、Core session、导入的
-不可变 saveBinding 作为同一个持久化操作提交；展示卡引用本次导入的 saveBindingId，
-不能按 externalId 动态查“最新令牌”。`CoachChatFocusResult` 包装现有
+成功时模块按原 SF 展示外部计划与讨论标签，一起持久化显示历史、Core session 及
+卡片的 externalId、SDK baseVersion、storageRevision。展示卡使用自己的保存版本。
+`CoachChatFocusResult` 包装现有
 `CoachPlanFocusResult`，另列 persisted/persistenceError 和可选 scopePreview：合法 focus 已提交但磁盘写入
 失败时，不能谎报“导入被拒且状态未变”，也不再次导入增版本；保留当前 focus，显示
 保存失败并只重试同一份持久化快照。非法计划/busy 则 Core 结果明确失败、persisted=false，
@@ -388,12 +371,9 @@ abstract interface class CoachChatPreferenceStore {
 }
 
 class CoachChatSnapshot {
-  // 独立 envelopeSchemaVersion；appId、storageNamespace、profileRevision
-  // catalogVersion/catalogSha256、allowlistSha256、dosePolicyRevision
+  // 独立 envelopeSchemaVersion；appId、storageNamespace
   // 现有 CoachSessionSnapshot + 对话显示消息/本地展示行
-  // saveBindings：按 saveBindingId 保存全部仍被旧卡/操作引用的不可变来源绑定
-  // 每条含 externalId、SDKbaseVersion、sourceContentDigest、消息/importId、原始storageRevision
-  // 卡片 -> saveBindingId 引用，以及按 idempotencyKey 关联原卡/提交版本的写入回执
+  // 每张计划卡的 externalId、savedRef、sdkVersion、storageRevision 与保存状态
 }
 ```
 
@@ -416,16 +396,14 @@ Preferences 包括原安全承认及版本、重新核对答案、训练许可�
 回执。动画中间进度、FocusNode、Widget、闭包、网关配置和私有 reasoning 均不序列化；
 恢复时原历史不重复播放进场。
 
-恢复先比较 appId、namespace、profile/剂量策略与目录/白名单身份，并校验所有计划
-版本、segment、推荐、focus、活动计划和 ledger 中的动作引用。范围变化、跨 App、
-缺失语义或无法证明安全的旧快照，不能直接交给 Core 的 legacy fallback 路径继续
-模型请求。返回有类型的恢复问题，保留原存储用于回滚；可显示明确的只读不可用占位，
-不能带出名单外缩略图、剂量/动作卡或删掉几项后假称原计划合法。模型会话从已验证
-迁移结果开始，迁移无法完成时新建空会话并如实说明。
+恢复从当前 appId 对应的存储 namespace 读取，实际计划（含父项和 segment）在恢复、
+focus、保存或开练时按当前白名单准入；结构、剂量和安全规则继续由现有校验负责。
+非法计划返回明确问题，保留原存储，不能删掉几项后假称原计划合法。普通历史文本、
+显示消息及已有工具回执不增加逐项引用扫描，也不新增 profile/目录哈希的运行期绑定。
+这套 Chat envelope 不改变旧 Core 快照协议。
 
-保存绑定必须完整往返，不能恢复时折叠成每 externalId 一条最新绑定。旧历史若缺少
-可证明对应关系的 CAS binding，只读展示仍可按准入结果处理，更新原保存须先请用户
-显式确认目标并新建绑定；不能从最新计划库补一个 token 假装原卡已有授权。
+恢复时保留每张卡自己的 storageRevision。旧历史缺少该值时可以按准入结果展示；
+用户更新原保存前，先读取并确认当前目标和版本。不能用 SDK baseVersion 代替它。
 
 SF `chat`、`coachDisplay`、`coachSessionJson` 的一次性适配归模块 migration 层，宿主
 只读取原存储。先读取原始资料、decode/重新准入、写入新 envelope、回读校验并登记
@@ -440,7 +418,9 @@ pending question 恢复、focus/savedRef 与已取消请求状态必须有对应
 但不能再存第二份值。范围处理字段的具体命名与默认值以主设计中的
 配置档表为准；本附录不另设互相矛盾的开关。
 `allowedActionIds` 是 `scopeManifest.allowedActionIds` 的只读访问，不再存一份可能
-不一致的名单。manifest/文案/策略可以版本化配置；运行时主题实例、图标 Widget/
+不一致的名单。manifest 的目录/名单 SHA 是配置时核对来源的元数据，初始化验证显式
+ID，之后由受限目录与实际计划的 ID 准入保证范围；不绑定多份目录版本，不把配置
+revision 或 SHA 当会话恢复门禁。文案和策略可版本化；运行时主题实例、图标 Widget/
 Painter、剪影 renderer 与执行闭包由宿主装配，不存入会话 JSON。
 
 新模块要求 `executionTiming` **非空**，沿用已合入 main
@@ -470,5 +450,5 @@ draft/refit/范围/交付门禁都使用同一回调，卡片与执行都须 ±1
 | 新 API 的执行时长依赖 | 依赖已合 main 的 3fbd179；实施统一使用同一 builder 合同，设计分支只记录方案，不重复搬运行代码 |
 
 以上签名的源依据是 SF 的控制器/页面行为和 SDK 已有接口；实际提取时以原版交互及
-逐帧验收裁决。没有因为 API 草案而授权新的字体、色值、间距、动效或第三方状态管理
+关键状态帧验收裁决。没有因为 API 草案而授权新的字体、色值、间距、动效或第三方状态管理
 依赖，也没有声称这些新接口已实现或已通过 App 门禁。

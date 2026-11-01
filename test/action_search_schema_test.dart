@@ -43,6 +43,8 @@ void main() {
         'maximum': 20,
       });
       expect(tool.parameters['required'], ['tags']);
+      expect(properties.containsKey('queries'), isFalse);
+      expect(tool.parameters.containsKey('anyOf'), isFalse);
       expect(tool.parameters['additionalProperties'], isFalse);
     });
   }

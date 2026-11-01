@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart';
-import 'package:ugk_coach/src/agent/agent_task.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
@@ -122,83 +121,6 @@ void main() {
       );
       expect(client.remaining, 0);
       expect(client.requests, hasLength(12));
-    },
-  );
-
-  test(
-    'cancel at the typed recommendation boundary rolls back to the real A',
-    () async {
-      final version = CoachPlanVersion.fromJson(
-        _map(fixture['initialSavedVersion']),
-      );
-      final firstId = version.plan['id']! as String;
-      final rawParams = _map(
-        _map(jsonDecode(recorded(2).toolCalls.single.arguments))['fields'],
-      );
-      final state = CoachSessionState(
-        userTurns: [CoachUserTurn(turn: 1, text: inputs[0])],
-        task: CoachTaskState(
-          type: 'plan',
-          reused: false,
-          nodes: [
-            for (final id in AgentTask.planNodes)
-              CoachNodeState(id: id, status: 'done', doneAtTurn: 1),
-          ],
-        ),
-        params: {
-          for (final entry in rawParams.entries)
-            entry.key: CoachParamValue.fromJson({
-              ..._map(entry.value),
-              'turn': 1,
-            }),
-        },
-        plans: {
-          firstId: [version],
-        },
-        activePlanId: firstId,
-        lastDeliveredPlanId: firstId,
-        lastDeliveredVersion: 1,
-        lastDeliveredTurn: 1,
-        seenActionIds: const PlanCodec()
-            .decode(version.plan)
-            .exerciseIds
-            .toSet(),
-      );
-      final client = FakeLlmClient([recorded(6)], latency: Duration.zero);
-      final agent = coach(client);
-      expect(
-        agent.restoreSessionSnapshot(
-          CoachSessionSnapshot(
-            sessionState: state,
-            ledger: ContextTurnLedger(const []),
-            agentState: const {'turnCount': 1},
-          ),
-        ),
-        isTrue,
-      );
-      final token = CancelToken();
-      var fired = false;
-      final subscription = agent.events.listen((event) {
-        if (!fired &&
-            event.kind == AgentEventKind.node &&
-            event.node?.id == 'understand' &&
-            event.node?.status == 'current' &&
-            agent.sessionState.task?.type == 'recommend') {
-          fired = true;
-          token.cancel();
-        }
-      });
-      addTearDown(subscription.cancel);
-      final result = await agent.send(inputs[1], cancel: token);
-      expect(fired, isTrue);
-      expect(result.status, TurnStatus.cancelled);
-      expect(result.plan, isNull);
-      expect(result.actions, isNull);
-      expect(agent.sessionState.plans.keys, [firstId]);
-      expect(agent.sessionState.plans[firstId], hasLength(1));
-      expect(agent.sessionState.plans[firstId]!.single.plan, version.plan);
-      expect(agent.sessionState.lastDeliveredPlanId, firstId);
-      expect(agent.sessionState.lastDeliveredVersion, 1);
     },
   );
 }

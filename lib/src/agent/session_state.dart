@@ -234,8 +234,6 @@ class CoachSessionState {
     this.legacyPlanFallback = false,
     Map<String, Object?> hostValues = const {},
     Map<String, Object?>? completedContextLedger,
-    this.actionScopeIdentity,
-    this.scopeAssessmentTurn,
     List<Map<String, Object?>> scopeDecisionRecords = const [],
   }) : userTurns = List.unmodifiable(userTurns),
        params = Map.unmodifiable(params),
@@ -298,8 +296,8 @@ class CoachSessionState {
 
   /// Completed-turn facts only; never raw model reasoning or tool history.
   final Map<String, Object?>? completedContextLedger;
-  final String? actionScopeIdentity;
-  final int? scopeAssessmentTurn;
+
+  /// User requests and the substitutions, removals or safety pauses they caused.
   final List<Map<String, Object?>> scopeDecisionRecords;
 
   CoachSessionState copyWith({
@@ -329,9 +327,6 @@ class CoachSessionState {
     Map<String, Object?>? hostValues,
     Map<String, Object?>? completedContextLedger,
     bool clearCompletedContextLedger = false,
-    String? actionScopeIdentity,
-    int? scopeAssessmentTurn,
-    bool clearScopeAssessment = false,
     List<Map<String, Object?>>? scopeDecisionRecords,
   }) => CoachSessionState(
     userTurns: userTurns ?? this.userTurns,
@@ -372,10 +367,6 @@ class CoachSessionState {
     completedContextLedger: clearCompletedContextLedger
         ? null
         : completedContextLedger ?? this.completedContextLedger,
-    actionScopeIdentity: actionScopeIdentity ?? this.actionScopeIdentity,
-    scopeAssessmentTurn: clearScopeAssessment
-        ? null
-        : scopeAssessmentTurn ?? this.scopeAssessmentTurn,
     scopeDecisionRecords: scopeDecisionRecords ?? this.scopeDecisionRecords,
   );
 
@@ -422,69 +413,65 @@ class CoachSessionState {
     if (hostValues.isNotEmpty) 'hostValues': _thaw(hostValues),
     if (completedContextLedger != null)
       'completedContextLedger': _thaw(completedContextLedger),
-    if (actionScopeIdentity != null) 'actionScopeIdentity': actionScopeIdentity,
-    if (scopeAssessmentTurn != null) 'scopeAssessmentTurn': scopeAssessmentTurn,
     if (scopeDecisionRecords.isNotEmpty)
       'scopeDecisionRecords': scopeDecisionRecords.map(_thaw).toList(),
   };
 
-  factory CoachSessionState.fromJson(Map<String, Object?> json) =>
-      CoachSessionState(
-        userTurns: [
-          for (final turn in json['userTurns'] as List<Object?>? ?? const [])
-            CoachUserTurn.fromJson(_map(turn)),
-        ],
-        task: json['task'] == null
-            ? null
-            : CoachTaskState.fromJson(_map(json['task'])),
-        params: {
-          for (final entry in _map(json['params'] ?? const {}).entries)
-            entry.key: CoachParamValue.fromJson(_map(entry.value)),
-        },
-        seenActionIds: (json['seenActionIds'] as List<Object?>? ?? const [])
+  factory CoachSessionState.fromJson(
+    Map<String, Object?> json,
+  ) => CoachSessionState(
+    userTurns: [
+      for (final turn in json['userTurns'] as List<Object?>? ?? const [])
+        CoachUserTurn.fromJson(_map(turn)),
+    ],
+    task: json['task'] == null
+        ? null
+        : CoachTaskState.fromJson(_map(json['task'])),
+    params: {
+      for (final entry in _map(json['params'] ?? const {}).entries)
+        entry.key: CoachParamValue.fromJson(_map(entry.value)),
+    },
+    seenActionIds: (json['seenActionIds'] as List<Object?>? ?? const [])
+        .cast<String>()
+        .toSet(),
+    consecutiveEmptySearches: json['consecutiveEmptySearches'] as int? ?? 0,
+    recommendationHintShown: json['recommendationHintShown'] as bool? ?? false,
+    pendingSearchTurn: json['pendingSearchTurn'] as int?,
+    pendingSearchIds: (json['pendingSearchIds'] as List<Object?>? ?? const [])
+        .cast<String>()
+        .toSet(),
+    emittedWarningCodes:
+        (json['emittedWarningCodes'] as List<Object?>? ?? const [])
             .cast<String>()
             .toSet(),
-        consecutiveEmptySearches: json['consecutiveEmptySearches'] as int? ?? 0,
-        recommendationHintShown:
-            json['recommendationHintShown'] as bool? ?? false,
-        pendingSearchTurn: json['pendingSearchTurn'] as int?,
-        pendingSearchIds: (json['pendingSearchIds'] as List<Object?>? ?? const [])
-            .cast<String>()
-            .toSet(),
-        emittedWarningCodes:
-            (json['emittedWarningCodes'] as List<Object?>? ?? const [])
-                .cast<String>()
-                .toSet(),
-        picks: (json['picks'] as List<Object?>? ?? const []).cast<String>(),
-        plans: {
-          for (final entry in _map(json['plans'] ?? const {}).entries)
-            entry.key: [
-              for (final version in entry.value as List<Object?>)
-                CoachPlanVersion.fromJson(_map(version)),
-            ],
-        },
-        activePlanId: json['activePlanId'] as String?,
-        focusPlanId: json['focusPlanId'] as String?,
-        savedRef: json['savedRef'] == null
-            ? null
-            : CoachSavedPlanRef.fromJson(_map(json['savedRef'])),
-        lastDeliveredPlanId: json['lastDeliveredPlanId'] as String?,
-        lastDeliveredVersion: json['lastDeliveredVersion'] as int?,
-        lastDeliveredTurn: json['lastDeliveredTurn'] as int?,
-        lastOperationRequestTurn: json['lastOperationRequestTurn'] as int?,
-        legacyPlanFallback: !json.containsKey('activePlanId'),
-        hostValues: _map(json['hostValues'] ?? const {}),
-        completedContextLedger: json['completedContextLedger'] == null
-            ? null
-            : _map(json['completedContextLedger']),
-        actionScopeIdentity: json['actionScopeIdentity'] as String?,
-        scopeAssessmentTurn: json['scopeAssessmentTurn'] as int?,
-        scopeDecisionRecords: [
-          for (final value
-              in json['scopeDecisionRecords'] as List<Object?>? ?? const [])
-            _map(value),
+    picks: (json['picks'] as List<Object?>? ?? const []).cast<String>(),
+    plans: {
+      for (final entry in _map(json['plans'] ?? const {}).entries)
+        entry.key: [
+          for (final version in entry.value as List<Object?>)
+            CoachPlanVersion.fromJson(_map(version)),
         ],
-      );
+    },
+    activePlanId: json['activePlanId'] as String?,
+    focusPlanId: json['focusPlanId'] as String?,
+    savedRef: json['savedRef'] == null
+        ? null
+        : CoachSavedPlanRef.fromJson(_map(json['savedRef'])),
+    lastDeliveredPlanId: json['lastDeliveredPlanId'] as String?,
+    lastDeliveredVersion: json['lastDeliveredVersion'] as int?,
+    lastDeliveredTurn: json['lastDeliveredTurn'] as int?,
+    lastOperationRequestTurn: json['lastOperationRequestTurn'] as int?,
+    legacyPlanFallback: !json.containsKey('activePlanId'),
+    hostValues: _map(json['hostValues'] ?? const {}),
+    completedContextLedger: json['completedContextLedger'] == null
+        ? null
+        : _map(json['completedContextLedger']),
+    scopeDecisionRecords: [
+      for (final value
+          in json['scopeDecisionRecords'] as List<Object?>? ?? const [])
+        _map(value),
+    ],
+  );
 }
 
 Map<String, Object?> _map(Object? value) =>

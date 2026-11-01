@@ -56,6 +56,7 @@ class StructuredToolHandler {
     this.enforceDrillDoseRange = false,
     this.executionTiming,
     this.files,
+    this.requiredActionIds,
   });
   final CoachProfile profile;
   final Catalog catalog;
@@ -64,6 +65,10 @@ class StructuredToolHandler {
   final bool enforceDrillDoseRange;
   final PlanExecutionTimingCallback? executionTiming;
   final SkillFiles? files;
+
+  /// Current code-selected replacements to explain in tool receipts. These
+  /// IDs remain requirements only; this callback never supplies search seen.
+  final Set<String> Function(CoachSessionState state)? requiredActionIds;
   _SearchReuse? _lastSearch;
 
   /// The owning tool loop calls this for every executed call, including memory

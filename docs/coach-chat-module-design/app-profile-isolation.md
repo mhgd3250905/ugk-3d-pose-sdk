@@ -1,8 +1,9 @@
 # 配置档、动作隔离与素材闭包
 
-本附录属于设计稿，**没有实现任何字段、过滤器、素材拆包或自动测试**。
-SDK 当前 main/本设计分支基线为 `3fbd179063e9b8433cadd5387295ac07b7b93800`，已包含执行
-时长回调。下列范围与素材盘点起于 `700d0100f1cb42ef122e774a6ee0076d1916b5e5`，相关
+本附录记录第 3 批配置与迁移设计，**尚未实现新对话模块或迁移 App**。runtime 拆包已在
+第 1 批完成，范围守卫由第 2 批提供。初版基线为
+`3fbd179063e9b8433cadd5387295ac07b7b93800`，已包含执行时长回调。下列范围与素材盘点
+起于 `700d0100f1cb42ef122e774a6ee0076d1916b5e5`，相关
 目录、selector 和素材声明在该次执行时长修复中没有改变。SF 迁移基线为
 `3eb2a9e88ef4d28e02f4cf306c1716d61baa7f10`。公开 API 名称以主设计稿为准。
 
@@ -16,8 +17,8 @@ SDK 当前 main/本设计分支基线为 `3fbd179063e9b8433cadd5387295ac07b7b938
 | `lib/src/agent/skill_files.dart:311–334` | 详情可按 scope 隐去名单外 alternative | 新的受限 Catalog 和序列化层必须同时去除外部 alternative/media/skill 引用，防止旁路泄漏 |
 | `lib/src/plan/plan_validator.dart:126,160–208` | 现有校验检查父 item 与每个 segment 的 ID、mode 和 profile 范围 | 新增严格集合守卫是补充，不替换结构、剂量、安全、场景及器械校验 |
 | `lib/src/agent/external_plan_focus_handler.dart` | 外部 focus 在改会话前先严格解码与 PlanValidator 校验 | 已存计划“发到对话”必须沿用这个入口；不能直接拼一条展示消息冒充可编辑计划 |
-| `lib/src/agent/session_snapshot_handler.dart:147–164` | schema 验证后恢复 sessionState；现有 snapshot 没有新模块的 scope 身份封套 | 新模块必须在 restore 前检查 App/profile/catalog/scope 身份和所有动作引用，不把旧快照默认视为仍有资格 |
-| `packages/ugk_trainer/pubspec.yaml:48–55` | 当前包直接声明完整 delivery/semantic JSON 和 `standing/` 目录 | 仅在运行时过滤 Catalog 不能满足 HipLab/托马斯的物理素材隔离 |
+| `lib/src/agent/session_snapshot_handler.dart:147–164` | 初版实现先验证 schema 再恢复 sessionState | 对恢复的实际计划按当前白名单检查 ID，沿用结构/剂量校验；不新增目录身份封套或扫描普通历史引用 |
+| `packages/ugk_trainer/pubspec.yaml` | 旧兼容包保留全量素材，新 runtime 不含动作专属素材；第 1 批已拆分 | 第 3 批模块依赖 runtime 与白名单素材包，不能重新依赖旧全量包 |
 
 上述路径均相对 SDK 根。这里只列设计需要用到的实际边界，不把已存在的 scope 校验说成
 完全没有校验，也不把它升级成尚未实现的严格构建保证。
@@ -29,9 +30,9 @@ SDK 当前 main/本设计分支基线为 `3fbd179063e9b8433cadd5387295ac07b7b938
 
 | 字段 | 必填/默认 | 语义与初始化校验 |
 | --- | --- | --- |
-| `appId` | 必填，稳定的 `smartfit` / `hiplab` / `flarelab` | 与存储 namespace、调用记录、scope manifest 身份一致，不使用显示名称作隔离键 |
-| `revision` | 必填，配置档版本 | 文案或主题修订可以不改变动作资格；资格变化必须另改 scope policy/hash |
-| `scopeManifest` | 必填、不可空 | 显式 `allowedActionIds` 与固定目录身份；不得使用 `*`、前缀、标签或空集合表示全库 |
+| `appId` | 必填，稳定的 `smartfit` / `hiplab` / `flarelab` | 用于存储 namespace 与调用记录，不使用显示名称作隔离键 |
+| `revision` | 必填，配置档版本 | 记录配置修订，文案或主题修订不改变动作资格；不作为运行期身份门禁 |
+| `scopeManifest` | 必填、不可空 | 显式 `allowedActionIds` 与配置时的目录/名单 SHA 元数据；不得使用 `*`、前缀、标签或空集合表示全库，不绑定多份运行期目录版本 |
 | `allowedActionIds` | 从 manifest 派生的只读 getter | 不再保存第二份集合，避免字段漂移；模型、UI 与构建器读取同一数据 |
 | `coachProfile` | 必填 | 复用既有范围说明、场景、安全与计划规则。模块构造 id-only 内核 profile，旧宽泛 selector 不得扩张授权集合 |
 | `doseOverrides` | 默认空映射 | 按显式动作 ID 声明剂量投影/单位；key 必须在白名单内，字段语义、mode、合法范围与节奏来源都要匹配；不能只把“次”改成“秒” |
@@ -50,28 +51,28 @@ CoachActionScopeManifest
   policyVersion
   catalogVersion
   catalogSha256
-  allowedActionIds[]       // 排序、去重后的显式 ID
-  allowlistSha256          // 对约定 canonical JSON 字节计算
-  assetManifestSha256
+  allowedActionIds[]       // 唯一显式 ID；重复、空白和未知 ID 报配置错误
+  allowlistSha256          // 唯一 ID 排序后，每行一个，UTF-8/LF，末尾换行
 ```
 
-`catalogSha256` 指固定输入目录及语义投影的身份，不用显示版本字符串代替内容校验。
-实现时确定 canonical JSON 的排序/UTF-8/换行规则，并用同一个生成器写 manifest、scope
-投影和打包输入；不是分别维护三份手填名单。允许 ID 必须存在于该固定**主目录**，重复、
-拼写错误、空白或未知 ID 直接返回配置错误，不能退回全库。授权集合增加须经过 App 清单
-审阅；远端 Catalog 新增动作，即使 app/tag 匹配，也不会自动进入既有 profile。
+`catalogSha256` 对输入主目录的原始字节计算，目录/名单 SHA 在配置时核对来源；
+它们不绑定运行期 planning Catalog，不形成多重目录版本或会话身份门禁。使用同一份
+显式名单生成受限目录和打包输入，不分别维护三份手填名单。允许 ID 必须存在于输入
+**主目录**；重复、拼写错误、空白、未知 ID 或空名单直接返回配置错误，不能退回全库。
+授权集合增加须经过 App 清单审阅；远端 Catalog 新增动作，即使 app/tag 匹配，也不会
+自动进入既有 profile。宿主原有 planning Catalog 与剂量/节奏投影保持不变。
 
 manifest、policy 和 strings 可以来自配置资料；函数、Widget、主题实例、执行 callback
 以及网关鉴权信息不能序列化进去。网关与凭据属于宿主运行时绑定，不写 snapshot/日志。
-profile 可以引用素材 manifest 身份，但不把庞大目录或 profile 副本复制到每条消息/会话。
+配置资料不复制到每条消息/会话，素材闭包仍由第 1 批工具生成与检查。
 
 ### 三个 App 的初始范围
 
 | App | 推荐首批显式授权来源 | 不能作出的推断 |
 | --- | --- | --- |
 | SF 全量 | 固定内部 delivery 目录的 **219** 个 canonical ID，700d010 与当前 3fbd179 的该目录相同，见本文清单 | 不意味着未来新 ID 自动放行；219 个素材 ready 不等于所有语义可计划 |
-| HipLab 拉伸/髋/臀 | 先冻结当前 `hiplab.json` 已列明的 **45** 个 ID，维持排除 `n-thomas-test`，作为待签核初始清单 | 不能把“所有拉伸”自动扩大为全库所有肩/胸/手腕动作；不按 `h-` 前缀放行 |
-| 托马斯专项 | 当前 FlareLab 专项目录的 **51** 项展开为显式清单，包含经该 App 选择的热身、支撑、核心、腿、侧撑和全旋链体能 | “托马斯”指该 App 的 Flare 专项，不是用动作名或字符串 `thomas` 搜索；`n-thomas-test` 不能因此自动加入 |
+| HipLab 拉伸/髋/臀 | 当前 `hiplab.json` 的 **45** 个 ID 仅作待签核候选，维持排除 `n-thomas-test`；用户签核前不生成正式 manifest | 不能把“所有拉伸”自动扩大为全库所有肩/胸/手腕动作；不按 `h-` 前缀放行 |
+| 托马斯专项 | 当前 FlareLab 专项目录的 **51** 项仅作待签核候选，包含该 App 现有热身、支撑、核心、腿、侧撑和全旋链体能；用户签核前不生成正式 manifest | “托马斯”指该 App 的 Flare 专项，不是用动作名或字符串 `thomas` 搜索；`n-thomas-test` 不能因此自动加入 |
 
 HipLab 与托马斯的业务范围仍以用户的产品决定为最终资格。推荐先把现有范围逐项冻结，
 再在后续配置审核中确认是否增删；本设计既不扩大旧清单，也不宣称已经完成新业务清单
@@ -92,8 +93,8 @@ SF profile 旧 notes 中“142 个动作”不是当前数量依据。当前素�
 
 ## 隔离必须覆盖的完整链路
 
-设 `A` 为显式授权 ID 集，`C` 为该目录版本的语义完整动作集；Agent 只持有 `A ∩ C`
-的不可变投影。新会话构造后不能在一次请求中切到另一个 profile/catalog 快照。
+设 `A` 为显式授权 ID 集，`C` 为宿主 planning Catalog 的语义完整动作集；Agent 使用
+`A ∩ C ∩ CoachProfile` 的受限目录，宿主原有剂量与执行节奏不变。
 
 1. **初始化与检索。** 严格构造受限 Catalog 与 id-only CoachProfile。模型的 compact
    index、维度索引、`search_actions`、`get_action`、旧 `read action-library/...`、skill
@@ -107,11 +108,10 @@ SF profile 旧 notes 中“142 个动作”不是当前数量依据。当前素�
    集合。复配、focus 编辑、模板和显式预设均使用同一守卫；旧成功 check、缓存估时或
    `ValidatedPlan` 来自另一 profile 不能直接复用。集合通过后仍需剂量、安全、器械、
    场景及卡片/执行双时长校验。
-4. **历史与快照。** 模块 snapshot 封套增加 appId、profile revision、scope policy/hash、
-   catalog 身份。恢复前扫描全部历史计划版本、picks、seen IDs、recommendations、
-   active/focus、savedRef 关联及 ledger 结构化引用。跨 App/profile 不兼容快照不装进
-   Agent；旧文件保留，给出可理解的恢复错误或只读归档，不能静默删除部分动作凑成新计划。
-   同 App 文案/主题修订可以兼容；scope 缩小或目录语义改变须重新逐项准入。
+4. **历史与快照。** 模块按 appId/存储 namespace 保存现有 Core snapshot 与显示消息。
+   恢复、focus、保存和开练时，对实际计划的父项/segment 检查当前白名单 ID，保留原有
+   结构、剂量和安全校验。非法计划保留原存储并报错，不能静默删项凑成新计划；普通
+   历史文本与工具回执不另加逐项引用扫描，不扩展旧 SDK 快照协议或做运行期哈希绑定。
 5. **外部计划/发到对话。** 宿主传完整计划给模块，模块先做相同范围/结构/剂量校验，
    再调用既有 `focusExternalPlan`，成功才设置 focus/savedRef。失败无模型请求、无状态
    变更；不得仅把卡片插入 UI 就认为模型获得了当前讨论计划。含外部动作的保存计划不
@@ -120,15 +120,16 @@ SF profile 旧 notes 中“142 个动作”不是当前数量依据。当前素�
    savedRef、不写原库、不声称非法导入成功。另一明确 CTA 可“采用并另存为新计划”，
    新 externalId 创建成功后再走原 external focus。不是强迫采用即保存，也不新增
    localDraft focus 域。原保存仍保留，更新原记录须走公开 API 文档的显式确认与 CAS。
-6. **保存与开始训练。** 传给宿主的保存/开练请求携带已准入的不可变计划及 profile/scope
-   身份；异步存储、导航等待后执行副作用前再次比对身份。宿主不得重配剂量、截断计划或
-   换成另一份 DTO。历史保存计划越界时拒绝开练/覆盖保存，保留原存储记录并说明原因。
+6. **保存与开始训练。** 对实际计划按当前白名单、剂量、安全和双时长准入后再交给宿主。
+   宿主不得重配剂量、截断计划或换成另一份 DTO。更新原保存使用宿主 storageRevision
+   做 CAS，不能用 SDK baseVersion 代替。历史保存计划越界时拒绝开练/覆盖保存，保留
+   原存储记录并说明原因。
 7. **替代、素材与缓存。** 替代动作必须仍在 A∩C 且通过当前安全门禁。新的可执行计划中
    `replacedFrom` 等可解析动作来源字段也须通过集合检查，不能用来挂载名单外详情或
    资源；旧越界来源保留在隔离归档中，不静默截掉字段后放入 active 计划。素材解析、
    预加载、缩略图/剪影 renderer、
    action-kit/voice 查询及下载请求在调用宿主 provider 前再次检查 ID；拒绝直接使用模型
-   自带路径/URL。缓存按 App/scope/media manifest 身份命名，旧外部素材不进入新缓存索引。
+   自带路径/URL。素材缓存沿用宿主 App 的命名空间，读取时按当前白名单检查动作 ID。
 
 纯 Dart 的严格 ID 守卫建议作为 `ugk_coach` 的可选新增能力，旧 API 未传时保持旧行为；
 新 `ugk_coach_chat` 必须启用，不能提供“生产关闭隔离”的配置。Chat 自己构造 Agent，
@@ -315,9 +316,9 @@ ID 不能回退全库；外部 focus、模板、跨 profile snapshot、旧历史
 | --- | --- |
 | 名单业务含义不清：Hip“拉伸”是否扩大；托马斯是否缩减当前 51 专项体能 | 首批保留当前 45/51 的显式候选，逐项签核后生成 manifest，不使用关键词自动扩容 |
 | SF“全量”被误解为可以规划所有 219 条 | 全量授权 219，沿用语义完整子集 211；补齐 8 条由内容来源独立验收，不在搬迁中伪造 |
-| 现有 Trainer 全资产声明与受限打包矛盾 | runtime + legacy wrapper 拆分方向已确认；实施阶段单独验证 URI/插件/类型兼容，再迁 App 依赖 |
+| 旧 Trainer 全资产声明与受限打包矛盾 | 第 1 批已拆 runtime + legacy wrapper；新模块复用同一 runtime，App 迁移时验证资源与平台行为 |
 | 单位覆盖改变实际执行 | 声明式、版本化剂量投影；先沿用 catalog/kit 真实模式，普通 item hold 扩展另审 |
-| 快照恢复后旧 scope 重新带入外部动作 | scoped 身份封套 + 恢复前扫描 + 原存储保留；无安全自动迁移时只读归档/开新会话 |
+| 快照恢复后旧计划带入名单外动作 | 对实际计划做当前白名单 ID 准入，拒绝非法计划并保留原存储；不扫描普通历史文本或新增身份封套 |
 | profile 主题/字符串过度开放导致三个 App 再分叉布局 | 配置只承接已识别品牌差异，SF 原值作为预设；布局/动画由同一模块拥有 |
 | 宿主换 builder 但 Coach 继续测旧配置 | profile/runtime 同一配置生命周期；实际 builder 一致性断言及真实模型 5/10/20 门禁 |
 | 把部分范围外请求误做一律拒绝，或暗换后声称满足原目标 | 按已定替代/删除/全超域/坚持矩阵处理，告知与卡片绑定，真实模型逐路径验收 |

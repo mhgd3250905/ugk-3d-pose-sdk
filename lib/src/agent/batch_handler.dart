@@ -78,8 +78,14 @@ class ToolBatch {
 
   final Map<String, String> results = {};
   int? firstFailure;
+  bool _searchFailure = false;
 
   bool get failed => firstFailure != null;
+
+  /// Independent searches may still return useful results after another
+  /// search failed. Mutations and failures of other tools keep their barrier.
+  bool shouldSkip(String name) =>
+      failed && !(_searchFailure && name == 'search_actions');
 
   void skipped(String id) {
     results[id] = jsonEncode({
@@ -103,7 +109,7 @@ class ToolBatch {
     });
   }
 
-  void mark(int oneBasedIndex, String id, {bool? failure}) {
+  void mark(int oneBasedIndex, String id, {bool? failure, String? name}) {
     if (firstFailure != null) return;
     final result = results[id];
     var isFailure = failure ?? false;
@@ -115,6 +121,9 @@ class ToolBatch {
         // Successful read and list results are plain text.
       }
     }
-    if (isFailure) firstFailure = oneBasedIndex;
+    if (isFailure) {
+      firstFailure = oneBasedIndex;
+      _searchFailure = name == 'search_actions';
+    }
   }
 }

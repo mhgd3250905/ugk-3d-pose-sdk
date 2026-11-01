@@ -304,15 +304,16 @@ class AppendOnlyContext {
     }
     final focus = focusPlanSummary(state, catalog, language);
     if (focus != null) summary['focus_plan'] = focus;
-    if (state.actionScopeIdentity != null) {
-      final turn = state.userTurns.lastOrNull?.turn;
+    final scopeRecords = [
+      for (final record in state.scopeDecisionRecords)
+        if (record['turn'] == state.userTurns.lastOrNull?.turn) record,
+    ];
+    if (scopeRecords.isNotEmpty) {
       summary['action_scope'] = {
-        'identity': state.actionScopeIdentity,
-        'userText': state.userTurns.lastOrNull?.text,
-        'assessmentRequired': state.scopeAssessmentTurn != turn,
-        'records': [
-          for (final record in state.scopeDecisionRecords)
-            if (record['turn'] == turn && record['superseded'] != true) record,
+        'records': scopeRecords,
+        'requiredActionIds': [
+          for (final record in scopeRecords)
+            if (record['kind'] == 'substituted') record['adoptedActionId'],
         ],
       };
     }

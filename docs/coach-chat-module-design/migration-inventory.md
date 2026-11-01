@@ -152,7 +152,7 @@ profile 的接线集成用例；同一断言只保留一个主要归属，不把
 它们仍验证宿主壳、真实持久化、路由/诊断和媒体交付；SDK 模块新增接线不会取消这些职责。
 
 此不可变树的 `lib/` 和 `test/` 中没有 `*.g.dart` 或 `*.freezed.dart`：生成 Dart 删除量
-为 **0 行**。同一树没有已提交的整页 golden 文件，当前测试不能当作已存在的整页逐帧
+为 **0 行**。同一树没有已提交的整页 golden 文件，当前测试不能当作已存在的整页关键状态帧
 像素基线。SDK 原有 16 张 UI 默认图只证明既有小组件默认路径，不证明 SF 整页搬迁。
 
 ## 5. 预计删除量：可复算但未实施
@@ -182,67 +182,55 @@ PlanPage 741 行、共享海报/冻结/主题 helper 的后续真实减量暂不
 以上两种预算分开报告，不把运行源和测试相加宣传为产品代码减量。最终验收用源提交与
 迁移提交之间的实际 `git diff --numstat`，并列明新增适配、SDK 新增、SF 删除、保留职责。
 
-## 6. SF 浅/深色逐帧 0 像素验收设计
+## 6. SF 浅/深色关键状态帧 0 像素验收设计
 
-### 6.1 先封存旧页，再比较新模块
+### 6.1 先封存旧页关键帧，再比较新模块
 
-实施前从上述不可变 SF 提交创建只读验证源，使用其 pin 的原 SDK、同一 pubspec.lock、
-Flutter/engine/font/media/renderer 生成旧页基准，记录每个脚本、截图和来源文件 SHA。
-之后在同一环境运行新模块，不能从新模块生成基准后声称与旧页一致。
+第 3 批由用户安排 SF Agent 在基于 `3eb2a9e` 的测试分支采集并封存原页关键状态帧。
+SDK 侧提供采集脚本与环境清单，不写 SF 仓库。使用原 SDK/pin、pubspec.lock 和原页
+生成基准，再在同一环境运行模块；不能从模块输出反向更新原基线。
 
-当前 SF `test/flutter_test_config.dart` 仅把 `SfCutouts.animate=false`，不包含整页 golden。
-新验收须显式加载原 `assets/fonts/NotoSansSC.ttf`、Material 字体与 SF CustomPainter，
-固定图片/剪影解码源与像素尺寸、DPR、viewport、textScale、locale、padding/viewInsets、
-系统栏样式、假时钟/ID、输入游标相位、随机种子与 image cache 状态。天空星场沿用
-`cosmos.dart:43` 的 48 星/seed 20261019、`:83` 的 33ms 节流；比较两端在相同时间轴取帧。
-冻结媒体解码样本时要对两端采用相同输入，不能把模块动画本身禁用来获得全静态通过。
+当前 SF `test/flutter_test_config.dart` 不包含整页 golden。采集需加载原 NotoSansSC、
+Material 字体和 SF CustomPainter，固定剪影/图片、DPR、viewport、textScale、locale、
+padding/viewInsets、系统栏、假时钟、随机种子与游标状态。星场和媒体使用相同输入；
+原动画的时长、曲线、减少动效和交互保持不变。
 
-每个场景至少浅/深两主题、普通/减少动效两模式；主验收固定 SF 原 viewport 与 textScale，
-再补窄屏/2x 文本和 IME 变化回归。每一动画按 60Hz 和 120Hz vsync 时间表逐帧捕获完整
-Flutter 页面，并补事件边界 `t−1ms/t/t+1ms`，不只选起止图。零差指大小相同、RGBA
-逐像素相同、差异像素数为 0；不能使用 1% 容差、裁掉有差异区域或更新基线规避。
+主验收使用 SF 原尺寸和浅/深两主题，对下表选定的关键状态帧比较完整 Flutter 页面。
+相同尺寸 RGBA 的差异像素数须为 0。减少动效、窄屏、文本放大和 IME 变化做相应
+关键状态回归，不要求全组合采样。缺字体、媒体或原基准时明确列待补项，不记为通过。
+真机键盘/系统层的行为另测，截图不代替设备播放或性能结果。
 
-平台 IME/系统栏另在相同设备/系统版本对照输入、返回与几何；测试内用原 MediaQuery/
-metrics 轨迹复现 Flutter 内容。确定性截图不能单独冒充真机键盘/系统合成层验收。
-若原媒体帧、字体或 renderer 无法复现，应标记该场景阻塞、保留原因与待取基准，不能
-将其记为 0 像素通过，也不能降低门槛。所有新外观建议均留到另一项经用户授权的改版。
+### 6.2 关键状态与原代码依据
 
-### 6.2 场景、帧边界与原代码证据
+采集点在实施前随脚本固定，覆盖初态、交互结果、主要过渡状态和稳定终态。下表用于
+保留原体验，不是修改动画参数的规格。
 
-“补帧”是在逐 vsync 捕获以外强制增加的时点，不是只拍这些点。所有位置必须依据
-源实现保留，不允许把下表当作重新设计动画的规格。
-
-| 场景 | 强制补帧/断言 | 原依据 |
+| 场景 | 关键状态与行为检查 | 原依据 |
 | --- | --- | --- |
-| 空态、时段问候、无历史/有历史 | `t=0/1/300/600ms`；固定 morning/evening 时钟，初始 retained history 不重新入场；背景与建议语逐像素相同 | `chat_home_page.dart:118–126`、`:439–537`；`chat_timeline.dart:70–103` 的 greeting 600ms |
-| 用户输入与发送、IME 到菜单接力 | 每个 metrics event 前后与所有帧；输入框/建议语/列表 viewport 不闪跳；user 入场 `0/140/280ms` | `chat_widgets.dart:106–280`、`chat_composer_dock.dart:126–360`；`chat_timeline.dart:94–95`；`tokens.dart:462` |
-| 功能面板展开/收起与返回键 | `0/60/120/180/240ms`，键盘与面板同高/不同高、开闭中切换焦点、连续点菜单；panel 返回先关菜单 | `ui_polish_tokens.dart:207–212` menu 240ms；`chat_panel_motion_test.dart`、`chat_home_page.dart:314–325` |
-| 普通助手消息与同批文字/卡片 | assistant `0/180/360ms`；卡片 `0/260/520ms`，逐项叠加 120ms reply stagger；稳定 key/滚动位置不变 | `chat_timeline.dart:70–103`，`tokens.dart:471/491` |
-| 等待卡六阶段、取消、空 picks | 六个阶段各捕获；`0/179/180/181/430/900/1200/1400/1600ms`，检查首张剪影延迟、过渡、取消热区、4 个 RepaintBoundary 与空 picks 回退 | 已有 SDK `task_bubble.dart`、`task_bubble_tokens.dart:17–67`；SF `chat_home_page.dart:481–522` 使用现有 SDK 组件 |
-| 等待→计划/推荐成功出卡 | 相对 successful edge `0/120/240/350/589/590/591/790/889/890/891ms`；240ms visual +350ms hold 后 collapse，200ms 消隐/300ms收高；前后台/route covered/新请求打断不延迟数据 | SDK `coach_delivery_transition.dart:43–48/146–149/189–222` 与 `task_bubble_tokens.dart:53–57` |
-| 等待→失败、普通文字、再试/取消 | 相对失败 edge `0/150/300ms`；失败不显示成功勾；新请求/取消不让旧回执覆盖，按钮只执行一次 | SDK delivery 的 legacy 300ms crossfade；SF `chat_home_page.dart:539–562`；`r2_failure_bubble_test.dart` |
-| text/choice/form 问题和 skip | 有效/无效/已回答/历史恢复、disabled、选项多行、表单编辑；取每次交互前帧与后续所有动画帧 | `chat_models.dart:280–455` 不可信历史问题重建；`chat_controller.dart:612–666`；`coach_ui_question_flow_test.dart` |
-| 计划卡收/展、标签、更新/保存副本 | 旧 SF 对话卡收/展两端与所有中间帧；外壳、剪影、title、footer 不变。保留现 SDK legacy 550/450ms 编排；内部 `CoachPlanExpanded` 280ms 尺寸/60+180ms 内容时轴不能误当整卡总时长 | SDK `plan_card.dart` 的 `_Timeline` 与 `plan_expanded.dart:64–68`；SF `plan_card.dart:34–70`、`validated_plan_card.dart` |
-| 发到对话、focus 替换/清空 | focus入 `0/90/180ms`、出 `0/60/120ms`，替换 title/clear hit/保存更新文案一致；第3项替换、插/删、缩时仍按同 planId/version/savedRef | SDK `plan_focus_label.dart:145–148`；SF `chat_controller.dart:723/875–908`；`plan_focus_*_test.dart` |
-| 保存、更新、另存与训练后保存邀请 | in-flight/成功/失败、重启恢复、外部 savedRef 版本冲突；主按钮已保存不误禁副本；toast glyph/text 同原 profile | `chat_controller.dart:738–825/828–908`；`plan_focus_card_test.dart`、`chat_started_snapshot_test.dart` |
-| 新对话、历史/快照导入与进程重建 | 清空请求同帧、flush完成帧、恢复首帧；取消旧请求、无残留计时器、旧会话不被新写入覆盖；无动画重放/闪空态 | `chat_controller.dart:264–332/365–420/1101–1138`；原 80ms 延迟持久化与 focus 的即时串行写入语义保留 |
-| 对话→训练与提前退出成功 | 进场 `0/1/150/299/300ms` 与 gate post-frame；退场 `0/140/279/280ms`；不透明舞台首帧完整，源列表与输入保持冻结，退出期间无完成页闪现 | SDK `trainer_slide_route.dart:21–40/117–125`；SF `open_training.dart`、`training_transition_freeze.dart` 和 `training_route.dart` 的 activity hold |
-| 训练保存失败→重试、自然练完→完成 | 按原 route/save-failed 事件顺序采每帧，失败恢复完成页不被chrome遮掉；成功 receipt 只提交一次；自然done流程与原实现一致 | SDK TrainerPlayer/TrainerSlideRoute；SF `chat_home_page.dart:204–255` |
-| 训练返回后的完成消息 | 第一布局帧（包括margin/time mark）零高度，不推挤已有行；`0/1/120/240ms`，reduced `0/75/150ms`；去重相同sessionId | `chat_timeline.dart:55–68/141–206`、`chat_training_return_test.dart`、`chat_home_page.dart:231–255` |
-| 安全流程、阻断、重新确认 | 每一步问题/caption、触发阻断、进入库/设置但禁止生成与开练；旧记录恢复后仍受实时安全状态制约 | `safety_script.dart`、`chat_controller.dart:961–1041`、`safety_gate_test.dart` |
+| 空态与时段问候 | 无历史/有历史、问候显示和稳定后；保留背景、建议语与历史不重复入场 | `chat_home_page.dart`、`chat_timeline.dart` |
+| 输入、键盘与菜单 | 输入中、键盘显示、菜单展开/收起及接力完成；输入栏和列表位置一致 | `chat_widgets.dart`、`chat_composer_dock.dart` |
+| 普通消息与卡片 | 消息出现、代表性过渡状态和稳定后；保留滚动位置、标题和卡片布局 | `chat_timeline.dart`、`tokens.dart` |
+| 等待卡 | 六阶段、空 picks、取消状态；剪影、热区和 RepaintBoundary 保持原实现 | SDK `task_bubble.dart`、`task_bubble_tokens.dart` |
+| 成功、失败与再试 | 等待、完成提示、切卡过渡、最终卡片及失败气泡；取消不被旧回执覆盖 | SDK `coach_delivery_transition.dart`、`r2_failure_bubble_test.dart` |
+| 问题与表单 | text/choice/form、disabled、填写和已回答状态；历史恢复后的表现一致 | `chat_models.dart`、`coach_ui_question_flow_test.dart` |
+| 计划卡与 focus | 收起、代表性展开状态、完全展开；标签出现/替换/清空、保存文案 | SDK `plan_card.dart`、`plan_expanded.dart`、`plan_focus_label.dart` |
+| 保存与另存 | 保存中、成功、失败和冲突；按钮、提示与宿主存储结果一致 | `chat_controller.dart`、`plan_focus_card_test.dart` |
+| 历史与新对话 | 清空后、恢复首帧和稳定后；原历史不重放、不闪空态 | `chat_controller.dart`、历史/快照测试 |
+| 训练进出场 | 入口、主要路由过渡状态、舞台就绪及返回后；gate 前不计时/语音，提前结束不闪完成页 | SDK `TrainerSlideRoute`、`TrainerPlayer`；SF `open_training.dart` |
+| 训练失败与完成返回 | 保存失败、重试、自然完成、返回消息初态/展开后；同 receipt 只显示一次 | `chat_training_return_test.dart`、`chat_home_page.dart` |
+| 安全与重新确认 | 问题、阻断、许可变化和恢复后；保持原安全交互 | `safety_script.dart`、`safety_gate_test.dart` |
 
-减少动效单独对照原行为：不能将所有时长统一变成 0。示例：TrainerSlideRoute 原 reduced
-进/退为 0；`TrainingFinishedEntry` 为 150ms；delivery 会直接完成；focus label 原有独立
-降级逻辑。原实现的布局、pointer/semantics、前后台 ticker 和缓存边界同样属于保真范围。
+减少动效按原行为对照关键状态，不把所有动画统一清零。训练、保存、返回键、取消等
+时序行为继续由相应组件/集成测试验证。
 
 ### 6.3 三 App 上线顺序与真实门禁证据
 
-先在 SF 换上模块并过上述完整逐帧门禁，再接 HipLab，再接托马斯。每个 App 接自己的
+先在 SF 换上模块并过上述关键状态帧零像素和功能检查，再接 HipLab，再接托马斯。每个 App 接自己的
 显式白名单、原主题/图标/剪影、保存适配和实际播放 builder；迁移不改 Coach 出计划规则、
 模型工具顺序、请求参数、缓存素材节奏、手动计次分类或执行时间线。
 
-每次真实模型验收记录所用 SDK/App full SHA、profile/catalog/白名单/素材与 builder
-配置哈希、原始用户输入、卡片与执行秒数、手动估算标记、调用数和耗时。固定 5/10/20
+每次真实模型验收记录 SDK/App 版本、所用 profile/白名单和实际 builder 配置、
+原始用户输入、卡片与执行秒数、手动估算标记、调用数和耗时。固定 5/10/20
 分钟脚本以及执行时长分支已确立的独立会话数/上下限规则；迁移前后同一离线模型响应
 应得到一致工具回执/计划/时间线，真实模型不能要求随机输出文本或剂量逐字相同。
 所有超差、反问、中间轮失败都保留，不用失败重抽提高通过率。

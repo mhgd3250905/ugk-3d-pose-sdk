@@ -263,7 +263,6 @@ void _validateState(Map<String, Object?> state) {
     'lastDeliveredTurn',
     'lastOperationRequestTurn',
     'consecutiveEmptySearches',
-    'scopeAssessmentTurn',
   ]) {
     _nullableInteger(state[key]);
   }
@@ -271,7 +270,6 @@ void _validateState(Map<String, Object?> state) {
     _nullableString(state[key]);
   }
   _validatePlanFocus(state);
-  _nullableString(state['actionScopeIdentity']);
   if (state['scopeDecisionRecords'] != null) {
     for (final record in _array(state['scopeDecisionRecords'])) {
       _object(record);

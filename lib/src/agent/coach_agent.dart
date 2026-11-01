@@ -285,7 +285,7 @@ class CoachAgent {
     }
     final scope = _refreshActionScope();
     this.profile = scope?.profile ?? profile;
-    _sessionState = CoachSessionState(actionScopeIdentity: scope?.identity);
+    _sessionState = CoachSessionState();
   }
 
   final LlmClient client;
@@ -294,7 +294,6 @@ class CoachAgent {
   final CoachActionScopeManifest? scopeManifest;
   final CoachScopeConversationPolicy? scopePolicy;
   CoachActionScope? _actionScope;
-  Catalog? _scopeSource;
   final SessionFallback? fallback;
   final UsageSink usage;
   final AgentPromptBuilder prompts;
@@ -667,9 +666,7 @@ class CoachAgent {
     _contextCoveredHistory.clear();
     final plan = admitted.plan;
     final stored = planState?.planId == plan.id ? planState : null;
-    _sessionState =
-        stored?.sessionState ??
-        CoachSessionState(actionScopeIdentity: _refreshActionScope()?.identity);
+    _sessionState = stored?.sessionState ?? CoachSessionState();
     final saved = stored?.context;
     final context = CoachContext(
       scene: saved?.scene ?? plan.scene,
@@ -757,7 +754,6 @@ class CoachAgent {
     _hostSafetyRevision++;
     _latestExplicitAvoid = nextAvoid;
     final cat = _catalog();
-    final beforeScope = _scopeConditions(_sessionState);
     final updated = SessionParams(
       ActionTags(profile, cat),
     ).applyHost(_sessionState, CoachContext(avoid: nextAvoid));
@@ -776,10 +772,7 @@ class CoachAgent {
                 _confirmedPlanContext?.language ??
                 'zh',
           );
-    _sessionState =
-        scopeManifest != null && beforeScope != _scopeConditions(nodes.state)
-        ? _invalidateScopeAssessment(nodes.state)
-        : nodes.state;
+    _sessionState = nodes.state;
     CoachContext replace(CoachContext c) => CoachContext(
       scene: c.scene,
       equipment: c.equipment,
@@ -826,7 +819,6 @@ class CoachAgent {
       admitted.plan,
       _planSummary(admitted.plan, _catalog()),
     );
-    final scopeSourceTurn = _sessionState.userTurns.lastOrNull?.turn;
     final previousLedger = _completedLedger();
     const userMessage = LlmMessage.user('用预设方案');
     final deliveredMessage = LlmMessage.assistant(text, reasoning: '');
@@ -859,17 +851,6 @@ class CoachAgent {
       lastDeliveredPlanId: delivered.id,
       lastDeliveredVersion: version,
       lastDeliveredTurn: _sessionState.userTurns.last.turn,
-      scopeDecisionRecords: [
-        for (final record in _sessionState.scopeDecisionRecords)
-          if (scopeManifest != null &&
-              record['turn'] == scopeSourceTurn &&
-              record['superseded'] != true)
-            CoachScopeDecisionRecord.fromJson(
-              record,
-            ).bindToPlan(delivered.id, version).toJson()
-          else
-            record,
-      ],
     );
     _questionsAsked = 0;
     _pendingConfirmation = null;
@@ -899,7 +880,7 @@ class CoachAgent {
   }
 
   ValidatedPlan? _admitPreset(TrainingPlan plan) {
-    if (scopeManifest != null && (!_scopeAssessedNow || _scopeRefusesPlan)) {
+    if (_scopeRefusesPlan) {
       return null;
     }
     final task = _sessionState.task;
@@ -967,9 +948,7 @@ class CoachAgent {
     _modelContext = null;
     _modelEpochKey = null;
     _contextRequestDiagnostics.clear();
-    _sessionState = CoachSessionState(
-      actionScopeIdentity: _refreshActionScope()?.identity,
-    );
+    _sessionState = CoachSessionState();
     _focusTurnBase = null;
     _hostSafetyRevision++;
     _latestExplicitAvoid = null;
@@ -1812,6 +1791,7 @@ class CoachAgent {
           cat,
           memory: memoryOn,
           sessionState: _sessionState,
+          scopeEnabled: scopeManifest != null,
           includeCheckPlan: true,
           language: context.language,
         );
@@ -2090,29 +2070,7 @@ class CoachAgent {
           break;
         }
         turnMsgs.add(assistant(response));
-        if (!_scopeAssessedNow) {
-          lastErrors = const [
-            PlanIssue('scope_assessment_required', '尚未校验本轮需求的动作范围'),
-          ];
-          calls.add(
-            _Call.ok(
-              step,
-              res,
-              CallOutcome.rejected,
-              retry: tag,
-              codes: const ['scope_assessment_required'],
-            ),
-          );
-          if (++rejected > maxResubmits) break;
-          turnMsgs.add(
-            LlmMessage.user(
-              '（系统回执）先用 set_params 的 scope_request 完成本轮范围记录；'
-              'quote 必须逐字等于当前状态 action_scope.userText。'
-              '不要生成新用户原话，也不要新增工具。原 task 和已检索来源继续有效。',
-            ),
-          );
-          continue;
-        }
+
         if (g.ok &&
             !_scopeRefusesPlan &&
             _sessionState.task?.type == 'plan' &&
@@ -2202,6 +2160,7 @@ class CoachAgent {
         enforceDrillDoseRange: enforceDrillDoseRange,
         executionTiming: executionTiming,
         files: fs,
+        requiredActionIds: _requiredScopeActionIds,
       );
       final skills = SkillToolHandler(fs, readSet, reads, listed);
       final terminal = TerminalToolHandler(gate);
@@ -2245,7 +2204,7 @@ class CoachAgent {
             orderedResults.add(results[t.id]!);
             continue;
           }
-          if (batch.failed) {
+          if (batch.shouldSkip(t.name)) {
             batch.skipped(t.id);
             orderedResults.add(results[t.id]!);
             continue;
@@ -2274,7 +2233,7 @@ class CoachAgent {
                 t.name == AgentTools.showActions) {
               attemptedOutput = true;
             }
-            batch.mark(toolIndex + 1, t.id);
+            batch.mark(toolIndex + 1, t.id, name: t.name);
             orderedResults.add(results[t.id]!);
             continue;
           }
@@ -2334,13 +2293,16 @@ class CoachAgent {
                       ),
                       'needsDraftRebuild': true,
                       'clarificationAllowed': false,
+                      'requiredActionIds': _requiredScopeActionIds(
+                        _sessionState,
+                      ).toList(),
                     });
                     disclosuresByIndex.remove(toolIndex);
                     break;
                   }
                 }
               }
-              _sessionState = _bindScopePlanRecords(handled.state);
+              _sessionState = handled.state;
               if (handled.changes.isNotEmpty) {
                 _emitNodeChanges(
                   turnId,
@@ -2441,34 +2403,23 @@ class CoachAgent {
               if (scopeManifest != null &&
                   paramReceipt is Map &&
                   paramReceipt['ok'] == true) {
-                if (args is Map<String, Object?> &&
-                    args.containsKey('scope_request')) {
-                  try {
-                    final assessment = _assessScope(
+                final assessment = _assessScope(
+                  updated,
+                  args is Map ? args['scope_request'] : null,
+                  context,
+                );
+                updated = assessment.state;
+                if (assessment.receipt.isNotEmpty) {
+                  responseText = jsonEncode({
+                    ...paramReceipt,
+                    'scope': assessment.receipt,
+                    'requiredActionIds': _requiredScopeActionIds(
                       updated,
-                      args['scope_request'],
-                      context,
-                    );
-                    updated = assessment.state;
-                    responseText = jsonEncode({
-                      ...paramReceipt,
-                      'scope': assessment.receipt,
-                    });
-                  } on FormatException catch (failure) {
-                    results[t.id] = jsonEncode(
-                      nodeError(
-                        failure.message,
-                        'scope_request',
-                        '本轮真实原话与已校验条件',
-                        'invalid_scope_request',
-                        'scope_request.quote逐字等于action_scope.userText；字段与scope schema一致；本次参数和范围记录均未提交。',
-                      ),
-                    );
-                    break;
-                  }
-                } else if (_scopeConditions(beforeParams) !=
-                    _scopeConditions(updated)) {
-                  updated = _invalidateScopeAssessment(updated);
+                    ).toList(),
+                    if (assessment.receipt['requiredActionsNotice'] != null)
+                      'requiredActionsNotice':
+                          assessment.receipt['requiredActionsNotice'],
+                  });
                 }
               }
               _sessionState = updated;
@@ -2683,9 +2634,7 @@ class CoachAgent {
               );
               terminalRejected = handled.rejected;
               terminalOutput = handled.output;
-              _sessionState = _bindScopePlanRecords(
-                handled.state ?? _sessionState,
-              );
+              _sessionState = handled.state ?? _sessionState;
               if (handled.changes.isNotEmpty) {
                 _emitNodeChanges(
                   turnId,
@@ -2815,7 +2764,7 @@ class CoachAgent {
           } on FormatException {
             // Plain skill results retain their exact disclosure text.
           }
-          batch.mark(toolIndex + 1, t.id, failure: toolFailure);
+          batch.mark(toolIndex + 1, t.id, failure: toolFailure, name: t.name);
           orderedResults.add(results[t.id]!);
           if (terminalOutput != null) {
             for (

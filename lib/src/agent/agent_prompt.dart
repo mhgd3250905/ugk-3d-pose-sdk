@@ -48,6 +48,7 @@ abstract final class AgentTools {
     Catalog catalog, {
     required bool memory,
     bool includeCheckPlan = true,
+    bool scopeEnabled = false,
     CoachSessionState? sessionState,
     String language = 'zh',
   }) {
@@ -157,8 +158,33 @@ abstract final class AgentTools {
             'tags': codes(tags.tags),
             'keywords': {'type': 'string'},
             'limit': {'type': 'integer', 'minimum': 1, 'maximum': 20},
+            if (scopeEnabled)
+              'queries': {
+                'type': 'array',
+                'minItems': 1,
+                'items': {
+                  'type': 'object',
+                  'properties': {
+                    'tags': codes(tags.tags),
+                    'keywords': {'type': 'string'},
+                    'limit': {'type': 'integer', 'minimum': 1, 'maximum': 20},
+                  },
+                  'required': ['tags'],
+                  'additionalProperties': false,
+                },
+              },
           },
-          'required': ['tags'],
+          if (scopeEnabled)
+            'anyOf': [
+              {
+                'required': ['tags'],
+              },
+              {
+                'required': ['queries'],
+              },
+            ]
+          else
+            'required': ['tags'],
           'additionalProperties': false,
         },
       ),
@@ -413,7 +439,7 @@ abstract final class AgentTools {
         ),
       ],
     ];
-    if (sessionState?.actionScopeIdentity != null) {
+    if (scopeEnabled) {
       final index = tools.indexWhere((tool) => tool.name == setParams);
       final original = tools[index];
       final properties = Map<String, Object?>.from(
@@ -425,7 +451,7 @@ abstract final class AgentTools {
       tools[index] = LlmTool(
         name: original.name,
         description:
-            '${original.description} 本App每轮还需scope_request范围判断；仅判断时fields可为空对象。',
+            '${original.description} 仅范围外请求、替代/删除或安全暂停时使用scope_request；正常范围内请求不用填。',
         parameters: {...original.parameters, 'properties': properties},
       );
     }

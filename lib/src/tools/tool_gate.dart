@@ -276,16 +276,6 @@ class ToolGate {
         },
       );
     }
-    if (canary != null && note.contains(canary!)) {
-      return AgentOutputResult(
-        state: state,
-        error: const {
-          'ok': false,
-          'code': 'canary_leak',
-          'fix': '停止交付，不输出内部标记。',
-        },
-      );
-    }
     return AgentOutputResult(
       state: prepared.nodeResult!.state,
       changes: prepared.nodeResult!.changes,

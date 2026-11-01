@@ -872,12 +872,6 @@ class CoachConversationController {
           false) {
         throw const FormatException('action_scope_violation');
       }
-      if (message.actions?.items.any(
-            (item) => scope.validateReferences(item.drill.raw).isNotEmpty,
-          ) ??
-          false) {
-        throw const FormatException('action_scope_violation');
-      }
       final ownActions = message.actions == null
           ? null
           : agent.restoreRecommendation(

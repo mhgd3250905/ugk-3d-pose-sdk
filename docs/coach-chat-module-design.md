@@ -1,8 +1,8 @@
 # 统一教练对话模块设计
 
-状态：**设计稿，等待审核；尚未实现新模块或迁移 App。** 日期：2026-11-01。
-分支 `codex/coach-chat-module-design`，基于已审核的新 main
-`3fbd179063e9b8433cadd5387295ac07b7b93800`。本分支只改文档，推送等审，不合 main、不打 tag；各 App 暂不换 pin。
+状态：**第 3 批实施设计；尚未实现新对话模块或迁移 App。** 初版日期：2026-11-01。
+原设计分支为 `codex/coach-chat-module-design`，初版基线是
+`3fbd179063e9b8433cadd5387295ac07b7b93800`。runtime 拆包已在第 1 批完成；本次设计调整不改 App 或 pin。
 
 ## 1. 已定目标与归属
 
@@ -24,10 +24,10 @@ SF、HipLab、托马斯以后挂载同一个模块；App 保留壳、动作库�
 
 - [配置档、白名单与素材隔离](coach-chat-module-design/app-profile-isolation.md)
 - [公开 API 与生命周期草案](coach-chat-module-design/public-api.md)
-- [SF 文件盘点、删除估算与逐帧矩阵](coach-chat-module-design/migration-inventory.md)
+- [SF 文件盘点、删除估算与关键状态帧](coach-chat-module-design/migration-inventory.md)
 - [SF 推荐错误及调用/耗时待处理项](coach-chat-module-design/agent-follow-ups.md)
 
-文中新增类型、包、字段和错误码均为**拟议接口**；现有 API 会明确注明来源。
+文中第 3 批新增类型、包、字段和错误码均为**拟议接口**；现有 API 会明确注明来源。
 这次没有创建包、改源码、改 pubspec、升级 App、跑新模型或宣称完成视觉验收。
 
 ## 2. 包划分与依赖方向
@@ -60,12 +60,12 @@ flowchart TD
 | `ugk_coach_chat` | 原 SF 完整对话页及其控制器/流程、视图映射、历史协议、对话侧保存/训练编排 | App 路由页面、数据库实现、网关凭据、私有目录兜底 |
 | App / 白名单素材数据包 | 壳、动作库页、我的计划 CRUD、设置、品牌配置、数据与平台适配 | 自己重新实现对话、计划编辑、剂量或出卡门禁 |
 
-runtime 拆包属于后续实施：旧 export 与新包必须指向相同 Dart 类型，原生插件只注册一次；
-旧 `packages/ugk_trainer/...` 资源键与播放器默认海报/静音音轨/网页播放器需明确兼容测试。
+第 1 批已完成 runtime 拆包，旧 export 与新包指向相同 Dart 类型，原生插件只注册一次；
+第 3 批复用这些入口，继续保持旧资源键、默认海报、静音音轨和网页播放器兼容。
 不能只改 Dart import 就声称已经隔离资源，也不能复制一套 Trainer 给新模块。
 
-Flutter 会自动把依赖包在 pubspec 中声明的素材随 App 打包。当前 Trainer 已声明全量
-`standing/` 和目录文件，因此仅在运行时过滤 ID 或换入口不能达成物理排除。
+Flutter 会自动把依赖包在 pubspec 中声明的素材随 App 打包。旧 `ugk_trainer` 兼容包
+仍保留全量 `standing/` 和目录文件；新模块使用 runtime 与白名单素材，避免引入全库。
 拆 runtime 的依据见 [Flutter 包素材打包规则](https://docs.flutter.dev/ui/assets/assets-and-images#bundling-of-package-assets)。
 
 素材包可以是 SDK 内独立数据包，也可以由同一 manifest 生成到各 App 的资产目录；推荐先用
@@ -78,9 +78,9 @@ Flutter 会自动把依赖包在 pubspec 中声明的素材随 App 打包。当�
 
 | 字段草案 | 类型/要求 | 语义 |
 | --- | --- | --- |
-| `appId`、`revision` | 非空稳定 ID、配置版本 | App/存储/缓存/记忆命名空间；托马斯沿用既有 FlareLab 身份映射 |
-| `scopeManifest` | `CoachActionScopeManifest`，必填 | catalog 版本与 SHA、明确列出的 `allowedActionIds`、名单 SHA、素材 manifest SHA；无 `*`/prefix/tag 授权 |
-| `allowedActionIds` | 只读 getter | 来自 scopeManifest，只有一份事实；空集合代表无可用动作，绝不代表全库 |
+| `appId`、`revision` | 非空稳定 ID、配置版本 | appId 用于 App/存储/缓存/记忆命名空间；revision 记录配置修订，不作为会话运行期门禁 |
+| `scopeManifest` | `CoachActionScopeManifest`，必填 | 显式 `allowedActionIds`，以及配置时核对的目录/名单 SHA 元数据；无 `*`/prefix/tag 授权，不绑定多份运行期目录版本 |
+| `allowedActionIds` | 只读 getter | 来自 scopeManifest，只有一份事实；空集合是配置错误，绝不代表全库 |
 | `coachProfile` | 现有 `CoachProfile` | 场所、器械、能力、时长、剂量硬限与已有安全规则；在硬名单内再取交集 |
 | `doseOverrides` | 按动作 ID 的语义覆盖 | 显示单位、来源字段/quantity 含义、合法范围和标准计划映射，禁止只改标签就把 reps 当保持秒 |
 | `conversationPolicy` | 范围与流程策略 | 专长、范围外替代/删除/坚持规则、安全优先级、可选引导；所有操作仍受 SDK 校验 |
@@ -91,8 +91,9 @@ Flutter 会自动把依赖包在 pubspec 中声明的素材随 App 打包。当�
 `outOfScopeGuidance` 放在 `conversationPolicy`，可选且默认关闭；不开启时任何说明和建议
 都不提及其他 App。开启只能使用配置档提供的明确文案/目标，不让模型自行编造外部产品。
 
-manifest、文案和策略可以做版本化配置数据；运行时的 Widget、主题对象、函数、客户端、
-token/headers 不序列化。会话快照只记录配置身份/哈希，不拷贝配置、更不保存密钥。
+manifest、文案和策略可以做版本化配置数据；目录/名单 SHA 只用于配置时校验来源，
+不作运行期身份绑定。Widget、主题对象、函数、客户端、token/headers 不序列化；
+会话快照不拷贝配置或密钥。
 详细字段、候选 ID 清单和来源哈希见隔离附录。
 
 ### 三 App 名单基线
@@ -220,15 +221,16 @@ Trainer 仍负责 engine/recorder/save/completeReceipt；Chat 只按 sessionId �
 原 startGate/beforeExitPop/onExitStarted、海报准备、视口冻结和入口互斥不重做；
 视频播放、倒计时、语音、hold 不得在路由/准备 gate 打开前启动。
 
-快照 envelope 在现有 core snapshot 外增加 app/profile/catalog/名单身份，独立 schema 版本。
-恢复前先重新验证范围和计划；不同 App/名单收窄不能借历史恢复越权。读取旧 SF 数据是
-一次性、可回滚、幂等迁移：不清原数据，不把显示旧卡当有效模型上下文；取消/新对话/销毁
+新模块的快照 envelope 保存 appId、存储 namespace、现有 Core snapshot 与显示消息，
+独立版本化，不扩展旧 SDK 快照协议。恢复、focus、保存和开练时，对实际计划按当前
+白名单做 ID 准入；不为普通历史文本增加目录身份或哈希扫描。读取旧 SF 数据是一次性、
+可回滚、幂等迁移：不清原数据，不把显示旧卡当有效模型上下文；取消/新对话/销毁
 采用 generation 使迟到响应失效，flush 与保存顺序保持可测。
 
-旧卡的存储基准不能只按 externalId 保留“最新 revision”：每次导入/来源快照有不可变
-`saveBindingId`，卡片绑定原 externalId、SDK baseVersion、源内容摘要与当时 storageRevision。
-同 externalId 重选后，旧卡仍持旧 token，不能自动拿到新 token 覆盖新内容；快照保留全部
-来源绑定。库内计划只看详情另有无会话副作用的准入入口，不为浏览详情改变 focus 或发模型。
+每张保存计划卡保留自己的 externalId、SDK baseVersion 和当时的 storageRevision。
+更新时把该卡的 revision 交给宿主做 CAS；保存成功后更新这张卡的 revision，其他旧卡
+仍按自己的 revision 处理。快照保存这些普通字段即可。库内计划只看详情另有无会话
+副作用的准入入口，不为浏览详情改变 focus 或发模型。
 网关工厂通过显式 `CoachGatewayClientLease`/release 合同释放客户端，不能假定 `LlmClient` 接口自带 close。
 
 ## 6. SF 搬迁清单与工作量
@@ -254,17 +256,18 @@ Trainer 仍负责 engine/recorder/save/completeReceipt；Chat 只按 sessionId �
 
 ### SF 先验收，再接 HipLab、托马斯
 
-实施前从 immutable SF `3eb2a9e` 采集原页浅/深色逐帧基准并封存，记录源 SHA、字体/图标/
-剪影/媒体字节、DPR/viewport、平台/renderer、时钟、星场 seed、键盘和减少动效设置。
+第 3 批由用户安排 SF Agent 在基于 `3eb2a9e` 的测试分支采集并封存原页浅/深色关键
+状态帧。SDK 侧只提供采集脚本与环境清单，不写 SF 仓库。固定字体/图标、剪影/媒体、
+DPR/viewport、平台/renderer、时钟、星场 seed、键盘和减少动效设置。
 原 SF **没有整页 golden**，SDK 既有 16 张组件图不能替代整页证据。本设计不生成或批准新图。
 
-迁移前后同一固定消息/问答/计划/媒体脚本、同一环境、同一每帧时间点做 exact pixel compare，
-浅/深所有帧 **0 像素差**，没有百分比容差或“看起来一致”替代，不更新新实现的输出为旧基线。
-覆盖空态、输入/IME/菜单、取消/错误、等待至推荐/计划的全部中间帧、卡片三态、焦点标签、
-保存更新/另存、历史恢复、新对话、外部计划发到对话、计划详情、训练入场/提前结束/失败重试/
-自然完成返回及减少动效。具体 60/120Hz 与事件边界 ±1ms 矩阵见搬迁附录。
+迁移前后使用同一固定消息/问答/计划/媒体脚本和环境，对封存的关键状态帧做像素比较，
+浅/深色关键帧均须 **0 像素差**，不更新新实现的输出为旧基线。
+关键状态覆盖空态、输入/IME/菜单、取消/错误、等待与成功出卡、卡片三态、焦点标签、
+保存更新/另存、历史恢复、新对话、外部计划发到对话、计划详情、训练入场/提前结束/
+失败重试/自然完成返回及减少动效。原有动效时长、曲线和交互保持不变，采集点见搬迁附录。
 
-真实模型独立于逐帧比对：模型内容不确定，不能靠重抽让新旧截图碰巧相同。
+真实模型独立于关键状态帧比对：模型内容不确定，不能靠重抽让新旧截图碰巧相同。
 迁移前旧 SF 页与迁移后模块使用同一已审核执行回调、实际 builder 和 profile；
 5 分钟五次独立会话、10/20 分钟各一次，卡片/执行双门禁、无非法 ID、不重抽/截断/豁免，
 记录最后轮及总调用/耗时/重编原因/估算标志，保留中间失败。既有 main 3fbd 记录是
@@ -319,8 +322,8 @@ Trainer 仍负责 engine/recorder/save/completeReceipt；Chat 只按 sessionId �
 
 | 项目 | 当前事实/风险 | 推荐与关闭条件 |
 | --- | --- | --- |
-| runtime 拆包兼容 | 用户已批准，尚未实施；旧包声明全素材 | 一份 runtime 实现、旧入口转导出；资源 URI/插件/类型身份/旧调用全量测试通过后接新 Chat |
-| 名单最终内容 | SF219/211已核，Hip45/Thomas51是来源候选 | 产品逐 ID 签核并冻结 hash；新增目录不自动授权，不能按 tag/prefix 扩权 |
+| runtime 拆包兼容 | 用户已确认且第 1 批已完成；旧包保留全量素材兼容 | 新 Chat 直接复用同一 runtime，App 迁移时验证资源 URI、插件、默认播放和平台行为 |
+| 名单最终内容 | SF219/211已定，Hip45/Thomas51是来源候选 | Hip/托马斯用户签核后才生成正式 manifest；新增目录不自动授权，不能按 tag/prefix 扩权 |
 | 零像素基线 | 原 SF 没有整页 golden，动画含时钟/星场/媒体 | 原源先采集封存；缺字体/素材/renderer条件时不得宣称0差，先补齐条件 |
 | 新隔离拒绝与旧行为冲突 | 旧错误路径可能先显示不合法保存卡 | 优先已定安全/范围处理；把具体旧脚本冲突单独交审，不能静默放宽隔离或自动更新基线 |
 | 剂量单位 | 静态保持与rep_hold不同，普通item无holdSeconds | 明确normalizer与schema，未知映射报错；profile覆盖需catalog/执行合同测试 |
@@ -339,8 +342,8 @@ Trainer 仍负责 engine/recorder/save/completeReceipt；Chat 只按 sessionId �
 
 1. runtime 拆分与白名单资源闭包/构建检查，保持旧 `ugk_trainer` 默认兼容；签核三 App manifest。
 2. 统一 scope/范围处理的 core 守卫，独立处理 SF 推荐错误与工具冗余；保留原配时与安全约束。
-3. 从 SF3eb 封存原页逐帧基线，再机械抽入 Chat 模块；用存储/主题/媒体/路由 adapter 消除 App 依赖。
-4. SF 仅换模块挂载及适配，旧数据迁移不清理；逐帧0差、功能、真实模型与资产门禁全部通过。
+3. 由 SF Agent 从 SF3eb 封存原页关键状态帧基线，再抽入 Chat 模块；用存储/主题/媒体/路由 adapter 消除 App 依赖。
+4. SF 仅换模块挂载及适配，旧数据迁移不清理；关键状态帧0差、功能、真实模型与资产门禁全部通过。
 5. HipLab、托马斯分别接入同包，配置差异不允许fork页面；各自白名单/单位/安全/真实模型/素材验收。
 
 发布前所有App按审核通过的完整 SDK commit 同步解析依赖，不能用 path、分支或缓存补丁

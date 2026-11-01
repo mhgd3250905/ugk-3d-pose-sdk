@@ -62,6 +62,7 @@ extension ActionToolHandler on StructuredToolHandler {
     return StructuredToolResult(
       next,
       jsonEncode({
+        ..._requiredActions(next),
         ...found.toJson(),
         'notes': [...found.notes, '已将旧目录路径路由到安全动作检索；只返回符合当前条件的动作。'],
       }),
@@ -70,6 +71,111 @@ extension ActionToolHandler on StructuredToolHandler {
   }
 
   StructuredToolResult search(
+    CoachSessionState state,
+    String tool,
+    String raw,
+    String language,
+  ) {
+    if (tool == AgentTools.searchActions) {
+      final normalized = normalizeToolArguments(
+        raw,
+        allowed: {'tags', 'keywords', 'limit', 'queries'},
+      );
+      final arguments = normalized.value;
+      if (arguments != null && arguments.containsKey('queries')) {
+        return _searchQueries(
+          state,
+          arguments['queries'],
+          language,
+          normalized.notes,
+        );
+      }
+    }
+    return _searchSingle(state, tool, raw, language);
+  }
+
+  StructuredToolResult _searchQueries(
+    CoachSessionState state,
+    Object? raw,
+    String language,
+    List<String> notes,
+  ) {
+    beginTool(AgentTools.searchActions);
+    if (raw is! List || raw.isEmpty) {
+      _lastSearch = null;
+      return StructuredToolResult(
+        state,
+        jsonEncode({
+          ...nodeError(
+            'invalid_queries',
+            'queries',
+            '非空检索数组',
+            raw,
+            '每项使用tags、keywords和limit。',
+          ),
+          ..._requiredActions(state),
+        }),
+      );
+    }
+    var next = state;
+    var fresh = false;
+    var successful = 0;
+    final queries = <Map<String, Object?>>[];
+    final items = <String, Map<String, Object?>>{};
+    Map<String, Object?>? shared;
+    for (final (index, query) in raw.indexed) {
+      final found = _searchSingle(
+        next,
+        AgentTools.searchActions,
+        jsonEncode(query),
+        language,
+      );
+      next = found.state;
+      fresh = fresh || found.fresh;
+      final receipt = jsonDecode(found.response) as Map<String, Object?>;
+      final rows = receipt['items'] as List<Object?>? ?? const [];
+      queries.add({
+        'index': index + 1,
+        for (final entry in receipt.entries)
+          if (!{
+            'items',
+            'format',
+            'filter',
+            'requiredActionIds',
+            'requiredActionsNotice',
+          }.contains(entry.key))
+            entry.key: entry.value,
+        'ids': [for (final row in rows) (row! as Map)['id']],
+      });
+      if (receipt['ok'] != true) continue;
+      successful++;
+      shared ??= receipt;
+      for (final row in rows) {
+        final item = Map<String, Object?>.from(row! as Map);
+        items.putIfAbsent(item['id']! as String, () => item);
+      }
+    }
+    return StructuredToolResult(
+      next,
+      jsonEncode({
+        'ok': successful > 0,
+        ..._requiredActions(next),
+        if (successful == 0) 'code': 'all_queries_failed',
+        'partial': successful > 0 && successful < raw.length,
+        'queries': queries,
+        'items': items.values.toList(),
+        if (shared?['format'] != null) 'format': shared!['format'],
+        if (shared?['filter'] != null) 'filter': shared!['filter'],
+        'newCount': items.keys
+            .where((id) => !state.seenActionIds.contains(id))
+            .length,
+        'notes': [...notes, '按queries顺序独立检索；单项错误不撤销其余成功结果。'],
+      }),
+      fresh: fresh,
+    );
+  }
+
+  StructuredToolResult _searchSingle(
     CoachSessionState state,
     String tool,
     String raw,
@@ -108,8 +214,8 @@ extension ActionToolHandler on StructuredToolHandler {
       _lastSearch = null;
       return StructuredToolResult(
         state,
-        jsonEncode(
-          nodeError(
+        jsonEncode({
+          ...nodeError(
             'invalid_arguments',
             'arguments',
             searchCall
@@ -118,7 +224,8 @@ extension ActionToolHandler on StructuredToolHandler {
             args,
             '使用工具 schema 中的字段和值。',
           ),
-        ),
+          ..._requiredActions(state),
+        }),
       );
     }
     final signature = searchCall
@@ -150,6 +257,7 @@ extension ActionToolHandler on StructuredToolHandler {
       return StructuredToolResult(
         state.copyWith(consecutiveEmptySearches: emptySearches),
         jsonEncode({
+          ..._requiredActions(state),
           ...cached.receipt,
           'items': [
             for (final raw in cached.receipt['items']! as List<Object?>)
@@ -204,6 +312,7 @@ extension ActionToolHandler on StructuredToolHandler {
     return StructuredToolResult(
       next,
       jsonEncode({
+        ..._requiredActions(next),
         ...found.toJson(),
         if (found.ok && searchCall) ...{
           'cacheHit': false,
@@ -217,6 +326,15 @@ extension ActionToolHandler on StructuredToolHandler {
           ? (args['ids'] as List).cast<String>()
           : const [],
     );
+  }
+
+  Map<String, Object?> _requiredActions(CoachSessionState state) {
+    final ids = requiredActionIds?.call(state);
+    return {
+      if (ids != null) 'requiredActionIds': ids.toList(),
+      if (ids?.isNotEmpty == true)
+        'requiredActionsNotice': '必须采用以上代码已选替代动作；仍须通过真实检索与草稿门禁，不会自动加入计划。',
+    };
   }
 
   String? _searchSignature(
@@ -234,8 +352,6 @@ extension ActionToolHandler on StructuredToolHandler {
         'hostValues': state.hostValues,
         'activePlanId': state.activePlanId,
         'focusPlanId': state.focusPlanId,
-        'actionScopeIdentity': state.actionScopeIdentity,
-        'scopeAssessmentTurn': state.scopeAssessmentTurn,
         'scopeDecisionRecords': state.scopeDecisionRecords,
         'language': language,
         'query': {

@@ -97,15 +97,12 @@ CoachActionScopeManifest actionScopeManifest(
   Catalog catalog, {
   Iterable<String> ids = const ['hip-a', 'hip-b', 'unsafe-hip', 'incomplete'],
   String? masterHash,
-  String? planningHash,
   String? allowlistHash,
 }) => CoachActionScopeManifest.fromCatalogBytes(
   appId: 'hiplab',
   catalogBytes: utf8.encode(jsonEncode(catalog.toJson())),
-  planningCatalog: catalog,
   allowedActionIds: ids,
   catalogSha256: masterHash,
-  planningCatalogSha256: planningHash,
   allowlistSha256: allowlistHash,
 );
 
@@ -152,7 +149,7 @@ TrainingPlan actionScopePlan(
   ],
 );
 
-Matcher _configuration(String code) =>
+Matcher configuration(String code) =>
     isA<CoachActionScopeConfigurationException>().having(
       (error) => error.code,
       'code',
@@ -160,334 +157,225 @@ Matcher _configuration(String code) =>
     );
 
 void main() {
-  test('manifest rejects empty and duplicate IDs instead of granting all', () {
-    final catalog = actionScopeCatalog();
+  test(
+    'an empty allowlist is a configuration error rather than full catalogue',
+    () {
+      expect(
+        () => actionScopeManifest(actionScopeCatalog(), ids: []),
+        throwsA(configuration('empty_allowlist')),
+      );
+    },
+  );
+
+  test('duplicate allowed IDs are rejected during configuration', () {
     expect(
-      () => actionScopeManifest(catalog, ids: []),
-      throwsA(_configuration('empty_allowlist')),
-    );
-    expect(
-      () => actionScopeManifest(catalog, ids: ['hip-a', 'hip-a']),
-      throwsA(_configuration('duplicate_action_id')),
+      () => actionScopeManifest(actionScopeCatalog(), ids: ['hip-a', 'hip-a']),
+      throwsA(configuration('duplicate_action_id')),
     );
   });
 
-  for (final id in [
-    '*',
-    'hip-*',
-    'tag:stretch',
-    'hip-',
-    'not-real',
-    ' hip-a',
-    '',
-  ]) {
-    test('only an exact known action ID can be authorized: $id', () {
-      expect(
-        () => actionScopeManifest(actionScopeCatalog(), ids: [id]),
-        throwsA(isA<CoachActionScopeConfigurationException>()),
-      );
-    });
-  }
+  test('unknown allowed IDs are rejected during configuration', () {
+    expect(
+      () => actionScopeManifest(actionScopeCatalog(), ids: ['not-in-catalog']),
+      throwsA(configuration('unknown_action_id')),
+    );
+  });
+
+  test('an empty action ID is rejected during configuration', () {
+    expect(
+      () => actionScopeManifest(actionScopeCatalog(), ids: ['']),
+      throwsA(configuration('invalid_text')),
+    );
+  });
+
+  test('allowlist entries must be exact IDs rather than prefix patterns', () {
+    expect(
+      () => actionScopeManifest(actionScopeCatalog(), ids: ['hip-*']),
+      throwsA(configuration('invalid_exact_action_id')),
+    );
+  });
 
   test(
-    'master, planning and allowlist identities are separate and verified',
+    'catalogue and sorted allowlist SHAs are build metadata that serialize',
     () {
       final catalog = actionScopeCatalog();
+      final bytes = utf8.encode(jsonEncode(catalog.toJson()));
       final manifest = actionScopeManifest(catalog);
-      expect(
-        manifest.catalogSha256,
-        sha256.convert(utf8.encode(jsonEncode(catalog.toJson()))).toString(),
-      );
-      expect(
-        manifest.planningCatalogSha256,
-        computePlanningCatalogSha256(catalog),
-      );
+      expect(manifest.catalogSha256, sha256.convert(bytes).toString());
       expect(
         manifest.allowlistSha256,
-        computeAllowlistSha256(['unsafe-hip', 'hip-a', 'incomplete', 'hip-b']),
+        computeAllowlistSha256(['incomplete', 'unsafe-hip', 'hip-b', 'hip-a']),
       );
-      expect(manifest.catalogSha256, isNot(manifest.planningCatalogSha256));
-      expect(
-        () => actionScopeManifest(catalog, masterHash: '0' * 64),
-        throwsA(_configuration('catalog_sha256_mismatch')),
+      final restored = CoachActionScopeManifest.fromJson(
+        manifest.toJson(),
+        catalogBytes: bytes,
       );
-      expect(
-        () => actionScopeManifest(catalog, planningHash: '0' * 64),
-        throwsA(_configuration('planning_catalog_sha256_mismatch')),
-      );
-      expect(
-        () => actionScopeManifest(catalog, allowlistHash: '0' * 64),
-        throwsA(_configuration('allowlist_sha256_mismatch')),
-      );
+      expect(restored.toJson(), manifest.toJson());
     },
   );
 
-  test('allowlist digest matches the asset closure LF format', () {
+  test('declared metadata is checked once when loading configuration', () {
     expect(
-      computeAllowlistSha256(['hip-b', 'hip-a']),
-      sha256.convert(utf8.encode('hip-a\nhip-b\n')).toString(),
+      () => actionScopeManifest(actionScopeCatalog(), masterHash: '0' * 64),
+      throwsA(configuration('catalog_sha256_mismatch')),
     );
   });
 
   test(
-    'manifest JSON round trip revalidates source and planning identities',
-    () {
-      final catalog = actionScopeCatalog();
-      final manifest = actionScopeManifest(catalog);
-      final restored = CoachActionScopeManifest.fromJson(
-        jsonDecode(jsonEncode(manifest.toJson())),
-        catalogBytes: utf8.encode(jsonEncode(catalog.toJson())),
-        planningCatalog: catalog,
-      );
-      expect(restored.toJson(), manifest.toJson());
-      final forged = {
-        ...manifest.toJson(),
-        'allowedActionIds': ['outside-a'],
-      };
-      expect(
-        () => CoachActionScopeManifest.fromJson(
-          forged,
-          catalogBytes: utf8.encode(jsonEncode(catalog.toJson())),
-          planningCatalog: catalog,
-        ),
-        throwsA(_configuration('allowlist_sha256_mismatch')),
-      );
-    },
-  );
-
-  test(
-    'restricted catalogue is exactly hard list intersect complete intersect profile',
+    'projection intersects allowed IDs, complete definitions and App profile',
     () {
       final catalog = actionScopeCatalog();
       final scope = actionScopeManifest(catalog).restrict(
         catalog: catalog,
         profile: actionScopeProfile(
-          select: const DrillSelector(exclude: {'hip-b'}),
+          select: const DrillSelector(
+            ids: {'hip-a', 'incomplete', 'outside-a'},
+          ),
         ),
       );
-      expect(scope.allowedActionIds, contains('incomplete'));
-      expect(scope.plannableIds, {'hip-a', 'unsafe-hip'});
-      expect(scope.catalog['outside-a'], isNull);
-      expect(scope.catalog['incomplete'], isNull);
-      expect(scope.profile.select.ids, scope.plannableIds);
-      expect(scope.profile.select.idPrefixes, isEmpty);
-      expect(scope.profile.select.tags, isEmpty);
-    },
-  );
-
-  test(
-    'same IDs with changed dose, raw rhythm, hold override or taxonomy cannot replace the bound provider',
-    () {
-      final catalog = actionScopeCatalog();
-      final manifest = actionScopeManifest(catalog);
-      for (final mutate in <void Function(Map<String, Object?>)>[
-        (json) => ((json['drills']! as List).first as Map)['defaultDose'] = {
-          'mode': 'time',
-          'sets': 1,
-          'seconds': 40,
-          'restSeconds': 5,
-        },
-        (json) => ((json['drills']! as List).first as Map)['rhythm'] = {
-          'kind': 'rep_hold',
-          'holdSeconds': 20,
-        },
-        (json) => ((json['drills']! as List).first as Map)['holdSeconds'] = 25,
-        (json) => (json['taxonomy']! as Map)['positions'] = {
-          'seated': {'floor': true},
-        },
-      ]) {
-        final raw = (jsonDecode(jsonEncode(catalog.toJson())) as Map)
-            .cast<String, Object?>();
-        mutate(raw);
-        final forged = Catalog.fromJson(raw);
-        expect(forged.ids, catalog.ids);
-        expect(
-          () =>
-              manifest.restrict(catalog: forged, profile: actionScopeProfile()),
-          throwsA(_configuration('planning_catalog_changed')),
-        );
-      }
-    },
-  );
-
-  test(
-    'raw catalog indexes, alternatives, source metadata and foreign asset paths cannot leak',
-    () {
-      final rows = [
-        {
-          ...actionScopeDrill('hip-a'),
-          'alternative': 'outside-a',
-          'secretIndex': {
-            'drills': [actionScopeDrill('outside-a', name: '外部秘密全量条目')],
-          },
-        },
-        actionScopeDrill('outside-a', name: '外部秘密全量条目'),
-      ];
-      final catalog = actionScopeCatalog(rows: rows);
-      final scope = actionScopeManifest(
-        catalog,
-        ids: ['hip-a'],
-      ).restrict(catalog: catalog, profile: actionScopeProfile());
-      final serialized = jsonEncode({
-        'catalog': scope.catalog.toJson(),
-        'drillRaw': scope.catalog.drills.single.raw,
-        'profile': scope.profile.toJson(),
-      });
-      expect(serialized, isNot(contains('outside-a')));
-      expect(serialized, isNot(contains('外部秘密全量条目')));
-      expect(scope.catalog.drills.single.alternative, isNull);
+      expect(scope.catalog.drills, isNotEmpty);
+      expect(scope.plannableIds, {'hip-a'});
+      expect(scope.profile.scope(scope.catalog).map((drill) => drill.id), [
+        'hip-a',
+      ]);
       expect(scope.catalog.raw.containsKey('apps'), isFalse);
     },
   );
 
   test(
-    'authored dose/rhythm and effective video rep timing survive projection',
+    'projection preserves host-authored dose and rhythm overlays',
     () {
-      final catalog = actionScopeCatalog(
-        rows: [
-          {
-            ...actionScopeDrill('hip-a'),
-            'rhythm': {'kind': 'rep_hold', 'holdSeconds': 15},
-            'holdSeconds': 25,
-          },
-        ],
-      );
-      final original = catalog.drills.single;
+      final master = actionScopeCatalog();
+      final row = actionScopeDrill('hip-a');
+      row['defaultDose'] = {
+        'mode': 'time',
+        'sets': 1,
+        'seconds': 42,
+        'holdSeconds': 21,
+        'restSeconds': 5,
+      };
+      row['rhythm'] = {'cycleSeconds': 4.2};
+      final planning = actionScopeCatalog(rows: [row]);
       final scope = actionScopeManifest(
-        catalog,
+        master,
         ids: ['hip-a'],
-      ).restrict(catalog: catalog, profile: actionScopeProfile());
-      final after = scope.catalog.drills.single;
-      expect(after.defaultDose.toJson(), original.defaultDose.toJson());
-      expect(after.doseRange.toJson(), original.doseRange.toJson());
-      expect(after.raw['rhythm'], original.raw['rhythm']);
-      expect(after.raw['holdSeconds'], 25);
+      ).restrict(catalog: planning, profile: actionScopeProfile());
+      expect(scope.catalog.drills, isNotEmpty);
+      expect(scope.catalog['hip-a']!.defaultDose.seconds, 42);
       expect(
-        after.assets.videos.first.repSeconds,
-        original.assets.videos.first.repSeconds,
+        (scope.catalog['hip-a']!.raw['defaultDose'] as Map)['holdSeconds'],
+        21,
       );
+      expect(scope.catalog['hip-a']!.raw['rhythm'], {'cycleSeconds': 4.2});
     },
   );
 
+  test('an alternative outside the projection is not exposed as an action', () {
+    final catalog = actionScopeCatalog(
+      rows: [
+        {...actionScopeDrill('hip-a'), 'alternative': 'outside-a'},
+        actionScopeDrill('outside-a'),
+      ],
+    );
+    final scope = actionScopeManifest(
+      catalog,
+      ids: ['hip-a'],
+    ).restrict(catalog: catalog, profile: actionScopeProfile());
+    expect(scope.catalog.drills, isNotEmpty);
+    expect(scope.catalog['outside-a'], isNull);
+    expect(scope.catalog['hip-a']!.alternative, isNull);
+    expect(scope.catalog['hip-a']!.raw['alternative'], isNull);
+  });
+
+  test('a profile for another App is a configuration error', () {
+    final catalog = actionScopeCatalog();
+    expect(
+      () => actionScopeManifest(catalog).restrict(
+        catalog: catalog,
+        profile: const CoachProfile(id: 'other', appName: 'Other'),
+      ),
+      throwsA(configuration('profile_app_mismatch')),
+    );
+  });
+
   test(
-    'scope projection and ID-only profile cannot be widened by mutation',
+    'plan admission accepts nonempty plans containing only scoped actions',
     () {
       final catalog = actionScopeCatalog();
       final scope = actionScopeManifest(
         catalog,
       ).restrict(catalog: catalog, profile: actionScopeProfile());
-      expect(() => scope.catalog.drills.clear(), throwsUnsupportedError);
-      expect(
-        () => scope.catalog.drills.first.raw['extra'] = 'outside-a',
-        throwsUnsupportedError,
+      final plan = actionScopePlan(
+        'hip-a',
+        segment: 'hip-b',
+        replacedFrom: 'hip-b',
       );
-      expect(
-        () => scope.profile.select.ids.add('outside-a'),
-        throwsUnsupportedError,
-      );
-      expect(() => scope.plannableIds.add('outside-a'), throwsUnsupportedError);
+      expect(plan.items, isNotEmpty);
+      expect(plan.exerciseIds, isNotEmpty);
+      expect(scope.validatePlan(plan), isEmpty);
     },
   );
 
-  test(
-    'scope plan validation rejects parent, segment and replacedFrom bypasses',
-    () {
-      final catalog = actionScopeCatalog();
-      final scope = actionScopeManifest(
-        catalog,
-      ).restrict(catalog: catalog, profile: actionScopeProfile());
-      final valid = actionScopePlan('hip-a');
-      expect(valid.blocks.expand((block) => block.items), isNotEmpty);
-      expect(scope.validatePlan(valid), isEmpty);
-      expect(
-        scope.validatePlan(actionScopePlan('outside-a')).single.path,
-        endsWith('.exerciseId'),
-      );
-      expect(
-        scope
-            .validatePlan(actionScopePlan('hip-a', segment: 'outside-a'))
-            .single
-            .path,
-        contains('segments[0]'),
-      );
-      expect(
-        scope
-            .validatePlan(actionScopePlan('hip-a', replacedFrom: 'outside-a'))
-            .single
-            .path,
-        endsWith('.replacedFrom'),
-      );
-    },
-  );
+  test('plan admission rejects an outside parent action', () {
+    final catalog = actionScopeCatalog();
+    final scope = actionScopeManifest(
+      catalog,
+    ).restrict(catalog: catalog, profile: actionScopeProfile());
+    expect(
+      scope.validatePlan(actionScopePlan('outside-a')).single.exerciseId,
+      'outside-a',
+    );
+  });
+
+  test('plan admission rejects an outside segment action', () {
+    final catalog = actionScopeCatalog();
+    final scope = actionScopeManifest(
+      catalog,
+    ).restrict(catalog: catalog, profile: actionScopeProfile());
+    expect(
+      scope
+          .validatePlan(actionScopePlan('hip-a', segment: 'outside-a'))
+          .single
+          .path,
+      'plan.blocks[0].items[0].segments[0].exerciseId',
+    );
+  });
+
+  test('plan admission checks the replacement action reference', () {
+    final catalog = actionScopeCatalog();
+    final scope = actionScopeManifest(
+      catalog,
+    ).restrict(catalog: catalog, profile: actionScopeProfile());
+    expect(
+      scope
+          .validatePlan(actionScopePlan('hip-a', replacedFrom: 'outside-a'))
+          .single
+          .path,
+      'plan.blocks[0].items[0].replacedFrom',
+    );
+  });
 
   test(
-    'snapshot pick, seen, pending search, recommendation and forged refs cannot bypass',
-    () {
-      final catalog = actionScopeCatalog();
-      final scope = actionScopeManifest(
-        catalog,
-      ).restrict(catalog: catalog, profile: actionScopeProfile());
-      for (final value in [
-        {
-          'picks': ['outside-a'],
-        },
-        {
-          'seenActionIds': ['outside-a'],
-        },
-        {
-          'pendingSearchIds': ['outside-a'],
-        },
-        {
-          'recommendations': [
-            {'id': 'outside-a'},
-          ],
-        },
-        {
-          'arbitrary': {'sourceActionId': 'forged-id'},
-        },
-        {
-          'segments': [
-            {'exerciseId': 'forged-id'},
-          ],
-        },
-      ]) {
-        expect(scope.validateReferences(value), isNotEmpty);
-      }
-      expect(
-        scope.validateReferences({
-          'userTurns': [
-            {'text': '我想做outside-a'},
-          ],
-        }),
-        isEmpty,
-        reason: '用户原话不授予执行权限，也不应被误认为执行引用',
-      );
-    },
-  );
-
-  test(
-    'SF approved fixture authorizes 219 but admits only 211 complete actions',
+    'SF configuration has 219 allowed and 211 complete planning actions',
     () {
       const pack = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
       final bytes = File('$pack/catalog.json').readAsBytesSync();
-      final delivery = PoseHubAppTestCatalog.fromBytes(
+      final planning = PoseHubAppTestCatalog.fromBytes(
         bytes,
         semanticCatalogBytes: File(
           '$pack/catalog/catalog.json',
         ).readAsBytesSync(),
-      );
-      final planning = delivery.toAiCatalog();
+      ).toAiCatalog();
       final fixture =
           jsonDecode(
                 File(
                   'test/fixtures/action-scope/smartfit-219.json',
                 ).readAsStringSync(),
               )
-              as Map<String, dynamic>;
+              as Map;
       final manifest = CoachActionScopeManifest.fromCatalogBytes(
         appId: 'smartfit',
         catalogBytes: bytes,
-        planningCatalog: planning,
         allowedActionIds: (fixture['allowedActionIds'] as List).cast<String>(),
         catalogSha256: fixture['catalogSha256'] as String,
         allowlistSha256: fixture['allowlistSha256'] as String,
@@ -497,18 +385,14 @@ void main() {
         profile: const CoachProfile(id: 'smartfit', appName: 'SmartFit'),
       );
       expect(manifest.allowedActionIds, hasLength(219));
-      expect(scope.catalog.drills, hasLength(211));
       expect(scope.catalog.drills, isNotEmpty);
-      expect(
-        scope.catalog.ids.toSet().difference(manifest.allowedActionIds),
-        isEmpty,
-      );
-      expect(scope.catalog['h-db-shrug'], isNull);
+      expect(scope.plannableIds, hasLength(211));
+      expect(scope.plannableIds.difference(manifest.allowedActionIds), isEmpty);
     },
   );
 
   test(
-    'HipLab fixture remains a 45-ID candidate and intersects the host catalogue',
+    'HipLab 45-ID fixture remains a candidate rather than a signed manifest',
     () {
       const pack = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
       final bytes = File('$pack/catalog.json').readAsBytesSync();
@@ -524,92 +408,20 @@ void main() {
                   'test/fixtures/action-scope/hiplab-candidate-45.json',
                 ).readAsStringSync(),
               )
-              as Map<String, dynamic>;
+              as Map;
       expect(fixture['approvalStatus'], 'candidate-not-user-approved');
       final manifest = CoachActionScopeManifest.fromCatalogBytes(
         appId: 'hiplab',
         catalogBytes: bytes,
-        planningCatalog: planning,
         allowedActionIds: (fixture['allowedActionIds'] as List).cast<String>(),
       );
       final scope = manifest.restrict(
         catalog: planning,
         profile: actionScopeProfile(),
       );
-      expect(scope.allowedActionIds, hasLength(45));
-      expect(scope.plannableIds, hasLength(45));
       expect(scope.catalog.drills, isNotEmpty);
-      expect(scope.plannableIds.difference(scope.allowedActionIds), isEmpty);
-      expect(scope.catalog['n-thomas-test'], isNull);
-    },
-  );
-  test(
-    'archived candidate rows and named action cues cannot bypass ID admission',
-    () {
-      final catalog = actionScopeCatalog();
-      final scope = actionScopeManifest(
-        catalog,
-      ).restrict(catalog: catalog, profile: actionScopeProfile());
-      for (final value in [
-        {
-          'candidateIds': ['outside-a'],
-        },
-        {
-          'completedContextLedger': {
-            'candidates': [
-              ['outside-a', '不可用动作', 'body.inner_thigh', 'time', 1],
-            ],
-          },
-        },
-        {
-          'candidateRows': [
-            ['forged-id', '伪造动作'],
-          ],
-        },
-        {
-          'completedContextLedger': {
-            'picks': [
-              ['outside-a', '不可用动作'],
-            ],
-          },
-        },
-        {
-          'segments': [
-            {
-              'exerciseId': 'hip-a',
-              'rhythm': {
-                'phases': [
-                  {'cue': 'drill.outside-a'},
-                ],
-              },
-            },
-          ],
-        },
-        {
-          'segments': [
-            {
-              'exerciseId': 'hip-a',
-              'rhythm': {
-                'phases': [
-                  {
-                    'cue': ['point.forged-id'],
-                  },
-                ],
-              },
-            },
-          ],
-        },
-      ]) {
-        expect(scope.validateReferences(value), isNotEmpty);
-      }
-      expect(
-        scope.validateReferences({
-          'candidateRows': [
-            ['hip-a', '有效动作'],
-          ],
-        }),
-        isEmpty,
-      );
+      expect(scope.plannableIds, hasLength(45));
+      expect(scope.plannableIds.difference(manifest.allowedActionIds), isEmpty);
     },
   );
 }

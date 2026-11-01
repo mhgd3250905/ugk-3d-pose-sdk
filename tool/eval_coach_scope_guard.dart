@@ -1,184 +1,124 @@
-/// Launches fixed real-model scope/budget cases using read-only host builders.
+/// Fixed live conversations with the same playback builders as the hosts.
 library;
 
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
-
-import 'executed_duration_host_timing.dart';
-
 Future<void> main(List<String> args) async {
   if (args.contains('--help')) {
-    stdout.writeln('''
-dart run tool/eval_coach_scope_guard.dart --host smartfit|hiplab --out SDK_BUILD_DIR
-  [--host-root DIR] [--thinking on|off] [--dry]
-
-SF: original seven independent three-turn conversations (5min x5, 10/20 x1).
-Hip: candidate-only 45-ID fixture, fixed R1-R6 (R5 off/on; R4 two turns).
-Every failed sample is retained. No rerun, resampling, supplementary user reply,
-new timing estimator, App write, device operation or gateway/model substitution.
---dry validates scope/configuration and the actual host timeline; modelCalls=0.
-''');
+    stdout.writeln(
+      'dart run tool/eval_coach_scope_guard.dart --host smartfit|hiplab '
+      '--out NEW_SDK_BUILD_DIR [--case name1,name2] [--host-root DIR] [--thinking on|off] [--dry]',
+    );
     return;
   }
   try {
-    await _launch(args);
+    await _run(args);
   } on Object catch (error) {
-    stderr.writeln('Scope evaluation stopped: ${error.runtimeType}.');
-    stderr.writeln(
-      'No credentials or exception body are printed. Inspect local evidence.',
-    );
+    stderr.writeln('Evaluation stopped: ${error.runtimeType}');
     exitCode = 2;
   }
 }
 
-Future<void> _launch(List<String> args) async {
-  String? option(String flag) {
-    final index = args.indexOf(flag);
-    if (index < 0) return null;
-    if (index + 1 >= args.length || args[index + 1].startsWith('--')) {
-      throw ArgumentError('Missing option value');
-    }
-    return args[index + 1];
-  }
-
-  const flags = {'--host', '--out', '--host-root', '--thinking'};
-  final observed = <String>{};
+Future<void> _run(List<String> args) async {
+  final options = <String, String>{};
+  var dry = false;
   for (var i = 0; i < args.length; i++) {
-    final flag = args[i];
-    if (flag == '--dry') continue;
-    if (!flags.contains(flag) || !observed.add(flag)) {
-      throw ArgumentError('Unknown or repeated option');
+    if (args[i] == '--dry') {
+      dry = true;
+      continue;
     }
-    option(flag);
-    i++;
+    if (!{
+          '--host',
+          '--out',
+          '--case',
+          '--host-root',
+          '--thinking',
+        }.contains(args[i]) ||
+        options.containsKey(args[i]) ||
+        i + 1 >= args.length ||
+        args[i + 1].startsWith('--')) {
+      throw ArgumentError('Invalid option');
+    }
+    final flag = args[i];
+    options[flag] = args[++i];
   }
-  final host = option('--host') ?? 'smartfit';
+  final host = options['--host'] ?? 'smartfit';
   if (!{'smartfit', 'hiplab'}.contains(host)) {
     throw ArgumentError('Unknown host');
   }
-  final thinking = option('--thinking') ?? 'on';
+  final thinking = options['--thinking'] ?? 'on';
   if (!{'on', 'off'}.contains(thinking)) {
     throw ArgumentError('Unknown thinking mode');
   }
-  final sdkRoot = File.fromUri(Platform.script).parent.parent;
-  final defaultHost = host == 'smartfit'
-      ? r'E:\AII-3D\3D-Sport-AI\Sport-Helper-coach-ui-kit'
-      : r'E:\AII-3D\3D-Hip-worktrees\coach-v2\3D-Hip';
-  final hostRoot = Directory(option('--host-root') ?? defaultHost).absolute;
-  if (!File('${hostRoot.path}/pubspec.yaml').existsSync()) {
-    throw StateError('Read-only host checkout is unavailable');
-  }
-  final outputArgument = option('--out');
-  if (outputArgument == null) {
-    throw ArgumentError('An explicit output is required');
-  }
+  final sdk = File.fromUri(Platform.script).parent.parent;
+  final hostRoot =
+      options['--host-root'] ??
+      (host == 'smartfit'
+          ? r'E:\AII-3D\3D-Sport-AI\Sport-Helper-coach-ui-kit'
+          : r'E:\AII-3D\3D-Hip-worktrees\coach-v2\3D-Hip');
   final output = Directory.fromUri(
-    Directory(outputArgument).absolute.uri.normalizePath(),
+    Directory(
+      options['--out'] ?? (throw ArgumentError('Explicit output required')),
+    ).absolute.uri.normalizePath(),
   );
-  final allowed = sdkRoot.absolute.uri
-      .resolve('build/')
-      .normalizePath()
-      .toString()
-      .toLowerCase();
-  if (!output.uri.toString().toLowerCase().startsWith(allowed)) {
-    throw StateError(
-      'Output must remain inside this SDK checkout build directory',
-    );
+  if (!output.uri.toString().toLowerCase().startsWith(
+    sdk.uri.resolve('build/').toString().toLowerCase(),
+  )) {
+    throw StateError('Output must be inside SDK build');
   }
   var ancestor = output;
   while (!ancestor.existsSync()) {
     ancestor = ancestor.parent;
   }
-  final canonicalAncestor = Directory(
+  if (!Directory(
     ancestor.resolveSymbolicLinksSync(),
-  ).uri.toString().toLowerCase();
-  final canonicalSdk = Directory(
-    sdkRoot.resolveSymbolicLinksSync(),
-  ).uri.toString().toLowerCase();
-  if (!canonicalAncestor.startsWith(canonicalSdk)) {
-    throw StateError('Output source ancestor escapes the SDK checkout');
+  ).uri.toString().toLowerCase().startsWith(
+    Directory(sdk.resolveSymbolicLinksSync()).uri.toString().toLowerCase(),
+  )) {
+    throw StateError('Output escapes SDK');
   }
   if (output.existsSync() && output.listSync().isNotEmpty) {
-    throw StateError('Refusing to overwrite a previous evidence run');
+    throw StateError('Output already contains a run');
   }
   await output.create(recursive: true);
-
-  final originalConfig = File(
-    '${sdkRoot.path}/packages/ugk_trainer/.dart_tool/package_config.json',
+  final original = File(
+    '${sdk.path}/packages/ugk_trainer/.dart_tool/package_config.json',
   );
-  final decoded =
-      jsonDecode(await originalConfig.readAsString()) as Map<String, dynamic>;
-  final packages = <Map<String, Object?>>[];
-  final sdkPackageRoots = {
-    'ugk_coach': sdkRoot.uri,
-    'ugk_trainer': Directory('${sdkRoot.path}/packages/ugk_trainer').uri,
+  final config =
+      jsonDecode(await original.readAsString()) as Map<String, dynamic>;
+  final roots = {
+    'ugk_coach': sdk.uri,
+    'ugk_trainer': Directory('${sdk.path}/packages/ugk_trainer').uri,
     'ugk_trainer_runtime': Directory(
-      '${sdkRoot.path}/packages/ugk_trainer_runtime',
+      '${sdk.path}/packages/ugk_trainer_runtime',
     ).uri,
   };
-  final foundSdk = <String>{};
-  for (final raw in decoded['packages'] as List) {
-    final package = Map<String, Object?>.from(raw as Map);
-    final name = package['name'] as String;
-    if (name == host) continue;
-    final root = sdkPackageRoots[name];
-    if (root != null) foundSdk.add(name);
-    packages.add({
-      ...package,
-      'rootUri':
-          root?.toString() ??
-          originalConfig.uri.resolve(package['rootUri']! as String).toString(),
-    });
-  }
-  if (!foundSdk.containsAll(sdkPackageRoots.keys)) {
-    throw StateError(
-      'Resolve the current SDK trainer packages before the gate',
-    );
-  }
-  packages.add({
-    'name': host,
-    'rootUri': hostRoot.uri.toString(),
-    'packageUri': 'lib/',
-    'languageVersion': '3.12',
-  });
-  final packageConfig = File('${output.path}/host_package_config.json');
+  final packageConfig = File('${output.path}/packages.json');
   await packageConfig.writeAsString(
-    jsonEncode({'configVersion': 2, 'packages': packages}),
-  );
-  final helper = File('${sdkRoot.path}/tool/coach_scope_guard_evaluation.dart');
-  var bridgeSource = executedDurationHostBridge(
-    host: host,
-    sdkRoot: sdkRoot.path,
-    hostRoot: hostRoot.path,
-    output: output.path,
-    helperUri: helper.uri.toString(),
-  );
-  const marker = '  Map<String, Object?> measure(coach.TrainingPlan plan) {';
-  if (marker.allMatches(bridgeSource).length != 1) {
-    throw StateError('The existing host bridge contract changed');
-  }
-  bridgeSource = bridgeSource.replaceFirst(marker, '$_scopeBinding\n$marker');
-  final bridge = File('${output.path}/host_bridge.dart.txt');
-  await bridge.writeAsString(bridgeSource);
-  await File('${output.path}/launch.json').writeAsString(
-    const JsonEncoder.withIndent('  ').convert({
-      'schemaVersion': 1,
-      'host': host,
-      'sdkRoot': sdkRoot.path,
-      'readOnlyHostRoot': hostRoot.path,
-      'bridgeSha256': sha256.convert(utf8.encode(bridgeSource)).toString(),
-      'helperSha256': sha256.convert(helper.readAsBytesSync()).toString(),
-      'hostPackageConfigSha256': sha256
-          .convert(packageConfig.readAsBytesSync())
-          .toString(),
-      'thinking': thinking,
-      'dry': args.contains('--dry'),
-      'appWritten': false,
-      'deviceOperated': false,
+    jsonEncode({
+      'configVersion': 2,
+      'packages': [
+        for (final raw in config['packages'] as List)
+          if ((raw as Map)['name'] != host)
+            {
+              ...raw,
+              'rootUri':
+                  (roots[raw['name']] ??
+                          original.uri.resolve(raw['rootUri'] as String))
+                      .toString(),
+            },
+        {
+          'name': host,
+          'rootUri': Directory(hostRoot).absolute.uri.toString(),
+          'packageUri': 'lib/',
+          'languageVersion': '3.12',
+        },
+      ],
     }),
   );
+  final bridge = File('${output.path}/host_bridge.dart.txt');
+  await bridge.writeAsString(_bridge(host, sdk.path, hostRoot, output.path));
   final child = await Process.start(
     Platform.resolvedExecutable,
     [
@@ -186,100 +126,116 @@ Future<void> _launch(List<String> args) async {
       bridge.path,
       '--thinking',
       thinking,
-      if (args.contains('--dry')) '--dry',
+      if (options['--case'] case final String cases) ...['--case', cases],
+      if (dry) '--dry',
     ],
-    workingDirectory: sdkRoot.path,
+    workingDirectory: sdk.path,
     mode: ProcessStartMode.inheritStdio,
   );
   exitCode = await child.exitCode;
 }
 
-const _scopeBinding = r'''
-  final masterPath = '$sdkRoot/packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json';
-  final masterBytes = File(masterPath).readAsBytesSync();
-  recordSource(masterPath);
-  final fixturePath = '$sdkRoot/test/fixtures/action-scope/${host == 'smartfit' ? 'smartfit-219' : 'hiplab-candidate-45'}.json';
-  final fixture = readJson(fixturePath);
+String _literal(String value) => jsonEncode(value).replaceAll(r'$', r'\$');
+
+String _bridge(String host, String sdk, String app, String output) =>
+    '''
+import 'dart:convert';
+import 'dart:io';
+import 'package:ugk_coach/ugk_coach.dart' as coach;
+import 'package:ugk_trainer/engine.dart' as trainer;
+import ${_literal(File('$sdk/tool/coach_scope_guard_evaluation.dart').uri.toString())} as gate;
+${host == 'smartfit' ? """
+import 'package:smartfit/app/app_test_catalog.dart' as sf_catalog;
+import 'package:smartfit/app/app_test_content.dart' as sf_content;
+import 'package:smartfit/domain/exercise.dart' as sf_exercise;
+import 'package:smartfit/domain/plan.dart' as sf_plan;
+import 'package:smartfit/domain/session.dart' as sf_session;
+""" : 'import ${_literal(File('$app/tools/coach/coach_v2_native_metrics.dart').uri.toString())} as hip_metrics;'}
+const host = ${_literal(host)};
+const sdkRoot = ${_literal(sdk)};
+const hostRoot = ${_literal(app)};
+const output = ${_literal(output)};
+Map<String,dynamic> readJson(String path) => jsonDecode(File(path).readAsStringSync()) as Map<String,dynamic>;
+Future<void> main(List<String> args) async {
+  final profile = coach.CoachProfile.fromJson(readJson('\$hostRoot/assets/coach/\$host.json'));
+  late coach.Catalog catalog;
+  late trainer.SessionBuilder builder;
+  late bool Function(coach.TrainingPlan) matchesHost;
+  ${host == 'smartfit' ? _smartfit : _hiplab}
+  $_scope
+  Map<String,Object?> measure(coach.TrainingPlan plan) {
+    if (!matchesHost(plan)) throw StateError('Host and callback timelines differ');
+    final timing = coach.evaluatePlanExecutionTiming(plan, builder.executionTiming);
+    final card = const coach.PlanDuration().estimateSeconds(plan,catalog);
+    final target = plan.targetMinutes * 60;
+    return {'targetSeconds':target,'cardSeconds':card,'executionSeconds':timing.totalSeconds,
+      'cardDeviationPercent':(card-target)/target*100,
+      'executionDeviationPercent':(timing.totalSeconds-target)/target*100,
+      'isEstimate':timing.containsManualCounting,
+      'manualCountingLabel':timing.containsManualCounting?'估算':null};
+  }
+  await gate.runScopeEvaluation(args, outputPath:output,
+    host:gate.ScopeEvaluationHost(id:host,root:hostRoot,catalog:catalog,measure:measure,
+      builder:${_literal(host == 'smartfit' ? 'SF AppTestContent / trainerRhythms / prep10 / App SessionBuilder' : 'Hip original catalog+kit+voice / prep15 / native timeline')}));
+}
+''';
+
+const _scope = r'''
+  final masterBytes = File('$sdkRoot/packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json').readAsBytesSync();
+  final fixture = readJson('$sdkRoot/test/fixtures/action-scope/${host == 'smartfit' ? 'smartfit-219' : 'hiplab-candidate-45'}.json');
   final manifest = coach.CoachActionScopeManifest.fromCatalogBytes(
-    appId: host,
-    catalogBytes: masterBytes,
-    planningCatalog: catalog,
-    catalogSha256: fixture['catalogSha256'] as String,
-    allowedActionIds: (fixture['allowedActionIds'] as List).cast<String>(),
-  );
-  final scope = manifest.restrict(catalog: catalog, profile: profile);
-  if (manifest.allowedActionIds.length != (host == 'hiplab' ? 45 : 219)) {
-    throw StateError('The declared evaluation authorization changed');
-  }
-  if (host == 'smartfit' && scope.plannableIds.length != 211) {
-    throw StateError('SF 219 authorized / 211 plannable contract changed');
-  }
-  if (host == 'hiplab' && fixture['approvalStatus'] != 'candidate-not-user-approved') {
-    throw StateError('Hip scope must remain explicitly candidate-only');
-  }
-  final policyData = gate.scopeEvaluationPolicyForHost(host);
-  final specialty = policyData['specialty'] as String;
-  final suggestions = (policyData['suggestions'] as List).cast<String>();
-  final guidance = policyData['guidance'] as String;
-  final preflight = <Map<String,Object?>>[];
-  if (host == 'hiplab') {
-    for (final scenario in gate.scopeEvaluationScenarios(host)) {
-      final input = scenario.inputs.last;
-      final sourceId = switch(scenario.path) {
-        'partial-substitute' || 'insist' || 'safety-first' => 'h-side-leg-raise',
-        'partial-remove' => 'h-band-row',
-        _ => null,
-      };
-      final expected = switch(scenario.path) {
-        'partial-substitute' => coach.CoachScopeDecisionKind.substituted,
-        'partial-remove' => coach.CoachScopeDecisionKind.removed,
-        'insist' => coach.CoachScopeDecisionKind.insistedUnavailable,
-        'safety-first' => coach.CoachScopeDecisionKind.safetyBlocked,
-        _ => coach.CoachScopeDecisionKind.outOfScope,
-      };
-      final policy = coach.CoachScopeConversationPolicy(specialty:specialty,
-        suggestions:suggestions, outOfScopeGuidance:scenario.guidanceEnabled?guidance:null);
-      final insideEvidence = [for(final drill in scope.catalog.drills)
-        if(scope.matchesRequestedAction(drill.id,input))drill.id];
-      final record = scope.evaluateRequest(coach.CoachScopeRequest(
-        originalText:input, sourceActionId:sourceId,
-        targetBodyCodes: sourceId == null ? {'body.chest','body.lats'} : const {},
-        scene:'home', equipment: scenario.path == 'partial-remove' ? {'mat','band'} : {'mat'},
-        avoid:scenario.safety?{'knee'}:const {},
-        hasInScopeContent:insideEvidence.isNotEmpty, insists:scenario.path=='insist',
-        safetyBlocked:scenario.safety,
-      ),policy);
-      final valid = record.kind == expected &&
-        (expected != coach.CoachScopeDecisionKind.substituted ||
-          (record.adoptedActionId != null && scope.contains(record.adoptedActionId!))) &&
-        (expected != coach.CoachScopeDecisionKind.removed || insideEvidence.isNotEmpty);
-      preflight.add({'case':scenario.id,'expectedKind':expected.name,
-        'codeRecord':record.toJson(),'inScopeUserEvidence':insideEvidence,'passed':valid});
-    }
-    await File('$output/scope-preflight.json').writeAsString(jsonEncode(preflight));
-    if(preflight.any((row)=>row['passed']!=true)) {
-      throw StateError('Fixed scope case is not feasible under actual host facts; modelCalls=0');
-    }
-  }
+    appId:host,catalogBytes:masterBytes,
+    allowedActionIds:(fixture['allowedActionIds'] as List).cast<String>());
+  final scope = manifest.restrict(catalog:catalog,profile:profile);
   gate.installScopeEvaluationBinding(gate.ScopeEvaluationBinding(
-    manifest: manifest.toJson(), authorizedIds: manifest.allowedActionIds,
-    plannableIds: scope.plannableIds,
-    masterActionIdsByExactName: gate.scopeEvaluationExactMasterNames(
-      (jsonDecode(utf8.decode(masterBytes)) as Map)['actions'] as List),
-    masterIds: {(jsonDecode(utf8.decode(masterBytes)) as Map<String,dynamic>)['actions']}
-      .expand((raw) => (raw as List).cast<Map<String,dynamic>>()).map((action) => action['id'] as String).toSet(),
-    specialty: specialty, suggestions: suggestions, guidance: guidance,
-    candidate: host == 'hiplab',
-    preflight: preflight,
-    createAgent: (client, onSpan, scenario) => coach.CoachAgent(
-      client: client, catalog: () => catalog, profile: profile,
-      scopeManifest: manifest,
-      scopePolicy: coach.CoachScopeConversationPolicy(specialty: specialty,
-        suggestions: suggestions,
-        outOfScopeGuidance: scenario.guidanceEnabled ? guidance : null),
-      executionTiming: builder.executionTiming, onSpan: onSpan,
-      maxRequestRetries: 0, appId: host,
-    ),
-    scopeRecords: (agent) => [for(final record in agent.scopeRecords)record.toJson()],
-  ));
+    authorizedIds:manifest.allowedActionIds,plannableIds:scope.plannableIds,candidate:host=='hiplab',
+    createAgent:(client,onSpan)=>coach.CoachAgent(client:client,catalog:()=>catalog,profile:profile,
+      scopeManifest:manifest,
+      scopePolicy:coach.CoachScopeConversationPolicy(
+        specialty:host=='hiplab'?'本 App 专注开胯、髋部与臀部训练':'本 App 提供全身训练、拉伸与灵活性训练',
+        suggestions:['大腿内侧拉伸','轻柔髋部活动']),
+      executionTiming:builder.executionTiming,onSpan:onSpan,maxRequestRetries:0,appId:host),
+    scopeRecords:(agent)=>[for(final record in agent.scopeRecords)record.toJson()]));
+''';
+
+const _hiplab = r'''
+  catalog = coach.Catalog.fromJson(readJson('$hostRoot/assets/coach/catalog.json'));
+  final kits = <String,Map<String,dynamic>>{};
+  for(final path in readJson('$hostRoot/assets/action_kits/index.json')['kits'] as List) {
+    final kit = readJson('$hostRoot/$path');kits[kit['id'] as String]=kit;
+  }
+  final script = trainer.SessionScript(lang:'zh',source:trainer.ManifestVoiceSource.fromJson(
+    readJson('$hostRoot/assets/voice/manifest.json'),kitVoices:{for(final e in kits.entries)e.key:trainer.KitVoice.fromActionKitJson(e.value)}));
+  builder = trainer.SessionBuilder(prepSeconds:15,transitionSeconds:15,
+    rhythms:{for(final e in kits.entries)e.key:trainer.Rhythm.fromActionKitJson(e.value)},switchSecondsFor:script.switchSecondsFor);
+  final previous = Directory.current;
+  late final dynamic content;
+  try {Directory.current=hostRoot;content=hip_metrics.loadCoachMetricContent();}
+  finally {Directory.current=previous;}
+  matchesHost=(plan) {
+    final value=hip_metrics.measureCoachPlanTiming(plan:plan,content:content,catalog:catalog,executionBuilder:builder);
+    return value['nativeTotalSeconds']==builder.executionTiming(plan).totalSeconds && value['completePlanPreserved']==true;
+  };
+''';
+
+const _smartfit = r'''
+  final delivery=readJson('$sdkRoot/packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json');
+  final metadata=coach.PoseHubAppTestCatalog.fromJson(delivery);
+  final sdkCatalog=coach.PoseHubAppTestCatalog.fromJson(delivery,semanticCatalog:
+    readJson('$sdkRoot/packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/${metadata.semanticCatalogFile.path}'));
+  final content=sf_content.AppTestContent.build(catalog:sf_catalog.AppTestCatalog.fromSdk(sdkCatalog),legacyLibrary:sf_exercise.ExerciseLibrary(const []));
+  catalog=content.coachCatalog;
+  builder=trainer.SessionBuilder(prepSeconds:10,rhythms:sf_session.trainerRhythms(content.library),known:content.library.contains);
+  matchesHost=(plan) {
+    final app=sf_session.SessionBuilder(content.library).phases(sf_plan.TrainingPlan.fromJson(plan.toJson()));
+    final sdk=builder.phases(plan);
+    if(app.length!=sdk.length)return false;
+    for(var i=0;i<app.length;i++) {
+      final a=app[i],b=sdk[i];
+      if(a.kind!=b.kind || a.seconds!=b.seconds || a.exerciseId!=b.exerciseId ||
+        a.blockIndex!=b.blockIndex || a.set!=b.set || a.round!=b.round ||
+        a.side!=b.side || a.selfPaced!=b.selfPaced || a.segmentId!=b.segmentId)return false;
+    }
+    return true;
+  };
 ''';

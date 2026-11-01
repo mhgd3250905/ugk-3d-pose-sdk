@@ -3,9 +3,9 @@ library;
 
 class ContextBudgetConfig {
   const ContextBudgetConfig({
-    this.softOffBytes = 40960,
-    this.softOnBytes = 51200,
-    this.hardBytes = 65536,
+    this.softOffBytes = 163840,
+    this.softOnBytes = 204800,
+    this.hardBytes = 262144,
   }) : assert(softOffBytes > 0),
        assert(softOnBytes > 0),
        assert(hardBytes >= softOffBytes),

@@ -6,9 +6,9 @@ void main() {
     'approved off and on byte thresholds are configurable independently',
     () {
       const standard = ContextBudgetConfig();
-      expect(standard.softLimit(thinking: false), 40960);
-      expect(standard.softLimit(thinking: true), 51200);
-      expect(standard.hardBytes, 65536);
+      expect(standard.softLimit(thinking: false), 163840);
+      expect(standard.softLimit(thinking: true), 204800);
+      expect(standard.hardBytes, 262144);
       const custom = ContextBudgetConfig(
         softOffBytes: 1000,
         softOnBytes: 2000,
@@ -27,8 +27,8 @@ void main() {
         epoch: 1,
         beforeBytes: 1000,
         afterBytes: 1000,
-        softLimitBytes: 40960,
-        hardLimitBytes: 65536,
+        softLimitBytes: 163840,
+        hardLimitBytes: 262144,
         tailStateBytes: 200,
         completedTurnsFolded: 0,
         receiptBodiesFolded: 0,
@@ -38,10 +38,10 @@ void main() {
       expect(unchanged.folded, isFalse);
       const folded = ContextRequestDiagnostics(
         epoch: 1,
-        beforeBytes: 70000,
-        afterBytes: 51000,
-        softLimitBytes: 51200,
-        hardLimitBytes: 65536,
+        beforeBytes: 280000,
+        afterBytes: 204000,
+        softLimitBytes: 204800,
+        hardLimitBytes: 262144,
         tailStateBytes: 300,
         completedTurnsFolded: 2,
         receiptBodiesFolded: 1,
@@ -49,8 +49,8 @@ void main() {
         fitsHardLimit: true,
       );
       expect(folded.folded, isTrue);
-      expect(folded.toJson()['beforeBytes'], 70000);
-      expect(folded.toJson()['afterBytes'], 51000);
+      expect(folded.toJson()['beforeBytes'], 280000);
+      expect(folded.toJson()['afterBytes'], 204000);
       expect(folded.toJson()['tailStateBytes'], 300);
       expect(folded.toJson().keys, isNot(contains('messages')));
     },

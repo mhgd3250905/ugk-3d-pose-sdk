@@ -46,7 +46,7 @@ void main() {
       );
 
   test(
-    '25 completed rounds fit while source ledger and history remain intact',
+    '25 completed rounds fit without folding while source ledger and history remain intact',
     () {
       final client = serializer();
       int bytes(LlmRequest request) =>
@@ -76,7 +76,7 @@ void main() {
           isTrue,
           reason: 'round $turn',
         );
-        expect(bytes(prepared.request), lessThanOrEqualTo(65536));
+        expect(bytes(prepared.request), lessThanOrEqualTo(262144));
         expect(prepared.request.messages, contains(same(current)));
         expect(prepared.request.messages.last, same(state));
         expect(jsonEncode(sourceLedger.toJson()), ledgerBefore);
@@ -88,7 +88,7 @@ void main() {
         history.addAll(completed);
         turns.add(fixture.facts(turn));
       }
-      expect(folded, isTrue);
+      expect(folded, isFalse);
       expect(turns.map((turn) => turn.userText), [
         for (var turn = 1; turn <= 26; turn++) fixture.user(turn),
       ]);
@@ -102,7 +102,7 @@ void main() {
       final client = serializer();
       int bytes(LlmRequest request) =>
           utf8.encode(jsonEncode(client.buildBody(request))).length;
-      final seed = fixture.legacySeed();
+      final seed = [...fixture.legacySeed(), ...fixture.legacySeed()];
       final before = messagesJson(seed);
       final context = AppendOnlyContext(
         budget: const ContextBudgetConfig(),
@@ -115,10 +115,10 @@ void main() {
         ledger: ContextTurnLedger(const []),
         thinking: false,
       );
-      expect(prepared.diagnostics.beforeBytes, greaterThan(65536));
+      expect(prepared.diagnostics.beforeBytes, greaterThan(262144));
       expect(prepared.diagnostics.fitsHardLimit, isTrue);
       expect(prepared.diagnostics.afterBytes, bytes(prepared.request));
-      expect(bytes(prepared.request), lessThanOrEqualTo(65536));
+      expect(bytes(prepared.request), lessThanOrEqualTo(262144));
       expect(prepared.request.messages, contains(same(current)));
       expect(messagesJson(seed), before);
     },
@@ -183,7 +183,7 @@ void main() {
       for (final request in replay.requests) {
         expect(
           utf8.encode(jsonEncode(client.buildBody(request))).length,
-          lessThanOrEqualTo(65536),
+          lessThanOrEqualTo(262144),
         );
       }
     },

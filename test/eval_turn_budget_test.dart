@@ -176,18 +176,18 @@ void main() {
           turn: 1,
           elapsedMs: 1,
           calls: [
-            {'turn': 1, 'caseElapsedMs': 1, 'requestBytes': 65537},
+            {'turn': 1, 'caseElapsedMs': 1, 'requestBytes': 262145},
           ],
           events: [],
         ),
-        ['turn 1 actual request exceeds hard limit 65536B'],
+        ['turn 1 actual request exceeds hard limit 262144B'],
       );
       expect(
         evaluationTurnBudgetFailures(
           turn: 1,
           elapsedMs: 1,
           calls: [
-            {'turn': 1, 'caseElapsedMs': 1, 'requestBytes': 65536},
+            {'turn': 1, 'caseElapsedMs': 1, 'requestBytes': 262144},
           ],
           events: [],
         ),

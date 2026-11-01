@@ -16,10 +16,10 @@ void main() {
       );
       final configured = evaluationContextBudget(softOnBytes: '30000');
       expect(configured.softOnBytes, 30000);
-      expect(configured.softOffBytes, 40960);
-      expect(configured.hardBytes, 65536);
-      expect(const ContextBudgetConfig().softOnBytes, 51200);
-      for (final value in ['0', '-1', '65537', 'x']) {
+      expect(configured.softOffBytes, 163840);
+      expect(configured.hardBytes, 262144);
+      expect(const ContextBudgetConfig().softOnBytes, 204800);
+      for (final value in ['0', '-1', '262145', 'x']) {
         expect(
           () => evaluationContextBudget(softOnBytes: value),
           throwsArgumentError,

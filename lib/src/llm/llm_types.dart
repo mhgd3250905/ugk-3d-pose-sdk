@@ -155,6 +155,8 @@ class TokenUsage {
     this.completionTokens = 0,
     this.reasoningTokens = 0,
     this.cachedTokens = 0,
+    this.promptCacheHitTokens,
+    this.promptCacheMissTokens,
   });
 
   static const zero = TokenUsage();
@@ -168,6 +170,10 @@ class TokenUsage {
   /// prompt 中命中前缀缓存的部分（已计入 [promptTokens]）。
   final int cachedTokens;
 
+  /// DeepSeek 返回的原始缓存计数；未返回时为 null，汇总仅累加已知值。
+  final int? promptCacheHitTokens;
+  final int? promptCacheMissTokens;
+
   int get totalTokens => promptTokens + completionTokens;
 
   TokenUsage operator +(TokenUsage o) => TokenUsage(
@@ -175,10 +181,18 @@ class TokenUsage {
     completionTokens: completionTokens + o.completionTokens,
     reasoningTokens: reasoningTokens + o.reasoningTokens,
     cachedTokens: cachedTokens + o.cachedTokens,
+    promptCacheHitTokens:
+        promptCacheHitTokens == null && o.promptCacheHitTokens == null
+        ? null
+        : (promptCacheHitTokens ?? 0) + (o.promptCacheHitTokens ?? 0),
+    promptCacheMissTokens:
+        promptCacheMissTokens == null && o.promptCacheMissTokens == null
+        ? null
+        : (promptCacheMissTokens ?? 0) + (o.promptCacheMissTokens ?? 0),
   );
 
   /// 解析 OpenAI 兼容 `usage`：兼容 OpenAI（`*_tokens_details`）与
-  /// DeepSeek（`prompt_cache_hit_tokens`）两种写法。
+  /// DeepSeek（`prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`）两种写法。
   factory TokenUsage.fromOpenAi(Object? raw) {
     final u = asMap(raw);
     final pd = asMap(u['prompt_tokens_details']);
@@ -192,6 +206,8 @@ class TokenUsage {
           asInt(pd['cached_tokens']) ??
           asInt(u['prompt_cache_hit_tokens']) ??
           0,
+      promptCacheHitTokens: asInt(u['prompt_cache_hit_tokens']),
+      promptCacheMissTokens: asInt(u['prompt_cache_miss_tokens']),
     );
   }
 
@@ -200,6 +216,10 @@ class TokenUsage {
     'completionTokens': completionTokens,
     'reasoningTokens': reasoningTokens,
     'cachedTokens': cachedTokens,
+    if (promptCacheHitTokens != null)
+      'prompt_cache_hit_tokens': promptCacheHitTokens,
+    if (promptCacheMissTokens != null)
+      'prompt_cache_miss_tokens': promptCacheMissTokens,
   };
 
   factory TokenUsage.fromJson(Map<String, Object?> j) => TokenUsage(
@@ -207,6 +227,8 @@ class TokenUsage {
     completionTokens: asInt(j['completionTokens']) ?? 0,
     reasoningTokens: asInt(j['reasoningTokens']) ?? 0,
     cachedTokens: asInt(j['cachedTokens']) ?? 0,
+    promptCacheHitTokens: asInt(j['prompt_cache_hit_tokens']),
+    promptCacheMissTokens: asInt(j['prompt_cache_miss_tokens']),
   );
 
   @override

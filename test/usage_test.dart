@@ -16,7 +16,7 @@ UsageRecord rec(String id, String turn, TurnOutcome t, {String model = 'm', doub
   promptHash: 'abcdefabcdef',
   catalogVersion: '0.1.0',
   attempt: 1,
-  usage: const TokenUsage(promptTokens: 1000, completionTokens: 100, reasoningTokens: 80, cachedTokens: 500),
+  usage: const TokenUsage(promptTokens: 1000, completionTokens: 100, reasoningTokens: 80, cachedTokens: 500, promptCacheHitTokens: 500, promptCacheMissTokens: 500),
   latency: const Duration(milliseconds: 1234),
   outcome: CallOutcome.passed,
   turnOutcome: t,
@@ -39,6 +39,8 @@ void main() {
     expect(back.toJson(), r.toJson());
     expect(r.toJson()['latencyMs'], 1234);
     expect(r.toJson()['cachedTokens'], 500);
+    expect(r.toJson()['prompt_cache_hit_tokens'], 500);
+    expect(r.toJson()['prompt_cache_miss_tokens'], 500);
   });
 
   test('MemoryUsageSink 汇总：按轮统计走向、按模型统计 token', () async {
@@ -51,6 +53,8 @@ void main() {
     expect(sum.turns, 2);
     expect(sum.turnOutcomes, {TurnOutcome.rewritten: 1, TurnOutcome.fallback: 1});
     expect(sum.usage.promptTokens, 3000);
+    expect(sum.usage.promptCacheHitTokens, 1500);
+    expect(sum.usage.promptCacheMissTokens, 1500);
     expect(sum.cost, closeTo(0.04, 1e-12));
     expect(sum.byModel['n']!.completionTokens, 100);
   });

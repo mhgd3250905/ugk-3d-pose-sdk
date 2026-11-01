@@ -155,10 +155,10 @@ void main() {
       final bytes = utf8.encode(body).length;
       expect(
         bytes,
-        lessThanOrEqualTo(mode == 'on' ? 51200 : 40960),
+        lessThanOrEqualTo(mode == 'on' ? 204800 : 163840),
         reason: '$label/$mode request=$bytes B',
       );
-      expect(bytes, lessThanOrEqualTo(65536));
+      expect(bytes, lessThanOrEqualTo(262144));
       // ignore: avoid_print
       print('SESSION SNAPSHOT RESTORE $label/$mode: firstRequestBytes=$bytes');
       expect(body, isNot(contains(_privateReasoning)));

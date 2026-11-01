@@ -51,14 +51,14 @@ void main() {
       final on = _summary('on');
       final off = _summary('off');
       on['contextBudgetConfig'] = {
-        'softOffBytes': 40960,
-        'softOnBytes': 51200,
-        'hardBytes': 65536,
+        'softOffBytes': 163840,
+        'softOnBytes': 204800,
+        'hardBytes': 262144,
       };
       off['contextBudgetConfig'] = {
-        'softOffBytes': 40960,
-        'softOnBytes': 51200,
-        'hardBytes': 65536,
+        'softOffBytes': 163840,
+        'softOnBytes': 204800,
+        'hardBytes': 262144,
       };
       final item = _firstCase(on);
       item['events'] = [

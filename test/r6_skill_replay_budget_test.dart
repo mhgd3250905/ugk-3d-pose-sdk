@@ -308,8 +308,8 @@ void main() {
           reason: 'each current-turn reasoning value is replayed byte-for-byte',
         );
         final diagnostic = coach.contextRequestDiagnostics[i];
-        expect(diagnostic.softLimitBytes, 51200);
-        expect(diagnostic.hardLimitBytes, 65536);
+        expect(diagnostic.softLimitBytes, 204800);
+        expect(diagnostic.hardLimitBytes, 262144);
         expect(diagnostic.completedTurnsFolded, 0);
         expect(diagnostic.receiptBodiesFolded, 0);
         expect(diagnostic.afterBytes, sizes[i]);

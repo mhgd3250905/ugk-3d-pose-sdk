@@ -255,8 +255,8 @@ void main() {
   test(
     'hard folding changes only consumed receipt bodies and allows a folded skill to be read again',
     () async {
-      final hugeA = '---\nname: huge-a\n---\n${'a' * 27000}';
-      final hugeB = '---\nname: huge-b\n---\n${'b' * 27000}';
+      final hugeA = '---\nname: huge-a\n---\n${'a' * 135000}';
+      final hugeB = '---\nname: huge-b\n---\n${'b' * 135000}';
       final profile = CoachProfile.fromJson({
         ...loadProfile('smartfit').toJson(),
         'skills': [
@@ -311,7 +311,7 @@ void main() {
   test(
     'a current reasoning payload that cannot fit fails honestly without truncating or sending',
     () async {
-      final reasoning = '原' * 25000;
+      final reasoning = '原' * 100000;
       final client = FakeLlmClient([
         _call('read', 'read', {'path': 'ask/SKILL.md'}, reasoning: reasoning),
       ], latency: Duration.zero);

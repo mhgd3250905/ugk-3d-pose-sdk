@@ -303,22 +303,22 @@ void main() {
   });
 
   test(
-    'soft mode thresholds report exceedance but hard limit remains 65536 bytes',
+    'soft mode thresholds report exceedance but hard limit remains 262144 bytes',
     () {
       expect(
-        evaluationRequestBudget(45000, thinking: false)['status'],
+        evaluationRequestBudget(180000, thinking: false)['status'],
         'above_soft_current_turn_allowed',
       );
       expect(
-        evaluationRequestBudget(45000, thinking: true)['status'],
+        evaluationRequestBudget(180000, thinking: true)['status'],
         'within_soft',
       );
       expect(
-        evaluationRequestBudget(65536, thinking: false)['hardExceeded'],
+        evaluationRequestBudget(262144, thinking: false)['hardExceeded'],
         isFalse,
       );
       expect(
-        evaluationRequestBudget(65537, thinking: true)['hardExceeded'],
+        evaluationRequestBudget(262145, thinking: true)['hardExceeded'],
         isTrue,
       );
     },

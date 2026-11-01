@@ -149,6 +149,8 @@ void main() {
     expect(a.slowAfter, const Duration(seconds: 30));
     expect(a.requestTimeout, const Duration(seconds: 60));
     expect(a.contextBudgetTokens, 60000);
+    expect(a.maxTurns, 50);
+    expect(a.maxHistoryChars, 40000);
     expect(a.keepRecentSteps, 3);
     expect(a.maxStallSteps, 3);
   });

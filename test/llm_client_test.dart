@@ -17,6 +17,7 @@ Map<String, Object?> okBody({String content = '{"kind":"reply","text":"好"}', S
         'completion_tokens': 900,
         'total_tokens': 5900,
         'prompt_cache_hit_tokens': 4096,
+        'prompt_cache_miss_tokens': 904,
         'completion_tokens_details': {'reasoning_tokens': 700},
       },
 };
@@ -87,6 +88,8 @@ void main() {
     expect(r.reasoning, '用户想…');
     expect(r.usage.promptTokens, 5000);
     expect(r.usage.cachedTokens, 4096);
+    expect(r.usage.promptCacheHitTokens, 4096);
+    expect(r.usage.promptCacheMissTokens, 904);
     expect(r.usage.reasoningTokens, 700);
     expect(r.model, 'deepseek-v4.1-flash-1017');
     expect(r.httpAttempts, 1);
@@ -100,6 +103,10 @@ void main() {
       'completion_tokens_details': {'reasoning_tokens': 30},
     });
     expect((u.cachedTokens, u.reasoningTokens), (64, 30));
+    expect(u.promptCacheHitTokens, isNull);
+    expect(u.promptCacheMissTokens, isNull);
+    expect(u.toJson().containsKey('prompt_cache_hit_tokens'), isFalse);
+    expect(u.toJson().containsKey('prompt_cache_miss_tokens'), isFalse);
   });
 
   test('500 → 退避重试 → 成功', () async {

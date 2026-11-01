@@ -252,7 +252,7 @@ class CoachAgent {
     Future<void> Function(Duration)? sleep,
     double Function()? random,
     this.maxInputChars = 500,
-    this.maxTurns = 20,
+    this.maxTurns = 50,
     this.maxHistoryChars = 40000,
     this.extraRules = const [],
     this.enforceDrillDoseRange = false,

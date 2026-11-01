@@ -282,7 +282,7 @@ void main() {
     'soft folds finished turns into a compact view without changing the lossless ledger',
     () {
       // A deliberately smaller soft boundary exercises the policy with compact
-      // fixtures. The approved 64 KiB hard limit is unchanged in this test.
+      // fixtures. The approved 256 KiB hard limit is unchanged in this test.
       const budget = ContextBudgetConfig(
         softOffBytes: 8000,
         softOnBytes: 10000,
@@ -420,7 +420,7 @@ void main() {
   test(
     'hard archives only explicitly consumed receipt bodies and preserves every assistant byte',
     () {
-      // All pressures here use the approved default 65,536-byte hard boundary.
+      // All pressures here use the approved default 262,144-byte hard boundary.
       // Reasoning fixtures are fixed; no threshold is raised to obtain a fit.
       const budget = ContextBudgetConfig();
       final context = _context();
@@ -435,7 +435,7 @@ void main() {
           'items': [
             {'id': 'a', 'name': 'old action'},
           ],
-          'detail': 'row old 0123456789 😀\n' * 1536,
+          'detail': 'row old 0123456789 😀\n' * 6144,
         }),
       );
       final initial = <LlmMessage>[
@@ -457,7 +457,7 @@ void main() {
       );
       final freshReceipt = LlmMessage.tool(
         'fresh',
-        jsonEncode({'ok': true, 'detail': 'new MUST STAY 😀\n' * 1024}),
+        jsonEncode({'ok': true, 'detail': 'new MUST STAY 😀\n' * 4096}),
       );
       final current = [...initial, nextAssistant, freshReceipt];
       final rawBefore = _messages(current);
@@ -527,7 +527,7 @@ void main() {
     'reasoning alone above hard cannot be silently removed to claim a fit',
     () {
       final context = _context();
-      final reasoning = '不可裁剪的当前推理 "原文" 🧠\n' * 4096;
+      final reasoning = '不可裁剪的当前推理 "原文" 🧠\n' * 16384;
       final current = [
         const LlmMessage.user('完整当前用户消息'),
         LlmMessage.assistant('仍在同一用户轮', reasoning: reasoning),

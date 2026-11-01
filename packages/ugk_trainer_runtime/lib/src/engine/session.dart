@@ -234,7 +234,8 @@ class SessionBuilder {
     return rhythm.effectiveFor(dose, defaults: rhythmDefaults);
   }
 
-  /// Seconds of one side of one set of [item].
+  /// Seconds of one side of one set of [item] (both sides of an
+  /// alternating pair).
   double workSeconds(PlanItem item, [Rhythm? rhythm]) {
     final r = rhythm ?? rhythmOf(item);
     if (r.selfPaced) return (item.reps ?? 10) * selfPacedRepEstimate;
@@ -362,7 +363,11 @@ class SessionBuilder {
                 selfPaced: kind == PhaseKind.work && rhythm.selfPaced,
                 holdSeconds: kind == PhaseKind.work ? rhythm.holdSeconds : null,
               );
-          final sides = item.perSide ? [Side.right, Side.left] : [null];
+          // An alternating pair (one count = one left + one right) moves
+          // both sides inside every count: one work phase, no side switch.
+          final sides = item.perSide && !rhythm.alternatePair
+              ? [Side.right, Side.left]
+              : [null];
           for (var k = 0; k < sides.length; k++) {
             if (k > 0) {
               final side = sides[k]!;

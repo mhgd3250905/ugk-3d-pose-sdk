@@ -53,9 +53,33 @@ class Rhythm {
     this.defaultReps,
     this.selfPaced = false,
     this.source = RhythmSource.catalog,
+    this.pairFirstSide,
   });
 
   final ActionKind kind;
+
+  /// Alternating pair (`repUnit: "left+right"`): the side that moves first
+  /// (`right` / `left`). Null: not a pair – including legacy rep_alternate
+  /// without `repUnit`, where each count is one side.
+  ///
+  /// A pair's [phases] are ONE side's movement; [phasesFor] (and with it
+  /// [cycleFor], [sideSeconds], [repPlan]) plays them for the first side and
+  /// then the other, so one count = one left + one right. The engine never
+  /// splits a pair's set into a right and a left work phase.
+  final String? pairFirstSide;
+
+  bool get alternatePair => pairFirstSide != null;
+
+  /// `left+right` pairs from a `training` / `rhythm` JSON block: rep_alternate
+  /// or `perSide: "alternate"`, and `repUnit: "left+right"`. [startingSide]
+  /// (the action's own field) is used when the block has none.
+  static String? pairSideOf(Map<String, dynamic> j, {String? startingSide}) {
+    final alternate =
+        j['kind'] == ActionKind.repAlternate.id || j['perSide'] == 'alternate';
+    if (!alternate || j['repUnit'] != 'left+right') return null;
+    final first = j['startingSide'] ?? startingSide;
+    return first == 'left' ? 'left' : 'right';
+  }
 
   /// Seconds before the first count of a set.
   final double lead;
@@ -121,7 +145,11 @@ class Rhythm {
   /// `{"kind": "rep_hold" | … | "hold" | "self_paced", "leadSeconds": 1,
   ///   "phases": [{"id": "go", "seconds": 1.2, "cue": "w.up"}, …],
   ///   "holdSeconds": 10, "reps": 8}`.
-  factory Rhythm.fromJson(Map<String, dynamic> j) {
+  ///
+  /// Pose-Hub v3 `training` blocks use the same shape plus `perSide`,
+  /// `repUnit` and `startingSide` (see [pairFirstSide]); [startingSide] is
+  /// the action's own field, used when the block has none.
+  factory Rhythm.fromJson(Map<String, dynamic> j, {String? startingSide}) {
     if (j['kind'] == 'self_paced') return selfPacedReps;
     return Rhythm(
       kind: ActionKind.byId(j['kind'] as String? ?? 'hold'),
@@ -137,6 +165,7 @@ class Rhythm {
         'dose' => RhythmSource.dose,
         _ => RhythmSource.catalog,
       },
+      pairFirstSide: pairSideOf(j, startingSide: startingSide),
     );
   }
 
@@ -158,6 +187,7 @@ class Rhythm {
       holdSeconds: (d['holdSeconds'] as num?)?.toInt(),
       defaultReps: (d['reps'] as num?)?.toInt(),
       source: RhythmSource.actionKit,
+      pairFirstSide: pairSideOf(t),
     );
   }
 
@@ -170,6 +200,11 @@ class Rhythm {
           'holdSeconds': ?holdSeconds,
           'reps': ?defaultReps,
           if (derived) 'source': source.name,
+          if (alternatePair) ...{
+            'perSide': 'alternate',
+            'repUnit': 'left+right',
+            'startingSide': pairFirstSide,
+          },
         };
 
   /// Counted on a clock (not a hold, not self-paced).
@@ -188,6 +223,7 @@ class Rhythm {
     defaultReps: defaultReps,
     selfPaced: selfPaced,
     source: source,
+    pairFirstSide: pairFirstSide,
   );
 
   /// What this action does for [item]: a time dose on a derived or
@@ -214,19 +250,29 @@ class Rhythm {
 
   // ── rep plan (ported from ActionKit) ────────────────────────────────────
 
-  /// Phases with the hold length applied ([hold] overrides [holdSeconds]).
+  /// Phases of one count with the hold length applied ([hold] overrides
+  /// [holdSeconds]). An [alternatePair] plays its phases for the first side
+  /// and then for the other one, each phase tagged with its side.
   List<KitPhase> phasesFor({int? hold}) {
     final h = hold ?? holdSeconds;
-    return [
+    final one = [
       for (final p in phases)
         p.id == 'hold' && h != null ? p.withSeconds(h.toDouble()) : p,
+    ];
+    final first = pairFirstSide;
+    if (first == null) return one;
+    final second = first == 'left' ? 'right' : 'left';
+    return [
+      for (final p in one) p.withSide(first),
+      for (final p in one) p.withSide(second),
     ];
   }
 
   double cycleFor({int? hold}) =>
       phasesFor(hold: hold).fold(0.0, (s, p) => s + p.seconds);
 
-  /// Whole seconds of one side (or of the unsided set). Counted rhythms
+  /// Whole seconds of one side (or of the unsided set; an [alternatePair]'s
+  /// set holds both sides). Counted rhythms
   /// keep [budget] when every rep fits in it at the rhythm's pace (the reps
   /// are then slowed down, see [stretch]) and grow to the lead plus every
   /// rep in full when they do not. Same formula as HipLab
@@ -250,20 +296,23 @@ class Rhythm {
     final base = ph.fold(0.0, (s, p) => s + p.seconds);
     final extra = target - base;
     if (extra <= 1e-9) return ph;
-    if (kind == ActionKind.repCycle || ph.length == 1) {
+    if (kind == ActionKind.repCycle || ph.length == (alternatePair ? 2 : 1)) {
       final f = target / base;
       return [for (final p in ph) p.withSeconds(p.seconds * f)];
     }
-    final hasRest = ph.any((p) => p.id == 'rest');
+    // A pair holds every phase once per side: each side takes its share.
+    final holds = ph.where((p) => p.id == 'hold').length;
+    final rests = ph.where((p) => p.id == 'rest').length;
+    final hasRest = rests > 0;
     final top = kind == ActionKind.repHold ? 0.0 : stretchTop;
     return [
       for (final p in ph)
         p.withSeconds(
           p.seconds +
               (p.id == 'hold'
-                  ? extra * (hasRest ? top : 1)
+                  ? extra * (hasRest ? top : 1) / holds
                   : p.id == 'rest' && hasRest
-                  ? extra * (1 - top)
+                  ? extra * (1 - top) / rests
                   : 0),
         ),
     ];

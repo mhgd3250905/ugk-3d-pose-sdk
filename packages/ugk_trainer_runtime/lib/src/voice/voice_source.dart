@@ -127,6 +127,11 @@ abstract class VoiceSource {
   /// Key of a call, null when this source has none.
   String? call(VoiceCall c);
 
+  /// Key of the bare side word (右 / 左) said inside an alternating pair
+  /// as each side starts to move; [side] is `right` / `left`. A source
+  /// without the clip stays silent there (the count still plays).
+  String? sideWord(String side) => side == 'left' ? 'p.left' : 'p.right';
+
   /// Key of a move's own line, null when it has none.
   String? drill(String exerciseId, DrillLine line);
 

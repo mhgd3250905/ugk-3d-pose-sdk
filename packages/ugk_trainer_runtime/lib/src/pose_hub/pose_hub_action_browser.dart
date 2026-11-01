@@ -233,12 +233,24 @@ class PoseHubSinglePracticePage extends StatelessWidget {
       perSide: action.raw['unilateral'] == true,
       restSeconds: dose['restSeconds']! as int,
     );
+    // Alternating pair (v3 `training.repUnit: left+right`): the authored
+    // one-side phases, played right+left inside every count. perSide stays
+    // true for the 每侧 N 次 dose text; the engine does not split the set.
+    final training = action.raw['training'];
+    final pair = training is Map
+        ? Rhythm.fromJson(
+            Map<String, dynamic>.from(training),
+            startingSide: action.raw['startingSide'] as String?,
+          )
+        : null;
     final rhythms = {
-      action.id: Rhythm.forDose(
-        item.mode,
-        category: action.raw['category'] as String?,
-        holdSeconds: (dose['holdSeconds'] as num?)?.toDouble(),
-      ),
+      action.id: pair != null && pair.alternatePair && pair.counted
+          ? pair
+          : Rhythm.forDose(
+              item.mode,
+              category: action.raw['category'] as String?,
+              holdSeconds: (dose['holdSeconds'] as num?)?.toDouble(),
+            ),
     };
     final scenes = (action.raw['scenes'] as List).whereType<String>();
     var plan = TrainingPlan(

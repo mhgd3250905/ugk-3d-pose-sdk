@@ -9,7 +9,11 @@ enum ActionKind {
   /// 计数·正反循环: one count = one loop in both directions.
   repCycle('rep_cycle'),
 
-  /// 计数·左右交替: each count is one side; the go word rotates.
+  /// 计数·左右交替. Legacy (no `repUnit`): each count is one side; the go
+  /// word rotates with the count. With `repUnit: "left+right"` (Pose-Hub
+  /// v3) one count is a pair – one movement per side, starting with
+  /// `startingSide` – and the side word rotates inside the count (see
+  /// [Rhythm.alternatePair]).
   repAlternate('rep_alternate'),
 
   /// 计数·带停留: a rep with a timed hold at the top.
@@ -32,9 +36,14 @@ enum ActionKind {
 
 /// One phase of a rep: go / hold / back / rest.
 class KitPhase {
-  const KitPhase(this.id, this.seconds, this.cues, {this.cueAt = 0});
+  const KitPhase(this.id, this.seconds, this.cues, {this.cueAt = 0, this.side});
   final String id;
   final double seconds;
+
+  /// Side this phase moves (`right` / `left`) inside an alternating pair;
+  /// null for every other rhythm. Derived by [Rhythm.phasesFor], never
+  /// authored.
+  final String? side;
 
   /// How far into the phase its word is said (a hold word waits a beat so
   /// the count before it has room).
@@ -47,7 +56,11 @@ class KitPhase {
   String? cueFor(int count) =>
       cues.isEmpty ? null : cues[(count - 1) % cues.length];
 
-  KitPhase withSeconds(double s) => KitPhase(id, s, cues, cueAt: cueAt);
+  KitPhase withSeconds(double s) =>
+      KitPhase(id, s, cues, cueAt: cueAt, side: side);
+
+  KitPhase withSide(String? s) =>
+      KitPhase(id, seconds, cues, cueAt: cueAt, side: s);
 
   factory KitPhase.fromJson(Map<String, dynamic> j) {
     final c = j['cue'];

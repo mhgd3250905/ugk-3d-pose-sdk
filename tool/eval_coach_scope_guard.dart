@@ -264,6 +264,8 @@ const _scopeBinding = r'''
   gate.installScopeEvaluationBinding(gate.ScopeEvaluationBinding(
     manifest: manifest.toJson(), authorizedIds: manifest.allowedActionIds,
     plannableIds: scope.plannableIds,
+    masterActionIdsByExactName: gate.scopeEvaluationExactMasterNames(
+      (jsonDecode(utf8.decode(masterBytes)) as Map)['actions'] as List),
     masterIds: {(jsonDecode(utf8.decode(masterBytes)) as Map<String,dynamic>)['actions']}
       .expand((raw) => (raw as List).cast<Map<String,dynamic>>()).map((action) => action['id'] as String).toSet(),
     specialty: specialty, suggestions: suggestions, guidance: guidance,

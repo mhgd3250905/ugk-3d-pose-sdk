@@ -91,6 +91,10 @@ scene/equipment/avoid、已有范围内内容、坚持/锁定/安全状态及当
 `evaluateRequest` 另外核对 known source 的精确完整名称/ID字面证据；替代排序不使用
 名字关键词。`isKnownBodyCode` 只回答 taxonomy code 是否已知，不暴露全库负面索引。
 
+只传动作完整标准名时，先以 master 中的精确名称和本轮原话确定唯一 ID，再判断范围。
+这不是关键词检索，不改变候选排序，也不授予 seen 权限；同名多 ID 不擅自选第一个。
+已知范围内动作不能保存成“App 没有”的删除/替代记录；恢复时也核对标准名与 ID 一致。
+
 | 路径 | `kind` | 结果 |
 | --- | --- | --- |
 | R1 部分范围外，可合理替代 | `substituted` | 同目标部位、同场景、同器械硬过滤后选最近候选；记录实际采用 ID，重新出草稿 |
@@ -115,6 +119,10 @@ SF 授权但训练说明不完整的动作仍不能进入计划；若请求进�
 `adoptedActionId`、候选 ID、scopeIdentity、turn 及可选 planId/version。sourceId 是
 用户外部请求的审计事实，不能写进可执行计划的 exerciseId/segment/replacedFrom。
 `bindToPlan(id, version)` 生成关联副本，不修改原记录。
+
+`message` 是审计摘要；交付告知由 `disclosureFor` 按当前可信配置重新生成，不能直接
+把恢复 JSON 的 message 当作展示模板。安全摘要可能引用用户的风险原句，最终页面则
+使用当前配置的安全暂停说明；完整用户事实仍保存在 originalText 中。
 
 `validateRecord` 校验 scope 身份、原话证据、采用/候选集合和三项决策标志一致；
 不能将 known outside source 改成 `inScope` 或将伪造 source 改成 `substituted` 免告知。
@@ -193,6 +201,11 @@ Agent 则通过既有 `set_params` 增加可选 `scope_request`，没有增加�
 最终替代/删除说明由代码重建，避免模型同时声称仍包含被删除动作。实际采用 ID 必须
 存在于最终计划；替代/删除后继续经过原配时及卡片/实际时间线双门禁，不能补抽或截断。
 记录绑定真实 planId/version，历史版本中的实际采用项也必须存在。
+
+已确认的本轮 `limits(source=user)` 若直接说明正在痛或动作会痛，代码保留其连续原句
+作为安全证据，优先于替代或专长判断；模型遗漏 safetyBlocked 不能清除此事实。
+单纯保护部位、无痛/无不适、假设性“如果疼就停”不据此暂停。宿主保护条件变化会让
+assessment 失效，但不能解除同轮尚未处理的安全拒绝。旧调用不启用本机制。
 
 ## 恢复与可信边界
 

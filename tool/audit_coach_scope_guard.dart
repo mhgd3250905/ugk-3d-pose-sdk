@@ -51,7 +51,7 @@ Future<void> _audit(List<String> args) async {
   if (output.existsSync() && output.listSync().isNotEmpty) {
     throw StateError('Refusing to overwrite previous evidence');
   }
-  final inputBefore = _inputHashes(input);
+  final inputBefore = scopeEvaluationRawFileHashes(input);
   Map<String, Object?> read(String name) =>
       (jsonDecode(File('${input.path}/$name').readAsStringSync()) as Map)
           .cast<String, Object?>();
@@ -78,9 +78,11 @@ Future<void> _audit(List<String> args) async {
     authorizedIds: (run['authorizedIds']! as List).cast<String>().toSet(),
     plannableIds: (run['plannableIds']! as List).cast<String>().toSet(),
     masterIds: {for (final action in actions) (action as Map)['id']! as String},
+    masterActionIdsByExactName: scopeEvaluationExactMasterNames(actions),
     specialty: policy['specialty']! as String,
     suggestions: (policy['suggestions']! as List).cast<String>(),
     guidance: policy['guidance']! as String,
+    safetyMessage: policy['safetyMessage'] as String?,
     candidate: run['scopeStatus'] == 'candidate-test-fixture',
     createAgent: (_, _, _) =>
         throw StateError('Offline audit cannot create Agent'),
@@ -115,6 +117,10 @@ Future<void> _audit(List<String> args) async {
   final results = <Map<String, Object?>>[];
   for (final scenario in scenarios) {
     final name = '${scenario.id}.json';
+    final rawCaseSha = inputBefore[name];
+    if (rawCaseSha == null || !RegExp(r'^[0-9a-f]{64}$').hasMatch(rawCaseSha)) {
+      throw StateError('Captured case must have an exact nonnull SHA');
+    }
     final raw = read(name);
     final audited = scopeEvaluationAuditCase(
       raw,
@@ -124,11 +130,11 @@ Future<void> _audit(List<String> args) async {
       retainOriginalVerdicts: true,
     );
     audited['rawCaseFile'] = name;
-    audited['rawCaseSha256'] = inputBefore[name];
+    audited['rawCaseSha256'] = rawCaseSha;
     await _write(File('${output.path}/$name'), audited);
     results.add(audited);
   }
-  final inputAfter = _inputHashes(input);
+  final inputAfter = scopeEvaluationRawFileHashes(input);
   final unchanged = jsonEncode(inputBefore) == jsonEncode(inputAfter);
   if (!unchanged) runFailures.add('raw_artifact_changed_during_audit');
   final functional =
@@ -154,7 +160,7 @@ Future<void> _audit(List<String> args) async {
     'currentSourceSha256': scopeEvaluationSourceFingerprint(sdk.path),
     'currentCodeValidatedByAudit': false,
     'auditPolicy':
-        'Only top-level derived check caches are excluded from retained-version identity. Every other version key and plan/dose remains strict; latest delivered version must pass check and exactly match the delivered plan. Numeric duration bounds, safety, scope, protocol and call budgets are unchanged.',
+        'Only top-level derived check caches are excluded from retained-version identity. Every other version key and plan/dose remains strict; latest delivered version must pass check and exactly match the delivered plan. Safety disclosure is verified against trusted Runner policy, never mutable record.message, and still requires no plan, denied admission, no adoption and complete safety/specialty/suggestions. Raw filenames use URI path segments and every case SHA must be nonnull. Numeric duration bounds, safety decisions, scope, protocol and call budgets are unchanged.',
     'scopePolicySource': run['scopePolicy'] is Map
         ? 'captured-run-metadata'
         : 'identical-frozen-r1-harness-constants',
@@ -220,19 +226,40 @@ Directory _withinBuild(String path, Directory sdk) {
   return target;
 }
 
-Map<String, String> _inputHashes(Directory input) {
+/// Exact relative names for evidence hashes, independent of a trailing slash.
+/// URI segments also preserve Unicode/space names without string offsets.
+Map<String, String> scopeEvaluationRawFileHashes(Directory input) {
+  final rootUri = input.absolute.uri.normalizePath();
+  final rootSegments = rootUri.pathSegments.toList();
+  while (rootSegments.isNotEmpty && rootSegments.last.isEmpty) {
+    rootSegments.removeLast();
+  }
   final files =
       input
           .listSync(recursive: true, followLinks: false)
           .whereType<File>()
           .toList()
         ..sort((a, b) => a.path.compareTo(b.path));
-  return {
-    for (final file in files)
-      file.path.substring(input.path.length + 1).replaceAll('\\', '/'): sha256
-          .convert(file.readAsBytesSync())
-          .toString(),
-  };
+  final hashes = <String, String>{};
+  for (final file in files) {
+    final uri = file.absolute.uri.normalizePath();
+    final parts = uri.pathSegments;
+    if (uri.scheme != rootUri.scheme ||
+        uri.host != rootUri.host ||
+        parts.length <= rootSegments.length ||
+        !List.generate(
+          rootSegments.length,
+          (index) => parts[index] == rootSegments[index],
+        ).every((same) => same)) {
+      throw StateError('Evidence file escapes input URI');
+    }
+    final relative = parts.skip(rootSegments.length).join('/');
+    if (relative.isEmpty || hashes.containsKey(relative)) {
+      throw StateError('Empty or duplicate evidence path');
+    }
+    hashes[relative] = sha256.convert(file.readAsBytesSync()).toString();
+  }
+  return hashes;
 }
 
 Future<void> _write(File file, Object value) => file.writeAsString(

@@ -284,7 +284,21 @@ extension CoachActionScopePolicy on CoachActionScope {
     if (request.originalText.trim().isEmpty) {
       throw const FormatException('scope_request requires original user text');
     }
-    final fact = manifest._facts[request.sourceActionId];
+    var fact = manifest._facts[request.sourceActionId];
+    if (request.sourceActionId == null && request.sourceActionName != null) {
+      final named = manifest._facts.values
+          .where(
+            (candidate) => candidate.names.contains(request.sourceActionName),
+          )
+          .toList();
+      if (named.length > 1) {
+        throw const FormatException('ambiguous_scope_source_name');
+      }
+      fact = named.firstOrNull;
+    }
+    // Resolve only a complete canonical name; this is identity/evidence
+    // validation, never fuzzy retrieval, replacement ranking or a seen grant.
+    final sourceId = request.sourceActionId ?? fact?.id;
     if (fact != null &&
         !matchesRequestedAction(
           fact.id,
@@ -310,7 +324,7 @@ extension CoachActionScopePolicy on CoachActionScope {
         request.sourceActionName?.replaceAll(RegExp(r'[\r\n]+'), ' ') ??
         request.sourceActionId ??
         '请求的内容';
-    final unavailable = _scopeUnavailable(this, request.sourceActionId, label);
+    final unavailable = _scopeUnavailable(this, sourceId, label);
     final suggestions = _scopeSuggestions(this, policy);
     CoachScopeDecisionRecord decision(
       CoachScopeDecisionKind kind,
@@ -326,7 +340,7 @@ extension CoachActionScopePolicy on CoachActionScope {
       message: message,
       allowPlan: allowPlan,
       requiresReplan: requiresReplan,
-      sourceId: request.sourceActionId,
+      sourceId: sourceId,
       sourceName: label,
       sourceQuote: request.sourceQuote,
       adoptedActionId: adopted,
@@ -343,15 +357,13 @@ extension CoachActionScopePolicy on CoachActionScope {
         '${request.safetyReason ?? policy.safetyMessage} ${policy.specialty}',
       );
     }
-    if (request.outsideSpecialty &&
-        (request.sourceActionId == null ||
-            !contains(request.sourceActionId!))) {
+    if (request.outsideSpecialty && (sourceId == null || !contains(sourceId))) {
       return decision(
         CoachScopeDecisionKind.outOfScope,
         '这次需求超出本 App 的训练范围。${policy.specialty}',
       );
     }
-    if (request.sourceActionId == null &&
+    if (sourceId == null &&
         request.sourceActionName == null &&
         request.targetBodyCodes.isEmpty) {
       return decision(
@@ -360,7 +372,7 @@ extension CoachActionScopePolicy on CoachActionScope {
         allowPlan: true,
       );
     }
-    if (request.sourceActionId != null && contains(request.sourceActionId!)) {
+    if (sourceId != null && contains(sourceId)) {
       return decision(
         CoachScopeDecisionKind.inScope,
         '该动作在本 App 可用范围内，仍需通过当前安全和训练门禁。',
@@ -401,7 +413,7 @@ extension CoachActionScopePolicy on CoachActionScope {
       );
     }
 
-    if (request.sourceActionId == null &&
+    if (sourceId == null &&
         fact == null &&
         request.targetBodyCodes.isNotEmpty &&
         candidates.isNotEmpty) {
@@ -414,7 +426,7 @@ extension CoachActionScopePolicy on CoachActionScope {
     }
     return decision(
       CoachScopeDecisionKind.outOfScope,
-      '${request.sourceActionId == null ? '这次需求超出本 App 的训练范围。' : '$unavailable。'}${policy.specialty}',
+      '${sourceId == null ? '这次需求超出本 App 的训练范围。' : '$unavailable。'}${policy.specialty}',
     );
   }
 
@@ -422,6 +434,26 @@ extension CoachActionScopePolicy on CoachActionScope {
   List<PlanIssue> validateRecord(CoachScopeDecisionRecord record) => [
     if (record.scopeIdentity != identity)
       const PlanIssue('scope_record_identity_mismatch', '范围处理记录属于另一份授权或目录。'),
+    if (record.sourceName != null &&
+        manifest._facts.values.any(
+          (fact) => fact.names.contains(record.sourceName),
+        ) &&
+        !manifest._facts.values.any(
+          (fact) =>
+              fact.id == record.sourceId &&
+              fact.names.contains(record.sourceName),
+        ))
+      const PlanIssue(
+        'scope_record_name_id_mismatch',
+        '已知完整动作名称必须绑定其真实动作ID，不能伪称缺失。',
+      ),
+    if (record.sourceId != null &&
+        contains(record.sourceId!) &&
+        !{
+          CoachScopeDecisionKind.inScope,
+          CoachScopeDecisionKind.safetyBlocked,
+        }.contains(record.kind))
+      const PlanIssue('scope_record_available_source', '范围内已知动作不能伪称缺失、删除或替代。'),
     for (final id in [
       if (record.adoptedActionId != null) record.adoptedActionId!,
       ...record.candidateIds,

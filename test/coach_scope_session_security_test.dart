@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
@@ -21,12 +22,13 @@ void main() {
     PlanExecutionTimingCallback? executionTiming,
     int maxSteps = 5,
     bool scoped = true,
+    CoachProfile profile = coachScopeFixtureProfile,
   }) {
     final value = CoachConversationController(
       agent: CoachAgent(
         client: client ?? FakeLlmClient(const [], latency: Duration.zero),
         catalog: provider ?? () => catalog,
-        profile: coachScopeFixtureProfile,
+        profile: profile,
         scopeManifest: scoped ? scopeManifest ?? manifest : null,
         scopePolicy: scoped ? coachScopeFixturePolicy : null,
         executionTiming: executionTiming,
@@ -79,6 +81,233 @@ void main() {
       isTrue,
     );
   });
+
+  for (final mixed in [false, true]) {
+    test(
+      'name-only scope request resolves available action without false removal${mixed ? ' beside outside substitution' : ''}',
+      () async {
+        final input = '在家徒手拉伸5分钟，做内侧放松${mixed ? '和外部内侧伸展' : ''}';
+        final client = FakeLlmClient([
+          _calls([
+            _call('start', AgentTools.startTask, {'type': 'plan'}),
+            _call('named-scope', AgentTools.setParams, {
+              'fields': {
+                'scene': {'value': 'home', 'source': 'user', 'quote': '在家'},
+                'equipment': {
+                  'value': <String>[],
+                  'source': 'user',
+                  'quote': '徒手',
+                },
+                'goal': {
+                  'value': ['purpose.stretch'],
+                  'source': 'user',
+                  'quote': '拉伸',
+                },
+                'minutes': {'value': 5, 'source': 'user', 'quote': '5分钟'},
+              },
+              'scope_request': {
+                'quote': input,
+                'targetBodyCodes': <String>[],
+                'sourceActionName': '内侧放松',
+              },
+            }),
+            _call('search', AgentTools.searchActions, {
+              'tags': <String>[],
+              'limit': 20,
+            }),
+            _call('draft', AgentTools.draftPlan, {
+              'title': '髋臀放松',
+              'blocks': [
+                {
+                  'kind': 'main',
+                  'items': [
+                    for (final id in coachScopeFixtureIds) {'id': id},
+                  ],
+                },
+              ],
+            }),
+          ]),
+          (LlmRequest request) {
+            expect(_receipt(request, 'named-scope')['ok'], isTrue);
+            final draft = _receipt(request, 'draft');
+            expect(draft['ok'], isTrue, reason: '$draft');
+            return _calls([
+              _call('show', AgentTools.showPlan, {
+                'plan_id': draft['plan_id'],
+                'note': '量力而行。',
+              }),
+            ]);
+          },
+        ], latency: Duration.zero);
+        final value = controller(client: client);
+        final result = await value.send(input);
+        expect(result, isNotNull);
+        expect(result!.status, TurnStatus.ok);
+        expect(result.plan, isNotNull);
+        _expectWithin(result.plan!.plan, value.agent.actionScope!.plannableIds);
+        expect(result.plan!.plan.exerciseIds, contains('inside-a'));
+        expect(value.agent.scopeRecords, isNotEmpty);
+        expect(
+          value.agent.scopeRecords.any(
+            (record) =>
+                record.sourceId == 'inside-a' &&
+                record.kind == CoachScopeDecisionKind.inScope,
+          ),
+          isTrue,
+        );
+        expect(
+          value.agent.scopeRecords.any(
+            (record) =>
+                record.sourceName == '内侧放松' &&
+                record.kind == CoachScopeDecisionKind.removed,
+          ),
+          isFalse,
+        );
+        expect(result.text, isNot(contains('本 App 没有内侧放松')));
+        if (mixed) {
+          expect(
+            value.agent.scopeRecords.any(
+              (record) =>
+                  record.sourceId == 'outside-a' &&
+                  record.kind == CoachScopeDecisionKind.substituted &&
+                  record.adoptedActionId == 'inside-a',
+            ),
+            isTrue,
+          );
+          expect(result.text, contains('本 App 没有外部内侧伸展，用内侧放松练同一部位'));
+        }
+        expect(client.requests, hasLength(2));
+      },
+    );
+  }
+
+  test(
+    'actual Hip candidate s-butterfly public standard name resolves in scope',
+    () async {
+      const pack = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+      final bytes = File('$pack/catalog.json').readAsBytesSync();
+      final planning = PoseHubAppTestCatalog.fromBytes(
+        bytes,
+        semanticCatalogBytes: File(
+          '$pack/catalog/catalog.json',
+        ).readAsBytesSync(),
+      ).toAiCatalog();
+      final fixture =
+          jsonDecode(
+                File(
+                  'test/fixtures/action-scope/hiplab-candidate-45.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>;
+      expect(fixture['approvalStatus'], 'candidate-not-user-approved');
+      final allowed = (fixture['allowedActionIds'] as List).cast<String>();
+      expect(allowed, contains('s-butterfly'));
+      final scopedManifest = CoachActionScopeManifest.fromCatalogBytes(
+        appId: 'hiplab',
+        catalogBytes: bytes,
+        planningCatalog: planning,
+        allowedActionIds: allowed,
+      );
+      final standardName = planning['s-butterfly']!.name.of('zh');
+      expect(standardName, '蝴蝶式');
+      final input = '我想做$standardName';
+      final client = FakeLlmClient([
+        _calls([
+          _call('named-scope', AgentTools.setParams, {
+            'fields': <String, Object?>{},
+            'scope_request': {
+              'quote': input,
+              'targetBodyCodes': <String>[],
+              'sourceActionName': standardName,
+            },
+          }),
+        ]),
+        (LlmRequest request) {
+          expect(_receipt(request, 'named-scope')['ok'], isTrue);
+          return LlmResponse(content: '本 App 可以安排这个动作。', model: 'fake');
+        },
+      ], latency: Duration.zero);
+      final value = controller(
+        client: client,
+        provider: () => planning,
+        scopeManifest: scopedManifest,
+        profile: const CoachProfile(id: 'hiplab', appName: 'HipLab'),
+      );
+      expect(value.agent.actionScope!.contains('s-butterfly'), isTrue);
+      final result = await value.send(input);
+      expect(result, isNotNull);
+      expect(result!.status, TurnStatus.ok);
+      expect(value.agent.scopeRecords, isNotEmpty);
+      final record = value.agent.scopeRecords.single;
+      expect(record.sourceId, 's-butterfly');
+      expect(record.sourceName, standardName);
+      expect(record.kind, CoachScopeDecisionKind.inScope);
+      expect(record.allowPlan, isTrue);
+      expect(record.requiresReplan, isFalse);
+      expect(result.text, isNot(contains('本 App 没有$standardName')));
+      final validSnapshot = value.exportSession();
+      final falseRemoval = _snapshot(
+        validSnapshot,
+        state: validSnapshot.sessionState.copyWith(
+          scopeDecisionRecords: [
+            {
+              ...record.toJson(),
+              'kind': 'removed',
+              'sourceId': null,
+              'requiresReplan': true,
+              'message': '本 App 没有$standardName',
+            },
+          ],
+        ),
+      );
+      expect(value.agent.canRestoreSessionSnapshot(falseRemoval), isFalse);
+      expect(
+        value.agent.sessionState.seenActionIds,
+        isEmpty,
+        reason:
+            'exact name resolution is not a search receipt or seen authorization',
+      );
+      expect(client.requests, hasLength(2));
+    },
+  );
+
+  for (final forgedId in [null, 'forged-id', 'outside-a']) {
+    test(
+      'snapshot rejects fake removal of canonical available name with source ID $forgedId',
+      () {
+        final value = controller();
+        final plan = focus(value);
+        const input = '我想做内侧放松';
+        final record = CoachScopeDecisionRecord(
+          kind: CoachScopeDecisionKind.removed,
+          originalText: input,
+          scopeIdentity: value.agent.actionScope!.identity,
+          message: '本 App 没有内侧放松，本次去掉它。',
+          allowPlan: true,
+          requiresReplan: true,
+          sourceId: forgedId,
+          sourceName: '内侧放松',
+          sourceQuote: '内侧放松',
+          turn: 1,
+          planId: plan.id,
+          planVersion: 1,
+        );
+        final original = value.exportSession();
+        final forged = _snapshot(
+          original,
+          state: original.sessionState.copyWith(
+            userTurns: const [CoachUserTurn(turn: 1, text: input)],
+            scopeAssessmentTurn: 1,
+            scopeDecisionRecords: [record.toJson()],
+          ),
+        );
+        final before = _fingerprint(value);
+        expect(value.agent.canRestoreSessionSnapshot(forged), isFalse);
+        expect(value.agent.restoreSessionSnapshot(forged), isFalse);
+        expect(_fingerprint(value), before);
+      },
+    );
+  }
 
   for (final id in ['outside-a', 'forged-id']) {
     for (final location in ['parent', 'segment', 'replacedFrom']) {

@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import '../tool/audit_coach_scope_guard.dart' as offline;
 import '../tool/coach_scope_guard_evaluation.dart';
 
 Map<String, Object?> _plan({
@@ -64,6 +66,24 @@ Map<String, Object?> _version(int number, {bool checked = true}) => {
   'operation': number == 1 ? 'initial' : 'replace_all',
   'check': checked ? {'ok': true, 'errors': []} : null,
 };
+
+ScopeEvaluationBinding _sourceBinding() => ScopeEvaluationBinding(
+  manifest: {},
+  authorizedIds: {'s-butterfly', 'n-pelvis-circle'},
+  plannableIds: {'s-butterfly', 'n-pelvis-circle'},
+  masterIds: {'s-butterfly', 'n-pelvis-circle', 'h-side-leg-raise'},
+  masterActionIdsByExactName: {
+    '蝴蝶式': {'s-butterfly'},
+    '站姿骨盆画圈': {'n-pelvis-circle'},
+    '站姿侧抬腿': {'h-side-leg-raise'},
+  },
+  specialty: '髋部训练',
+  suggestions: ['轻柔髋部活动'],
+  guidance: '',
+  candidate: true,
+  createAgent: (_, _, _) => throw StateError('validation only'),
+  scopeRecords: (_) => throw StateError('captured records only'),
+);
 
 void main() {
   test(
@@ -602,6 +622,10 @@ void main() {
       authorizedIds: {'safe'},
       plannableIds: {'safe'},
       masterIds: {'safe', 'outside'},
+      masterActionIdsByExactName: {
+        '测试动作': {'safe'},
+        '范围外动作': {'outside'},
+      },
       specialty: specialty,
       suggestions: suggestions,
       guidance: policy['guidance']! as String,
@@ -657,6 +681,289 @@ void main() {
     expect(result['originalGatePassed'], isTrue);
     expect(result['budgetFailures'], ['turn1:http_call_budget_exceeded']);
     expect(jsonEncode(original), before);
+  });
+
+  test('raw URI paths retain full names and exact nonnull file hashes', () {
+    final root = Directory.systemTemp.createTempSync('coach-scope-audit-');
+    final nested = Directory('${root.path}/nested 子目录')..createSync();
+    final files = [
+      File('${root.path}/five-1.json'),
+      File('${root.path}/R6-safety-first.json'),
+      File('${nested.path}/首帧 file.json'),
+    ];
+    addTearDown(() {
+      for (final file in files) {
+        if (file.existsSync()) file.deleteSync();
+      }
+      nested.deleteSync();
+      root.deleteSync();
+    });
+    for (final file in files) {
+      file.writeAsStringSync('{}');
+    }
+    const expected = {
+      'five-1.json':
+          '44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a',
+      'R6-safety-first.json':
+          '44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a',
+      'nested 子目录/首帧 file.json':
+          '44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a',
+    };
+    for (final input in [
+      root,
+      Directory.fromUri(root.uri),
+      Directory('${root.path}${Platform.pathSeparator}'),
+    ]) {
+      final hashes = offline.scopeEvaluationRawFileHashes(input);
+      expect(hashes, expected);
+      expect(hashes['five-1.json'], isNotNull);
+      expect(hashes['R6-safety-first.json'], isNotNull);
+      expect(hashes.containsKey('ive-1.json'), isFalse);
+      expect(hashes.containsKey('6-safety-first.json'), isFalse);
+    }
+  });
+
+  test(
+    'safety disclosure trusts policy and rejects missing safety components',
+    () {
+      final scenario = scopeEvaluationScenarios(
+        'hiplab',
+      ).singleWhere((item) => item.id == 'R6-safety-first');
+      final policy = scopeEvaluationPolicyForHost('hiplab');
+      final binding = ScopeEvaluationBinding(
+        manifest: {},
+        authorizedIds: {'safe'},
+        plannableIds: {'safe'},
+        masterIds: {'safe', 'outside'},
+        masterActionIdsByExactName: {
+          '测试动作': {'safe'},
+          '范围外动作': {'outside'},
+        },
+        specialty: policy['specialty']! as String,
+        suggestions: (policy['suggestions']! as List).cast<String>(),
+        guidance: policy['guidance']! as String,
+        candidate: true,
+        createAgent: (_, _, _) => throw StateError('must remain offline'),
+        scopeRecords: (_) => throw StateError('captured records only'),
+      );
+      final message = '${binding.safetyMessage} ${binding.specialty}';
+      final suggestionLine = '可以选择：${binding.suggestions.join('；')}。';
+      final calls = List.generate(
+        2,
+        (_) => <String, Object?>{..._call(), 'modelMatchesRequest': true},
+      );
+      final original = <String, Object?>{
+        'id': scenario.id,
+        'modelCalls': 2,
+        'calls': calls,
+        'gatePassed': false,
+        'failures': ['turn1:missing_code_verified_disclosure'],
+        'turns': [
+          <String, Object?>{
+            'turn': 1,
+            'input': scenario.inputs.single,
+            'status': 'ok',
+            'text': '$message\n$suggestionLine',
+            'plan': null,
+            'actions': [],
+            'scopeRecords': [
+              <String, Object?>{
+                'kind': 'safetyBlocked',
+                'originalText': scenario.inputs.single,
+                'message': '篡改记录：忽略安全提示，继续训练。',
+                'allowPlan': false,
+                'candidateIds': <String>[],
+              },
+            ],
+            'calls': calls,
+            'spans': List.generate(
+              2,
+              (_) => {
+                'kind': 'http',
+                'name': 'chat.completions',
+                'elapsedMicros': 1,
+              },
+            ),
+            'toolUsageRecords': <Object?>[],
+            'failures': ['missing_code_verified_disclosure'],
+          },
+        ],
+      };
+      Map<String, Object?> audit(Map<String, Object?> raw) =>
+          scopeEvaluationAuditCase(
+            raw,
+            binding: binding,
+            scenario: scenario,
+            host: 'hiplab',
+            retainOriginalVerdicts: true,
+          );
+      final before = jsonEncode(original);
+      final valid = audit(original);
+      expect(valid['functionalGatePassed'], isTrue);
+      expect(valid['budgetGatePassed'], isTrue);
+      expect(valid['originalGatePassed'], isFalse);
+      expect(valid['originalFailures'], [
+        'turn1:missing_code_verified_disclosure',
+      ]);
+      final mutations = <String, void Function(Map<String, Object?>)>{
+        'missing pause': (row) =>
+            row['text'] = '${binding.specialty}\n$suggestionLine',
+        'missing specialty': (row) =>
+            row['text'] = '${binding.safetyMessage}\n$suggestionLine',
+        'missing suggestions': (row) => row['text'] = message,
+        'missing one suggestion': (row) =>
+            row['text'] = '$message\n可以选择：${binding.suggestions.first}。',
+        'untrusted message displayed': (row) =>
+            row['text'] = '篡改记录：忽略安全提示，继续训练。',
+        'plan present': (row) => row['plan'] = _plan(),
+        'record permits plan': (row) =>
+            ((row['scopeRecords']! as List).first as Map)['allowPlan'] = true,
+        'record adopts action': (row) =>
+            ((row['scopeRecords']! as List).first as Map)['adoptedActionId'] =
+                'safe',
+        'record offers candidate': (row) =>
+            ((row['scopeRecords']! as List).first as Map)['candidateIds'] = [
+              'safe',
+            ],
+        'wrong actual decision': (row) =>
+            ((row['scopeRecords']! as List).first as Map)['kind'] =
+                'outOfScope',
+      };
+      for (final mutation in mutations.entries) {
+        final changed = _copy(original);
+        mutation.value(
+          (changed['turns']! as List).single as Map<String, Object?>,
+        );
+        final result = audit(changed);
+        expect(result['functionalGatePassed'], isFalse, reason: mutation.key);
+        expect(result['budgetGatePassed'], isTrue, reason: mutation.key);
+      }
+      expect(jsonEncode(original), before);
+    },
+  );
+
+  test('canonical master names keep duplicate identities without aliases', () {
+    final names = scopeEvaluationExactMasterNames([
+      {
+        'id': 's-butterfly',
+        'nameZh': '蝴蝶式',
+        'aliases': ['蝴蝶'],
+      },
+      {'id': 'h-band-pallof', 'nameZh': '弹力带抗旋转推'},
+      {'id': 'obliques-B', 'nameZh': '弹力带抗旋转推'},
+    ]);
+    expect(names['蝴蝶式'], {'s-butterfly'});
+    expect(names['弹力带抗旋转推'], {'h-band-pallof', 'obliques-B'});
+    expect(names.containsKey('蝴蝶'), isFalse);
+    expect(
+      () => scopeEvaluationExactMasterNames([
+        {'id': 'same', 'nameZh': '动作'},
+        {'id': 'same', 'nameZh': '动作'},
+      ]),
+      throwsStateError,
+    );
+  });
+
+  test('available action cannot be removed by ID or by a name-only source', () {
+    final binding = _sourceBinding();
+    final plan = _plan(
+      items: const [
+        PlanItem(
+          exerciseId: 's-butterfly',
+          mode: DoseMode.time,
+          sets: 1,
+          workSeconds: 20,
+          perSide: false,
+          restSeconds: 0,
+        ),
+      ],
+    );
+    for (final locator in [
+      <String, Object?>{'sourceId': 's-butterfly'},
+      <String, Object?>{'sourceName': '蝴蝶式'},
+    ]) {
+      final row = <String, Object?>{
+        'turn': 1,
+        'input': '把蝴蝶式安排进去',
+        'text': '',
+        'plan': plan,
+        'scopeRecords': [
+          {
+            ...locator,
+            'kind': 'removed',
+            'originalText': '把蝴蝶式安排进去',
+            'turn': 1,
+          },
+        ],
+      };
+      final failures = scopeEvaluationSourceDecisionFailures(row, binding);
+      expect(
+        failures,
+        contains('known_allowed_source_marked_unavailable:s-butterfly'),
+      );
+      expect(failures, contains('removed_source_still_in_plan:s-butterfly'));
+      ((row['scopeRecords']! as List).first as Map)['kind'] = 'outOfScope';
+      expect(
+        scopeEvaluationSourceDecisionFailures(row, binding),
+        contains('known_allowed_source_marked_unavailable:s-butterfly'),
+      );
+      ((row['scopeRecords']! as List).first as Map)['kind'] = 'inScope';
+      expect(scopeEvaluationSourceDecisionFailures(row, binding), isEmpty);
+    }
+  });
+
+  test('same real source cannot be both substituted and removed', () {
+    final binding = _sourceBinding();
+    final row = <String, Object?>{
+      'turn': 1,
+      'input': '安排站姿侧抬腿',
+      'text': '',
+      'plan': null,
+      'scopeRecords': [
+        {
+          'kind': 'substituted',
+          'sourceId': 'h-side-leg-raise',
+          'originalText': '安排站姿侧抬腿',
+          'turn': 1,
+        },
+        {
+          'kind': 'removed',
+          'sourceName': '站姿侧抬腿',
+          'originalText': '安排站姿侧抬腿',
+          'turn': 1,
+        },
+      ],
+    };
+    expect(
+      scopeEvaluationSourceDecisionFailures(row, binding),
+      contains('conflicting_source_scope_decisions:h-side-leg-raise'),
+    );
+    ((row['scopeRecords']! as List).last as Map)['turn'] = 0;
+    expect(scopeEvaluationSourceDecisionFailures(row, binding), isEmpty);
+  });
+
+  test('caption cannot deny a known allowed canonical action exists', () {
+    final binding = _sourceBinding();
+    final row = <String, Object?>{
+      'turn': 1,
+      'input': '安排蝴蝶式',
+      'plan': null,
+      'scopeRecords': [],
+      'text': '本 App 没有蝴蝶式，也没有替代，本次去掉。',
+    };
+    expect(
+      scopeEvaluationSourceDecisionFailures(row, binding),
+      contains('false_app_unavailable_claim:s-butterfly'),
+    );
+    row['text'] = '本App没有「蝴蝶式」，本次去掉。';
+    expect(
+      scopeEvaluationSourceDecisionFailures(row, binding),
+      contains('false_app_unavailable_claim:s-butterfly'),
+    );
+    row['text'] = '本 App 已有蝴蝶式，可以安排。';
+    expect(scopeEvaluationSourceDecisionFailures(row, binding), isEmpty);
+    row['text'] = '本 App 没有蝴蝶式增强版。';
+    expect(scopeEvaluationSourceDecisionFailures(row, binding), isEmpty);
   });
 
   test(

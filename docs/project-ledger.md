@@ -10,12 +10,12 @@
 不打 tag，各 App pin 不变。原有拆包、资源键、插件与 APK 素材闭包证据仍见
 [runtime 拆包](trainer-runtime-split.md)。iOS、真机播放/性能及 App 迁移留待各 App 换 pin 验收。
 
-第 2 批 `codex/coach-scope-guard` 从该 main 建立，业务源码提交为
-`ba86b060850ff7365422ba5422a86e9661741fd9`。只修改 ugk_coach 及测试/工具/文档，
-不创建 ugk_coach_chat、不修改 UI/runtime 或 App。显式范围、可信告知、恢复/开练与
-审计接口见 [Scope 接入](coach-scope-manifest.md)，全套结果与保留失败见
-[第 2 批报告](reports/coach-scope-guard-20261101.md)。真实模型调用预算仍有未通过项，
-不能把本地门禁或功能交付成功称为第 2 批整体通过，也不据此进入第 3 批。
+第 2 批 `codex/coach-scope-guard` 从该 main 建立，仅修改 ugk_coach 及测试/工具/文档。
+按用户确认的开发规则，已移除摘要鉴真、消息证明、多重绑定及离线二次审计；
+保留目录/工具暴露、实际计划准入和素材打包边界。接入与删除清单见 [Scope 接入](coach-scope-manifest.md)，
+本轮六个真实案例及调用优化目标归因见[一页报告](reports/coach-scope-guard-20261101.md)。
+调用预算是优化目标；白名单、安全和卡片/执行双时长仍是硬门禁。
+不合 main、不打 tag、不动 App/pin，不进入第 3 批。
 
 SF 维持已确认的 219 授权 / 211 可规划；HipLab 45、托马斯 51 仍为候选。
 runtime 的 cupertino_icons 有实际 CupertinoIcons 引用，本批保留，不做无依据删除。

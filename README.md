@@ -3,11 +3,12 @@
 第 2 批已审核快进并推送 main `67c9747b8e29955d2be21c020c5ef3881b4966e6`，剩余调用优化目标已获用户接受。
 第 3 批在 `codex/coach-chat-extract` 新增 [`ugk_coach_chat`](packages/ugk_coach_chat/README.md)，
 把 SF `3eb2a9e` 的页面与对话功能抽入共享模块；[接入边界与验证方式](docs/coach-chat-module.md)。App/pin 未修改。
-第 3 批测试、零像素差与唯一三段真实会话见[一页报告](docs/reports/coach-chat-extract-20261101.md)，分支待审、未合 main。
+第 3 批已审核并快进 main `b025ee88bd1a6d69564ce96a473302739c981c3b`，验证见[一页报告](docs/reports/coach-chat-extract-20261101.md)。
+SF 接入反馈修复在 `codex/chat-sf-fixes` 独立待审，7 条逐项处理与宿主接线见[修复报告](docs/reports/chat-sf-fixes-20261101.md)。
 
 训练播放第 1 批已审核并合入 main `2196326`：唯一实现为 `ugk_trainer_runtime`，旧 `ugk_trainer` 保留
 兼容导出与历史全量素材。白名单生成工具、最小宿主实物打包门禁和验证记录见
-[runtime 拆包](docs/trainer-runtime-split.md)；各 App pin 不变，未迁移对话页。
+[runtime 拆包](docs/trainer-runtime-split.md)；App 接入与 pin 由各 App 独立验证。
 
 第 2 批的显式动作范围、focus/恢复/开练守卫及范围外告知接口见
 [Coach Scope 接入](docs/coach-scope-manifest.md)，观测与真实模型门禁口径见

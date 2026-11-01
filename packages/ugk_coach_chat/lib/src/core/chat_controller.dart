@@ -7,6 +7,7 @@ import 'package:ugk_trainer_runtime/engine.dart' show SessionResult;
 
 import 'app_profile.dart';
 import 'chat_bindings.dart';
+import 'chat_failure.dart';
 import 'chat_models.dart';
 import 'chat_snapshot.dart';
 import 'transition_activity.dart';
@@ -137,8 +138,13 @@ class CoachChatController extends ChangeNotifier {
         await _releaseClient();
         return const CoachChatOperationResult(ok: false);
       }
+      final client = _lease!.client;
       _agent = coach.CoachAgent(
-        client: _CancellableClient(_lease!.client),
+        client: _CancellableClient(client),
+        requestSizeBytes: client is coach.OpenAiCompatibleClient
+            ? (request) =>
+                  utf8.encode(jsonEncode(client.buildBody(request))).length
+            : null,
         catalog: () => planning,
         profile: profile.coachProfile,
         scopeManifest: profile.scopeManifest,
@@ -315,6 +321,9 @@ class CoachChatController extends ChangeNotifier {
     _progressEnded = false;
     _notify();
     var timedOut = false;
+    final contextStart = agent.contextRequestDiagnostics.length;
+    coach.CoachTurnResult? observedResult;
+    Object? thrownError;
     final timer = Timer(turnTimeout, () {
       timedOut = true;
       cancel.cancel('turn timeout');
@@ -354,12 +363,13 @@ class CoachChatController extends ChangeNotifier {
               context: context,
               cancel: cancel,
             );
+      observedResult = result;
       if (replyDelay > Duration.zero) await Future<void>.delayed(replyDelay);
       if (_closed || generation != _generation) return result;
       _typing = false;
       _endProgress();
       if (timedOut) {
-        _addBot('', isPlanningFailure: true, aiVisible: true);
+        _addFailure(result: result, timedOut: true);
       } else if (result != null && result.status == coach.TurnStatus.ok) {
         _replace(user.copyWith(aiVisible: true));
         final output = conversation.state.messages
@@ -378,7 +388,8 @@ class CoachChatController extends ChangeNotifier {
       } else if (result != null &&
           result.status != coach.TurnStatus.cancelled &&
           result.status != coach.TurnStatus.busy) {
-        _addBot('', isPlanningFailure: true, aiVisible: true);
+        _lastError = result.error;
+        _addFailure(result: result);
       }
       _syncQuestions();
       final asks =
@@ -393,11 +404,12 @@ class CoachChatController extends ChangeNotifier {
       _persistInBackground();
       return result;
     } on Object catch (error) {
+      thrownError = error;
       if (!_closed && generation == _generation) {
         _typing = false;
         _endProgress();
         _recordError('chat.turn.error', error);
-        _addBot('', isPlanningFailure: true, aiVisible: true);
+        _addFailure(error: error, timedOut: timedOut);
         _suggestions = _defaults();
         _notify();
         _persistInBackground();
@@ -406,8 +418,46 @@ class CoachChatController extends ChangeNotifier {
     } finally {
       timer.cancel();
       if (identical(_cancel, cancel)) _cancel = null;
+      final failure = observedResult?.error ?? thrownError;
+      bindings.observer?.call('chat.turn.result', {
+        'turnId': observedResult?.turnId,
+        'status': timedOut
+            ? 'timeout'
+            : observedResult?.status.name ??
+                  (cancel.isCancelled ? 'cancelled' : 'error'),
+        'errorType': failure?.runtimeType.toString(),
+        if (failure != null ||
+            timedOut ||
+            observedResult?.status == coach.TurnStatus.error ||
+            observedResult?.status == coach.TurnStatus.limitReached)
+          'failureKind': ChatFailureKind.of(
+            result: observedResult,
+            error: thrownError,
+            timedOut: timedOut,
+          ).name,
+        'contextRequests': [
+          for (final diagnostic in agent.contextRequestDiagnostics.skip(
+            contextStart,
+          ))
+            diagnostic.toJson(),
+        ],
+      });
     }
   }
+
+  void _addFailure({
+    coach.CoachTurnResult? result,
+    Object? error,
+    bool timedOut = false,
+  }) => _addBot(
+    ChatFailureKind.of(
+      result: result,
+      error: error,
+      timedOut: timedOut,
+    ).message(profile.strings),
+    isPlanningFailure: true,
+    aiVisible: true,
+  );
 
   void cancelRequest() {
     if (!_typing || _closed) return;

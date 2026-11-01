@@ -43,6 +43,18 @@ await chat.start();
 可选 `bindings.beforeNewConversation(snapshot)` 在重置前同步发起并等待归档；等待期间
 新输入排队，归档异常只报 `chat.archive.error` 后继续重置。
 
+每次 Agent 轮结束会发出 `observer('chat.turn.result', detail)`；`detail` 是可 JSON
+编码的 Map，包含 `turnId/status/errorType/failureKind/contextRequests`。每步上下文
+诊断含 `beforeBytes/afterBytes/tailStateBytes/completedTurnsFolded/fitsHardLimit` 等
+数值；没有对话原文、工具正文或异常消息。宿主可将该事件直接写入运行日志。
+失败提示区分网络、鉴权、上下文、计划门禁及服务/超时；只有网络错误使用网络文案。
+文案可通过 `CoachChatStrings` 的 `networkFailure/authenticationFailure/contextFailure/`
+`planGateFailure/timeoutFailure/serviceFailure/generationFailure` 覆盖；旧空失败记录显示
+通用失败文案，原存档结构不变。
+既有轮数/历史策略的 `limitReached` 单独使用 `conversationLimitReached`，提示开启
+新对话；它与可压缩的 64KB 上下文预算错误分开，不更改原有轮数策略。实际网关为
+`OpenAiCompatibleClient` 时，字节日志沿用其 `buildBody` 精确序列化结果。
+
 `CoachAppProfile` 负责显式动作范围、剂量投影/单位、对话文案、安全文案、主题/图标/
 剪影和同播放器的执行时长回调；`CoachChatBindings` 负责有生命周期的宿主服务。
 SF 名单为 219 授权/211 可规划，HipLab 45、托马斯 51 仍是候选，不是签核 manifest。

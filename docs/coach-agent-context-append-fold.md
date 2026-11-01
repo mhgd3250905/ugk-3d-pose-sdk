@@ -1,8 +1,30 @@
 # 只追加上下文与阈值折叠
 
-本方案经开哥 2026-10-28 确认，在四项信息/状态修复 `aa02101` 全量通过后实施。不合 main、不推送、不打 tag，不改 SDK App 默认 LLM 链路。
+本方案最初经开哥 2026-10-28 确认。以下保留历史合同；2026-11-01 长会话修复对请求摘要的更新见下一节。本文不代表分支当前合并或发布状态。
 
-## 已批准合同
+## 2026-11-01：请求投影与完整存档分离
+
+`codex/chat-context-fit` 保留 40,960 / 51,200 B 软阈值和 65,536 B 硬上限。
+旧第 6 条的无损字段继续保存在 `ContextTurnLedger.toJson()`、会话快照和界面历史中；
+不再把每轮完整 task / candidates / params / seenActionIds 重复发送给模型。
+否则“折叠”为全量 ledger 后仍随轮数增长，恢复 seed 还会一直占据请求预算。
+
+超过软阈值先将已结束轮归入 ledger，并将旧恢复消息投影为用户/最终回复，移除旧工具链与推理。
+若仍超预算，使用 `requestSummaryMessage()` 去掉逐轮重复状态，保留原话、交付引用、问答和最新参数；
+仍不足时逐步省略旧交付正文、缩至近期轮及近期恢复消息。退出模型视图的内容仍完整保存在存档中。
+当前输入、当前轮 assistant/reasoning、最新未消费回执与末尾事实不截断；当前轮已消费回执仍只在硬阈值或上游强制折叠时归档。
+若不可折叠的当前载荷自身超限，仍返回 `AgentContextBudgetExceeded`；下一轮可折叠已结束失败轮，避免历史导致永久卡死。
+
+`ContextRequestDiagnostics` 新增兼容的 `ledgerTurnsCompacted/restoredMessagesFolded/ledgerBytes/seedBytes`，
+原有 before / after / tail / completedTurnsFolded / receiptBodiesFolded / fitsHardLimit 保留。
+`ugk_coach_chat` 经原有 `requestSizeBytes` 端口透传真实 OpenAI `buildBody` 编码器，取消包装不再掩盖精确计数。
+`chat.turn.result` 每轮向宿主 observer 提供错误类型与本轮数值诊断，不含原话、回执正文或异常消息；宿主将该事件写入自己的运行日志。
+网络、鉴权、上下文、计划门禁、服务/超时分别提示；既有轮数/历史上限单独提示新对话，不更改原轮数策略。
+
+手机 runtime 导出未包含 request / snapshot / result.error，不能据此追认具体手机错误或还原实际字节；
+脱敏结构回放与真实模型验证单列，见[本轮报告](reports/chat-context-fit-20261101.md)。
+
+## 历史批准合同（2026-10-28）
 
 1. 先离线重放 R1/R3/R4，逐请求报告完整 HTTP JSON 与前次的最长公共前缀字节，定位前置当前状态、工具/技能回执归档、压缩和其他前缀改写。诊断不调用模型。
 2. 普通请求顺序固定为 system → 只追加的历史 → 末尾一条本次当前状态；当前状态不写回历史。system/tools 在同一有效会话内稳定；取消逐请求回执/技能归档，只在折叠时统一处理。

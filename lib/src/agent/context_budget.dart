@@ -38,6 +38,10 @@ class ContextRequestDiagnostics {
     required this.receiptBodiesFolded,
     required this.measurement,
     required this.fitsHardLimit,
+    this.ledgerTurnsCompacted = 0,
+    this.restoredMessagesFolded = 0,
+    this.ledgerBytes = 0,
+    this.seedBytes = 0,
   });
 
   final int epoch;
@@ -53,8 +57,16 @@ class ContextRequestDiagnostics {
   final int receiptBodiesFolded;
   final String measurement;
   final bool fitsHardLimit;
+  final int ledgerTurnsCompacted;
+  final int restoredMessagesFolded;
+  final int ledgerBytes;
+  final int seedBytes;
 
-  bool get folded => completedTurnsFolded > 0 || receiptBodiesFolded > 0;
+  bool get folded =>
+      completedTurnsFolded > 0 ||
+      receiptBodiesFolded > 0 ||
+      ledgerTurnsCompacted > 0 ||
+      restoredMessagesFolded > 0;
 
   Map<String, Object?> toJson() => {
     'epoch': epoch,
@@ -65,6 +77,10 @@ class ContextRequestDiagnostics {
     'tailStateBytes': tailStateBytes,
     'completedTurnsFolded': completedTurnsFolded,
     'receiptBodiesFolded': receiptBodiesFolded,
+    'ledgerTurnsCompacted': ledgerTurnsCompacted,
+    'restoredMessagesFolded': restoredMessagesFolded,
+    'ledgerBytes': ledgerBytes,
+    'seedBytes': seedBytes,
     'folded': folded,
     'measurement': measurement,
     'fitsHardLimit': fitsHardLimit,

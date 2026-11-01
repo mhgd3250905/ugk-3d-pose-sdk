@@ -52,6 +52,14 @@ class CoachChatStrings {
     this.saveConflict = '这套计划已在其他地方更新，请刷新后重试或另存一份。',
     this.saveFailed = '计划保存失败，请重试。',
     this.retryRequest = '重试',
+    this.networkFailure = '网络连接失败，多次重试后仍未成功，请检查网络后再试。',
+    this.authenticationFailure = '身份验证失败，请重新登录或检查服务配置后重试。',
+    this.contextFailure = '这段对话的上下文暂时放不下，请重试；原有对话会保留。',
+    this.conversationLimitReached = '本次对话已到长度上限，请开启新对话继续。',
+    this.planGateFailure = '方案未通过计划检查，暂未交付，请重试。',
+    this.timeoutFailure = '这次等待时间过长，请重试。',
+    this.serviceFailure = '教练服务暂时未能完成回复，请稍后重试。',
+    this.generationFailure = '这次未能完成回复，请重试。',
     this.planFromActionsRequest = '请把刚才推荐的动作排成计划。',
   });
 
@@ -66,6 +74,12 @@ class CoachChatStrings {
   final String noSavedPlan, noLastPlan, noHistory, focusUnavailable;
   final String persistenceFailed, saveConflict, saveFailed;
   final String retryRequest, planFromActionsRequest;
+  final String networkFailure, authenticationFailure, contextFailure;
+  final String conversationLimitReached;
+  final String planGateFailure,
+      timeoutFailure,
+      serviceFailure,
+      generationFailure;
 
   String get safetyDisclaimer => '开始之前，先花 10 秒确认安全。\n\n$disclaimer';
 

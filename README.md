@@ -4,7 +4,8 @@
 第 3 批在 `codex/coach-chat-extract` 新增 [`ugk_coach_chat`](packages/ugk_coach_chat/README.md)，
 把 SF `3eb2a9e` 的页面与对话功能抽入共享模块；[接入边界与验证方式](docs/coach-chat-module.md)。App/pin 未修改。
 第 3 批已审核并快进 main `b025ee88bd1a6d69564ce96a473302739c981c3b`，验证见[一页报告](docs/reports/coach-chat-extract-20261101.md)。
-SF 接入反馈修复在 `codex/chat-sf-fixes` 独立待审，7 条逐项处理与宿主接线见[修复报告](docs/reports/chat-sf-fixes-20261101.md)。
+SF 接入反馈修复已审核并快进 main `a13e3b674359c93c941f7f59d1edf09a6d609487`，7 条处理与宿主接线见[修复报告](docs/reports/chat-sf-fixes-20261101.md)。
+长会话预算与失败提示修复在 `codex/chat-context-fit` 待审，见[本轮报告](docs/reports/chat-context-fit-20261101.md)。App/pin 不变。
 
 训练播放第 1 批已审核并合入 main `2196326`：唯一实现为 `ugk_trainer_runtime`，旧 `ugk_trainer` 保留
 兼容导出与历史全量素材。白名单生成工具、最小宿主实物打包门禁和验证记录见

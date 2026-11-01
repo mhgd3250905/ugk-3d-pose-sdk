@@ -110,6 +110,10 @@ class AppendOnlyContext {
     final soft = budget.softLimit(thinking: thinking);
     var turnsFolded = 0;
     var receiptsFolded = 0;
+    var ledgerTurnsCompacted = 0;
+    var restoredMessagesFolded = 0;
+    final restoredMessageCount = _seed.length;
+    bool pressured() => encodedBytes(result) > soft || forceHardFold;
     if ((before > soft || forceHardFold) &&
         (_completedTurns > 0 || (_seedCoveredByLedger && _seed.isNotEmpty)) &&
         ledger.turns.isNotEmpty) {
@@ -118,13 +122,93 @@ class AppendOnlyContext {
       turnsFolded = _seedCoveredByLedger && _seed.isNotEmpty
           ? ledger.turns.length
           : _completedTurns;
-      if (_seedCoveredByLedger) _seed = const [];
+      if (_seedCoveredByLedger && _seed.isNotEmpty) {
+        _seed = const [];
+        restoredMessagesFolded = restoredMessageCount;
+      }
       _summary = ledger.summaryMessage();
       _completed.clear();
       _completedTurns = 0;
       _epoch++;
       result = request();
     }
+    // A restored seed consists of ended history, not the live tool batch.
+    // Its old reasoning/tool transcripts need not remain pinned forever when
+    // that history predates the structured ledger.
+    if (pressured() && _seed.isNotEmpty) {
+      final projected = <LlmMessage>[
+        for (final message in _seed)
+          if (message.role == LlmRole.user)
+            message
+          else if (message.role == LlmRole.assistant &&
+              message.toolCalls.isEmpty &&
+              message.content.isNotEmpty)
+            LlmMessage.assistant(message.content),
+      ];
+      final original = _seed;
+      _seed = projected;
+      final candidate = request();
+      if (encodedBytes(candidate) < encodedBytes(result)) {
+        restoredMessagesFolded = restoredMessageCount;
+        result = candidate;
+        _epoch++;
+      } else {
+        _seed = original;
+      }
+    }
+    // Folding raw turns into an unbounded, lossless JSON ledger is not itself
+    // compaction: repeated candidates/task/parameter snapshots can be larger
+    // than the original conversation. Only the model view is reduced here.
+    if (pressured() && _summary != null && ledger.turns.isNotEmpty) {
+      final projections = <LlmMessage Function()>[
+        () => ledger.requestSummaryMessage(),
+        () => ledger.requestSummaryMessage(includeDeliveryText: false),
+        for (final keep in [8, 2, 1, 0])
+          () => ledger.requestSummaryMessage(
+            includeDeliveryText: false,
+            recentTurns: keep,
+          ),
+      ];
+      for (final project in projections) {
+        final original = _summary;
+        _summary = project();
+        final candidate = request();
+        if (encodedBytes(candidate) < encodedBytes(result)) {
+          ledgerTurnsCompacted = ledger.turns.length;
+          result = candidate;
+          _epoch++;
+        } else {
+          _summary = original;
+        }
+        if (!pressured()) break;
+      }
+    }
+    if (pressured() && _seed.isNotEmpty) {
+      for (final keep in [8, 2, 1, 0]) {
+        final original = _seed;
+        final users = <int>[
+          for (var i = 0; i < original.length; i++)
+            if (original[i].role == LlmRole.user) i,
+        ];
+        if (users.length <= keep) continue;
+        _seed = [
+          const LlmMessage.user('较早恢复内容已折叠；完整历史仍在存档，当前事实见末尾状态。'),
+          if (keep > 0) ...original.skip(users[users.length - keep]),
+        ];
+        final candidate = request();
+        if (encodedBytes(candidate) < encodedBytes(result)) {
+          restoredMessagesFolded = restoredMessageCount;
+          result = candidate;
+          _epoch++;
+        } else {
+          _seed = original;
+        }
+        if (!pressured()) break;
+      }
+    }
+    // Live-turn receipts still get their first full model consumption. Older
+    // completed/restore receipts were folded above at the soft boundary; only
+    // hard pressure can shorten consumed receipts inside the unfinished turn.
     if (encodedBytes(result) > budget.hardBytes || forceHardFold) {
       final paired = _pairs(result.messages);
       for (final message in result.messages) {
@@ -164,6 +248,16 @@ class AppendOnlyContext {
         receiptBodiesFolded: receiptsFolded,
         measurement: measurement,
         fitsHardLimit: after <= budget.hardBytes,
+        ledgerTurnsCompacted: ledgerTurnsCompacted,
+        restoredMessagesFolded: restoredMessagesFolded,
+        ledgerBytes: _summary == null
+            ? 0
+            : utf8.encode(jsonEncode(_summary!.toJson())).length,
+        seedBytes: _seed.fold(
+          0,
+          (sum, message) =>
+              sum + utf8.encode(jsonEncode(message.toJson())).length,
+        ),
       ),
     );
   }

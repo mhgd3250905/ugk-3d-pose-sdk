@@ -6,6 +6,9 @@ import 'package:ugk_trainer_runtime/engine.dart' show SessionResult;
 
 import 'chat_snapshot.dart';
 
+/// `chat.turn.result` emits a JSON-compatible map once per Agent turn. It
+/// contains status, errorType, failureKind and contextRequests byte diagnostics;
+/// no user text, model response, tool body or exception message is included.
 typedef CoachChatObserver = void Function(String event, Object? detail);
 
 /// The original input for host diagnostics. Display and model input stay trimmed.

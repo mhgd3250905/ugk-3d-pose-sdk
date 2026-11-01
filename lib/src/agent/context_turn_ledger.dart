@@ -189,6 +189,44 @@ class ContextTurnLedger {
 
   LlmMessage summaryMessage() =>
       LlmMessage.user('$summaryPrefix\n${jsonEncode(toJson())}');
+
+  /// A request-only projection. The lossless ledger and UI history stay intact.
+  /// Stale task/candidate snapshots are represented by the current tail state,
+  /// instead of copying those same snapshots once for every completed turn.
+  LlmMessage requestSummaryMessage({
+    bool includeDeliveryText = true,
+    int? recentTurns,
+  }) {
+    final kept = recentTurns == null
+        ? turns
+        : turns.skip((turns.length - recentTurns).clamp(0, turns.length));
+    final projection = {
+      'requestProjection': true,
+      'archivedTurns': turns.length - kept.length,
+      'note': '完整记录保留在会话存档；当前计划、约束与候选以末尾当前状态为准。',
+      'turns': [
+        for (final turn in kept)
+          {
+            'turn': turn.turn,
+            'userText': turn.userText,
+            if (includeDeliveryText && turn.finalDeliveryText.isNotEmpty)
+              'finalDeliveryText': turn.finalDeliveryText,
+            if (turn.deliveries.isNotEmpty)
+              'deliveries': [for (final ref in turn.deliveries) ref.toJson()],
+            if (turn.askQuestions.isNotEmpty) 'askQuestions': turn.askQuestions,
+            if (turn.answeredAsk != null)
+              'answeredAsk': turn.answeredAsk!.toJson(),
+            if (turn.outcome != null) 'outcome': turn.outcome,
+          },
+      ],
+      if (turns.isNotEmpty)
+        'latestParams': {
+          for (final entry in turns.last.params.entries)
+            entry.key: entry.value.toJson(),
+        },
+    };
+    return LlmMessage.user('$summaryPrefix\n${jsonEncode(projection)}');
+  }
 }
 
 Map<String, Object?> _map(Object? value) =>

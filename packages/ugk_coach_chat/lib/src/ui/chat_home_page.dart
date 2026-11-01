@@ -581,6 +581,9 @@ class _CoachChatPageState extends State<_CoachChatBody>
         if (m.isPlanningFailure)
           CoachFailureBubble(
             key: ValueKey('coach-planning-failure-${m.id}'),
+            message: m.text.isEmpty
+                ? _chat.profile.strings.generationFailure
+                : m.text,
             enabled: !_chat.typing,
             onRetry: () => _chat.send(_chat.profile.strings.retryRequest),
           ),

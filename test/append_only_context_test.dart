@@ -279,7 +279,7 @@ void main() {
   }
 
   test(
-    'soft folds only finished user turns into one user summary immediately after system',
+    'soft folds finished turns into a compact view without changing the lossless ledger',
     () {
       // A deliberately smaller soft boundary exercises the policy with compact
       // fixtures. The approved 64 KiB hard limit is unchanged in this test.
@@ -340,7 +340,7 @@ void main() {
       final messages = prepared.request.messages;
       expect(messages[0].role, LlmRole.system);
       expect(messages[1].role, LlmRole.user);
-      expect(messages[1].content, ledger.summaryMessage().content);
+      expect(messages[1].content, ledger.requestSummaryMessage().content);
       expect(
         messages.where(
           (m) => m.content.startsWith(ContextTurnLedger.summaryPrefix),
@@ -364,14 +364,17 @@ void main() {
                 ),
               )
               as Map<String, dynamic>;
-      expect(summary, ledgerBefore);
+      expect(summary['requestProjection'], isTrue);
       final recorded = (summary['turns'] as List).single as Map;
       expect(recorded['userText'], oldUser);
       expect(recorded['finalDeliveryText'], finalText);
-      expect(recorded['params'], facts.toJson()['params']);
+      expect(summary['latestParams'], facts.toJson()['params']);
       expect(recorded['askQuestions'], facts.toJson()['askQuestions']);
-      expect(recorded['candidates'], hasLength(87));
-      expect(recorded['candidates'], facts.toJson()['candidates']);
+      expect(recorded, isNot(contains('candidates')));
+      expect(
+        ((ledgerBefore['turns'] as List).single as Map)['candidates'],
+        hasLength(87),
+      );
       expect(messages.last, same(tail));
       expect(_messages(current), currentBefore);
       expect(ledger.toJson(), ledgerBefore);
@@ -594,7 +597,7 @@ void main() {
       expect(prepared.request.messages[1].role, LlmRole.user);
       expect(
         prepared.request.messages[1].content,
-        ledger.summaryMessage().content,
+        ledger.requestSummaryMessage().content,
       );
       expect(prepared.request.messages[2].content, '当前轮');
       expect(
@@ -630,14 +633,14 @@ void main() {
     expect(prepared.diagnostics.completedTurnsFolded, 1);
     expect(
       prepared.request.messages[1].content,
-      ledger.summaryMessage().content,
+      ledger.requestSummaryMessage().content,
     );
     expect(prepared.request.messages[2].content, '本轮');
     expect(prepared.request.messages, hasLength(4));
   });
 
   test(
-    'legacy seed without ledger coverage is retained after the sole summary',
+    'legacy seed folds old tool bodies while preserving restored user and delivery text',
     () {
       const budget = ContextBudgetConfig(
         softOffBytes: 8000,
@@ -669,16 +672,18 @@ void main() {
       expect(prepared.diagnostics.completedTurnsFolded, 1);
       expect(
         prepared.request.messages[1].content,
-        ledger.summaryMessage().content,
+        ledger.requestSummaryMessage().content,
       );
-      final retained = prepared.request.messages
-          .skip(2)
-          .take(seed.length)
-          .toList();
-      for (var i = 0; i < seed.length; i++) {
-        expect(_messageBytes(retained[i]), _messageBytes(seed[i]));
-      }
-      expect(prepared.request.messages[2 + seed.length].content, '本轮');
+      expect(prepared.request.messages[2].content, seed.first.content);
+      expect(prepared.request.messages[3].content, seed.last.content);
+      expect(prepared.request.messages[4].content, '本轮');
+      expect(
+        prepared.request.messages.where((m) => m.role == LlmRole.tool),
+        isEmpty,
+      );
+      expect(prepared.diagnostics.restoredMessagesFolded, seed.length);
+      expect(seed[1].reasoning, isNotEmpty);
+      expect(seed[2].content, contains('旧快照工具正文'));
       expect(
         prepared.request.messages.where(
           (m) => m.content.startsWith(ContextTurnLedger.summaryPrefix),

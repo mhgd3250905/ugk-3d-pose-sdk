@@ -1,0 +1,271 @@
+// Render harness copied into an SDK-local snapshot of SF 3eb2a9e.
+// It imports the unchanged original SF widgets, not the extracted SDK module.
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:smartfit/app/services.dart';
+import 'package:smartfit/app/posehub_asset_bundle.dart';
+import 'package:smartfit/app/posehub_bundled_images.dart';
+import 'package:smartfit/app/posehub_media_repository.dart';
+import 'package:smartfit/chat/ai_chat_engine.dart';
+import 'package:smartfit/chat/app_chat_actions.dart';
+import 'package:smartfit/chat/chat_controller.dart';
+import 'package:smartfit/core/storage/local_state_storage.dart';
+import 'package:smartfit/data/app_store.dart';
+import 'package:smartfit/ui/chat/chat_home_page.dart';
+import 'package:smartfit/ui/player_page.dart';
+import 'package:smartfit/ui/theme/app_theme.dart';
+import 'package:smartfit/ui/theme/tokens.dart';
+import 'package:smartfit/ui/training_poster_image.dart';
+import 'package:smartfit/ui/training_route.dart';
+import 'package:smartfit/voice/voice_library.dart';
+import 'package:smartfit/voice/voice_queue.dart';
+import 'package:ugk_coach/ugk_coach.dart' as coach;
+import 'package:ugk_trainer/ugk_trainer.dart' show PoseHubActionLibrary;
+
+import 'support.dart';
+import 'support/coach_v2_fixtures.dart';
+
+class _MemoryStorage implements LocalStateStorage {
+  final values = <String, String>{};
+  @override
+  Future<String?> read(String key) async => values[key];
+  @override
+  Future<void> write(String key, String value) async => values[key] = value;
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  final output = Directory(Platform.environment['CHAT_CAPTURE_OUTPUT']!);
+  late CoachV2Fixtures fixture;
+  setUpAll(() async {
+    fixture = await CoachV2Fixtures.load();
+    await (FontLoader(
+      'NotoSansSC',
+    )..addFont(rootBundle.load('assets/fonts/NotoSansSC.ttf'))).load();
+  });
+  for (final dark in [false, true]) {
+    testWidgets('SF source key frames ${dark ? 'dark' : 'light'}', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+      tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 24);
+      addTearDown(tester.view.reset);
+      final mode = dark ? 'dark' : 'light';
+      final palette = dark ? SfPalette.dark : SfPalette.light;
+      SfColors.palette = palette;
+      late coach.PoseHubAppTestCatalog sdk;
+      late PoseHubMediaRepository media;
+      late PoseHubAssetBundle bundle;
+      await tester.runAsync(() async {
+        sdk = await PoseHubActionLibrary.load();
+        final images = await PoseHubBundledImages.load(
+          catalogRevision: PoseHubActionLibrary.catalogSha256,
+        );
+        media = await PoseHubMediaRepository.create(
+          catalog: sdk,
+          catalogRevision: PoseHubActionLibrary.catalogSha256,
+          mediaBaseUrls: const [],
+          rootDirectory: '${output.path}/media-cache-$mode',
+          bundledFileLoader: images.loadFile,
+        );
+        bundle = PoseHubAssetBundle(catalog: sdk, installation: media);
+      });
+      final store = AppStore(_MemoryStorage())..starfield = false;
+      await store.acceptSafety(blocked: false);
+      final firstResponse = Completer<coach.LlmResponse>();
+      final planScript = fixture.planTurn(minutes: 5, minutesQuote: '5分钟');
+      final first = planScript.removeAt(0) as coach.LlmResponse;
+      final client = coach.FakeLlmClient([
+        (coach.LlmRequest _) => firstResponse.future,
+        ...planScript,
+        ...fixture.recommendationTurn(),
+      ], latency: Duration.zero);
+      final engine = AiChatEngine(
+        local: const AppChatActions(),
+        catalog: fixture.catalog,
+        profile: fixture.profile,
+        client: client,
+        enableUserMemory: false,
+      );
+      final chat = ChatController(
+        engine: engine,
+        store: store,
+        replyDelay: Duration.zero,
+        clock: () => DateTime(2026, 10, 30, 12),
+      );
+      final services = AppServices(
+        library: fixture.library,
+        catalog: loadCatalog(),
+        store: store,
+        voiceLibrary: VoiceLibrary.empty,
+        voiceOutput: const MutedVoiceOutput(),
+        coachCatalog: fixture.catalog,
+        coachProfile: fixture.profile,
+        chatReplyDelay: Duration.zero,
+        poseHubCatalog: sdk,
+      );
+      final rootKey = GlobalKey();
+      final mountedAt = tester.binding.clock.now();
+      await tester.pumpWidget(
+        DefaultAssetBundle(
+          bundle: bundle,
+          child: AppScope(
+            services: services,
+            child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: buildTheme(palette),
+              locale: const Locale('zh', 'CN'),
+              supportedLocales: const [Locale('zh', 'CN'), Locale('en')],
+              localizationsDelegates: GlobalMaterialLocalizations.delegates,
+              builder: (context, child) => Material(
+                type: MaterialType.transparency,
+                child: SfPaletteScope(
+                  child: RepaintBoundary(key: rootKey, child: child!),
+                ),
+              ),
+              home: ChatHomePage(controller: chat),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        final context = rootKey.currentContext!;
+        for (final id in CoachV2Fixtures.stretching) {
+          for (final role in ['cover', 'thumbnail']) {
+            await precacheImage(
+              AssetImage('posehub-r1/$id/$role', bundle: bundle),
+              context,
+            );
+          }
+          await precacheImage(
+            AssetImage(
+              'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/standing/$id.webp',
+              bundle: bundle,
+            ),
+            context,
+          );
+        }
+      });
+      await tester.pump();
+      Future<void> capture(String name) async {
+        expect(tester.takeException(), isNull);
+        await tester.runAsync(() async {
+          final boundary =
+              rootKey.currentContext!.findRenderObject()!
+                  as RenderRepaintBoundary;
+          final image = await boundary.toImage(pixelRatio: 1);
+          final png = await image.toByteData(format: ui.ImageByteFormat.png);
+          await File(
+            '${output.path}/$mode-$name.png',
+          ).writeAsBytes(png!.buffer.asUint8List());
+          image.dispose();
+          await File('${output.path}/$mode-$name.json').writeAsString(
+            jsonEncode({
+              'name': name,
+              'theme': mode,
+              'clock': '2026-10-30T12:00:00',
+              'captureDate': DateTime.now().toIso8601String(),
+              'elapsedFromMountMs': tester.binding.clock
+                  .now()
+                  .difference(mountedAt)
+                  .inMilliseconds,
+              'inputs': chat.messages
+                  .where((message) => message.isUser)
+                  .map((message) => message.text)
+                  .toList(),
+              'plan': chat.currentPlan?.toJson(),
+              'actionIds': chat.currentPlan?.exerciseIds.toList(),
+              'messages': [
+                for (final message in chat.messages) message.toJson(),
+              ],
+              'snapshot': engine.conversation.exportSession().toJson(),
+            }),
+          );
+        });
+      }
+
+      Future<void> settleArtwork() async {
+        // The original completion cue mounts the card only after its finite
+        // delivery animation. Then drain real decoding/bounds work and paint.
+        await tester.pumpAndSettle();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 100)),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await capture('empty');
+      final pending = chat.send('在家徒手拉伸5分钟');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      await capture('waiting-250ms');
+      firstResponse.complete(first);
+      await pending;
+      await settleArtwork();
+      final plan = chat.currentPlan!;
+      await capture('plan-collapsed');
+      final expand = find.byKey(ValueKey('plan-expand-${plan.id}'));
+      await tester.ensureVisible(expand);
+      await tester.tap(expand);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 280));
+      await capture('plan-expand-280ms');
+      await tester.pumpAndSettle();
+      await capture('plan-expanded');
+      await tester.tap(find.byKey(ValueKey('plan-expand-${plan.id}')));
+      await tester.pumpAndSettle();
+      await chat.send('推荐几个拉伸动作');
+      await settleArtwork();
+      await capture('recommendations');
+      final saved = await chat.save(plan);
+      await chat.showSaved(saved!);
+      await settleArtwork();
+      await capture('focused-saved-plan');
+      final sourceContext = tester.element(find.byType(ChatHomePage));
+      await tester.runAsync(
+        () => TrainingPosterImages.precache(
+          sourceContext,
+          fixture.library[plan.items.first.exerciseId],
+        ),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('start-disc')).hitTestable().last,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(find.byType(PlayerPage, skipOffstage: false), findsOneWidget);
+      await capture('training-enter-150ms');
+      await tester.pump(const Duration(milliseconds: 150));
+      await capture('training-enter-300ms');
+      await tester.pump();
+      final playerContext = tester.element(find.byType(PlayerPage));
+      final control = TrainingRouteScope.maybeOf(playerContext)!;
+      control.beginExit();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 140));
+      await capture('training-exit-140ms');
+      await tester.pump(const Duration(milliseconds: 200));
+      Navigator.of(playerContext).pop();
+      await tester.pumpAndSettle();
+      await capture('training-return');
+      await tester.pumpWidget(const SizedBox());
+      await chat.flushPersistence();
+      chat.dispose();
+      await chat.flushPersistence();
+      engine.dispose();
+      store.dispose();
+      media.dispose();
+    });
+  }
+}

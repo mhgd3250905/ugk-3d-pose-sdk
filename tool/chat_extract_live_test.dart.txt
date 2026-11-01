@@ -1,0 +1,258 @@
+// Generated only in SDK build. No WidgetsBinding is initialized: HTTP remains real.
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/io_client.dart';
+import 'package:smartfit/app/app_test_catalog.dart' as sf_catalog;
+import 'package:smartfit/app/app_test_content.dart' as sf_content;
+import 'package:smartfit/domain/exercise.dart' as sf_exercise;
+import 'package:smartfit/domain/plan.dart' as sf_plan;
+import 'package:smartfit/domain/session.dart' as sf_session;
+import 'package:ugk_coach/ugk_coach.dart' as coach;
+import 'package:ugk_coach_chat/ugk_coach_chat.dart' as chat;
+import 'package:ugk_trainer_runtime/engine.dart' as trainer;
+
+import '__SDK_URI__/tool/coach_scope_guard_evaluation.dart' as wire_observation;
+import '__SDK_URI__/tool/eval_api_config.dart' as gateway;
+import '__SDK_URI__/tool/eval_thinking_mode.dart' as thinking_mode;
+
+typedef Json = Map<String, Object?>;
+
+const inputs = [
+  '在家拉伸5分钟，入门，徒手和瑜伽垫，重点大腿内侧和髋部，无不适',
+  '推荐几个拉大腿内侧的动作',
+  '换一套，缩短到3分钟',
+];
+
+Map<String, dynamic> readJson(String path) =>
+    jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
+
+void main() {
+  test('one fresh SF conversation through CoachChatController', () async {
+    final env = Platform.environment;
+    final output = env['CHAT_EXTRACT_LIVE_OUTPUT']!;
+    final sdk = env['CHAT_EXTRACT_LIVE_SDK']!;
+    final source = env['CHAT_EXTRACT_LIVE_SOURCE']!;
+    final dry = env['CHAT_EXTRACT_LIVE_MODE'] == 'dry';
+    final thinking = thinking_mode.parseEvaluationThinkingMode(
+      env['CHAT_EXTRACT_LIVE_THINKING']);
+    final profile = coach.CoachProfile.fromJson(
+      readJson('$source/assets/coach/smartfit.json'));
+    final deliveryPath = '$sdk/packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+    final delivery = readJson('$deliveryPath/catalog.json');
+    final metadata = coach.PoseHubAppTestCatalog.fromJson(delivery);
+    final sdkCatalog = coach.PoseHubAppTestCatalog.fromJson(delivery,
+      semanticCatalog: readJson('$deliveryPath/${metadata.semanticCatalogFile.path}'));
+    final content = sf_content.AppTestContent.build(
+      catalog: sf_catalog.AppTestCatalog.fromSdk(sdkCatalog),
+      legacyLibrary: sf_exercise.ExerciseLibrary(const []));
+    final catalog = content.coachCatalog;
+    // This exact instance supplies both the profile callback and measurements.
+    final builder = trainer.SessionBuilder(prepSeconds: 10,
+      rhythms: sf_session.trainerRhythms(content.library), known: content.library.contains);
+    final actualSfPlayer = sf_session.SessionBuilder(content.library);
+    final allowed = (readJson('$sdk/test/fixtures/action-scope/smartfit-219.json')
+      ['allowedActionIds'] as List).cast<String>();
+    final manifest = coach.CoachActionScopeManifest.fromCatalogBytes(appId: 'smartfit',
+      catalogBytes: File('$deliveryPath/catalog.json').readAsBytesSync(),
+      allowedActionIds: allowed);
+
+    var nativeTimelineCompared = false;
+    Json measure(coach.TrainingPlan plan) {
+      final native = actualSfPlayer.phases(sf_plan.TrainingPlan.fromJson(plan.toJson()));
+      final phases = builder.phases(plan);
+      if (native.length != phases.length) throw StateError('SF phase count differs');
+      for (var index = 0; index < phases.length; index++) {
+        final a = native[index], b = phases[index];
+        if (a.kind != b.kind || a.seconds != b.seconds || a.exerciseId != b.exerciseId ||
+            a.blockIndex != b.blockIndex || a.set != b.set || a.round != b.round ||
+            a.side != b.side || a.selfPaced != b.selfPaced || a.segmentId != b.segmentId) {
+          throw StateError('SF phase $index differs');
+        }
+      }
+      final timing = coach.evaluatePlanExecutionTiming(plan, builder.executionTiming);
+      final nativeSeconds = native.fold<double>(0, (total, phase) => total + phase.seconds);
+      if ((nativeSeconds - timing.totalSeconds).abs() > 1e-9) {
+        throw StateError('SF player and callback totals differ');
+      }
+      nativeTimelineCompared = true;
+      final card = const coach.PlanDuration().estimateSeconds(plan, catalog);
+      final target = plan.targetMinutes * 60;
+      return {
+        'targetSeconds': target, 'cardSeconds': card,
+        'executionSeconds': timing.totalSeconds, 'nativeSeconds': nativeSeconds,
+        'cardDeviationPercent': (card - target) / target * 100,
+        'executionDeviationPercent': (timing.totalSeconds - target) / target * 100,
+        'isEstimate': timing.containsManualCounting,
+        'manualCountingLabel': timing.containsManualCounting ? '估算' : null,
+        'blocks': [for (final block in timing.blocks)
+          {'blockId': block.blockId, 'seconds': block.seconds}],
+      };
+    }
+
+    final journal = File('$output/timeline.jsonl').openWrite();
+    wire_observation.ScopeEvaluationWireClient? wire;
+    final fake = coach.FakeLlmClient(const [], latency: Duration.zero);
+    final chatProfile = chat.CoachAppProfile(appId: 'smartfit',
+      scopeManifest: manifest, coachProfile: profile,
+      conversationPolicy: coach.CoachScopeConversationPolicy(
+        specialty: '本 App 提供全身训练、拉伸与灵活性训练',
+        suggestions: ['大腿内侧拉伸', '轻柔髋部活动']),
+      executionTiming: builder.executionTiming);
+    final gatewayBinding = dry ? chat.CoachGatewayBinding.shared(fake)
+      : chat.CoachGatewayBinding(create: () async {
+        final key = await gateway.readEvaluationApiKey(env);
+        final tls = SecurityContext(withTrustedRoots: true);
+        final ca = env['SSL_CERT_FILE'];
+        if (ca != null && ca.isNotEmpty) tls.setTrustedCertificates(ca);
+        wire = wire_observation.ScopeEvaluationWireClient(
+          IOClient(HttpClient(context: tls)),
+          (row) => journal.writeln(jsonEncode({'type': 'http', ...row})));
+        final client = coach.OpenAiCompatibleClient(
+          config: gateway.evaluationLlmConfig(thinking), auth: coach.ApiKeyAuth(key),
+          httpClient: wire);
+        return chat.CoachClientLease.owned(client, release: client.close);
+      });
+    final controller = chat.CoachChatController(profile: chatProfile, catalog: catalog,
+      replyDelay: Duration.zero,
+      bindings: chat.CoachChatBindings(storageNamespace: 'chat-extract-live',
+        gateway: gatewayBinding, plans: _Plans(), history: _History(),
+        preferences: _Preferences(), actions: chat.CoachChatHostActions(
+          onStartTraining: (_, _) async => null, onOpenAction: (_, _) async {},
+          onOpenLibrary: (_, _) async {}, onOpenSavedPlans: (_) async {},
+          onOpenCustomPlan: (_) async {}, onOpenSettings: (_) async {})));
+    final turns = <Json>[];
+    final failures = <String>[];
+    Object? fatal;
+    Json? sample;
+    try {
+      final initialized = await controller.start();
+      if (!initialized.ok) throw StateError('Chat startup failed: ${initialized.error.runtimeType}');
+      if (dry) {
+        expect(HttpOverrides.current, isNull,
+          reason: 'The plain Flutter test must keep native HTTP, not the widget-test 400 stub');
+        final drill = catalog.drills.firstWhere((d) => controller.agent.actionScope!.contains(d.id));
+        final dose = drill.defaultDose;
+        sample = measure(coach.TrainingPlan(id: 'dry-only', source: 'template',
+          title: 'dry measurement', goal: 'relax', scene: 'home', level: 1,
+          targetMinutes: 5, blocks: [coach.PlanBlock(id: 'main', name: '主训练',
+            type: coach.BlockType.main, items: [coach.PlanItem(exerciseId: drill.id,
+              mode: dose.mode, sets: dose.sets, reps: dose.reps,
+              workSeconds: dose.seconds, perSide: drill.unilateral,
+              restSeconds: dose.restSeconds)])]));
+        expect(fake.requests, isEmpty);
+        expect(wire, isNull);
+      } else {
+        for (final (index, input) in inputs.indexed) {
+          wire!.turn = index + 1;
+          final callStart = wire!.calls.length;
+          final watch = Stopwatch()..start();
+          final result = await controller.send(input);
+          watch.stop();
+          final plan = result?.plan?.plan;
+          final actions = [for (final action in result?.actions?.items ?? <coach.ValidatedAction>[]) action.id];
+          final problems = <String>[];
+          Json? timing;
+          String? timingError;
+          if (result?.status != coach.TurnStatus.ok) problems.add('turn_not_ok');
+          if (index == 1) {
+            if (plan != null || actions.isEmpty) problems.add('recommendation_missing');
+            if (!manifest.allowedActionIds.containsAll(actions)) problems.add('outside_action_id');
+          } else if (plan == null || plan.items.isEmpty) {
+            problems.add('missing_or_empty_plan');
+          } else {
+            if (!manifest.allowedActionIds.containsAll(plan.exerciseIds)) problems.add('outside_plan_id');
+            if (plan.targetMinutes != (index == 0 ? 5 : 3)) problems.add('wrong_target_minutes');
+            try {
+              timing = measure(plan);
+              final target = plan.targetMinutes * 60;
+              for (final key in ['cardSeconds', 'executionSeconds']) {
+                final seconds = timing[key]! as num;
+                if (seconds < target * .9 || seconds > target * 1.1) problems.add('$key.outside_tolerance');
+              }
+            } on Object catch (error) {
+              timingError = error.runtimeType.toString();
+              problems.add('native_timeline_measurement_failed');
+            }
+          }
+          final calls = wire!.calls.sublist(callStart);
+          final row = <String, Object?>{
+            'turn': index + 1, 'input': input, 'status': result?.status.name,
+            'text': result?.text, 'errorType': result?.error?.runtimeType.toString(),
+            'elapsedMs': watch.elapsedMilliseconds, 'plan': plan?.toJson(),
+            'actionIds': actions, 'timing': timing, 'timingError': timingError,
+            'httpCalls': calls.length,
+            'httpElapsedMs': calls.fold<num>(0, (sum, call) => sum + (call['elapsedMs'] as num? ?? 0)),
+            'maxRequestBytes': calls.isEmpty ? null
+              : calls.map((call) => call['requestBytes']! as int).reduce((a, b) => a > b ? a : b),
+            'usage': _usage(calls),
+            'issueCodes': result == null ? <String>[]
+              : {for (final record in result.records) ...record.issueCodes}.toList(),
+            'steps': result?.steps,
+            'failures': problems, 'passed': problems.isEmpty,
+          };
+          turns.add(row); failures.addAll(problems.map((problem) => 'turn${index + 1}:$problem'));
+          journal.writeln(jsonEncode({'type': 'turn', ...row}));
+          await journal.flush();
+          stdout.writeln('SF chat turn ${index + 1}: HTTP=${calls.length}; passed=${problems.isEmpty}.');
+        }
+      }
+    } on Object catch (error) {
+      fatal = error.runtimeType.toString(); failures.add('fatal:${error.runtimeType}');
+      rethrow;
+    } finally {
+      await controller.close(); controller.dispose();
+      await journal.close();
+      final summary = <String, Object?>{
+        'dry': dry, 'model': dry ? null : gateway.evaluationModel,
+        'thinking': thinking.name, 'inputs': inputs,
+        'controller': 'CoachChatController',
+        'authorizedActions': manifest.allowedActionIds.length,
+        'plannableActions': controller.catalog.drills.length,
+        'builder': 'SF AppTestContent/trainerRhythms/prep10; same callback/measurement instance',
+        'nativeTimelineComparison': nativeTimelineCompared,
+        'httpOverridesType': HttpOverrides.current?.runtimeType.toString(),
+        'samplePurpose': dry ? 'Native timeline comparison only; no plan was emitted' : null,
+        'sample': sample,
+        'httpCalls': wire?.calls.length ?? 0,
+        'httpOptimizationTargets': {'normal': 4, 'oneRepair': 6, 'deliveryGate': false},
+        'turns': turns, 'failures': failures, 'fatal': fatal,
+        'passed': failures.isEmpty,
+      };
+      await File('$output/summary.json').writeAsString(const JsonEncoder.withIndent('  ').convert(summary));
+    }
+    expect(failures, isEmpty);
+  }, timeout: const Timeout(Duration(minutes: 25)));
+}
+
+Json _usage(List<Json> calls) {
+  final result = <String, Object?>{};
+  for (final key in ['prompt_tokens', 'completion_tokens', 'total_tokens', 'cached_tokens']) {
+    final values = [for (final call in calls)
+      if ((call['usage'] as Map?)?[key] case final num value) value];
+    result[key] = {
+      'total': values.isEmpty ? null : values.fold<num>(0, (a, b) => a + b),
+      'knownCalls': values.length, 'unknownCalls': calls.length - values.length,
+    };
+  }
+  return result;
+}
+
+class _Plans extends chat.CoachPlanStorageAdapter {
+  @override Future<List<chat.CoachSavedPlanSnapshot>> load() async => const [];
+  @override Future<chat.CoachPlanWriteResult> save(chat.CoachPlanWriteRequest request) async =>
+    throw UnsupportedError('This run does not invoke host save actions');
+}
+
+class _History extends chat.CoachChatHistoryStore {
+  chat.CoachChatSnapshot? snapshot;
+  @override Future<chat.CoachChatSnapshot?> load(String namespace) async => null;
+  @override Future<void> write(String namespace, chat.CoachChatSnapshot value) async { snapshot = value; }
+}
+
+class _Preferences extends chat.CoachChatPreferenceStore {
+  chat.CoachChatPreferences value = const chat.CoachChatPreferences(safetyAccepted: true);
+  @override Future<chat.CoachChatPreferences> load() async => value;
+  @override Future<void> update(chat.CoachChatPreferences next) async { value = next; }
+}

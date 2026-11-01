@@ -1,17 +1,21 @@
 # ugk_coach · 三 App 共用的 AI 训练助理 SDK
 
+第 2 批已审核快进并推送 main `67c9747b8e29955d2be21c020c5ef3881b4966e6`，剩余调用优化目标已获用户接受。
+第 3 批在 `codex/coach-chat-extract` 新增 [`ugk_coach_chat`](packages/ugk_coach_chat/README.md)，
+把 SF `3eb2a9e` 的页面与对话功能抽入共享模块；[接入边界与验证方式](docs/coach-chat-module.md)。App/pin 未修改。
+
 训练播放第 1 批已审核并合入 main `2196326`：唯一实现为 `ugk_trainer_runtime`，旧 `ugk_trainer` 保留
 兼容导出与历史全量素材。白名单生成工具、最小宿主实物打包门禁和验证记录见
 [runtime 拆包](docs/trainer-runtime-split.md)；各 App pin 不变，未迁移对话页。
 
 第 2 批的显式动作范围、focus/恢复/开练守卫及范围外告知接口见
 [Coach Scope 接入](docs/coach-scope-manifest.md)，观测与真实模型门禁口径见
-[Scope 验收工具](docs/reports/coach-scope-guard-evaluation.md)。该批在独立分支待审，未合 main。
+[Scope 验收工具](docs/reports/coach-scope-guard-evaluation.md)。该批已审核并合入上述 main。
 精简后的六案例结果与优化目标归因见[第 2 批报告](docs/reports/coach-scope-guard-20261101.md)；
 原始 JSON 和日志只保存在本地 `build/`，调用预算不作为交付门禁。后续开发规则见 [AGENTS.md](AGENTS.md)。
 
 统一对话模块的归属、配置档、白名单素材隔离、SF 搬迁与验收方案见
-[教练对话模块设计稿](docs/coach-chat-module-design.md)（仅文档，实施及 App 升级另行审核）。
+[教练对话模块设计稿](docs/coach-chat-module-design.md)；第 3 批实现独立待审，App 升级另行安排。
 
 main 多轮执行、轮间估时修正及 HipLab / SF 原稿对账见[main rounds 修复](docs/main-rounds.md)。
 

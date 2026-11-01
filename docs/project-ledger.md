@@ -4,7 +4,15 @@
 
 本台账统一记录维护状态、已合并成果、验证证据和待办。包版本、接口行为仍以对应清单和实现为准；发布历史保留在 CHANGELOG。表内 SHA 是核验快照，后续文档提交会推进 main，不能把快照当成永远最新的分支指针。
 
-## 当前快照：runtime 拆包已合入，scope 守卫独立待审（2026-11-01）
+## 当前快照：scope 已合入，第 3 批对话模块独立待审（2026-11-01）
+
+第 2 批经用户批准已快进并推送 main `67c9747b8e29955d2be21c020c5ef3881b4966e6`。
+SF five-1 r3、Hip R1/R2 的剩余调用目标偏差已接受，不再单独修复。
+第 3 批 `codex/coach-chat-extract` 从新 main 提取 SF `3eb2a9e` 到 `ugk_coach_chat`；
+宿主存储/媒体/导航均经公开端口，未改 App 或 pin。接口见[模块接入](coach-chat-module.md)，
+关键状态帧来源/环境见[采集清单](coach-chat-module-design/capture-environment.md)。
+
+### 第 1、2 批历史记录
 
 第 1 批经开哥批准，main 已快进并推送到 `2196326ce8a4b216f60d79ddf4135a6d03fbd13d`；
 不打 tag，各 App pin 不变。原有拆包、资源键、插件与 APK 素材闭包证据仍见
@@ -15,7 +23,7 @@
 保留目录/工具暴露、实际计划准入和素材打包边界。接入与删除清单见 [Scope 接入](coach-scope-manifest.md)，
 本轮六个真实案例及调用优化目标归因见[一页报告](reports/coach-scope-guard-20261101.md)。
 调用预算是优化目标；白名单、安全和卡片/执行双时长仍是硬门禁。
-不合 main、不打 tag、不动 App/pin，不进入第 3 批。
+该批审核前未合 main、未打 tag、未动 App/pin；现已按批准合入，第 3 批从新 main 独立实施。
 
 SF 维持已确认的 219 授权 / 211 可规划；HipLab 45、托马斯 51 仍为候选。
 runtime 的 cupertino_icons 有实际 CupertinoIcons 引用，本批保留，不做无依据删除。

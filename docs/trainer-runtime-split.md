@@ -85,11 +85,11 @@ dart run tool/trainer_asset_closure.dart --manifest approved-scope.json --out ne
 | `ugk_coach_ui` 全量 | 178 / 178 |
 | 旧 `ugk_trainer` 全量 | 578 / 578（原 564 + 兼容 14） |
 | 新 `ugk_trainer_runtime` 全量 | 15 / 15 |
-| 四包 `dart analyze --fatal-infos` | 源码提交后在同 SHA 的干净验证工作树执行；结果随收尾回执补入 |
+| 四包 `dart analyze --fatal-infos` | 全部 0 问题；同源码 SHA 的干净工作树，分析配置与提交原字节相同 |
 | 默认 golden（浅/深共 16 张） | 全部通过，0 像素差；包含在 UI 178 项中 |
 | 公共网页播放器协议 | 8 / 8 + 11 / 11 |
-| 实物 APK / AssetManifest 审计 | R3 双构建与实物检查全部通过；解码器 8 / 8；宿主 probe 各 1 / 1 |
-| 完整 Git SHA 兄弟包解析 | 源码提交后执行无 overrides 的 Git pin 校验；结果随收尾回执补入 |
+| 实物 APK / AssetManifest 审计 | R3 双构建与实物检查全部通过；Python 11 / 11（解码器 8 + 归档 3）；宿主 probe 各 1 / 1 |
+| 完整 Git SHA 兄弟包解析 | 无 overrides，三个包都解析为同一完整 Git SHA；离线 enforce-lockfile 与 Engine/Builder/Result 类型同一检查通过 |
 
 首次同时运行 Flutter 全量时，UI 的 Dart VM 在 optimizing JIT 的 AllocateRegisters 阶段
 原生崩溃；Trainer 进程随后无子进程且不再推进。这轮没有计为通过，原始日志保留。
@@ -108,6 +108,21 @@ dart run tool/trainer_asset_closure.dart --manifest approved-scope.json --out ne
 日志位于 SDK 工作树的 `build/runtime-split/`。新增兼容测试覆盖新旧类型/静态平台同一、
 公共文件旧键与原始字节、默认 standing 海报、网页资源、shader 和唯一插件。
 闭包工具测试覆盖 voice/kit 引用、名单/完整性/路径/缺件错误与不覆盖已有输出。
+
+验证源码提交为 `3e24002a55da19a16a08d759b7f58b83f792f6bc`，分析工作树为
+SDK 内独立的 `.worktrees/trainer-runtime-split-verify`，不带开发构建存档。沿用全量测试
+的四份锁文件，用 `--offline --enforce-lockfile` 还原依赖；Flutter 自动写入的分析
+排除项逐项核对后恢复提交原字节，再执行各包完整 `dart analyze --fatal-infos`。
+四条命令均退出 0，`git status --short` 与 `git diff --exit-code` 均为空/0。
+收尾提交只更新本 Markdown 验证记录，不改变上述源码或构建输入。
+
+Git 解析另在 `build/runtime-split/git-pin-3e24002/` 新建探针，仅直接依赖旧 Trainer，
+以本地 `file:` Git 传输固定上述完整 SHA，未用 `dependency_overrides` 或 workspace
+path 覆盖。锁文件中 Coach、Trainer、runtime 的 `source` 都是 `git`，`resolved-ref`
+全等；实际 package root 均来自同一 Pub Git checkout，HEAD 也逐一核对为该 SHA。
+`flutter pub get --offline --enforce-lockfile` 及纯 Dart engine 类型同一检查均退出 0。
+完整收据为该目录的 `receipt.json`。它验证 Git 包内兄弟路径解析，不代表已替 App
+修改依赖、走远端生产发布或完成 App 验收。
 
 ## 实物构建与体积
 
@@ -132,7 +147,24 @@ APK 减少 **6628891 字节**，Flutter assets 减少 **11327368 字节**。runt
 
 ## 改动清单与边界
 
-最终文件数、增删行及迁移比例待最终 staged diff 记录。重点入口：
+相对 `abae72d`，按 Git 默认 rename 识别口径统计：**155 文件，+20434 / -15949 行**。
+新增行大量来自把原路径实现移到 runtime，再给旧路径保留转导出，并非重写训练逻辑。
+
+| 路径组 | 文件数 | 新增行 | 删除行 |
+| --- | ---: | ---: | ---: |
+| 根 `README.md` | 1 | 4 | 0 |
+| `docs/` 三份本批文档 | 3 | 513 | 0 |
+| `examples/trainer_runtime_minimal/` | 3 | 170 | 0 |
+| `packages/ugk_trainer/` 兼容层、锁文件和新增测试 | 63 | 512 | 15949 |
+| `packages/ugk_trainer_runtime/` 新增路径 | 72 | 16849 | 0 |
+| Android 6 文件、原 part、来源说明的同字节重命名 | 8 | 0 | 0 |
+| `test/trainer_asset_closure_test.dart` | 1 | 648 | 0 |
+| `tool/` 两工具及实现/审计测试 | 4 | 1738 | 0 |
+
+另有 1 个复制的二进制静音音轨，不计入行数。原 lib/Android/shader 的 68 个文件中，
+61 个在新位置逐字节相同；差异只有上述 6 个公共资源 loader/router 与 barrel alias。
+旧 59 个可导入 Dart 库全部转导出对应新实现，原 230 个资源及 shader 字节均未更改。
+逐文件名称和行数可由 `git diff --numstat abae72d HEAD` 复核。重点入口：
 
 - `packages/ugk_trainer_runtime/`：唯一播放实现、Android 插件与公共资源。
 - `packages/ugk_trainer/`：兼容转导出、依赖及新增兼容测试；历史素材原样保留。

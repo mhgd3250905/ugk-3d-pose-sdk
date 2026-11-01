@@ -1,6 +1,6 @@
 # 默认上下文预算放宽 · 2026-11-02
 
-**结论：预算与缓存验证通过，整体验收未全通过。** 第 27 轮“只有轻哑铃”的新计划仍使用墙和瑜伽垫，不能宣称两次换题的器械验收全部通过；原始失败保留，未重跑。
+**结论：本轮验收通过。** 用户已确认第 27 轮墙/垫属于场地环境，“只有哑铃”排除的是其他器械；该轮按此口径记为通过，两次换题验收通过。既有规则与代码保持不变，未重跑真实长聊。
 
 分支 `codex/context-budget-widen`，基于 main `0a6c3aaea9e3890d938799703f97819d5986ee7d`；实测源码 `9780b53c2c8b59e4a4c5645500d68670ad1357ce`。生产仅改 off/on/hard 默认值为 **163,840 / 204,800 / 262,144 B（160/200/256 KiB）**、`CoachAgent.maxTurns=50`，并给原 `TokenUsage` 日志保留可空的 DeepSeek 原始 hit/miss。独立历史上限仍 **40,000** 字符；折叠、前缀及旧 `CoachSession` 机制不变，无新依赖。详见[上下文契约](../coach-agent-context-append-fold.md)。
 
@@ -15,7 +15,7 @@
 | 输入 / 输出 / 总 token | **1,108,018 / 9,923 / 1,117,941**；输出含推理，不重复相加 |
 | 单轮耗时 p50 / p95 / 最大 | **1.936 / 13.286 / 22.228 s**（nearest-rank）；逐轮见下 |
 | 参考估费 | **USD 0.017151–0.034301**；按[当前官方价目](https://api-docs.deepseek.com/quick_start/pricing)非峰/峰两档，非网关账单 |
-| 第 1 / 14 / 27 轮计划 | home+mat **通过** → office+chair **通过** → gym+仅dumbbell **未通过**（实际 wall+dumbbell+mat） |
+| 第 1 / 14 / 27 轮计划 | home+mat **通过** → office+chair **通过** → gym+dumbbell **通过**（wall/mat 为场地环境，用户已确认） |
 
 逐轮耗时（秒，顺序即轮号）：
 
@@ -26,6 +26,6 @@
 
 三份计划的卡片/执行秒数为 **270/272、189/189、310/310**，均过 ±10% 且与只读 SF 同播放器 builder 一致；第三份含自主计次时长估计。第 14 轮新场景计划用了 **5 次**调用，超过正常 ≤4 优化目标；未记录逐工具 span，不能进一步拆分归因，不重抽。
 
-**未解决项：** 第 27 轮场景已正确切到 gym，但 `NodeGates.effectiveEquipment` 会并入 profile 的默认环境器械（gym 包括 mat/wall/chair）；既有 [ask 协议](../../skills/ask/SKILL.md)规定“仅用户点名没有垫子、不想靠墙时写”器械排除。这解释了墙/垫被放行；现有观测不能证明它们来自旧计划继承，也不能宣称“只有哑铃”验收通过。本批保留失败，未扩大修改器械语义。
+**第 27 轮判定：** 场景已正确切到 gym。`NodeGates.effectiveEquipment` 按 profile 并入场地环境物，既有 [ask 协议](../../skills/ask/SKILL.md)规定“仅用户点名没有垫子、不想靠墙时写”器械排除。用户明确确认墙/垫不属于“只有哑铃”所排除的其他器械，因此该轮通过，不视为旧计划器械继承。原始自动检查采用更严格的器械集合预期，其标记及全部测量仍保留在本地；本报告记录用户确认后的最终验收判定，不修改代码或重跑。
 
-原始 `summary.json`、`turns.json`、`timeline.jsonl`、runner、价目快照及五包日志只在本地 `build/context-budget-widen/`；使用 SF `3eb2a9e` 只读配置与时长 builder，无真机复验。不合 main、不推送、不打 tag、不动 App/pin。
+原始 `summary.json`、`turns.json`、`timeline.jsonl`、runner、价目快照及五包日志只在本地 `build/context-budget-widen/`；使用 SF `3eb2a9e` 只读配置与时长 builder，无真机复验。本批已审核通过，获准推送 `codex/context-budget-widen` 并将 main 从 `0a6c3aa` fast-forward 到本分支；不打 tag、不动 App/pin。

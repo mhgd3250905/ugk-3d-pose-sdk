@@ -6,7 +6,7 @@
 第 3 批已审核并快进 main `b025ee88bd1a6d69564ce96a473302739c981c3b`，验证见[一页报告](docs/reports/coach-chat-extract-20261101.md)。
 SF 接入反馈修复已审核并快进 main `a13e3b674359c93c941f7f59d1edf09a6d609487`，7 条处理与宿主接线见[修复报告](docs/reports/chat-sf-fixes-20261101.md)。
 长会话预算与失败提示修复已审核并快进 main `0a6c3aaea9e3890d938799703f97819d5986ee7d`，见[修复报告](docs/reports/chat-context-fit-20261101.md)。
-`codex/context-budget-widen` 在该基线上将软阈值同比例提高为 160/200 KiB、硬限提高为 256 KiB，默认会话改为 50 轮，并记录服务端原始缓存 hit/miss；验收见[一页报告](docs/reports/context-budget-widen-20261102.md)。本分支待审，App/pin 不变。
+`codex/context-budget-widen` 在该基线上将软阈值同比例提高为 160/200 KiB、硬限提高为 256 KiB，默认会话改为 50 轮，并记录服务端原始缓存 hit/miss；验收见[一页报告](docs/reports/context-budget-widen-20261102.md)。用户已确认第 27 轮墙/垫为场地环境，本批审核通过并获准快进 main；代码与既有规则不另作修改，App/pin 不变。
 
 训练播放第 1 批已审核并合入 main `2196326`：唯一实现为 `ugk_trainer_runtime`，旧 `ugk_trainer` 保留
 兼容导出与历史全量素材。白名单生成工具、最小宿主实物打包门禁和验证记录见

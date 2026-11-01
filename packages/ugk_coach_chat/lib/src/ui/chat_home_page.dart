@@ -96,6 +96,8 @@ class _CoachChatPageState extends State<_CoachChatBody>
   final _input = FocusNode();
   bool _panelOpen = false;
   bool _trainingInFlight = false;
+  bool _hostPageOpen = false;
+  bool _composeAfterHostReturn = false;
 
   /// Messages already on screen when the page opened don't animate in.
   final _seen = <String>{};
@@ -164,14 +166,42 @@ class _CoachChatPageState extends State<_CoachChatBody>
 
   void _onAction(CoachChatCommand command) {
     if (!mounted) return;
+    if (command.kind == CoachChatCommandKind.compose) {
+      _closePanel();
+      if (_hostPageOpen) {
+        _composeAfterHostReturn = true;
+      } else {
+        _focusComposer();
+      }
+      return;
+    }
     unawaited(_openHost(command));
+  }
+
+  void _focusComposer() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _input.requestFocus();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   Future<void> _openHost(CoachChatCommand command) async {
     _closePanel();
     _dismissInput();
-    await _chat.openHostPage(context, command);
-    if (mounted) _dismissInput();
+    _hostPageOpen = true;
+    try {
+      await _chat.openHostPage(context, command);
+    } finally {
+      _hostPageOpen = false;
+      if (mounted) {
+        if (_composeAfterHostReturn) {
+          _composeAfterHostReturn = false;
+          _focusComposer();
+        } else {
+          _dismissInput();
+        }
+      }
+    }
   }
 
   void _openPlans() => _chat.command('@drawer');

@@ -8,6 +8,21 @@ import 'chat_snapshot.dart';
 
 typedef CoachChatObserver = void Function(String event, Object? detail);
 
+/// The original input for host diagnostics. Display and model input stay trimmed.
+/// Emitted as `chat.user` through [CoachChatBindings.observer], before notifying
+/// display listeners. Hosts should use [messageId] to avoid logging it twice.
+class CoachChatUserInput {
+  const CoachChatUserInput({
+    required this.messageId,
+    required this.rawText,
+    required this.sentText,
+    this.displayLabel,
+    this.questionId,
+  });
+  final String messageId, rawText, sentText;
+  final String? displayLabel, questionId;
+}
+
 /// A client and its concrete release operation. Generic LlmClient has no close.
 class CoachClientLease {
   const CoachClientLease.shared(this.client) : release = null;
@@ -42,6 +57,7 @@ class CoachChatBindings {
     required this.actions,
     this.memory,
     this.observer,
+    this.beforeNewConversation,
   });
   final String storageNamespace;
   final CoachGatewayBinding gateway;
@@ -51,6 +67,12 @@ class CoachChatBindings {
   final coach.UserMemoryStore? memory;
   final CoachChatHostActions actions;
   final CoachChatObserver? observer;
+
+  /// Archives the complete old conversation before it is reset. New sends wait
+  /// for this future. Failures emit `chat.archive.error` and still allow reset,
+  /// matching the original optional diagnostics behavior.
+  final Future<void> Function(CoachChatSnapshot snapshot)?
+  beforeNewConversation;
 }
 
 class CoachSavedPlanSnapshot {
@@ -203,6 +225,7 @@ abstract class CoachChatPreferenceStore {
 }
 
 enum CoachChatCommandKind {
+  compose,
   newConversation,
   showHistory,
   showLastPlan,
@@ -223,6 +246,7 @@ class CoachChatCommand {
   static CoachChatCommand? fromLegacy(String action) {
     final parts = action.split(':');
     final kind = switch (parts.first) {
+      '@compose' => CoachChatCommandKind.compose,
       '@new' => CoachChatCommandKind.newConversation,
       '@history' => CoachChatCommandKind.showHistory,
       '@last' => CoachChatCommandKind.showLastPlan,

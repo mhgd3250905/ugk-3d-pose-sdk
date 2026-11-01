@@ -191,6 +191,8 @@ class ChatHarness {
     Future<SessionResult?> Function(BuildContext, CoachChatTrainingRequest)?
     onTraining,
     FutureOr<void> Function()? release,
+    CoachChatObserver? observer,
+    Future<void> Function(CoachChatSnapshot)? beforeNewConversation,
     List<String> allowedActionIds = const ['one', 'two', 'three', 'four'],
     List<String> equipment = const [],
   }) : client = coach.FakeLlmClient(script, latency: Duration.zero),
@@ -237,6 +239,8 @@ class ChatHarness {
         plans: this.plans,
         history: this.history,
         preferences: preferences,
+        observer: observer,
+        beforeNewConversation: beforeNewConversation,
         actions: CoachChatHostActions(
           onStartTraining: onTraining ?? (_, _) async => null,
           onOpenAction: (_, _) async {},

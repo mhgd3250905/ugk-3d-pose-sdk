@@ -37,6 +37,12 @@ await chat.start();
 `start()` 幂等、恢复本地状态且不请求模型。页面不拥有 controller；宿主关闭时优先
 `await chat.close()`，Widget 的同步销毁入口为 `chat.dispose()`。
 
+宿主页面的“去排一套”在 pop 后调用 `chat.requestCompose()`，SDK 会聚焦原输入框；
+普通返回不自动弹键盘。`bindings.observer` 的 `chat.user` 事件提供
+`CoachChatUserInput.rawText/sentText`，可按 `messageId` 避免与显示监听重复记录。
+可选 `bindings.beforeNewConversation(snapshot)` 在重置前同步发起并等待归档；等待期间
+新输入排队，归档异常只报 `chat.archive.error` 后继续重置。
+
 `CoachAppProfile` 负责显式动作范围、剂量投影/单位、对话文案、安全文案、主题/图标/
 剪影和同播放器的执行时长回调；`CoachChatBindings` 负责有生命周期的宿主服务。
 SF 名单为 219 授权/211 可规划，HipLab 45、托马斯 51 仍是候选，不是签核 manifest。
@@ -70,6 +76,8 @@ receipt，模块按 sessionId 添加一次返回消息，不再次保存训练�
 旧 SF 的 `chat`、`coachDisplay`、`coachSessionJson` 可从
 `CoachChatHistoryStore.loadLegacy` 提供；模块解码并保留原 request/context，再写独立
 Chat envelope，旧数据不删除。没有 profile/目录哈希绑定或消息鉴真机制。
+原非 AI 模板按原剂量/目标恢复为只读历史；开练和保存重新校验。启动恢复失败时关闭仅
+释放资源，不写入空 envelope 遮盖旧档。
 
 完整接口/接入边界见 [SDK 接入文档](../../docs/coach-chat-module.md)，关键状态帧复现见
 [采集环境](../../docs/coach-chat-module-design/capture-environment.md)。

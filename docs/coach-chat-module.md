@@ -31,6 +31,20 @@ UI clock 默认为系统时间，采集时可固定，原动画数值没有更�
 `startTraining/completeTraining`、`flushPersistence/close/dispose`。
 兼容源页面的 message 参数方法也保留，不要求 App 再实现一套问答/保存逻辑。
 
+SF 接入反馈修复新增三个可选端口：
+
+```dart
+// “我的计划”空态：返回后聚焦同一个 SDK 输入框。
+onCompose: () { Navigator.of(context).pop(); chat.requestCompose(); }
+// CoachChatBindings：归档旧完整快照，完成后 SDK 才 reset，并放行排队输入。
+beforeNewConversation: (snapshot) => archive(snapshot.session.toJson()),
+// observer 的 chat.user 详情为 CoachChatUserInput；显示与模型仍使用 trimmed 文本。
+```
+
+原话使用 `rawText`，模型输入使用 `sentText`，`displayLabel` 单独保留。监听端应按
+`messageId` 防止与原显示监听重复记日志；使用新归档钩子后移除 reset 后猜测归档的旧适配。
+归档失败发 `chat.archive.error`，仍继续新对话，不把诊断错误写入聊天正文。
+
 ## 配置与实际边界
 
 显式名单与素材闭包沿用[Scope 接口](coach-scope-manifest.md)及
@@ -57,6 +71,8 @@ CustomPainter。剪影 renderer 继续处在现有任务卡 RepaintBoundary 中�
 历史适配器读取 `loadLegacy` 提供的 SF `chat/coachDisplay/coachSessionJson`；
 真实计划按原 request/context 重新准入（包括已有瑜伽垫等条件），不丢失条件后误拒绝。
 Chat envelope 与 Core snapshot 独立版本化，恢复/关闭不删除宿主数据。
+旧非 AI 模板只读恢复保留 target/dose/context，显示不套当前训练门禁；训练和保存仍
+重新准入。恢复未成功前不持久化空 envelope，close 仍正常清理网关 lease。
 80ms 合并写入按快照捕获顺序串行 flush，取消/新对话后的迟到回复和保存不覆盖新会话。
 owned gateway 通过具体 lease release 关闭一次，shared client 由宿主释放。
 

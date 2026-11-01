@@ -40,6 +40,7 @@ class CoachChatController extends ChangeNotifier {
   List<String> get suggestions => List.unmodifiable(_suggestions);
   bool get typing => _typing;
   bool _typing = false, _started = false, _restoring = false;
+  bool _historyReady = false;
   bool _closed = false, _notifierDisposed = false, _openingTraining = false;
   int _seq = 0, _generation = 0;
   int? _safetyStep;
@@ -161,7 +162,6 @@ class CoachChatController extends ChangeNotifier {
         agent.enableUserMemory = value.enableUserMemory;
         _notify();
       });
-      _started = true;
       if (!_preferences.safetyAccepted) {
         _beginSafety(firstRun: true);
       } else {
@@ -197,6 +197,8 @@ class CoachChatController extends ChangeNotifier {
         }
         _suggestions = _defaults();
       }
+      _started = true;
+      _historyReady = true;
       _notify();
       return const CoachChatOperationResult(ok: true);
     } on Object catch (error) {
@@ -274,12 +276,23 @@ class CoachChatController extends ChangeNotifier {
     final input = text.trim();
     if (_closed ||
         !_started ||
+        !_historyReady ||
         _conversation == null ||
         _typing ||
         input.isEmpty) {
       return null;
     }
     final user = _addUser(label ?? input);
+    bindings.observer?.call(
+      'chat.user',
+      CoachChatUserInput(
+        messageId: user.id,
+        rawText: text,
+        sentText: input,
+        displayLabel: label,
+        questionId: questionId,
+      ),
+    );
     if (inSafetyCheck) {
       _addBot(profile.strings.finishSafetyFirst);
       _notify();
@@ -420,15 +433,27 @@ class CoachChatController extends ChangeNotifier {
   }
 
   Future<CoachChatOperationResult> _newConversation() async {
-    await start();
-    if (_closed || _conversation == null) {
+    if (!_started) await start();
+    if (_closed || !_historyReady || _conversation == null) {
       return const CoachChatOperationResult(ok: false);
     }
+    final previous = bindings.beforeNewConversation == null
+        ? null
+        : exportSnapshot();
     _generation++;
     _cancel?.cancel();
-    conversation.newConversation();
+    conversation.cancel();
     _typing = false;
     _endProgress();
+    if (previous != null) {
+      try {
+        await bindings.beforeNewConversation!(previous);
+      } on Object catch (error) {
+        bindings.observer?.call('chat.archive.error', error);
+      }
+    }
+    if (_closed) return const CoachChatOperationResult(ok: false);
+    conversation.newConversation();
     _latestTask = null;
     _currentPlan = null;
     _safetyStep = null;
@@ -578,10 +603,17 @@ class CoachChatController extends ChangeNotifier {
     if (command != null) unawaited(dispatch(command));
   }
 
+  /// Requests focus on this conversation's composer, including after a host
+  /// page returns. It does not send a message or create a new conversation.
+  void requestCompose() => command('@compose');
+
   Future<CoachChatOperationResult> dispatch(CoachChatCommand command) async {
     await start();
     if (_closed) return const CoachChatOperationResult(ok: false);
     switch (command.kind) {
+      case CoachChatCommandKind.compose:
+        _actions.add(command);
+        return const CoachChatOperationResult(ok: true);
       case CoachChatCommandKind.newConversation:
         return newConversation();
       case CoachChatCommandKind.recheckSafety:
@@ -1301,6 +1333,7 @@ class CoachChatController extends ChangeNotifier {
     if (_closed) return const CoachChatRestoreResult(ok: false);
     final restored = _restoreSnapshot(snapshot);
     if (restored.ok) {
+      _historyReady = true;
       _notify();
       await _persist();
     }
@@ -1422,6 +1455,7 @@ class CoachChatController extends ChangeNotifier {
         );
       }
       _restoreDisplay(snapshot, display, sdkDisplay: sdk.isEmpty ? null : sdk);
+      _historyReady = true;
       await _persist();
       return const CoachChatRestoreResult(ok: true);
     } on Object catch (error) {
@@ -1431,7 +1465,7 @@ class CoachChatController extends ChangeNotifier {
   }
 
   void _schedulePersistence() {
-    if (!_started || _restoring || _closed) return;
+    if (!_historyReady || _restoring || _closed) return;
     _persistenceTimer?.cancel();
     _persistenceTimer = Timer(
       const Duration(milliseconds: 80),
@@ -1440,7 +1474,7 @@ class CoachChatController extends ChangeNotifier {
   }
 
   void _persistInBackground() {
-    if (_closed || !_started) return;
+    if (_closed || !_historyReady) return;
     unawaited(
       _persist().catchError((Object error) {
         _recordError('chat.persist.error', error);
@@ -1450,9 +1484,10 @@ class CoachChatController extends ChangeNotifier {
   }
 
   Future<void> flushPersistence() =>
-      _started && !_closed ? _persist() : Future.value();
+      _historyReady && !_closed ? _persist() : Future.value();
   Future<void> _persist() {
     _persistenceTimer?.cancel();
+    if (!_historyReady) return Future.value();
     return _writeSnapshot(exportSnapshot());
   }
 
@@ -1471,7 +1506,7 @@ class CoachChatController extends ChangeNotifier {
   /// the concrete gateway lease, including when a persistence write fails.
   Future<void> close() => _closing ??= _close();
   Future<void> _close() async {
-    final snapshot = _started && _conversation != null
+    final snapshot = _historyReady && _conversation != null
         ? exportSnapshot()
         : null;
     _closed = true;

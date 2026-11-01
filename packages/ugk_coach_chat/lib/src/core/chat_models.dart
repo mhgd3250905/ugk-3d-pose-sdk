@@ -168,9 +168,11 @@ class ChatMessage {
         throw FormatException('Invalid stored plan: ${decoded.issues}');
       }
       plan = decoded.plan!;
-      admitted = admitPlan?.call(plan, request);
-      if (admitPlan != null && admitted == null) {
-        throw const FormatException('Stored plan is not admitted');
+      if (json['isAiPlan'] == true || plan.source == 'ai') {
+        admitted = admitPlan?.call(plan, request);
+        if (admitPlan != null && admitted == null) {
+          throw const FormatException('Stored plan is not admitted');
+        }
       }
     }
     final ids = (json['actionIds'] as List? ?? const []).cast<String>();

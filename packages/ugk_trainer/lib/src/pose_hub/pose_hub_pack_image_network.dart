@@ -1,14 +1,4 @@
-import 'package:flutter/widgets.dart';
+/// Compatibility export; the implementation is owned by ugk_trainer_runtime.
+library;
 
-Widget packImage(
-  Uri uri, {
-  required BoxFit fit,
-  required String? semanticLabel,
-  required ImageErrorWidgetBuilder errorBuilder,
-}) => Image.network(
-  uri.toString(),
-  fit: fit,
-  semanticLabel: semanticLabel,
-  errorBuilder: errorBuilder,
-  gaplessPlayback: false,
-);
+export 'package:ugk_trainer_runtime/src/pose_hub/pose_hub_pack_image_network.dart';

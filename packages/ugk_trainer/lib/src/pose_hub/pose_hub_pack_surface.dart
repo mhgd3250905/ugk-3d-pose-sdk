@@ -1,3 +1,4 @@
-export 'pose_hub_pack_surface_stub.dart'
-    if (dart.library.io) 'pose_hub_pack_surface_native.dart'
-    if (dart.library.js_interop) 'pose_hub_pack_surface_web.dart';
+/// Compatibility export; the implementation is owned by ugk_trainer_runtime.
+library;
+
+export 'package:ugk_trainer_runtime/src/pose_hub/pose_hub_pack_surface.dart';

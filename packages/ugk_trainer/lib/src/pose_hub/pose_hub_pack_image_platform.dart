@@ -1,2 +1,4 @@
-export 'pose_hub_pack_image_network.dart'
-    if (dart.library.io) 'pose_hub_pack_image_native.dart';
+/// Compatibility export; the implementation is owned by ugk_trainer_runtime.
+library;
+
+export 'package:ugk_trainer_runtime/src/pose_hub/pose_hub_pack_image_platform.dart';

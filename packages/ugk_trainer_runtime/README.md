@@ -1,0 +1,63 @@
+# ugk_trainer_runtime
+
+训练播放的唯一实现：`SessionBuilder`、`SessionEngine`、`SessionResult`、voice/media、
+训练 UI、`TrainerSlideRoute` 和 Android 插件。包内仅含公共网页播放器、静音音轨与
+alpha shader，**不含动作目录、封面、视频、action-kit 或动作命名语音**。
+
+依赖方向为 `ugk_trainer → ugk_trainer_runtime → ugk_coach`。旧包保留历史全量资源，
+转导出这里的类型；同时导入新旧入口得到的是同一个类型、静态状态和插件，不需要转换 DTO。
+`ugk_coach_ui` 继续不依赖 Coach/Trainer；本批没有创建 `ugk_coach_chat`。
+
+## 接入
+
+```yaml
+dependencies:
+  ugk_trainer_runtime:
+    git:
+      url: https://github.com/mhgd3250905/ugk-3d-pose-sdk.git
+      path: packages/ugk_trainer_runtime
+      ref: <审核后的完整提交 SHA>
+```
+
+```dart
+import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart';
+// 纯 Dart 的执行时间线、Result、节奏和语音调度：
+// import 'package:ugk_trainer_runtime/engine.dart';
+```
+
+SDK 内部使用相对路径指向同一 Git 树的兄弟包；宿主仍固定完整 Git SHA，不跟踪可变分支。
+若宿主还直接依赖 `ugk_coach`，应固定到同一 SDK 提交。
+
+训练器的构造参数、生命周期、计时、语音和路由语义沿用旧包。`startGate`、
+`chromeAnimation`、`beforeExitPop`、`onExitStarted` 无需重新实现。
+入口详见[旧训练器接入文档](../ugk_trainer/README.md)。
+
+## 动作资源由宿主明确提供
+
+用[白名单闭包生成工具](../../docs/trainer-assets-closure.md)把获批 manifest 生成到
+宿主自己的资产目录，在 pubspec 中加入生成的逐文件清单，并用对应根路径加载目录、
+海报和 `DrillMedia`。可运行的最小构建模板见
+[trainer_runtime_minimal](../../examples/trainer_runtime_minimal/README.md)。
+
+runtime 没有默认动作库。`PoseHubActionLibrary.load()` 和 `PoseHubStandingImage`
+保留的历史默认 URI 属于旧包兼容契约；runtime-only 宿主必须传自己的目录和海报。
+动作资源缺失时返回原有加载错误，不补全库、不自动下载、不把空名单解释成全量。
+本批只提供素材生成与物理打包门禁，检索/工具/计划白名单守卫属于第 2 批。
+
+## 公共资源与兼容键
+
+`TrainerRuntimeAssets` 提供公共资源常量：`playerPrefix`、`poseHubPlayer`、`silence`、
+`shader`。`resolveAsset(String key, {AssetBundle? bundle})` 只解析已知公共资源的旧键：
+
+| 入口 | 兼容行为 |
+| --- | --- |
+| 依赖旧 `ugk_trainer` | 继续加载实际存在的 `packages/ugk_trainer/...` 字节；默认海报保留 |
+| 仅依赖 runtime | 内部公共资源加载转到 `packages/ugk_trainer_runtime/...` |
+| 动作专属或任意未知路径 | 不改写，不尝试全库兜底 |
+
+旧公开常量值保持不变。为维持 rootBundle 兼容，旧包也保留少量公共文件原字节；
+这不产生第二份 Dart/Kotlin 实现，也不会再注册一次插件。
+
+本包没有发布 tag。拆包、测试、产物审计和接入边界见
+[第 1 批交付记录](../../docs/trainer-runtime-split.md)及
+[构建门禁](../../docs/runtime-split-build-gate.md)。

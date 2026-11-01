@@ -523,6 +523,13 @@ packages:
       relative: true
     source: path
     version: "0.6.0"
+  ugk_trainer_runtime:
+    dependency: transitive
+    description:
+      path: "../../ugk_trainer_runtime"
+      relative: true
+    source: path
+    version: "0.1.0"
   uuid:
     dependency: transitive
     description:

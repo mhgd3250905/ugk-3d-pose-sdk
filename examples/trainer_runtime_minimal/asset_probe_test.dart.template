@@ -1,0 +1,92 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:crypto/crypto.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:__TRAINER_PACKAGE__/__TRAINER_PACKAGE__.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test(
+    'actual host bundle loads the exact whitelist and common resources',
+    () async {
+      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+      final keys = manifest.listAssets()..sort();
+      final proof =
+          jsonDecode(File('asset-closure.json').readAsStringSync())
+              as Map<String, dynamic>;
+      final hashes = <String, String>{};
+      for (final entry in proof['files'] as List) {
+        final file = entry as Map<String, dynamic>;
+        final key = file['assetKey'] as String;
+        expect(keys, contains(key));
+        final data = await rootBundle.load(key);
+        final bytes = data.buffer.asUint8List(
+          data.offsetInBytes,
+          data.lengthInBytes,
+        );
+        expect(bytes.length, file['bytes']);
+        expect(sha256.convert(bytes).toString(), file['sha256']);
+        hashes[key] = sha256.convert(bytes).toString();
+      }
+      for (final relative in <String>[
+        'assets/silence.m4a',
+        'assets/media_player/player.html',
+        'assets/media_player/player.js',
+        'assets/media_player/player.css',
+        'assets/pose_hub_player/player.html',
+        'assets/pose_hub_player/player.js',
+        'shaders/packed_alpha.frag',
+      ]) {
+        final runtimeKey = 'packages/ugk_trainer_runtime/$relative';
+        final runtimeData = await rootBundle.load(runtimeKey);
+        expect(runtimeData.lengthInBytes, greaterThan(0));
+        final legacyKey = 'packages/ugk_trainer/$relative';
+        final resolved = await TrainerRuntimeAssets.resolveAsset(legacyKey);
+        expect(resolved, '__VARIANT__' == 'legacy' ? legacyKey : runtimeKey);
+        final resolvedData = await rootBundle.load(resolved);
+        expect(resolvedData.lengthInBytes, runtimeData.lengthInBytes);
+        if ('__VARIANT__' == 'legacy') {
+          final legacyData = await rootBundle.load(legacyKey);
+          expect(
+            legacyData.buffer.asUint8List(
+              legacyData.offsetInBytes,
+              legacyData.lengthInBytes,
+            ),
+            runtimeData.buffer.asUint8List(
+              runtimeData.offsetInBytes,
+              runtimeData.lengthInBytes,
+            ),
+          );
+        }
+      }
+      final catalogData =
+          jsonDecode(await rootBundle.loadString('assets/trainer/catalog.json'))
+              as Map<String, dynamic>;
+      expect((catalogData['actions'] as List).map((a) => a['id']).toList(), [
+        's-butterfly',
+      ]);
+      if ('__VARIANT__' == 'runtime') {
+        expect(
+          keys.where((key) => key.startsWith('packages/ugk_trainer/')),
+          isEmpty,
+        );
+      } else {
+        final standing = await rootBundle.load(
+          'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/standing/s-butterfly.webp',
+        );
+        expect(standing.lengthInBytes, greaterThan(0));
+      }
+      await Directory('build/bundle-probe').create(recursive: true);
+      await File('build/bundle-probe/assets.json').writeAsString(
+        jsonEncode({
+          'variant': '__VARIANT__',
+          'keys': keys,
+          'whitelistHashes': hashes,
+        }),
+      );
+    },
+  );
+}

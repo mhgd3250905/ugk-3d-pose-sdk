@@ -1,0 +1,48 @@
+name: ugk_trainer_runtime
+description: >-
+  Asset-free shared training runtime: one execution engine, media and voice
+  implementation, player UI and native plugin, without action-specific assets.
+version: 0.1.0
+repository: https://github.com/mhgd3250905/ugk-3d-pose-sdk
+publish_to: none
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: 1.0.8
+  ugk_coach:
+    path: ../..
+  # Same pinned versions as HipLab / SmartFit / 3D-Body.
+  just_audio: 0.10.6
+  audio_session: 0.2.4
+  webview_flutter: 4.14.1
+  webview_flutter_android: 4.14.1
+  webview_flutter_wkwebview: 3.26.2
+  wakelock_plus: 1.8.1
+  web: ^1.1.1
+  clock: ^1.1.2
+  crypto: 3.0.7
+  path_provider: 2.1.6
+  connectivity_plus: 7.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  shaders:
+    - shaders/packed_alpha.frag
+  plugin:
+    platforms:
+      android:
+        package: com.ugk.trainer
+        pluginClass: UgkTrainerPlugin
+  assets:
+    - assets/silence.m4a
+    - assets/media_player/
+    - assets/pose_hub_player/

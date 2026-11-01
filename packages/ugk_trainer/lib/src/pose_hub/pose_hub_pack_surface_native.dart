@@ -1,19 +1,4 @@
-import 'package:flutter/widgets.dart';
+/// Compatibility export; the implementation is owned by ugk_trainer_runtime.
+library;
 
-import '../media/media_controller.dart';
-import '../media/packed_alpha_video.dart';
-
-bool get supportsPoseHubPackPlayback => UgkPackedAlphaVideo.isSupported;
-
-class PoseHubPackSurface extends StatelessWidget {
-  const PoseHubPackSurface({
-    super.key,
-    required this.sourceUri,
-    required this.controller,
-  });
-  final Uri sourceUri;
-  final DrillMediaController controller;
-  @override
-  Widget build(BuildContext context) =>
-      UgkPackedAlphaVideo.source(sourceUri: sourceUri, controller: controller);
-}
+export 'package:ugk_trainer_runtime/src/pose_hub/pose_hub_pack_surface_native.dart';

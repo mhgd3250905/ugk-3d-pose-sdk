@@ -1,5 +1,9 @@
 # ugk_coach · 三 App 共用的 AI 训练助理 SDK
 
+训练播放已在待审第 1 批拆为唯一实现 `ugk_trainer_runtime`，旧 `ugk_trainer` 保留
+兼容导出与历史全量素材。白名单生成工具、最小宿主实物打包门禁和验证记录见
+[runtime 拆包](docs/trainer-runtime-split.md)；各 App pin 不变，未迁移对话页。
+
 统一对话模块的归属、配置档、白名单素材隔离、SF 搬迁与验收方案见
 [教练对话模块设计稿](docs/coach-chat-module-design.md)（仅文档，实施及 App 升级另行审核）。
 

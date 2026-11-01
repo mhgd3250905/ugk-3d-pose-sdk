@@ -1,5 +1,11 @@
 # ugk_trainer 0.4.2
 
+本包现为 `ugk_trainer_runtime` 的兼容入口，保留历史全量动作资产及旧资源键。
+Engine、Result、voice/media、训练 UI、路由和 Android 插件只有 runtime 中的一份实现；
+原有 import、构造参数与默认行为沿用。需要白名单物理打包的新宿主请直接依赖
+[ugk_trainer_runtime](../ugk_trainer_runtime/README.md)，避免经旧包带入全库素材。
+本批范围及验证见[拆包记录](../../docs/trainer-runtime-split.md)。
+
 main 块现按 rounds 整块重复，保留每轮分组、双侧与分段；轮间休息沿用原 circuit 口径。
 接入无 API 变化，真实计划重放与期望值审计见[main rounds 修复](../../docs/main-rounds.md)。
 

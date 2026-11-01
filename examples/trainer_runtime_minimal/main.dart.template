@@ -1,0 +1,41 @@
+import 'package:flutter/material.dart';
+import 'package:__TRAINER_PACKAGE__/__TRAINER_PACKAGE__.dart';
+
+// Generated only inside this SDK's ignored build directory. This is not an App
+// integration or device acceptance sample. Both variants use this same source.
+void main() => runApp(const RuntimeAssetGateApp());
+
+class RuntimeAssetGateApp extends StatelessWidget {
+  const RuntimeAssetGateApp({super.key});
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    home: Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: DrillMediaView(
+              media: const DrillMedia(
+                id: 's-butterfly',
+                actionId: 's-butterfly',
+                videoAsset:
+                    'assets/trainer/media/s-butterfly/s-butterfly.rgb-alpha.mp4',
+                posterAsset: 'assets/trainer/standing/s-butterfly.webp',
+                packedAlphaVideoAsset:
+                    'assets/trainer/media/s-butterfly/s-butterfly.rgb-alpha.mp4',
+                packedAlphaPosterAsset:
+                    'assets/trainer/standing/s-butterfly.webp',
+                duration: 8,
+                bundledOnly: true,
+              ),
+              // A complete poster is present without starting a training clock.
+              playing: false,
+              paused: true,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}

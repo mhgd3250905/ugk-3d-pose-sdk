@@ -5,7 +5,8 @@
 把 SF `3eb2a9e` 的页面与对话功能抽入共享模块；[接入边界与验证方式](docs/coach-chat-module.md)。App/pin 未修改。
 第 3 批已审核并快进 main `b025ee88bd1a6d69564ce96a473302739c981c3b`，验证见[一页报告](docs/reports/coach-chat-extract-20261101.md)。
 SF 接入反馈修复已审核并快进 main `a13e3b674359c93c941f7f59d1edf09a6d609487`，7 条处理与宿主接线见[修复报告](docs/reports/chat-sf-fixes-20261101.md)。
-长会话预算与失败提示修复在 `codex/chat-context-fit` 待审，见[本轮报告](docs/reports/chat-context-fit-20261101.md)。App/pin 不变。
+长会话预算与失败提示修复已审核并快进 main `0a6c3aaea9e3890d938799703f97819d5986ee7d`，见[修复报告](docs/reports/chat-context-fit-20261101.md)。
+`codex/context-budget-widen` 在该基线上将软阈值同比例提高为 160/200 KiB、硬限提高为 256 KiB，默认会话改为 50 轮，并记录服务端原始缓存 hit/miss；验收见[一页报告](docs/reports/context-budget-widen-20261102.md)。本分支待审，App/pin 不变。
 
 训练播放第 1 批已审核并合入 main `2196326`：唯一实现为 `ugk_trainer_runtime`，旧 `ugk_trainer` 保留
 兼容导出与历史全量素材。白名单生成工具、最小宿主实物打包门禁和验证记录见
@@ -195,7 +196,7 @@ switch (r.status) {
     showText(r.text);
     if (r.plan != null) showPlanCard(r.plan!);        // ValidatedPlan
     if (r.actions != null) showActionCards(r.actions!); // ValidatedActions
-  case TurnStatus.limitReached: askUserToReset();     // 会话到硬上限（默认 20 轮 / 4 万字符），session.reset()
+  case TurnStatus.limitReached: askUserToReset();     // 旧 CoachSession 默认 20 轮 / 4 万字符；CoachAgent 默认 50 轮
   case TurnStatus.inputTooLong: tellUserTooLong();    // 默认 500 字
   case TurnStatus.busy: ignore();                     // 上一轮还在进行：本次被拒绝，未调模型
   case TurnStatus.cancelled || TurnStatus.error: showTemplateEntry();

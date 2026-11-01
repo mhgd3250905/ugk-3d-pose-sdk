@@ -52,8 +52,10 @@ await chat.start();
 `planGateFailure/timeoutFailure/serviceFailure/generationFailure` 覆盖；旧空失败记录显示
 通用失败文案，原存档结构不变。
 既有轮数/历史策略的 `limitReached` 单独使用 `conversationLimitReached`，提示开启
-新对话；它与可压缩的 64KB 上下文预算错误分开，不更改原有轮数策略。实际网关为
+新对话；默认上限为 50 轮或 40,000 历史字符，与可压缩的 256 KiB 上下文预算错误分开。实际网关为
 `OpenAiCompatibleClient` 时，字节日志沿用其 `buildBody` 精确序列化结果。
+模型返回的原始 `prompt_cache_hit_tokens/prompt_cache_miss_tokens` 经既有 `UsageRecord`
+用量日志记录；未返回字段保持未知，不用零代替，也不新增 observer 事件。
 
 `CoachAppProfile` 负责显式动作范围、剂量投影/单位、对话文案、安全文案、主题/图标/
 剪影和同播放器的执行时长回调；`CoachChatBindings` 负责有生命周期的宿主服务。

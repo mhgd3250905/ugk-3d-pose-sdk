@@ -1,6 +1,22 @@
 # 只追加上下文与阈值折叠
 
-本方案最初经开哥 2026-10-28 确认。以下保留历史合同；2026-11-01 长会话修复对请求摘要的更新见下一节。本文不代表分支当前合并或发布状态。
+本方案最初经开哥 2026-10-28 确认。以下保留历史合同；当前分支默认预算见首节，历史数值不代表当前默认值。本文不代表分支当前合并或发布状态。
+
+## 2026-11-02：默认预算放宽与缓存用量日志
+
+`codex/context-budget-widen` 基于 main `0a6c3aa`，仅将 off/on 软阈值按原值乘四，
+改为 163,840 / 204,800 B（160/200 KiB），硬上限改为 262,144 B（256 KiB）。
+thinking 模式使用 200 KiB 软阈值，保留原 off/on 阈值关系。
+默认 `maxTurns` 从 20 改为 50；独立的 `maxHistoryChars=40000` 保持不变。
+折叠、不可裁剪的当前轮、失败轮恢复、完整历史/账本/快照等规则均沿用已有实现。
+
+同一 epoch 内 system/tools 固定，历史消息（含 reasoning）只追加，动态状态位于末尾；
+已有前缀测试及真实 HTTP 比较用于核验，不新增缓存或前缀机制。
+`TokenUsage` 新增默认 null 的 `promptCacheHitTokens/promptCacheMissTokens`，
+保留 DeepSeek 原始 `prompt_cache_hit_tokens/prompt_cache_miss_tokens`，
+经既有 `UsageRecord.toJson()` 写入日志；服务端未返回时省略，既有 `cachedTokens` 及计费语义不变。
+缓存命中率以实际 usage 和字段覆盖率报告，不用 JSON 前缀字节推算命中 token。
+唯一一段 40 轮真实长聊和两次场景/器械切换验收见[一页报告](reports/context-budget-widen-20261102.md)。
 
 ## 2026-11-01：请求投影与完整存档分离
 
@@ -45,3 +61,5 @@
 核对了 [DeepSeek thinking 官方文档](https://api-docs.deepseek.com/guides/thinking_mode/)：带 tools 时保留所有仍存在的历史 assistant 的 reasoning_content。另核对 [官方前缀缓存说明](https://api-docs.deepseek.com/guides/kv_cache/)，实际命中仍由上游 usage 报告，字节前缀稳定不能直接等同 token 命中率。
 
 对照了 [Cline Auto Compact](https://github.com/cline/cline/blob/main/docs/features/auto-compact.mdx) 的阈值触发/摘要替换，以及 [Roo Code context management](https://github.com/RooCodeInc/Roo-Code/blob/main/src/core/context-management/index.ts) 的消息边界处理。二者均为 [Apache-2.0](https://github.com/cline/cline/blob/main/LICENSE) / [Apache-2.0](https://github.com/RooCodeInc/Roo-Code/blob/main/LICENSE)；Roo 仓库当前为归档状态，仅作历史问题参考。这里不引入其 TypeScript/Anthropic 依赖，也不复制摘要生成代码；本项目按已批准的 Dart 账本确定性摘要实现，不使用模型摘要或滑窗丢原话的后备方案。
+
+2026-11-02 缓存日志改动前，另比较了持续维护的 [OpenAI Python 可选用量字段](https://github.com/openai/openai-python/blob/main/src/openai/types/completion_usage.py)（[Apache-2.0](https://github.com/openai/openai-python/blob/main/LICENSE)）和 [LiteLLM](https://github.com/BerriAI/litellm)（[enterprise 目录外为 MIT](https://github.com/BerriAI/litellm/blob/main/LICENSE)）。前者提供可选字段的直接解析参考，后者的多提供商网关及 Python 依赖超出本次记录数值的需要；其[缓存桶与 prompt token 归一化修复](https://github.com/BerriAI/litellm/pull/37173)仍在上游评审。本次沿用 Dart 原用量序列化，不引入依赖、不复制外部实现，服务端缺失字段保持未知。

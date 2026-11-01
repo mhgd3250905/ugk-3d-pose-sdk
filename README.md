@@ -7,6 +7,7 @@
 第 2 批的显式动作范围、focus/恢复/开练守卫及范围外告知接口见
 [Coach Scope 接入](docs/coach-scope-manifest.md)，观测与真实模型门禁口径见
 [Scope 验收工具](docs/reports/coach-scope-guard-evaluation.md)。该批在独立分支待审，未合 main。
+完整逐轮表格、未通过的调用预算与原始失败留档见[第 2 批报告](docs/reports/coach-scope-guard-20261101.md)。
 
 统一对话模块的归属、配置档、白名单素材隔离、SF 搬迁与验收方案见
 [教练对话模块设计稿](docs/coach-chat-module-design.md)（仅文档，实施及 App 升级另行审核）。

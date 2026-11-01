@@ -1,10 +1,26 @@
 # 项目维护台账
 
-更新日期：2026-10-26。仓库：[mhgd3250905/ugk-3d-pose-sdk](https://github.com/mhgd3250905/ugk-3d-pose-sdk)。
+更新日期：2026-11-01。仓库：[mhgd3250905/ugk-3d-pose-sdk](https://github.com/mhgd3250905/ugk-3d-pose-sdk)。
 
 本台账统一记录维护状态、已合并成果、验证证据和待办。包版本、接口行为仍以对应清单和实现为准；发布历史保留在 CHANGELOG。表内 SHA 是核验快照，后续文档提交会推进 main，不能把快照当成永远最新的分支指针。
 
-## 当前快照：真机反馈 r1 第 1 部分批准交付（2026-10-26）
+## 当前快照：runtime 拆包已合入，scope 守卫独立待审（2026-11-01）
+
+第 1 批经开哥批准，main 已快进并推送到 `2196326ce8a4b216f60d79ddf4135a6d03fbd13d`；
+不打 tag，各 App pin 不变。原有拆包、资源键、插件与 APK 素材闭包证据仍见
+[runtime 拆包](trainer-runtime-split.md)。iOS、真机播放/性能及 App 迁移留待各 App 换 pin 验收。
+
+第 2 批 `codex/coach-scope-guard` 从该 main 建立，业务源码提交为
+`ba86b060850ff7365422ba5422a86e9661741fd9`。只修改 ugk_coach 及测试/工具/文档，
+不创建 ugk_coach_chat、不修改 UI/runtime 或 App。显式范围、可信告知、恢复/开练与
+审计接口见 [Scope 接入](coach-scope-manifest.md)，全套结果与保留失败见
+[第 2 批报告](reports/coach-scope-guard-20261101.md)。真实模型调用预算仍有未通过项，
+不能把本地门禁或功能交付成功称为第 2 批整体通过，也不据此进入第 3 批。
+
+SF 维持已确认的 219 授权 / 211 可规划；HipLab 45、托马斯 51 仍为候选。
+runtime 的 cupertino_icons 有实际 CupertinoIcons 引用，本批保留，不做无依据删除。
+
+## 历史快照：真机反馈 r1 第 1 部分批准交付（2026-10-26）
 
 从 main `ac9b31f` 建立 `codex/feedback-r1-part1`，版本 coach 0.7.0 / trainer 0.5.0 / coach_ui 0.3.0。实现训练无感媒体、动作库网格与直接训练、套路卡局部尺寸留白和 AI 单轮参数补问。开哥已批准合 main、推送和三个 minor tag；合入前复核 `a451760` 无液态玻璃夹带，并补齐交接 C ① 的22px圆角、1:1渐变图区、青绿已选项、清除与空状态。旧原始工作区、其他工作树和微拟物暂存保持；整体配色未重设计。
 

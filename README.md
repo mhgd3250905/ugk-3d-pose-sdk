@@ -3,6 +3,7 @@
 第 2 批已审核快进并推送 main `67c9747b8e29955d2be21c020c5ef3881b4966e6`，剩余调用优化目标已获用户接受。
 第 3 批在 `codex/coach-chat-extract` 新增 [`ugk_coach_chat`](packages/ugk_coach_chat/README.md)，
 把 SF `3eb2a9e` 的页面与对话功能抽入共享模块；[接入边界与验证方式](docs/coach-chat-module.md)。App/pin 未修改。
+第 3 批测试、零像素差与唯一三段真实会话见[一页报告](docs/reports/coach-chat-extract-20261101.md)，分支待审、未合 main。
 
 训练播放第 1 批已审核并合入 main `2196326`：唯一实现为 `ugk_trainer_runtime`，旧 `ugk_trainer` 保留
 兼容导出与历史全量素材。白名单生成工具、最小宿主实物打包门禁和验证记录见

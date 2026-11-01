@@ -11,6 +11,8 @@ SF five-1 r3、Hip R1/R2 的剩余调用目标偏差已接受，不再单独修�
 第 3 批 `codex/coach-chat-extract` 从新 main 提取 SF `3eb2a9e` 到 `ugk_coach_chat`；
 宿主存储/媒体/导航均经公开端口，未改 App 或 pin。接口见[模块接入](coach-chat-module.md)，
 关键状态帧来源/环境见[采集清单](coach-chat-module-design/capture-environment.md)。
+实现提交 `10a0089ee884fe3256ef37a36041f3a4c6fc590f`；五包全量/分析、SF 22 帧零像素差与
+三段真实会话均通过，见[第 3 批一页报告](reports/coach-chat-extract-20261101.md)。分支待审，未合 main。
 
 ### 第 1、2 批历史记录
 

@@ -128,6 +128,35 @@ void main() {
     expect(repository.requested, isEmpty);
   });
 
+  testWidgets('self-test artwork preserves right-side mirroring', (
+    tester,
+  ) async {
+    await mount(
+      tester,
+      TrainingLibraryActionArt(
+        actionId: 'h-squat',
+        config: config,
+        mediaPolicy: policy,
+        mirrored: true,
+      ),
+    );
+    final transforms = tester.widgetList<Transform>(
+      find.descendant(
+        of: find.byType(TrainingActionMedia),
+        matching: find.byType(Transform),
+      ),
+    );
+    expect(
+      transforms.any(
+        (widget) =>
+            widget.transform.entry(0, 0) == -1 &&
+            widget.transform.entry(1, 1) == 1,
+      ),
+      isTrue,
+    );
+    expect(repository.requested, isEmpty);
+  });
+
   testWidgets(
     'brand, copy and category order configure shared search and clear',
     (tester) async {

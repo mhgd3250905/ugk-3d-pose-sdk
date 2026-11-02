@@ -71,12 +71,13 @@ class TrainingLibraryActionArt extends StatelessWidget {
     required this.mediaPolicy,
     this.theme,
     this.playing = false,
+    this.mirrored = false,
   });
   final String actionId;
   final TrainingLibraryConfig config;
   final TrainingMediaPolicy mediaPolicy;
   final TrainerTheme? theme;
-  final bool playing;
+  final bool playing, mirrored;
 
   @override
   Widget build(BuildContext context) {
@@ -92,6 +93,7 @@ class TrainingLibraryActionArt extends StatelessWidget {
       actionId: actionId,
       policy: mediaPolicy,
       playing: playing,
+      mirrored: mirrored,
       radius: resolved.radius,
       stage: resolved.mediaStage,
     );

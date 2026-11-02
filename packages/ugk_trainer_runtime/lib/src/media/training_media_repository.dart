@@ -6,7 +6,9 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:ugk_coach/ugk_coach.dart' as coach;
 
+import 'catalog_media_repository.dart';
 import 'training_media_models.dart';
 import 'training_media_preview_policy.dart';
 import 'training_media_storage.dart';
@@ -37,6 +39,34 @@ class TrainingMediaScope extends InheritedWidget {
 
 /// Versioned, integrity checked media shared by all trainer clients.
 class TrainingMediaRepository extends ChangeNotifier {
+  /// Public packages map action IDs to their actual manifest file paths.
+  /// The legacy version/skin/theme repository below remains unchanged.
+  static Future<CatalogMediaRepository> fromCatalog({
+    required coach.PoseHubAppTestCatalog catalog,
+    required String catalogRevision,
+    required List<Uri> mediaBaseUrls,
+    String packVersion = 'r1-v3',
+    String? rootDirectory,
+    CatalogBundledFileLoader? bundledFileLoader,
+    int maxVideoCacheBytes = catalogVideoCacheLimitBytes,
+    String? legacyCacheDirectory,
+    List<CatalogLegacyVideoFile> legacyVideos = const [],
+    String? legacyManifestAsset,
+    AssetBundle? legacyBundle,
+  }) => CatalogMediaRepository.create(
+    catalog: catalog,
+    catalogRevision: catalogRevision,
+    mediaBaseUrls: mediaBaseUrls,
+    packVersion: packVersion,
+    rootDirectory: rootDirectory,
+    bundledFileLoader: bundledFileLoader,
+    maxVideoCacheBytes: maxVideoCacheBytes,
+    legacyCacheDirectory: legacyCacheDirectory,
+    legacyVideos: legacyVideos,
+    legacyManifestAsset: legacyManifestAsset,
+    legacyBundle: legacyBundle,
+  );
+
   TrainingMediaRepository._(
     this.manifest,
     this._bundle,

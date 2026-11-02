@@ -19,6 +19,7 @@ class UgkPackedAlphaVideo extends StatefulWidget {
     super.key,
     required this.asset,
     required this.controller,
+    this.onDisposed,
   }) : sourceUri = null;
 
   /// A complete installed pack keeps its original media outside the bundle.
@@ -27,10 +28,15 @@ class UgkPackedAlphaVideo extends StatefulWidget {
     super.key,
     required Uri this.sourceUri,
     required this.controller,
+    this.onDisposed,
   }) : asset = '';
   final String asset;
   final Uri? sourceUri;
   final DrillMediaController controller;
+
+  /// Called after native disposal completes, including an in-flight create
+  /// retired before it returned. Optional cache owners can release their pin.
+  final VoidCallback? onDisposed;
 
   static final _defaultPlatform = MethodChannelPackedAlphaPlatform();
   static Future<ui.FragmentProgram>? _program;
@@ -63,6 +69,23 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
   int _generation = 0;
   bool _nativeFrame = false;
   bool _frameAnnounced = false;
+  final _nativeJobs = <Future<void>>{};
+  bool _nativeDisposeFailed = false;
+
+  Future<void> _disposeNative(PackedAlphaPlatform platform, int id) async {
+    try {
+      await platform.command(id, 'dispose');
+    } catch (_) {
+      // An unacknowledged decoder may still hold its file. Keep its cache pin.
+      _nativeDisposeFailed = true;
+    }
+  }
+
+  void _trackNative(Future<void> job) {
+    final safe = job.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    _nativeJobs.add(safe);
+    unawaited(safe.then((_) => _nativeJobs.remove(safe)));
+  }
 
   @override
   void initState() {
@@ -99,7 +122,7 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
       }
     };
     owner.attach(_sink!);
-    unawaited(
+    _trackNative(
       _initialize(platform, generation, owner, widget.asset, widget.sourceUri),
     );
   }
@@ -152,7 +175,7 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
           ? await platform.create(asset)
           : await (platform as PackedAlphaUriPlatform).createUri(sourceUri);
       if (!_current(generation, owner)) {
-        await platform.command(created.playerId, 'dispose');
+        await _disposeNative(platform, created.playerId);
         return;
       }
       setState(() {
@@ -298,7 +321,7 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
     unawaited(_events?.cancel());
     final id = _playerId;
     if (id != null) {
-      unawaited(_platform!.command(id, 'dispose').catchError((_) => null));
+      _trackNative(_disposeNative(_platform!, id));
     }
     _events = null;
     _playerId = null;
@@ -317,6 +340,14 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _retire();
+    final released = widget.onDisposed;
+    if (released != null) {
+      unawaited(
+        Future.wait(_nativeJobs.toList()).then((_) {
+          if (!_nativeDisposeFailed) released();
+        }),
+      );
+    }
     super.dispose();
   }
 

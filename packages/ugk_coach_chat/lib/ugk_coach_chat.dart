@@ -11,7 +11,7 @@ export 'src/core/transition_activity.dart';
 export 'src/core/training_adapter.dart';
 
 export 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart'
-    show TrainerExperienceConfig;
+    show TrainerExperienceConfig, TrainingMediaPolicy;
 
 export 'src/theme/chat_theme.dart';
 export 'src/ui/chat_home_page.dart' show CoachChatPage;

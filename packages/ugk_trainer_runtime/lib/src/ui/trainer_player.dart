@@ -31,6 +31,8 @@ import '../engine/session.dart';
 import '../media/drill_media.dart';
 import '../media/drill_media_view.dart';
 import '../media/packed_alpha_video.dart';
+import '../media/training_action_media.dart';
+import '../media/training_media_policy.dart';
 import '../platform/screen_awake.dart';
 import '../platform/training_keep_alive.dart';
 import '../pose_hub/pose_hub_media_prefetcher.dart';
@@ -504,6 +506,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   PoseHubMediaPrefetcher? _mediaPrefetcher;
   Future<void>? _mediaRetirement;
   int _mediaGeneration = -1;
+  TrainingMediaPolicy? _publicMediaPolicy;
+  String? _publicPrefetchIds;
   int _interruptionRevision = 0;
 
   String _shownKey = '';
@@ -898,6 +902,21 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _prioritizeMedia() {
+    final policy = TrainingMediaPolicyScope.read(context);
+    if (policy != null) {
+      final ids = [
+        for (final id in _plan.exerciseIds)
+          if (widget.drillOf(id) case final drill?)
+            if (drill.media?.videoAvailable != false)
+              drill.media?.actionId ?? drill.id,
+      ];
+      final key = ids.join('|');
+      if (!identical(policy, _publicMediaPolicy) || key != _publicPrefetchIds) {
+        _publicMediaPolicy = policy;
+        _publicPrefetchIds = key;
+        unawaited(policy.prefetchActions(ids));
+      }
+    }
     if (_exitingEarly) return;
     if (_experience != null &&
         (!_experience!.control.canPlay ||
@@ -1893,6 +1912,22 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
               !_waitingForStart),
     );
     if (widget.mediaBuilder != null) return widget.mediaBuilder!(context, req);
+    final policy = TrainingMediaPolicyScope.maybeOf(context);
+    if (policy != null) {
+      return TrainingActionMedia(
+        key: const ValueKey('player-public-media'),
+        actionId: d.media?.actionId ?? d.id,
+        policy: policy,
+        playing:
+            req.canPlay &&
+            d.media?.videoAvailable != false &&
+            (_preview || _exitingEarly || !_engine.done),
+        paused: req.paused,
+        mirrored: req.mirrored,
+        radius: 0,
+        stage: theme.mediaStage,
+      );
+    }
     if (experience != null && !req.canPlay) {
       final poster = _experiencePosterAsset(d);
       return poster == null
@@ -1941,6 +1976,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   String? _experiencePosterAsset(TrainerDrill drill) {
+    final policy = TrainingMediaPolicyScope.read(context);
+    if (policy != null) {
+      return policy.posterAssetFor(drill.media?.actionId ?? drill.id);
+    }
     _firstExperienceAction ??= drill.id;
     final media = drill.media;
     if (media != null) {

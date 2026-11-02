@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 
+import '../media/training_media_policy.dart';
 import 'trainer_poster.dart';
 import 'trainer_slide_route.dart';
 import 'trainer_theme.dart';
@@ -25,19 +26,25 @@ abstract final class TrainerLauncher {
   ///
   /// Null also means that its poster was absent, failed or timed out, or that
   /// [onStarting] declined. No route or training session starts in those cases.
+  /// With an explicit public [mediaPolicy], a missing action may have no poster;
+  /// its training still opens without substituting a different demonstration.
   static Future<T?> open<T>(
     BuildContext context, {
     required WidgetBuilder builder,
     required String? firstPosterAsset,
     Iterable<String> posterAssets = const [],
     TrainerExperienceConfig? experience,
+    TrainingMediaPolicy? mediaPolicy,
+    Iterable<String> planActionIds = const [],
     TrainerTheme? theme,
     Future<bool> Function()? onStarting,
     VoidCallback Function()? holdTransition,
     RouteSettings? settings,
   }) async {
+    final policy = mediaPolicy ?? TrainingMediaPolicyScope.read(context);
     final asset = firstPosterAsset;
-    if (asset == null || asset.isEmpty) return null;
+    final hasPoster = asset != null && asset.isNotEmpty;
+    if (!hasPoster && policy == null) return null;
     final config = experience ?? const TrainerExperienceConfig();
     if (config.posterWarmupTimeout <= Duration.zero) return null;
     final navigator = Navigator.of(context);
@@ -55,16 +62,19 @@ abstract final class TrainerLauncher {
     VoidCallback? listener;
     try {
       release = holdTransition?.call();
-      lease = TrainingPosterImages.retain(
-        asset,
-        width,
-        bundle: bundle,
-        configuration: configuration,
-      );
-      if (!await lease.ready.timeout(
-            config.posterWarmupTimeout,
-            onTimeout: () => false,
-          ) ||
+      if (hasPoster) {
+        lease = TrainingPosterImages.retain(
+          asset,
+          width,
+          bundle: bundle,
+          configuration: configuration,
+        );
+      }
+      if ((lease != null &&
+              !await lease.ready.timeout(
+                config.posterWarmupTimeout,
+                onTimeout: () => false,
+              )) ||
           !context.mounted ||
           !navigator.mounted ||
           watch.interrupted) {
@@ -75,6 +85,7 @@ abstract final class TrainerLauncher {
         return null;
       }
       _prepareSideIcons();
+      if (policy != null) unawaited(policy.prefetchActions(planActionIds));
       for (final next in posterAssets.toSet()) {
         if (next.isEmpty || next == asset) continue;
         unawaited(
@@ -89,17 +100,23 @@ abstract final class TrainerLauncher {
         context: context,
         trainerTheme: theme,
         settings: settings,
-        builder: (context) => DefaultAssetBundle(
-          bundle: bundle,
-          child: TrainerExperienceScope(
-            control: route!.control,
-            config: config,
+        builder: (context) {
+          Widget page = DefaultAssetBundle(
             bundle: bundle,
-            decodeWidth: width,
-            firstPosterAsset: asset,
-            child: Builder(builder: builder),
-          ),
-        ),
+            child: TrainerExperienceScope(
+              control: route!.control,
+              config: config,
+              bundle: bundle,
+              decodeWidth: width,
+              firstPosterAsset: asset ?? '',
+              child: Builder(builder: builder),
+            ),
+          );
+          if (policy != null) {
+            page = TrainingMediaPolicyScope(policy: policy, child: page);
+          }
+          return page;
+        },
       );
       listener = () {
         final control = opened.control;

@@ -1,6 +1,6 @@
 import 'package:ugk_coach/ugk_coach.dart' as coach;
 import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart'
-    show TrainerExperienceConfig;
+    show TrainerExperienceConfig, TrainingMediaPolicy;
 
 import '../theme/chat_theme.dart';
 import 'chat_strings.dart';
@@ -30,6 +30,7 @@ class CoachAppProfile {
     this.visual = const CoachChatVisuals(),
     this.doseOverrides = const {},
     this.trainingExperience,
+    this.mediaPolicy,
   });
 
   final String appId, revision;
@@ -45,6 +46,9 @@ class CoachAppProfile {
   /// poster-first launcher defaults. Host plans, safety and persistence remain
   /// in the host adapters.
   final TrainerExperienceConfig? trainingExperience;
+
+  /// Opt-in public action media. Null retains the host's existing media path.
+  final TrainingMediaPolicy? mediaPolicy;
   Set<String> get allowedActionIds => scopeManifest.allowedActionIds;
 
   coach.Catalog planningCatalog(coach.Catalog source) {

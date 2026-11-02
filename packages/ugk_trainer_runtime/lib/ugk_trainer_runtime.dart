@@ -5,12 +5,15 @@ library;
 
 export 'engine.dart';
 export 'src/media/asset_router.dart';
+export 'src/media/catalog_media_repository.dart';
 export 'src/media/drill_media.dart';
 export 'src/media/drill_media_view.dart';
 export 'src/media/media_controller.dart';
 export 'src/media/media_playback_handle.dart';
 export 'src/media/packed_alpha_video.dart';
 export 'src/media/runtime_assets.dart';
+export 'src/media/training_action_media.dart';
+export 'src/media/training_media_policy.dart';
 export 'src/media/training_media_preview_policy.dart';
 export 'src/media/training_media_repository.dart';
 export 'src/platform/screen_awake.dart';

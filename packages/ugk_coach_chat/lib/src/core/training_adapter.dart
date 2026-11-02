@@ -14,7 +14,7 @@ class CoachChatTrainingAdapter {
   const CoachChatTrainingAdapter({
     required this.profile,
     required this.pageBuilder,
-    required this.firstPosterAsset,
+    this.firstPosterAsset,
     this.posterAssets,
     this.theme,
   });
@@ -22,7 +22,12 @@ class CoachChatTrainingAdapter {
   final CoachAppProfile profile;
   final Widget Function(BuildContext context, CoachChatTrainingRequest request)
   pageBuilder;
-  final String? Function(BuildContext context, CoachChatTrainingRequest request)
+
+  /// Legacy media callbacks are used only when the profile has no media policy.
+  final String? Function(
+    BuildContext context,
+    CoachChatTrainingRequest request,
+  )?
   firstPosterAsset;
   final Iterable<String> Function(
     BuildContext context,
@@ -38,15 +43,27 @@ class CoachChatTrainingAdapter {
   Future<SessionResult?> call(
     BuildContext context,
     CoachChatTrainingRequest request,
-  ) => TrainerLauncher.open<SessionResult>(
-    context,
-    builder: (context) => pageBuilder(context, request),
-    firstPosterAsset: firstPosterAsset(context, request),
-    posterAssets: posterAssets?.call(context, request) ?? const [],
-    experience: profile.trainingExperience,
-    theme: theme?.call(context, request),
-    onStarting: request.onStarting,
-    holdTransition: request.holdTransition,
-    settings: const RouteSettings(name: 'player'),
-  );
+  ) {
+    final policy = profile.mediaPolicy;
+    final ids = request.plan.plan.exerciseIds;
+    return TrainerLauncher.open<SessionResult>(
+      context,
+      builder: (context) => pageBuilder(context, request),
+      firstPosterAsset: policy == null
+          ? firstPosterAsset?.call(context, request)
+          : ids.isEmpty
+          ? null
+          : policy.posterAssetFor(ids.first),
+      posterAssets: policy == null
+          ? posterAssets?.call(context, request) ?? const []
+          : [for (final id in ids) ?policy.posterAssetFor(id)],
+      experience: profile.trainingExperience,
+      mediaPolicy: policy,
+      planActionIds: ids,
+      theme: theme?.call(context, request),
+      onStarting: request.onStarting,
+      holdTransition: request.holdTransition,
+      settings: const RouteSettings(name: 'player'),
+    );
+  }
 }

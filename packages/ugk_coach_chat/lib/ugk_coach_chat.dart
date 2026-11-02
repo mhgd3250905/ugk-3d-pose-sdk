@@ -16,6 +16,7 @@ export 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart'
         TrainingMediaPolicy,
         TrainingLibraryConfig,
         TrainingLibraryStrings,
+        TrainingLibraryBrowser,
         TrainingLibraryPage,
         TrainingLibraryDetails,
         TrainingLibraryActionArt;

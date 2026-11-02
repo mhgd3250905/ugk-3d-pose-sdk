@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
@@ -11,7 +10,10 @@ import '../ui/trainer_experience.dart';
 import '../ui/trainer_player.dart';
 import '../ui/trainer_poster.dart';
 import '../ui/trainer_theme.dart';
+import 'training_library_browser.dart';
 import 'training_library_config.dart';
+import 'training_library_icons.dart';
+import 'training_library_style.dart';
 
 /// SF's shared browser, using the product's canonical Coach allowlist and the
 /// public frame-zero posters. Merely browsing never requests a video.
@@ -35,11 +37,10 @@ class TrainingLibraryPage extends StatelessWidget {
   final bool embedded;
 
   @override
-  Widget build(BuildContext context) => PoseHubActionBrowser(
-    catalog: mediaPolicy.catalog,
-    mediaBaseUri: mediaPolicy.repository.mediaBaseUri,
+  Widget build(BuildContext context) => TrainingLibraryBrowser(
+    actions: mediaPolicy.catalog.semanticCompleteActions,
     theme: theme,
-    libraryConfig: config,
+    config: config,
     embedded: embedded,
     actionArtwork: (_, action, theme) => TrainingLibraryActionArt(
       actionId: action.id,
@@ -136,6 +137,9 @@ abstract final class TrainingLibraryDetails {
       routeSettings: RouteSettings(name: 'training_library_detail/$actionId'),
       isScrollControlled: true,
       backgroundColor: resolved.surface,
+      sheetAnimationStyle: TrainingLibraryStyle.sheetAnimation,
+      shape: TrainingLibraryStyle.sheetShape,
+      showDragHandle: true,
       builder: (_) => DefaultAssetBundle(
         bundle: bundle,
         child: TrainingLibraryDetail(
@@ -219,75 +223,29 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Semantics(
-              button: true,
-              label:
-                  '${_playing ? strings.pause : strings.play}${action.nameZh}',
-              child: GestureDetector(
-                key: const ValueKey('library-detail-play'),
-                onTap: () => setState(() => _playing = !_playing),
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      TrainingLibraryActionArt(
-                        actionId: action.id,
-                        config: widget.config,
-                        mediaPolicy: widget.mediaPolicy,
-                        theme: theme,
-                        playing: _playing,
-                      ),
-                      Positioned(
-                        right: 12,
-                        bottom: 12,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: theme.surfaceHigh,
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  _playing
-                                      ? CupertinoIcons.pause_fill
-                                      : CupertinoIcons.play_fill,
-                                  size: 18,
-                                  color: theme.text,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _playing ? strings.pause : strings.play,
-                                  style: theme.callout,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+            GestureDetector(
+              key: const ValueKey('library-detail-play'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => _playing = !_playing),
+              child: Semantics(
+                button: true,
+                label:
+                    '${_playing ? strings.pause : strings.play}${action.nameZh}',
+                child: TrainingLibraryActionArt(
+                  actionId: action.id,
+                  config: widget.config,
+                  mediaPolicy: widget.mediaPolicy,
+                  theme: theme,
+                  playing: _playing,
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              action.nameZh,
-              style: theme.title.copyWith(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+            Text(action.nameZh, style: TrainingLibraryStyle.detailTitle(theme)),
             const SizedBox(height: 4),
             Text(
               [
-                PoseHubActionFacets.type(action),
+                _categoryLabel(action.raw['category'] as String?),
                 switch (action.raw['level']) {
                   1 => '入门',
                   2 => '基础',
@@ -303,11 +261,11 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
               style: theme.label,
             ),
             const SizedBox(height: 16),
-            _line(theme, CupertinoIcons.person, strings.muscles, muscles),
+            _line(theme, TrainingLibraryGlyph.figure, strings.muscles, muscles),
             const SizedBox(height: 12),
             _line(
               theme,
-              CupertinoIcons.text_bubble,
+              TrainingLibraryGlyph.subtitles,
               strings.cues,
               cues.whereType<String>().join('；'),
             ),
@@ -315,27 +273,29 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
               const SizedBox(height: 12),
               _line(
                 theme,
-                CupertinoIcons.bandage,
+                TrainingLibraryGlyph.bandage,
                 strings.cautions,
-                '${cautions.join('、')}；${strings.cautionSuffix}',
+                '${cautions.join('、')}${strings.cautionSuffix}',
                 color: theme.caution,
               ),
             ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                key: const ValueKey('library-detail-start'),
-                onPressed: widget.canStart
-                    ? () => Navigator.of(context).pop(true)
-                    : null,
-                style: FilledButton.styleFrom(
-                  backgroundColor: theme.accent,
-                  foregroundColor: theme.onAccent,
+            if (widget.config.showStartAction) ...[
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  key: const ValueKey('library-detail-start'),
+                  onPressed: widget.canStart
+                      ? () => Navigator.of(context).pop(true)
+                      : null,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.accent,
+                    foregroundColor: theme.onAccent,
+                  ),
+                  child: Text(strings.start),
                 ),
-                child: Text(strings.start),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -344,7 +304,7 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
 
   Widget _line(
     TrainerTheme theme,
-    IconData icon,
+    TrainingLibraryGlyph icon,
     String label,
     String text, {
     Color? color,
@@ -353,7 +313,7 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
     children: [
       Padding(
         padding: const EdgeInsets.only(top: 2),
-        child: Icon(icon, size: 18, color: color ?? theme.faint),
+        child: TrainingLibraryIcon(icon, size: 18, color: color ?? theme.faint),
       ),
       const SizedBox(width: 8),
       SizedBox(
@@ -374,10 +334,7 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
 }
 
 TrainerTheme _themeOf(BuildContext context, TrainerTheme? supplied) =>
-    supplied ??
-    (Theme.of(context).brightness == Brightness.dark
-        ? TrainerTheme.dark
-        : TrainerTheme.light);
+    TrainingLibraryStyle.themeOf(context, supplied);
 
 const _muscleLabels = <String, String>{
   'chest': '胸部',
@@ -400,4 +357,13 @@ const _muscleLabels = <String, String>{
   'adductors': '内收肌',
   'calves': '小腿',
   'tibialis': '胫骨前肌',
+};
+
+String _categoryLabel(String? category) => switch (category) {
+  'strength' => '力量',
+  'core' => '核心',
+  'cardio' => '有氧',
+  'mobility' => '灵活',
+  'stretch' => '拉伸',
+  _ => '灵活',
 };

@@ -8,12 +8,17 @@ class TrainingLibraryConfig {
     this.categoryOrder = const ['力量', '拉伸放松'],
     this.brand = '',
     this.strings = const TrainingLibraryStrings(),
+    this.showStartAction = false,
   });
 
   final CoachActionScopeManifest scopeManifest;
   final List<String> categoryOrder;
   final String brand;
   final TrainingLibraryStrings strings;
+
+  /// SF's action detail has no start button. Hosts can explicitly add one
+  /// while retaining their own authored plan, safety and persistence callback.
+  final bool showStartAction;
   Set<String> get allowedActionIds => scopeManifest.allowedActionIds;
 
   /// The library is a catalogue exposure boundary, like Coach tool exposure.

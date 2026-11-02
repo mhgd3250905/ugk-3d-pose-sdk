@@ -242,9 +242,26 @@ void main() {
     );
   }
 
+  testWidgets('default SF detail does not add a start action', (tester) async {
+    await mount(
+      tester,
+      Scaffold(
+        body: TrainingLibraryDetail(
+          action: catalog.tryGet('h-squat')!,
+          config: config,
+          mediaPolicy: policy,
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('library-detail-start')), findsNothing);
+    expect(find.text('力量 · 入门 · 徒手'), findsOneWidget);
+    expect(repository.requested, isEmpty);
+  });
+
   testWidgets('a blocked action cannot start from shared detail', (
     tester,
   ) async {
+    config = TrainingLibraryConfig(scopeManifest: scope, showStartAction: true);
     await mount(
       tester,
       Scaffold(
@@ -270,6 +287,7 @@ void main() {
   testWidgets('detail start delegates to host after closing its sheet', (
     tester,
   ) async {
+    config = TrainingLibraryConfig(scopeManifest: scope, showStartAction: true);
     final started = <String>[];
     var nativePlayerStarted = false;
     late BuildContext source;

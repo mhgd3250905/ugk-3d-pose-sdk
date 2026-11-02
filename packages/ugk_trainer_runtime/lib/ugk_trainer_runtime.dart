@@ -4,6 +4,8 @@
 library;
 
 export 'engine.dart';
+export 'src/library/training_library_config.dart';
+export 'src/library/training_library_page.dart';
 export 'src/media/asset_router.dart';
 export 'src/media/catalog_media_repository.dart';
 export 'src/media/drill_media.dart';

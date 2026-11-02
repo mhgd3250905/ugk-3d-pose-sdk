@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import '../engine/session.dart';
+import '../library/training_library_config.dart';
 import '../result/session_result.dart';
 import '../rhythm/rhythm.dart';
 import '../ui/trainer_player.dart';
@@ -128,7 +129,22 @@ class PoseHubActionBrowser extends StatefulWidget {
     this.onStartTraining,
     this.onCompleted,
     this.onOpenPractice,
+    this.libraryConfig,
+    this.onOpenAction,
+    this.actionArtwork,
+    this.embedded = false,
   });
+
+  /// Optional shared-library configuration; absent preserves the SF browser.
+  final TrainingLibraryConfig? libraryConfig;
+  final ValueChanged<PoseHubPackAction>? onOpenAction;
+  final Widget Function(
+    BuildContext context,
+    PoseHubPackAction action,
+    TrainerTheme theme,
+  )?
+  actionArtwork;
+  final bool embedded;
   final PoseHubAppTestCatalog catalog;
   final Uri mediaBaseUri;
   final TrainerTheme? theme;
@@ -173,8 +189,9 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
     });
   }
 
-  String _equipmentLabel(String value) =>
-      const ['全部', '徒手', '需要器械'].contains(value)
+  String _equipmentLabel(String value) => value == '全部'
+      ? (widget.libraryConfig?.strings.all ?? value)
+      : const ['徒手', '需要器械'].contains(value)
       ? value
       : poseHubEquipmentLabels[value] ?? '其他器械';
 
@@ -186,6 +203,10 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
   Color _selectedForeground(TrainerTheme theme) => theme.accentText;
 
   void _openPractice(PoseHubPackAction action, TrainerTheme theme) {
+    if (widget.onOpenAction case final open?) {
+      open(action);
+      return;
+    }
     final page = PoseHubSinglePracticePage(
       action: action,
       mediaBaseUri: widget.mediaBaseUri,
@@ -208,16 +229,18 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
   @override
   Widget build(BuildContext context) {
     final theme = _themeOf(context, widget.theme);
+    final strings =
+        widget.libraryConfig?.strings ?? const TrainingLibraryStrings();
+    final libraryActions =
+        widget.libraryConfig?.actions(widget.catalog) ??
+        widget.catalog.semanticCompleteActions;
     final scaler = MediaQuery.textScalerOf(context);
     final nameHeight = scaler.scale(15) * 1.35 * 2;
     final tagHeight = scaler.scale(12) * 1.35;
     final equipment =
-        widget.catalog.semanticCompleteActions
-            .expand(PoseHubActionFacets.equipment)
-            .toSet()
-            .toList()
+        libraryActions.expand(PoseHubActionFacets.equipment).toSet().toList()
           ..sort();
-    final actions = widget.catalog.semanticCompleteActions
+    final actions = libraryActions
         .where(
           (action) => PoseHubActionFacets.matches(
             action,
@@ -230,12 +253,18 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
         .toList(growable: false);
     return Scaffold(
       backgroundColor: theme.background,
-      appBar: AppBar(
-        title: const Text('动作库'),
-        backgroundColor: theme.surface,
-        foregroundColor: theme.text,
-        surfaceTintColor: theme.surface,
-      ),
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              title: Text(
+                widget.libraryConfig?.brand.isNotEmpty == true
+                    ? '${widget.libraryConfig!.brand} · ${strings.title}'
+                    : strings.title,
+              ),
+              backgroundColor: theme.surface,
+              foregroundColor: theme.text,
+              surfaceTintColor: theme.surface,
+            ),
       body: SafeArea(
         top: false,
         child: Column(
@@ -248,7 +277,7 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
                 style: theme.body,
                 cursorColor: theme.accent,
                 decoration: InputDecoration(
-                  hintText: '搜索动作',
+                  hintText: strings.searchHint,
                   hintStyle: theme.body.copyWith(color: theme.muted),
                   prefixIcon: Icon(CupertinoIcons.search, color: theme.muted),
                   filled: true,
@@ -261,7 +290,7 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
               ),
             ),
             _filters(
-              '器械',
+              strings.equipment,
               ['全部', '徒手', '需要器械', ...equipment],
               _equipment,
               (value) => setState(() => _equipment = value),
@@ -269,15 +298,19 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
               label: _equipmentLabel,
             ),
             _filters(
-              '部位',
+              strings.bodyPart,
               const ['全部', '胸', '背', '肩', '手臂', '核心', '臀腿', '全身'],
               _body,
               (value) => setState(() => _body = value),
               theme,
             ),
             _filters(
-              '类型',
-              const ['全部', '力量', '拉伸放松'],
+              strings.category,
+              [
+                '全部',
+                ...?widget.libraryConfig?.categoryOrder,
+                if (widget.libraryConfig == null) ...['力量', '拉伸放松'],
+              ],
               _type,
               (value) => setState(() => _type = value),
               theme,
@@ -334,10 +367,16 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
                                               'posehub-image-area-${action.id}',
                                             ),
                                             aspectRatio: 1,
-                                            child: PoseHubStandingImage(
-                                              action: action,
-                                              theme: theme,
-                                            ),
+                                            child:
+                                                widget.actionArtwork?.call(
+                                                  context,
+                                                  action,
+                                                  theme,
+                                                ) ??
+                                                PoseHubStandingImage(
+                                                  action: action,
+                                                  theme: theme,
+                                                ),
                                           ),
                                           const SizedBox(height: 12),
                                           SizedBox(
@@ -389,10 +428,14 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
 
   Widget _selectionSummary(TrainerTheme theme) {
     final labels = [
-      if (_query.trim().isNotEmpty) '搜索：${_query.trim()}',
-      if (_equipment != '全部') '器械：${_equipmentLabel(_equipment)}',
-      if (_body != '全部') '部位：$_body',
-      if (_type != '全部') '类型：$_type',
+      if (_query.trim().isNotEmpty)
+        '${widget.libraryConfig?.strings.searchHint ?? '搜索'}：${_query.trim()}',
+      if (_equipment != '全部')
+        '${widget.libraryConfig?.strings.equipment ?? '器械'}：${_equipmentLabel(_equipment)}',
+      if (_body != '全部')
+        '${widget.libraryConfig?.strings.bodyPart ?? '部位'}：$_body',
+      if (_type != '全部')
+        '${widget.libraryConfig?.strings.category ?? '类型'}：$_type',
     ];
     return Padding(
       key: const ValueKey('posehub-selection-summary'),
@@ -401,7 +444,10 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
         children: [
           Expanded(
             child: labels.isEmpty
-                ? Text('全部动作', style: theme.label)
+                ? Text(
+                    widget.libraryConfig?.strings.allActions ?? '全部动作',
+                    style: theme.label,
+                  )
                 : SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -438,7 +484,7 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
             style: TextButton.styleFrom(
               foregroundColor: _selectedForeground(theme),
             ),
-            child: const Text('清除'),
+            child: Text(widget.libraryConfig?.strings.clear ?? '清除'),
           ),
         ],
       ),
@@ -454,10 +500,14 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
         children: [
           Icon(Icons.search_off_rounded, size: 44, color: theme.muted),
           const SizedBox(height: 12),
-          Text('没有符合条件的动作', style: theme.callout, textAlign: TextAlign.center),
+          Text(
+            widget.libraryConfig?.strings.emptyTitle ?? '没有符合条件的动作',
+            style: theme.callout,
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 6),
           Text(
-            '试试其他关键词，或清除筛选',
+            widget.libraryConfig?.strings.emptyBody ?? '试试其他关键词，或清除筛选',
             style: theme.label,
             textAlign: TextAlign.center,
           ),
@@ -468,7 +518,7 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
             style: TextButton.styleFrom(
               foregroundColor: _selectedForeground(theme),
             ),
-            child: const Text('清除筛选'),
+            child: Text(widget.libraryConfig?.strings.clearFilters ?? '清除筛选'),
           ),
         ],
       ),
@@ -504,7 +554,12 @@ class _PoseHubActionBrowserState extends State<PoseHubActionBrowser> {
               final value = options[index];
               return ChoiceChip(
                 key: ValueKey('posehub-$title-$value'),
-                label: Text(label?.call(value) ?? value),
+                label: Text(
+                  label?.call(value) ??
+                      (value == '全部'
+                          ? widget.libraryConfig?.strings.all ?? value
+                          : value),
+                ),
                 selected: selected == value,
                 showCheckmark: true,
                 checkmarkColor: _selectedForeground(theme),

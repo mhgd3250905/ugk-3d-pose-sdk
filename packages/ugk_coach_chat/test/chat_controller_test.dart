@@ -9,6 +9,8 @@ import 'package:ugk_coach_chat/src/core/chat_bindings.dart';
 import 'package:ugk_coach_chat/src/core/chat_controller.dart';
 import 'package:ugk_coach_chat/src/core/chat_snapshot.dart';
 import 'package:ugk_trainer_runtime/engine.dart';
+import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart'
+    show TrainingLibraryConfig;
 
 coach.LlmToolCall chatCall(String id, String name, Object args) =>
     coach.LlmToolCall(id: id, name: name, arguments: jsonEncode(args));
@@ -195,12 +197,14 @@ class ChatHarness {
     Future<void> Function(CoachChatSnapshot)? beforeNewConversation,
     List<String> allowedActionIds = const ['one', 'two', 'three', 'four'],
     List<String> equipment = const [],
+    TrainingLibraryConfig? library,
   }) : client = coach.FakeLlmClient(script, latency: Duration.zero),
        plans = plans ?? ChatPlans(),
        history = history ?? ChatHistory(),
        preferences = ChatPreferences(accepted: safetyAccepted) {
     final catalog = chatCatalog(equipment: equipment);
     final profile = CoachAppProfile(
+      library: library,
       appId: 'chat-test',
       scopeManifest: coach.CoachActionScopeManifest.fromCatalogBytes(
         appId: 'chat-test',

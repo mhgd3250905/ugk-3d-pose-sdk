@@ -1,6 +1,6 @@
 import 'package:ugk_coach/ugk_coach.dart' as coach;
 import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart'
-    show TrainerExperienceConfig, TrainingMediaPolicy;
+    show TrainerExperienceConfig, TrainingMediaPolicy, TrainingLibraryConfig;
 
 import '../theme/chat_theme.dart';
 import 'chat_strings.dart';
@@ -21,7 +21,7 @@ class CoachChatDoseOverride {
 class CoachAppProfile {
   const CoachAppProfile({
     required this.appId,
-    required this.scopeManifest,
+    required coach.CoachActionScopeManifest scopeManifest,
     required this.coachProfile,
     required this.conversationPolicy,
     required this.executionTiming,
@@ -31,10 +31,18 @@ class CoachAppProfile {
     this.doseOverrides = const {},
     this.trainingExperience,
     this.mediaPolicy,
-  });
+    this.library,
+    // Keep the public named parameter while retaining the legacy fallback.
+    // ignore: prefer_initializing_formals
+  }) : _scopeManifest = scopeManifest;
 
   final String appId, revision;
-  final coach.CoachActionScopeManifest scopeManifest;
+  final coach.CoachActionScopeManifest _scopeManifest;
+
+  /// The optional shared library supplies the same scope used by Coach tools
+  /// and plan admission. Existing hosts retain their original manifest.
+  coach.CoachActionScopeManifest get scopeManifest =>
+      library?.scopeManifest ?? _scopeManifest;
   final coach.CoachProfile coachProfile;
   final coach.CoachScopeConversationPolicy conversationPolicy;
   final coach.PlanExecutionTimingCallback executionTiming;
@@ -49,6 +57,10 @@ class CoachAppProfile {
 
   /// Opt-in public action media. Null retains the host's existing media path.
   final TrainingMediaPolicy? mediaPolicy;
+
+  /// Shared action library presentation and its canonical action whitelist.
+  /// Null preserves the host's existing library and Coach scope.
+  final TrainingLibraryConfig? library;
   Set<String> get allowedActionIds => scopeManifest.allowedActionIds;
 
   coach.Catalog planningCatalog(coach.Catalog source) {

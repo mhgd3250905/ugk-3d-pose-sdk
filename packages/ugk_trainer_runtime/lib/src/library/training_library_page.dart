@@ -9,6 +9,7 @@ import '../media/training_media_policy.dart';
 import '../pose_hub/pose_hub_action_browser.dart';
 import '../ui/trainer_experience.dart';
 import '../ui/trainer_player.dart';
+import '../ui/trainer_poster.dart';
 import '../ui/trainer_theme.dart';
 import 'training_library_config.dart';
 
@@ -120,6 +121,16 @@ abstract final class TrainingLibraryDetails {
     if (action == null) return;
     final resolved = _themeOf(context, theme);
     final bundle = DefaultAssetBundle.of(context);
+    final poster = mediaPolicy.posterAssetFor(actionId);
+    if (poster != null) {
+      await TrainingPosterImages.prepareAsset(
+        context,
+        poster,
+        timeout:
+            (experience ?? const TrainerExperienceConfig()).posterWarmupTimeout,
+      );
+      if (!context.mounted) return;
+    }
     final start = await showModalBottomSheet<bool>(
       context: context,
       routeSettings: RouteSettings(name: 'training_library_detail/$actionId'),

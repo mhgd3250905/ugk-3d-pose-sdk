@@ -292,7 +292,22 @@ void main() {
         started.add(id);
       },
     );
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+    });
     await tester.pumpAndSettle();
+    expect(
+      tester
+          .widgetList<RawImage>(
+            find.descendant(
+              of: find.byType(TrainingLibraryDetail),
+              matching: find.byType(RawImage),
+            ),
+          )
+          .any((image) => image.image != null),
+      isTrue,
+      reason: 'The detail uses the same decoded poster key as the launcher',
+    );
     final start = find.byKey(const ValueKey('library-detail-start'));
     await tester.ensureVisible(start);
     await tester.pumpAndSettle();

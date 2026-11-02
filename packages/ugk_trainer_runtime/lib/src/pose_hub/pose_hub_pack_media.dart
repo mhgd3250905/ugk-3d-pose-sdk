@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import '../media/media_controller.dart';
+import '../ui/trainer_experience.dart';
+import '../ui/trainer_poster.dart';
 import '../ui/trainer_theme.dart';
 import 'pose_hub_media_prefetcher.dart';
 import 'pose_hub_media_preparation.dart';
@@ -29,6 +31,7 @@ class PoseHubPackMedia extends StatefulWidget {
     this.theme = TrainerTheme.light,
     this.onStatus,
     this.mediaPreparer,
+    this.posterAsset,
   });
   final PoseHubPackAction action;
   final Uri baseUri;
@@ -36,6 +39,9 @@ class PoseHubPackMedia extends StatefulWidget {
   final TrainerTheme theme;
   final ValueChanged<PoseHubPackPlaybackStatus>? onStatus;
   final PoseHubMediaPreparer? mediaPreparer;
+
+  /// Optional host asset used by the shared experience's warmed poster path.
+  final String? posterAsset;
   static bool get supportsPlayback => supportsPoseHubPackPlayback;
 
   @override
@@ -196,6 +202,7 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
   @override
   Widget build(BuildContext context) {
     final hasFrame = _controller.hasFrame && !_controller.failed;
+    final experience = TrainerExperienceScope.maybeOf(context);
     return Semantics(
       label: '${widget.action.nameZh}动作示范',
       child: AspectRatio(
@@ -216,10 +223,16 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
                 child: ColoredBox(
                   key: const ValueKey('pose-hub-pack-cover'),
                   color: widget.theme.mediaStage,
-                  child: PoseHubStandingImage(
-                    action: widget.action,
-                    theme: widget.theme,
-                  ),
+                  child: experience != null && widget.posterAsset != null
+                      ? TrainerPoster(
+                          asset: widget.posterAsset!,
+                          bundle: experience.bundle,
+                          decodeWidth: experience.decodeWidth,
+                        )
+                      : PoseHubStandingImage(
+                          action: widget.action,
+                          theme: widget.theme,
+                        ),
                 ),
               ),
             ),

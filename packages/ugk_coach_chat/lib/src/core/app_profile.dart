@@ -1,4 +1,6 @@
 import 'package:ugk_coach/ugk_coach.dart' as coach;
+import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart'
+    show TrainerExperienceConfig;
 
 import '../theme/chat_theme.dart';
 import 'chat_strings.dart';
@@ -27,6 +29,7 @@ class CoachAppProfile {
     this.strings = const CoachChatStrings(),
     this.visual = const CoachChatVisuals(),
     this.doseOverrides = const {},
+    this.trainingExperience,
   });
 
   final String appId, revision;
@@ -37,6 +40,11 @@ class CoachAppProfile {
   final CoachChatStrings strings;
   final CoachChatVisuals visual;
   final Map<String, CoachChatDoseOverride> doseOverrides;
+
+  /// Optional shared training presentation settings. Null uses the SDK's
+  /// poster-first launcher defaults. Host plans, safety and persistence remain
+  /// in the host adapters.
+  final TrainerExperienceConfig? trainingExperience;
   Set<String> get allowedActionIds => scopeManifest.allowedActionIds;
 
   coach.Catalog planningCatalog(coach.Catalog source) {

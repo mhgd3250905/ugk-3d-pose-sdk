@@ -30,6 +30,7 @@ import 'package:ugk_coach/ugk_coach.dart';
 import '../engine/session.dart';
 import '../media/drill_media.dart';
 import '../media/drill_media_view.dart';
+import '../media/packed_alpha_video.dart';
 import '../platform/screen_awake.dart';
 import '../platform/training_keep_alive.dart';
 import '../pose_hub/pose_hub_media_prefetcher.dart';
@@ -45,6 +46,8 @@ import '../voice/voice_source.dart';
 import 'countdown_ring.dart';
 import 'trainer_completion.dart';
 import 'trainer_cue_carousel.dart';
+import 'trainer_experience.dart';
+import 'trainer_poster.dart';
 import 'trainer_stage.dart';
 import 'trainer_strings.dart';
 import 'trainer_surface.dart';
@@ -204,9 +207,14 @@ class TrainerMediaRequest {
     required this.theme,
     required this.strings,
     this.mediaPreparer,
+    this.canPlay = true,
   });
   final TrainerDrill drill;
   final bool paused;
+
+  /// False during the shared route's poster-only entry and exit transitions.
+  /// Explicit host media builders retain control over their own presentation.
+  final bool canPlay;
 
   /// Left side of a unilateral move (the clip shows the right side).
   final bool mirrored;
@@ -463,6 +471,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   bool _doneHandled = false;
   bool _closing = false;
   bool _waitingForStart = false;
+  TrainerExperienceScope? _experience;
+  Future<void>? _startGate;
+  String? _firstExperienceAction;
+
+  Future<void> Function()? get _beforeExitPop =>
+      widget.beforeExitPop ?? _experience?.control.beforeExitPop;
   bool _trainingStarted = false;
   bool _leavingBeforeStart = false;
   bool _screenAwakeHeld = false;
@@ -569,6 +583,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   @override
   void initState() {
     super.initState();
+    _experience = TrainerExperienceScope.read(context);
+    _experience?.control.addListener(_experienceChanged);
+    _startGate = widget.startGate ?? _experience?.control.startGate;
     _plan = widget.plan;
     _voice = widget.voice ?? TrainerVoice.silent;
     _soundEnabled = _voice.settings.voice || _voice.settings.chimes;
@@ -588,10 +605,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _occurrences = _builder.occurrenceCount(_plan);
     _runner = SessionRunner(SessionEngine(_builder.phases(_plan)), _script);
     if (_engine.done) _preview = false;
-    _configureMedia();
     _waitingForStart =
-        widget.startMode == TrainerStartMode.training &&
-        widget.startGate != null;
+        widget.startMode == TrainerStartMode.training && _startGate != null;
+    _configureMedia();
     if (!_waitingForStart) {
       _recorder = SessionRecorder(
         plan: _plan,
@@ -643,7 +659,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       _timer = Timer.periodic(widget.tick, (_) => _tick());
       WidgetsBinding.instance.addPostFrameCallback((_) => _tick());
     }
-    final gate = widget.startGate;
+    final gate = _startGate;
     if (gate != null) unawaited(_awaitStartGate(gate));
   }
 
@@ -691,6 +707,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       );
     }
     _clock.start();
+    _prioritizeMedia();
     _timer = Timer.periodic(widget.tick, (_) => _tick());
     setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) => _tick());
@@ -699,6 +716,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   @override
   void dispose() {
     _disposed = true;
+    _experience?.control.removeListener(_experienceChanged);
     _exitPopTimer?.cancel();
     final exitWait = _exitPopWait;
     if (exitWait != null && !exitWait.isCompleted) exitWait.complete();
@@ -881,6 +899,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   void _prioritizeMedia() {
     if (_exitingEarly) return;
+    if (_experience != null &&
+        (!_experience!.control.canPlay ||
+            _experience!.control.exiting ||
+            _waitingForStart)) {
+      return;
+    }
     final scheduler = _mediaPrefetcher;
     if ((widget.poseHubCatalog == null && widget.poseHubActionOf == null) ||
         scheduler == null ||
@@ -896,6 +920,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   PoseHubPackAction? _poseHubAction(String id) =>
       widget.poseHubActionOf?.call(id) ?? widget.poseHubCatalog?.tryGet(id);
+
+  void _experienceChanged() {
+    if (!mounted || _disposed) return;
+    _prioritizeMedia();
+    setState(() {});
+  }
 
   @override
   void didUpdateWidget(TrainerPlayer oldWidget) {
@@ -1020,6 +1050,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _runner = SessionRunner(SessionEngine(_builder.phases(_plan)), _script);
     _recorder = SessionRecorder(plan: _plan, totalExercises: _occurrences);
     _configureMedia();
+    _experience?.control.replay();
     _saver = ResultSaver(widget.onFinished);
     _completionSaver = ResultSaver((result) async {
       await widget.onCompleted?.call(result);
@@ -1579,7 +1610,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       if (_waitingForStart) {
         _leavingBeforeStart = true;
         _notifyExitStarted();
-        if (widget.beforeExitPop != null) await _waitBeforeExitPop();
+        if (_beforeExitPop != null) await _waitBeforeExitPop();
         if (mounted && ModalRoute.of(context)?.isActive != false) nav.pop();
         return;
       }
@@ -1590,11 +1621,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       final saved = await (_exitingEarly ? _earlyExitSave! : _save());
       if (saved && mounted && await _completeReceipt() && mounted) {
         _stopEarlyExitProgress();
-        if (widget.beforeExitPop != null) await _waitBeforeExitPop();
+        if (_beforeExitPop != null) await _waitBeforeExitPop();
         if (mounted && ModalRoute.of(context)?.isActive != false) {
           nav.pop(_completionReceipt);
         }
       } else if (mounted) {
+        _experience?.control.exitSaveFailed();
         if (_exitingEarly) {
           _retireMedia();
           unawaited(_endAudio());
@@ -1615,7 +1647,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (_exitStarted) return;
     _exitStarted = true;
     try {
-      widget.onExitStarted?.call();
+      (widget.onExitStarted ?? _experience?.control.beginExit)?.call();
     } on Object {
       // A host animation callback must not prevent saving or leaving.
     }
@@ -1632,7 +1664,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     final timer = Timer(const Duration(seconds: 1), release);
     _exitPopTimer = timer;
     unawaited(
-      Future<void>.sync(widget.beforeExitPop!).then<void>(
+      Future<void>.sync(_beforeExitPop!).then<void>(
         (_) => release(),
         onError: (Object _, StackTrace _) => release(),
       ),
@@ -1846,6 +1878,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   /// Edge-to-edge on the stage: [theme] carries radius 0.
   Widget _media(SessionPhase p, TrainerDrill d, TrainerTheme theme) {
+    final experience = _experience;
     final req = TrainerMediaRequest(
       drill: d,
       paused: _exitingEarly || (!_preview && _paused),
@@ -1853,8 +1886,26 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       theme: theme,
       strings: _s,
       mediaPreparer: _mediaPrefetcher,
+      canPlay:
+          experience == null ||
+          (experience.control.canPlay &&
+              !experience.control.exiting &&
+              !_waitingForStart),
     );
     if (widget.mediaBuilder != null) return widget.mediaBuilder!(context, req);
+    if (experience != null && !req.canPlay) {
+      final poster = _experiencePosterAsset(d);
+      return poster == null
+          ? ColoredBox(color: theme.mediaStage)
+          : TrainerPoster(
+              asset: poster,
+              bundle: experience.bundle,
+              decodeWidth: experience.decodeWidth,
+              mirrored: req.mirrored,
+              radius: theme.radius,
+              stageColor: theme.mediaStage,
+            );
+    }
     final action = _poseHubAction(d.id);
     if (action != null) {
       final media = PoseHubPackMedia(
@@ -1867,6 +1918,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         // is visible while the video initializes.
         theme: theme.copyWith(mediaStage: Colors.transparent),
         mediaPreparer: _mediaPrefetcher,
+        posterAsset: experience == null ? null : _experiencePosterAsset(d),
       );
       return p.side == Side.left
           ? Transform.flip(flipX: true, child: media)
@@ -1886,6 +1938,20 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       errorLabel: _s.mediaUnavailable,
       errorColor: _th.muted,
     );
+  }
+
+  String? _experiencePosterAsset(TrainerDrill drill) {
+    _firstExperienceAction ??= drill.id;
+    final media = drill.media;
+    if (media != null) {
+      final poster = media.hasPackedAlpha && UgkPackedAlphaVideo.isSupported
+          ? media.packedAlphaPosterAsset!
+          : media.posterFor(light: !_th.isDark);
+      if (poster.isNotEmpty) return poster;
+    }
+    return drill.id == _firstExperienceAction
+        ? _experience?.firstPosterAsset
+        : null;
   }
 
   Widget _sessionView(SessionPhase p, TrainerDrill? d) {

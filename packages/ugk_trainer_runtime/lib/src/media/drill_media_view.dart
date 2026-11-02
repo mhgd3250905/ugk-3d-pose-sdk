@@ -7,6 +7,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../ui/trainer_experience.dart';
+import '../ui/trainer_poster.dart';
 import 'drill_media.dart';
 import 'media_controller.dart';
 import 'media_playback_handle.dart';
@@ -524,8 +526,17 @@ class _DrillMediaViewState extends State<DrillMediaView> {
     final m = widget.media;
     final c = _controller;
     final poster = _poster;
+    final experience = TrainerExperienceScope.maybeOf(context);
     Widget waiting = poster.isEmpty
         ? _fallback()
+        : experience != null
+        ? TrainerPoster(
+            asset: poster,
+            bundle: experience.bundle,
+            decodeWidth: experience.decodeWidth,
+            stageColor: _stageColor,
+            fallback: _fallback(),
+          )
         : Image.asset(
             poster,
             key: ValueKey('drill-poster-$poster'),

@@ -2,6 +2,7 @@
 // dart run tool/sim_user.dart scenarios.json out.jsonl [profile]
 // 环境变量：UGK_API_KEY（必填）、SIM_AGENT=v2、AI_TAGS_DIR（Pose-Hub catalog/ai-tags/actions）、
 //           SIM_BASE / SIM_MODEL / SIM_THINK=off、ONLY=S01-腰酸,S02-腹肌
+//           SIM_STUB=1：v2 用桩模型跑流程和自动检查（不花钱，不评估模型质量）
 // 输出是原始 JSONL，不提交。
 import 'dart:convert';
 import 'dart:io';
@@ -9,6 +10,8 @@ import 'dart:io';
 import 'package:http/io_client.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 import 'package:ugk_coach/ugk_coach_qa_v2.dart';
+
+import 'qa_checks.dart';
 
 class LoggingClient implements LlmClient {
   LoggingClient(this.inner);
@@ -146,8 +149,21 @@ Future<void> _runV2(
   var printed = false;
   for (final s in scenarios) {
     if (only != null && !only.contains(s['id'])) continue;
-    final client = LoggingClient(OpenAiCompatibleClient(config: config, httpClient: _http(), auth: ApiKeyAuth(Platform.environment['UGK_API_KEY'] ?? 'x')));
-    final agent = CoachQaAgent(client: client, catalog: catalog, profile: profile, aiTags: tags);
+    final LlmClient inner = Platform.environment['SIM_STUB'] == '1'
+        ? StubClient()
+        : OpenAiCompatibleClient(config: config, httpClient: _http(), auth: ApiKeyAuth(Platform.environment['UGK_API_KEY'] ?? 'x'));
+    final client = LoggingClient(inner);
+    final mem = (s['memory'] as Map?)?.cast<String, dynamic>();
+    final agent = CoachQaAgent(
+      client: client,
+      catalog: catalog,
+      profile: profile,
+      aiTags: tags,
+      memory: mem == null ? const CoachQaMemory() : CoachQaMemory(scene: mem['scene'] as String?, equipment: ((mem['equipment'] as List?) ?? const []).cast<String>().toSet()),
+    );
+    final base = ((s['expect'] as Map?) ?? const {}).cast<String, dynamic>();
+    final perTurn = ((s['turns_expect'] as List?) ?? const []);
+    CoachQaReply? prev;
     if (!printed) {
       stdout.writeln('ai-tags 覆盖 ${agent.tagCoverage}；未命中 ${agent.index.untaggedIds}');
       printed = true;
@@ -162,9 +178,16 @@ Future<void> _runV2(
       try {
         final r = await agent.send(text, language: lang);
         final plan = r.plan;
+        final exp = {...base, if (turn - 1 < perTurn.length && perTurn[turn - 1] != null) ...(perTurn[turn - 1] as Map).cast<String, dynamic>()};
+        final fails = checkTurn(agent: agent, expect: exp, r: r, prev: prev, lang: lang);
+        prev = r;
         rec = {
           'status': r.kind,
           'text': r.text,
+          'checks': fails,
+          'ids': allIds(r),
+          'main': mainIds(r),
+          'askStep': r.askStep?.name,
           'question': r.question?.toJson(),
           'assumption': r.assumption,
           'actions': [for (final c in r.cards) c.name],
@@ -189,8 +212,32 @@ Future<void> _runV2(
       final calls = client.calls.sublist(before);
       out.writeln(jsonEncode({'id': s['id'], 'turn': turn, 'user': text, 'ms': sw.elapsedMilliseconds, 'http': calls.length, 'calls': calls, ...rec}));
       await out.flush();
-      stdout.writeln('${s['id']}#$turn ${sw.elapsedMilliseconds}ms http=${calls.length} ${rec['status'] ?? rec['exception']}');
+      stdout.writeln('${s['id']}#$turn ${sw.elapsedMilliseconds}ms http=${calls.length} ${rec['status'] ?? rec['exception']} ${rec['askStep'] ?? ''} ${(rec['checks'] as List?)?.join('; ') ?? ''}');
     }
+  }
+}
+
+/// 桩模型：措辞调用回一句问题；工具调用按候选回 respond / build_plan。
+class StubClient implements LlmClient {
+  @override
+  String get model => 'stub';
+  @override
+  Pricing? get pricing => null;
+  @override
+  Future<LlmResponse> complete(LlmRequest r, {CancelToken? cancel}) async {
+    final last = r.messages.last.content;
+    if (r.tools.isEmpty) return LlmResponse(content: last.contains('只问器械') ? '手边有哪些器械？' : '你在哪练？');
+    final ids = [
+      for (final l in const LineSplitter().convert(last))
+        if (RegExp(r'^[\w-]+ \| ').hasMatch(l)) l.split(' | ').first,
+    ];
+    final first = last.split('\n').first;
+    final wantsPlan = RegExp(r'一套|分钟|minute|session|workout').hasMatch(first);
+    final m = RegExp(r'(\d+)\s*(分钟|minute)').firstMatch(first);
+    final call = wantsPlan
+        ? LlmToolCall(id: 'c1', name: 'build_plan', arguments: jsonEncode({'title': '测试', 'text': '思路', 'minutes': int.tryParse(m?.group(1) ?? '') ?? 15, 'main_ids': ids.take(4).toList()}))
+        : LlmToolCall(id: 'c1', name: 'respond', arguments: jsonEncode({'text': '回答。', 'items': [for (final id in ids.take(4)) {'id': id, 'why': '理由'}]}));
+    return LlmResponse(content: '', toolCalls: [call]);
   }
 }
 

@@ -46,7 +46,11 @@ final class QaPlanBuilder {
         notes.add('未知动作 $id 已忽略');
         continue;
       }
-      if (!finder.passes(a, base.withExclude(const {}))) notes.add('${a.name(lang)} 不符合当前场景/限制，已保留但请注意');
+      if (!finder.passes(a, base.withExclude(const {}))) {
+        // 圈定过范围（或有伤痛禁忌）时绝不越界：直接去掉，后面按同条件补。
+        notes.add('${a.name(lang)} 超出当前范围/限制，已去掉');
+        continue;
+      }
       if (!main.any((m) => m.id == a.id)) main.add(a);
     }
     final pureStretch = main.isNotEmpty && main.every((a) => a.isStretchOnly);
@@ -71,6 +75,7 @@ final class QaPlanBuilder {
               QaQuery(
                 scene: base.scene,
                 equipment: base.equipment,
+                strict: base.strict,
                 muscles: region,
                 types: const {'mobility', 'dynamic-stretch'},
                 roles: const {'warmup'},
@@ -94,6 +99,7 @@ final class QaPlanBuilder {
               QaQuery(
                 scene: base.scene,
                 equipment: base.equipment,
+                strict: base.strict,
                 stretchMuscles: region,
                 types: const {'static-stretch'},
                 roles: const {'cooldown'},

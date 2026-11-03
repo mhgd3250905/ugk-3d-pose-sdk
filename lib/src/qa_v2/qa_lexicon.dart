@@ -6,6 +6,8 @@ library;
 final class QaIntent {
   QaIntent();
 
+  /// 原话（小写）。
+  String raw = '';
   String? scene;
   final Set<String> equipment = {};
   bool onlyEquipment = false;
@@ -27,6 +29,12 @@ final class QaIntent {
   bool safetyFlag = false;
   bool knowledge = false;
 
+  /// 场地很小（宿舍、酒店床边）：不排要走动的动作。
+  bool smallSpace = false;
+
+  /// 周计划类（一周练几次怎么排）：知识型，不收集场地。
+  bool weekly = false;
+
   /// 用户这句是否点了具体练什么（部位/目的/关键词）。
   bool get hasFocus => muscles.isNotEmpty || stretchMuscles.isNotEmpty || types.isNotEmpty || keywords.isNotEmpty;
 
@@ -46,6 +54,8 @@ final class QaIntent {
     if (minutes != null) 'minutes': minutes,
     if (wantsPlan) 'wantsPlan': true,
     if (safetyFlag) 'safety': true,
+    if (smallSpace) 'smallSpace': true,
+    if (weekly) 'weekly': true,
   };
 }
 
@@ -95,7 +105,7 @@ const List<_Rule> _rules = [
   _Rule(['大腿后侧', '腘绳'], muscles: {'hamstrings'}),
   _Rule(['大腿前侧', '股四头'], muscles: {'quadriceps'}),
   _Rule(['小腿'], muscles: {'calves'}),
-  _Rule(['练腿', '腿部', '下肢', '大腿', 'legs', 'leg day'], muscles: {'quadriceps', 'hamstrings', 'glute-max'}, types: {'strength'}),
+  _Rule(['练腿', '腿部', '下肢', '大腿', 'legs', 'leg day', 'leg workout', 'leg session', 'leg exercises'], muscles: {'quadriceps', 'hamstrings', 'glute-max'}, types: {'strength'}),
   _Rule(['练背', '背部', '后背', '背肌', 'back'], muscles: {'lats', 'scapular', 'erectors'}, types: {'strength'}),
   _Rule(['练胸', '胸肌', '胸部', 'chest'], muscles: {'chest'}, types: {'strength'}),
   _Rule(['练肩', '肩部', '三角肌', 'shoulders'], muscles: {'deltoids'}),
@@ -121,12 +131,12 @@ const List<_Rule> _rules = [
   _Rule(['弓步'], keywords: ['弓步'], muscles: {'quadriceps', 'glute-max'}),
   _Rule(['划船'], keywords: ['划船'], muscles: {'lats', 'scapular'}),
   // 疼痛 / 避开
-  _Rule(['膝盖疼', '膝盖痛', '膝盖不好', '膝盖不舒服', '膝痛', '护膝', 'knee pain'], avoid: {'knee'}, knowledge: true),
+  _Rule(['膝盖疼', '膝盖痛', '膝盖不好', '膝盖不舒服', '膝痛', '护膝', '半月板', '韧带', 'knee pain', 'knee hurts', 'bad knee'], avoid: {'knee'}, knowledge: true),
   _Rule(['肩膀痛', '肩膀疼', '肩痛', '肩疼', '肩膀前面有点痛', '肩前', '肩膀不舒服', 'shoulder pain'], avoid: {'shoulder'}, knowledge: true),
-  _Rule(['腰疼', '腰痛', '腰伤', '腰椎', '腰间盘'], avoid: {'lumbar'}, knowledge: true),
-  _Rule(['手腕疼', '手腕痛', '腕痛'], avoid: {'wrist'}),
+  _Rule(['腰疼', '腰痛', '腰伤', '腰椎', '腰间盘', 'back pain', 'herniated'], avoid: {'lumbar'}, knowledge: true),
+  _Rule(['手腕疼', '手腕痛', '腕痛', 'wrist pain'], avoid: {'wrist'}),
   _Rule(['不躺', '不用躺', '不想躺', '不能躺', '不趴', '西裤', '穿裙子', '穿着裙子', '正装'], noFloor: true),
-  _Rule(['不能吵', '楼下', '安静', '不跳', '静音', '别太吵', '邻居', 'quiet'], quiet: true),
+  _Rule(['不能吵', '楼下', '安静', '不跳', '静音', '别太吵', '邻居', '不能出声', '不出声', '不吵', '小声', 'quiet', 'no jumping'], quiet: true),
   // 难度
   _Rule(['新手', '入门', '零基础', '小白', '做不起', '做不了', '简单', '太难', '初学', 'beginner', 'easy'], easy: true),
   // 知识题信号
@@ -138,7 +148,7 @@ const _sceneWords = <String, List<String>>{
   'hotel': ['酒店', '宾馆', '民宿', 'hotel'],
   'gym': ['健身房', 'gym'],
   'outdoor': ['户外', '公园', '操场', '小区', 'outdoor', 'park'],
-  'home': ['在家', '家里', '居家', '客厅', '卧室', '床上', '床边', 'at home'],
+  'home': ['在家', '家里', '居家', '客厅', '卧室', '床上', '床边', '宿舍', '出租屋', 'at home', 'home workout'],
 };
 
 const _equipWords = <String, List<String>>{
@@ -153,12 +163,12 @@ const _equipWords = <String, List<String>>{
   'bench': ['卧推凳', '训练凳'],
 };
 
-const _safetyWords = ['剧痛', '刺痛', '肿', '麻木', '发麻', '放射', '扭伤', '受伤', '手术', '怀孕', '孕期', '产后', '骨折', '胸闷', '头晕'];
+const _safetyWords = ['剧痛', '刺痛', '肿', '麻木', '发麻', '放射', '扭伤', '受伤', '手术', '术后', '突出', '怀孕', '孕期', '产后', '骨折', '胸闷', '头晕', '心慌', 'surgery', 'dizzy', 'chest pain'];
 
 /// 解析一句话。只认确定的词，认不出的交给模型。
 QaIntent parseIntent(String text) {
   final t = text.toLowerCase();
-  final i = QaIntent();
+  final i = QaIntent()..raw = t;
   for (final r in _rules) {
     if (!r.triggers.any(t.contains)) continue;
     i.muscles.addAll(r.muscles);
@@ -171,7 +181,7 @@ QaIntent parseIntent(String text) {
     }
     i.avoidJoints.addAll(r.avoid);
     if (r.noFloor) i.noFloor = true;
-    if (r.quiet) i.maxImpact = 'low';
+    if (r.quiet) i.maxImpact = 'none'; // 不能出声/楼下：只要零冲击
     if (r.easy) i.easy = true;
     if (r.lowIntensity) i.lowIntensity = true;
     if (r.knowledge) i.knowledge = true;
@@ -179,7 +189,7 @@ QaIntent parseIntent(String text) {
   // 「腰酸」是放松诉求，不当伤病避开；「腰疼」才避开腰。
   const joints = {'膝': 'knee', '肩': 'shoulder', '腰': 'lumbar', '腕': 'wrist', '颈': 'neck', '脖子': 'neck', '踝': 'ankle', '髋': 'hip'};
   for (final e in joints.entries) {
-    if (RegExp('${e.key}[^，。,.？?！!]{0,6}(疼|痛|伤|不舒服)').hasMatch(t)) {
+    if (RegExp('${e.key}[^，。,.？?！!]{0,6}(疼|痛|伤|不舒服|术后|手术|突出|积液)').hasMatch(t)) {
       i.avoidJoints.add(e.value);
       i.knowledge = true;
     }
@@ -202,6 +212,8 @@ QaIntent parseIntent(String text) {
     i.wantsPlan = true;
   }
   if (_safetyWords.any(t.contains)) i.safetyFlag = true;
+  if (RegExp(r'空间(很|太|比较)?小|地方(很|太|比较)?小|很窄|small space|tiny room').hasMatch(t)) i.smallSpace = true;
+  if (RegExp(r'一周|每周|周计划|一星期|每星期|per week|a week|weekly').hasMatch(t)) i.weekly = true;
   // 办公室里要拉伸：默认针对久坐紧的部位。
   if (i.scene == 'office' && i.types.contains('static-stretch') && i.stretchMuscles.isEmpty) {
     i.stretchMuscles.addAll(const {'hip-flexors', 'chest', 'upper-traps', 'erectors', 'hamstrings'});
@@ -212,7 +224,7 @@ QaIntent parseIntent(String text) {
 }
 
 /// 跟进句类型（代码处理，不调模型）。
-enum QaFollowUp { none, replace, easier, harder, useThese }
+enum QaFollowUp { none, replace, easier, harder, useThese, retime, another, changePlace }
 
 final class QaFollowUpMatch {
   const QaFollowUpMatch(this.kind, {this.index, this.minutes});
@@ -235,8 +247,17 @@ QaFollowUpMatch detectFollowUp(String text) {
   }
   final m = RegExp(r'(\d+)\s*分钟').firstMatch(t);
   final minutes = m == null ? null : int.tryParse(m.group(1)!);
+  if (RegExp(r'^(换场地|换个场地|换地方|换个地方)$|change place|change location').hasMatch(t.trim())) {
+    return const QaFollowUpMatch(QaFollowUp.changePlace);
+  }
   if (RegExp(r'就用这|用这几个|就这几个|这几个动作|这些动作|就用上面|排成\d+分钟$|^排成').hasMatch(t)) {
     return QaFollowUpMatch(QaFollowUp.useThese, minutes: minutes);
+  }
+  final re = RegExp(r'(换成|改成|缩短到|缩短成|延长到|加到|减到|变成|只有|只练)\s*(\d+)\s*(分钟|min)').firstMatch(t) ??
+      RegExp(r'(make it|change to|shorten to)\s*(\d+)\s*(min)').firstMatch(t);
+  if (re != null) return QaFollowUpMatch(QaFollowUp.retime, minutes: int.tryParse(re.group(2)!));
+  if (RegExp(r'再来一套|换一套|再来一组|另一套|再换一套|another (one|session|set)').hasMatch(t)) {
+    return QaFollowUpMatch(QaFollowUp.another, minutes: minutes);
   }
   if (RegExp(r'太难|难了|简单点|简单一点|容易点|做不动|换简单|easier|too hard').hasMatch(t)) {
     return const QaFollowUpMatch(QaFollowUp.easier);

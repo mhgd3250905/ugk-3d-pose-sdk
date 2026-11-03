@@ -48,6 +48,8 @@ final class QaQuery {
     this.keywords = const [],
     this.avoidJoints = const {},
     this.noFloor = false,
+    this.smallSpace = false,
+    this.strict = false,
     this.maxImpact,
     this.maxDifficulty,
     this.targetDifficulty = 2,
@@ -69,6 +71,11 @@ final class QaQuery {
   final List<String> keywords;
   final Set<String> avoidJoints;
   final bool noFloor;
+  final bool smallSpace;
+
+  /// 用户圈定过范围（答过地点/器械）：只能用 [equipment] 里的器械，不算环境物、不接受替代；
+  /// 健身房不限场景和器械；办公室只到椅子 + 徒手、不躺地。
+  final bool strict;
   final String? maxImpact;
   final int? maxDifficulty;
   final int targetDifficulty;
@@ -110,9 +117,17 @@ final class QaFinder {
   /// 硬过滤：场景、器械、躺地、冲击、避开部位、难度上限。
   bool passes(QaAction a, QaQuery q) {
     if (q.exclude.contains(a.id)) return false;
-    if (!a.scenes.contains(q.scene)) return false;
+    if (q.strict) {
+      if (q.scene != 'gym') {
+        if (!a.scenes.contains(q.scene == 'hotel' ? 'home' : q.scene)) return false;
+        final have = q.scene == 'office' ? const {'chair'} : q.equipment;
+        if (!a.requiredEquipment.every(have.contains)) return false;
+      }
+    } else if (!a.scenes.contains(q.scene)) {
+      return false;
+    }
     final ambient = ambientEquipment[q.scene] ?? const {};
-    if (!ambient.contains('*')) {
+    if (!q.strict && !ambient.contains('*')) {
       final have = {...ambient, ...q.equipment};
       for (final e in a.requiredEquipment) {
         if (have.contains(e)) continue;
@@ -123,6 +138,7 @@ final class QaFinder {
       }
     }
     if ((q.noFloor || q.scene == 'office') && a.floorRequired) return false;
+    if (q.smallSpace && a.space == 'walking') return false;
     if (q.maxImpact != null && _impact(a.impact) > _impact(q.maxImpact!)) return false;
     for (final j in q.avoidJoints) {
       if (stressLevel(a.jointStress[j]) >= 2) return false;
@@ -144,7 +160,7 @@ final class QaFinder {
     final relaxed = _find(
       QaQuery(
         scene: q.scene, equipment: q.equipment, muscles: q.muscles, stretchMuscles: q.stretchMuscles,
-        goals: q.goals, roles: q.roles, keywords: q.keywords, avoidJoints: q.avoidJoints, noFloor: q.noFloor,
+        goals: q.goals, roles: q.roles, keywords: q.keywords, avoidJoints: q.avoidJoints, noFloor: q.noFloor, smallSpace: q.smallSpace, strict: q.strict,
         maxImpact: q.maxImpact, maxDifficulty: q.maxDifficulty, targetDifficulty: q.targetDifficulty,
         lowIntensity: q.lowIntensity, preferEquipment: q.preferEquipment,
         exclude: {...q.exclude, for (final h in first) h.action.id}, limit: q.limit - first.length,
@@ -292,16 +308,18 @@ final class QaFinder {
       const {'dumbbell': '哑铃', 'band': '弹力带', 'kettlebell': '壶铃', 'pullup-bar': '单杠', 'mini-band': '迷你带'}[e] ?? e;
 
   /// 退阶：标签 regressions → 同主肌、更低难度、通过过滤的动作。
-  QaHit? easierThan(QaAction a, QaQuery q, {String lang = 'zh'}) {
+  QaHit? easierThan(QaAction a, QaQuery q, {String lang = 'zh', Set<String> focus = const {}}) {
+    bool keeps(QaAction b) => _sameArea(a, b) && _keepsFocus(a, b, focus);
     for (final id in a.regressions) {
       final r = index[id];
-      if (r != null && passes(r, q)) {
+      if (r != null && passes(r, q) && keeps(r)) {
         return QaHit(r, 0, [lang == 'en' ? 'easier version of ${a.name(lang)}' : '是「${a.name(lang)}」的退阶版']);
       }
     }
     final sub = QaQuery(
       scene: q.scene,
       equipment: q.equipment,
+      strict: q.strict,
       muscles: {...a.primaryMuscles},
       stretchMuscles: {...a.stretchedMuscles},
       types: a.trainingType,
@@ -313,7 +331,7 @@ final class QaFinder {
       exclude: q.exclude,
       limit: 1,
     );
-    final hit = find(sub.withLimit(8), lang: lang).where((h) => _sameArea(a, h.action)).firstOrNull;
+    final hit = find(sub.withLimit(8), lang: lang).where((h) => keeps(h.action)).firstOrNull;
     if (hit == null) return null;
     return QaHit(hit.action, 0, [lang == 'en' ? 'same muscles, lower difficulty' : '同样练${_mainMuscle(a, lang)}，难度更低']);
   }
@@ -329,16 +347,18 @@ final class QaFinder {
   }
 
   /// 替换：标签 alternatives → 同主肌同角色的最佳检索结果。
-  QaHit? replacementFor(QaAction a, QaQuery q, {String lang = 'zh'}) {
+  QaHit? replacementFor(QaAction a, QaQuery q, {String lang = 'zh', Set<String> focus = const {}}) {
+    bool keeps(QaAction b) => _sameArea(a, b) && _keepsFocus(a, b, focus);
     for (final id in a.alternatives) {
       final r = index[id];
-      if (r != null && passes(r, q) && r.difficulty <= a.difficulty + 1) {
+      if (r != null && passes(r, q) && r.difficulty <= a.difficulty + 1 && keeps(r)) {
         return QaHit(r, 0, [lang == 'en' ? 'same job as ${a.name(lang)}' : '和「${a.name(lang)}」练的是同一处']);
       }
     }
     final sub = QaQuery(
       scene: q.scene,
       equipment: q.equipment,
+      strict: q.strict,
       muscles: {...a.primaryMuscles},
       stretchMuscles: {...a.stretchedMuscles},
       types: a.trainingType,
@@ -351,9 +371,16 @@ final class QaFinder {
       exclude: q.exclude,
       limit: 8,
     );
-    final hit = find(sub, lang: lang).where((h) => _sameArea(a, h.action)).firstOrNull;
+    final hit = find(sub, lang: lang).where((h) => keeps(h.action)).firstOrNull;
     if (hit == null) return null;
     return QaHit(hit.action, 0, [lang == 'en' ? 'works the same area' : '同样练${_mainMuscle(a, lang)}']);
+  }
+
+  /// 用户点名的部位（如练背）里原动作练到的那部分，新动作也要练到。
+  static bool _keepsFocus(QaAction a, QaAction b, Set<String> focus) {
+    final need = {...a.primaryMuscles, ...a.secondaryMuscles, ...a.stretchedMuscles}.intersection(focus);
+    if (need.isEmpty) return true;
+    return [...b.primaryMuscles, ...b.secondaryMuscles, ...b.stretchedMuscles].any(need.contains);
   }
 
   /// 替换/退阶必须练同一处：主动肌或被拉伸肌有交集。
@@ -374,7 +401,9 @@ QaQuery queryFromIntent(
   required Set<String> equipment,
   Set<String> exclude = const {},
   int limit = 8,
+  bool strict = false,
 }) => QaQuery(
+  strict: strict,
   scene: scene,
   equipment: equipment,
   muscles: i.muscles,
@@ -385,8 +414,9 @@ QaQuery queryFromIntent(
   keywords: i.keywords,
   avoidJoints: i.avoidJoints,
   noFloor: i.noFloor,
+  smallSpace: i.smallSpace,
   maxImpact: i.maxImpact,
-  maxDifficulty: i.maxDifficulty,
+  maxDifficulty: i.maxDifficulty ?? (i.easy ? 2 : null),
   targetDifficulty: i.easy ? 1 : 2,
   lowIntensity: i.lowIntensity,
   preferEquipment: i.equipment.difference(const {'mat', 'chair'}),
@@ -406,6 +436,8 @@ extension QaQueryCopy on QaQuery {
     keywords: keywords,
     avoidJoints: avoidJoints,
     noFloor: noFloor,
+    smallSpace: smallSpace,
+    strict: strict,
     maxImpact: maxImpact,
     maxDifficulty: maxDifficulty,
     targetDifficulty: targetDifficulty,
@@ -426,6 +458,8 @@ extension QaQueryCopy on QaQuery {
     keywords: keywords,
     avoidJoints: avoidJoints,
     noFloor: noFloor,
+    smallSpace: smallSpace,
+    strict: strict,
     maxImpact: maxImpact,
     maxDifficulty: maxDifficulty,
     targetDifficulty: targetDifficulty,

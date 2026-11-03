@@ -38,6 +38,7 @@ final class QaAction {
     required this.prerequisites,
     required this.summaryZh,
     required this.summaryEn,
+    this.space = 'in-place',
   });
 
   final Drill drill;
@@ -69,6 +70,9 @@ final class QaAction {
   final Set<String> prerequisites;
   final String summaryZh;
   final String summaryEn;
+
+  /// in-place / mat / walking。
+  final String space;
 
   String get id => drill.id;
   String name(String lang) => drill.name.values[lang] ?? drill.name.values['zh'] ?? drill.id;
@@ -115,6 +119,7 @@ final class QaAction {
       prerequisites: asStringList(t['prerequisites']).toSet(),
       summaryZh: asString(summary['zh']) ?? d.purpose,
       summaryEn: asString(summary['en']) ?? '',
+      space: asString(t['space']) ?? 'in-place',
     );
   }
 

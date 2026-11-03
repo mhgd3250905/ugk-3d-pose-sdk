@@ -17,6 +17,7 @@ import 'coach_ui_adapter.dart';
 import 'coach_chat_plan_details_page.dart';
 import 'cosmos.dart';
 import 'plan_card.dart';
+import 'plan_details_controls.dart';
 import 'validated_plan_card.dart';
 import 'chat_timeline.dart';
 import 'training_card_media.dart';
@@ -31,6 +32,9 @@ class CoachChatPage extends StatelessWidget {
     required this.controller,
     this.scrollController,
     this.clock,
+    this.showBackButton,
+    this.onBack,
+    this.backLabel,
   });
 
   /// A long-lived controller owned by the host, shared by this page and My plans.
@@ -40,6 +44,17 @@ class CoachChatPage extends StatelessWidget {
   /// A supplied controller remains owned by its caller.
   final ScrollController? scrollController;
   final DateTime Function()? clock;
+
+  /// Top-left back button. Null (default) shows it when the page's route can
+  /// be dismissed, as an [AppBar] would imply; false never; true always.
+  final bool? showBackButton;
+
+  /// Back action; default [Navigator.maybePop], which still closes the
+  /// feature panel first.
+  final VoidCallback? onBack;
+
+  /// Back button tooltip and semantics; default the Material back tooltip.
+  final String? backLabel;
 
   @override
   Widget build(BuildContext context) => CoachChatTheme(
@@ -56,6 +71,9 @@ class CoachChatPage extends StatelessWidget {
         controller: controller,
         scrollController: scrollController,
         clock: clock,
+        showBackButton: showBackButton,
+        onBack: onBack,
+        backLabel: backLabel,
       ),
     ),
   );
@@ -67,10 +85,16 @@ class _CoachChatBody extends StatefulWidget {
     required this.controller,
     this.scrollController,
     this.clock,
+    this.showBackButton,
+    this.onBack,
+    this.backLabel,
   });
   final CoachChatController controller;
   final ScrollController? scrollController;
   final DateTime Function()? clock;
+  final bool? showBackButton;
+  final VoidCallback? onBack;
+  final String? backLabel;
 
   @override
   State<_CoachChatBody> createState() => _CoachChatPageState();
@@ -414,6 +438,25 @@ class _CoachChatPageState extends State<_CoachChatBody>
                         ),
                       ),
                     ),
+                    if (_showBack(context))
+                      PositionedDirectional(
+                        top: MediaQuery.paddingOf(context).top + 8,
+                        start: 12,
+                        child: ChatDetailsCircleButton(
+                          key: const ValueKey('chat-back-button'),
+                          icon: ChatGlyph.back,
+                          tooltip:
+                              widget.backLabel ??
+                              Localizations.of<MaterialLocalizations>(
+                                context,
+                                MaterialLocalizations,
+                              )?.backButtonTooltip ??
+                              'Back',
+                          onPressed:
+                              widget.onBack ??
+                              () => unawaited(Navigator.maybePop(context)),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -423,6 +466,13 @@ class _CoachChatPageState extends State<_CoachChatBody>
       ),
     );
   }
+
+  /// Room kept above the first row so it never starts under the back button.
+  static const _backClearance = 52.0;
+
+  bool _showBack(BuildContext context) =>
+      widget.showBackButton ??
+      (ModalRoute.of(context)?.impliesAppBarDismissal ?? false);
 
   ChatFeaturePanel _featurePanel() {
     final entries =
@@ -564,7 +614,9 @@ class _CoachChatPageState extends State<_CoachChatBody>
         clock: widget.clock,
         // Keep the viewport behind Android's transparent status bar. The
         // initial safe clearance belongs to the scrollable content instead.
-        topInset: MediaQuery.paddingOf(context).top,
+        topInset:
+            MediaQuery.paddingOf(context).top +
+            (_showBack(context) ? _backClearance : 0),
         timeMarkBuilder: (at, now) => TimeMark(at, now: now),
       ),
     );

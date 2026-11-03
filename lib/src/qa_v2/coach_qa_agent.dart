@@ -2,7 +2,8 @@
 ///
 /// - 条件收集由代码里的小状态机控制（不交给模型决定）：先问地点，再问器械，一次一个问题；
 ///   原话/本会话/注入记忆里已有的跳过，同一个问题不连问两次，没答或「直接推荐」就按在家徒手出结果。
-///   模型只负责把问题说得自然（带上用户刚说的话）。
+///   问句和选项都是代码固定模板，不调模型。居家徒手默认可用墙，椅子要选了才算。
+/// - 「第 N 个」按卡片上显示的编号：计划是全部动作连续编号（含热身、收操，从 1 起），动作卡按展示顺序。
 /// - 代码先按原话预检索候选（同义词典 + 打分），模型多数情况下一次调用就能作答。
 /// - 工具 4 个：find_actions / respond / build_plan / ask_user（模型只能用它问安全问题）。
 /// - 「换第 N 个」「太难了」「就用这几个」「换成 N 分钟」「再来一套」由代码处理，不调模型。
@@ -72,6 +73,9 @@ final class CoachQaReply {
   final TokenUsage usage;
   final List<String> issues;
   final List<String> toolTrace;
+
+  /// 计划卡片上的动作顺序（全部动作连续编号，含热身、收操）：第 N 个 = 这里的 [N-1]。
+  List<String> get planOrderedIds => [for (final b in plan?.blocks ?? const <PlanBlock>[]) for (final i in b.items) i.exerciseId];
 
   /// 计划里主训练的动作 id（不含热身、收操）。
   List<String> get planMainIds => [
@@ -171,7 +175,6 @@ final class CoachQaAgent {
     this.memory = const CoachQaMemory(),
     this.maxCalls = 4,
     this.maxTokens = 1600,
-    this.phraseTimeout = const Duration(seconds: 6),
   }) : index = QaActionIndex(catalog, aiTags: aiTags) {
     finder = QaFinder(index);
     builder = QaPlanBuilder(
@@ -194,8 +197,6 @@ final class CoachQaAgent {
   final int maxCalls;
   final int maxTokens;
 
-  /// 条件问题措辞调用的上限，超时用代码模板。
-  final Duration phraseTimeout;
   final QaActionIndex index;
   late final QaFinder finder;
   late final QaPlanBuilder builder;
@@ -231,7 +232,7 @@ final class CoachQaAgent {
       if (req != null && askedLast != QaAskStep.place) {
         // 用户主动要换场地：问一次地点，答完按原请求重出。
         state.sceneSource = 'default';
-        return _ask(QaAskStep.place, req, state.lastIntent ?? parseIntent(req), lang, sw, explicit: true);
+        return _ask(QaAskStep.place, req, state.lastIntent ?? parseIntent(req), lang, sw);
       }
     }
     _applyWords(intent);
@@ -327,11 +328,12 @@ final class CoachQaAgent {
     if (i.maxImpact != null) state.maxImpact = i.maxImpact;
   }
 
-  Future<CoachQaReply> _ask(QaAskStep step, String text, QaIntent intent, String lang, Stopwatch sw, {bool explicit = false}) async {
+  /// 条件问题：问句和选项都是代码里的固定模板（只按用户原话填部位），不调模型，几毫秒出。
+  CoachQaReply _ask(QaAskStep step, String text, QaIntent intent, String lang, Stopwatch sw) {
     final en = lang == 'en';
     state.pending = QaPending(step, text, intent);
     final options = step == QaAskStep.place ? (en ? _placeOptionsEn : _placeOptionsZh) : (en ? _equipOptionsEn : _equipOptionsZh);
-    final (question, calls, usage, issues) = await _phrase(step, text, intent, lang, explicit: explicit);
+    final question = fixedQuestion(step, intent, text, lang);
     final gate = AskUserGate.check(
       jsonEncode({'question': question, 'mode': 'choice', 'options': options, 'multiple': step == QaAskStep.equipment}),
       language: lang,
@@ -341,65 +343,19 @@ final class CoachQaAgent {
       text: question,
       question: gate.question,
       askStep: step,
-      llmCalls: calls,
       elapsed: sw.elapsed,
-      usage: usage,
-      issues: [...issues, ...gate.notes],
+      issues: gate.notes,
     );
   }
 
-  /// 模型只负责把问题说自然；问什么、给什么选项由代码定。不合格就用模板。
-  Future<(String, int, TokenUsage, List<String>)> _phrase(QaAskStep step, String text, QaIntent intent, String lang, {bool explicit = false}) async {
+  /// 固定问句：地点「练背的话，你在哪练？」；器械「在家练背，手边有哪些器械？可以多选。」。
+  static String fixedQuestion(QaAskStep step, QaIntent intent, String text, String lang) {
     final en = lang == 'en';
     final topic = _topic(intent, text, lang);
-    final fallback = step == QaAskStep.place
-        ? (en ? (topic.isEmpty ? 'Where will you train?' : 'For $topic, where will you train?') : '${topic.isEmpty ? '' : '$topic的话，'}你在哪练？')
-        : (en
-              ? 'What equipment do you have at home? Pick all that apply.'
-              : '在家${topic.isEmpty ? '' : '$topic，'}手边有哪些器械？可以多选。');
-    final ask = step == QaAskStep.place
-        ? (en ? 'WHERE they will train (home / gym / office). Do NOT mention equipment or time.' : '在哪练（居家/健身房/办公室）。只问地点，不要提器械、时长。')
-        : (en
-              ? 'which equipment they have at home (dumbbells / yoga mat / chair / bands / none, can pick several). Do NOT ask where.'
-              : '家里手边有哪些器械（哑铃/瑜伽垫/椅子/弹力带/都没有，可多选）。只问器械，不要再问地点、时长。');
-    final example = step == QaAskStep.place
-        ? (en ? '"For a leg workout, where will you train?"' : '「练背的话，你在哪练？」')
-        : (en ? '"For legs at home, what equipment do you have?"' : '「在家练腿的话，手边有哪些器械？」');
-    final prompt = en
-        ? 'The user just said: "$text". Ask ONE short question (≤14 words) about $ask Echo what they just said, like $example. Output only the question.'
-        : '用户刚说：「$text」。用一句不超过22个字的口语问句问：$ask 句子要带上用户刚说的事，例如$example。只输出这一句。';
-    try {
-      // 措辞只是锦上添花：超过 phraseTimeout 就用模板，不让用户干等。
-      final res = await client
-          .complete(
-            LlmRequest(messages: [LlmMessage.system(en ? 'You phrase one short clarifying question for a fitness coach app.' : '你替健身 App 的 AI 教练把一个确认问题说得自然、简短。'), LlmMessage.user(prompt)], maxTokens: 3000),
-          )
-          .timeout(phraseTimeout);
-      final q = _plainQuestion(res.content);
-      final bad = q.isEmpty ||
-          RegExp(r'[{}\[\]]').hasMatch(q) ||
-          q.runes.length > (en ? 120 : 40) ||
-          !RegExp(r'[？?]$').hasMatch(q) ||
-          (step == QaAskStep.place && RegExp(r'器械|哑铃|弹力带|多久|分钟|equipment|dumbbell|band|minute', caseSensitive: false).hasMatch(q)) ||
-          (step == QaAskStep.equipment && (!RegExp(r'器械|哑铃|弹力带|瑜伽垫|装备|工具|equipment|dumbbell|band|gear', caseSensitive: false).hasMatch(q) || RegExp(r'在哪|哪里练|where', caseSensitive: false).hasMatch(q)));
-      if (bad) return (fallback, 1, res.usage, ['问题措辞不合格，用模板：$q']);
-      return (q, 1, res.usage, const <String>[]);
-    } catch (e) {
-      return (fallback, 1, TokenUsage.zero, ['问题措辞调用失败，用模板：$e']);
+    if (step == QaAskStep.place) {
+      return en ? (topic.isEmpty ? 'Where will you train?' : 'For $topic, where will you train?') : '${topic.isEmpty ? '' : '$topic的话，'}你在哪练？';
     }
-  }
-
-  /// 中转有时把一句话包成 JSON（{"text": "..."}）：取出第一个像问句的字符串。
-  static String _plainQuestion(String raw) {
-    var t = raw.trim();
-    if (t.startsWith('{')) {
-      try {
-        final m = asMap(jsonDecode(t));
-        final vals = [...m.values.whereType<String>(), ...m.keys];
-        t = vals.firstWhere((v) => RegExp(r'[？?]\s*$').hasMatch(v.trim()), orElse: () => vals.isEmpty ? '' : vals.first);
-      } catch (_) {}
-    }
-    return t.trim().replaceAll(RegExp(r'^["「“]|["」”]$'), '').split('\n').first.trim();
+    return en ? 'What equipment do you have at home? Pick all that apply.' : '在家${topic.isEmpty ? '' : '$topic，'}手边有哪些器械？可以多选。';
   }
 
   static String _topic(QaIntent i, String text, String lang) {
@@ -630,26 +586,52 @@ final class CoachQaAgent {
       case QaFollowUp.changePlace:
         return null;
       case QaFollowUp.replace:
-        // 「第 N 个」只数主训练，不数热身和收操。
-        final mains = state.lastPlan?.mainIds ?? const <String>[];
-        final list = mains.isNotEmpty && shown.isEmpty ? mains : shown;
+        // 「第 N 个」严格按卡片上显示的编号：计划卡片把全部动作连续编号（含热身、收操，从 1 起），
+        // 动作卡按展示顺序编号。
+        final inPlan = state.lastPlan != null && shown.isEmpty;
+        final list = inPlan ? planIds : shown;
+        if (list.isEmpty) return null;
         final i = f.index ?? 0;
-        if (i < 0 || i >= list.length) return null;
+        if (i < 0 || i >= list.length) {
+          return CoachQaReply(
+            kind: 'answer',
+            text: en
+                ? 'The ${inPlan ? 'plan' : 'list'} above has ${list.length} moves (#1–#${list.length}). Which number should I swap?'
+                : '上面的${inPlan ? '计划' : '卡片'}一共${list.length}个动作（第1–${list.length}个），要换第几个？',
+            plan: inPlan ? state.lastPlan!.plan : null,
+            planSeconds: inPlan ? state.lastPlan!.seconds : null,
+            cards: inPlan ? const [] : _cardsFor(shown, lang, state.lastWhy),
+            chips: _chips(lang, plan: inPlan),
+            elapsed: sw.elapsed,
+          );
+        }
         final old = index[list[i]];
         if (old == null) return null;
-        // 热身/收操里已有的也排除，免得换上来的动作和热身重复。
+        // 计划里其他动作（含热身/收操）也排除，免得换上来的和别处重复。
         final base = _query(state.lastIntent ?? intent, exclude: {...list, ...planIds});
-        final hit = finder.replacementFor(old, base, lang: lang, focus: base.muscles);
-        if (hit == null) return null;
-        final newIds = [...list]..[i] = hit.action.id;
-        if (state.lastPlan != null && mains.isNotEmpty && shown.isEmpty) {
-          final r = _swapInPlan(state.lastPlan!, old.id, hit.action.id);
+        final hit = finder.replacementFor(old, base, lang: lang, focus: base.muscles) ?? (inPlan ? _sessionPartReplacement(i, base, lang) : null);
+        if (hit == null) {
+          return CoachQaReply(
+            kind: 'answer',
+            text: en
+                ? 'Within your setup (${_equipLabel(lang)}) there is no other move that does the same job as #${i + 1} ${old.name(lang)}, so I kept it.'
+                : '在你圈定的范围（${_sceneZh[state.scene] ?? '在家'}${_equipLabel(lang)}）里，没有和第${i + 1}个「${old.name(lang)}」练同一处的其他动作，先保留它。',
+            plan: inPlan ? state.lastPlan!.plan : null,
+            planSeconds: inPlan ? state.lastPlan!.seconds : null,
+            cards: inPlan ? const [] : _cardsFor(shown, lang, state.lastWhy),
+            chips: _chips(lang, plan: inPlan),
+            assumption: _assumption(lang),
+            elapsed: sw.elapsed,
+          );
+        }
+        if (inPlan) {
+          final r = _swapInPlan(state.lastPlan!, i, hit.action.id);
           _rememberPlan(r);
           return CoachQaReply(
             kind: 'replace',
             text: en
-                ? 'Swapped main move #${i + 1} ${old.name(lang)} for ${hit.action.name(lang)}: ${hit.reason}. Everything else stays.'
-                : '主训练第${i + 1}个「${old.name(lang)}」换成了「${hit.action.name(lang)}」：${hit.reason}。其余不变，总时长约${(r.seconds / 60).round()}分钟。',
+                ? 'Swapped #${i + 1} ${old.name(lang)} for ${hit.action.name(lang)}: ${hit.reason}. Everything else stays.'
+                : '第${i + 1}个「${old.name(lang)}」换成了「${hit.action.name(lang)}」：${hit.reason}。其余不变，总时长约${(r.seconds / 60).round()}分钟。',
             plan: r.plan,
             planSeconds: r.seconds,
             chips: _chips(lang, plan: true),
@@ -657,12 +639,11 @@ final class CoachQaAgent {
             elapsed: sw.elapsed,
           );
         }
+        final newIds = [...list]..[i] = hit.action.id;
         state.lastShown = newIds;
         return CoachQaReply(
           kind: 'replace',
-          text: en
-              ? 'Swapped #${i + 1} for ${hit.action.name(lang)}: ${hit.reason}.'
-              : '第${i + 1}个换成了「${hit.action.name(lang)}」：${hit.reason}。',
+          text: en ? 'Swapped #${i + 1} for ${hit.action.name(lang)}: ${hit.reason}.' : '第${i + 1}个换成了「${hit.action.name(lang)}」：${hit.reason}。',
           cards: _cardsFor(newIds, lang, {...state.lastWhy, hit.action.id: hit.reason}),
           chips: _chips(lang),
           assumption: _assumption(lang),
@@ -811,8 +792,44 @@ final class CoachQaAgent {
     );
   }
 
-  QaPlanResult _swapInPlan(QaPlanResult r, String from, String to) {
+  /// 热身/收操没有练同一处的替代时：换成同一环节、照顾本次主训练部位的另一个动作（和排计划同一套条件）。
+  QaHit? _sessionPartReplacement(int pos, QaQuery base, String lang) {
+    final plan = state.lastPlan!.plan;
+    var k = -1;
+    BlockType? type;
+    for (final b in plan.blocks) {
+      for (final _ in b.items) {
+        if (++k == pos) type = b.type;
+      }
+    }
+    if (type != BlockType.warmup && type != BlockType.cooldown) return null;
+    final warm = type == BlockType.warmup;
+    final region = {for (final id in state.lastPlan!.mainIds) ...?index[id]?.primaryMuscles};
+    QaQuery q(Set<String> area) => QaQuery(
+      scene: base.scene,
+      equipment: base.equipment,
+      strict: base.strict,
+      muscles: warm ? area : const {},
+      stretchMuscles: warm ? const {} : area,
+      types: warm ? const {'mobility', 'dynamic-stretch'} : const {'static-stretch'},
+      roles: {warm ? 'warmup' : 'cooldown'},
+      avoidJoints: base.avoidJoints,
+      noFloor: base.noFloor,
+      maxImpact: base.maxImpact,
+      exclude: base.exclude,
+      limit: 4,
+    );
+    // 必须照顾到本次主训练的部位（主动肌/辅助肌/被拉伸肌有交集），不拿不相干的动作凑数。
+    bool fits(QaAction a) => a.sessionRole.contains(warm ? 'warmup' : 'cooldown') && [...a.primaryMuscles, ...a.secondaryMuscles, ...a.stretchedMuscles].any(region.contains);
+    final h = finder.find(q(region).withLimit(12), lang: lang).where((h) => fits(h.action)).firstOrNull;
+    if (h == null) return null;
+    return QaHit(h.action, 0, [lang == 'en' ? (warm ? 'another warm-up for this session' : 'another cool-down for this session') : (warm ? '同样是这套的热身' : '同样是这套的放松')]);
+  }
+
+  /// 把计划里卡片编号为 [pos] + 1 的那一个动作（全部动作连续编号，含热身/收操）换成 [to]。
+  QaPlanResult _swapInPlan(QaPlanResult r, int pos, String to) {
     final a = index[to]!;
+    var k = -1;
     final blocks = [
       for (final b in r.plan.blocks)
         PlanBlock(
@@ -823,7 +840,7 @@ final class CoachQaAgent {
           restBetweenRoundsSeconds: b.restBetweenRoundsSeconds,
           items: [
             for (final it in b.items)
-              if (it.exerciseId != from)
+              if (++k != pos)
                 it
               else
                 PlanItem(
@@ -834,7 +851,7 @@ final class CoachQaAgent {
                   workSeconds: a.drill.defaultDose.mode == DoseMode.time ? (a.drill.defaultDose.seconds ?? 30) : null,
                   perSide: a.drill.unilateral,
                   restSeconds: it.restSeconds,
-                  replacedFrom: from,
+                  replacedFrom: it.exerciseId,
                 ),
           ],
         ),
@@ -974,7 +991,7 @@ final class CoachQaAgent {
     const src = {'user': '用户说的', 'answered': '用户刚答的', 'memory': '沿用上次', 'skipped': '用户没选，默认', 'default': '默认'};
     b.writeln('场景：${_sceneZh[s]}（${src[state.sceneSource]}）');
     b.writeln(_strict
-        ? '器械：${_equipLabel('zh')}（用户圈定的范围，候选已严格过滤，只能用这些，${s == 'gym' ? '不限器械' : '不能超出'}）'
+        ? '器械：${_equipLabel('zh')}${_equipmentScene(s) ? '（墙默认可用）' : ''}（用户圈定的范围，候选已严格过滤，只能用这些，${s == 'gym' ? '不限器械' : '不能超出'}）'
         : '器械：${_equipLabel('zh')}${state.equipment.isEmpty && s != 'gym' ? '（可用场景里的椅子/墙/垫子）' : ''}');
     final lim = [
       if (state.avoidJoints.isNotEmpty) '避开${state.avoidJoints.map((j) => jointZh[j] ?? j).join('、')}受力',
@@ -989,7 +1006,9 @@ final class CoachQaAgent {
       b.writeln('上次展示：${[for (var k = 0; k < state.lastShown.length; k++) '${k + 1}.${index[state.lastShown[k]]?.name('zh')}(${state.lastShown[k]})'].join(' ')}');
     }
     if (state.lastPlan != null) {
-      b.writeln('上次计划：${state.lastPlan!.plan.title}，${[for (final id in state.lastPlan!.orderedIds) index[id]?.name('zh')].join('、')}');
+      final ids = state.lastPlan!.orderedIds;
+      // 编号和计划卡片上显示的一致（全部动作连续编号，含热身/收操）。
+      b.writeln('上次计划：${state.lastPlan!.plan.title}，${[for (var k = 0; k < ids.length; k++) '${k + 1}.${index[ids[k]]?.name('zh')}'].join(' ')}（编号=卡片上的编号）');
     }
     if (gap != null) b.writeln('器械缺口：$gap');
     b.writeln('[候选动作]（代码按原话检索，已过滤场景/器械/限制，按相关度排序）');
@@ -1301,8 +1320,11 @@ final class CoachQaAgent {
 
   String _historyLine(CoachQaReply r, String lang) {
     final b = StringBuffer(r.text);
-    if (r.cards.isNotEmpty) b.write('\n[展示动作] ${r.cards.map((c) => c.name).join('、')}');
-    if (r.plan != null) b.write('\n[计划] ${r.plan!.title}');
+    if (r.cards.isNotEmpty) b.write('\n[展示动作] ${[for (var k = 0; k < r.cards.length; k++) '${k + 1}.${r.cards[k].name}'].join(' ')}');
+    if (r.plan != null) {
+      final ids = [for (final bl in r.plan!.blocks) for (final i in bl.items) i.exerciseId];
+      b.write('\n[计划] ${r.plan!.title}：${[for (var k = 0; k < ids.length; k++) '${k + 1}.${index[ids[k]]?.name(lang) ?? ids[k]}'].join(' ')}');
+    }
     return b.toString();
   }
 }

@@ -4,7 +4,7 @@
 //   muscles: [...]       点名部位（主动肌/辅助肌/被拉伸肌命中任一即可）；cardioOk: true 允许有氧动作
 //   scene / equipment    场地与器械（严格按圈定范围：居家=选的器械，办公室=椅子+徒手，健身房不限）
 //   avoid: [...] / noFloor / quiet / easy
-//   modify: replace:N | easier | harder | retime:M | another
+//   modify: replace:N（N=卡片上显示的编号；计划含热身/收操连续编号）| easier | harder | retime:M | another
 //   minutes: M           计划时长 ±15%
 //   assumption: true     要写假设并给「换场地」
 //   gap: true            要如实说器械不够
@@ -115,21 +115,27 @@ List<String> checkTurn({
   if (mod != null && prev != null) {
     final pm = mainIds(prev);
     if (mod.startsWith('replace:')) {
+      // 第 N 个 = 卡片上显示的编号：计划按全部动作连续编号（含热身/收操），动作卡按展示顺序。
       final n = int.parse(mod.split(':')[1]) - 1;
-      if (pm.length != main.length) fails.add('修改：主训练数量变了 ${pm.length}→${main.length}');
-      final changed = [for (var k = 0; k < pm.length && k < main.length; k++) if (pm[k] != main[k]) k];
-      if (changed.length != 1 || changed.first != n) fails.add('修改：应只换第${n + 1}个，实际换了${changed.map((k) => k + 1).toList()}');
-      if (prev.plan != null && r.plan != null) {
-        final pw = [for (final b in prev.plan!.blocks) if (b.type != BlockType.main) for (final i in b.items) i.exerciseId];
-        final nw = [for (final b in r.plan!.blocks) if (b.type != BlockType.main) for (final i in b.items) i.exerciseId];
-        if (pw.join() != nw.join()) fails.add('修改：热身/收操也被改了');
-      }
-      if (n < pm.length && n < main.length) {
-        final a = idx[pm[n]], b = idx[main[n]];
-        if (a != null && b != null && ![...a.primaryMuscles, ...a.stretchedMuscles].any([...b.primaryMuscles, ...b.stretchedMuscles].contains)) {
-          fails.add('修改：替换动作「${nm(main[n])}」和原动作练的不是一处');
+      final po = prev.plan != null ? prev.planOrderedIds : pm;
+      final no = r.plan != null ? r.planOrderedIds : main;
+      if (po.length != no.length) fails.add('修改：动作数量变了 ${po.length}→${no.length}');
+      final changed = [for (var k = 0; k < po.length && k < no.length; k++) if (po[k] != no[k]) k];
+      if (changed.length != 1 || changed.first != n) fails.add('修改：应只换卡片第${n + 1}个，实际换了${changed.map((k) => k + 1).toList()}');
+      if (n < po.length && n < no.length) {
+        final a = idx[po[n]], b = idx[no[n]];
+        // 热身/收操位置：可以换成照顾本次主训练部位的同环节动作。
+        final part = prev.plan == null ? null : [for (final bl in prev.plan!.blocks) for (final _ in bl.items) bl.type][n];
+        final region = {for (final id in pm) ...?idx[id]?.primaryMuscles};
+        final sameArea = a != null && b != null && [...a.primaryMuscles, ...a.stretchedMuscles].any([...b.primaryMuscles, ...b.stretchedMuscles].contains);
+        final sessionFit = (part == BlockType.warmup || part == BlockType.cooldown) && b != null &&
+            [...b.primaryMuscles, ...b.secondaryMuscles, ...b.stretchedMuscles].any(region.contains);
+        if (a != null && b != null && !sameArea && !sessionFit) {
+          fails.add('修改：替换动作「${nm(no[n])}」和原动作练的不是一处');
         }
       }
+      final ord = RegExp(r'第\s*(\d+)\s*个').firstMatch(r.text);
+      if (r.kind == 'replace' && ord != null && int.parse(ord.group(1)!) != n + 1) fails.add('修改：回复里说的是第${ord.group(1)}个，用户要第${n + 1}个');
     }
     if (mod == 'easier' || mod == 'harder') {
       for (var k = 0; k < pm.length && k < main.length; k++) {

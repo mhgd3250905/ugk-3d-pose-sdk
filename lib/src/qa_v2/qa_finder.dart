@@ -32,6 +32,9 @@ const ambientEquipment = <String, Set<String>>{
   'gym': {'*'},
 };
 
+/// 圈定范围后，居家/酒店仍默认可用的环境物（不用问、不算器械）。
+const homeAlwaysAvailable = {'wall'};
+
 const _softEquipment = {'mat', 'slider', 'block', 'bench', 'chair', 'towel', 'wall', 'parallettes', 'doorframe', 'stairs'};
 const _majorMuscles = {'quadriceps', 'glute-max', 'hamstrings', 'chest', 'lats', 'abs', 'deltoids'};
 
@@ -73,7 +76,7 @@ final class QaQuery {
   final bool noFloor;
   final bool smallSpace;
 
-  /// 用户圈定过范围（答过地点/器械）：只能用 [equipment] 里的器械，不算环境物、不接受替代；
+  /// 用户圈定过范围（答过地点/器械）：只能用 [equipment] 里的器械（居家另加墙），不算其他环境物、不接受替代；
   /// 健身房不限场景和器械；办公室只到椅子 + 徒手、不躺地。
   final bool strict;
   final String? maxImpact;
@@ -120,7 +123,8 @@ final class QaFinder {
     if (q.strict) {
       if (q.scene != 'gym') {
         if (!a.scenes.contains(q.scene == 'hotel' ? 'home' : q.scene)) return false;
-        final have = q.scene == 'office' ? const {'chair'} : q.equipment;
+        // 居家（酒店）墙总是有的：选「都没有（徒手）」也能做只要墙的动作；椅子要用户选了才算。
+        final have = q.scene == 'office' ? const {'chair'} : {...q.equipment, ...homeAlwaysAvailable};
         if (!a.requiredEquipment.every(have.contains)) return false;
       }
     } else if (!a.scenes.contains(q.scene)) {

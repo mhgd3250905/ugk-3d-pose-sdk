@@ -50,6 +50,9 @@ void main() {
     expect(i.muscles, contains('abs'));
     expect(parseIntent('深蹲的时候膝盖有点疼').avoidJoints, contains('knee'));
     expect(detectFollowUp('第二个动作换掉').index, 1);
+    expect(detectFollowUp('换第12个').index, 11);
+    expect(detectFollowUp('第十个换掉').index, 9);
+    expect(detectFollowUp('第十二个不喜欢').index, 11);
     expect(detectFollowUp('太难了，换简单点的').kind, QaFollowUp.easier);
     expect(detectFollowUp('就用这几个，帮我排成10分钟的训练').minutes, 10);
   });
@@ -59,12 +62,19 @@ void main() {
     final agent = CoachQaAgent(client: client, catalog: catalog, profile: profile);
     final r1 = await agent.send('推荐几个练腿的动作');
     expect(r1.kind, 'ask');
+    // 问句是代码固定模板，不调模型。
+    expect(client.calls, 0);
+    expect(r1.llmCalls, 0);
+    expect(r1.text, '练腿的话，你在哪练？');
     expect(r1.askStep, QaAskStep.place);
     expect(r1.question!.mode, AskUserMode.choice);
     expect(r1.question!.options, ['居家', '健身房', '办公室', '直接推荐']);
     expect(r1.text, contains('练腿'));
     final r2 = await agent.send('居家');
     expect(r2.askStep, QaAskStep.equipment);
+    expect(client.calls, 0);
+    expect(r2.text, '在家练腿，手边有哪些器械？可以多选。');
+    expect(r2.question!.options, ['哑铃', '瑜伽垫', '椅子', '弹力带', '都没有（徒手）', '直接推荐']);
     expect(r2.question!.multiple, isTrue);
     expect(r2.question!.options, contains('都没有（徒手）'));
     final r3 = await agent.send('哑铃、椅子');
@@ -114,7 +124,7 @@ void main() {
     expect((await gym.send('健身房')).kind, isNot('ask'));
   });
 
-  test('office: chair + bodyweight only, never floor; replace counts main moves only', () async {
+  test('office: chair + bodyweight only, never floor; "Nth" follows the card numbering (warm-up and cool-down included)', () async {
     final client = _StubClient();
     final agent = CoachQaAgent(client: client, catalog: catalog, profile: profile);
     final r = await agent.send('我在办公室，给我来一套15分钟的');
@@ -123,12 +133,77 @@ void main() {
       expect(agent.index[id]!.floorRequired, isFalse, reason: id);
       expect(agent.index[id]!.requiredEquipment.difference({'chair'}), isEmpty, reason: id);
     }
-    final main = r.planMainIds;
-    final r2 = await agent.send('第二个换掉');
+    final before = r.planOrderedIds;
+    // 卡片编号 = 全部动作连续编号，热身在前：15 分钟计划第 1 个是热身。
+    expect(r.plan!.blocks.first.type, BlockType.warmup);
+    var swapped = 0;
+    for (final n in [1, 2, before.length]) {
+      final prev = agent.state.lastPlan!.orderedIds;
+      final r2 = await agent.send('换第$n个');
+      expect(r2.kind, anyOf('replace', 'answer'), reason: '第$n个');
+      if (r2.kind != 'replace') continue;
+      final now = r2.planOrderedIds;
+      expect(now.length, prev.length);
+      final changed = [
+        for (var k = 0; k < now.length; k++)
+          if (now[k] != prev[k]) k + 1,
+      ];
+      expect(changed, [n], reason: '只换卡片第$n个');
+      expect(r2.text, startsWith('第$n个'));
+      swapped++;
+    }
+    expect(swapped, greaterThanOrEqualTo(2));
+    final out = await agent.send('换第${before.length + 1}个');
+    expect(out.kind, 'answer');
+    expect(out.text, contains('一共${before.length}个动作'));
+    expect(out.plan, isNotNull);
+  });
+
+  test('recommend cards: "Nth" is the card position', () async {
+    final agent = CoachQaAgent(
+      client: _StubClient(),
+      catalog: catalog,
+      profile: profile,
+      memory: const CoachQaMemory(scene: 'gym'),
+    );
+    final r = await agent.send('推荐几个练腿的动作');
+    expect(r.kind, 'recommend');
+    final r2 = await agent.send('第三个换掉');
     expect(r2.kind, 'replace');
-    expect(r2.planMainIds.length, main.length);
-    expect(r2.planMainIds[0], main[0]);
-    expect(r2.planMainIds[1], isNot(main[1]));
+    expect(r2.cards.length, r.cards.length);
+    expect(
+      [
+        for (var k = 0; k < r.cards.length; k++)
+          if (r.cards[k].id != r2.cards[k].id) k + 1,
+      ],
+      [3],
+    );
+  });
+
+  test('home "none (bodyweight)": wall counts, chair only when picked', () {
+    final finder = QaFinder(QaActionIndex(catalog));
+    final bodyweight = QaQuery(scene: 'home', equipment: const {}, strict: true);
+    final wallOnly = [
+      for (final a in finder.index.all)
+        if (a.scenes.contains('home') && a.requiredEquipment.isNotEmpty && a.requiredEquipment.every({'wall'}.contains)) a,
+    ];
+    expect(wallOnly, isNotEmpty);
+    for (final a in wallOnly) {
+      expect(finder.passes(a, bodyweight), isTrue, reason: a.id);
+    }
+    final chairOnly = [
+      for (final a in finder.index.all)
+        if (a.scenes.contains('home') && a.requiredEquipment.contains('chair') && a.requiredEquipment.every({'chair', 'wall'}.contains)) a,
+    ];
+    expect(chairOnly, isNotEmpty);
+    for (final a in chairOnly) {
+      expect(finder.passes(a, bodyweight), isFalse, reason: a.id);
+      expect(
+        finder.passes(a, QaQuery(scene: 'home', equipment: const {'chair'}, strict: true)),
+        isTrue,
+        reason: a.id,
+      );
+    }
   });
 
   // 需要 Pose-Hub ai-tags（退阶关系）；设 AI_TAGS_DIR 指向 catalog/ai-tags/actions。

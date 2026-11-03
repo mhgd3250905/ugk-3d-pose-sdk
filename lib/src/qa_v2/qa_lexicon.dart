@@ -230,19 +230,31 @@ final class QaFollowUpMatch {
   const QaFollowUpMatch(this.kind, {this.index, this.minutes});
   final QaFollowUp kind;
 
-  /// 0 起；replace 用。
+  /// 0 起；replace 用。对计划是卡片上显示的连续编号（含热身、收操）减 1。
   final int? index;
   final int? minutes;
 }
 
 const _cnNum = {'一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10};
 
+/// 「3」「三」「十二」「二十」→ 数字。
+int? parseOrdinal(String g) {
+  final d = int.tryParse(g);
+  if (d != null) return d;
+  if (g.length == 1) return _cnNum[g];
+  final i = g.indexOf('十');
+  if (i < 0) return null;
+  final tens = i == 0 ? 1 : _cnNum[g.substring(0, i)];
+  final ones = i == g.length - 1 ? 0 : _cnNum[g.substring(i + 1)];
+  if (tens == null || ones == null) return null;
+  return tens * 10 + ones;
+}
+
 QaFollowUpMatch detectFollowUp(String text) {
   final t = text.toLowerCase();
-  final idx = RegExp(r'第\s*([0-9一二两三四五六七八九十])\s*个').firstMatch(t);
+  final idx = RegExp(r'第\s*([0-9]{1,2}|[一二两三四五六七八九十]{1,3})\s*个').firstMatch(t);
   if (idx != null && RegExp(r'换|不喜欢|替|不想|删').hasMatch(t)) {
-    final g = idx.group(1)!;
-    final n = int.tryParse(g) ?? _cnNum[g] ?? 1;
+    final n = parseOrdinal(idx.group(1)!) ?? 1;
     return QaFollowUpMatch(QaFollowUp.replace, index: n - 1);
   }
   final m = RegExp(r'(\d+)\s*分钟').firstMatch(t);

@@ -361,7 +361,21 @@ void main() {
   test('an optional usage sink receives one record per model call', () async {
     final records = <coach.UsageRecord>[];
     final h = ChatHarness(
-      script: chatPlanScript(),
+      // Explicit scripted responses pass through FakeLlmClient unchanged,
+      // including usage metadata, rather than inheriting its string defaults.
+      script: [
+        for (final response in chatPlanScript().cast<coach.LlmResponse>())
+          coach.LlmResponse(
+            content: response.content,
+            toolCalls: response.toolCalls,
+            finishReason: response.finishReason,
+            usage: const coach.TokenUsage(
+              promptTokens: 1000,
+              completionTokens: 200,
+            ),
+            model: 'usage-test-model',
+          ),
+      ],
       usageSink: coach.CallbackUsageSink(records.add),
     );
     addTearDown(h.close);
@@ -371,9 +385,9 @@ void main() {
     expect(result?.plan, isNotNull);
     expect(h.client.requests, isNotEmpty);
     expect(records, isNotEmpty);
-    expect(records.length, lessThanOrEqualTo(h.client.requests.length));
+    expect(records, hasLength(h.client.requests.length));
     expect(records.every((r) => r.usage.promptTokens == 1000), isTrue);
-    expect(records.every((r) => r.model == 'fake-model'), isTrue);
+    expect(records.every((r) => r.model == 'usage-test-model'), isTrue);
   });
 
   test('without a usage sink the turn behaves as before', () async {

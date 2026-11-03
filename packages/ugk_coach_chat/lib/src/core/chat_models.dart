@@ -43,6 +43,10 @@ class ChatMessage {
     this.greeting = false,
     this.aiVisible = false,
     this.receiptSessionId,
+    this.qaV2 = false,
+    this.assumption,
+    this.quickActions = const [],
+    this.actionReasons = const {},
   });
   final String id;
   final ChatRole role;
@@ -70,6 +74,10 @@ class ChatMessage {
   final coach.CoachContext? request;
   final bool greeting, aiVisible;
   final String? receiptSessionId;
+  final bool qaV2;
+  final String? assumption;
+  final List<String> quickActions;
+  final Map<String, String> actionReasons;
   bool get isUser => role == ChatRole.user;
   bool get isPlan => plan != null;
   int? get planVersion => sdkVersion ?? validatedPlan?.version;
@@ -120,6 +128,10 @@ class ChatMessage {
     greeting: greeting,
     aiVisible: aiVisible ?? this.aiVisible,
     receiptSessionId: receiptSessionId,
+    qaV2: qaV2,
+    assumption: assumption,
+    quickActions: quickActions,
+    actionReasons: actionReasons,
   );
 
   Map<String, Object?> toJson() => {
@@ -149,6 +161,10 @@ class ChatMessage {
     if (greeting) 'greeting': true,
     if (aiVisible) 'aiVisible': true,
     'receiptSessionId': ?receiptSessionId,
+    if (qaV2) 'qaV2': true,
+    'assumption': ?assumption,
+    if (quickActions.isNotEmpty) 'quickActions': quickActions,
+    if (actionReasons.isNotEmpty) 'actionReasons': actionReasons,
   };
 
   factory ChatMessage.fromJson(
@@ -186,7 +202,7 @@ class ChatMessage {
           ChatOption.fromJson(Map<String, Object?>.from(item as Map)),
       ],
       chosen: (json['chosen'] as num?)?.toInt(),
-      question: restoreQuestion(json['question']),
+      question: restoreQuestion(json['question'], direct: json['qaV2'] == true),
       conversationMessageId: json['conversationMessageId'] as String?,
       questionAnswered: json['questionAnswered'] == true,
       answeredChoices: (json['answeredChoices'] as List? ?? const [])
@@ -214,6 +230,13 @@ class ChatMessage {
       greeting: json['greeting'] == true,
       aiVisible: json['aiVisible'] == true,
       receiptSessionId: json['receiptSessionId'] as String?,
+      qaV2: json['qaV2'] == true,
+      assumption: json['assumption'] as String?,
+      quickActions: (json['quickActions'] as List? ?? const []).cast<String>(),
+      actionReasons: {
+        for (final entry in (json['actionReasons'] as Map? ?? const {}).entries)
+          entry.key as String: entry.value as String,
+      },
     );
   }
 }
@@ -251,9 +274,17 @@ Map<String, List<String>> stringLists(Object? value) => value is Map
       }
     : const {};
 
-coach.AskUserQuestion? restoreQuestion(Object? value) {
+coach.AskUserQuestion? restoreQuestion(Object? value, {bool direct = false}) {
   if (value is! Map) return null;
   final raw = Map<String, Object?>.from(value);
+  if (direct) {
+    return coach.AskUserQuestion.direct(
+      raw['question']! as String,
+      options: (raw['options'] as List? ?? const []).cast<String>(),
+      multiple: raw['multiple'] == true,
+      language: raw['language'] as String? ?? 'zh',
+    );
+  }
   if (raw['isConfirmation'] == true) {
     return coach.AskUserQuestion.confirmation(
       question: raw['question']! as String,

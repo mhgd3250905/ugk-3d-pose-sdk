@@ -12,6 +12,7 @@ class CoachChatSnapshot {
     required this.session,
     required List<Map<String, Object?>> messages,
     this.envelopeSchemaVersion = 1,
+    this.qaState,
   }) : messages = List.unmodifiable(
          messages.map((message) => Map<String, Object?>.unmodifiable(message)),
        );
@@ -19,18 +20,25 @@ class CoachChatSnapshot {
   final String appId, storageNamespace;
   final coach.CoachSessionSnapshot session;
   final List<Map<String, Object?>> messages;
+
+  /// Optional opt-in agent state; legacy envelopes and sessions remain valid.
+  final Map<String, Object?>? qaState;
   Map<String, Object?> toJson() => {
     'envelopeSchemaVersion': envelopeSchemaVersion,
     'appId': appId,
     'storageNamespace': storageNamespace,
     'session': session.toJson(),
     'messages': messages,
+    'qaState': ?qaState,
   };
   factory CoachChatSnapshot.fromJson(Map<String, Object?> value) =>
       CoachChatSnapshot(
         envelopeSchemaVersion: value['envelopeSchemaVersion'] as int? ?? 1,
         appId: value['appId']! as String,
         storageNamespace: value['storageNamespace']! as String,
+        qaState: value['qaState'] is Map
+            ? Map<String, Object?>.from(value['qaState']! as Map)
+            : null,
         session: coach.CoachSessionSnapshot.fromJson(value['session']),
         messages: [
           for (final item in value['messages'] as List? ?? const [])

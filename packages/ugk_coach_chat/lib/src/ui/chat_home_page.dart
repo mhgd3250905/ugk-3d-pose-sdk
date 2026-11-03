@@ -670,6 +670,7 @@ class _CoachChatPageState extends State<_CoachChatBody>
               key: ValueKey('coach-recommendation-${m.id}'),
               actionIds: actions.items.map((action) => action.id).toList(),
               note: m.text,
+              showNumbers: m.qaV2,
               library: CoachExerciseLibrary([
                 for (final action in actions.items)
                   if (library[action.id] case final exercise?)
@@ -695,6 +696,7 @@ class _CoachChatPageState extends State<_CoachChatBody>
               library: library,
               executionTiming: _chat.profile.executionTiming,
               landing: fresh,
+              showNumbers: m.qaV2,
               isSaved: _chat.isSaved,
               updatingSavedPlan: _chat.savedTargetFor(m) != null,
               savedOverride: _chat.isPlanCardSaved(m),
@@ -714,6 +716,7 @@ class _CoachChatPageState extends State<_CoachChatBody>
             PlanCard(
               plan: m.plan!,
               landing: fresh,
+              showNumbers: m.qaV2,
               library: library,
               executionTiming: _chat.profile.executionTiming,
               saved: _chat.isSaved(m.plan!),
@@ -721,6 +724,34 @@ class _CoachChatPageState extends State<_CoachChatBody>
               onSave: () => _save(m.plan!),
               onOpen: () => _details(m),
             ),
+          ),
+        ],
+        if (m.assumption?.trim().isNotEmpty == true) ...[
+          const SizedBox(height: ChatSpace.x2),
+          Text(
+            m.assumption!,
+            key: ValueKey('coach-assumption-${m.id}'),
+            style: ChatType.of(
+              context,
+            ).caption.copyWith(color: ChatTheme.of(context).colors.muted),
+          ),
+        ],
+        if (m.quickActions.isNotEmpty) ...[
+          const SizedBox(height: ChatSpace.x2),
+          Wrap(
+            spacing: ChatSpace.x2,
+            runSpacing: ChatSpace.x2,
+            children: [
+              for (final (index, action) in m.quickActions.indexed)
+                OptionPill(
+                  key: ValueKey('coach-quick-action-${m.id}-$index'),
+                  label: action,
+                  enabled:
+                      !_chat.typing &&
+                      _chat.messages.lastWhere((row) => !row.isUser).id == m.id,
+                  onTap: () => unawaited(_chat.send(action)),
+                ),
+            ],
           ),
         ],
       ],

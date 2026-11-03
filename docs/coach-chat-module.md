@@ -4,6 +4,9 @@
 基于 SDK main `67c9747b8e29955d2be21c020c5ef3881b4966e6`。本批只交 SDK 包，App/pin 不变。
 完整例子见[新包 README](../packages/ugk_coach_chat/README.md)。
 
+聊天页已支持可选的 [QA v2 Agent](coach-chat-qa-v2.md)：App 在 profile 中设置
+`agentMode: CoachChatAgentMode.qaV2` 并提供 `aiTags` 即可启用；默认旧版保持兼容。
+
 ## 所有权与公开入口
 
 模块持有一个 `CoachConversationController` 和同一个 `CoachAgent`，复用原工具循环、

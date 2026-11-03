@@ -19,9 +19,13 @@ class CoachRecommendCard extends StatelessWidget {
     required this.library,
     required this.onOpenAction,
     this.onPlanFromActions,
+    this.showNumbers = false,
   }) : actionIds = List.unmodifiable(actionIds);
 
   final List<String> actionIds;
+
+  /// Position in this reply, matching the agent's swap-card numbering.
+  final bool showNumbers;
   final String note;
   final CoachExerciseLibrary library;
   final ValueChanged<String> onOpenAction;
@@ -50,12 +54,13 @@ class CoachRecommendCard extends StatelessWidget {
                 spacing: CoachSpace.x3,
                 runSpacing: CoachSpace.x3,
                 children: [
-                  for (final id in actionIds)
+                  for (final (index, id) in actionIds.indexed)
                     SizedBox(
                       key: ValueKey('recommend-action-$id'),
                       width: tileWidth,
                       child: _Action(
                         id: id,
+                        number: showNumbers ? index + 1 : null,
                         exercise: library.tryGet(id),
                         onOpen: () => onOpenAction(id),
                       ),
@@ -94,9 +99,11 @@ class _Action extends StatelessWidget {
     required this.id,
     required this.exercise,
     required this.onOpen,
+    this.number,
   });
 
   final String id;
+  final int? number;
   final CoachExercise? exercise;
   final VoidCallback onOpen;
 
@@ -170,7 +177,38 @@ class _Action extends StatelessWidget {
                 AspectRatio(
                   key: ValueKey('recommend-image-area-$id'),
                   aspectRatio: 1,
-                  child: image,
+                  child: number == null
+                      ? image
+                      : Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            image,
+                            Align(
+                              alignment: Alignment.topLeft,
+                              child: DecoratedBox(
+                                key: ValueKey('recommend-number-$number'),
+                                decoration: BoxDecoration(
+                                  color: style.colors.surfaceRaised,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  child: Text(
+                                    '$number',
+                                    style: tagStyle.copyWith(
+                                      color: style.colors.text,
+                                      fontWeight: FontWeight.w700,
+                                      fontFeatures: CoachUiTypography.tabular,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
                 const SizedBox(height: CoachSpace.x3),
                 text,

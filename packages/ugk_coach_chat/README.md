@@ -37,6 +37,11 @@ await chat.start();
 `start()` 幂等、恢复本地状态且不请求模型。页面不拥有 controller；宿主关闭时优先
 `await chat.close()`，Widget 的同步销毁入口为 `chat.dispose()`。
 
+新版问答 Agent 可通过 `CoachAppProfile(agentMode: CoachChatAgentMode.qaV2,
+aiTags: appAiTags, ...)` 启用，默认仍为旧版。标签由 App 加载并按动作 ID 传入，
+SDK 不打包标签。单选/多选、连续编号、条件说明和快捷按钮均由现有聊天页显示。
+配置与恢复行为见 [QA v2 接入](../../docs/coach-chat-qa-v2.md)。
+
 宿主页面的“去排一套”在 pop 后调用 `chat.requestCompose()`，SDK 会聚焦原输入框；
 普通返回不自动弹键盘。`bindings.observer` 的 `chat.user` 事件提供
 `CoachChatUserInput.rawText/sentText`，可按 `messageId` 避免与显示监听重复记录。

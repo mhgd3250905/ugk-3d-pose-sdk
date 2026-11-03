@@ -1,0 +1,274 @@
+// Generated into ignored package/build/ by coach_chat_qa_v2_live.ps1.
+// This file is deliberately outside the ordinary offline test suite.
+import 'dart:convert';
+import 'dart:io';
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/io_client.dart';
+import 'package:ugk_coach/ugk_coach.dart' as coach;
+import 'package:ugk_coach/ugk_coach_qa_v2.dart' as qa;
+import 'package:ugk_coach_chat/ugk_coach_chat.dart';
+import 'package:ugk_coach_ui/ugk_coach_ui.dart';
+
+import '__SDK_URI__/tool/eval_api_config.dart' as gateway;
+
+void main() {
+  testWidgets('real-model SDK chat page: back, home, bodyweight, swap second', (tester) async {
+    final env = Platform.environment;
+    final output = env['COACH_CHAT_QA_V2_LIVE_OUTPUT']!;
+    final sdk = env['COACH_CHAT_QA_V2_LIVE_SDK']!;
+    final tagsDirectory = Directory(env['AI_TAGS_DIR']!);
+    final turns = <Map<String, Object?>>[];
+    final wire = <Map<String, Object?>>[];
+    final boundary = GlobalKey();
+    final scroll = ScrollController();
+    CoachChatController? controller;
+    _ObservedClient? client;
+    final checks = <String, bool>{};
+    Object? fatal;
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 800));
+    }
+
+    Future<void> snapshot(String name) async {
+      await settle();
+      await tester.runAsync(() async {
+        final render = boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+        final image = await render.toImage(pixelRatio: 1);
+        final png = await image.toByteData(format: ui.ImageByteFormat.png);
+        await File('$output/$name.png').writeAsBytes(png!.buffer.asUint8List());
+        image.dispose();
+      });
+      stdout.writeln('Chat-page screenshot saved: $name.');
+    }
+
+    Future<void> awaitTurn(Future<void> Function() gesture) async {
+      stdout.writeln('Chat-page gesture starts.');
+      await tester.runAsync(() async {
+        await gesture();
+        stdout.writeln('Chat-page gesture completed; waiting for model.');
+        final deadline = DateTime.now().add(const Duration(minutes: 12));
+        while (controller!.typing) {
+          if (DateTime.now().isAfter(deadline)) throw StateError('Real-model turn timed out');
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
+      });
+      await settle();
+      expect(controller!.error, isNull);
+      expect(controller!.lastQaReply, isNotNull);
+      expect(controller!.lastQaReply!.kind, isNot('error'));
+    }
+
+    void record(String input) {
+      final reply = controller!.lastQaReply!;
+      turns.add({'input': input, ...reply.toJson()});
+      stdout.writeln('Chat-page live turn ${turns.length}: ${reply.kind}; '
+          '${reply.llmCalls} model calls; ${reply.elapsed.inMilliseconds} ms.');
+    }
+
+    Future<void> submitText(String text) async {
+      await tester.enterText(find.byKey(const ValueKey('chat-input')), text);
+      await tester.pump();
+      await awaitTurn(() => tester.tap(find.byKey(const ValueKey('chat-send'))));
+      record(text);
+    }
+
+    Future<void> show(Finder finder) async {
+      stdout.writeln('Chat-page show option.');
+      await tester.ensureVisible(finder);
+      await tester.pump();
+      stdout.writeln('Chat-page option visible.');
+    }
+
+    try {
+      final loaded = await tester.runAsync(() async {
+        final fontFile = File(env['COACH_CHAT_QA_V2_LIVE_FONT'] ?? 'C:/Windows/Fonts/msyh.ttc');
+        if (fontFile.existsSync()) {
+          final font = FontLoader('qa-live-font')
+            ..addFont(Future.value(ByteData.sublistView(await fontFile.readAsBytes())));
+          await font.load();
+        }
+        final metaFile = File('$sdk/packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json');
+        final bytes = await metaFile.readAsBytes();
+        final descriptor = coach.PoseHubAppTestCatalog.fromBytes(bytes);
+        final semantic = await File('${metaFile.parent.path}/${descriptor.semanticCatalogFile.path}').readAsBytes();
+        final catalog = coach.PoseHubAppTestCatalog.fromBytes(bytes, semanticCatalogBytes: semantic).toAiCatalog();
+        final tags = <String, Map<String, Object?>>{
+          for (final file in tagsDirectory.listSync().whereType<File>().where((f) => f.path.endsWith('.json')))
+            for (final json in [Map<String, Object?>.from(jsonDecode(await file.readAsString()) as Map)])
+              json['id']! as String: json,
+        };
+        final coachProfile = coach.CoachProfile.fromJson(
+          Map<String, Object?>.from(jsonDecode(await File('$sdk/profiles/smartfit.json').readAsString()) as Map));
+        final manifest = coach.CoachActionScopeManifest.fromCatalogBytes(
+          appId: coachProfile.id, catalogBytes: bytes,
+          allowedActionIds: catalog.drills.map((d) => d.id).toList());
+        final key = await gateway.readEvaluationApiKey(env);
+        final tls = SecurityContext(withTrustedRoots: true);
+        final ca = env['SSL_CERT_FILE'];
+        if (ca != null && ca.isNotEmpty) tls.setTrustedCertificates(ca);
+        // Construct an actual native client outside the widget-test 400 stub.
+        final http = _NativeHttpOverrides().createHttpClient(tls);
+        final transport = coach.OpenAiCompatibleClient(
+          config: coach.LlmConfig(baseUrl: env['SIM_BASE'] ?? gateway.evaluationBaseUrl,
+            model: env['SIM_MODEL'] ?? 'deepseek-v4.1-flash', maxTokens: 6000,
+            timeout: const Duration(minutes: 10), maxRetries: 0),
+          auth: coach.ApiKeyAuth(key), httpClient: IOClient(http));
+        client = _ObservedClient(transport, wire);
+        final chat = CoachChatController(
+          profile: CoachAppProfile(appId: coachProfile.id,
+            scopeManifest: manifest, coachProfile: coachProfile,
+            conversationPolicy: coach.CoachScopeConversationPolicy(specialty: '全身训练与拉伸', suggestions: ['想练背']),
+            executionTiming: (plan) {
+              final seconds = const coach.PlanDuration().estimateSeconds(plan, catalog);
+              return coach.PlanExecutionTiming(totalSeconds: seconds,
+                blocks: [for (final b in plan.blocks) coach.PlanBlockExecutionTiming(blockId: b.id, seconds: 0)],
+                containsManualCounting: false);
+            },
+            agentMode: CoachChatAgentMode.qaV2, aiTags: tags,
+            visual: const CoachChatVisuals(fontFamily: 'qa-live-font',
+              showStars: false, animateBackground: false)),
+          catalog: catalog, replyDelay: Duration.zero,
+          turnTimeout: const Duration(minutes: 12),
+          context: const coach.CoachContext(language: 'zh'),
+          bindings: CoachChatBindings(storageNamespace: 'qa-v2-live',
+            gateway: CoachGatewayBinding.shared(client!), plans: _Plans(),
+            history: _History(), preferences: _Preferences(),
+            actions: CoachChatHostActions(onStartTraining: (_, _) async => null,
+              onOpenAction: (_, _) async {}, onOpenLibrary: (_, _) async {},
+              onOpenSavedPlans: (_) async {}, onOpenCustomPlan: (_) async {},
+              onOpenSettings: (_) async {})));
+        expect((await chat.start()).ok, isTrue);
+        checks['externalTagsLoaded'] = tags.isNotEmpty;
+        return chat;
+      });
+      controller = loaded!;
+      await tester.pumpWidget(RepaintBoundary(key: boundary,
+        child: MaterialApp(home: CoachChatPage(controller: controller!, scrollController: scroll))));
+      await settle();
+      await submitText('想练背');
+      final place = controller!.lastQaReply!;
+      expect(place.askStep, qa.QaAskStep.place);
+      expect(place.question!.multiple, isFalse);
+      expect(find.byType(CoachQuestionBubble), findsWidgets);
+      checks['singleChoiceRendered'] = true;
+      await snapshot('01-place');
+      final home = place.question!.options.firstWhere((o) => o.contains('居家') || o.contains('在家'));
+      final placeId = controller!.messages.lastWhere((m) => m.question != null).id;
+      final homeOption = find.byKey(ValueKey('question-option-$placeId-${place.question!.options.indexOf(home)}'));
+      await show(homeOption);
+      await awaitTurn(() => tester.tap(homeOption));
+      record(home);
+      final equipment = controller!.lastQaReply!;
+      expect(equipment.askStep, qa.QaAskStep.equipment);
+      expect(equipment.question!.multiple, isTrue);
+      checks['multipleChoiceRendered'] = true;
+      await snapshot('02-equipment');
+      final bodyweight = equipment.question!.options.firstWhere((o) => o.contains('徒手') || o.contains('都没有'));
+      final equipmentId = controller!.messages.lastWhere((m) => m.question != null).id;
+      final bodyweightOption = find.byKey(ValueKey('question-option-$equipmentId-${equipment.question!.options.indexOf(bodyweight)}'));
+      await show(bodyweightOption);
+      await tester.tap(bodyweightOption);
+      await tester.pump();
+      expect(controller!.lastQaReply, same(equipment), reason: 'Multi-choice waits for explicit submit');
+      final equipmentSubmit = find.byKey(ValueKey('question-submit-$equipmentId'));
+      await show(equipmentSubmit);
+      await awaitTurn(() => tester.tap(equipmentSubmit));
+      record(bodyweight);
+      final before = controller!.lastQaReply!;
+      expect(before.cards.length, greaterThanOrEqualTo(2));
+      expect(before.question, isNull);
+      checks['recommendationRendered'] = true;
+      await snapshot('03-recommendation');
+      final oldIds = before.cards.map((c) => c.id).toList();
+      await submitText('换第 2 个');
+      final after = controller!.lastQaReply!;
+      expect(after.form['positions'], [2]);
+      final newIds = after.cards.map((c) => c.id).toList();
+      expect(newIds.length, oldIds.length);
+      for (var i = 0; i < oldIds.length; i++) {
+        if (i != 1) expect(newIds[i], oldIds[i], reason: 'Only card 2 can change');
+      }
+      checks['secondCardTargeted'] = true;
+      checks['secondCardChanged'] = newIds[1] != oldIds[1];
+      // A narrow bodyweight catalog may have no replacement; retain the model's
+      // truthful explanation in the report rather than forcing an invalid move.
+      await snapshot('04-swap-second');
+      final assistant = controller!.messages.lastWhere((m) => !m.isUser);
+      if (assistant.assumption case final text? when text.isNotEmpty) {
+        expect(find.text(text), findsWidgets);
+        checks['assumptionRendered'] = true;
+      }
+      if (assistant.quickActions.isNotEmpty) {
+        checks['quickActionsPresent'] = true;
+      }
+      expect(tester.takeException(), isNull);
+    } on Object catch (error) {
+      fatal = error.runtimeType.toString();
+      rethrow;
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.runAsync(() async {
+        await controller?.close();
+        controller?.dispose();
+        client?.inner.close();
+        await File('$output/report.json').writeAsString(const JsonEncoder.withIndent('  ').convert({
+          'harness': 'real CoachChatPage; native HTTP; no emulator/device',
+          'model': client?.model, 'checks': checks, 'turns': turns,
+          'calls': wire, 'fatalType': fatal, 'passed': fatal == null && turns.length == 4,
+        }));
+      });
+      scroll.dispose();
+    }
+  }, timeout: const Timeout(Duration(minutes: 25)));
+}
+
+class _ObservedClient implements coach.LlmClient {
+  _ObservedClient(this.inner, this.calls);
+  final coach.OpenAiCompatibleClient inner;
+  final List<Map<String, Object?>> calls;
+  @override String get model => inner.model;
+  @override coach.Pricing? get pricing => inner.pricing;
+  @override Future<coach.LlmResponse> complete(coach.LlmRequest request, {coach.CancelToken? cancel}) async {
+    final watch = Stopwatch()..start();
+    try {
+      final response = await inner.complete(request, cancel: cancel);
+      calls.add({'ms': watch.elapsedMilliseconds, 'tools': response.toolCalls.map((c) => c.name).toList(),
+        'usage': {'input': response.usage.promptTokens, 'output': response.usage.completionTokens}});
+      return response;
+    } on Object catch (error) {
+      calls.add({'ms': watch.elapsedMilliseconds, 'errorType': error.runtimeType.toString()});
+      rethrow;
+    }
+  }
+}
+
+// HttpOverrides' base implementation creates the native client; unlike
+// HttpClient(), this direct call does not consult the widget-test zone mock.
+class _NativeHttpOverrides extends HttpOverrides {}
+
+class _Plans extends CoachPlanStorageAdapter {
+  @override Future<List<CoachSavedPlanSnapshot>> load() async => const [];
+  @override Future<CoachPlanWriteResult> save(CoachPlanWriteRequest request) async =>
+      throw UnsupportedError('Live smoke does not save plans');
+}
+class _History extends CoachChatHistoryStore {
+  @override Future<CoachChatSnapshot?> load(String namespace) async => null;
+  @override Future<void> write(String namespace, CoachChatSnapshot snapshot) async {}
+}
+class _Preferences extends CoachChatPreferenceStore {
+  @override Future<CoachChatPreferences> load() async => const CoachChatPreferences(safetyAccepted: true);
+  @override Future<void> update(CoachChatPreferences next) async {}
+}

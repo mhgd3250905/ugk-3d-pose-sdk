@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
 import 'package:ugk_coach/ugk_coach.dart' as coach;
+import 'package:ugk_coach/ugk_coach_qa_v2.dart' as qa;
 import 'package:ugk_trainer_runtime/engine.dart' show SessionResult;
 
 import 'app_profile.dart';
@@ -10,10 +11,12 @@ import 'chat_bindings.dart';
 import 'chat_failure.dart';
 import 'chat_models.dart';
 import 'chat_snapshot.dart';
+import 'qa_state.dart';
 import 'transition_activity.dart';
 
 /// The SF conversation lifecycle and display controller, with host services
-/// injected. One instance owns exactly one core conversation and Agent.
+/// injected. The legacy core retains admission and host-plan operations;
+/// opt-in QA v2 handles model turns through the same client lease and page.
 class CoachChatController extends ChangeNotifier {
   CoachChatController({
     required this.profile,
@@ -69,6 +72,13 @@ class CoachChatController extends ChangeNotifier {
   coach.TrainingPlan? get currentPlan => _currentPlan;
 
   coach.CoachAgent? _agent;
+  qa.CoachQaAgent? _qaAgent;
+  qa.CoachQaReply? _lastQaReply;
+  coach.CoachTurnResult? _lastQaResult;
+  bool get _usesQaV2 => profile.agentMode == CoachChatAgentMode.qaV2;
+  qa.CoachQaAgent get qaAgent =>
+      _qaAgent ?? (throw StateError('QA v2 must be enabled and started'));
+  qa.CoachQaReply? get lastQaReply => _lastQaReply;
   coach.CoachConversationController? _conversation;
   coach.CoachAgent get agent =>
       _agent ?? (throw StateError('Call start first'));
@@ -77,7 +87,8 @@ class CoachChatController extends ChangeNotifier {
   coach.Catalog get catalog => _agent?.actionScope?.catalog ?? _sourceCatalog;
   coach.CoachPlanFocus? get focus => _conversation?.focus;
   coach.CoachPlanFocus? get planFocus => focus;
-  coach.CoachTurnResult? get lastResult => _conversation?.state.lastResult;
+  coach.CoachTurnResult? get lastResult =>
+      _usesQaV2 ? _lastQaResult : _conversation?.state.lastResult;
   coach.CoachTaskState? _latestTask;
   coach.CoachTaskState? get activeTask => _latestTask;
   coach.CoachSessionState? get activeSessionState =>
@@ -165,6 +176,7 @@ class CoachChatController extends ChangeNotifier {
         agent: agent,
         clock: _clock,
       );
+      if (_usesQaV2) _qaAgent = _createQaAgent();
       conversation.addListener(_onConversationChanged);
       _progressSubscription = agent.events.listen(_onProgress);
       _plansSubscription = bindings.plans.changes.listen((_) {
@@ -277,6 +289,259 @@ class CoachChatController extends ChangeNotifier {
   Future<coach.CoachTurnResult?> send(String text, {String? label}) =>
       _send(text, label: label);
 
+  qa.CoachQaAgent _createQaAgent({
+    coach.CancelToken? cancel,
+    String? turnId,
+    List<coach.UsageRecord>? records,
+  }) => qa.CoachQaAgent(
+    client: _QaClient(
+      _lease!.client,
+      cancel: cancel,
+      onCall: (response, error, elapsed) async {
+        if (turnId == null) return;
+        final usage =
+            response?.usage ??
+            (error is coach.LlmException ? error.usage : coach.TokenUsage.zero);
+        final record = coach.UsageRecord(
+          id: '$turnId-call-${records!.length + 1}',
+          turnId: turnId,
+          at: _clock().toUtc(),
+          appId: profile.appId,
+          profileId: profile.coachProfile.id,
+          model: response?.model ?? _lease!.client.model,
+          promptVersion: 'coach-qa-v2',
+          promptHash: '',
+          catalogVersion: catalog.version,
+          attempt: records.length + 1,
+          usage: usage,
+          latency: response?.latency ?? elapsed,
+          httpAttempts: response?.httpAttempts ?? 1,
+          outcome: error == null
+              ? coach.CallOutcome.toolStep
+              : cancel?.isCancelled == true
+              ? coach.CallOutcome.cancelled
+              : coach.CallOutcome.error,
+          turnOutcome: error == null
+              ? coach.TurnOutcome.model
+              : cancel?.isCancelled == true
+              ? coach.TurnOutcome.cancelled
+              : coach.TurnOutcome.error,
+          finishReason: response?.finishReason,
+          errorKind: error is coach.LlmException ? error.kind.name : null,
+          cost: _lease!.client.pricing?.cost(usage),
+          currency: _lease!.client.pricing?.currency,
+        );
+        records.add(record);
+        try {
+          await usageSink?.record(record);
+        } on Object catch (error) {
+          bindings.observer?.call('chat.usage.error', error);
+        }
+      },
+    ),
+    catalog: catalog,
+    profile: profile.coachProfile,
+    aiTags: profile.aiTags,
+  );
+
+  Future<coach.CoachTurnResult?> _sendQa(
+    String input,
+    ChatMessage user, {
+    String? questionId,
+    List<String>? choices,
+    Map<String, List<String>>? formAnswers,
+  }) async {
+    final generation = ++_generation;
+    final cancel = coach.CancelToken();
+    final turnId = 'qa-${user.id}';
+    final records = <coach.UsageRecord>[];
+    // Each request owns a fresh working copy. Cancelled/late requests can never
+    // mutate the committed state used by a new conversation or the next turn.
+    final working = _createQaAgent(
+      cancel: cancel,
+      turnId: turnId,
+      records: records,
+    );
+    restoreQaState(
+      working.state,
+      encodeQaState(qaAgent.state),
+      allowedIds: profile.allowedActionIds,
+    );
+    _cancel = cancel;
+    _typing = true;
+    _latestTask = null;
+    _lastError = null;
+    _endProgress();
+    _notify();
+    var timedOut = false;
+    final timer = Timer(turnTimeout, () {
+      timedOut = true;
+      cancel.cancel('turn timeout');
+    });
+    coach.CoachTurnResult? result;
+    try {
+      try {
+        await prepareReply?.call();
+      } on Object catch (error) {
+        bindings.observer?.call('chat.prepare.error', error);
+      }
+      if (_closed || generation != _generation || cancel.isCancelled) {
+        return null;
+      }
+      final reply = _normalizeQaReply(
+        await working.send(input, language: context.language),
+      );
+      if (replyDelay > Duration.zero) await Future<void>.delayed(replyDelay);
+      if (_closed || generation != _generation) return null;
+      if (cancel.isCancelled) {
+        throw const coach.LlmException(
+          coach.LlmErrorKind.cancelled,
+          'cancelled',
+        );
+      }
+      if (reply.kind == 'error') throw StateError(reply.issues.join('; '));
+      final plan = reply.plan == null
+          ? null
+          : _admitDisplay(reply.plan!, requestForPlan(reply.plan!));
+      final actions = reply.cards.isEmpty
+          ? null
+          : _restoreActions([for (final card in reply.cards) card.id]);
+      if ((reply.plan != null && plan == null) ||
+          (reply.cards.isNotEmpty && actions == null)) {
+        throw StateError('QA output failed the App action/plan admission gate');
+      }
+      if (plan != null) {
+        working.state.lastPlan = qa.QaPlanResult(
+          plan.plan,
+          reply.planSeconds ?? 0,
+          working.state.lastPlan?.notes ?? const [],
+        );
+      }
+      for (final row in _messages.toList()) {
+        if (row.qaV2 && row.question != null && !row.questionAnswered) {
+          _replace(
+            row.copyWith(
+              questionAnswered: true,
+              answeredChoices: row.conversationMessageId == questionId
+                  ? choices
+                  : null,
+              answeredForm: row.conversationMessageId == questionId
+                  ? formAnswers
+                  : null,
+            ),
+          );
+        }
+      }
+      _qaAgent = working;
+      _lastQaReply = reply;
+      _replace(user.copyWith(aiVisible: true));
+      final id = _id();
+      _messages.add(
+        ChatMessage(
+          id: id,
+          conversationMessageId: id,
+          at: _clock(),
+          role: ChatRole.assistant,
+          text: reply.text,
+          question: reply.question,
+          actions: actions,
+          plan: plan?.plan,
+          validatedPlan: plan,
+          request: plan == null ? null : requestForPlan(plan.plan),
+          qaV2: true,
+          assumption: reply.assumption,
+          quickActions: List.unmodifiable(reply.chips),
+          actionReasons: {for (final card in reply.cards) card.id: card.why},
+          aiVisible: true,
+        ),
+      );
+      if (plan != null) _currentPlan = plan.plan;
+      result = coach.CoachTurnResult(
+        turnId: turnId,
+        status: coach.TurnStatus.ok,
+        text: reply.text,
+        question: reply.question,
+        plan: plan,
+        actions: actions,
+        records: List.unmodifiable(records),
+        steps: reply.llmCalls,
+      );
+      _lastQaResult = result;
+      _suggestions = reply.question != null ? const [] : _defaults();
+    } on Object catch (error) {
+      if (_closed || generation != _generation) return null;
+      _recordError('chat.turn.error', error);
+      _addFailure(error: error, timedOut: timedOut);
+      _suggestions = _defaults();
+      result = coach.CoachTurnResult(
+        turnId: turnId,
+        status: coach.TurnStatus.error,
+        error: error,
+        records: List.unmodifiable(records),
+      );
+      _lastQaResult = result;
+    } finally {
+      timer.cancel();
+      if (identical(_cancel, cancel)) _cancel = null;
+      if (!_closed && generation == _generation) {
+        _typing = false;
+        _notify();
+        _persistInBackground();
+      }
+      bindings.observer?.call('chat.turn.result', {
+        'turnId': turnId,
+        'status': timedOut ? 'timeout' : result?.status.name ?? 'cancelled',
+        'agentMode': 'qaV2',
+        'errorType': result?.error?.runtimeType.toString(),
+        if (timedOut || result?.error != null)
+          'failureKind': ChatFailureKind.of(
+            result: result,
+            timedOut: timedOut,
+          ).name,
+        'contextRequests': const [],
+      });
+    }
+    return result;
+  }
+
+  /// QA's prototype plan has no summary and uses its own source marker.
+  /// Adapt it to the existing AI plan storage/admission contract, retaining
+  /// model-written text and the exact order/doses used for ordinal follow-ups.
+  qa.CoachQaReply _normalizeQaReply(qa.CoachQaReply reply) {
+    final raw = reply.plan;
+    if (raw == null) return reply;
+    final decoded = const coach.PlanCodec().decodeStrict({
+      ...raw.toJson(),
+      'source': 'ai',
+      'summary': raw.summary.trim().isNotEmpty
+          ? raw.summary
+          : reply.text.trim().isNotEmpty
+          ? reply.text
+          : raw.title,
+    });
+    if (!decoded.ok) throw StateError('Invalid QA plan');
+    return qa.CoachQaReply(
+      kind: reply.kind,
+      text: reply.text,
+      cards: reply.cards,
+      chips: reply.chips,
+      assumption: reply.assumption,
+      conditions: reply.conditions,
+      plan: decoded.plan,
+      planSeconds: reply.planSeconds,
+      question: reply.question,
+      askStep: reply.askStep,
+      llmCalls: reply.llmCalls,
+      elapsed: reply.elapsed,
+      usage: reply.usage,
+      issues: reply.issues,
+      toolTrace: reply.toolTrace,
+      steps: reply.steps,
+      form: reply.form,
+      language: reply.language,
+    );
+  }
+
   Future<coach.CoachTurnResult?> _send(
     String text, {
     String? label,
@@ -318,6 +583,15 @@ class CoachChatController extends ChangeNotifier {
       _notify();
       _schedulePersistence();
       return null;
+    }
+    if (_usesQaV2) {
+      return _sendQa(
+        input,
+        user,
+        questionId: questionId,
+        choices: choices,
+        formAnswers: formAnswers,
+      );
     }
     final generation = ++_generation;
     final cancel = coach.CancelToken();
@@ -512,6 +786,9 @@ class CoachChatController extends ChangeNotifier {
     }
     if (_closed) return const CoachChatOperationResult(ok: false);
     conversation.newConversation();
+    if (_usesQaV2) _qaAgent = _createQaAgent();
+    _lastQaReply = null;
+    _lastQaResult = null;
     _latestTask = null;
     _currentPlan = null;
     _safetyStep = null;
@@ -541,7 +818,22 @@ class CoachChatController extends ChangeNotifier {
       !_typing &&
       !inSafetyCheck &&
       message.conversationMessageId != null &&
-      (_conversation?.canAnswer(message.conversationMessageId!) ?? false);
+      (message.qaV2
+          ? _usesQaV2 &&
+                message.question != null &&
+                !message.questionAnswered &&
+                _messages
+                        .where((row) => row.qaV2 && !row.isUser)
+                        .lastOrNull
+                        ?.id ==
+                    message.id &&
+                _messages.any(
+                  (row) =>
+                      identical(row, message) ||
+                      row.id == message.id && !row.questionAnswered,
+                )
+          : (_conversation?.canAnswer(message.conversationMessageId!) ??
+                false));
 
   Future<coach.CoachTurnResult?> answerQuestion(
     ChatMessage message,
@@ -551,7 +843,13 @@ class CoachChatController extends ChangeNotifier {
       : Future.value();
 
   Future<coach.CoachTurnResult?> answerText(String questionId, String text) =>
-      _conversation?.canAnswer(questionId) == true
+      (_usesQaV2
+          ? _messages.any(
+              (row) =>
+                  row.conversationMessageId == questionId &&
+                  canAnswerQuestion(row),
+            )
+          : _conversation?.canAnswer(questionId) == true)
       ? _send(text, questionId: questionId)
       : Future.value();
 
@@ -561,6 +859,17 @@ class CoachChatController extends ChangeNotifier {
   ) {
     if (!canAnswerQuestion(message)) return Future.value();
     final id = message.conversationMessageId!;
+    if (message.qaV2) {
+      final question = message.question!;
+      final unique = selected.toSet();
+      if (unique.isEmpty ||
+          unique.length != selected.length ||
+          (!question.multiple && unique.length != 1) ||
+          unique.any((value) => !question.options.contains(value))) {
+        return Future.value();
+      }
+      return _send(selected.join('、'), questionId: id, choices: selected);
+    }
     final text = conversation.choiceText(id, selected);
     return text == null
         ? Future.value()
@@ -988,9 +1297,25 @@ class CoachChatController extends ChangeNotifier {
         storageRevision: selection.storageRevision,
         isSavedPlanDisplay: true,
         request: requestForPlan(selection.plan),
+        qaV2: _usesQaV2,
       ),
     );
     _currentPlan = selection.plan;
+    if (_usesQaV2) {
+      qaAgent.state
+        ..lastShown = []
+        ..lastWhy = {}
+        ..lastAsk = null
+        ..pendingFocus = null
+        ..pendingText = null
+        ..lastPlan = qa.QaPlanResult(
+          selection.plan,
+          const coach.PlanDuration()
+              .estimateSeconds(selection.plan, catalog)
+              .round(),
+          const [],
+        );
+    }
     _suggestions = _defaults();
     _notify();
     try {
@@ -1273,6 +1598,7 @@ class CoachChatController extends ChangeNotifier {
       );
 
   void _syncQuestions({bool appendMissing = false}) {
+    if (_usesQaV2) return;
     final conversation = _conversation;
     if (conversation == null) return;
     final snapshots = {
@@ -1382,6 +1708,7 @@ class CoachChatController extends ChangeNotifier {
     storageNamespace: bindings.storageNamespace,
     session: conversation.exportSession(),
     messages: [for (final message in _messages) message.toJson()],
+    qaState: _usesQaV2 ? encodeQaState(qaAgent.state) : null,
   );
 
   Future<CoachChatRestoreResult> restoreSnapshot(
@@ -1419,7 +1746,20 @@ class CoachChatController extends ChangeNotifier {
             restoreActions: _restoreActions,
           ),
       ];
+      if (_usesQaV2) {
+        final restoredQa = _createQaAgent();
+        if (snapshot.qaState case final state?) {
+          restoreQaState(
+            restoredQa.state,
+            state,
+            allowedIds: profile.allowedActionIds,
+          );
+        }
+        _qaAgent = restoredQa;
+      }
       _restoreDisplay(snapshot.session, display);
+      _lastQaReply = null;
+      _lastQaResult = null;
       return const CoachChatRestoreResult(ok: true);
     } on Object catch (error) {
       _recordError('chat.restore.error', error);
@@ -1477,9 +1817,12 @@ class CoachChatController extends ChangeNotifier {
         }
       }
       _syncQuestions(appendMissing: true);
-      _suggestions = conversation.state.pendingQuestion == null
-          ? _defaults()
-          : const [];
+      _suggestions =
+          (_usesQaV2
+              ? _messages.any(canAnswerQuestion)
+              : conversation.state.pendingQuestion != null)
+          ? const []
+          : _defaults();
     } finally {
       _restoring = false;
     }
@@ -1762,3 +2105,40 @@ class _CancellableClient implements coach.LlmClient {
 }
 
 typedef ChatController = CoachChatController;
+
+/// Binds the v2 agent's un-tokened calls to one UI request and preserves the
+/// per-call UsageSink contract of the original shared page.
+class _QaClient implements coach.LlmClient {
+  const _QaClient(this.inner, {this.cancel, required this.onCall});
+  final coach.LlmClient inner;
+  final coach.CancelToken? cancel;
+  final Future<void> Function(coach.LlmResponse?, Object?, Duration) onCall;
+  @override
+  String get model => inner.model;
+  @override
+  coach.Pricing? get pricing => inner.pricing;
+  @override
+  Future<coach.LlmResponse> complete(
+    coach.LlmRequest request, {
+    coach.CancelToken? cancel,
+  }) async {
+    final token = this.cancel ?? cancel;
+    if (token?.isCancelled == true) {
+      throw const coach.LlmException(coach.LlmErrorKind.cancelled, 'cancelled');
+    }
+    final watch = Stopwatch()..start();
+    coach.LlmResponse? response;
+    Object? error;
+    try {
+      response = await _CancellableClient(
+        inner,
+      ).complete(request, cancel: token);
+      return response;
+    } on Object catch (caught) {
+      error = caught;
+      rethrow;
+    } finally {
+      await onCall(response, error, watch.elapsed);
+    }
+  }
+}

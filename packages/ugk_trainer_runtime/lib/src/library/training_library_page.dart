@@ -12,6 +12,7 @@ import '../ui/trainer_poster.dart';
 import '../ui/trainer_theme.dart';
 import 'training_library_browser.dart';
 import 'training_library_config.dart';
+import 'training_library_filter.dart';
 import 'training_library_icons.dart';
 import 'training_library_style.dart';
 
@@ -27,6 +28,8 @@ class TrainingLibraryPage extends StatelessWidget {
     this.canStart,
     this.experience,
     this.embedded = false,
+    this.initialFilter = const TrainingLibraryFilter(),
+    this.initialMuscle,
   });
   final TrainingLibraryConfig config;
   final TrainingMediaPolicy mediaPolicy;
@@ -36,9 +39,20 @@ class TrainingLibraryPage extends StatelessWidget {
   final TrainerExperienceConfig? experience;
   final bool embedded;
 
+  /// Selection the page opens with, e.g. from a muscle or body-part detail
+  /// (`TrainingLibraryFilter(bodyPart: '核心')`). Default: no filter.
+  final TrainingLibraryFilter initialFilter;
+
+  /// Shorthand for `initialFilter.copyWith(muscle: …)` with a catalogue
+  /// muscle-group id such as `glute-max`; wins over [initialFilter.muscle].
+  final String? initialMuscle;
+
   @override
   Widget build(BuildContext context) => TrainingLibraryBrowser(
     actions: mediaPolicy.catalog.semanticCompleteActions,
+    initialFilter: initialMuscle == null
+        ? initialFilter
+        : initialFilter.copyWith(muscle: initialMuscle),
     theme: theme,
     config: config,
     embedded: embedded,
@@ -212,7 +226,7 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
         action.raw['muscleGroupsZh'] as String? ??
         ((action.raw['muscleGroups'] as List?)
                 ?.whereType<String>()
-                .map((id) => _muscleLabels[id] ?? id)
+                .map((id) => poseHubMuscleLabels[id] ?? id)
                 .join('、') ??
             '');
     return SafeArea(
@@ -336,28 +350,6 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
 TrainerTheme _themeOf(BuildContext context, TrainerTheme? supplied) =>
     TrainingLibraryStyle.themeOf(context, supplied);
 
-const _muscleLabels = <String, String>{
-  'chest': '胸部',
-  'lats': '背阔肌',
-  'erectors': '竖脊肌',
-  'scapular': '肩胛肌群',
-  'deltoids': '三角肌',
-  'rotator-cuff': '肩袖',
-  'serratus': '前锯肌',
-  'biceps': '肱二头肌',
-  'triceps': '肱三头肌',
-  'forearms': '前臂',
-  'abs': '腹肌',
-  'obliques': '腹斜肌',
-  'glute-max': '臀大肌',
-  'hip-abductors': '髋外展肌',
-  'hamstrings': '腘绳肌',
-  'quadriceps': '股四头肌',
-  'hip-flexors': '髋屈肌',
-  'adductors': '内收肌',
-  'calves': '小腿',
-  'tibialis': '胫骨前肌',
-};
 
 String _categoryLabel(String? category) => switch (category) {
   'strength' => '力量',

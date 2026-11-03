@@ -4,6 +4,7 @@ import 'package:ugk_coach/ugk_coach.dart';
 
 import '../ui/trainer_theme.dart';
 import 'training_library_config.dart';
+import 'training_library_filter.dart';
 import 'training_library_style.dart';
 
 const poseHubEquipmentLabels = <String, String>{
@@ -82,21 +83,20 @@ abstract final class PoseHubActionFacets {
     String equipment = '全部',
     String bodyPart = '全部',
     String type = '全部',
+    int? level,
+    TrainingLibrarySide side = TrainingLibrarySide.any,
+    String? muscle,
+    Iterable<String> extraNames = const [],
   }) {
     if (!action.trainingDefinitionComplete || !action.availableForApp) {
       return false;
     }
-    final aliases = action.raw['aliasesZh'] ?? action.raw['aliases'];
-    final names = [
-      action.nameZh,
-      if (aliases is List) ...aliases.whereType<String>(),
-    ];
-    final term = query.trim();
+    final term = _normalize(query);
     if (term.isNotEmpty &&
-        !names.any(
-          (name) =>
-              RegExp(r'[\u3400-\u9fff]').hasMatch(name) && name.contains(term),
-        )) {
+        !searchNames(
+          action,
+          extraNames: extraNames,
+        ).any((name) => _normalize(name).contains(term))) {
       return false;
     }
     final tools = PoseHubActionFacets.equipment(action);
@@ -108,14 +108,121 @@ abstract final class PoseHubActionFacets {
     }
     if (bodyPart != '全部' && !bodyParts(action).contains(bodyPart)) return false;
     if (type != '全部' && PoseHubActionFacets.type(action) != type) return false;
+    if (level != null && PoseHubActionFacets.level(action) != level) {
+      return false;
+    }
+    if (side != TrainingLibrarySide.any &&
+        (action.raw['unilateral'] == true) !=
+            (side == TrainingLibrarySide.unilateral)) {
+      return false;
+    }
+    if (muscle != null && !muscles(action).contains(muscle)) return false;
     return true;
   }
+
+  /// [matches] for one [TrainingLibraryFilter].
+  static bool matchesFilter(
+    PoseHubPackAction action,
+    TrainingLibraryFilter filter, {
+    Iterable<String> extraNames = const [],
+  }) => matches(
+    action,
+    query: filter.query,
+    equipment: filter.equipment,
+    bodyPart: filter.bodyPart,
+    type: filter.type,
+    level: filter.level,
+    side: filter.side,
+    muscle: filter.muscle,
+    extraNames: extraNames,
+  );
+
+  /// Catalogue difficulty 1–3, or null when the catalogue has none.
+  static int? level(PoseHubPackAction action) => switch (action.raw['level']) {
+    final int value => value,
+    final num value => value.round(),
+    _ => null,
+  };
+
+  static Set<String> muscles(PoseHubPackAction action) =>
+      ((action.raw['muscleGroups'] as List?)?.whereType<String>() ??
+              const <String>[])
+          .toSet();
+
+  /// Every name the search box matches: the Chinese name and aliases, any
+  /// English name / alias fields, the action id as words, and [extraNames].
+  static Iterable<String> searchNames(
+    PoseHubPackAction action, {
+    Iterable<String> extraNames = const [],
+  }) sync* {
+    yield action.nameZh;
+    for (final key in const [
+      'aliasesZh',
+      'aliases',
+      'nameEn',
+      'aliasesEn',
+      'name',
+      'names',
+    ]) {
+      yield* _texts(action.raw[key]);
+    }
+    yield action.id.replaceAll(RegExp(r'[-_]+'), ' ');
+    yield* extraNames;
+  }
+
+  static Iterable<String> _texts(Object? value) sync* {
+    if (value is String) {
+      yield value;
+    } else if (value is List) {
+      for (final item in value) {
+        yield* _texts(item);
+      }
+    } else if (value is Map) {
+      for (final item in value.values) {
+        yield* _texts(item);
+      }
+    }
+  }
+
+  static String _normalize(String text) =>
+      text.trim().toLowerCase().replaceAll(RegExp(r'[\s\-_]+'), '');
 }
+
+/// Body parts in the library's quick row and filter sheet.
+const poseHubBodyParts = ['胸', '背', '肩', '手臂', '核心', '臀腿', '全身'];
+
+/// Chinese labels of catalogue muscle-group ids.
+const poseHubMuscleLabels = <String, String>{
+  'chest': '胸部',
+  'lats': '背阔肌',
+  'erectors': '竖脊肌',
+  'scapular': '肩胛肌群',
+  'deltoids': '三角肌',
+  'rotator-cuff': '肩袖',
+  'serratus': '前锯肌',
+  'biceps': '肱二头肌',
+  'triceps': '肱三头肌',
+  'forearms': '前臂',
+  'abs': '腹肌',
+  'obliques': '腹斜肌',
+  'glute-max': '臀大肌',
+  'hip-abductors': '髋外展肌',
+  'hamstrings': '腘绳肌',
+  'quadriceps': '股四头肌',
+  'hip-flexors': '髋屈肌',
+  'adductors': '内收肌',
+  'calves': '小腿',
+  'tibialis': '胫骨前肌',
+};
 
 /// Public action search, facets and cards shared by product libraries.
 ///
 /// This component owns no media paths, assets, downloads or practice routes.
 /// The caller supplies the catalogue actions, artwork and selection callback.
+///
+/// Layout: a search box, one horizontal row of quick body-part pills with a
+/// fixed 筛选 button (badged with the facet count) that opens a bottom sheet
+/// holding every facet, then the two-column action grid.
 class TrainingLibraryBrowser extends StatefulWidget {
   const TrainingLibraryBrowser({
     super.key,
@@ -125,6 +232,7 @@ class TrainingLibraryBrowser extends StatefulWidget {
     this.config,
     this.theme,
     this.embedded = false,
+    this.initialFilter = const TrainingLibraryFilter(),
   });
   final Iterable<PoseHubPackAction> actions;
   final Widget Function(BuildContext, PoseHubPackAction, TrainerTheme)
@@ -133,19 +241,22 @@ class TrainingLibraryBrowser extends StatefulWidget {
   final TrainingLibraryConfig? config;
   final TrainerTheme? theme;
   final bool embedded;
+
+  /// Selection on first build (search text included). Later changes are not
+  /// applied to a mounted browser; give it a new key to restart from one.
+  final TrainingLibraryFilter initialFilter;
   @override
   State<TrainingLibraryBrowser> createState() => _TrainingLibraryBrowserState();
 }
 
 class _TrainingLibraryBrowserState extends State<TrainingLibraryBrowser> {
-  String _query = '', _equipment = '全部', _body = '全部', _type = '全部';
-  final _search = TextEditingController();
+  late TrainingLibraryFilter _filter = widget.initialFilter;
+  late final _search = TextEditingController(text: widget.initialFilter.query);
 
-  bool get _hasSelection =>
-      _query.trim().isNotEmpty ||
-      _equipment != '全部' ||
-      _body != '全部' ||
-      _type != '全部';
+  static const _all = TrainingLibraryFilter.all;
+
+  TrainingLibraryStrings get _strings =>
+      widget.config?.strings ?? const TrainingLibraryStrings();
 
   @override
   void dispose() {
@@ -155,14 +266,35 @@ class _TrainingLibraryBrowserState extends State<TrainingLibraryBrowser> {
 
   void _clear() {
     _search.clear();
-    setState(() {
-      _query = '';
-      _equipment = _body = _type = '全部';
-    });
+    setState(() => _filter = const TrainingLibraryFilter());
   }
 
-  String _equipmentLabel(String value) => value == '全部'
-      ? (widget.config?.strings.all ?? value)
+  Iterable<PoseHubPackAction> get _libraryActions => widget.config == null
+      ? widget.actions
+      : widget.actions.where(
+          (action) =>
+              widget.config!.allowedActionIds.contains(action.id) &&
+              action.availableForApp,
+        );
+
+  List<PoseHubPackAction> _matching(
+    Iterable<PoseHubPackAction> actions,
+    TrainingLibraryFilter filter,
+  ) {
+    final names = widget.config?.searchNames;
+    return actions
+        .where(
+          (action) => PoseHubActionFacets.matchesFilter(
+            action,
+            filter,
+            extraNames: names?.call(action.id) ?? const [],
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  String _equipmentLabel(String value) => value == _all
+      ? _strings.all
       : const ['徒手', '需要器械'].contains(value)
       ? value
       : poseHubEquipmentLabels[value] ?? '其他器械';
@@ -177,31 +309,12 @@ class _TrainingLibraryBrowserState extends State<TrainingLibraryBrowser> {
   @override
   Widget build(BuildContext context) {
     final theme = TrainingLibraryStyle.themeOf(context, widget.theme);
-    final strings = widget.config?.strings ?? const TrainingLibraryStrings();
-    final libraryActions = widget.config == null
-        ? widget.actions
-        : widget.actions.where(
-            (action) =>
-                widget.config!.allowedActionIds.contains(action.id) &&
-                action.availableForApp,
-          );
+    final strings = _strings;
+    final libraryActions = _libraryActions.toList(growable: false);
     final scaler = MediaQuery.textScalerOf(context);
     final nameHeight = scaler.scale(15) * 1.35 * 2;
     final tagHeight = scaler.scale(12) * 1.35;
-    final equipment =
-        libraryActions.expand(PoseHubActionFacets.equipment).toSet().toList()
-          ..sort();
-    final actions = libraryActions
-        .where(
-          (action) => PoseHubActionFacets.matches(
-            action,
-            query: _query,
-            equipment: _equipment,
-            bodyPart: _body,
-            type: _type,
-          ),
-        )
-        .toList(growable: false);
+    final actions = _matching(libraryActions, _filter);
     return Scaffold(
       backgroundColor: theme.background,
       appBar: widget.embedded
@@ -227,46 +340,37 @@ class _TrainingLibraryBrowserState extends State<TrainingLibraryBrowser> {
                 controller: _search,
                 style: theme.body,
                 cursorColor: theme.accent,
+                textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
                   hintText: strings.searchHint,
                   hintStyle: theme.body.copyWith(color: theme.muted),
+                  hintMaxLines: 1,
                   prefixIcon: Icon(CupertinoIcons.search, color: theme.muted),
+                  suffixIcon: _filter.query.isEmpty
+                      ? null
+                      : IconButton(
+                          key: const ValueKey('posehub-search-clear'),
+                          tooltip: strings.clear,
+                          icon: Icon(Icons.close_rounded, color: theme.muted),
+                          onPressed: () {
+                            _search.clear();
+                            setState(
+                              () => _filter = _filter.copyWith(query: ''),
+                            );
+                          },
+                        ),
                   filled: true,
                   fillColor: theme.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(theme.radius),
                   ),
                 ),
-                onChanged: (value) => setState(() => _query = value),
+                onChanged: (value) =>
+                    setState(() => _filter = _filter.copyWith(query: value)),
               ),
             ),
-            _filters(
-              strings.equipment,
-              ['全部', '徒手', '需要器械', ...equipment],
-              _equipment,
-              (value) => setState(() => _equipment = value),
-              theme,
-              label: _equipmentLabel,
-            ),
-            _filters(
-              strings.bodyPart,
-              const ['全部', '胸', '背', '肩', '手臂', '核心', '臀腿', '全身'],
-              _body,
-              (value) => setState(() => _body = value),
-              theme,
-            ),
-            _filters(
-              strings.category,
-              [
-                '全部',
-                ...?widget.config?.categoryOrder,
-                if (widget.config == null) ...['力量', '拉伸放松'],
-              ],
-              _type,
-              (value) => setState(() => _type = value),
-              theme,
-            ),
-            _selectionSummary(theme),
+            _quickRow(theme, libraryActions),
+            const SizedBox(height: 8),
             Expanded(
               child: LayoutBuilder(
                 builder: (context, box) {
@@ -285,83 +389,13 @@ class _TrainingLibraryBrowserState extends State<TrainingLibraryBrowser> {
                                     cardWidth + 12 + nameHeight + 4 + tagHeight,
                               ),
                           itemCount: actions.length,
-                          itemBuilder: (context, index) {
-                            final action = actions[index];
-                            return Semantics(
-                              button: true,
-                              label: action.nameZh,
-                              child: GestureDetector(
-                                key: ValueKey('posehub-action-${action.id}'),
-                                onTap: () => widget.onOpenAction(action),
-                                child: DecoratedBox(
-                                  key: ValueKey(
-                                    'posehub-card-surface-${action.id}',
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: theme.cardSurface,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: theme.cardBorder),
-                                  ),
-                                  child: ClipRRect(
-                                    key: ValueKey(
-                                      'posehub-card-clip-${action.id}',
-                                    ),
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(12),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                          AspectRatio(
-                                            key: ValueKey(
-                                              'posehub-image-area-${action.id}',
-                                            ),
-                                            aspectRatio: 1,
-                                            child: widget.actionArtwork(
-                                              context,
-                                              action,
-                                              theme,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          SizedBox(
-                                            height: nameHeight,
-                                            child: Text(
-                                              action.nameZh,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: theme.callout.copyWith(
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w600,
-                                                height: 1.35,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          SizedBox(
-                                            key: ValueKey(
-                                              'posehub-card-tags-${action.id}',
-                                            ),
-                                            height: tagHeight,
-                                            child: Text(
-                                              '${PoseHubActionFacets.type(action)} · ${PoseHubActionFacets.equipmentText(action)}',
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: theme.label.copyWith(
-                                                fontSize: 12,
-                                                height: 1.35,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
+                          itemBuilder: (context, index) => _card(
+                            context,
+                            actions[index],
+                            theme,
+                            nameHeight,
+                            tagHeight,
+                          ),
                         );
                 },
               ),
@@ -372,67 +406,280 @@ class _TrainingLibraryBrowserState extends State<TrainingLibraryBrowser> {
     );
   }
 
-  Widget _selectionSummary(TrainerTheme theme) {
-    final labels = [
-      if (_query.trim().isNotEmpty)
-        '${widget.config?.strings.searchHint ?? '搜索'}：${_query.trim()}',
-      if (_equipment != '全部')
-        '${widget.config?.strings.equipment ?? '器械'}：${_equipmentLabel(_equipment)}',
-      if (_body != '全部') '${widget.config?.strings.bodyPart ?? '部位'}：$_body',
-      if (_type != '全部') '${widget.config?.strings.category ?? '类型'}：$_type',
+  Widget _card(
+    BuildContext context,
+    PoseHubPackAction action,
+    TrainerTheme theme,
+    double nameHeight,
+    double tagHeight,
+  ) => Semantics(
+    button: true,
+    label: action.nameZh,
+    child: GestureDetector(
+      key: ValueKey('posehub-action-${action.id}'),
+      onTap: () => widget.onOpenAction(action),
+      child: DecoratedBox(
+        key: ValueKey('posehub-card-surface-${action.id}'),
+        decoration: BoxDecoration(
+          color: theme.cardSurface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: theme.cardBorder),
+        ),
+        child: ClipRRect(
+          key: ValueKey('posehub-card-clip-${action.id}'),
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AspectRatio(
+                  key: ValueKey('posehub-image-area-${action.id}'),
+                  aspectRatio: 1,
+                  child: widget.actionArtwork(context, action, theme),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: nameHeight,
+                  child: Text(
+                    action.nameZh,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.callout.copyWith(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                SizedBox(
+                  key: ValueKey('posehub-card-tags-${action.id}'),
+                  height: tagHeight,
+                  child: Text(
+                    '${PoseHubActionFacets.type(action)} · ${PoseHubActionFacets.equipmentText(action)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.label.copyWith(fontSize: 12, height: 1.35),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  double _pillHeight(BuildContext context) =>
+      (MediaQuery.textScalerOf(context).scale(14) * 1.3 + 16).clamp(
+        34,
+        double.infinity,
+      );
+
+  /// 全部 + the body parts present in this library, then the fixed 筛选
+  /// button. A host-supplied muscle filter leads the row as its own pill.
+  Widget _quickRow(TrainerTheme theme, List<PoseHubPackAction> actions) {
+    final present = actions.expand(PoseHubActionFacets.bodyParts).toSet();
+    final parts = [
+      for (final part in poseHubBodyParts)
+        if (present.contains(part) || part == _filter.bodyPart) part,
     ];
-    return Padding(
-      key: const ValueKey('posehub-selection-summary'),
-      padding: const EdgeInsets.fromLTRB(16, 2, 8, 6),
+    final muscle = _filter.muscle;
+    final count = _filter.activeCount;
+    return SizedBox(
+      key: const ValueKey('posehub-quick-row'),
+      height: _pillHeight(context),
       child: Row(
         children: [
           Expanded(
-            child: labels.isEmpty
-                ? Text(
-                    widget.config?.strings.allActions ?? '全部动作',
-                    style: theme.label,
-                  )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (final label in labels)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: _selectedBackground(theme),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                child: Text(
-                                  label,
-                                  style: theme.label.copyWith(
-                                    color: _selectedForeground(theme),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+            child: ShaderMask(
+              shaderCallback: (rect) => const LinearGradient(
+                colors: [Colors.white, Colors.white, Colors.transparent],
+                stops: [0, .92, 1],
+              ).createShader(rect),
+              blendMode: BlendMode.dstIn,
+              child: ListView(
+                key: const ValueKey('posehub-quick-options'),
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsetsDirectional.only(start: 16, end: 20),
+                children: [
+                  if (muscle != null) ...[
+                    _pill(
+                      theme,
+                      key: const ValueKey('posehub-quick-muscle'),
+                      label: poseHubMuscleLabels[muscle] ?? muscle,
+                      selected: true,
+                      trailing: Icons.close_rounded,
+                      onTap: () => setState(
+                        () => _filter = _filter.copyWith(clearMuscle: true),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  _pill(
+                    theme,
+                    key: const ValueKey('posehub-quick-全部'),
+                    label: _strings.all,
+                    selected: _filter.bodyPart == _all && muscle == null,
+                    onTap: () => setState(
+                      () => _filter = _filter.copyWith(
+                        bodyPart: _all,
+                        clearMuscle: true,
+                      ),
                     ),
                   ),
-          ),
-          TextButton(
-            key: const ValueKey('posehub-clear-filters'),
-            onPressed: _hasSelection ? _clear : null,
-            style: TextButton.styleFrom(
-              foregroundColor: _selectedForeground(theme),
+                  for (final part in parts) ...[
+                    const SizedBox(width: 8),
+                    _pill(
+                      theme,
+                      key: ValueKey('posehub-quick-$part'),
+                      label: part,
+                      selected: _filter.bodyPart == part,
+                      onTap: () => setState(
+                        () => _filter = _filter.copyWith(
+                          bodyPart: _filter.bodyPart == part ? _all : part,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
-            child: Text(widget.config?.strings.clear ?? '清除'),
+          ),
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 16),
+            child: Semantics(
+              button: true,
+              label: count == 0
+                  ? _strings.filter
+                  : '${_strings.filter}, ${_strings.activeFiltersFor(count)}',
+              excludeSemantics: true,
+              child: _pill(
+                theme,
+                key: const ValueKey('posehub-filter-button'),
+                label: _strings.filter,
+                leading: Icons.tune_rounded,
+                selected: count > 0,
+                badge: count > 0 ? count : null,
+                onTap: () => _openSheet(theme, actions),
+              ),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _pill(
+    TrainerTheme theme, {
+    required Key key,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    IconData? leading,
+    IconData? trailing,
+    int? badge,
+  }) {
+    final foreground = selected ? _selectedForeground(theme) : theme.text;
+    final height = _pillHeight(context);
+    return Material(
+      key: key,
+      color: selected ? _selectedBackground(theme) : theme.surface,
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: selected
+              ? theme.accent.withValues(alpha: .6)
+              : theme.border,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: height,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (leading != null) ...[
+                Icon(leading, size: 16, color: foreground),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                maxLines: 1,
+                style: theme.label.copyWith(
+                  fontSize: 14,
+                  height: 1.2,
+                  color: foreground,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+              if (trailing != null) ...[
+                const SizedBox(width: 4),
+                Icon(trailing, size: 14, color: foreground),
+              ],
+              if (badge != null) ...[
+                const SizedBox(width: 6),
+                Container(
+                  key: const ValueKey('posehub-filter-badge'),
+                  constraints: const BoxConstraints(minWidth: 18),
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  decoration: BoxDecoration(
+                    color: theme.accent,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '$badge',
+                    style: theme.label.copyWith(
+                      fontSize: 11,
+                      height: 1.5,
+                      fontWeight: FontWeight.w700,
+                      color: theme.onAccent,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSheet(
+    TrainerTheme theme,
+    List<PoseHubPackAction> actions,
+  ) async {
+    final picked = await showModalBottomSheet<TrainingLibraryFilter>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'training_library_filter'),
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: theme.surface,
+      sheetAnimationStyle: TrainingLibraryStyle.sheetAnimation,
+      shape: TrainingLibraryStyle.sheetShape,
+      showDragHandle: true,
+      builder: (_) => _FilterSheet(
+        initial: _filter,
+        theme: theme,
+        strings: _strings,
+        actions: actions,
+        categories: [
+          ...?widget.config?.categoryOrder,
+          if (widget.config == null) ...['力量', '拉伸放松'],
+        ],
+        equipmentLabel: _equipmentLabel,
+        count: (filter) => _matching(actions, filter).length,
+        selectedBackground: _selectedBackground(theme),
+        selectedForeground: _selectedForeground(theme),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _filter = picked.copyWith(query: _filter.query));
   }
 
   Widget _emptyState(TrainerTheme theme) => Center(
@@ -445,13 +692,13 @@ class _TrainingLibraryBrowserState extends State<TrainingLibraryBrowser> {
           Icon(Icons.search_off_rounded, size: 44, color: theme.muted),
           const SizedBox(height: 12),
           Text(
-            widget.config?.strings.emptyTitle ?? '没有符合条件的动作',
+            _strings.emptyTitle,
             style: theme.callout,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 6),
           Text(
-            widget.config?.strings.emptyBody ?? '试试其他关键词，或清除筛选',
+            _strings.emptyBody,
             style: theme.label,
             textAlign: TextAlign.center,
           ),
@@ -462,65 +709,260 @@ class _TrainingLibraryBrowserState extends State<TrainingLibraryBrowser> {
             style: TextButton.styleFrom(
               foregroundColor: _selectedForeground(theme),
             ),
-            child: Text(widget.config?.strings.clearFilters ?? '清除筛选'),
+            child: Text(_strings.clearFilters),
           ),
         ],
       ),
     ),
   );
+}
 
-  Widget _filters(
-    String title,
-    List<String> options,
-    String selected,
-    ValueChanged<String> onChanged,
-    TrainerTheme theme, {
-    String Function(String)? label,
-  }) => SizedBox(
-    height:
-        (MediaQuery.textScalerOf(context).scale(theme.label.fontSize ?? 13) +
-                28)
-            .clamp(42, double.infinity),
-    child: Row(
+/// Every facet as wrapping chips over a draft selection; 重置 clears the
+/// draft, 查看 N 个动作 returns it.
+class _FilterSheet extends StatefulWidget {
+  const _FilterSheet({
+    required this.initial,
+    required this.theme,
+    required this.strings,
+    required this.actions,
+    required this.categories,
+    required this.equipmentLabel,
+    required this.count,
+    required this.selectedBackground,
+    required this.selectedForeground,
+  });
+  final TrainingLibraryFilter initial;
+  final TrainerTheme theme;
+  final TrainingLibraryStrings strings;
+  final List<PoseHubPackAction> actions;
+  final List<String> categories;
+  final String Function(String) equipmentLabel;
+  final int Function(TrainingLibraryFilter) count;
+  final Color selectedBackground, selectedForeground;
+
+  @override
+  State<_FilterSheet> createState() => _FilterSheetState();
+}
+
+class _FilterSheetState extends State<_FilterSheet> {
+  late TrainingLibraryFilter _draft = widget.initial;
+  static const _all = TrainingLibraryFilter.all;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
+    final strings = widget.strings;
+    final actions = widget.actions;
+    final equipment =
+        actions.expand(PoseHubActionFacets.equipment).toSet().toList()..sort();
+    final parts = actions.expand(PoseHubActionFacets.bodyParts).toSet();
+    final levels =
+        actions.map(PoseHubActionFacets.level).whereType<int>().toSet().toList()
+          ..sort();
+    final hasUnilateral = actions.any((a) => a.raw['unilateral'] == true);
+    final hasBilateral = actions.any((a) => a.raw['unilateral'] != true);
+    final muscle = _draft.muscle ?? widget.initial.muscle;
+    final sections = <Widget>[
+      if (muscle != null)
+        _section(strings.muscleGroup, 'muscle', [
+          _chip(
+            'muscle',
+            muscle,
+            poseHubMuscleLabels[muscle] ?? muscle,
+            _draft.muscle == muscle,
+            () => setState(
+              () => _draft = _draft.muscle == muscle
+                  ? _draft.copyWith(clearMuscle: true)
+                  : _draft.copyWith(muscle: muscle),
+            ),
+          ),
+        ]),
+      _section(strings.bodyPart, strings.bodyPart, [
+        for (final part in [
+          _all,
+          ...poseHubBodyParts.where(
+            (p) => parts.contains(p) || p == _draft.bodyPart,
+          ),
+        ])
+          _chip(
+            strings.bodyPart,
+            part,
+            part == _all ? strings.all : part,
+            _draft.bodyPart == part,
+            () => setState(() => _draft = _draft.copyWith(bodyPart: part)),
+          ),
+      ]),
+      _section(strings.equipment, strings.equipment, [
+        for (final value in [_all, '徒手', '需要器械', ...equipment])
+          _chip(
+            strings.equipment,
+            value,
+            widget.equipmentLabel(value),
+            _draft.equipment == value,
+            () => setState(() => _draft = _draft.copyWith(equipment: value)),
+          ),
+      ]),
+      _section(strings.category, strings.category, [
+        for (final value in [_all, ...widget.categories])
+          _chip(
+            strings.category,
+            value,
+            value == _all ? strings.all : value,
+            _draft.type == value,
+            () => setState(() => _draft = _draft.copyWith(type: value)),
+          ),
+      ]),
+      if (levels.length > 1)
+        _section(strings.level, 'level', [
+          _chip(
+            'level',
+            _all,
+            strings.all,
+            _draft.level == null,
+            () => setState(() => _draft = _draft.copyWith(clearLevel: true)),
+          ),
+          for (final level in levels)
+            _chip(
+              'level',
+              '$level',
+              strings.levelLabel(level),
+              _draft.level == level,
+              () => setState(() => _draft = _draft.copyWith(level: level)),
+            ),
+        ]),
+      if (hasUnilateral && hasBilateral)
+        _section(strings.side, 'side', [
+          for (final (side, label) in [
+            (TrainingLibrarySide.any, strings.all),
+            (TrainingLibrarySide.bilateral, strings.bilateral),
+            (TrainingLibrarySide.unilateral, strings.unilateral),
+          ])
+            _chip(
+              'side',
+              side.name,
+              label,
+              _draft.side == side,
+              () => setState(() => _draft = _draft.copyWith(side: side)),
+            ),
+        ]),
+    ];
+    final count = widget.count(_draft);
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * .85,
+      ),
+      child: Column(
+        key: const ValueKey('posehub-filter-sheet'),
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text(
+              strings.filter,
+              style: TrainingLibraryStyle.detailTitle(theme),
+            ),
+          ),
+          Flexible(
+            child: SingleChildScrollView(
+              key: const ValueKey('posehub-filter-sections'),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: sections,
+              ),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: theme.border)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                child: Row(
+                  children: [
+                    OutlinedButton(
+                      key: const ValueKey('posehub-filter-reset'),
+                      onPressed: _draft.activeCount == 0
+                          ? null
+                          : () => setState(() => _draft = _draft.cleared()),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: theme.text,
+                        side: BorderSide(color: theme.border),
+                        minimumSize: const Size(88, 48),
+                        shape: const StadiumBorder(),
+                      ),
+                      child: Text(strings.reset),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        key: const ValueKey('posehub-filter-apply'),
+                        onPressed: () => Navigator.of(context).pop(_draft),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: theme.accent,
+                          foregroundColor: theme.onAccent,
+                          minimumSize: const Size.fromHeight(48),
+                          shape: const StadiumBorder(),
+                        ),
+                        child: Text(
+                          strings.viewResultsFor(count),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _section(String title, String id, List<Widget> chips) => Padding(
+    key: ValueKey('posehub-filter-section-$id'),
+    padding: const EdgeInsets.only(top: 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 16, right: 8),
-          child: Text(title, style: theme.label),
-        ),
-        Expanded(
-          child: ListView.separated(
-            key: ValueKey('posehub-filter-options-$title'),
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.only(right: 16),
-            itemCount: options.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 6),
-            itemBuilder: (_, index) {
-              final value = options[index];
-              return ChoiceChip(
-                key: ValueKey('posehub-$title-$value'),
-                label: Text(
-                  label?.call(value) ??
-                      (value == '全部'
-                          ? widget.config?.strings.all ?? value
-                          : value),
-                ),
-                selected: selected == value,
-                showCheckmark: true,
-                checkmarkColor: _selectedForeground(theme),
-                labelStyle: theme.label.copyWith(
-                  color: selected == value
-                      ? _selectedForeground(theme)
-                      : theme.text,
-                ),
-                selectedColor: _selectedBackground(theme),
-                backgroundColor: theme.surface,
-                side: BorderSide(color: theme.border),
-                onSelected: (_) => onChanged(value),
-              );
-            },
+        Text(
+          title,
+          style: widget.theme.label.copyWith(
+            color: widget.theme.text,
+            fontWeight: FontWeight.w600,
           ),
         ),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, children: chips),
       ],
     ),
   );
+
+  Widget _chip(
+    String group,
+    String value,
+    String label,
+    bool selected,
+    VoidCallback onTap,
+  ) {
+    final theme = widget.theme;
+    return ChoiceChip(
+      key: ValueKey('posehub-$group-$value'),
+      label: Text(label),
+      selected: selected,
+      showCheckmark: true,
+      checkmarkColor: widget.selectedForeground,
+      labelStyle: theme.label.copyWith(
+        color: selected ? widget.selectedForeground : theme.text,
+      ),
+      selectedColor: widget.selectedBackground,
+      backgroundColor: theme.surface,
+      side: BorderSide(color: selected ? theme.accent : theme.border),
+      onSelected: (_) => onTap(),
+    );
+  }
 }

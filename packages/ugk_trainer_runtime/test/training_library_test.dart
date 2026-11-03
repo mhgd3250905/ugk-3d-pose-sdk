@@ -176,11 +176,13 @@ void main() {
         TrainingLibraryPage(config: config, mediaPolicy: policy),
       );
       expect(find.text('Example · Moves'), findsOneWidget);
-      expect(find.text('Any'), findsNWidgets(3));
+      expect(find.text('Any'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('posehub-filter-button')));
+      await tester.pumpAndSettle();
       final options = tester
           .widgetList<ChoiceChip>(
             find.descendant(
-              of: find.byKey(const ValueKey('posehub-filter-options-类型')),
+              of: find.byKey(const ValueKey('posehub-filter-section-类型')),
               matching: find.byType(ChoiceChip),
             ),
           )
@@ -190,6 +192,8 @@ void main() {
         '拉伸放松',
         '力量',
       ]);
+      await tester.tap(find.byKey(const ValueKey('posehub-filter-apply')));
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const ValueKey('posehub-search')),
         '不存在动作',

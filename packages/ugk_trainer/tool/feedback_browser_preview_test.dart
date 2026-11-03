@@ -68,6 +68,8 @@ void main() {
     }
 
     await capture('browser-default');
+    await tester.tap(find.byKey(const ValueKey('posehub-filter-button')));
+    await tester.pumpAndSettle();
     for (final key in ['posehub-器械-徒手', 'posehub-部位-核心', 'posehub-类型-力量']) {
       final chip = find.byKey(ValueKey(key));
       await Scrollable.ensureVisible(tester.element(chip), alignment: .5);
@@ -76,6 +78,8 @@ void main() {
       await tester.tap(chip);
       await tester.pumpAndSettle();
     }
+    await tester.tap(find.byKey(const ValueKey('posehub-filter-apply')));
+    await tester.pumpAndSettle();
     await capture('browser-filtered');
     await tester.enterText(
       find.byKey(const ValueKey('posehub-search')),

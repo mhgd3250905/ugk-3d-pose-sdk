@@ -130,12 +130,15 @@ void main() {
 
   for (final dark in [false, true]) {
     testWidgets(
-      'selected facets are visible; clear restores search and every facet ${dark ? 'dark' : 'light'}',
+      'facets live in the filter sheet; badge counts them and the empty clear restores every facet ${dark ? 'dark' : 'light'}',
       (tester) async {
         await mount(tester, dark: dark);
-        final clear = find.byKey(const ValueKey('posehub-clear-filters'));
-        expect(tester.widget<TextButton>(clear).onPressed, isNull);
-        for (final key in ['posehub-器械-徒手', 'posehub-部位-核心', 'posehub-类型-力量']) {
+        expect(find.byKey(const ValueKey('posehub-filter-badge')), findsNothing);
+        await tester.tap(find.byKey(const ValueKey('posehub-quick-核心')));
+        await tester.pump();
+        await tester.tap(find.byKey(const ValueKey('posehub-filter-button')));
+        await tester.pumpAndSettle();
+        for (final key in ['posehub-器械-徒手', 'posehub-类型-力量']) {
           final chip = find.byKey(ValueKey(key));
           await tester.ensureVisible(chip);
           await tester.tap(chip);
@@ -147,9 +150,21 @@ void main() {
           expect(color.g, greaterThan(color.r));
           expect(color.g, greaterThan(color.b));
         }
-        expect(find.text('器械：徒手'), findsOneWidget);
-        expect(find.text('部位：核心'), findsOneWidget);
-        expect(find.text('类型：力量'), findsOneWidget);
+        expect(
+          tester
+              .widget<ChoiceChip>(find.byKey(const ValueKey('posehub-部位-核心')))
+              .selected,
+          isTrue,
+        );
+        await tester.tap(find.byKey(const ValueKey('posehub-filter-apply')));
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('posehub-filter-badge')),
+            matching: find.text('3'),
+          ),
+          findsOneWidget,
+        );
         await tester.enterText(
           find.byKey(const ValueKey('posehub-search')),
           '没有这种动作',
@@ -160,7 +175,7 @@ void main() {
           findsOneWidget,
         );
         expect(find.text('试试其他关键词，或清除筛选'), findsOneWidget);
-        await tester.tap(clear);
+        await tester.tap(find.byKey(const ValueKey('posehub-empty-clear')));
         await tester.pump();
         expect(
           tester
@@ -170,26 +185,7 @@ void main() {
           isEmpty,
         );
         expect(find.byType(GridView), findsOneWidget);
-        expect(find.byKey(const ValueKey('posehub-empty-state')), findsNothing);
-        for (final title in ['器械', '部位', '类型']) {
-          final scroll = find.byKey(ValueKey('posehub-filter-options-$title'));
-          await tester.drag(scroll, const Offset(1000, 0));
-          await tester.pumpAndSettle();
-          expect(
-            tester
-                .widget<ChoiceChip>(find.byKey(ValueKey('posehub-$title-全部')))
-                .selected,
-            isTrue,
-          );
-        }
-        await tester.enterText(
-          find.byKey(const ValueKey('posehub-search')),
-          '没有这种动作',
-        );
-        await tester.pump();
-        await tester.tap(find.byKey(const ValueKey('posehub-empty-clear')));
-        await tester.pump();
-        expect(find.byType(GridView), findsOneWidget);
+        expect(find.byKey(const ValueKey('posehub-filter-badge')), findsNothing);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
       },

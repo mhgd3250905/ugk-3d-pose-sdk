@@ -32,6 +32,8 @@ class CoachChatList extends StatefulWidget {
     this.fadeTop = true,
     this.typing,
     this.initiallySeen = const {},
+    this.anchorTopWhenShort = false,
+    this.emptyBuilder,
   });
   final List<CoachChatEntry> entries;
   final ScrollController controller;
@@ -47,6 +49,15 @@ class CoachChatList extends StatefulWidget {
   final bool fadeTop;
   final Widget? typing;
   final Set<String> initiallySeen;
+
+  /// When the rows are shorter than the viewport, start them under the top
+  /// inset instead of resting on the dock (the reverse list's default).
+  /// Long conversations scroll exactly as before. Default false.
+  final bool anchorTopWhenShort;
+
+  /// Shown, top-anchored inside the same insets, when there are no entries
+  /// and no typing row. Null (default) keeps the empty list.
+  final WidgetBuilder? emptyBuilder;
   @override
   State<CoachChatList> createState() => _CoachChatListState();
 }
@@ -122,24 +133,41 @@ class _CoachChatListState extends State<CoachChatList> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _seen.addAll(renderedIds);
     });
+    final padding = EdgeInsets.fromLTRB(
+      CoachSpace.x4,
+      48 + widget.topInset,
+      CoachSpace.x4,
+      widget.dockHeight + CoachSpace.x3,
+    );
+    final empty = widget.emptyBuilder;
+    final Widget list;
+    if (rows.isEmpty && empty != null) {
+      list = ListView(
+        key: const ValueKey('coach-chat-list-empty'),
+        controller: widget.controller,
+        padding: padding,
+        children: [Builder(builder: empty)],
+      );
+    } else {
+      final view = ListView.builder(
+        controller: widget.controller,
+        reverse: true,
+        shrinkWrap: widget.anchorTopWhenShort,
+        padding: padding,
+        itemCount: reversed.length,
+        itemBuilder: (_, i) => reversed[i],
+        findChildIndexCallback: (key) {
+          final i = reversed.indexWhere((w) => w.key == key);
+          return i < 0 ? null : i;
+        },
+      );
+      list = widget.anchorTopWhenShort
+          ? Align(alignment: Alignment.topCenter, child: view)
+          : view;
+    }
     return Stack(
       children: [
-        ListView.builder(
-          controller: widget.controller,
-          reverse: true,
-          padding: EdgeInsets.fromLTRB(
-            CoachSpace.x4,
-            48 + widget.topInset,
-            CoachSpace.x4,
-            widget.dockHeight + CoachSpace.x3,
-          ),
-          itemCount: reversed.length,
-          itemBuilder: (_, i) => reversed[i],
-          findChildIndexCallback: (key) {
-            final i = reversed.indexWhere((w) => w.key == key);
-            return i < 0 ? null : i;
-          },
-        ),
+        list,
         if (widget.fadeTop)
           IgnorePointer(
             child: SizedBox(

@@ -114,7 +114,10 @@ void main() {
       find.byKey(const ValueKey('posehub-filter-options-器械')),
       findsNothing,
     );
-    await tester.tap(find.byKey(const ValueKey('posehub-quick-核心')));
+    final core = find.byKey(const ValueKey('posehub-quick-核心'));
+    await tester.ensureVisible(core);
+    await tester.pump();
+    await tester.tap(core);
     await tester.pump();
     expect(
       shown(tester),
@@ -128,7 +131,17 @@ void main() {
       ),
       findsOneWidget,
     );
-    await tester.tap(find.byKey(const ValueKey('posehub-quick-全部')));
+    final all = find.byKey(const ValueKey('posehub-quick-全部'));
+    await tester.scrollUntilVisible(
+      all,
+      -100,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('posehub-quick-options')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(all);
     await tester.pump();
     expect(shown(tester), actions.length);
     expect(find.byKey(const ValueKey('posehub-filter-badge')), findsNothing);

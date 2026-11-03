@@ -206,13 +206,16 @@ void main() {
         2,
       );
       expect(grid.childrenDelegate.estimatedChildCount, 211);
+      final action = catalog.semanticCompleteActions.first;
       await tester.enterText(
         find.byKey(const ValueKey('posehub-search')),
-        catalog.allActions.first.id,
+        action.id,
       );
       await tester.pump();
-      expect(find.byType(GridView), findsNothing);
-      final action = catalog.semanticCompleteActions.first;
+      expect(
+        find.byKey(ValueKey('posehub-action-${action.id}')),
+        findsOneWidget,
+      );
       await tester.enterText(
         find.byKey(const ValueKey('posehub-search')),
         action.nameZh,

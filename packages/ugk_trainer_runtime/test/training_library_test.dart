@@ -200,7 +200,8 @@ void main() {
       );
       await tester.pump();
       expect(find.text('No moves'), findsOneWidget);
-      await tester.tap(find.text('Reset'));
+      expect(find.byTooltip('Reset'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('posehub-search-clear')));
       await tester.pump();
       expect(find.byKey(const ValueKey('posehub-action-list')), findsOneWidget);
       expect(repository.requested, isEmpty);

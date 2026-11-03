@@ -133,7 +133,10 @@ void main() {
       'facets live in the filter sheet; badge counts them and the empty clear restores every facet ${dark ? 'dark' : 'light'}',
       (tester) async {
         await mount(tester, dark: dark);
-        expect(find.byKey(const ValueKey('posehub-filter-badge')), findsNothing);
+        expect(
+          find.byKey(const ValueKey('posehub-filter-badge')),
+          findsNothing,
+        );
         await tester.tap(find.byKey(const ValueKey('posehub-quick-核心')));
         await tester.pump();
         await tester.tap(find.byKey(const ValueKey('posehub-filter-button')));
@@ -185,7 +188,10 @@ void main() {
           isEmpty,
         );
         expect(find.byType(GridView), findsOneWidget);
-        expect(find.byKey(const ValueKey('posehub-filter-badge')), findsNothing);
+        expect(
+          find.byKey(const ValueKey('posehub-filter-badge')),
+          findsNothing,
+        );
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
       },

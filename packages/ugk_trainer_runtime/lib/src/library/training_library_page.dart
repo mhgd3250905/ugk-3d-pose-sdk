@@ -350,7 +350,6 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
 TrainerTheme _themeOf(BuildContext context, TrainerTheme? supplied) =>
     TrainingLibraryStyle.themeOf(context, supplied);
 
-
 String _categoryLabel(String? category) => switch (category) {
   'strength' => '力量',
   'core' => '核心',

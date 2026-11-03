@@ -588,9 +588,7 @@ class _TrainingLibraryBrowserState extends State<TrainingLibraryBrowser> {
       color: selected ? _selectedBackground(theme) : theme.surface,
       shape: StadiumBorder(
         side: BorderSide(
-          color: selected
-              ? theme.accent.withValues(alpha: .6)
-              : theme.border,
+          color: selected ? theme.accent.withValues(alpha: .6) : theme.border,
         ),
       ),
       clipBehavior: Clip.antiAlias,

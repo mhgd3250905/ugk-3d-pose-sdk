@@ -20,9 +20,7 @@ void main() {
     return h;
   }
 
-  testWidgets('a root chat page has no back button by default', (
-    tester,
-  ) async {
+  testWidgets('a root chat page has no back button by default', (tester) async {
     final h = await started(tester);
     await tester.pumpWidget(
       MaterialApp(home: CoachChatPage(controller: h.controller)),

@@ -55,9 +55,8 @@ void main() {
         .childCount!;
   }
 
-  int expected(TrainingLibraryFilter filter) => actions
-      .where((a) => PoseHubActionFacets.matchesFilter(a, filter))
-      .length;
+  int expected(TrainingLibraryFilter filter) =>
+      actions.where((a) => PoseHubActionFacets.matchesFilter(a, filter)).length;
 
   group('search', () {
     final squat = actions.firstWhere((a) => a.id == 'h-squat');
@@ -111,10 +110,16 @@ void main() {
   testWidgets('quick body-part pills, badge and 全部', (tester) async {
     await mount(tester);
     expect(find.byKey(const ValueKey('posehub-filter-badge')), findsNothing);
-    expect(find.byKey(const ValueKey('posehub-filter-options-器械')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('posehub-filter-options-器械')),
+      findsNothing,
+    );
     await tester.tap(find.byKey(const ValueKey('posehub-quick-核心')));
     await tester.pump();
-    expect(shown(tester), expected(const TrainingLibraryFilter(bodyPart: '核心')));
+    expect(
+      shown(tester),
+      expected(const TrainingLibraryFilter(bodyPart: '核心')),
+    );
     expect(shown(tester), lessThan(actions.length));
     expect(
       find.descendant(

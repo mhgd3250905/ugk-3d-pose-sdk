@@ -323,7 +323,8 @@ const trainingLibraryStringsByLanguage = <String, TrainingLibraryStrings>{
     muscles: 'Работают',
     cues: 'Подсказки',
     cautions: 'Осторожно',
-    cautionSuffix: '. При дискомфорте уменьшите амплитуду или смените упражнение',
+    cautionSuffix:
+        '. При дискомфорте уменьшите амплитуду или смените упражнение',
     filter: 'Фильтры',
     reset: 'Сбросить',
     viewResults: 'Показать: {count}',

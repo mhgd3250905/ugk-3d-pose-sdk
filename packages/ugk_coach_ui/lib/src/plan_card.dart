@@ -48,6 +48,7 @@ class CoachPlanCard extends StatefulWidget {
     this.cutoutTopInset,
     this.surfaceTopInset,
     this.adaptCutoutScale = true,
+    this.showNumbers = false,
   }) : assert(
          cutoutTopInset == null ||
              (cutoutTopInset >= 0 && cutoutTopInset < double.infinity),
@@ -76,6 +77,9 @@ class CoachPlanCard extends StatefulWidget {
   /// Fit horizontal foregrounds and gently enlarge smaller upright cutouts.
   /// Disable when a host media builder already crops or scales its assets.
   final bool adaptCutoutScale;
+
+  /// Show card positions in compact QA replies as well as expanded rows.
+  final bool showNumbers;
   final CoachExerciseLibrary library;
   final bool saved;
 
@@ -912,6 +916,7 @@ class _PlanCardState extends State<CoachPlanCard>
             exercise: moves.firstOrNull,
             item: items.first,
             fallbackName: p.title,
+            showNumber: widget.showNumbers,
             duration: duration,
             tags: [
               gearText,
@@ -924,6 +929,7 @@ class _PlanCardState extends State<CoachPlanCard>
           )
         : _SetBody(
             cover: cover,
+            showNumbers: widget.showNumbers,
             shown: [
               for (final i in rest.take(shownCount))
                 lib.tryGet(items[i].exerciseId),
@@ -2050,7 +2056,9 @@ class _ExerciseBody extends StatelessWidget {
     this.landing = false,
     this.still = false,
     this.cutoutTop,
+    this.showNumber = false,
   });
+  final bool showNumber;
   final bool still;
   final CoachExercise? exercise;
   final CoachRoutineItem item;
@@ -2128,7 +2136,7 @@ class _ExerciseBody extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(right: 72), // clear of expand
                   child: Text(
-                    e?.name ?? fallbackName,
+                    '${showNumber ? '1 · ' : ''}${e?.name ?? fallbackName}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: CoachUiTheme.of(context).typography.callout.copyWith(
@@ -2238,6 +2246,7 @@ class _SetBody extends StatelessWidget {
     required this.hero,
     required this.chip,
     this.landing = false,
+    this.showNumbers = false,
   });
   final CoachExercise? cover;
   final List<CoachExercise?> shown;
@@ -2246,6 +2255,7 @@ class _SetBody extends StatelessWidget {
   final Animation<double> hero;
   final Animation<double> chip;
   final bool landing;
+  final bool showNumbers;
 
   static const stripHeight = 52.0;
   static const stripTop = 6.0;
@@ -2281,6 +2291,12 @@ class _SetBody extends StatelessWidget {
                       fit: StackFit.expand,
                       children: [
                         _Media(exercise: cover, landing: landing),
+                        if (showNumbers)
+                          const Positioned(
+                            left: CoachSpace.x2,
+                            top: CoachSpace.x2,
+                            child: _PositionLabel(1),
+                          ),
                         _heroLabelSurface(
                           context,
                           cover?.stage ?? CoachUiTheme.of(context).colors.stage,
@@ -2296,12 +2312,23 @@ class _SetBody extends StatelessWidget {
             padding: const EdgeInsets.only(top: stripTop, left: CoachSpace.x1),
             child: Row(
               children: [
-                for (final e in shown) ...[
+                for (final (index, e) in shown.indexed) ...[
                   FadeTransition(
                     opacity: thumbs,
                     child: _Thumb(
                       size: thumb,
-                      child: _Media(exercise: e, thumbnail: true),
+                      child: showNumbers
+                          ? Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                _Media(exercise: e, thumbnail: true),
+                                Align(
+                                  alignment: Alignment.topLeft,
+                                  child: _PositionLabel(index + 2),
+                                ),
+                              ],
+                            )
+                          : _Media(exercise: e, thumbnail: true),
                     ),
                   ),
                   const SizedBox(width: gap),
@@ -2731,6 +2758,34 @@ class _MoveRow extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact media label uses the same ordinal as the expanded move row.
+class _PositionLabel extends StatelessWidget {
+  const _PositionLabel(this.number);
+  final int number;
+  @override
+  Widget build(BuildContext context) {
+    final style = CoachUiTheme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: style.colors.surfaceRaised,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 3),
+        child: Text(
+          '$number',
+          key: ValueKey('plan-compact-number-$number'),
+          style: style.typography.caption.copyWith(
+            color: style.colors.text,
+            fontWeight: FontWeight.w700,
+            fontFeatures: CoachUiTypography.tabular,
+          ),
         ),
       ),
     );

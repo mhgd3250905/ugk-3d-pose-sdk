@@ -1,0 +1,484 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:ugk_coach/ugk_coach.dart' as coach;
+import 'package:ugk_coach/ugk_coach_qa_v2.dart' as qa;
+import 'package:ugk_coach_chat/ugk_coach_chat.dart';
+
+import 'chat_controller_test.dart'
+    show
+        ChatHarness,
+        ChatHistory,
+        ChatPlans,
+        ChatPreferences,
+        chatCatalog,
+        chatPlan,
+        chatPlanScript;
+
+typedef _Handler =
+    FutureOr<Map<String, Object?>> Function(
+      String tool,
+      String context,
+      int count,
+    );
+
+class _Model implements coach.LlmClient {
+  _Model(this.handler);
+  final _Handler handler;
+  final requests = <coach.LlmRequest>[];
+  final counts = <String, int>{};
+  @override
+  String get model => 'qa-controller-model';
+  @override
+  coach.Pricing? get pricing => null;
+  @override
+  Future<coach.LlmResponse> complete(
+    coach.LlmRequest request, {
+    coach.CancelToken? cancel,
+  }) async {
+    requests.add(request);
+    final tool = request.tools.first.name;
+    final count = counts[tool] = (counts[tool] ?? 0) + 1;
+    final context = request.messages
+        .lastWhere((m) => m.role == coach.LlmRole.user)
+        .content;
+    final args = await handler(tool, context, count);
+    return coach.LlmResponse(
+      content: '',
+      model: model,
+      usage: const coach.TokenUsage(promptTokens: 12, completionTokens: 8),
+      toolCalls: [
+        coach.LlmToolCall(
+          id: '$tool-$count',
+          name: tool,
+          arguments: jsonEncode(args),
+        ),
+      ],
+    );
+  }
+}
+
+Map<String, Object?> _form({
+  String intent = 'actions',
+  String place = 'home',
+  bool equipmentKnown = true,
+  List<String> equipment = const [],
+  String status = 'none',
+  String next = 'answer',
+  List<int> positions = const [],
+}) => {
+  'language': 'zh',
+  'intent': intent,
+  'answer_status': status,
+  'place': place,
+  'equipment_known': equipmentKnown,
+  'equipment': equipment,
+  'muscles': ['adductors'],
+  'types': ['static-stretch'],
+  'next': next,
+  'positions': positions,
+};
+
+Map<String, Object?> _answer({List<String> ids = const ['one', 'two']}) => {
+  'text': '按你的条件来。',
+  'items': [
+    for (final id in ids) {'id': id, 'why': '适合当前条件'},
+  ],
+  'assumption': '沿用居家徒手',
+  'chips': ['换场地'],
+};
+
+class _Harness {
+  _Harness(
+    _Handler handler, {
+    ChatHistory? history,
+    Map<String, Map<String, Object?>> tags = const {},
+    coach.UsageSink? usageSink,
+  }) : model = _Model(handler),
+       history = history ?? ChatHistory() {
+    final catalog = chatCatalog();
+    final profile = CoachAppProfile(
+      appId: 'chat-test',
+      scopeManifest: coach.CoachActionScopeManifest.fromCatalogBytes(
+        appId: 'chat-test',
+        catalogBytes: utf8.encode(jsonEncode(catalog.toJson())),
+        allowedActionIds: ['one', 'two', 'three', 'four'],
+      ),
+      coachProfile: const coach.CoachProfile(id: 'chat-test', appName: '训练助手'),
+      conversationPolicy: coach.CoachScopeConversationPolicy(
+        specialty: '温和拉伸',
+        suggestions: ['想拉伸'],
+      ),
+      executionTiming: (plan) => coach.PlanExecutionTiming(
+        totalSeconds: const coach.PlanDuration().estimateSeconds(plan, catalog),
+        blocks: [
+          for (final block in plan.blocks)
+            coach.PlanBlockExecutionTiming(blockId: block.id, seconds: 0),
+        ],
+        containsManualCounting: false,
+      ),
+      agentMode: CoachChatAgentMode.qaV2,
+      aiTags: tags,
+    );
+    controller = CoachChatController(
+      profile: profile,
+      catalog: catalog,
+      replyDelay: Duration.zero,
+      usageSink: usageSink,
+      bindings: CoachChatBindings(
+        storageNamespace: 'test',
+        gateway: CoachGatewayBinding.shared(model),
+        plans: plans,
+        history: this.history,
+        preferences: preferences,
+        actions: CoachChatHostActions(
+          onStartTraining: (_, _) async => null,
+          onOpenAction: (_, _) async {},
+          onOpenLibrary: (_, _) async {},
+          onOpenSavedPlans: (_) async {},
+          onOpenCustomPlan: (_) async {},
+          onOpenSettings: (_) async {},
+        ),
+      ),
+    );
+  }
+  final _Model model;
+  final ChatHistory history;
+  final plans = ChatPlans();
+  final preferences = ChatPreferences();
+  late final CoachChatController controller;
+  Future<void> close() async {
+    await controller.close();
+    controller.dispose();
+    await plans.updates.close();
+    await preferences.updates.close();
+  }
+}
+
+void main() {
+  test(
+    'existing profile remains legacy and does not create QA state',
+    () async {
+      final h = ChatHarness(script: chatPlanScript());
+      addTearDown(h.close);
+      expect(h.controller.profile.agentMode, CoachChatAgentMode.legacy);
+      expect((await h.controller.send('在家拉伸5分钟'))?.plan, isNotNull);
+      expect(h.controller.lastQaReply, isNull);
+      expect(
+        h.controller.exportSnapshot().toJson().containsKey('qaState'),
+        isFalse,
+      );
+      expect(h.controller.messages.any((m) => m.qaV2), isFalse);
+    },
+  );
+
+  test(
+    'App tags enrich only allowed actions and never enter the snapshot',
+    () async {
+      final tags = {
+        for (final id in ['one', 'outside'])
+          id: <String, Object?>{
+            'format': 'pose-hub-ai-tags@1',
+            'primaryMuscles': ['adductors'],
+            'scenes': ['home'],
+            'trainingType': ['static-stretch'],
+            'sessionRole': ['cooldown'],
+            'aiSummary': {'zh': 'host-private-tag'},
+          },
+      };
+      final h = _Harness(
+        (tool, _, _) => tool == 'fill_form' ? _form() : _answer(),
+        tags: tags,
+      );
+      addTearDown(h.close);
+      await h.controller.start();
+      expect(h.controller.qaAgent.index['one']!.source, 'ai-tags');
+      expect(h.controller.qaAgent.index['two']!.source, 'catalog');
+      expect(h.controller.qaAgent.index['outside'], isNull);
+      expect(
+        jsonEncode(h.controller.exportSnapshot().toJson()),
+        isNot(contains('host-private-tag')),
+      );
+      expect(h.model.requests, isEmpty);
+    },
+  );
+
+  test(
+    'model single and multi choice text is submitted once and usage is per call',
+    () async {
+      final records = <coach.UsageRecord>[];
+      final h = _Harness((tool, context, count) {
+        if (tool == 'fill_form') {
+          return switch (count) {
+            1 => _form(
+              place: 'unknown',
+              equipmentKnown: false,
+              next: 'ask_place',
+            ),
+            2 => _form(
+              intent: 'answer_pending',
+              equipmentKnown: false,
+              status: 'answered',
+              next: 'ask_equipment',
+            ),
+            _ => _form(
+              intent: 'answer_pending',
+              status: 'answered',
+              equipment: ['mat', 'chair'],
+            ),
+          };
+        }
+        if (tool == 'ask_user') {
+          return count == 1
+              ? {
+                  'question': '在哪儿练？',
+                  'options': ['居家', '健身房', '办公室', '直接推荐'],
+                }
+              : {
+                  'question': '有哪些器械？',
+                  'options': ['瑜伽垫', '椅子', '哑铃', '弹力带', '徒手', '直接推荐'],
+                };
+        }
+        return _answer();
+      }, usageSink: coach.CallbackUsageSink(records.add));
+      addTearDown(h.close);
+      expect((await h.controller.send('想拉伸'))?.status, coach.TurnStatus.ok);
+      final place = h.controller.messages.last;
+      expect(place.question!.multiple, isFalse);
+      expect(await h.controller.answerChoices(place, ['居家', '健身房']), isNull);
+      expect(h.model.requests, hasLength(2));
+      await h.controller.answerChoices(place, ['居家']);
+      expect(h.controller.canAnswerQuestion(place), isFalse);
+      final equipment = h.controller.messages.last;
+      expect(equipment.question!.multiple, isTrue);
+      await h.controller.answerChoices(equipment, ['瑜伽垫', '椅子']);
+      expect(h.controller.messages.where((m) => m.isUser).last.text, '瑜伽垫、椅子');
+      expect(h.model.requests[4].messages.last.content, contains('瑜伽垫、椅子'));
+      expect(
+        h.controller.lastQaReply!.conditions['equipment'],
+        containsAll(['mat', 'chair']),
+      );
+      expect(h.controller.messages.last.quickActions, ['换场地']);
+      expect(records, hasLength(h.model.requests.length));
+      expect(
+        records.every(
+          (r) => r.model == h.model.model && r.usage.promptTokens == 12,
+        ),
+        isTrue,
+      );
+      final before = h.model.requests.length;
+      expect(await h.controller.answerChoices(equipment, ['徒手']), isNull);
+      expect(h.model.requests, hasLength(before));
+    },
+  );
+
+  test(
+    'QA state roundtrip keeps card order and swaps only second recommendation',
+    () async {
+      final first = _Harness(
+        (tool, _, _) => tool == 'fill_form' ? _form() : _answer(),
+      );
+      addTearDown(first.close);
+      await first.controller.send('在家徒手拉伸');
+      final snapshot = CoachChatSnapshot.fromJson(
+        jsonDecode(jsonEncode(first.controller.exportSnapshot().toJson()))
+            as Map<String, Object?>,
+      );
+      final next = _Harness(
+        (tool, _, _) => tool == 'fill_form'
+            ? _form(intent: 'swap', positions: [2])
+            : {
+                'text': '已替换',
+                'changes': [
+                  {'position': 2, 'new_id': 'three', 'why': '同部位替换'},
+                ],
+                'chips': ['换场地'],
+              },
+      );
+      addTearDown(next.close);
+      expect((await next.controller.restoreSnapshot(snapshot)).ok, isTrue);
+      expect(next.controller.qaAgent.state.lastShown, ['one', 'two']);
+      expect(next.model.requests, isEmpty);
+      final result = await next.controller.send('换第 2 个');
+      expect(result?.status, coach.TurnStatus.ok, reason: '${result?.error}');
+      expect(result!.actions!.items.map((a) => a.id), ['one', 'three']);
+      expect(next.controller.qaAgent.state.lastShown, ['one', 'three']);
+      expect(next.controller.messages.last.actionReasons['three'], '同部位替换');
+    },
+  );
+
+  test(
+    'saved plan focus preserves all block positions and can save QA replacement',
+    () async {
+      final h = _Harness(
+        (tool, _, _) => tool == 'fill_form'
+            ? _form(intent: 'swap', positions: [2])
+            : {'text': '保留这三个动作', 'changes': [], 'chips': []},
+      );
+      addTearDown(h.close);
+      final base = chatPlan();
+      final plan = const coach.PlanCodec().decodeStrict({
+        ...base.toJson(),
+        'blocks': [
+          for (final (i, type) in [
+            coach.BlockType.warmup,
+            coach.BlockType.main,
+            coach.BlockType.cooldown,
+          ].indexed)
+            coach.PlanBlock(
+              id: 'b$i',
+              name: type.name,
+              type: type,
+              items: [base.items.elementAt(i)],
+            ).toJson(),
+        ],
+      });
+      final selection = CoachSavedPlanSnapshot(
+        externalId: 'saved',
+        title: '已保存计划',
+        plan: plan.plan!,
+        storageRevision: 'r1',
+      );
+      h.plans.values.add(selection);
+      final focused = await h.controller.sendPlanToConversation(selection);
+      expect(focused.ok, isTrue, reason: '${focused.errors}');
+      expect(h.controller.qaAgent.state.lastPlan!.orderedIds, [
+        'one',
+        'two',
+        'three',
+      ]);
+      final result = await h.controller.send('换第2个');
+      expect(result?.status, coach.TurnStatus.ok, reason: '${result?.error}');
+      expect(
+        h.model.requests.last.messages.last.content,
+        contains('第 2 个（main）'),
+      );
+      expect(h.controller.lastQaReply!.planOrderedIds, ['one', 'two', 'three']);
+      final card = h.controller.messages.lastWhere((m) => m.plan != null);
+      expect(card.plan!.blocks.map((b) => b.type), [
+        coach.BlockType.warmup,
+        coach.BlockType.main,
+        coach.BlockType.cooldown,
+      ]);
+      final saved = await h.controller.savePlanCard(card);
+      expect(saved.plan.exerciseIds, {'one', 'two', 'three'});
+      expect(h.plans.writes, hasLength(1));
+    },
+  );
+
+  test(
+    'generated QA plan passes the existing training gate and saves the shown plan',
+    () async {
+      final h = _Harness(
+        (tool, _, _) => tool == 'fill_form'
+            ? {..._form(intent: 'plan'), 'minutes': 5}
+            : {
+                'text': '这一套按5分钟安排。',
+                'title': '拉伸计划',
+                'minutes': 5,
+                'main_ids': ['one', 'two', 'three'],
+                'chips': ['换场地'],
+                'block_names': {'main': '主训练'},
+              },
+      );
+      addTearDown(h.close);
+      final result = await h.controller.send('在家徒手拉伸5分钟');
+      expect(result?.status, coach.TurnStatus.ok, reason: '${result?.error}');
+      expect(result?.plan, isNotNull);
+      final shown = h.controller.messages.last;
+      expect(identical(shown.plan, result!.plan!.plan), isTrue);
+      expect(shown.plan!.source, 'ai');
+      expect(shown.plan!.summary, '这一套按5分钟安排。');
+      expect(h.controller.qaAgent.state.lastPlan!.orderedIds, [
+        for (final block in shown.plan!.blocks)
+          for (final item in block.items) item.exerciseId,
+      ]);
+      final saved = await h.controller.savePlanCard(shown);
+      expect(saved.plan.toJson(), shown.plan!.toJson());
+      expect(h.plans.writes.single.plan.toJson(), shown.plan!.toJson());
+      final restored = _Harness(
+        (tool, _, _) => throw StateError('Restore must not call the model'),
+      );
+      addTearDown(restored.close);
+      final snapshot = CoachChatSnapshot.fromJson(
+        jsonDecode(jsonEncode(h.controller.exportSnapshot().toJson()))
+            as Map<String, Object?>,
+      );
+      expect((await restored.controller.restoreSnapshot(snapshot)).ok, isTrue);
+      final restoredCard = restored.controller.messages.lastWhere(
+        (m) => m.plan != null,
+      );
+      expect(restoredCard.plan!.source, 'ai');
+      expect(restoredCard.validatedPlan, isNotNull);
+      expect(
+        restored.controller.qaAgent.state.lastPlan!.plan.toJson(),
+        shown.plan!.toJson(),
+      );
+      expect(restored.model.requests, isEmpty);
+    },
+  );
+
+  test(
+    'new conversation cancels late model work and clears committed QA state',
+    () async {
+      final pending = Completer<Map<String, Object?>>();
+      final h = _Harness(
+        (tool, _, _) => tool == 'fill_form' ? pending.future : _answer(),
+      );
+      addTearDown(h.close);
+      final sending = h.controller.send('想拉伸');
+      while (h.model.requests.isEmpty) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect((await h.controller.newConversation()).ok, isTrue);
+      pending.complete(_form());
+      await sending;
+      expect(h.controller.typing, isFalse);
+      expect(h.controller.messages, hasLength(1));
+      expect(h.controller.messages.single.greeting, isTrue);
+      expect(h.controller.qaAgent.state.turn, 0);
+      expect(h.controller.qaAgent.state.lastShown, isEmpty);
+      expect(h.controller.lastQaReply, isNull);
+      expect(h.model.requests, hasLength(1));
+    },
+  );
+
+  test('restoring a pending QA question retains selection and focus', () async {
+    final first = _Harness(
+      (tool, _, _) => tool == 'fill_form'
+          ? _form(place: 'unknown', equipmentKnown: false, next: 'ask_place')
+          : {
+              'question': 'Where to train?',
+              'options': ['At home', 'Gym', 'Office', 'Recommend now'],
+            },
+    );
+    addTearDown(first.close);
+    await first.controller.send('I want to stretch');
+    final next = _Harness(
+      (tool, _, _) => tool == 'fill_form'
+          ? _form(intent: 'answer_pending', status: 'answered')
+          : _answer(),
+    );
+    addTearDown(next.close);
+    expect(
+      (await next.controller.restoreSnapshot(
+        first.controller.exportSnapshot(),
+      )).ok,
+      isTrue,
+    );
+    final question = next.controller.messages.lastWhere(
+      (m) => m.question != null,
+    );
+    expect(question.question!.question, 'Where to train?');
+    expect(next.controller.canAnswerQuestion(question), isTrue);
+    expect(next.controller.qaAgent.state.lastAsk, qa.QaAskStep.place);
+    await next.controller.answerChoices(question, ['At home']);
+    expect(
+      next.model.requests.first.messages.last.content,
+      contains('At home'),
+    );
+    expect(next.controller.qaAgent.state.focus!.muscles, {'adductors'});
+    expect(next.controller.canAnswerQuestion(question), isFalse);
+  });
+}

@@ -20,10 +20,12 @@ class PlanCard extends StatelessWidget {
     this.saveLabel,
     this.savedLabel,
     this.onSaveCopy,
+    this.showNumbers = false,
   });
   final coach.TrainingPlan plan;
   final coach.Catalog library;
   final bool saved, landing;
+  final bool showNumbers;
   final VoidCallback onStart;
   final VoidCallback onSave, onOpen;
   final String? saveLabel, savedLabel;
@@ -59,6 +61,7 @@ class PlanCard extends StatelessWidget {
             ]),
             saved: saved,
             landing: landing,
+            showNumbers: showNumbers,
             onStart: (_) => onStart(),
             onSave: onSave,
             onOpen: onOpen,

@@ -5,6 +5,9 @@ import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart'
 import '../theme/chat_theme.dart';
 import 'chat_strings.dart';
 
+/// The original agent remains the default for existing host configurations.
+enum CoachChatAgentMode { legacy, qaV2 }
+
 /// A dose projection applied to an explicitly selected catalogue action.
 /// The projector changes the actual catalogue dose/range/rhythm together;
 /// [unitLabel] only formats that already projected dose.
@@ -32,6 +35,8 @@ class CoachAppProfile {
     this.trainingExperience,
     this.mediaPolicy,
     this.library,
+    this.agentMode = CoachChatAgentMode.legacy,
+    this.aiTags = const {},
     // Keep the public named parameter while retaining the legacy fallback.
     // ignore: prefer_initializing_formals
   }) : _scopeManifest = scopeManifest;
@@ -61,6 +66,13 @@ class CoachAppProfile {
   /// Shared action library presentation and its canonical action whitelist.
   /// Null preserves the host's existing library and Coach scope.
   final TrainingLibraryConfig? library;
+
+  /// Opt in to the SDK's question-and-answer agent without a host-owned page.
+  final CoachChatAgentMode agentMode;
+
+  /// Optional Pose-Hub AI tags keyed by action ID, loaded by the host App.
+  /// The SDK ships no tag dataset. Missing tags use catalogue fields.
+  final Map<String, Map<String, Object?>> aiTags;
   Set<String> get allowedActionIds => scopeManifest.allowedActionIds;
 
   coach.Catalog planningCatalog(coach.Catalog source) {

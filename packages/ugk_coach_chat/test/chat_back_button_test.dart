@@ -11,12 +11,22 @@ void main() {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final h = ChatHarness();
+    // The background intentionally keeps ticking; navigation tests only need
+    // the route animation to settle.
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    // Create and start stream subscriptions in the same real async zone used
+    // to close them, rather than awaiting their completion in fake time.
+    final h = (await tester.runAsync(() async {
+      final harness = ChatHarness();
+      expect((await harness.controller.start()).ok, isTrue);
+      return harness;
+    }))!;
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox.shrink());
-      await h.close();
+      await tester.runAsync(h.close);
     });
-    expect((await h.controller.start()).ok, isTrue);
     return h;
   }
 

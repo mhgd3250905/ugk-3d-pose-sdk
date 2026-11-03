@@ -133,8 +133,13 @@ class LlmRequest {
     this.jsonMode,
     this.tools = const [],
     this.toolChoice,
+    this.extraBody = const {},
   });
   final List<LlmMessage> messages;
+
+  /// 本次请求额外的请求体字段，合并在 [LlmConfig.extraBody] 之后（同名以这里为准）。
+  /// 例：`{'thinking': {'type': 'enabled'}, 'reasoning_effort': 'max'}`。
+  final Map<String, Object?> extraBody;
 
   /// 覆盖 [LlmConfig] 的同名参数；null = 用配置。
   final int? maxTokens;

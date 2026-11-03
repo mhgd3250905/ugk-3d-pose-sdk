@@ -49,6 +49,7 @@ class OpenAiCompatibleClient implements LlmClient {
       'response_format': {'type': 'json_object'},
     'stream': false,
     ...config.extraBody,
+    ...r.extraBody,
   };
 
   @override

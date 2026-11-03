@@ -50,6 +50,29 @@ class AskUserField {
 }
 
 class AskUserQuestion {
+  /// 直接构造的问题（问句和选项由模型按用户语言生成）。只做结构检查：
+  /// 2–6 个非空选项为选择题，否则为开放回答；不按语言数字数。
+  factory AskUserQuestion.direct(
+    String question, {
+    List<String> options = const [],
+    bool multiple = false,
+    String language = 'zh',
+  }) {
+    final opts = <String>{
+      for (final o in options)
+        if (o.trim().isNotEmpty) o.trim(),
+    }.toList();
+    final choice = opts.length >= 2 && opts.length <= 6;
+    return AskUserQuestion._(
+      question.trim(),
+      choice ? AskUserMode.choice : AskUserMode.text,
+      choice ? opts : const [],
+      choice && multiple,
+      const [],
+      language: language,
+    );
+  }
+
   AskUserQuestion._(
     this.question,
     this.mode,

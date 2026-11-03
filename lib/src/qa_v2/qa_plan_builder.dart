@@ -35,7 +35,9 @@ final class QaPlanBuilder {
     required int minutes,
     required QaQuery base,
     String? title,
-    String lang = 'zh',
+    Map<String, String> blockNames = const {},
+    List<String>? warmIds,
+    List<String>? coolIds,
   }) {
     final notes = <String>[];
     final target = minutes.clamp(3, 60) * 60;
@@ -43,12 +45,12 @@ final class QaPlanBuilder {
     for (final id in mainIds) {
       final a = finder.index[id];
       if (a == null) {
-        notes.add('未知动作 $id 已忽略');
+        notes.add('unknown:$id');
         continue;
       }
       if (!finder.passes(a, base.withExclude(const {}))) {
         // 圈定过范围（或有伤痛禁忌）时绝不越界：直接去掉，后面按同条件补。
-        notes.add('${a.name(lang)} 超出当前范围/限制，已去掉');
+        notes.add('out_of_scope:$id');
         continue;
       }
       if (!main.any((m) => m.id == a.id)) main.add(a);
@@ -65,9 +67,11 @@ final class QaPlanBuilder {
       }
     }
 
-    final warm = <QaAction>[];
-    final cool = <QaAction>[];
-    if (!pureStretch && minutes >= warmupFromMinutes) {
+    // 改时长时沿用原来的热身/收操（含用户换过的），不重新挑。
+    final warm = <QaAction>[for (final id in warmIds ?? const <String>[]) if (finder.index[id] != null && !used.contains(id)) finder.index[id]!];
+    final cool = <QaAction>[for (final id in coolIds ?? const <String>[]) if (finder.index[id] != null && !used.contains(id)) finder.index[id]!];
+    used.addAll([...warm.map((a) => a.id), ...cool.map((a) => a.id)]);
+    if (warmIds == null && !pureStretch && minutes >= warmupFromMinutes) {
       final region = {for (final a in main) ...a.primaryMuscles};
       warm.addAll(
         finder
@@ -85,13 +89,12 @@ final class QaPlanBuilder {
                 exclude: used,
                 limit: 2,
               ),
-              lang: lang,
             )
             .map((h) => h.action),
       );
       used.addAll(warm.map((a) => a.id));
     }
-    if (!pureStretch && minutes >= cooldownFromMinutes) {
+    if (coolIds == null && !pureStretch && minutes >= cooldownFromMinutes) {
       final region = {for (final a in main) ...a.primaryMuscles};
       cool.addAll(
         finder
@@ -108,7 +111,6 @@ final class QaPlanBuilder {
                 exclude: used,
                 limit: 2,
               ),
-              lang: lang,
             )
             .map((h) => h.action),
       );
@@ -125,7 +127,7 @@ final class QaPlanBuilder {
       cool: cool,
       mainSets: mainSets,
       pureStretch: pureStretch,
-      lang: lang,
+      blockNames: blockNames,
     );
 
     var plan = make();
@@ -138,7 +140,7 @@ final class QaPlanBuilder {
         if (grow.isNotEmpty && (main.length >= 4 || pureStretch || mainSets[grow.first.id]! < 3)) {
           mainSets[grow.first.id] = mainSets[grow.first.id]! + 1;
         } else if (main.length + warm.length + cool.length < maxItems) {
-          final extra = finder.find(base.withExclude(used), lang: lang).firstOrNull;
+          final extra = finder.find(base.withExclude(used)).firstOrNull;
           if (extra == null) {
             if (grow.isEmpty) break;
             mainSets[grow.first.id] = mainSets[grow.first.id]! + 1;
@@ -227,26 +229,26 @@ final class QaPlanBuilder {
     required List<QaAction> cool,
     required Map<String, int> mainSets,
     required bool pureStretch,
-    required String lang,
+    required Map<String, String> blockNames,
   }) {
-    final en = lang == 'en';
+    // 段名由模型按用户语言给；没给时用目录约定的英文 id，App 可按 BlockType 自己本地化。
     final blocks = <PlanBlock>[
       if (warm.isNotEmpty)
-        PlanBlock(id: 'warmup', name: en ? 'Warm-up' : '热身', type: BlockType.warmup, items: [for (final a in warm) _item(a, 1, light: true)]),
+        PlanBlock(id: 'warmup', name: blockNames['warmup'] ?? 'Warm-up', type: BlockType.warmup, items: [for (final a in warm) _item(a, 1, light: true)]),
       PlanBlock(
         id: 'main',
-        name: pureStretch ? (en ? 'Stretch' : '拉伸') : (en ? 'Main' : '主训练'),
+        name: blockNames['main'] ?? (pureStretch ? 'Stretch' : 'Main'),
         type: BlockType.main,
         items: [for (final a in main) _item(a, mainSets[a.id] ?? 1)],
       ),
       if (cool.isNotEmpty)
-        PlanBlock(id: 'cooldown', name: en ? 'Cool-down' : '放松', type: BlockType.cooldown, items: [for (final a in cool) _item(a, 1, light: true)]),
+        PlanBlock(id: 'cooldown', name: blockNames['cooldown'] ?? 'Cool-down', type: BlockType.cooldown, items: [for (final a in cool) _item(a, 1, light: true)]),
     ];
-    final cleanTitle = (title ?? '').replaceAll(RegExp(r'[\d一二两三四五六七八九十]+\s*(分钟|min(utes)?)|\d+'), '').trim();
+    final cleanTitle = (title ?? '').trim();
     return TrainingPlan(
       id: 'qa-v2-${DateTime.now().microsecondsSinceEpoch}',
       source: 'ai-qa-v2',
-      title: cleanTitle.isEmpty ? (pureStretch ? (en ? 'Stretch' : '拉伸放松') : (en ? 'Workout' : '训练')) : cleanTitle,
+      title: cleanTitle.isEmpty ? (pureStretch ? 'Stretch' : 'Workout') : cleanTitle,
       goal: pureStretch ? 'relax' : 'strength',
       scene: base.scene == 'hotel' || base.scene == 'outdoor' ? 'home' : base.scene,
       equipment: base.equipment.toList(),

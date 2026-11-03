@@ -75,7 +75,14 @@ final class QaAction {
   final String space;
 
   String get id => drill.id;
-  String name(String lang) => drill.name.values[lang] ?? drill.name.values['zh'] ?? drill.id;
+  /// 卡片显示名：用户语言 → 英文 → 中文 → id（目录只有中英文名）。
+  String name(String lang) {
+    final v = drill.name.values;
+    return v[lang] ?? v[lang.split('-').first] ?? v['en'] ?? v['zh'] ?? drill.id;
+  }
+
+  /// 目录里所有语言的名字（一致性检查用）。
+  Iterable<String> get allNames => drill.name.values.values;
 
   bool get isStretchOnly =>
       trainingType.isNotEmpty &&
@@ -138,14 +145,12 @@ final class QaAction {
       'stretch' => {'cooldown'},
       _ => {'main'},
     };
-    final stress = <String, String>{};
-    for (final c in d.cautions) {
-      if (c.contains('膝')) stress['knee'] = 'moderate';
-      if (c.contains('腰')) stress['lumbar'] = 'moderate';
-      if (c.contains('肩')) stress['shoulder'] = 'moderate';
-      if (c.contains('腕')) stress['wrist'] = 'moderate';
-      if (c.contains('颈')) stress['neck'] = 'moderate';
-    }
+    // 只认结构化 id（如 knee / joint.knee），不解析各语言的注意事项文字。
+    const joints = {'knee', 'lumbar', 'shoulder', 'wrist', 'neck', 'ankle', 'hip'};
+    final stress = <String, String>{
+      for (final c in d.contraindications)
+        if (joints.contains(c.split('.').last)) c.split('.').last: 'moderate',
+    };
     final stretch = d.category == 'stretch';
     return QaAction(
       drill: d,

@@ -59,14 +59,15 @@ Future<void> main(List<String> args) async {
   final profile = CoachProfile.fromJson(jsonDecode(File('profiles/$profileName.json').readAsStringSync()));
   final config = LlmConfig(
     baseUrl: Platform.environment['SIM_BASE'] ?? 'https://ai.uuugk.win/v1',
-    model: Platform.environment['SIM_MODEL'] ?? 'deepseek-flash',
+    model: Platform.environment['SIM_MODEL'] ?? (Platform.environment['SIM_AGENT'] == 'v2' ? 'deepseek-v4.1-flash' : 'deepseek-flash'),
     maxTokens: 6000,
-    timeout: const Duration(seconds: 120),
+    timeout: const Duration(seconds: 600),
     maxRetries: 0,
     extraBody: Platform.environment['SIM_THINK'] == 'off'
         ? {'thinking': {'type': 'disabled'}}
         : {'thinking': {'type': 'enabled'}},
   );
+  // v2：CoachQaAgent 每次请求自己带 thinking.enabled + reasoning_effort=max（LlmRequest.extraBody，覆盖这里）。
   if (Platform.environment['SIM_AGENT'] == 'v2') {
     await _runV2(scenarios, out, only, catalog, profile, config);
     await out.close();
@@ -190,6 +191,10 @@ Future<void> _runV2(
           'askStep': r.askStep?.name,
           'question': r.question?.toJson(),
           'assumption': r.assumption,
+          'conditions': r.conditions,
+          'language': r.language,
+          'form': r.form,
+          'steps': [for (final st in r.steps) st.toJson()],
           'actions': [for (final c in r.cards) c.name],
           'why': [for (final c in r.cards) c.why],
           'chips': r.chips,
@@ -200,7 +205,7 @@ Future<void> _runV2(
               'target': plan.targetMinutes,
               'blocks': [
                 for (final b in plan.blocks)
-                  [for (final i in b.items) '${catalog[i.exerciseId]?.name.values[lang] ?? i.exerciseId} ${i.sets}x${i.reps ?? '${i.workSeconds}s'}']
+                  [for (final i in b.items) '${agent.index[i.exerciseId]?.name(lang) ?? i.exerciseId} ${i.sets}x${i.reps ?? '${i.workSeconds}s'}']
               ],
             },
           'issues': r.issues,
@@ -212,12 +217,12 @@ Future<void> _runV2(
       final calls = client.calls.sublist(before);
       out.writeln(jsonEncode({'id': s['id'], 'turn': turn, 'user': text, 'ms': sw.elapsedMilliseconds, 'http': calls.length, 'calls': calls, ...rec}));
       await out.flush();
-      stdout.writeln('${s['id']}#$turn ${sw.elapsedMilliseconds}ms http=${calls.length} ${rec['status'] ?? rec['exception']} ${rec['askStep'] ?? ''} ${(rec['checks'] as List?)?.join('; ') ?? ''}');
+      stdout.writeln('${s['id']}#$turn ${sw.elapsedMilliseconds}ms http=${calls.length} ${(rec['steps'] as List?)?.map((e) => '${(e as Map)['step']}:${e['ms']}').join(',') ?? ''} ${rec['status'] ?? rec['exception']} ${rec['askStep'] ?? ''} ${(rec['checks'] as List?)?.join('; ') ?? ''}');
     }
   }
 }
 
-/// 桩模型：措辞调用回一句问题；工具调用按候选回 respond / build_plan。
+/// 桩模型：按工具名回最简单的合规结果（只跑流程和自动检查，不评估模型质量）。
 class StubClient implements LlmClient {
   @override
   String get model => 'stub';
@@ -226,18 +231,20 @@ class StubClient implements LlmClient {
   @override
   Future<LlmResponse> complete(LlmRequest r, {CancelToken? cancel}) async {
     final last = r.messages.last.content;
-    if (r.tools.isEmpty) return LlmResponse(content: last.contains('只问器械') ? '手边有哪些器械？' : '你在哪练？');
+    final tool = r.tools.first.name;
     final ids = [
       for (final l in const LineSplitter().convert(last))
-        if (RegExp(r'^[\w-]+ \| ').hasMatch(l)) l.split(' | ').first,
+        if (RegExp(r'^(\s*候选：)?[\w-]+ \| ').hasMatch(l)) l.replaceFirst(RegExp(r'^\s*候选：'), '').split(' | ').first,
     ];
-    final first = last.split('\n').first;
-    final wantsPlan = RegExp(r'一套|分钟|minute|session|workout').hasMatch(first);
-    final m = RegExp(r'(\d+)\s*(分钟|minute)').firstMatch(first);
-    final call = wantsPlan
-        ? LlmToolCall(id: 'c1', name: 'build_plan', arguments: jsonEncode({'title': '测试', 'text': '思路', 'minutes': int.tryParse(m?.group(1) ?? '') ?? 15, 'main_ids': ids.take(4).toList()}))
-        : LlmToolCall(id: 'c1', name: 'respond', arguments: jsonEncode({'text': '回答。', 'items': [for (final id in ids.take(4)) {'id': id, 'why': '理由'}]}));
-    return LlmResponse(content: '', toolCalls: [call]);
+    final args = switch (tool) {
+      'fill_form' => {'language': 'zh', 'intent': 'actions', 'answer_status': 'none', 'place': 'unknown', 'equipment_known': false, 'muscles': ['abs'], 'next': 'answer'},
+      'ask_user' => {'question': '你在哪练？', 'options': ['居家', '健身房', '办公室', '直接推荐']},
+      'build_plan' => {'title': 'T', 'text': 'x', 'minutes': 15, 'main_ids': ids.take(4).toList(), 'chips': []},
+      'swap' => {'text': 'x', 'changes': [], 'chips': []},
+      'rewrite' => {'text': 'x'},
+      _ => {'text': 'x', 'items': [for (final id in ids.take(4)) {'id': id, 'why': 'y'}], 'chips': []},
+    };
+    return LlmResponse(content: '', toolCalls: [LlmToolCall(id: 'c1', name: tool, arguments: jsonEncode(args))]);
   }
 }
 

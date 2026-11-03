@@ -6,7 +6,8 @@
 //   avoid: [...] / noFloor / quiet / easy
 //   modify: replace:N（N=卡片上显示的编号；计划含热身/收操连续编号）| easier | harder | retime:M | another
 //   minutes: M           计划时长 ±15%
-//   assumption: true     要写假设并给「换场地」
+//   assumption: true     条件是假设的，要写假设说明并给 chips
+//   lang: ja             模型判断的语言
 //   gap: true            要如实说器械不够
 //   mustSay: "正则"
 import 'package:ugk_coach/ugk_coach.dart';
@@ -168,9 +169,14 @@ List<String> checkTurn({
     }
   }
   if (expect['assumption'] == true) {
+    if (!r.conditionsAssumed) fails.add('假设：条件应是假设的');
     if (r.assumption == null) fails.add('假设：没写按什么条件出的');
-    if (!r.chips.any((c) => c.contains('换场地') || c.toLowerCase().contains('place'))) fails.add('假设：没给「换场地」');
+    if (r.chips.isEmpty) fails.add('假设：没给 chips');
   }
+  final lang = expect['lang'] as String?;
+  if (lang != null && !r.language.startsWith(lang)) fails.add('语言：应为$lang，模型判断为${r.language}');
+  final off = agent.offCardMentions(r.text, {...all, ...?prev?.cards.map((c) => c.id), ...?prev?.planOrderedIds});
+  if (off.isNotEmpty) fails.add('一致：正文提到卡片外的动作 ${off.map(nm).join('、')}');
   if (expect['gap'] == true && !RegExp(r'没有|没法|无法|no move', caseSensitive: false).hasMatch(r.text)) fails.add('器械缺口：没如实说库里没有');
   final must = expect['mustSay'] as String?;
   if (must != null && !RegExp(must, caseSensitive: false).hasMatch(r.text)) fails.add('内容：没提到「$must」');

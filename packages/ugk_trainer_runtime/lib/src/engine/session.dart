@@ -188,7 +188,13 @@ class SessionBuilder {
     this.selfPacedRepEstimate = 3.0,
     this.switchSecondsFor,
     this.rhythmDefaults = const RhythmDefaults(),
+    this.sideSwitchMarginSeconds = 0,
   });
+
+  /// A typical estimate allowance for repositioning between sides
+  /// (getting up, turning round, re-gripping). Hosts opt in by passing it
+  /// as [sideSwitchMarginSeconds].
+  static const recommendedSideSwitchMarginSeconds = 3.0;
 
   /// Rhythm by exercise id; missing ids fall back to [Rhythm.forDose].
   final Map<String, Rhythm> rhythms;
@@ -204,6 +210,12 @@ class SessionBuilder {
   final double selfPacedRepEstimate;
   final SwitchSeconds? switchSecondsFor;
   final RhythmDefaults rhythmDefaults;
+
+  /// Extra seconds [planSeconds] adds for every side switch of a unilateral
+  /// (perSide) action, on top of the played switch phase. Estimates only:
+  /// the phases the player runs are unchanged. Default 0 keeps estimates
+  /// equal to the played timeline (and to ugk_coach PlanDuration).
+  final double sideSwitchMarginSeconds;
 
   Rhythm rhythmOf(PlanItem item) =>
       (rhythms[item.exerciseId] ??
@@ -439,9 +451,22 @@ class SessionBuilder {
 
   /// Total seconds of the plan excluding the lead-in (self-paced sets at
   /// their estimate).
-  double planSeconds(TrainingPlan plan) => phases(
-    plan,
-  ).where((p) => p.kind != PhaseKind.prep).fold(0.0, (s, p) => s + p.seconds);
+  /// Each side switch also adds [sideSwitchMarginSeconds] (or
+  /// [sideSwitchMargin] when given for this call).
+  double planSeconds(TrainingPlan plan, {double? sideSwitchMargin}) {
+    var total = 0.0, switches = 0;
+    for (final p in phases(plan)) {
+      if (p.kind == PhaseKind.prep) continue;
+      total += p.seconds;
+      if (p.kind == PhaseKind.switchSide) switches++;
+    }
+    final margin = sideSwitchMargin ?? sideSwitchMarginSeconds;
+    return margin > 0 ? total + switches * margin : total;
+  }
+
+  /// Side switches the plan plays (one per set of each perSide item).
+  int sideSwitchCount(TrainingPlan plan) =>
+      phases(plan).where((p) => p.kind == PhaseKind.switchSide).length;
 
   int occurrenceCount(TrainingPlan plan) => _occurrences(plan).length;
 }

@@ -198,6 +198,7 @@ class ChatHarness {
     List<String> allowedActionIds = const ['one', 'two', 'three', 'four'],
     List<String> equipment = const [],
     TrainingLibraryConfig? library,
+    coach.UsageSink? usageSink,
   }) : client = coach.FakeLlmClient(script, latency: Duration.zero),
        plans = plans ?? ChatPlans(),
        history = history ?? ChatHistory(),
@@ -230,6 +231,7 @@ class ChatHarness {
       catalog: catalog,
       clock: () => DateTime(2026, 10, 30, 12),
       replyDelay: Duration.zero,
+      usageSink: usageSink,
       bindings: CoachChatBindings(
         storageNamespace: 'test',
         gateway: CoachGatewayBinding(
@@ -355,6 +357,33 @@ void main() {
       expect(h.controller.messages.single.text, '中午好\n说说今天想怎么练？');
     },
   );
+
+  test('an optional usage sink receives one record per model call', () async {
+    final records = <coach.UsageRecord>[];
+    final h = ChatHarness(
+      script: chatPlanScript(),
+      usageSink: coach.CallbackUsageSink(records.add),
+    );
+    addTearDown(h.close);
+    await h.controller.start();
+    expect(records, isEmpty);
+    final result = await h.controller.send('在家拉伸5分钟');
+    expect(result?.plan, isNotNull);
+    expect(h.client.requests, isNotEmpty);
+    expect(records, isNotEmpty);
+    expect(records.length, lessThanOrEqualTo(h.client.requests.length));
+    expect(records.every((r) => r.usage.promptTokens == 1000), isTrue);
+    expect(records.every((r) => r.model == 'fake-model'), isTrue);
+  });
+
+  test('without a usage sink the turn behaves as before', () async {
+    final h = ChatHarness(script: chatPlanScript());
+    addTearDown(h.close);
+    await h.controller.start();
+    expect(h.controller.usageSink, isNull);
+    final result = await h.controller.send('在家拉伸5分钟');
+    expect(result?.plan, isNotNull);
+  });
 
   test(
     'a delivered card uses the same canonical admitted plan and core conversation',

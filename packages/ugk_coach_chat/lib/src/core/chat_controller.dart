@@ -24,6 +24,7 @@ class CoachChatController extends ChangeNotifier {
     this.prepareReply,
     this.turnTimeout = const Duration(seconds: 390),
     DateTime Function()? clock,
+    this.usageSink,
   }) : _sourceCatalog = catalog,
        _clock = clock ?? DateTime.now;
 
@@ -34,6 +35,12 @@ class CoachChatController extends ChangeNotifier {
   final DateTime Function() _clock;
   final Duration replyDelay, turnTimeout;
   final Future<void> Function()? prepareReply;
+
+  /// Receives one [coach.UsageRecord] per model call (tokens, model, cost),
+  /// so the host can total AI usage. Null keeps the agent's private
+  /// in-memory sink, as before. Wrap a callback with
+  /// [coach.CallbackUsageSink]. Read once, when the conversation starts.
+  final coach.UsageSink? usageSink;
   final transitionActivity = CoachChatTransitionActivity();
   final _messages = <ChatMessage>[];
   List<String> _suggestions = const [];
@@ -152,6 +159,7 @@ class CoachChatController extends ChangeNotifier {
         executionTiming: profile.executionTiming,
         memoryStore: bindings.memory,
         enableUserMemory: _preferences.enableUserMemory,
+        usage: usageSink,
       );
       _conversation = coach.CoachConversationController(
         agent: agent,

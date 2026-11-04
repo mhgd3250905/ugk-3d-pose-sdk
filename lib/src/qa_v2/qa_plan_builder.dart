@@ -1,7 +1,6 @@
 /// build_plan：模型只给主训练动作和时长，热身/主训/收操、组数、时长由代码确定性排出。
 library;
 
-import '../agent/action_tags.dart';
 import '../agent/plan_builder.dart';
 import '../agent/session_state.dart';
 import '../catalog/catalog.dart';
@@ -10,6 +9,7 @@ import '../plan/plan_execution_timing.dart';
 import '../plan/training_plan.dart';
 import '../profile/coach_profile.dart';
 import 'qa_action.dart';
+import 'qa_admission.dart';
 import 'qa_finder.dart';
 
 final class QaPlanResult {
@@ -53,6 +53,18 @@ final class QaPlanBuilder {
     required CoachProfile profile,
     required PlanExecutionTimingCallback executionTiming,
   }) {
+    // 时长已合格也要过同一准入：交付/恢复不能比 refit 更宽。
+    for (final id in plan.exerciseIds) {
+      final problem = finder.admission.problem(
+        id,
+        scene: plan.scene,
+        equipment: plan.equipment,
+        avoid: plan.avoid,
+      );
+      if (problem != null) {
+        throw StateError('QA plan admission failed: $id $problem');
+      }
+    }
     final target = plan.targetMinutes * 60.0;
     final tolerance = profile.limits.durationTolerance.clamp(0.0, .1);
     final card = _duration.estimateSeconds(plan, _catalog);
@@ -61,21 +73,15 @@ final class QaPlanBuilder {
         (execution.totalSeconds - target).abs() <= target * tolerance + 1e-9) {
       return QaPlanResult(plan, card.round(), const []);
     }
-    final catalog = finder.index.equipmentCatalog();
-    final tags = ActionTags(profile, catalog);
-    CoachParamValue param(Object value) =>
-        CoachParamValue(value: value, source: 'app', turn: 0);
+    final admission = finder.admission;
+    final catalog = admission.catalog;
     final state = CoachSessionState(
-      params: {
-        'scene': param(plan.scene),
-        'minutes': param(plan.targetMinutes),
-        'equipment': param([
-          for (final id in plan.equipment) ?tags.equipmentCode(id),
-        ]),
-        'limits': param([
-          for (final id in plan.avoid) tags.canonicalLimitCode(id) ?? id,
-        ]),
-      },
+      params: admission.params(
+        scene: plan.scene,
+        equipment: plan.equipment,
+        avoid: plan.avoid,
+        minutes: plan.targetMinutes,
+      ),
       seenActionIds: plan.exerciseIds,
       picks: plan.exerciseIds.toList(),
       activePlanId: plan.id,
@@ -167,16 +173,11 @@ final class QaPlanBuilder {
       warm.addAll(
         finder
             .find(
-              QaQuery(
-                scene: base.scene,
-                equipment: base.equipment,
-                strict: base.strict,
+              // 范围条件（含小空间、难度上限）整体沿用主训的确认条件。
+              base.scopeOnly.copyWith(
                 muscles: region,
                 types: const {'mobility', 'dynamic-stretch'},
                 roles: const {'warmup'},
-                avoidJoints: base.avoidJoints,
-                noFloor: base.noFloor,
-                maxImpact: base.maxImpact,
                 exclude: used,
                 limit: 2,
               ),
@@ -190,15 +191,10 @@ final class QaPlanBuilder {
       cool.addAll(
         finder
             .find(
-              QaQuery(
-                scene: base.scene,
-                equipment: base.equipment,
-                strict: base.strict,
+              base.scopeOnly.copyWith(
                 stretchMuscles: region,
                 types: const {'static-stretch'},
                 roles: const {'cooldown'},
-                avoidJoints: base.avoidJoints,
-                noFloor: base.noFloor,
                 exclude: used,
                 limit: 2,
               ),
@@ -357,9 +353,7 @@ final class QaPlanBuilder {
           ? (pureStretch ? 'Stretch' : 'Workout')
           : cleanTitle,
       goal: pureStretch ? 'relax' : 'strength',
-      scene: base.scene == 'hotel' || base.scene == 'outdoor'
-          ? 'home'
-          : base.scene,
+      scene: QaAdmission.planScene(base.scene),
       equipment: equipmentFor([
         for (final block in blocks)
           for (final item in block.items) item.exerciseId,

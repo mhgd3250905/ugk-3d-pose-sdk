@@ -76,7 +76,7 @@ void main() {
         jsonDecode(File('../../profiles/smartfit.json').readAsStringSync()),
       );
       final index = qa.QaActionIndex(catalog, aiTags: tags);
-      final before = qa.QaPlanBuilder(qa.QaFinder(index)).build(
+      final before = qa.QaPlanBuilder(qa.QaFinder(index, profile: profile)).build(
         mainIds: _mainIds,
         minutes: 20,
         base: qa.QaQuery(

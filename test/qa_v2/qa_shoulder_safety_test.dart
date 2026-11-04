@@ -86,6 +86,22 @@ void main() {
       expect(first.askStep, QaAskStep.safety);
       final reply = await agent.send(first.question!.options.first);
       expect(agent.state.avoidJoints, contains('shoulder'));
+      // The QA tag stays low; the shared core admission still rejects the
+      // action because the App catalogue lists a shoulder caution.
+      expect(
+        agent.index['h-incline-pushup']!.jointStress['shoulder'],
+        'low',
+        reason: 'The original low-stress tag is intentionally unchanged',
+      );
+      expect(
+        agent.finder.admission.problem(
+          'h-incline-pushup',
+          scene: 'home',
+          equipment: const [],
+          avoid: const ['shoulder'],
+        ),
+        isNotNull,
+      );
       expect(
         agent.finder.passes(
           agent.index['h-incline-pushup']!,
@@ -95,8 +111,7 @@ void main() {
             avoidJoints: const {'shoulder'},
           ),
         ),
-        isTrue,
-        reason: 'The original low-stress tag is intentionally unchanged',
+        isFalse,
       );
       final responseRequest = client.requests.last;
       expect(responseRequest.tools.single.name, 'respond');

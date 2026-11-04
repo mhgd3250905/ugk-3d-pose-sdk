@@ -280,7 +280,7 @@ void main() {
 
   test('swap candidates follow tags: same area, easier is easier, all in scope', () {
     final index = QaActionIndex(catalog, aiTags: tags);
-    final finder = QaFinder(index);
+    final finder = QaFinder(index, profile: profile);
     final q = QaQuery(scene: 'home', equipment: const {'dumbbell'}, strict: true);
     for (final a in index.all.where((a) => a.sessionRole.contains('main') && finder.passes(a, q)).take(20)) {
       for (final b in finder.swapCandidates(a, q, mode: QaSwapMode.easier)) {
@@ -293,7 +293,7 @@ void main() {
 
   test('office scope: chair + bodyweight only, never floor', () {
     final index = QaActionIndex(catalog, aiTags: tags);
-    final finder = QaFinder(index);
+    final finder = QaFinder(index, profile: profile);
     final q = QaQuery(scene: 'office', equipment: const {}, strict: true);
     for (final a in finder.inScope(q)) {
       expect(a.floorRequired, isFalse);

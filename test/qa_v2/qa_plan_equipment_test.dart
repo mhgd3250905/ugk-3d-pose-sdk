@@ -119,7 +119,7 @@ void main() {
 
   test('home plan declares the wall actually used, not owned unused gear', () {
     final index = QaActionIndex(catalog);
-    final builder = QaPlanBuilder(QaFinder(index));
+    final builder = QaPlanBuilder(QaFinder(index, profile: _profile()));
     final result = builder.build(
       mainIds: ['h-wall-angel', 'h-good-morning'],
       minutes: 5,
@@ -143,7 +143,7 @@ void main() {
       'h-band-standing-adduction': _tags(['band']),
     };
     final index = QaActionIndex(catalog, aiTags: tags);
-    final builder = QaPlanBuilder(QaFinder(index));
+    final builder = QaPlanBuilder(QaFinder(index, profile: _profile()));
     final base = QaQuery(scene: 'gym', equipment: const {}, strict: true);
     final original = builder.build(
       mainIds: ['adductors-B', 'h-band-standing-adduction', 'h-lateral-step-lunge'],

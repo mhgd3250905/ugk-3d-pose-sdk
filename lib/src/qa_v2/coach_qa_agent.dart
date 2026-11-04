@@ -261,7 +261,7 @@ final class CoachQaAgent {
     this.maxTokens = 24000,
     this.maxRetriesPerStep = 2,
   }) : index = QaActionIndex(catalog, aiTags: aiTags) {
-    finder = QaFinder(index);
+    finder = QaFinder(index, profile: profile);
     builder = QaPlanBuilder(
       finder,
       warmupFromMinutes: profile.planRules.warmupFromMinutes,

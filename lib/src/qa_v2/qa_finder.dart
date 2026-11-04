@@ -2,7 +2,9 @@
 /// 不读任何语言的文字：用户的话由模型按 SOP 填成 [QaQuery] 的字段。
 library;
 
+import '../profile/coach_profile.dart';
 import 'qa_action.dart';
+import 'qa_admission.dart';
 
 /// 各场景默认就有的环境物（不算「器械」）；没圈定范围时可用。
 const ambientEquipment = <String, Set<String>>{
@@ -147,12 +149,27 @@ final class QaHit {
 enum QaSwapMode { any, easier, harder }
 
 final class QaFinder {
-  QaFinder(this.index);
+  QaFinder(this.index, {required CoachProfile profile})
+    : admission = QaAdmission(profile, index.equipmentCatalog());
   final QaActionIndex index;
+
+  /// 与 refit / 交付 / 恢复共用的 core 准入；[passes] 先过它，再过 QA 标签收窄。
+  final QaAdmission admission;
 
   /// 硬过滤：场景、器械、躺地、冲击、避开部位、难度上限。
   bool passes(QaAction a, QaQuery q) {
     if (q.exclude.contains(a.id)) return false;
+    // 计划会按动作自身要求声明器械（见 QaPlanBuilder.equipmentFor），
+    // 这里用同一声明、同一场景映射、同一避开部位走 core 门禁。
+    if (admission.problem(
+          a.id,
+          scene: q.scene,
+          equipment: a.requiredEquipment,
+          avoid: q.avoidJoints,
+        ) !=
+        null) {
+      return false;
+    }
     if (q.strict) {
       if (q.scene != 'gym') {
         if (!a.scenes.contains(q.scene == 'hotel' ? 'home' : q.scene)) return false;

@@ -487,7 +487,7 @@ class CoachChatController extends ChangeNotifier {
       _suggestions = reply.question != null ? const [] : _defaults();
     } on Object catch (error) {
       if (_closed || generation != _generation) return null;
-      _recordError('chat.turn.error', error);
+      _recordTurnError(error);
       _addFailure(error: error, timedOut: timedOut);
       _suggestions = _defaults();
       result = coach.CoachTurnResult(
@@ -715,7 +715,7 @@ class CoachChatController extends ChangeNotifier {
       if (!_closed && generation == _generation) {
         _typing = false;
         _endProgress();
-        _recordError('chat.turn.error', error);
+        _recordTurnError(error);
         _addFailure(error: error, timedOut: timedOut);
         _suggestions = _defaults();
         _notify();
@@ -1700,6 +1700,18 @@ class CoachChatController extends ChangeNotifier {
   String _id() => 'm${_clock().microsecondsSinceEpoch}-${_seq++}';
   void _notify() {
     if (!_closed && !_notifierDisposed) notifyListeners();
+  }
+
+  /// `chat.turn.error` carries a bounded message so hosts can locate a failed
+  /// turn from logs; the original object stays under `error`.
+  void _recordTurnError(Object error) {
+    _lastError = error;
+    final message = error.toString();
+    bindings.observer?.call('chat.turn.error', <String, Object?>{
+      'errorType': error.runtimeType.toString(),
+      'message': message.length > 300 ? message.substring(0, 300) : message,
+      'error': error,
+    });
   }
 
   void _recordError(String event, Object error) {

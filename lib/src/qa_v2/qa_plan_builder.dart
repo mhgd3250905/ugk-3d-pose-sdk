@@ -129,6 +129,10 @@ final class QaPlanBuilder {
     Map<String, String> blockNames = const {},
     List<String>? warmIds,
     List<String>? coolIds,
+    List<String> segmentNames = const [],
+    Map<String, int> segmentOf = const {},
+    bool autoWarmup = true,
+    bool autoCooldown = true,
   }) {
     final notes = <String>[];
     final target = minutes.clamp(3, 60) * 60;
@@ -155,6 +159,7 @@ final class QaPlanBuilder {
         if (main.length >= 3) break;
         main.add(h.action);
         used.add(h.action.id);
+        notes.add('padded:${h.action.id}');
       }
     }
 
@@ -168,7 +173,7 @@ final class QaPlanBuilder {
         if (finder.index[id] != null && !used.contains(id)) finder.index[id]!,
     ];
     used.addAll([...warm.map((a) => a.id), ...cool.map((a) => a.id)]);
-    if (warmIds == null && !pureStretch && minutes >= warmupFromMinutes) {
+    if (warmIds == null && autoWarmup && !pureStretch && minutes >= warmupFromMinutes) {
       final region = {for (final a in main) ...a.primaryMuscles};
       warm.addAll(
         finder
@@ -186,7 +191,7 @@ final class QaPlanBuilder {
       );
       used.addAll(warm.map((a) => a.id));
     }
-    if (coolIds == null && !pureStretch && minutes >= cooldownFromMinutes) {
+    if (coolIds == null && autoCooldown && !pureStretch && minutes >= cooldownFromMinutes) {
       final region = {for (final a in main) ...a.primaryMuscles};
       cool.addAll(
         finder
@@ -217,6 +222,8 @@ final class QaPlanBuilder {
       mainSets: mainSets,
       pureStretch: pureStretch,
       blockNames: blockNames,
+      segmentNames: segmentNames,
+      segmentOf: segmentOf,
     );
 
     var plan = make();
@@ -238,6 +245,7 @@ final class QaPlanBuilder {
           } else {
             main.add(extra.action);
             used.add(extra.action.id);
+            notes.add('padded:${extra.action.id}');
             mainSets[extra.action.id] = _defaultSets(extra.action, pureStretch);
           }
         } else if (grow.isNotEmpty) {
@@ -253,6 +261,7 @@ final class QaPlanBuilder {
         } else if (main.length > 2) {
           final drop = main.removeLast();
           used.remove(drop.id);
+          notes.add('trimmed:${drop.id}');
           mainSets.remove(drop.id);
         } else if (warm.isNotEmpty || cool.isNotEmpty) {
           if (warm.length > 1) {
@@ -321,7 +330,33 @@ final class QaPlanBuilder {
     required Map<String, int> mainSets,
     required bool pureStretch,
     required Map<String, String> blockNames,
+    List<String> segmentNames = const [],
+    Map<String, int> segmentOf = const {},
   }) {
+    // 分段：模型按用户要求把主训练分成几段（如「坐姿」「站姿」），顺序原样保留；
+    // 代码补进来的动作归到最后一段。
+    final segs = segmentNames.length > 1 ? segmentNames : const <String>[];
+    final mainBlocks = <PlanBlock>[
+      if (segs.isEmpty)
+        PlanBlock(
+          id: 'main',
+          name: blockNames['main'] ?? (pureStretch ? 'Stretch' : 'Main'),
+          type: BlockType.main,
+          items: [for (final a in main) _item(a, mainSets[a.id] ?? 1)],
+        )
+      else
+        for (var k = 0; k < segs.length; k++)
+          if (main.any((a) => (segmentOf[a.id] ?? segs.length - 1) == k))
+            PlanBlock(
+              id: k == 0 ? 'main' : 'main-${k + 1}',
+              name: segs[k],
+              type: BlockType.main,
+              items: [
+                for (final a in main)
+                  if ((segmentOf[a.id] ?? segs.length - 1) == k) _item(a, mainSets[a.id] ?? 1),
+              ],
+            ),
+    ];
     // 段名由模型按用户语言给；没给时用目录约定的英文 id，App 可按 BlockType 自己本地化。
     final blocks = <PlanBlock>[
       if (warm.isNotEmpty)
@@ -331,12 +366,7 @@ final class QaPlanBuilder {
           type: BlockType.warmup,
           items: [for (final a in warm) _item(a, 1, light: true)],
         ),
-      PlanBlock(
-        id: 'main',
-        name: blockNames['main'] ?? (pureStretch ? 'Stretch' : 'Main'),
-        type: BlockType.main,
-        items: [for (final a in main) _item(a, mainSets[a.id] ?? 1)],
-      ),
+      ...mainBlocks,
       if (cool.isNotEmpty)
         PlanBlock(
           id: 'cooldown',

@@ -57,6 +57,11 @@ Map<String, Object?> _form({
   if (positions.isNotEmpty) 'positions': positions,
 };
 
+/// 第 [k] 个 build_plan 请求里的候选顺序。
+List<String> _candidatesOrder(_Scripted c, int k) => _candidates(
+  c.requests.where((r) => r.tools.first.name == 'build_plan').elementAt(k).messages.where((m) => m.role == LlmRole.user).last.content,
+);
+
 void main() {
   final meta = File('packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json');
   if (!meta.existsSync()) return;
@@ -276,6 +281,48 @@ void main() {
     final r2 = await agent.send('y');
     expect(r2.planMainIds.toSet().containsAll(r1.planMainIds.take(2)), isTrue);
     expect(r2.planSeconds! / 60, inInclusiveRange(8, 12));
+  });
+
+  test('build_plan keeps the model order and segments; reorder via use_these is honored', () async {
+    late List<String> first;
+    final c = _Scripted((tool, ctx, n) {
+      if (tool == 'fill_form') {
+        return n == 1 ? _form(intent: 'plan', place: 'gym', muscles: ['hamstrings', 'glute-max'], minutes: 15) : _form(intent: 'use_these', place: 'gym');
+      }
+      final cand = _candidates(ctx);
+      if (n == 1) return {'title': 't', 'text': 'x', 'minutes': 15, 'main_ids': cand.take(4).toList(), 'chips': []};
+      final rev = cand.reversed.toList();
+      return {
+        'title': 't', 'text': 'x', 'minutes': 15, 'main_ids': rev, 'chips': [], 'warmup': false, 'cooldown': false,
+        'segments': [
+          {'name': 'A', 'ids': rev.take(2).toList()},
+          {'name': 'B', 'ids': rev.skip(2).toList()},
+        ],
+      };
+    });
+    final agent = CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags);
+    final r1 = await agent.send('x');
+    first = r1.planMainIds;
+    expect(first.take(4), _candidatesOrder(c, 0).take(4));
+    final r2 = await agent.send('y');
+    expect(r2.kind, 'plan');
+    expect(r2.plan!.blocks.map((b) => b.type).toSet(), {BlockType.main});
+    expect(r2.plan!.blocks.map((b) => b.name).toList(), ['A', 'B']);
+    expect(r2.planMainIds.toSet(), first.toSet());
+    expect(r2.planMainIds.take(2).toList(), first.reversed.take(2).toList());
+  });
+
+  test('code-side padding is reported back to the model before it is applied', () async {
+    final c = _Scripted((tool, ctx, n) {
+      if (tool == 'fill_form') return _form(intent: 'plan', place: 'gym', muscles: ['chest'], minutes: 45);
+      return {'title': 't', 'text': 'x', 'minutes': 45, 'main_ids': _candidates(ctx).take(2).toList(), 'chips': []};
+    });
+    final agent = CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags);
+    final r = await agent.send('x');
+    expect(r.kind, 'plan');
+    expect(c.calls('build_plan'), 2);
+    final retry = c.requests.where((q) => q.tools.first.name == 'build_plan').last.messages.last.content;
+    expect(retry, contains('对不上'));
   });
 
   test('swap candidates follow tags: same area, easier is easier, all in scope', () {

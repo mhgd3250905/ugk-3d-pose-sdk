@@ -561,27 +561,59 @@ final class CoachQaAgent {
       ..writeln('[用户这句话] $text');
     final allowed = {for (final a in candidates) a.id};
     if (isPlan) {
+      // 模型掌舵：代码只验收 build_plan 的交付，不合格就把原因退回给模型改，不替它改顺序。
+      final keep = intent == 'retime' || intent == 'use_these' ? {for (final a in candidates) a.id} : const <String>{};
+      int minutesFor(Map<String, Object?> a) => intent == 'retime' || intent == 'another' || intent == 'use_these'
+          ? (state.focus?.minutes ?? asInt(a['minutes']) ?? state.lastPlan?.plan.targetMinutes ?? 15)
+          : (asInt(a['minutes']) ?? state.focus?.minutes ?? 15);
+      QaPlanResult? built;
+      var warnedFit = false;
+      var warnedScope = false;
+      QaPlanResult buildFrom(Map<String, Object?> a) {
+        final (mains, names, segOf) = _planMains(a);
+        return builder.build(
+          mainIds: mains,
+          minutes: minutesFor(a),
+          base: base.copyWith(exclude: const {}),
+          title: asString(a['title']),
+          blockNames: {for (final e in asMap(a['block_names']).entries) e.key: '${e.value}'},
+          warmIds: intent == 'retime' ? _blockIds(BlockType.warmup) : null,
+          coolIds: intent == 'retime' ? _blockIds(BlockType.cooldown) : null,
+          segmentNames: names,
+          segmentOf: segOf,
+          autoWarmup: a['warmup'] != false,
+          autoCooldown: a['cooldown'] != false,
+        );
+      }
       final args = await _call(step: 'answer', tool: _planTool, context: ctx.toString(), run: run, validate: (a) {
-        final ids = asStringList(a['main_ids']);
+        final (ids, names, _) = _planMains(a);
         if (ids.isEmpty && candidates.isNotEmpty) return 'main_ids 不能为空';
+        if (ids.toSet().length != ids.length) return 'main_ids 有重复的 id';
         final bad = ids.where((id) => !allowed.contains(id)).toList();
         if (bad.isNotEmpty && candidates.isNotEmpty) return 'main_ids 只能用候选里的 id，这些不在候选里：${bad.join(', ')}';
+        if (intent == 'retime' && !ids.toSet().containsAll(keep)) {
+          return 'retime 不换动作，main_ids 要包含当前主训练全部动作（顺序可按用户要求调整）：${keep.join(', ')}';
+        }
+        final segs = asList(a['segments']);
+        if (segs.isNotEmpty && names.length != segs.length) return 'segments 每段都要有 name 和非空 ids';
+        final r = buildFrom(a);
+        final out = [for (final n in r.notes) if (n.startsWith('out_of_scope:')) n.substring(13)];
+        if (out.isNotEmpty && !warnedScope) {
+          warnedScope = true;
+          return '这些动作不符合用户当前条件，不能用：${out.join(', ')}。请从候选里换掉后重交';
+        }
+        final padded = [for (final n in r.notes) if (n.startsWith('padded:')) n.substring(7)];
+        final trimmed = [for (final n in r.notes) if (n.startsWith('trimmed:')) n.substring(8)];
+        if ((padded.isNotEmpty || trimmed.isNotEmpty) && !warnedFit) {
+          warnedFit = true;
+          final m = minutesFor(a);
+          return '你给的主训练和 $m 分钟对不上：代码要${padded.isNotEmpty ? '补上 ${padded.join(', ')}' : ''}${trimmed.isNotEmpty ? '去掉 ${trimmed.join(', ')}' : ''}。'
+              '请自己调整 main_ids（或按用户原话调整 minutes）后重交；坚持原样就原样重交，代码会照上面补/去，正文要如实说明。';
+        }
+        built = r;
         return null;
       });
-      var mains = asStringList(args['main_ids']).where(allowed.contains).toList();
-      if (intent == 'retime' || intent == 'use_these') mains = [for (final a in candidates) a.id];
-      final minutes = intent == 'retime' || intent == 'another' || intent == 'use_these'
-          ? (state.focus?.minutes ?? asInt(args['minutes']) ?? state.lastPlan?.plan.targetMinutes ?? 15)
-          : (asInt(args['minutes']) ?? state.focus?.minutes ?? 15);
-      final r = builder.build(
-        mainIds: mains,
-        minutes: minutes,
-        base: base.copyWith(exclude: const {}),
-        title: asString(args['title']),
-        blockNames: {for (final e in asMap(args['block_names']).entries) e.key: '${e.value}'},
-        warmIds: intent == 'retime' ? _blockIds(BlockType.warmup) : null,
-        coolIds: intent == 'retime' ? _blockIds(BlockType.cooldown) : null,
-      );
+      final r = built ?? buildFrom(args);
       state.lastPlan = r;
       state.lastShown = [];
       final dropped = [for (final n in r.notes) if (n.startsWith('out_of_scope:')) n.substring(13)];
@@ -925,6 +957,27 @@ final class CoachQaAgent {
 
   static String _names(QaAction? a) => a == null ? '?' : '${a.id}（${a.drill.name.values.values.toSet().join(' / ')}）';
 
+  /// build_plan 的主训练：有 segments 用 segments（顺序即各段先后），否则用 main_ids。
+  (List<String>, List<String>, Map<String, int>) _planMains(Map<String, Object?> a) {
+    final segs = asList(a['segments']);
+    if (segs.isEmpty) return (asStringList(a['main_ids']), const <String>[], const <String, int>{});
+    final ids = <String>[];
+    final names = <String>[];
+    final of = <String, int>{};
+    for (final raw in segs) {
+      final m = asMap(raw);
+      final name = (asString(m['name']) ?? '').trim();
+      final seg = asStringList(m['ids']);
+      if (name.isEmpty || seg.isEmpty) continue;
+      for (final id in seg) {
+        ids.add(id);
+        of.putIfAbsent(id, () => names.length);
+      }
+      names.add(name);
+    }
+    return (ids, names, of);
+  }
+
   String _actionLine(QaAction a) => [
     a.id,
     a.drill.name.values.values.toSet().join(' / '),
@@ -936,6 +989,7 @@ final class CoachQaAgent {
     '难度${a.difficulty}',
     '器械:${a.requiredEquipment.isEmpty ? '无' : a.requiredEquipment.join(',')}',
     a.floorRequired ? '躺地' : '不躺地',
+    '姿势:${a.drill.position}',
     '冲击:${a.impact}',
     '关节:${[for (final e in a.jointStress.entries) if (e.value != 'none') '${e.key}=${e.value}'].join(',')}',
     _summary(a),
@@ -1107,7 +1161,7 @@ final class CoachQaAgent {
 
   static const _planTool = LlmTool(
     name: 'build_plan',
-    description: 'SOP 第 2 步 B：排一套训练（plan / another / use_these / retime）。只给主训练，热身收操组数时长由代码排。',
+    description: 'SOP 第 2 步 B：排一套训练（plan / another / use_these / retime）。主训练顺序以你给的为准；代码只验收并配组数时长，不合格会退回原因。',
     parameters: {
       'type': 'object',
       'properties': {
@@ -1115,6 +1169,17 @@ final class CoachQaAgent {
         'text': {'type': 'string'},
         'minutes': {'type': 'integer'},
         'main_ids': {'type': 'array', 'items': {'type': 'string'}},
+        'segments': {
+          'type': 'array',
+          'description': '可选：用户要求主训练分段（如先坐着做、再站着做）时按顺序给出各段；给了就以它为准。',
+          'items': {
+            'type': 'object',
+            'properties': {'name': {'type': 'string'}, 'ids': {'type': 'array', 'items': {'type': 'string'}}},
+            'required': ['name', 'ids'],
+          },
+        },
+        'warmup': {'type': 'boolean', 'description': '是否让代码加热身，默认 true；用户指定了完整顺序或不要热身时填 false。'},
+        'cooldown': {'type': 'boolean', 'description': '是否让代码加收操，默认 true；用户指定了完整顺序或不要收操时填 false。'},
         'block_names': {
           'type': 'object',
           'properties': {'warmup': {'type': 'string'}, 'main': {'type': 'string'}, 'cooldown': {'type': 'string'}},

@@ -1,7 +1,7 @@
 /// AI 问答推荐 Agent v2（原型，可选启用）。与 `package:ugk_coach/ugk_coach.dart` 的 CoachAgent 并存。
 ///
-/// 用户的话全部由模型照 SOP（`coachQaSop`，来源 `lib/src/qa_v2/coach_qa_sop.md`）理解；
-/// 代码只按结构化标签圈范围、排时长、做一致性检查。
+/// 常规 agent 循环（v3，规格 docs/coach-qa-agent-v3.md）：模型照 SOP（`coachQaSop`，来源
+/// `lib/src/qa_v2/coach_qa_sop.md`）自己调用工具；代码只做交付验收、安全与场景准入、配时和条件记录。
 ///
 /// ```dart
 /// final agent = CoachQaAgent(client: client, catalog: catalog, profile: profile, aiTags: tags);

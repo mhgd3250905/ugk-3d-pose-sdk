@@ -198,37 +198,54 @@ void main() {
     },
   );
 
-  test(
-    'rejected restored startup cannot overwrite its source on send or close',
-    () async {
-      final source = ChatHarness(
-        allowedActionIds: const ['one', 'two', 'three', 'four', 'outside'],
-      );
-      addTearDown(source.close);
-      expect(
-        (await source.controller.sendPlanToConversation(
-          CoachSavedPlanSnapshot(
-            externalId: 'outside-plan',
-            title: '其他 App 的已存计划',
-            plan: chatPlan(third: 'outside'),
-            storageRevision: 'r1',
-          ),
-        )).ok,
-        isTrue,
-      );
-      final snapshot = source.controller.exportSnapshot();
-      final original = snapshot.toJson();
-      final history = ChatHistory()..snapshot = snapshot;
-      var released = 0;
-      final target = ChatHarness(history: history, release: () => released++);
-      addTearDown(target.close);
-      expect((await target.controller.start()).ok, isFalse);
-      await target.controller.send('继续');
-      await target.controller.close();
-      expect(history.writes, isEmpty);
-      expect(history.snapshot!.toJson(), original);
-      expect(target.client.requests, isEmpty);
-      expect(released, 1);
-    },
-  );
+  test('rejected restored startup hands the source to the host before a fresh '
+      'conversation may replace it', () async {
+    final source = ChatHarness(
+      allowedActionIds: const ['one', 'two', 'three', 'four', 'outside'],
+    );
+    addTearDown(source.close);
+    expect(
+      (await source.controller.sendPlanToConversation(
+        CoachSavedPlanSnapshot(
+          externalId: 'outside-plan',
+          title: '其他 App 的已存计划',
+          plan: chatPlan(third: 'outside'),
+          storageRevision: 'r1',
+        ),
+      )).ok,
+      isTrue,
+    );
+    final snapshot = source.controller.exportSnapshot();
+    final original = snapshot.toJson();
+    final history = _PreservingHistory()..snapshot = snapshot;
+    var released = 0;
+    final target = ChatHarness(history: history, release: () => released++);
+    addTearDown(target.close);
+    // Degraded start: the chat must stay usable instead of going silent.
+    expect((await target.controller.start()).ok, isTrue);
+    expect(history.preserved, hasLength(1));
+    expect(history.preserved.single.toJson(), original);
+    expect(history.writesBeforePreserve, 0);
+    expect(
+      target.controller.messages.map((m) => m.text),
+      contains(const CoachChatStrings().historyUnreadable),
+    );
+    await target.controller.close();
+    expect(history.snapshot!.toJson(), isNot(original));
+    expect(released, 1);
+  });
+}
+
+class _PreservingHistory extends ChatHistory {
+  final preserved = <CoachChatSnapshot>[];
+  int? writesBeforePreserve;
+  @override
+  Future<void> preserveUnreadable(
+    String namespace,
+    CoachChatSnapshot snapshot,
+    Object? error,
+  ) async {
+    writesBeforePreserve ??= writes.length;
+    preserved.add(snapshot);
+  }
 }

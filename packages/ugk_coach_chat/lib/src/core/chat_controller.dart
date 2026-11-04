@@ -146,7 +146,15 @@ class CoachChatController extends ChangeNotifier {
       if (bindings.storageNamespace.trim().isEmpty) {
         throw ArgumentError('storageNamespace must not be empty');
       }
-      final planning = profile.planningCatalog(_sourceCatalog);
+      var planning = profile.planningCatalog(_sourceCatalog);
+      if (_usesQaV2) {
+        // Candidate scope, plan declarations and admission share the App's
+        // tag equipment facts. Other catalogue fields and legacy stay intact.
+        planning = qa.QaActionIndex(
+          planning,
+          aiTags: profile.aiTags,
+        ).equipmentCatalog();
+      }
       _preferences = await bindings.preferences.load();
       _saved = await bindings.plans.load();
       _trainingContext = await bindings.history.readTrainingContext();
@@ -188,6 +196,7 @@ class CoachChatController extends ChangeNotifier {
         agent.enableUserMemory = value.enableUserMemory;
         _notify();
       });
+      var unreadable = false;
       if (!_preferences.safetyAccepted) {
         _beginSafety(firstRun: true);
       } else {
@@ -196,8 +205,9 @@ class CoachChatController extends ChangeNotifier {
         if (saved != null) {
           final restored = _restoreSnapshot(saved);
           if (!restored.ok) {
-            _notify();
-            return restored;
+            unreadable = true;
+            await _recoverUnreadable('snapshot', restored, saved);
+            if (_closed) return const CoachChatOperationResult(ok: false);
           }
         } else {
           final legacy = await bindings.history.loadLegacy(
@@ -207,11 +217,14 @@ class CoachChatController extends ChangeNotifier {
           if (legacy != null) {
             final restored = await importLegacy(legacy);
             if (!restored.ok) {
-              _notify();
-              return restored;
+              // Legacy keys are read-only and stay untouched on disk.
+              unreadable = true;
+              await _recoverUnreadable('legacy', restored, null);
+              if (_closed) return const CoachChatOperationResult(ok: false);
             }
           }
         }
+        if (unreadable) _addBot(profile.strings.historyUnreadable);
         final last = _messages.lastOrNull?.at;
         if (last == null ||
             _clock().difference(last) > const Duration(hours: 6)) {
@@ -226,6 +239,9 @@ class CoachChatController extends ChangeNotifier {
       _started = true;
       _historyReady = true;
       _notify();
+      // Replace the unreadable record (already handed to the host) so the
+      // next launch does not hit the same failure again.
+      if (unreadable) _persistInBackground();
       return const CoachChatOperationResult(ok: true);
     } on Object catch (error) {
       _recordError('chat.start.error', error);
@@ -390,6 +406,7 @@ class CoachChatController extends ChangeNotifier {
       }
       final reply = _normalizeQaReply(
         await working.send(input, language: context.language),
+        builder: working.builder,
       );
       if (replyDelay > Duration.zero) await Future<void>.delayed(replyDelay);
       if (_closed || generation != _generation) return null;
@@ -470,7 +487,7 @@ class CoachChatController extends ChangeNotifier {
       _suggestions = reply.question != null ? const [] : _defaults();
     } on Object catch (error) {
       if (_closed || generation != _generation) return null;
-      _recordError('chat.turn.error', error);
+      _recordTurnError(error);
       _addFailure(error: error, timedOut: timedOut);
       _suggestions = _defaults();
       result = coach.CoachTurnResult(
@@ -507,7 +524,10 @@ class CoachChatController extends ChangeNotifier {
   /// QA's prototype plan has no summary and uses its own source marker.
   /// Adapt it to the existing AI plan storage/admission contract, retaining
   /// model-written text and the exact order/doses used for ordinal follow-ups.
-  qa.CoachQaReply _normalizeQaReply(qa.CoachQaReply reply) {
+  qa.CoachQaReply _normalizeQaReply(
+    qa.CoachQaReply reply, {
+    required qa.QaPlanBuilder builder,
+  }) {
     final raw = reply.plan;
     if (raw == null) return reply;
     final decoded = const coach.PlanCodec().decodeStrict({
@@ -520,6 +540,11 @@ class CoachChatController extends ChangeNotifier {
           : raw.title,
     });
     if (!decoded.ok) throw StateError('Invalid QA plan');
+    final fitted = builder.fitForExecution(
+      decoded.plan!,
+      profile: profile.coachProfile,
+      executionTiming: profile.executionTiming,
+    );
     return qa.CoachQaReply(
       kind: reply.kind,
       text: reply.text,
@@ -527,8 +552,8 @@ class CoachChatController extends ChangeNotifier {
       chips: reply.chips,
       assumption: reply.assumption,
       conditions: reply.conditions,
-      plan: decoded.plan,
-      planSeconds: reply.planSeconds,
+      plan: fitted.plan,
+      planSeconds: fitted.seconds,
       question: reply.question,
       askStep: reply.askStep,
       llmCalls: reply.llmCalls,
@@ -690,7 +715,7 @@ class CoachChatController extends ChangeNotifier {
       if (!_closed && generation == _generation) {
         _typing = false;
         _endProgress();
-        _recordError('chat.turn.error', error);
+        _recordTurnError(error);
         _addFailure(error: error, timedOut: timedOut);
         _suggestions = _defaults();
         _notify();
@@ -1677,6 +1702,18 @@ class CoachChatController extends ChangeNotifier {
     if (!_closed && !_notifierDisposed) notifyListeners();
   }
 
+  /// `chat.turn.error` carries a bounded message so hosts can locate a failed
+  /// turn from logs; the original object stays under `error`.
+  void _recordTurnError(Object error) {
+    _lastError = error;
+    final message = error.toString();
+    bindings.observer?.call('chat.turn.error', <String, Object?>{
+      'errorType': error.runtimeType.toString(),
+      'message': message.length > 300 ? message.substring(0, 300) : message,
+      'error': error,
+    });
+  }
+
   void _recordError(String event, Object error) {
     _lastError = error;
     bindings.observer?.call(event, error);
@@ -1726,6 +1763,7 @@ class CoachChatController extends ChangeNotifier {
   }
 
   CoachChatRestoreResult _restoreSnapshot(CoachChatSnapshot snapshot) {
+    _restoreStage = 'admission';
     try {
       if (snapshot.envelopeSchemaVersion != 1 ||
           snapshot.appId != profile.appId ||
@@ -1738,14 +1776,18 @@ class CoachChatController extends ChangeNotifier {
           ],
         );
       }
-      final display = [
-        for (final row in snapshot.messages)
+      final display = <ChatMessage>[];
+      for (var i = 0; i < snapshot.messages.length; i++) {
+        _restoreStage = 'messages[$i]';
+        display.add(
           ChatMessage.fromJson(
-            row,
+            snapshot.messages[i],
             admitPlan: _admitDisplay,
             restoreActions: _restoreActions,
           ),
-      ];
+        );
+      }
+      _restoreStage = 'qaState';
       if (_usesQaV2) {
         final restoredQa = _createQaAgent();
         if (snapshot.qaState case final state?) {
@@ -1757,6 +1799,7 @@ class CoachChatController extends ChangeNotifier {
         }
         _qaAgent = restoredQa;
       }
+      _restoreStage = 'session';
       _restoreDisplay(snapshot.session, display);
       _lastQaReply = null;
       _lastQaResult = null;
@@ -1766,6 +1809,69 @@ class CoachChatController extends ChangeNotifier {
       return CoachChatRestoreResult(ok: false, error: error);
     }
   }
+
+  /// Degraded start: an unreadable stored conversation must never leave the
+  /// chat silently unable to send. The bad snapshot is handed to the host
+  /// (archive + optional raw backup) before anything can overwrite it, then
+  /// every partially restored piece of state is reset to a fresh conversation.
+  Future<void> _recoverUnreadable(
+    String source,
+    CoachChatRestoreResult failure,
+    CoachChatSnapshot? saved,
+  ) async {
+    final error = failure.error;
+    bindings.observer?.call('chat.restore.recovered', {
+      'source': source,
+      'stage': _restoreStage,
+      'errorType': error?.runtimeType.toString(),
+      if (error != null) 'message': _clip('$error'),
+      'issues': [for (final issue in failure.issues) issue.code],
+    });
+    if (saved != null) {
+      try {
+        await bindings.history.preserveUnreadable(
+          bindings.storageNamespace,
+          saved,
+          error,
+        );
+      } on Object catch (backupError) {
+        bindings.observer?.call('chat.restore.backup.error', backupError);
+      }
+      if (bindings.beforeNewConversation case final archive?) {
+        try {
+          await archive(saved);
+        } on Object catch (archiveError) {
+          bindings.observer?.call('chat.archive.error', archiveError);
+        }
+      }
+    }
+    if (_closed) return;
+    _generation++;
+    _cancel?.cancel();
+    _typing = false;
+    _endProgress();
+    _restoring = true;
+    try {
+      conversation.newConversation();
+    } finally {
+      _restoring = false;
+    }
+    if (_usesQaV2) _qaAgent = _createQaAgent();
+    _lastQaReply = null;
+    _lastQaResult = null;
+    _latestTask = null;
+    _currentPlan = null;
+    _messages.clear();
+    _receipts.clear();
+    _savedOrigins.clear();
+    _previews.clear();
+  }
+
+  static String _clip(String value) =>
+      value.length <= 300 ? value : '${value.substring(0, 300)}…';
+
+  /// Which restore step failed last; carried into `chat.restore.recovered`.
+  String? _restoreStage;
 
   void _restoreDisplay(
     coach.CoachSessionSnapshot? snapshot,
@@ -1831,6 +1937,7 @@ class CoachChatController extends ChangeNotifier {
   Future<CoachChatRestoreResult> importLegacy(
     CoachChatLegacyData legacy,
   ) async {
+    _restoreStage = 'legacy';
     try {
       final display = [
         for (final row in legacy.chat)

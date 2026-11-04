@@ -1,14 +1,13 @@
-/// AI 问答推荐 Agent v2（原型，可选启用；与 [CoachAgent] 并存）。
+/// AI 问答推荐 Agent v3（可选启用；与 [CoachAgent] 并存）。规格：docs/coach-qa-agent-v3.md。
 ///
-/// 凡是要理解用户语言的地方都交给模型，模型照着 SOP（`coach_qa_sop.md`，整份放进系统提示词）一步步填空：
-/// - 第 1 步「理解」（1 次调用，`fill_form`）：判断类型、更新条件（地点 / 器械 / 限制）、练什么（结构化 id）、
-///   卡片编号、下一步是问还是答。
-/// - 第 2 步（1 次调用，失败或不合规时同一步内重试）：要问 → `ask_user`，问句和选项由模型用用户语言生成；
-///   要答 → `respond` / `build_plan` / `swap`。
-/// - 第 3 步「改写」（只在不一致时，1 次调用，`rewrite`）：正文提到卡片外的动作，或有动作因越界被去掉。
+/// 常规 agent 循环：每一轮把全部工具一次给模型（toolChoice auto），由模型照 SOP（`coach_qa_sop.md`）
+/// 自己决定先查动作库、先问还是直接交结果，不设调用次数上限。
+/// - 信息类工具：`set_conditions`（记条件）、`search_actions`（按结构化标签查动作库）→ 返回结果，继续。
+/// - 交付类工具：`ask_user`、`show_actions`、`build_plan`、`swap`、`reply` → 脚本验收；
+///   不合格把原因作为 tool result 退回模型重交，合格本轮结束。代码绝不静默修改、补、删、重排交付内容。
 ///
-/// 代码只做和语言无关的部分：按结构化标签硬过滤圈定范围、按标签排序、换动作的合格候选、
-/// 排计划的时长和组数、校验模型的选择都在范围和候选里、按条件来源结构化判断「不连问 / 已知不再问」。
+/// 代码只做和语言无关的部分：验收器、安全与场景准入（[QaAdmission] / [QaFinder.passes]）、
+/// 组数与时长配置（[QaPlanBuilder]）、条件状态记录。
 library;
 
 import 'dart:convert';
@@ -96,7 +95,7 @@ final class CoachQaReply {
   /// 每次模型调用：步骤名和耗时。
   final List<QaStepLog> steps;
 
-  /// 第 1 步模型填的表（调试用）。
+  /// 模型本轮最后一次 `set_conditions` 的参数（调试用）。
   final Map<String, Object?> form;
 
   /// 模型判断的用户语言。
@@ -141,7 +140,7 @@ final class CoachQaMemory {
   final String? placeWord;
 }
 
-/// 第 1 步模型填的表（全部结构化）。
+/// v2 的结构化表。v3 不再有理解步；保留类型只为持久化兼容（`QaFocus.of` 从存档的焦点读回）。
 final class QaForm {
   QaForm(this.raw);
   final Map<String, Object?> raw;
@@ -177,7 +176,7 @@ final class QaForm {
   static String? _nonEmpty(String? s) => s == null || s.trim().isEmpty ? null : s.trim();
 }
 
-/// 「练什么」：从表里抽出的焦点，跨轮沿用。
+/// 「练什么」：模型最近一次 `search_actions` 的焦点，跨轮沿用（用于下一轮预选候选）。
 final class QaFocus {
   const QaFocus({
     this.muscles = const {},
@@ -241,6 +240,14 @@ final class CoachQaState {
   int turn = 0;
   final List<(String, String)> history = [];
 
+  // ---- v3 追加（旧存档没有这些字段时取默认值）
+
+  /// 用户已确认安全危险信号（模型经 `set_conditions.red_flag` 记录）：此时 `reply` 不能附动作。
+  bool redFlag = false;
+
+  /// 本轮已见候选：预选候选 + 本轮 `search_actions` 结果 + 当前卡片。每轮开始重置，不持久化。
+  Set<String> seen = {};
+
   bool get placeKnown => place != null;
 }
 
@@ -248,6 +255,9 @@ const _thinkingMax = <String, Object?>{
   'thinking': {'type': 'enabled'},
   'reasoning_effort': 'max',
 };
+
+/// 模型直接输出文字、没调用工具时的提示。
+const _nudge = '请调用工具交结果。';
 
 final class CoachQaAgent {
   CoachQaAgent({
@@ -261,7 +271,7 @@ final class CoachQaAgent {
     this.maxTokens = 24000,
     this.maxRetriesPerStep = 2,
   }) : index = QaActionIndex(catalog, aiTags: aiTags) {
-    finder = QaFinder(index);
+    finder = QaFinder(index, profile: profile);
     builder = QaPlanBuilder(
       finder,
       warmupFromMinutes: profile.planRules.warmupFromMinutes,
@@ -289,6 +299,8 @@ final class CoachQaAgent {
   /// 每次请求附带的思考参数。默认 DeepSeek 思考开到最大档：`thinking.enabled` + `reasoning_effort: max`。
   final Map<String, Object?> thinking;
   final int maxTokens;
+
+  /// 模型调用连续抛错（网络、服务端）的重试次数；超过就本轮报错。不限制工具调用次数。
   final int maxRetriesPerStep;
 
   final QaActionIndex index;
@@ -316,482 +328,529 @@ final class CoachQaAgent {
     return reply;
   }
 
-  // ---------------------------------------------------------------- 第 1 步：理解
+  // ---------------------------------------------------------------- 循环
 
   Future<CoachQaReply> _turn(String text, QaAskStep? askedLast, _Run run) async {
-    final form = await _understand(text, askedLast, run);
-    run.form = form.raw;
-    state.language = form.language;
-    final intent = _applyForm(form, askedLast, text);
-
-    // 下一步：模型判断；代码只按结构化状态拦「已知还问」「连问同一个」。
-    var next = form.next;
-    if (next == 'ask_place' && askedLast == QaAskStep.place) next = 'answer';
-    if (next == 'ask_equipment' && askedLast == QaAskStep.equipment) next = 'answer';
-    if (next == 'ask_safety' && askedLast == QaAskStep.safety) next = 'answer';
-    if (next == 'ask_place' && state.placeKnown && intent != 'change_place') {
-      run.issues.add('guard: place already known');
-      next = state.place == 'home' && !state.equipmentKnown && askedLast != QaAskStep.equipment ? 'ask_equipment' : 'answer';
-    }
-    if (next == 'ask_equipment' && (state.place != 'home' || state.equipmentKnown)) {
-      run.issues.add('guard: equipment not needed');
-      next = 'answer';
-    }
-    if (next == 'answer' && askedLast != null && (askedLast == QaAskStep.place || askedLast == QaAskStep.equipment)) {
-      // 问过却没得到答案（或模型想再问）：按默认补齐，不再问。
-      _fillSkipped();
-    }
-    if (intent == 'change_place' && next != 'ask_place') next = askedLast == QaAskStep.place ? 'answer' : 'ask_place';
-
-    switch (next) {
-      case 'ask_place':
-        return _ask(QaAskStep.place, text, run);
-      case 'ask_equipment':
-        return _ask(QaAskStep.equipment, text, run);
-      case 'ask_safety':
-        return _ask(QaAskStep.safety, text, run);
-    }
-    final answerIntent = intent == 'change_place' || intent == 'answer_pending' ? (state.focus?.intent ?? 'actions') : intent;
-    return _answer(answerIntent, text, run);
-  }
-
-  Future<QaForm> _understand(String text, QaAskStep? askedLast, _Run run) async {
+    final pre = [for (final h in finder.find(_query(focus: state.focus, limit: 12))) h.action];
+    state.seen = {for (final a in pre) a.id, ..._cardIds()};
     final ctx = StringBuffer()
-      ..writeln('[当前步骤] 第 1 步：理解。按 SOP 第 1 步填表，调用 fill_form。')
       ..writeln(_conditionsBlock())
       ..writeln('[上一轮问过] ${askedLast?.name ?? '无'}')
-      ..writeln(state.pendingText == null || askedLast == null ? '' : '[等回答的原请求] ${state.pendingText}')
+      ..writeln(askedLast == null || state.pendingText == null ? '' : '[等回答的原请求] ${state.pendingText}')
       ..writeln(_cardsBlock())
+      ..writeln('[预选候选]（按已知条件和上次焦点预取，都在当前范围内；不对题或不够就 search_actions）')
+      ..writeln(pre.isEmpty ? '（无）' : pre.map(_actionLine).join('\n'))
       ..writeln('[用户这句话]')
       ..writeln(text);
-    final args = await _call(step: 'understand', tool: _fillFormTool, context: ctx.toString(), run: run);
-    return QaForm(args);
-  }
-
-  /// 把表写进状态（结构化合并），返回这轮的意图。
-  String _applyForm(QaForm f, QaAskStep? askedLast, String text) {
-    var intent = f.intent;
-    final answering = askedLast != null && f.answerStatus != 'none';
-    // 只有地点/器械问题才有「跳过就按默认」；安全追问没回答不影响条件收集。
-    final conditionAsk = askedLast == QaAskStep.place || askedLast == QaAskStep.equipment;
-    if (intent == 'change_place') {
-      state.place = null;
-      state.placeWord = null;
-      state.placeSource = 'none';
-      state.equipmentKnown = false;
-      state.equipment = {};
-      state.equipmentSource = 'none';
-    } else if (answering && conditionAsk && f.answerStatus == 'skipped') {
-      // 用户跳过了地点/器械问题：不采用模型替用户填的条件，下面按默认补齐（来源记为 skipped）。
-    } else {
-      final p = f.place;
-      if (p != null && (p != state.place || (f.placeWord != null && f.placeWord != state.placeWord) || !state.placeKnown)) {
-        final samePlace = p == state.place;
-        if (!samePlace) {
-          state.equipmentKnown = false;
-          state.equipment = {};
-          state.equipmentSource = 'none';
-        }
-        state.place = p;
-        state.placeWord = f.placeWord ?? (samePlace ? state.placeWord : null);
-        state.placeSource = askedLast == QaAskStep.place ? 'answered' : 'user';
-        state.placeTurn = state.turn;
-      }
-      if (state.place == 'home' && f.equipmentKnown) {
-        final eq = f.equipment;
-        if (!state.equipmentKnown || eq.length != state.equipment.length || !eq.containsAll(state.equipment)) {
-          state.equipment = eq;
-          state.equipmentKnown = true;
-          state.equipmentSource = askedLast == QaAskStep.equipment ? 'answered' : 'user';
-          state.equipmentTurn = state.turn;
-        }
-      }
-    }
-    state.avoidJoints.addAll(f.avoidJoints);
-    if (f.noFloor) state.noFloor = true;
-    if (f.quiet) state.quiet = true;
-    if (f.easy) state.easy = true;
-    if (f.smallSpace) state.smallSpace = true;
-
-    if (answering && conditionAsk && f.answerStatus == 'skipped') _fillSkipped();
-    // 焦点：这轮有就用这轮的；在回答问题时沿用原请求；跟进句沿用上次。
-    if (f.hasFocus) {
-      state.focus = QaFocus.of(f, intent: intent == 'answer_pending' ? (state.pendingFocus?.intent ?? 'actions') : intent);
-    } else if (answering && state.pendingFocus != null) {
-      final p = state.pendingFocus!;
-      state.focus = QaFocus(
-        muscles: p.muscles,
-        stretchMuscles: p.stretchMuscles,
-        types: p.types,
-        goals: p.goals,
-        roles: p.roles,
-        patterns: p.patterns,
-        minutes: f.minutes ?? p.minutes,
-        intent: p.intent,
-      );
-      if (intent == 'answer_pending') intent = p.intent;
-    } else if (state.focus != null && f.minutes != null) {
-      final p = state.focus!;
-      state.focus = QaFocus(muscles: p.muscles, stretchMuscles: p.stretchMuscles, types: p.types, goals: p.goals, roles: p.roles, patterns: p.patterns, minutes: f.minutes, intent: p.intent);
-    }
-    state.focus ??= QaFocus.of(f);
-    if (!answering) {
-      state.pendingFocus = state.focus;
-      state.pendingText = text;
-    }
-    return intent;
-  }
-
-  void _fillSkipped() {
-    if (!state.placeKnown) {
-      state.place = profile.defaultScene == 'hotel' ? 'home' : profile.defaultScene;
-      state.placeSource = 'skipped';
-      state.placeTurn = state.turn;
-    }
-    if (state.place == 'home' && !state.equipmentKnown) {
-      state.equipmentKnown = true;
-      state.equipment = {};
-      state.equipmentSource = 'skipped';
-      state.equipmentTurn = state.turn;
-    }
-  }
-
-  // ---------------------------------------------------------------- 第 2 步 A：问
-
-  Future<CoachQaReply> _ask(QaAskStep step, String text, _Run run) async {
-    final ctx = StringBuffer()
-      ..writeln('[当前步骤] 第 2 步 A：问一个问题。要问的是：${switch (step) {
-        QaAskStep.place => 'ask_place（地点，单选）',
-        QaAskStep.equipment => 'ask_equipment（器械，多选）',
-        QaAskStep.safety => 'ask_safety（安全）',
-      }}。用户语言：${state.language}。调用 ask_user。')
-      ..writeln(_conditionsBlock())
-      ..writeln('[原请求] ${state.pendingText ?? text}')
-      ..writeln('[用户这句话] $text');
-    final args = await _call(step: 'ask', tool: _askTool, context: ctx.toString(), run: run, validate: (a) {
-      final q = asString(a['question'])?.trim() ?? '';
-      if (q.isEmpty) return 'question 不能为空';
-      final n = asStringList(a['options']).where((o) => o.trim().isNotEmpty).length;
-      if (step != QaAskStep.safety && (n < 2 || n > 6)) return 'options 需要 2–6 个';
-      return null;
-    });
-    final question = AskUserQuestion.direct(
-      asString(args['question']) ?? '',
-      options: asStringList(args['options']),
-      multiple: step == QaAskStep.equipment,
-      language: state.language,
-    );
-    return run.reply(kind: 'ask', text: question.question, question: question, askStep: step, language: state.language, conditions: _conditions());
-  }
-
-  // ---------------------------------------------------------------- 第 2 步 B：答
-
-  bool get _strict {
-    if (!state.placeKnown) return false;
-    return state.place == 'home' ? state.equipmentKnown : true;
-  }
-
-  QaQuery _query({Set<String> exclude = const {}, int limit = 12}) {
-    final f = state.focus ?? const QaFocus();
-    return QaQuery(
-      scene: state.place ?? profile.defaultScene,
-      equipment: state.equipment,
-      strict: _strict,
-      muscles: f.muscles,
-      stretchMuscles: f.stretchMuscles,
-      types: f.types,
-      goals: f.goals,
-      roles: f.roles,
-      patterns: f.patterns,
-      avoidJoints: state.avoidJoints,
-      noFloor: state.noFloor,
-      smallSpace: state.smallSpace,
-      maxImpact: state.quiet ? 'none' : null,
-      maxDifficulty: state.easy ? 2 : null,
-      targetDifficulty: state.easy ? 1 : 2,
-      preferEquipment: state.equipment.difference(const {'mat', 'chair'}),
-      exclude: exclude,
-      limit: limit,
-    );
-  }
-
-  bool get _assumed {
-    if (!state.placeKnown) return true;
-    const given = {'user', 'answered'};
-    final eqOk = state.place != 'home' || given.contains(state.equipmentSource);
-    final latest = state.place == 'home' && state.equipmentTurn > state.placeTurn ? state.equipmentTurn : state.placeTurn;
-    return !(given.contains(state.placeSource) && eqOk && latest == state.turn);
-  }
-
-  Map<String, Object?> _conditions() => {
-    'place': state.place,
-    if (state.placeWord != null) 'placeWord': state.placeWord,
-    'placeSource': state.placeSource,
-    if (state.place == 'home') 'equipment': state.equipmentKnown ? state.equipment.toList() : null,
-    if (state.place == 'home') 'equipmentSource': state.equipmentSource,
-    'assumed': _assumed,
-  };
-
-  Future<CoachQaReply> _answer(String intent, String text, _Run run) async {
-    final planIds = state.lastPlan?.orderedIds ?? const <String>[];
-    final shown = state.lastShown;
-    final hasCards = shown.isNotEmpty || planIds.isNotEmpty;
-    if (const {'swap', 'easier', 'harder'}.contains(intent) && hasCards) return _swap(intent, text, run);
-    if (const {'retime', 'use_these'}.contains(intent) && !hasCards) intent = 'plan';
-    if (intent == 'retime' && state.lastPlan == null) intent = 'use_these';
-    if (intent == 'another' && !hasCards) intent = 'actions';
-    final isPlan = const {'plan', 'another', 'use_these', 'retime'}.contains(intent);
-
-    final exclude = intent == 'another' ? {...planIds, ...shown} : <String>{};
-    final base = _query(exclude: exclude);
-    final List<QaAction> candidates = switch (intent) {
-      'use_these' => [for (final id in shown.isNotEmpty ? shown : state.lastPlan!.mainIds) if (index[id] != null && finder.passes(index[id]!, base.scopeOnly)) index[id]!],
-      'retime' => [for (final id in state.lastPlan!.mainIds) if (index[id] != null) index[id]!],
-      _ => [for (final h in finder.find(base)) h.action],
-    };
-    final gap = isPlan || intent == 'actions' ? _gap(base) : const <String>[];
-    final ctx = StringBuffer()
-      ..writeln('[当前步骤] 第 2 步 B：给结果。intent = $intent。用户语言：${state.language}。调用 ${isPlan ? 'build_plan' : 'respond'}。')
-      ..writeln(_conditionsBlock())
-      ..writeln(_scopeBlock(base))
-      ..writeln(gap.isEmpty ? '[范围缺口] 无' : '[范围缺口]\n${gap.join('\n')}')
-      ..writeln(_cardsBlock())
-      ..writeln(intent == 'retime' || intent == 'use_these' ? '[候选动作]（就是要沿用的主训练，main_ids 用它们，不换）' : '[候选动作]（都在范围内，按相关度排序）')
-      ..writeln(candidates.isEmpty ? '（无）' : candidates.map(_actionLine).join('\n'))
-      ..writeln('[用户这句话] $text');
-    final allowed = {for (final a in candidates) a.id};
-    if (isPlan) {
-      final args = await _call(step: 'answer', tool: _planTool, context: ctx.toString(), run: run, validate: (a) {
-        final ids = asStringList(a['main_ids']);
-        if (ids.isEmpty && candidates.isNotEmpty) return 'main_ids 不能为空';
-        final bad = ids.where((id) => !allowed.contains(id)).toList();
-        if (bad.isNotEmpty && candidates.isNotEmpty) return 'main_ids 只能用候选里的 id，这些不在候选里：${bad.join(', ')}';
-        return null;
-      });
-      var mains = asStringList(args['main_ids']).where(allowed.contains).toList();
-      if (intent == 'retime' || intent == 'use_these') mains = [for (final a in candidates) a.id];
-      final minutes = intent == 'retime' || intent == 'another' || intent == 'use_these'
-          ? (state.focus?.minutes ?? asInt(args['minutes']) ?? state.lastPlan?.plan.targetMinutes ?? 15)
-          : (asInt(args['minutes']) ?? state.focus?.minutes ?? 15);
-      final r = builder.build(
-        mainIds: mains,
-        minutes: minutes,
-        base: base.copyWith(exclude: const {}),
-        title: asString(args['title']),
-        blockNames: {for (final e in asMap(args['block_names']).entries) e.key: '${e.value}'},
-        warmIds: intent == 'retime' ? _blockIds(BlockType.warmup) : null,
-        coolIds: intent == 'retime' ? _blockIds(BlockType.cooldown) : null,
-      );
-      state.lastPlan = r;
-      state.lastShown = [];
-      final dropped = [for (final n in r.notes) if (n.startsWith('out_of_scope:')) n.substring(13)];
-      final finalText = await _consistent(asString(args['text']) ?? '', r.orderedIds, dropped: dropped, run: run);
-      return run.reply(
-        kind: 'plan',
-        text: finalText,
-        plan: r.plan,
-        planSeconds: r.seconds,
-        chips: asStringList(args['chips']),
-        assumption: _assumed ? _nonEmpty(asString(args['assumption'])) : null,
-        conditions: _conditions(),
-        language: state.language,
-        extraIssues: r.notes,
-      );
-    }
-    final args = await _call(step: 'answer', tool: _respondTool, context: ctx.toString(), run: run, validate: (a) {
-      final items = [for (final it in asList(a['items'])) asString(asMap(it)['id']) ?? ''];
-      final bad = items.where((id) => !allowed.contains(id)).toList();
-      if (bad.isNotEmpty) return 'items 只能用候选里的 id，这些不在候选里：${bad.join(', ')}';
-      if (intent == 'actions' && items.isEmpty && candidates.isNotEmpty) return '用户要动作，items 不能为空（从候选里选 3–5 个）';
-      return null;
-    });
-    final ids = <String>[];
-    final why = <String, String>{};
-    final dropped = <String>[];
-    for (final it in asList(args['items'])) {
-      final m = asMap(it);
-      final id = asString(m['id']) ?? '';
-      final a = index[id];
-      if (a == null || !allowed.contains(id) || !finder.passes(a, base.scopeOnly)) {
-        if (a != null) dropped.add(id);
+    final messages = <LlmMessage>[
+      LlmMessage.system('$sop\n\n---\n应用：${profile.appName}。\n${profile.focus}'),
+      for (final (u, a) in state.history) ...[LlmMessage.user(u), LlmMessage.assistant(a)],
+      LlmMessage.user(ctx.toString()),
+    ];
+    var failures = 0;
+    while (true) {
+      final sw = Stopwatch()..start();
+      final LlmResponse res;
+      try {
+        res = await client.complete(LlmRequest(
+          messages: List.unmodifiable(messages),
+          tools: _tools,
+          toolChoice: 'auto',
+          maxTokens: maxTokens,
+          extraBody: thinking,
+        ));
+      } catch (e) {
+        run.steps.add(QaStepLog('model', sw.elapsedMilliseconds, ok: false));
+        run.calls++;
+        run.issues.add('model: $e');
+        if (++failures > maxRetriesPerStep) throw _StepFailed('model', '$e');
         continue;
       }
-      if (ids.contains(id) || ids.length >= 5) continue;
+      failures = 0;
+      run.calls++;
+      run.usage = run.usage + res.usage;
+      if (res.toolCalls.isEmpty) {
+        run.steps.add(QaStepLog('text', sw.elapsedMilliseconds, ok: false));
+        run.issues.add('no tool call');
+        messages
+          ..add(LlmMessage.assistant(res.content, reasoning: res.reasoning))
+          ..add(LlmMessage.user(_nudge));
+        continue;
+      }
+      messages.add(LlmMessage.assistant(res.content, toolCalls: res.toolCalls, reasoning: res.reasoning));
+      var ok = true;
+      for (final call in res.toolCalls) {
+        run.trace.add(call.name);
+        Map<String, Object?>? args;
+        try {
+          args = asMap(jsonDecode(call.arguments.isEmpty ? '{}' : call.arguments));
+        } catch (_) {
+          args = null;
+        }
+        final out = args == null ? _reject(call.name, '参数不是合法的 JSON', run) : _handle(call.name, args, text, askedLast, run);
+        if (out.reply != null) {
+          run.steps.add(QaStepLog(call.name, sw.elapsedMilliseconds));
+          return out.reply!;
+        }
+        if (out.rejected) ok = false;
+        messages.add(LlmMessage.tool(call.id, out.result));
+      }
+      run.steps.add(QaStepLog(res.toolCalls.map((c) => c.name).join('+'), sw.elapsedMilliseconds, ok: ok));
+    }
+  }
+
+  _Outcome _handle(String tool, Map<String, Object?> a, String text, QaAskStep? askedLast, _Run run) => switch (tool) {
+    'set_conditions' => _setConditions(a, askedLast, run),
+    'search_actions' => _search(a, askedLast, run),
+    'ask_user' => _askUser(a, text, askedLast, run),
+    'show_actions' => _showActions(a, askedLast, run),
+    'build_plan' => _buildPlan(a, askedLast, run),
+    'swap' => _swap(a, run),
+    'reply' => _reply(a, askedLast, run),
+    _ => _reject(tool, '没有这个工具，可用：${_tools.map((t) => t.name).join(', ')}', run, retry: '正确的工具'),
+  };
+
+  _Outcome _reject(String tool, String why, _Run run, {String? retry}) {
+    run.issues.add('$tool rejected: $why');
+    return _Outcome.rejected('不合规：$why。请改好后重新调用 ${retry ?? tool}。');
+  }
+
+  // ---------------------------------------------------------------- 信息类工具
+
+  _Outcome _setConditions(Map<String, Object?> a, QaAskStep? askedLast, _Run run) {
+    final bad = <String>[];
+    final place = asString(a['place']);
+    final placeOk = place == null || const {'home', 'gym', 'office', 'unknown'}.contains(place);
+    if (!placeOk) bad.add('place=$place 不是合法场景（home / gym / office / unknown）');
+    final eq = asStringList(a['equipment']);
+    final badEq = [for (final e in eq) if (!_equipmentIds.contains(e)) e];
+    if (badEq.isNotEmpty) bad.add('equipment 里这些不是合法器械 id：${badEq.join(', ')}');
+    final joints = asStringList(a['avoid_joints']);
+    final badJ = [for (final j in joints) if (!_jointIds.contains(j)) j];
+    if (badJ.isNotEmpty) bad.add('avoid_joints 里这些不是合法关节 id：${badJ.join(', ')}');
+    final minutes = asInt(a['minutes']);
+    if (a['minutes'] != null && (minutes == null || minutes < 1)) bad.add('minutes 要是正整数');
+    if (bad.isNotEmpty) return _reject('set_conditions', bad.join('；'), run);
+    run.form = a;
+
+    final word = _nonEmpty(asString(a['place_word']));
+    if (place == 'unknown') {
+      state
+        ..place = null
+        ..placeWord = null
+        ..placeSource = 'none'
+        ..equipmentKnown = false
+        ..equipment = {}
+        ..equipmentSource = 'none';
+    } else if (place != null && (place != state.place || (word != null && word != state.placeWord))) {
+      final same = place == state.place;
+      if (!same) {
+        state
+          ..equipmentKnown = false
+          ..equipment = {}
+          ..equipmentSource = 'none';
+      }
+      state
+        ..place = place
+        ..placeWord = word ?? (same ? state.placeWord : null)
+        ..placeSource = askedLast == QaAskStep.place ? 'answered' : 'user'
+        ..placeTurn = state.turn;
+    }
+    if (asBool(a['equipment_known']) == true) {
+      final next = eq.toSet();
+      if (!state.equipmentKnown || next.length != state.equipment.length || !next.containsAll(state.equipment)) {
+        state
+          ..equipment = next
+          ..equipmentKnown = true
+          ..equipmentSource = askedLast == QaAskStep.equipment ? 'answered' : 'user'
+          ..equipmentTurn = state.turn;
+      }
+    }
+    state.avoidJoints.addAll(joints);
+    if (asBool(a['no_floor']) == true) state.noFloor = true;
+    if (asBool(a['quiet']) == true) state.quiet = true;
+    if (asBool(a['easy']) == true) state.easy = true;
+    if (asBool(a['small_space']) == true) state.smallSpace = true;
+    if (asBool(a['red_flag']) case final f?) state.redFlag = f;
+    final lang = _nonEmpty(asString(a['language']));
+    if (lang != null) state.language = lang;
+    if (minutes != null) state.focus = _focusWith(minutes: minutes);
+    return _Outcome.info('已记录。\n${_conditionsBlock()}');
+  }
+
+  _Outcome _search(Map<String, Object?> a, QaAskStep? askedLast, _Run run) {
+    final bad = <String>[];
+    Set<String> ids(String key, Set<String> allowed) {
+      final v = asStringList(a[key]).toSet();
+      final wrong = [for (final x in v) if (!allowed.contains(x)) x];
+      if (wrong.isNotEmpty) bad.add('$key 里这些不是合法 id：${wrong.join(', ')}');
+      return v;
+    }
+
+    final muscles = ids('muscles', _muscleIds.toSet());
+    final stretch = ids('stretch_muscles', _muscleIds.toSet());
+    final types = ids('types', _typeIds.toSet());
+    final roles = ids('roles', _roleIds.toSet());
+    final goals = ids('goals', _goalIds.toSet());
+    final patterns = ids('patterns', _patternIds.toSet());
+    final positions = {...asStringList(a['position']), ?asString(a['position'])};
+    final badPos = [for (final p in positions) if (!_positionIds.contains(p)) p];
+    if (badPos.isNotEmpty) bad.add('position 里这些不是合法姿势 id：${badPos.join(', ')}（可用：${_positionIds.join(', ')}）');
+    final exclude = asStringList(a['exclude']).toSet();
+    final unknown = [for (final id in exclude) if (index[id] == null) id];
+    if (unknown.isNotEmpty) bad.add('exclude 里这些 id 不存在：${unknown.join(', ')}');
+    final limit = asInt(a['limit']) ?? 8;
+    if (limit < 1 || limit > 12) bad.add('limit 要在 1–12 之间');
+    if (bad.isNotEmpty) return _reject('search_actions', bad.join('；'), run);
+    _fillSkipped(askedLast);
+    final focus = QaFocus(
+      muscles: muscles,
+      stretchMuscles: stretch,
+      types: types,
+      goals: goals,
+      roles: roles,
+      patterns: patterns,
+      minutes: state.focus?.minutes,
+      intent: state.focus?.intent ?? 'actions',
+    );
+    final sideOnly = roles.isNotEmpty && !roles.contains('main');
+    if (!sideOnly && (muscles.isNotEmpty || stretch.isNotEmpty || types.isNotEmpty || patterns.isNotEmpty)) state.focus = focus;
+    // 姿势筛选：把其他姿势的动作排除掉（结构化标签，与语言无关）。
+    final otherPosition = positions.isEmpty ? const <String>{} : {for (final x in index.all) if (!positions.contains(x.drill.position)) x.id};
+    final q = _query(focus: focus, exclude: {...exclude, ...otherPosition}, limit: limit);
+    final hits = [for (final h in finder.find(q)) h.action];
+    state.seen.addAll(hits.map((x) => x.id));
+    final scope = jsonEncode(q.scopeOnly.toJson());
+    if (hits.isEmpty) return _Outcome.info('[搜索结果] 0 个：在当前范围 $scope 里没有符合这些条件的动作。');
+    return _Outcome.info('[搜索结果] ${hits.length} 个（都在当前范围 $scope 内，按相关度排序）\n${hits.map(_actionLine).join('\n')}');
+  }
+
+  /// 上一轮问了地点/器械、这轮没得到答案就要动作：按默认补齐，来源记为 skipped（结构化判断，不读用户的话）。
+  void _fillSkipped(QaAskStep? askedLast) {
+    if (askedLast == QaAskStep.place && !state.placeKnown) {
+      state
+        ..place = profile.defaultScene == 'hotel' ? 'home' : profile.defaultScene
+        ..placeSource = 'skipped'
+        ..placeTurn = state.turn;
+    }
+    final eqAsked = askedLast == QaAskStep.equipment || (askedLast == QaAskStep.place && state.placeSource == 'skipped');
+    if (eqAsked && state.place == 'home' && !state.equipmentKnown) {
+      state
+        ..equipmentKnown = true
+        ..equipment = {}
+        ..equipmentSource = 'skipped'
+        ..equipmentTurn = state.turn;
+    }
+  }
+
+  // ---------------------------------------------------------------- 交付类工具
+
+  _Outcome _askUser(Map<String, Object?> a, String text, QaAskStep? askedLast, _Run run) {
+    final stepName = asString(a['step']);
+    final step = QaAskStep.values.where((s) => s.name == stepName).firstOrNull;
+    if (step == null) return _reject('ask_user', 'step 要是 place / equipment / safety', run);
+    final q = asString(a['question'])?.trim() ?? '';
+    final options = [for (final o in asStringList(a['options'])) if (o.trim().isNotEmpty) o.trim()];
+    final multi = asBool(a['multi']);
+    final bad = <String>[];
+    if (q.isEmpty) bad.add('question 不能为空');
+    if (step == askedLast) bad.add('上一轮刚问过 ${step.name}，不能连问；按已知条件或默认条件交结果');
+    if (step == QaAskStep.place && state.placeKnown) {
+      bad.add('地点已知（${state.place}，来源 ${state.placeSource}），不能再问 place；用户要换场地时先 set_conditions place=unknown');
+    }
+    if (step == QaAskStep.equipment && state.place != 'home') bad.add('当前地点不是居家（${state.place ?? 'unknown'}），不能问器械');
+    if (step == QaAskStep.equipment && state.place == 'home' && state.equipmentKnown) {
+      bad.add('器械已知（${state.equipment.join(', ')}，来源 ${state.equipmentSource}），不能再问 equipment');
+    }
+    if (step == QaAskStep.place && options.length != 4) bad.add('place 的 options 要 4 个，现在 ${options.length} 个');
+    if (step == QaAskStep.place && multi == true) bad.add('place 是单选，multi 要为 false');
+    if (step == QaAskStep.equipment && (options.length < 2 || options.length > 6)) bad.add('equipment 的 options 要 2–6 个，现在 ${options.length} 个');
+    if (bad.isNotEmpty) return _reject('ask_user', bad.join('；'), run);
+    if (askedLast == null) {
+      state
+        ..pendingText = text
+        ..pendingFocus = state.focus;
+    }
+    final question = AskUserQuestion.direct(q, options: options, multiple: multi ?? step == QaAskStep.equipment, language: state.language);
+    return _Outcome.done(run.reply(kind: 'ask', text: q, question: question, askStep: step, language: state.language, conditions: _conditions()));
+  }
+
+  /// items 的公共验收：存在、在已见候选里、过准入、不重复、个数。返回问题列表。
+  (List<String>, Map<String, String>, List<String>) _items(Object? raw, {required int min, required int max}) {
+    final ids = <String>[];
+    final why = <String, String>{};
+    final bad = <String>[];
+    for (final it in asList(raw)) {
+      final m = asMap(it);
+      final id = asString(m['id']) ?? '';
       ids.add(id);
       final w = asString(m['why'])?.trim() ?? '';
       if (w.isNotEmpty) why[id] = w;
     }
-    if (ids.isNotEmpty) {
-      state.lastPlan = null;
-      state.lastShown = ids;
-      state.lastWhy = {for (final id in ids) id: why[id] ?? _summary(index[id]!)};
+    if (ids.length < min || ids.length > max) bad.add('items 要 ${min == max ? '$min' : '$min–$max'} 个，现在 ${ids.length} 个');
+    bad.addAll(_idProblems(ids));
+    return (ids, why, bad);
+  }
+
+  /// 一组动作 id 的验收：存在、不重复、在已见候选里、过准入。
+  List<String> _idProblems(List<String> ids, {bool needSeen = true}) {
+    final bad = <String>[];
+    final dup = <String>{};
+    final seenOnce = <String>{};
+    for (final id in ids) {
+      if (!seenOnce.add(id)) dup.add(id);
     }
-    final finalText = await _consistent(asString(args['text']) ?? '', ids, dropped: dropped, run: run);
+    if (dup.isNotEmpty) bad.add('有重复的动作：${dup.join(', ')}');
+    final unknown = [for (final id in ids.toSet()) if (index[id] == null) id];
+    if (unknown.isNotEmpty) bad.add('这些 id 不存在：${unknown.join(', ')}');
+    if (needSeen) {
+      final notSeen = [for (final id in ids.toSet()) if (index[id] != null && !state.seen.contains(id)) id];
+      if (notSeen.isNotEmpty) bad.add('这些 id 不在本轮搜索结果、预选候选或当前卡片里：${notSeen.join(', ')}（先 search_actions 查到再用）');
+    }
+    final scope = _scope();
+    final out = [for (final id in ids.toSet()) if (index[id] != null && !finder.passes(index[id]!, scope)) id];
+    if (out.isNotEmpty) bad.add('这些动作不符合用户当前条件（场景、器械、限制或安全准入），不能用：${out.map((id) => _names(index[id])).join('；')}');
+    return bad;
+  }
+
+  /// 正文只能提 [allowed] 里的动作。
+  String? _textProblem(String text, Set<String> allowed) {
+    if (text.isEmpty) return 'text 不能为空';
+    final off = offCardMentions(text, allowed);
+    if (off.isEmpty) return null;
+    return '正文提到了卡片外的动作：${off.map((id) => _names(index[id])).join('；')}。正文只能提卡片上的动作';
+  }
+
+  _Outcome _showActions(Map<String, Object?> a, QaAskStep? askedLast, _Run run) {
+    _fillSkipped(askedLast);
+    final text = asString(a['text'])?.trim() ?? '';
+    final (ids, why, bad) = _items(a['items'], min: 3, max: 5);
+    if (bad.isEmpty) {
+      final t = _textProblem(text, ids.toSet());
+      if (t != null) bad.add(t);
+    }
+    if (bad.isNotEmpty) return _reject('show_actions', bad.join('；'), run);
+    return _Outcome.done(_deliverCards('recommend', text, ids, why, a, intent: 'actions', run: run));
+  }
+
+  CoachQaReply _deliverCards(String kind, String text, List<String> ids, Map<String, String> why, Map<String, Object?> a, {required String intent, required _Run run}) {
+    state
+      ..lastPlan = null
+      ..lastShown = ids
+      ..lastWhy = {for (final id in ids) id: why[id] ?? _summary(index[id]!)}
+      ..pendingText = null
+      ..pendingFocus = null;
+    state.focus = _focusWith(intent: intent);
     return run.reply(
-      kind: ids.isEmpty ? 'answer' : 'recommend',
-      text: finalText,
+      kind: kind,
+      text: text,
       cards: _cardsFor(ids, why),
-      chips: asStringList(args['chips']),
-      assumption: ids.isNotEmpty && _assumed ? _nonEmpty(asString(args['assumption'])) : null,
+      chips: asStringList(a['chips']),
+      assumption: _assumed ? _nonEmpty(asString(a['assumption'])) : null,
       conditions: _conditions(),
       language: state.language,
     );
   }
 
-  /// 换动作 / 退阶 / 进阶：代码按标签给每个编号列出合格候选，模型挑一个并写理由。
-  Future<CoachQaReply> _swap(String intent, String text, _Run run) async {
+  _Outcome _reply(Map<String, Object?> a, QaAskStep? askedLast, _Run run) {
+    final text = asString(a['text'])?.trim() ?? '';
+    final hasItems = asList(a['items']).isNotEmpty;
+    final bad = <String>[];
+    var ids = <String>[];
+    var why = <String, String>{};
+    if (hasItems) {
+      if (state.redFlag) {
+        bad.add('用户已确认安全危险信号，reply 的 items 必须为空：先建议停止诱发症状的训练并寻求专业评估');
+      } else {
+        _fillSkipped(askedLast);
+        final (i, w, b) = _items(a['items'], min: 1, max: 5);
+        ids = i;
+        why = w;
+        bad.addAll(b);
+      }
+    }
+    if (bad.isEmpty) {
+      final t = _textProblem(text, {...ids, ..._cardIds()});
+      if (t != null) bad.add(t);
+    }
+    if (bad.isNotEmpty) return _reject('reply', bad.join('；'), run);
+    if (ids.isNotEmpty) return _Outcome.done(_deliverCards('recommend', text, ids, why, a, intent: 'answer', run: run));
+    state
+      ..pendingText = null
+      ..pendingFocus = null;
+    return _Outcome.done(run.reply(kind: 'answer', text: text, chips: asStringList(a['chips']), conditions: _conditions(), language: state.language));
+  }
+
+  _Outcome _buildPlan(Map<String, Object?> a, QaAskStep? askedLast, _Run run) {
+    _fillSkipped(askedLast);
+    final text = asString(a['text'])?.trim() ?? '';
+    final mode = asString(a['mode']) ?? 'new';
+    final bad = <String>[];
+    final modeOk = const {'new', 'another', 'retime'}.contains(mode);
+    if (!modeOk) bad.add('mode 要是 new / another / retime');
+    final (mains, names, segOf, segBad) = _planMains(a);
+    bad.addAll(segBad);
+    final warm = asStringList(a['warmup_ids']);
+    final cool = asStringList(a['cooldown_ids']);
+    if (mains.isEmpty) bad.add('主训练不能为空：给 main_ids 或 segments');
+    final minutes = asInt(a['minutes']);
+    if (minutes == null || minutes < 3 || minutes > 60) bad.add('minutes 要是 3–60 的整数');
+    final all = [...warm, ...mains, ...cool];
+    bad.addAll(_idProblems(all));
+    final prev = state.lastPlan;
+    if (mode == 'retime') {
+      if (prev == null) {
+        bad.add('当前没有计划，不能 retime；用 mode=new');
+      } else {
+        final want = prev.mainIds.toSet();
+        final got = mains.toSet();
+        if (got.length != want.length || !got.containsAll(want)) {
+          final missing = want.difference(got);
+          final added = got.difference(want);
+          bad.add('retime 不换动作，主训练集合必须等于当前计划的主训练（${want.join(', ')}）'
+              '${missing.isEmpty ? '' : '；少了 ${missing.join(', ')}'}${added.isEmpty ? '' : '；多了 ${added.join(', ')}'}');
+        }
+      }
+    }
+    if (mode == 'another') {
+      final before = (prev?.mainIds ?? state.lastShown).toSet();
+      final repeated = [for (final id in mains) if (before.contains(id)) id];
+      if (repeated.isNotEmpty) bad.add('再来一套不能和上一套重复：${repeated.join(', ')} 上一套已经有了（search_actions 用 exclude 排除上一套）');
+    }
+    if (bad.isNotEmpty) return _reject('build_plan', bad.join('；'), run);
+    final r = builder.build(
+      mainIds: mains,
+      minutes: minutes!,
+      base: _query(),
+      title: asString(a['title']),
+      blockNames: {for (final e in asMap(a['block_names']).entries) e.key: '${e.value}'},
+      warmIds: warm,
+      coolIds: cool,
+      segmentNames: names,
+      segmentOf: segOf,
+    );
+    final dev = QaPlanBuilder.deviation(r);
+    if (dev.abs() > 0.12) {
+      final target = minutes * 60;
+      final per = r.seconds / (r.orderedIds.isEmpty ? 1 : r.orderedIds.length);
+      final k = ((r.seconds - target).abs() / (per <= 0 ? 60 : per)).ceil().clamp(1, 10);
+      final pct = (dev * 100).round();
+      bad.add('配好组数后约 ${(r.seconds / 60).toStringAsFixed(1)} 分钟，目标 $minutes 分钟，偏差 ${pct > 0 ? '+' : ''}$pct%（允许 ±12%），组数已调到${dev < 0 ? '上限' : '下限'}。'
+          '${dev < 0 ? '建议再加约 $k 个主训练动作（或热身、收操）' : '建议减约 $k 个动作（或去掉热身、收操）'}，或按用户原话调整 minutes');
+    }
+    if (bad.isEmpty) {
+      final t = _textProblem(text, r.orderedIds.toSet());
+      if (t != null) bad.add(t);
+    }
+    if (bad.isNotEmpty) return _reject('build_plan', bad.join('；'), run);
+    state
+      ..lastPlan = r
+      ..lastShown = []
+      ..lastWhy = {}
+      ..pendingText = null
+      ..pendingFocus = null;
+    state.focus = _focusWith(minutes: minutes, intent: 'plan');
+    return _Outcome.done(run.reply(
+      kind: 'plan',
+      text: text,
+      plan: r.plan,
+      planSeconds: r.seconds,
+      chips: asStringList(a['chips']),
+      assumption: _assumed ? _nonEmpty(asString(a['assumption'])) : null,
+      conditions: _conditions(),
+      language: state.language,
+      extraIssues: r.notes,
+    ));
+  }
+
+  _Outcome _swap(Map<String, Object?> a, _Run run) {
+    final text = asString(a['text'])?.trim() ?? '';
+    final mode = asString(a['mode']) ?? 'swap';
     final inPlan = state.lastShown.isEmpty && state.lastPlan != null;
     final list = inPlan ? state.lastPlan!.orderedIds : state.lastShown;
-    final roles = inPlan
-        ? [for (final b in state.lastPlan!.plan.blocks) for (final _ in b.items) switch (b.type) { BlockType.warmup => 'warmup', BlockType.cooldown => 'cooldown', _ => 'main' }]
-        : List.filled(list.length, 'main');
-    var positions = QaForm(run.form).positions;
-    if (positions.isEmpty) {
-      positions = [for (var k = 0; k < list.length; k++) if (intent == 'swap' ? k == 0 : roles[k] == 'main') k + 1];
-      if (intent == 'swap') run.issues.add('swap without positions');
-    }
-    final mode = switch (intent) { 'easier' => QaSwapMode.easier, 'harder' => QaSwapMode.harder, _ => QaSwapMode.any };
-    final base = _query(exclude: {...list});
-    final region = {for (var k = 0; k < list.length; k++) if (roles[k] == 'main') ...?index[list[k]]?.primaryMuscles};
-    final options = <int, List<QaAction>>{};
-    final out = <int>[];
-    final b = StringBuffer();
-    for (final p in positions.toSet()) {
-      if (p < 1 || p > list.length) {
-        out.add(p);
+    final bad = <String>[];
+    final modeOk = const {'swap', 'easier', 'harder'}.contains(mode);
+    if (!modeOk) bad.add('mode 要是 swap / easier / harder');
+    if (list.isEmpty) return _reject('swap', '当前没有卡片，不能换动作；改用 reply 或 show_actions', run, retry: 'reply');
+    final changes = asList(a['changes']);
+    if (changes.isEmpty) bad.add('changes 不能为空；没有合格的替换就改用 reply 如实说明，卡片保持不变');
+    final applied = <int, (String, String)>{};
+    for (final raw in changes) {
+      final m = asMap(raw);
+      final p = asInt(m['position']);
+      final id = asString(m['new_id']) ?? '';
+      if (p == null || p < 1 || p > list.length) {
+        bad.add('position $p 超出卡片范围（卡片一共 ${list.length} 个）');
         continue;
       }
-      final a = index[list[p - 1]];
-      if (a == null) continue;
-      final c = finder.swapCandidates(a, base, mode: mode, focus: (state.focus?.muscles ?? const {}), sessionRegion: region, role: inPlan ? roles[p - 1] : null)
-          .where((x) => x.id != a.id)
-          .toList();
-      options[p] = c;
-      b
-        ..writeln('第 $p 个（${roles[p - 1]}）原动作：${_actionLine(a)}')
-        ..writeln(c.isEmpty ? '  候选：（无，没有合格的替换）' : c.map((x) => '  候选：${_actionLine(x)}').join('\n'));
-    }
-    final ctx = StringBuffer()
-      ..writeln('[当前步骤] 第 2 步 B：给结果。intent = $intent。用户语言：${state.language}。调用 swap。')
-      ..writeln(_conditionsBlock())
-      ..writeln(_cardsBlock())
-      ..writeln('[可替换]')
-      ..write(b)
-      ..writeln(out.isEmpty ? '' : '[超出范围的编号] ${out.join(', ')}（卡片一共 ${list.length} 个）')
-      ..writeln('[用户这句话] $text');
-    final args = await _call(step: 'answer', tool: _swapTool, context: ctx.toString(), run: run, validate: (a) {
-      for (final ch in asList(a['changes'])) {
-        final m = asMap(ch);
-        final p = asInt(m['position']);
-        final id = asString(m['new_id']);
-        if (p == null || !options.containsKey(p)) return 'position $p 不在要换的编号里（${options.keys.join(', ')}）';
-        if (!options[p]!.any((x) => x.id == id)) return '第 $p 个只能从它的候选里选，$id 不是它的候选';
+      if (applied.containsKey(p)) {
+        bad.add('第 $p 个重复出现');
+        continue;
       }
-      return null;
-    });
-    final changes = <int, (String, String)>{};
-    final used = <String>{};
-    for (final ch in asList(args['changes'])) {
-      final m = asMap(ch);
-      final p = asInt(m['position'])!;
-      final id = asString(m['new_id'])!;
-      if (changes.containsKey(p) || used.contains(id)) continue;
-      changes[p] = (id, asString(m['why'])?.trim() ?? '');
-      used.add(id);
+      final old = index[list[p - 1]];
+      final b = index[id];
+      if (b == null) {
+        bad.add('第 $p 个的 new_id $id 不存在');
+        continue;
+      }
+      if (list.contains(id) || applied.values.any((v) => v.$1 == id)) {
+        bad.add('第 $p 个的 new_id $id 已经在卡片上');
+        continue;
+      }
+      if (!finder.passes(b, _scope())) bad.add('第 $p 个的 new_id ${_names(b)} 不符合用户当前条件（场景、器械、限制或安全准入）');
+      if (old != null) {
+        if (mode == 'easier' && b.difficulty >= old.difficulty) bad.add('第 $p 个要更简单：${_names(b)} 难度 ${b.difficulty}，原动作难度 ${old.difficulty}');
+        if (mode == 'harder' && b.difficulty <= old.difficulty) bad.add('第 $p 个要更难：${_names(b)} 难度 ${b.difficulty}，原动作难度 ${old.difficulty}');
+        if (!QaFinder.sameArea(old, b)) bad.add('第 $p 个要练同一处：${_names(b)} 和原动作 ${_names(old)} 的主动肌、拉伸肌没有交集');
+      }
+      applied[p] = (id, asString(m['why'])?.trim() ?? '');
     }
-    final kind = changes.isEmpty ? 'answer' : (intent == 'swap' ? 'replace' : intent);
-    final replacedOld = [for (final p in changes.keys) list[p - 1]];
+    if (bad.isEmpty) {
+      final next = [...list];
+      for (final e in applied.entries) {
+        next[e.key - 1] = e.value.$1;
+      }
+      final t = _textProblem(text, {...next, for (final p in applied.keys) list[p - 1]});
+      if (t != null) bad.add(t);
+    }
+    if (bad.isNotEmpty) return _reject('swap', bad.join('；'), run);
+    final kind = mode == 'swap' ? 'replace' : mode;
+    state
+      ..pendingText = null
+      ..pendingFocus = null;
     if (inPlan) {
       var r = state.lastPlan!;
-      for (final e in changes.entries) {
+      for (final e in applied.entries) {
         r = _swapInPlan(r, e.key - 1, e.value.$1);
       }
       state.lastPlan = r;
-      final finalText = await _consistent(asString(args['text']) ?? '', r.orderedIds, also: replacedOld, run: run);
-      return run.reply(
+      return _Outcome.done(run.reply(
         kind: kind,
-        text: finalText,
+        text: text,
         plan: r.plan,
         planSeconds: r.seconds,
-        chips: asStringList(args['chips']),
-        assumption: null,
+        chips: asStringList(a['chips']),
         conditions: _conditions(),
         language: state.language,
-      );
+      ));
     }
     final ids = [...list];
     final why = {...state.lastWhy};
-    for (final e in changes.entries) {
+    for (final e in applied.entries) {
       ids[e.key - 1] = e.value.$1;
       why[e.value.$1] = e.value.$2.isEmpty ? _summary(index[e.value.$1]!) : e.value.$2;
     }
-    state.lastShown = ids;
-    state.lastWhy = why;
-    final finalText = await _consistent(asString(args['text']) ?? '', ids, also: replacedOld, run: run);
-    return run.reply(
+    state
+      ..lastShown = ids
+      ..lastWhy = why;
+    return _Outcome.done(run.reply(
       kind: kind,
-      text: finalText,
+      text: text,
       cards: _cardsFor(ids, why),
-      chips: asStringList(args['chips']),
+      chips: asStringList(a['chips']),
       conditions: _conditions(),
       language: state.language,
-    );
-  }
-
-  List<String> _blockIds(BlockType t) => [
-    for (final b in state.lastPlan?.plan.blocks ?? const <PlanBlock>[])
-      if (b.type == t) for (final i in b.items) i.exerciseId,
-  ];
-
-  /// 范围缺口：点名的部位在当前范围里一个主练动作都没有时，结构化地告诉模型（最接近的范围内动作 + 加什么器械就有）。
-  List<String> _gap(QaQuery q) {
-    final s = state.place ?? profile.defaultScene;
-    if (s == 'gym' || q.muscles.isEmpty) return const [];
-    final scope = finder.inScope(q);
-    final out = <String>[];
-    for (final m in q.muscles) {
-      if (scope.any((a) => a.primaryMuscles.contains(m))) continue;
-      final closest = scope.where((a) => a.secondaryMuscles.contains(m)).take(2).map((a) => a.id).toList();
-      String? unlock;
-      if (s == 'home' && _strict) {
-        for (final e in const ['dumbbell', 'band', 'mat', 'chair']) {
-          if (state.equipment.contains(e)) continue;
-          final q2 = QaQuery(scene: 'home', equipment: {...state.equipment, e}, strict: true, avoidJoints: q.avoidJoints, noFloor: q.noFloor, maxImpact: q.maxImpact);
-          if (index.all.any((a) => a.primaryMuscles.contains(m) && finder.passes(a, q2))) {
-            unlock = e;
-            break;
-          }
-        }
-      }
-      out.add('muscle=$m：范围内主练它的动作 0 个；辅助练到它的范围内动作：${closest.isEmpty ? '无' : closest.join(', ')}；'
-          '${unlock == null ? '加常见家用器械也没有' : '加 $unlock 就有主练它的动作（只说器械，不说范围外的动作名）'}');
-    }
-    return out;
-  }
-
-  // ---------------------------------------------------------------- 第 3 步：一致性
-
-  /// 正文提到卡片外的动作名，或有动作因越界被去掉 → 带着最终清单让模型重写一次。
-  Future<String> _consistent(String text, List<String> finalIds, {List<String> dropped = const [], List<String> also = const [], required _Run run}) async {
-    final off = offCardMentions(text, {...finalIds, ...also});
-    if (off.isEmpty && dropped.isEmpty) return text.trim();
-    run.issues.add('rewrite: off-card ${off.join(',')} dropped ${dropped.join(',')}');
-    final ctx = StringBuffer()
-      ..writeln('[当前步骤] 第 3 步：改写正文。用户语言：${state.language}。调用 rewrite。')
-      ..writeln('[原正文] $text')
-      ..writeln('[最终卡片]')
-      ..writeln([for (var k = 0; k < finalIds.length; k++) '${k + 1}. ${_names(index[finalIds[k]])}'].join('\n'))
-      ..writeln(also.isEmpty ? '' : '[本轮被换掉的原动作，可以提] ${also.map((id) => _names(index[id])).join('；')}')
-      ..writeln(off.isEmpty ? '' : '[正文提到但不在卡片上的动作] ${off.map((id) => _names(index[id])).join('；')}')
-      ..writeln(dropped.isEmpty ? '' : '[因超出用户条件被去掉的动作] ${dropped.map((id) => _names(index[id])).join('；')}');
-    final args = await _call(step: 'rewrite', tool: _rewriteTool, context: ctx.toString(), run: run, validate: (a) {
-      final t = asString(a['text'])?.trim() ?? '';
-      if (t.isEmpty) return 'text 不能为空';
-      final still = offCardMentions(t, {...finalIds, ...also, ...dropped});
-      if (still.isNotEmpty) return '正文仍提到卡片外的动作：${still.map((id) => _names(index[id])).join('；')}';
-      return null;
-    });
-    return (asString(args['text']) ?? text).trim();
+    ));
   }
 
   /// 正文里出现的、不在 [allowed] 里的动作（按目录里各语言的名字字面匹配，与语言无关）。
@@ -814,64 +873,71 @@ final class CoachQaAgent {
     return out;
   }
 
-  // ---------------------------------------------------------------- 模型调用
+  // ---------------------------------------------------------------- 状态与范围
 
-  Future<Map<String, Object?>> _call({
-    required String step,
-    required LlmTool tool,
-    required String context,
-    required _Run run,
-    String? Function(Map<String, Object?>)? validate,
-  }) async {
-    final messages = <LlmMessage>[
-      LlmMessage.system('$sop\n\n---\n应用：${profile.appName}。\n${profile.focus}'),
-      for (final (u, a) in state.history) ...[LlmMessage.user(u), LlmMessage.assistant(a)],
-      LlmMessage.user(context),
-    ];
-    for (var attempt = 0; attempt <= maxRetriesPerStep; attempt++) {
-      final sw = Stopwatch()..start();
-      final LlmResponse res;
-      try {
-        res = await client.complete(LlmRequest(
-          messages: messages,
-          tools: [tool],
-          toolChoice: 'auto',
-          maxTokens: maxTokens,
-          extraBody: thinking,
-        ));
-      } catch (e) {
-        run.steps.add(QaStepLog(step, sw.elapsedMilliseconds, ok: false));
-        run.calls++;
-        run.issues.add('$step: $e');
-        continue;
-      }
-      run.calls++;
-      run.usage = run.usage + res.usage;
-      final call = res.toolCalls.where((c) => c.name == tool.name).firstOrNull;
-      if (call == null) {
-        run.steps.add(QaStepLog(step, sw.elapsedMilliseconds, ok: false));
-        messages
-          ..add(LlmMessage.assistant(res.content, reasoning: res.reasoning))
-          ..add(LlmMessage.user('请调用 ${tool.name} 工具交结果。'));
-        continue;
-      }
-      run.trace.add(tool.name);
-      Map<String, Object?> args;
-      try {
-        args = asMap(jsonDecode(call.arguments));
-      } catch (_) {
-        args = const {};
-      }
-      final problem = validate?.call(args);
-      run.steps.add(QaStepLog(step, sw.elapsedMilliseconds, ok: problem == null));
-      if (problem == null) return args;
-      run.issues.add('$step retry: $problem');
-      messages
-        ..add(LlmMessage.assistant(res.content, toolCalls: [call], reasoning: res.reasoning))
-        ..add(LlmMessage.tool(call.id, '不合规：$problem。请改好后重新调用 ${tool.name}。'));
-    }
-    throw _StepFailed(step, 'no valid ${tool.name} after ${maxRetriesPerStep + 1} tries');
+  bool get _strict {
+    if (!state.placeKnown) return false;
+    return state.place == 'home' ? state.equipmentKnown : true;
   }
+
+  QaFocus _focusWith({int? minutes, String? intent}) {
+    final f = state.focus ?? const QaFocus();
+    return QaFocus(
+      muscles: f.muscles,
+      stretchMuscles: f.stretchMuscles,
+      types: f.types,
+      goals: f.goals,
+      roles: f.roles,
+      patterns: f.patterns,
+      minutes: minutes ?? f.minutes,
+      intent: intent ?? f.intent,
+    );
+  }
+
+  QaQuery _query({QaFocus? focus, Set<String> exclude = const {}, int limit = 12}) {
+    final f = focus ?? const QaFocus();
+    return QaQuery(
+      scene: state.place ?? profile.defaultScene,
+      equipment: state.equipment,
+      strict: _strict,
+      muscles: f.muscles,
+      stretchMuscles: f.stretchMuscles,
+      types: f.types,
+      goals: f.goals,
+      roles: f.roles,
+      patterns: f.patterns,
+      avoidJoints: state.avoidJoints,
+      noFloor: state.noFloor,
+      smallSpace: state.smallSpace,
+      maxImpact: state.quiet ? 'none' : null,
+      maxDifficulty: state.easy ? 2 : null,
+      targetDifficulty: state.easy ? 1 : 2,
+      preferEquipment: state.equipment.difference(const {'mat', 'chair'}),
+      exclude: exclude,
+      limit: limit,
+    );
+  }
+
+  QaQuery _scope() => _query().scopeOnly;
+
+  List<String> _cardIds() => [...state.lastShown, ...?state.lastPlan?.orderedIds];
+
+  bool get _assumed {
+    if (!state.placeKnown) return true;
+    const given = {'user', 'answered'};
+    final eqOk = state.place != 'home' || given.contains(state.equipmentSource);
+    final latest = state.place == 'home' && state.equipmentTurn > state.placeTurn ? state.equipmentTurn : state.placeTurn;
+    return !(given.contains(state.placeSource) && eqOk && latest == state.turn);
+  }
+
+  Map<String, Object?> _conditions() => {
+    'place': state.place,
+    if (state.placeWord != null) 'placeWord': state.placeWord,
+    'placeSource': state.placeSource,
+    if (state.place == 'home') 'equipment': state.equipmentKnown ? state.equipment.toList() : null,
+    if (state.place == 'home') 'equipmentSource': state.equipmentSource,
+    'assumed': _assumed,
+  };
 
   // ---------------------------------------------------------------- 给模型看的结构化块
 
@@ -885,6 +951,7 @@ final class CoachQaAgent {
     }
     if (state.place == 'gym') b.write(' equipment=全库');
     if (state.place == 'office') b.write(' equipment=椅子+徒手，不躺地');
+    if (!state.placeKnown) b.write('（地点未知时搜索按 ${profile.defaultScene} 的宽松范围）');
     final lim = [
       if (state.avoidJoints.isNotEmpty) 'avoid_joints=${state.avoidJoints.join(',')}',
       if (state.noFloor) 'no_floor',
@@ -893,20 +960,19 @@ final class CoachQaAgent {
       if (state.smallSpace) 'small_space',
     ];
     if (lim.isNotEmpty) b.write(' 限制：${lim.join(' ')}');
+    if (state.redFlag) b.write('\n[安全] 用户已确认危险信号 red_flag=true（reply 不能附动作）');
     final f = state.focus;
     if (f != null) {
-      b.write('\n[上次的焦点] intent=${f.intent} muscles=${f.muscles.join(',')} stretch=${f.stretchMuscles.join(',')} types=${f.types.join(',')}${f.minutes == null ? '' : ' minutes=${f.minutes}'}');
+      b.write('\n[上次的焦点] muscles=${f.muscles.join(',')} stretch=${f.stretchMuscles.join(',')} types=${f.types.join(',')}${f.minutes == null ? '' : ' minutes=${f.minutes}'}');
     }
-    b.write('\n[条件是否假设] ${_assumed ? '是（不是用户这轮刚给的：写 assumption）' : '否（用户刚给的：assumption 留空）'}');
+    b.write('\n[条件是否假设] ${_assumed ? '是（不是用户这轮刚给的：交付时写 assumption）' : '否（用户刚给的：assumption 留空）'}');
     return b.toString();
   }
-
-  String _scopeBlock(QaQuery q) => '[范围] ${jsonEncode(q.scopeOnly.toJson())}；范围内动作共 ${finder.inScope(q).length} 个';
 
   String _cardsBlock() {
     final plan = state.lastPlan;
     if (state.lastShown.isNotEmpty) {
-      return '[卡片]（动作卡，按展示顺序编号）\n${[for (var k = 0; k < state.lastShown.length; k++) '${k + 1}. ${_actionLine(index[state.lastShown[k]]!)}'].join('\n')}';
+      return '[当前卡片]（动作卡，按展示顺序编号）\n${[for (var k = 0; k < state.lastShown.length; k++) '${k + 1}. ${_actionLine(index[state.lastShown[k]]!)}'].join('\n')}';
     }
     if (plan != null) {
       final rows = <String>[];
@@ -915,15 +981,40 @@ final class CoachQaAgent {
         for (final it in bl.items) {
           k++;
           final a = index[it.exerciseId];
-          rows.add('$k. [${bl.type.name}] ${a == null ? it.exerciseId : _actionLine(a)}');
+          rows.add('$k. [${bl.type.name}${bl.type == BlockType.main ? ':${bl.name}' : ''}] ${a == null ? it.exerciseId : _actionLine(a)}');
         }
       }
-      return '[卡片]（计划，全部动作连续编号，含热身和收操；目标 ${plan.plan.targetMinutes} 分钟）\n${rows.join('\n')}';
+      return '[当前卡片]（计划，全部动作连续编号，含热身和收操；目标 ${plan.plan.targetMinutes} 分钟，当前约 ${(plan.seconds / 60).toStringAsFixed(1)} 分钟）\n${rows.join('\n')}';
     }
-    return '[卡片] 无';
+    return '[当前卡片] 无';
   }
 
   static String _names(QaAction? a) => a == null ? '?' : '${a.id}（${a.drill.name.values.values.toSet().join(' / ')}）';
+
+  /// build_plan 的主训练：有 segments 用 segments（顺序即各段先后），否则用 main_ids。
+  (List<String>, List<String>, Map<String, int>, List<String>) _planMains(Map<String, Object?> a) {
+    final segs = asList(a['segments']);
+    if (segs.isEmpty) return (asStringList(a['main_ids']), const <String>[], const <String, int>{}, const <String>[]);
+    final ids = <String>[];
+    final names = <String>[];
+    final of = <String, int>{};
+    final bad = <String>[];
+    for (final (k, raw) in segs.indexed) {
+      final m = asMap(raw);
+      final name = (asString(m['name']) ?? '').trim();
+      final seg = asStringList(m['ids']);
+      if (name.isEmpty || seg.isEmpty) {
+        bad.add('segments 第 ${k + 1} 段要有 name 和非空 ids');
+        continue;
+      }
+      for (final id in seg) {
+        ids.add(id);
+        of.putIfAbsent(id, () => names.length);
+      }
+      names.add(name);
+    }
+    return (ids, names, of, bad);
+  }
 
   String _actionLine(QaAction a) => [
     a.id,
@@ -936,6 +1027,7 @@ final class CoachQaAgent {
     '难度${a.difficulty}',
     '器械:${a.requiredEquipment.isEmpty ? '无' : a.requiredEquipment.join(',')}',
     a.floorRequired ? '躺地' : '不躺地',
+    '姿势:${a.drill.position}',
     '冲击:${a.impact}',
     '关节:${[for (final e in a.jointStress.entries) if (e.value != 'none') '${e.key}=${e.value}'].join(',')}',
     _summary(a),
@@ -947,7 +1039,6 @@ final class CoachQaAgent {
     for (final id in ids)
       if (index[id] != null) CoachQaCard(id: id, name: index[id]!.name(state.language), why: why[id] ?? _summary(index[id]!)),
   ];
-
   /// 把计划里卡片编号为 [pos] + 1 的那一个动作（全部动作连续编号，含热身/收操）换成 [to]。
   QaPlanResult _swapInPlan(QaPlanResult r, int pos, String to) {
     final a = index[to]!;
@@ -986,7 +1077,10 @@ final class CoachQaAgent {
       summary: p.summary,
       goal: p.goal,
       scene: p.scene,
-      equipment: p.equipment,
+      equipment: builder.equipmentFor([
+        for (final block in blocks)
+          for (final item in block.items) item.exerciseId,
+      ]),
       level: p.level,
       targetMinutes: p.targetMinutes,
       blocks: blocks,
@@ -1015,144 +1109,166 @@ final class CoachQaAgent {
     'chest', 'triceps', 'biceps', 'deltoids', 'lats', 'scapular', 'rotator-cuff', 'serratus', 'forearms', 'upper-traps',
     'hip-flexors', 'hip-rotators', 'peroneals', 'neck',
   ];
+  static const _typeIds = ['strength', 'cardio', 'stability-control', 'balance', 'mobility', 'dynamic-stretch', 'static-stretch', 'breathing'];
+  static const _goalIds = ['strength', 'hypertrophy', 'fat-loss', 'mobility', 'posture', 'recovery', 'desk-relief', 'performance'];
+  static const _roleIds = ['warmup', 'main', 'cooldown'];
+  static const _patternIds = [
+    'squat', 'lunge', 'hinge', 'push-horizontal', 'push-vertical', 'pull-horizontal', 'pull-vertical', 'anti-extension', 'anti-rotation',
+    'anti-lateral-flexion', 'rotation', 'carry', 'gait', 'isolation',
+  ];
+  static const _jointIds = ['knee', 'shoulder', 'lumbar', 'wrist', 'neck', 'ankle', 'hip'];
+  static const _homeEquipment = ['dumbbell', 'mat', 'chair', 'band', 'kettlebell', 'pullup-bar', 'foam-roller'];
 
-  static final _fillFormTool = LlmTool(
-    name: 'fill_form',
-    description: 'SOP 第 1 步：把对用户这句话的理解填成结构化表。',
-    parameters: {
+  /// 合法器械 id：常见家用器械 + 目录 taxonomy 里的器械。
+  late final Set<String> _equipmentIds = {..._homeEquipment, ...index.equipmentCatalog().taxonomy.equipment.keys};
+
+  /// 合法姿势 id：目录 taxonomy 里的姿势 + 动作实际用到的姿势。
+  late final List<String> _positionIds = {...index.catalog.taxonomy.positions.keys, for (final a in index.all) a.drill.position}.toList();
+
+  static const _itemSchema = {
+    'type': 'array',
+    'items': {
       'type': 'object',
-      'properties': {
-        'language': {'type': 'string', 'description': '用户语言，BCP-47（zh/en/ja/es…）'},
-        'intent': {
-          'type': 'string',
-          'enum': ['actions', 'plan', 'knowledge', 'safety', 'swap', 'easier', 'harder', 'retime', 'another', 'use_these', 'change_place', 'answer_pending', 'chat'],
+      'properties': {'id': {'type': 'string'}, 'why': {'type': 'string'}},
+      'required': ['id', 'why'],
+    },
+  };
+
+  late final List<LlmTool> _tools = [
+    const LlmTool(
+      name: 'set_conditions',
+      description: '记录用户的条件（地点、器械、限制、时长、语言、安全危险信号）。只填这轮有变化的字段；返回更新后的 [已知条件]。',
+      parameters: {
+        'type': 'object',
+        'properties': {
+          'place': {'type': 'string', 'enum': ['home', 'gym', 'office', 'unknown'], 'description': 'unknown = 清空地点（用户要换场地）'},
+          'place_word': {'type': 'string', 'description': '用户对地点的原话说法（如 酒店 / 宿舍 / hotel）'},
+          'equipment_known': {'type': 'boolean'},
+          'equipment': {'type': 'array', 'items': {'type': 'string'}, 'description': '器械 id：dumbbell / mat / chair / band / kettlebell / pullup-bar / foam-roller'},
+          'avoid_joints': {'type': 'array', 'items': {'type': 'string', 'enum': _jointIds}},
+          'no_floor': {'type': 'boolean'},
+          'quiet': {'type': 'boolean'},
+          'easy': {'type': 'boolean'},
+          'small_space': {'type': 'boolean'},
+          'minutes': {'type': 'integer'},
+          'language': {'type': 'string', 'description': '用户语言，BCP-47（zh/en/ja/es…）'},
+          'red_flag': {'type': 'boolean', 'description': '用户已确认安全危险信号（发力刺痛、卡住、麻木等）'},
         },
-        'answer_status': {'type': 'string', 'enum': ['none', 'answered', 'skipped']},
-        'place': {'type': 'string', 'enum': ['home', 'gym', 'office', 'unknown']},
-        'place_word': {'type': 'string', 'description': '用户对地点的原话说法（如 酒店 / 宿舍 / hotel）'},
-        'equipment_known': {'type': 'boolean'},
-        'equipment': {
-          'type': 'array',
-          'items': {'type': 'string', 'enum': ['dumbbell', 'mat', 'chair', 'band', 'kettlebell', 'pullup-bar', 'foam-roller']},
+      },
+    ),
+    const LlmTool(
+      name: 'search_actions',
+      description: '查动作库：按结构化标签返回当前条件范围内的动作行（带姿势、躺地、器械、关节负担标签），范围外的不返回。',
+      parameters: {
+        'type': 'object',
+        'properties': {
+          'muscles': {'type': 'array', 'items': {'type': 'string', 'enum': _muscleIds}},
+          'stretch_muscles': {'type': 'array', 'items': {'type': 'string', 'enum': _muscleIds}},
+          'types': {'type': 'array', 'items': {'type': 'string', 'enum': _typeIds}},
+          'roles': {'type': 'array', 'items': {'type': 'string', 'enum': _roleIds}},
+          'goals': {'type': 'array', 'items': {'type': 'string', 'enum': _goalIds}},
+          'patterns': {'type': 'array', 'items': {'type': 'string', 'enum': _patternIds}},
+          'position': {'type': 'array', 'items': {'type': 'string'}, 'description': '姿势 id：standing / seated / supine / prone / quadruped / kneeling / side_lying / support / hanging'},
+          'exclude': {'type': 'array', 'items': {'type': 'string'}},
+          'limit': {'type': 'integer', 'description': '1–12，默认 8'},
         },
-        'muscles': {'type': 'array', 'items': {'type': 'string', 'enum': _muscleIds}},
-        'stretch_muscles': {'type': 'array', 'items': {'type': 'string', 'enum': _muscleIds}},
-        'types': {
-          'type': 'array',
-          'items': {'type': 'string', 'enum': ['strength', 'cardio', 'stability-control', 'balance', 'mobility', 'dynamic-stretch', 'static-stretch', 'breathing']},
+      },
+    ),
+    const LlmTool(
+      name: 'ask_user',
+      description: '交付：问用户一个问题（用户语言）。',
+      parameters: {
+        'type': 'object',
+        'properties': {
+          'step': {'type': 'string', 'enum': ['place', 'equipment', 'safety']},
+          'question': {'type': 'string'},
+          'options': {'type': 'array', 'items': {'type': 'string'}},
+          'multi': {'type': 'boolean'},
         },
-        'goals': {
-          'type': 'array',
-          'items': {'type': 'string', 'enum': ['strength', 'hypertrophy', 'fat-loss', 'mobility', 'posture', 'recovery', 'desk-relief', 'performance']},
+        'required': ['step', 'question', 'options'],
+      },
+    ),
+    const LlmTool(
+      name: 'show_actions',
+      description: '交付：推荐 3–5 个动作卡。',
+      parameters: {
+        'type': 'object',
+        'properties': {
+          'text': {'type': 'string'},
+          'items': _itemSchema,
+          'assumption': {'type': 'string'},
+          'chips': {'type': 'array', 'items': {'type': 'string'}},
         },
-        'roles': {'type': 'array', 'items': {'type': 'string', 'enum': ['warmup', 'main', 'cooldown']}},
-        'patterns': {
-          'type': 'array',
-          'items': {
-            'type': 'string',
-            'enum': ['squat', 'lunge', 'hinge', 'push-horizontal', 'push-vertical', 'pull-horizontal', 'pull-vertical', 'anti-extension', 'anti-rotation', 'anti-lateral-flexion', 'rotation', 'carry', 'gait', 'isolation'],
+        'required': ['text', 'items', 'chips'],
+      },
+    ),
+    const LlmTool(
+      name: 'build_plan',
+      description: '交付：排一套训练。动作、顺序、分段、热身、收操都以你给的为准；代码只配组数时长并验收，不合格退回原因。',
+      parameters: {
+        'type': 'object',
+        'properties': {
+          'mode': {'type': 'string', 'enum': ['new', 'another', 'retime'], 'description': 'new 新排；another 再来一套（不和上一套重复）；retime 动作不变（改时长、顺序、分段）'},
+          'title': {'type': 'string'},
+          'text': {'type': 'string'},
+          'minutes': {'type': 'integer'},
+          'main_ids': {'type': 'array', 'items': {'type': 'string'}},
+          'segments': {
+            'type': 'array',
+            'description': '可选：主训练分段，按顺序；给了就以它为准，不用 main_ids。',
+            'items': {
+              'type': 'object',
+              'properties': {'name': {'type': 'string'}, 'ids': {'type': 'array', 'items': {'type': 'string'}}},
+              'required': ['name', 'ids'],
+            },
           },
-        },
-        'avoid_joints': {'type': 'array', 'items': {'type': 'string', 'enum': ['knee', 'shoulder', 'lumbar', 'wrist', 'neck', 'ankle', 'hip']}},
-        'no_floor': {'type': 'boolean'},
-        'quiet': {'type': 'boolean'},
-        'easy': {'type': 'boolean'},
-        'small_space': {'type': 'boolean'},
-        'minutes': {'type': 'integer'},
-        'positions': {'type': 'array', 'items': {'type': 'integer'}, 'description': '卡片编号（从 1 起，计划含热身收操）'},
-        'next': {'type': 'string', 'enum': ['ask_place', 'ask_equipment', 'ask_safety', 'answer']},
-        'note': {'type': 'string'},
-      },
-      'required': ['language', 'intent', 'answer_status', 'place', 'equipment_known', 'next'],
-    },
-  );
-
-  static const _askTool = LlmTool(
-    name: 'ask_user',
-    description: 'SOP 第 2 步 A：问用户一个问题（用户语言）。',
-    parameters: {
-      'type': 'object',
-      'properties': {
-        'question': {'type': 'string'},
-        'options': {'type': 'array', 'items': {'type': 'string'}},
-      },
-      'required': ['question', 'options'],
-    },
-  );
-
-  static const _respondTool = LlmTool(
-    name: 'respond',
-    description: 'SOP 第 2 步 B：回答并附动作卡（actions / knowledge / safety / chat）。',
-    parameters: {
-      'type': 'object',
-      'properties': {
-        'text': {'type': 'string'},
-        'items': {
-          'type': 'array',
-          'items': {
+          'warmup_ids': {'type': 'array', 'items': {'type': 'string'}, 'description': '热身动作（从 roles=warmup 的搜索结果里选）；不给就没有热身'},
+          'cooldown_ids': {'type': 'array', 'items': {'type': 'string'}, 'description': '收操动作（从 roles=cooldown 的搜索结果里选）；不给就没有收操'},
+          'block_names': {
             'type': 'object',
-            'properties': {'id': {'type': 'string'}, 'why': {'type': 'string'}},
-            'required': ['id', 'why'],
+            'properties': {'warmup': {'type': 'string'}, 'main': {'type': 'string'}, 'cooldown': {'type': 'string'}},
           },
+          'assumption': {'type': 'string'},
+          'chips': {'type': 'array', 'items': {'type': 'string'}},
         },
-        'assumption': {'type': 'string'},
-        'chips': {'type': 'array', 'items': {'type': 'string'}},
+        'required': ['mode', 'title', 'text', 'minutes', 'chips'],
       },
-      'required': ['text', 'items', 'chips'],
-    },
-  );
-
-  static const _planTool = LlmTool(
-    name: 'build_plan',
-    description: 'SOP 第 2 步 B：排一套训练（plan / another / use_these / retime）。只给主训练，热身收操组数时长由代码排。',
-    parameters: {
-      'type': 'object',
-      'properties': {
-        'title': {'type': 'string'},
-        'text': {'type': 'string'},
-        'minutes': {'type': 'integer'},
-        'main_ids': {'type': 'array', 'items': {'type': 'string'}},
-        'block_names': {
-          'type': 'object',
-          'properties': {'warmup': {'type': 'string'}, 'main': {'type': 'string'}, 'cooldown': {'type': 'string'}},
-        },
-        'assumption': {'type': 'string'},
-        'chips': {'type': 'array', 'items': {'type': 'string'}},
-      },
-      'required': ['title', 'text', 'minutes', 'main_ids', 'chips'],
-    },
-  );
-
-  static const _swapTool = LlmTool(
-    name: 'swap',
-    description: 'SOP 第 2 步 B：换动作 / 退阶 / 进阶。每个编号只能从它的候选里选。',
-    parameters: {
-      'type': 'object',
-      'properties': {
-        'text': {'type': 'string'},
-        'changes': {
-          'type': 'array',
-          'items': {
-            'type': 'object',
-            'properties': {'position': {'type': 'integer'}, 'new_id': {'type': 'string'}, 'why': {'type': 'string'}},
-            'required': ['position', 'new_id', 'why'],
+    ),
+    const LlmTool(
+      name: 'swap',
+      description: '交付：换卡片上第 N 个动作 / 退阶 / 进阶。编号按 [当前卡片]；其他编号不变。',
+      parameters: {
+        'type': 'object',
+        'properties': {
+          'mode': {'type': 'string', 'enum': ['swap', 'easier', 'harder']},
+          'text': {'type': 'string'},
+          'changes': {
+            'type': 'array',
+            'items': {
+              'type': 'object',
+              'properties': {'position': {'type': 'integer'}, 'new_id': {'type': 'string'}, 'why': {'type': 'string'}},
+              'required': ['position', 'new_id', 'why'],
+            },
           },
+          'chips': {'type': 'array', 'items': {'type': 'string'}},
         },
-        'chips': {'type': 'array', 'items': {'type': 'string'}},
+        'required': ['mode', 'text', 'changes', 'chips'],
       },
-      'required': ['text', 'changes', 'chips'],
-    },
-  );
-
-  static const _rewriteTool = LlmTool(
-    name: 'rewrite',
-    description: 'SOP 第 3 步：按最终卡片改写正文。',
-    parameters: {
-      'type': 'object',
-      'properties': {'text': {'type': 'string'}},
-      'required': ['text'],
-    },
-  );
+    ),
+    const LlmTool(
+      name: 'reply',
+      description: '交付：文字回答（知识、安全、闲聊、没有合格替换时）。items 可空。',
+      parameters: {
+        'type': 'object',
+        'properties': {
+          'text': {'type': 'string'},
+          'items': _itemSchema,
+          'chips': {'type': 'array', 'items': {'type': 'string'}},
+        },
+        'required': ['text', 'chips'],
+      },
+    ),
+  ];
 }
 
 final class _StepFailed implements Exception {
@@ -1161,7 +1277,17 @@ final class _StepFailed implements Exception {
   final String why;
 }
 
-/// 一轮里的累计：调用次数、用量、每步耗时、问题。
+/// 一次工具调用的结果：信息（继续）、退回（继续）或交付（本轮结束）。
+final class _Outcome {
+  const _Outcome.info(this.result) : reply = null, rejected = false;
+  const _Outcome.rejected(this.result) : reply = null, rejected = true;
+  const _Outcome.done(CoachQaReply this.reply) : result = '', rejected = false;
+  final String result;
+  final CoachQaReply? reply;
+  final bool rejected;
+}
+
+/// 一轮里的累计：调用次数、用量、每次调用耗时、问题。
 final class _Run {
   _Run(this.sw);
   final Stopwatch sw;

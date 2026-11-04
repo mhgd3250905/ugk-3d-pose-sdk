@@ -1,0 +1,358 @@
+// Instantiated into SDK build by qa_v2_fixes_live.ps1. No ordinary offline
+// suite reads credentials or sends model requests through this opt-in runner.
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/io_client.dart';
+import 'package:smartfit/app/app_test_catalog.dart' as sf_catalog;
+import 'package:smartfit/app/app_test_content.dart' as sf_content;
+import 'package:smartfit/app/coach_chat_scope.dart' as sf_scope;
+import 'package:smartfit/domain/exercise.dart' as sf_exercise;
+import 'package:smartfit/domain/session.dart' as sf_session;
+import 'package:flare/coach/flare_coach_profile.dart' as flare_profile;
+import 'package:flare/data/flare_action_scope.dart' as flare_scope;
+import 'package:flare/data/flare_public_catalog.dart' as flare_catalog;
+import 'package:ugk_coach/ugk_coach.dart' as coach;
+import 'package:ugk_coach/ugk_coach_qa_v2.dart' as qa;
+import 'package:ugk_coach_chat/ugk_coach_chat.dart' as chat;
+import 'package:ugk_trainer_runtime/engine.dart' as trainer;
+
+import '__SDK_URI__/tool/eval_api_config.dart' as gateway;
+
+typedef Json = Map<String, Object?>;
+const _model = 'deepseek-v4.1-flash';
+
+void main() {
+  // Plain test() keeps model IO and controller clocks real. No UI/device is
+  // started: this checks the same SDK delivery + training gates the Apps use.
+  test('QA v2 three fixes and sampled prior conversations (explicit opt-in)', () async {
+    final env = Platform.environment;
+    final output = Directory(env['QA_V2_FIXES_OUTPUT']!);
+    final dry = env['QA_V2_FIXES_MODE'] == 'dry';
+    final sdk = env['QA_V2_FIXES_SDK']!;
+    final sfRoot = env['QA_V2_FIXES_SMARTFIT']!;
+    final flareRoot = env['QA_V2_FIXES_FLARE']!;
+    final available = <_Case>[
+      const _Case('sf-home-dumbbell-20', 'sf', [
+        _Input('在家只有哑铃，20 分钟全身', planMinutes: 20),
+      ]),
+      const _Case('sf-gym-adductors-15', 'sf', [
+        _Input('健身房练内收肌力量十五分钟', planMinutes: 15),
+      ]),
+      const _Case('flare-core-plan-retime', 'flare', [
+        _Input('在家徒手，帮我排一套10分钟的核心训练。', planMinutes: 10),
+        _Input('改成15分钟，动作不变。', planMinutes: 15),
+      ]),
+      const _Case('sf-shoulder-pain-chest', 'sf', [
+        _Input('肩痛练胸'),
+        _Input('抬手或发力时刺痛、有卡住感', optionAliases: ['刺痛', '卡住'], safety: true),
+      ]),
+      const _Case('sf-back-choices-swap-second', 'sf', [
+        _Input('想练背'),
+        _Input('居家', optionAliases: ['居家', '在家']),
+        _Input('徒手', optionAliases: ['徒手', '都没有']),
+        _Input('换第 2 个', swapPosition: 2),
+      ]),
+      const _Case('sf-office-legs-easier', 'sf', [
+        _Input('在办公室练腿，不躺地，不用哑铃，推荐几个动作。', noFloor: true),
+        _Input('太难了，简单一点。', noFloor: true),
+      ]),
+    ];
+    final selected = (env['QA_V2_FIXES_CASES'] ?? '').split(',')
+      .map((value) => value.trim()).where((value) => value.isNotEmpty).toSet();
+    if (selected.any((id) => !available.any((spec) => spec.id == id))) {
+      throw ArgumentError('Unknown fixed scenario ID');
+    }
+    final inputs = selected.isEmpty ? available
+      : available.where((spec) => selected.contains(spec.id)).toList();
+    final fixtures = {
+      'sf': await _Fixture.smartfit(sdk, sfRoot),
+      'flare': await _Fixture.flare(flareRoot),
+    };
+    final report = <String, Object?>{
+      'model': dry ? null : _model,
+      'dry': dry,
+      'requestContract': {'reasoning_effort': 'max', 'thinking': {'type': 'enabled'}},
+      'controller': 'CoachChatController send/answerChoices; original SDK gates',
+      'fixtures': {for (final e in fixtures.entries) e.key: e.value.describe()},
+      'scenarios': <Json>[],
+      'failures': <String>[],
+      'outerRetries': 0,
+      'selectedScenarios': inputs.map((spec) => spec.id).toList(),
+    };
+    final failures = report['failures']! as List<String>;
+    final cases = report['scenarios']! as List<Json>;
+    final key = dry ? null : await gateway.readEvaluationApiKey(env);
+    Future<void> persist() async {
+      await File('${output.path}/report.json').writeAsString(
+        const JsonEncoder.withIndent('  ').convert(report), flush: true);
+    }
+    if (dry) {
+      for (final e in fixtures.entries) {
+        final fake = coach.FakeLlmClient(const [], latency: Duration.zero);
+        final controller = e.value.controller(fake);
+        try {
+          final started = await controller.start();
+          expect(started.ok, isTrue);
+          expect(controller.qaAgent.index.length, 211);
+          expect(controller.qaAgent.index.taggedCount, 209);
+          expect(fake.requests, isEmpty);
+        } finally { await controller.close(); controller.dispose(); }
+      }
+      report['passed'] = true;
+      await persist();
+      return;
+    }
+    for (final spec in inputs) {
+      final fixture = fixtures[spec.fixture]!;
+      final http = HttpClient(context: _tls(env));
+      final transport = coach.OpenAiCompatibleClient(
+        config: coach.LlmConfig(baseUrl: gateway.evaluationBaseUrl, model: _model,
+          maxTokens: 24000, timeout: const Duration(minutes: 4), maxRetries: 0),
+        auth: coach.ApiKeyAuth(key!), httpClient: IOClient(http));
+      final observed = _Observed(transport);
+      final controller = fixture.controller(observed);
+      final row = <String, Object?>{
+        'id': spec.id, 'fixture': spec.fixture, 'turns': <Json>[], 'calls': observed.calls,
+      };
+      cases.add(row);
+      final turns = row['turns']! as List<Json>;
+      try {
+        final started = await controller.start();
+        if (!started.ok) throw StateError('controller start failed');
+        for (final input in spec.inputs) {
+          observed.turn = turns.length + 1;
+          final callStart = observed.calls.length;
+          final beforeIds = _shown(controller.qaAgent);
+          final previousReply = controller.lastQaReply;
+          final pending = controller.messages.reversed.where(controller.canAnswerQuestion).firstOrNull;
+          String sent = input.text;
+          List<String>? choices;
+          if (pending != null && input.optionAliases.isNotEmpty) {
+            for (final alias in input.optionAliases) {
+              final option = pending.question!.options.where((v) => v.contains(alias)).firstOrNull;
+              if (option != null) { choices = [option]; sent = option; break; }
+            }
+          }
+          final watch = Stopwatch()..start();
+          final result = pending == null
+            ? await controller.send(sent)
+            : choices == null
+            ? await controller.answerQuestion(pending, sent)
+            : await controller.answerChoices(pending, choices);
+          final delivered = result?.status == coach.TurnStatus.ok &&
+            !identical(controller.lastQaReply, previousReply);
+          final reply = delivered ? controller.lastQaReply : null;
+          final plan = result?.plan?.plan;
+          final afterIds = _shown(controller.qaAgent);
+          final errors = <String>[];
+          final details = <String, Object?>{};
+          if (!delivered) errors.add('no_new_native_delivery');
+          if (input.planMinutes != null && (plan == null || plan.targetMinutes != input.planMinutes)) {
+            errors.add('missing_requested_plan');
+          }
+          if (plan != null) {
+            final required = {
+              for (final id in plan.exerciseIds) ...?controller.qaAgent.index[id]?.requiredEquipment,
+            };
+            final declared = plan.equipment.toSet();
+            if (!declared.containsAll(required)) errors.add('equipment_missing');
+            if (!required.containsAll(declared)) errors.add('unused_equipment_declared');
+            final cardSeconds = const coach.PlanDuration().estimateSeconds(plan, fixture.catalog);
+            final timeline = fixture.timing(plan);
+            final target = plan.targetMinutes * 60;
+            if ((cardSeconds - target).abs() > target * .1 + 1e-9) errors.add('card_duration_outside_10pct');
+            if ((timeline.totalSeconds - target).abs() > target * .1 + 1e-9) errors.add('execution_duration_outside_10pct');
+            final admitted = controller.agent.prepareTraining(plan,
+              context: coach.CoachContext(scene: plan.scene, equipment: plan.equipment.toSet(),
+                minutes: plan.targetMinutes, level: plan.level, goal: plan.goal, avoid: plan.avoid));
+            if (admitted == null) errors.add('training_gate_rejected');
+            details.addAll({'requiredEquipment': required.toList()..sort(),
+              'declaredEquipment': plan.equipment, 'cardSeconds': cardSeconds,
+              'executionSeconds': timeline.totalSeconds, 'targetSeconds': target,
+              'trainingGateAccepted': admitted != null});
+          }
+          if (input.safety && afterIds.contains('h-incline-pushup')) errors.add('incline_pushup_after_sharp_shoulder_pain');
+          if (input.safety && reply?.question != null) errors.add('repeated_safety_question_after_answer');
+          if (input.noFloor && afterIds.any((id) => controller.qaAgent.index[id]?.floorRequired == true)) errors.add('floor_action_in_office');
+          if (input.swapPosition case final position?) {
+            if (beforeIds.length != afterIds.length) errors.add('swap_card_count_changed');
+            final changes = <int>[];
+            for (var i = 0; i < beforeIds.length && i < afterIds.length; i++) {
+              if (beforeIds[i] != afterIds[i]) changes.add(i + 1);
+            }
+            if (changes.any((v) => v != position)) errors.add('other_card_changed');
+            final positions = reply?.form['positions'];
+            if (positions is! List || !positions.contains(position)) errors.add('wrong_swap_position');
+            details['changedPositions'] = changes;
+          }
+          final turn = <String, Object?>{
+            'number': turns.length + 1, 'input': input.text, 'sentText': sent,
+            'selectedOriginalOptions': choices,
+            'nativeApi': pending == null ? 'send' : choices == null ? 'answerQuestion' : 'answerChoices',
+            'status': result?.status.name, 'errorType': result?.error?.runtimeType.toString(),
+            'elapsedMs': watch.elapsedMilliseconds, 'modelCalls': observed.calls.length - callStart,
+            'reply': reply?.toJson(), 'orderedIds': afterIds,
+            ...details, 'failures': errors, 'passed': errors.isEmpty,
+          };
+          turns.add(turn);
+          failures.addAll(errors.map((e) => '${spec.id}:turn${turns.length}:$e'));
+          await persist();
+          stdout.writeln('${spec.id} turn${turns.length}: ${result?.status.name}; '
+            '${observed.calls.length - callStart} calls; passed=${errors.isEmpty}.');
+          if (!delivered) break; // Preserve first failure; never reuse stale reply or redraw a failed plan.
+        }
+      } on Object catch (error) {
+        row['fatalType'] = error.runtimeType.toString();
+        failures.add('${spec.id}:fatal:${error.runtimeType}');
+      } finally {
+        await controller.close(); controller.dispose(); transport.close();
+        await persist();
+      }
+    }
+    report['passed'] = failures.isEmpty;
+    await persist();
+    expect(failures, isEmpty);
+  }, timeout: const Timeout(Duration(minutes: 20)));
+}
+
+SecurityContext _tls(Map<String, String> env) {
+  final tls = SecurityContext(withTrustedRoots: true);
+  final ca = env['SSL_CERT_FILE'];
+  if (ca != null && ca.isNotEmpty) tls.setTrustedCertificates(ca);
+  return tls;
+}
+
+class _Case {
+  const _Case(this.id, this.fixture, this.inputs);
+  final String id, fixture;
+  final List<_Input> inputs;
+}
+class _Input {
+  const _Input(this.text, {this.planMinutes, this.optionAliases = const [], this.safety = false,
+    this.noFloor = false, this.swapPosition});
+  final String text;
+  final int? planMinutes, swapPosition;
+  final List<String> optionAliases;
+  final bool safety, noFloor;
+}
+
+class _Fixture {
+  _Fixture(this.catalog, this.profile, this.tags, this.timing, this.scope, this.sources);
+  final coach.Catalog catalog;
+  final coach.CoachProfile profile;
+  final Map<String, Map<String, Object?>> tags;
+  final coach.PlanExecutionTimingCallback timing;
+  final coach.CoachActionScopeManifest scope;
+  final Json sources;
+  Json describe() => {'appId': profile.id, 'catalogCount': catalog.drills.length,
+    'scopeCount': scope.allowedActionIds.length, 'tagCount': tags.length, ...sources};
+  chat.CoachChatController controller(coach.LlmClient client) => chat.CoachChatController(
+    profile: chat.CoachAppProfile(appId: profile.id, scopeManifest: scope,
+      coachProfile: profile, executionTiming: timing, agentMode: chat.CoachChatAgentMode.qaV2,
+      aiTags: tags, conversationPolicy: coach.CoachScopeConversationPolicy(
+        specialty: profile.focus, suggestions: const ['推荐几个动作'])),
+    catalog: catalog, replyDelay: Duration.zero,
+    turnTimeout: const Duration(minutes: 5),
+    bindings: chat.CoachChatBindings(storageNamespace: 'qa-v2-fixes-${profile.id}',
+      gateway: chat.CoachGatewayBinding.shared(client), plans: _Plans(), history: _History(),
+      preferences: _Preferences(), actions: chat.CoachChatHostActions(
+        onStartTraining: (_, _) async => null, onOpenAction: (_, _) async {},
+        onOpenLibrary: (_, _) async {}, onOpenSavedPlans: (_) async {},
+        onOpenCustomPlan: (_) async {}, onOpenSettings: (_) async {})));
+  static Future<_Fixture> smartfit(String sdk, String root) async {
+    final metadata = File('$sdk/packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json');
+    final pack = await _pack(metadata);
+    final content = sf_content.AppTestContent.build(catalog: sf_catalog.AppTestCatalog.fromSdk(pack),
+      legacyLibrary: sf_exercise.ExerciseLibrary(const []));
+    final profilePath = '$root/assets/coach/smartfit.json';
+    final profile = coach.CoachProfile.fromJson(jsonDecode(await File(profilePath).readAsString()));
+    final tagsPath = '$root/assets/coach/ai-tags/actions.json';
+    return _Fixture(content.coachCatalog, profile, await _tags(tagsPath),
+      sf_session.SessionBuilder(content.library).executionTiming,
+      coach.CoachActionScopeManifest.fromCatalogBytes(appId: profile.id,
+        catalogBytes: await metadata.readAsBytes(), allowedActionIds: sf_scope.smartfitCoachAuthorizedActionIds),
+      {'profile': profilePath, 'tags': tagsPath,
+       'timing': 'SF AppTestContent + actual SF SessionBuilder.executionTiming; prep10 and margin3'});
+  }
+  static Future<_Fixture> flare(String root) async {
+    final metadata = File('$root/assets/public_media/catalog.json');
+    final pack = await _pack(metadata);
+    final rhythms = flare_catalog.flarePublicRhythms(pack);
+    final catalog = flare_catalog.flareCoachCatalogFromPublic(pack, rhythms: rhythms);
+    final builder = trainer.SessionBuilder(rhythms: rhythms, known: (id) => catalog[id] != null,
+      sideSwitchMarginSeconds: trainer.SessionBuilder.recommendedSideSwitchMarginSeconds);
+    final tagsPath = '$root/assets/ai_tags/actions.json';
+    return _Fixture(catalog, flare_profile.flareCoachProfile, await _tags(tagsPath), builder.executionTiming,
+      flare_scope.flareActionScope(catalog),
+      {'profile': 'App flareCoachProfile constant', 'tags': tagsPath,
+       'timing': 'App flarePublicRhythms + flareCoachCatalogFromPublic + runtime SessionBuilder margin3'});
+  }
+}
+
+Future<coach.PoseHubAppTestCatalog> _pack(File file) async {
+  final bytes = await file.readAsBytes();
+  final descriptor = coach.PoseHubAppTestCatalog.fromBytes(bytes);
+  final semantics = await File('${file.parent.path}/${descriptor.semanticCatalogFile.path}').readAsBytes();
+  return coach.PoseHubAppTestCatalog.fromBytes(bytes, semanticCatalogBytes: semantics);
+}
+Future<Map<String, Map<String, Object?>>> _tags(String path) async {
+  final raw = jsonDecode(await File(path).readAsString()) as Map;
+  return {for (final e in raw.entries) e.key as String: Map<String, Object?>.from(e.value as Map)};
+}
+List<String> _shown(qa.CoachQaAgent agent) => agent.state.lastShown.isNotEmpty
+  ? [...agent.state.lastShown] : [...?agent.state.lastPlan?.orderedIds];
+
+class _Observed implements coach.LlmClient {
+  _Observed(this.inner);
+  final coach.OpenAiCompatibleClient inner;
+  int turn = 0;
+  final calls = <Json>[];
+  @override String get model => inner.model;
+  @override coach.Pricing? get pricing => inner.pricing;
+  @override Future<coach.LlmResponse> complete(coach.LlmRequest request, {coach.CancelToken? cancel}) async {
+    final body = inner.buildBody(request);
+    final valid = body['model'] == _model && body['reasoning_effort'] == 'max' &&
+      (body['thinking'] as Map?)?['type'] == 'enabled';
+    if (!valid) throw StateError('Wrong real-model request contract');
+    final row = <String, Object?>{'turn': turn, 'model': body['model'],
+      'reasoning_effort': body['reasoning_effort'], 'thinking': body['thinking'],
+      'requestContractVerified': valid, 'tools': request.tools.map((t) => t.name).toList()};
+    calls.add(row);
+    final watch = Stopwatch()..start();
+    try {
+      final response = await inner.complete(request, cancel: cancel);
+      row.addAll({'usage': response.usage.toJson(), 'httpAttempts': response.httpAttempts,
+        'structuredOutputs': [for (final call in response.toolCalls) _outputIds(call)]});
+      return response;
+    } on Object catch (error) { row['errorType'] = error.runtimeType.toString(); rethrow; }
+    finally { row['elapsedMs'] = watch.elapsedMilliseconds; }
+  }
+}
+
+// Preserve IDs/conditions needed to diagnose a failed native delivery, not
+// provider reasoning or the form's optional free-text note.
+Json _outputIds(coach.LlmToolCall call) {
+  Object? raw;
+  try { raw = jsonDecode(call.arguments); }
+  on FormatException { return {'tool': call.name, 'invalidJson': true}; }
+  if (raw is! Map) return {'tool': call.name};
+  const kept = {'intent', 'place', 'equipment', 'equipment_known', 'minutes',
+    'positions', 'next', 'avoid_joints', 'main_ids', 'changes'};
+  return {'tool': call.name,
+    for (final entry in raw.entries) if (kept.contains(entry.key)) entry.key as String: entry.value};
+}
+class _Plans extends chat.CoachPlanStorageAdapter {
+  @override Future<List<chat.CoachSavedPlanSnapshot>> load() async => const [];
+  @override Future<chat.CoachPlanWriteResult> save(chat.CoachPlanWriteRequest request) async =>
+    throw UnsupportedError('No host plan write in this evaluation');
+}
+class _History extends chat.CoachChatHistoryStore {
+  @override Future<chat.CoachChatSnapshot?> load(String namespace) async => null;
+  @override Future<void> write(String namespace, chat.CoachChatSnapshot snapshot) async {}
+}
+class _Preferences extends chat.CoachChatPreferenceStore {
+  @override Future<chat.CoachChatPreferences> load() async => const chat.CoachChatPreferences(safetyAccepted: true);
+  @override Future<void> update(chat.CoachChatPreferences next) async {}
+}

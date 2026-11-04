@@ -197,4 +197,58 @@ final class QaActionIndex {
   int get length => _byId.length;
   int get taggedCount => _byId.values.where((a) => a.source == 'ai-tags').length;
   List<String> get untaggedIds => [for (final a in _byId.values) if (a.source != 'ai-tags') a.id];
+
+  /// QA admission must use the same equipment facts as candidate selection.
+  /// Only equipment is projected; doses, scope, safety and source data stay
+  /// with the App's catalogue. Missing tags retain catalogue equipment.
+  Catalog equipmentCatalog() {
+    final equipment = {...catalog.taxonomy.equipment};
+    for (final action in all) {
+      for (final id in action.requiredEquipment) {
+        equipment.putIfAbsent(id, () => id);
+      }
+    }
+    final original = catalog.taxonomy;
+    final taxonomy = Taxonomy(
+      categories: original.categories,
+      muscleGroups: original.muscleGroups,
+      equipment: equipment,
+      equipmentScenes: original.equipmentScenes,
+      positions: original.positions,
+      floorPositions: original.floorPositions,
+      scenes: original.scenes,
+      cautions: original.cautions,
+    );
+    final rawTaxonomy = asMap(catalog.raw['taxonomy']);
+    final rawEquipment = asMap(rawTaxonomy['equipment']);
+    return Catalog(
+      version: catalog.version,
+      formatVersion: catalog.formatVersion,
+      generatedAt: catalog.generatedAt,
+      sourceCommit: catalog.sourceCommit,
+      problems: catalog.problems,
+      taxonomy: taxonomy,
+      drills: [
+        for (final drill in catalog.drills)
+          if (_byId[drill.id] case final action? when action.source == 'ai-tags')
+            Drill.tryParse({
+              ...drill.toJson(),
+              'equipment': action.requiredEquipment.toList()..sort(),
+            }, <String>[])!
+          else
+            drill,
+      ],
+      raw: {
+        ...catalog.raw,
+        'taxonomy': {
+          ...rawTaxonomy,
+          'equipment': {
+            ...rawEquipment,
+            for (final entry in equipment.entries)
+              if (!rawEquipment.containsKey(entry.key)) entry.key: entry.value,
+          },
+        },
+      },
+    );
+  }
 }

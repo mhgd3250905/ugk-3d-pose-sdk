@@ -1,0 +1,588 @@
+[
+ {
+  "id": "Q01-腹肌",
+  "turns": [
+   "想练腹肌",
+   "健身房",
+   "换第4个"
+  ],
+  "turns_expect": [
+   {
+    "ask": "place"
+   },
+   {
+    "muscles": [
+     "abs",
+     "obliques"
+    ]
+   },
+   {
+    "modify": "replace:4",
+    "noneOk": true
+   }
+  ]
+ },
+ {
+  "id": "S09-练背",
+  "turns": [
+   "想练背",
+   "居家",
+   "都没有",
+   "太难了"
+  ],
+  "turns_expect": [
+   {
+    "ask": "place"
+   },
+   {
+    "ask": "equipment"
+   },
+   {
+    "muscles": [
+     "lats",
+     "scapular",
+     "erectors",
+     "upper-traps"
+    ],
+    "scene": "home",
+    "equipment": []
+   },
+   {
+    "modify": "easier",
+    "noneOk": true,
+    "scene": "home",
+    "equipment": []
+   }
+  ],
+  "note": "旧 S09：在家徒手练背 → 太难了，范围里没有更简单的就如实说"
+ },
+ {
+  "id": "Q03-哑铃全身",
+  "turns": [
+   "在家只有哑铃，20 分钟全身",
+   "第二个换掉"
+  ],
+  "turns_expect": [
+   {
+    "scene": "home",
+    "equipment": [
+     "dumbbell"
+    ],
+    "minutes": 20
+   },
+   {
+    "modify": "replace:2",
+    "noneOk": true,
+    "scene": "home",
+    "equipment": [
+     "dumbbell"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "Q04-健身房练腿",
+  "turns": [
+   "健身房练腿，30分钟"
+  ],
+  "turns_expect": [
+   {
+    "muscles": [
+     "quadriceps",
+     "hamstrings",
+     "glute-max",
+     "calves",
+     "adductors",
+     "hip-abductors",
+     "hip-flexors"
+    ],
+    "minutes": 30
+   }
+  ]
+ },
+ {
+  "id": "Q05-记忆腹肌",
+  "turns": [
+   "推荐几个练腹肌的动作",
+   "第二个换掉"
+  ],
+  "turns_expect": [
+   {
+    "muscles": [
+     "abs",
+     "obliques"
+    ],
+    "scene": "home",
+    "equipment": [
+     "mat"
+    ]
+   },
+   {
+    "modify": "replace:2",
+    "noneOk": true,
+    "scene": "home",
+    "equipment": [
+     "mat"
+    ]
+   }
+  ],
+  "memory": {
+   "scene": "home",
+   "equipment": [
+    "mat"
+   ]
+  }
+ },
+ {
+  "id": "Q06-直接推荐",
+  "turns": [
+   "直接推荐几个拉伸动作"
+  ],
+  "turns_expect": [
+   {
+    "ask": "none"
+   }
+  ]
+ },
+ {
+  "id": "Q07-办公室肩颈",
+  "turns": [
+   "在办公室，脖子肩膀僵硬"
+  ],
+  "turns_expect": [
+   {
+    "scene": "office"
+   }
+  ]
+ },
+ {
+  "id": "Q08-酒店",
+  "turns": [
+   "酒店房间想练一下",
+   "什么都没带"
+  ],
+  "turns_expect": [
+   {
+    "ask": "equipment"
+   },
+   {
+    "scene": "home",
+    "equipment": []
+   }
+  ]
+ },
+ {
+  "id": "Q09-宿舍怕吵",
+  "turns": [
+   "宿舍里练练腿，怕吵",
+   "徒手"
+  ],
+  "turns_expect": [
+   {
+    "ask": "equipment"
+   },
+   {
+    "muscles": [
+     "quadriceps",
+     "hamstrings",
+     "glute-max",
+     "calves",
+     "adductors",
+     "hip-abductors",
+     "hip-flexors"
+    ],
+    "scene": "home",
+    "equipment": [],
+    "quiet": true
+   }
+  ]
+ },
+ {
+  "id": "S22-肩痛练胸",
+  "turns": [
+   "肩痛练胸",
+   "不是刺痛，就是有点酸，帮我排个10分钟的计划",
+   "居家",
+   "徒手"
+  ],
+  "turns_expect": [
+   {
+    "ask": "safety|place"
+   },
+   {
+    "ask": "place|none"
+   },
+   {
+    "ask": "equipment|none"
+   },
+   {
+    "avoid": [
+     "shoulder"
+    ],
+    "scene": "home",
+    "equipment": []
+   }
+  ],
+  "note": "旧 S22：肩痛 → 排 10 分钟 → 居家 → 徒手；计划被退回后重试要能通过"
+ },
+ {
+  "id": "S41-徒手练胸",
+  "turns": [
+   "推荐几个练胸的动作",
+   "换第3个"
+  ],
+  "turns_expect": [
+   {
+    "muscles": [
+     "chest",
+     "triceps",
+     "deltoids"
+    ],
+    "scene": "home",
+    "equipment": []
+   },
+   {
+    "modify": "replace:3",
+    "noneOk": true,
+    "scene": "home",
+    "equipment": []
+   }
+  ],
+  "memory": {
+   "scene": "home",
+   "equipment": []
+  }
+ },
+ {
+  "id": "S42-健身房练腹",
+  "turns": [
+   "推荐几个练腹的动作",
+   "第一个换一下"
+  ],
+  "turns_expect": [
+   {
+    "muscles": [
+     "abs",
+     "obliques"
+    ]
+   },
+   {
+    "modify": "replace:1",
+    "noneOk": true
+   }
+  ],
+  "memory": {
+   "scene": "gym",
+   "equipment": []
+  }
+ },
+ {
+  "id": "S43-徒手练背计划",
+  "turns": [
+   "帮我排个15分钟练背的计划",
+   "换第1个",
+   "换第4个"
+  ],
+  "turns_expect": [
+   {
+    "muscles": [
+     "lats",
+     "scapular",
+     "erectors",
+     "upper-traps"
+    ],
+    "scene": "home",
+    "equipment": [],
+    "minutes": 15
+   },
+   {
+    "modify": "replace:1",
+    "noneOk": true,
+    "scene": "home",
+    "equipment": []
+   },
+   {
+    "modify": "replace:4",
+    "noneOk": true,
+    "scene": "home",
+    "equipment": []
+   }
+  ],
+  "memory": {
+   "scene": "home",
+   "equipment": []
+  },
+  "note": "旧 S43：第 1 个是热身，第 4 个是主训练"
+ },
+ {
+  "id": "N01-练腿计划",
+  "turns": [
+   "帮我排个20分钟练腿的计划",
+   "换第2个",
+   "换第5个"
+  ],
+  "turns_expect": [
+   {
+    "muscles": [
+     "quadriceps",
+     "hamstrings",
+     "glute-max",
+     "calves",
+     "adductors",
+     "hip-abductors",
+     "hip-flexors"
+    ],
+    "minutes": 20
+   },
+   {
+    "modify": "replace:2",
+    "noneOk": true
+   },
+   {
+    "modify": "replace:5",
+    "noneOk": true
+   }
+  ],
+  "memory": {
+   "scene": "gym",
+   "equipment": []
+  }
+ },
+ {
+  "id": "N02-哑铃手臂",
+  "turns": [
+   "推荐5个练手臂的动作",
+   "第三个换掉",
+   "把第5个换了"
+  ],
+  "turns_expect": [
+   {
+    "muscles": [
+     "biceps",
+     "triceps",
+     "forearms",
+     "deltoids"
+    ],
+    "scene": "home",
+    "equipment": [
+     "dumbbell"
+    ]
+   },
+   {
+    "modify": "replace:3",
+    "noneOk": true,
+    "scene": "home",
+    "equipment": [
+     "dumbbell"
+    ]
+   },
+   {
+    "modify": "replace:5",
+    "noneOk": true,
+    "scene": "home",
+    "equipment": [
+     "dumbbell"
+    ]
+   }
+  ],
+  "memory": {
+   "scene": "home",
+   "equipment": [
+    "dumbbell"
+   ]
+  }
+ },
+ {
+  "id": "N03-上肢计划",
+  "turns": [
+   "15分钟上肢计划",
+   "第1个换一个",
+   "第6个换掉"
+  ],
+  "turns_expect": [
+   {
+    "minutes": 15
+   },
+   {
+    "modify": "replace:1",
+    "noneOk": true
+   },
+   {
+    "modify": "replace:6",
+    "noneOk": true
+   }
+  ],
+  "memory": {
+   "scene": "gym",
+   "equipment": []
+  }
+ },
+ {
+  "id": "N04-工位拉伸",
+  "turns": [
+   "推荐几个工位能做的拉伸",
+   "换第2个"
+  ],
+  "turns_expect": [
+   {
+    "scene": "office"
+   },
+   {
+    "modify": "replace:2",
+    "noneOk": true,
+    "scene": "office"
+   }
+  ],
+  "memory": {
+   "scene": "office",
+   "equipment": []
+  }
+ },
+ {
+  "id": "S44-ja-背中",
+  "turns": [
+   "背中を鍛えたい",
+   "家で",
+   "何もない",
+   "2番目を替えて"
+  ],
+  "turns_expect": [
+   {
+    "ask": "place",
+    "lang": "ja"
+   },
+   {
+    "ask": "equipment",
+    "lang": "ja"
+   },
+   {
+    "muscles": [
+     "lats",
+     "scapular",
+     "erectors",
+     "upper-traps"
+    ],
+    "scene": "home",
+    "equipment": [],
+    "lang": "ja"
+   },
+   {
+    "modify": "replace:2",
+    "noneOk": true,
+    "scene": "home",
+    "equipment": [],
+    "lang": "ja"
+   }
+  ],
+  "locale": "ja"
+ },
+ {
+  "id": "S45-es-piernas",
+  "turns": [
+   "quiero entrenar piernas en casa",
+   "sin equipo",
+   "más fácil",
+   "cambia el primero"
+  ],
+  "turns_expect": [
+   {
+    "ask": "equipment",
+    "lang": "es"
+   },
+   {
+    "muscles": [
+     "quadriceps",
+     "hamstrings",
+     "glute-max",
+     "calves",
+     "adductors",
+     "hip-abductors",
+     "hip-flexors"
+    ],
+    "scene": "home",
+    "equipment": [],
+    "lang": "es"
+   },
+   {
+    "modify": "easier",
+    "noneOk": true,
+    "scene": "home",
+    "equipment": [],
+    "lang": "es"
+   },
+   {
+    "modify": "replace:1",
+    "noneOk": true,
+    "scene": "home",
+    "equipment": [],
+    "lang": "es"
+   }
+  ],
+  "locale": "es"
+ },
+ {
+  "id": "G01-工位分段",
+  "turns": [
+   "帮我排个10分钟的计划，前半段在工位坐着做，后半段站着做"
+  ],
+  "turns_expect": [
+   {
+    "scene": "office",
+    "minutes": 10,
+    "segments": [
+     "seated",
+     "standing"
+    ]
+   }
+  ],
+  "memory": {
+   "scene": "office",
+   "equipment": []
+  },
+  "note": "分段计划：前半坐后半站，顺序要对"
+ },
+ {
+  "id": "G02-居家分段拉伸",
+  "turns": [
+   "12分钟拉伸，先坐着做再站着做"
+  ],
+  "turns_expect": [
+   {
+    "minutes": 12,
+    "segments": [
+     "seated",
+     "standing"
+    ]
+   }
+  ],
+  "memory": {
+   "scene": "home",
+   "equipment": [
+    "mat"
+   ]
+  }
+ },
+ {
+  "id": "R01-改时长再来",
+  "turns": [
+   "20分钟全身计划",
+   "换成10分钟",
+   "再来一套"
+  ],
+  "turns_expect": [
+   {
+    "minutes": 20
+   },
+   {
+    "modify": "retime:10"
+   },
+   {
+    "modify": "another"
+   }
+  ],
+  "memory": {
+   "scene": "gym",
+   "equipment": []
+  }
+ }
+]

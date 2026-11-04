@@ -31,6 +31,8 @@ Map<String, Object?> encodeQaState(qa.CoachQaState state) => {
   'history': [
     for (final (user, assistant) in state.history) [user, assistant],
   ],
+  // v3 追加：用户已确认的安全危险信号（旧存档没有时为 false）。
+  'redFlag': state.redFlag,
 };
 
 Map<String, Object?>? _focus(qa.QaFocus? focus) => focus == null
@@ -96,7 +98,8 @@ void restoreQaState(
     ..lastAsk = json['lastAsk'] == null
         ? null
         : qa.QaAskStep.values.byName(json['lastAsk']! as String)
-    ..turn = (json['turn'] as num?)?.toInt() ?? 0;
+    ..turn = (json['turn'] as num?)?.toInt() ?? 0
+    ..redFlag = json['redFlag'] == true;
   state.history
     ..clear()
     ..addAll([

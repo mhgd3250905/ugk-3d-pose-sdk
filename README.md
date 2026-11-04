@@ -55,53 +55,7 @@ HipLab / Flare 可按 UI 包 README 的固定 tag 接入，并各自验收真机
 
 ## 维护与事实来源
 
-[项目维护台账](docs/project-ledger.md)是维护状态、PR 合并、验证证据和未决事项的记录入口。三个包独立管理版本：根包 `ugk_coach` 以 [pubspec.yaml](pubspec.yaml) 为准，trainer 和 UI 分别以[训练包清单](packages/ugk_trainer/pubspec.yaml)和[UI 包清单](packages/ugk_coach_ui/pubspec.yaml)为准。清单版本可以先存在于待审分支，正式发布以已推送的固定 tag 为准。版本历史见[根 CHANGELOG](CHANGELOG.md)、[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)和[UI CHANGELOG](packages/ugk_coach_ui/CHANGELOG.md)；三个包均为 `publish_to: none`，不表示已发布到 pub.dev。当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)；[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
-
-## 架构（0.1 旧接口）
-
-下图与目录说明保留 0.1 `CoachAssistant` 的结构；本轮 0.5 会话入口见下文 `CoachConversationController`，其底层仍为同一个 `CoachAgent`。
-
-```
-                         ┌────────────── App（Flutter）──────────────┐
-                         │  UI（对话、套路卡、播放器）  profile.json   │
-                         │  FallbackPlanner（模板）     Preflight（安全话术）│
-                         └──────────────┬────────────────────────────┘
-                                        │ ask(text, context, conversation, cancel)
-┌───────────────────────────────────────▼─────────────────────────────────────────┐
-│ assistant/  CoachAssistant ── preflight → 拼提示词 → 调模型 → 解析 → 校验 ─┐       │
-│                                    ▲            │ 不合格（带错误清单）      │       │
-│                                    └── 重写 1 次 ┘ 仍不合格 / 断网 / 超时 → 回落 │
-│             CoachConversation（历史，App 持久化）  HistoryPolicy（裁剪）           │
-├──────────────┬──────────────┬──────────────┬──────────────┬─────────────────────┤
-│ prompt/      │ envelope/    │ plan/        │ llm/         │ usage/              │
-│ kernel.md    │ JSON 提取容错 │ TrainingPlan │ LlmClient    │ UsageRecord         │
-│ + profile    │ reply/ask/   │ v1 编解码     │ OpenAI 兼容   │ Memory / JSONL /    │
-│ + 目录表      │ plan 信封     │ PlanValidator│ Fake（测试）  │ 回调 / 多路 sink     │
-│ 覆盖/追加/版本 │              │ 时长估算      │ 取消/超时/重试 │ 单价 → 估算花费      │
-├──────────────┴──────────────┴──────┬───────┴──────────────┴─────────────────────┤
-│ catalog/  Catalog（pose-hub-catalog@1）  CatalogRepository（内置/缓存/远端+sha256） │
-│           AssetResolver（id → 封面/视频/spec/语音）  DrillPackAdapter（读 SmartFit 小包）│
-├────────────────────────────────────┴──────────────────────────────────────────────┤
-│ config/  LlmConfig（地址/模型/max_tokens/温度/超时/重试/单价）  AuthProvider（key / 中转）│
-│ profile/ CoachProfile（范围、侧重、场所规则、剂量上限、提示词版本与变量）                 │
-└───────────────────────────────────────────────────────────────────────────────────┘
-        ▲ 动作目录 catalog.json（Pose-Hub 发布，带版本）          ▲ 模型：DeepSeek @ OpenCSG（上线经中转 Worker）
-```
-
-```
-lib/
-  ugk_coach.dart            核心入口（纯 Dart）
-  ugk_coach_io.dart         dart:io 适配：FileCatalogCache、JsonlUsageSink
-  src/config  catalog  profile  plan  envelope  prompt  llm  usage  assistant  io
-prompts/       kernel.md（系统提示词内核 v2，SDK 与评测共用这一份）context.md rewrite.md
-profiles/      flarelab.json hiplab.json smartfit.json（SDK 与评测共用）
-schema/        catalog / catalog-manifest / coach-profile / coach-reply 的 JSON Schema
-tool/          embed_prompts.dart  make_manifest.dart  packs_to_catalog.dart
-example/       quickstart.dart（离线）  smoke.dart（真实调用）
-docs/          design.md（决策与取舍）  smoke-2026-10-20.md
-eval/          评测（原 ai-coach-eval，subtree 并入）：tools/validate.py eval.py build_prompt.py export_parity.py、cases/、results/、README（设计说明与评测结果）
-test/fixtures/ pose-hub-catalog.json（目录快照）golden/（提示词金样）parity.json（校验对照）packs/
-```
+[项目维护台账](docs/project-ledger.md)是维护状态、PR 合并、验证证据和未决事项的记录入口。三个包独立管理版本：根包 `ugk_coach` 以 [pubspec.yaml](pubspec.yaml) 为准，trainer 和 UI 分别以[训练包清单](packages/ugk_trainer/pubspec.yaml)和[UI 包清单](packages/ugk_coach_ui/pubspec.yaml)为准。清单版本可以先存在于待审分支，正式发布以已推送的固定 tag 为准。版本历史见[根 CHANGELOG](CHANGELOG.md)、[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)和[UI CHANGELOG](packages/ugk_coach_ui/CHANGELOG.md)；三个包均为 `publish_to: none`，不表示已发布到 pub.dev。当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)，问答 Agent 见 [docs/coach-qa-agent-v3.md](docs/coach-qa-agent-v3.md)；0.1 `CoachAssistant` 与 0.2 `CoachSession` 已于 2026-11-04 删除（无 App 使用）；[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
 
 ## 0.5 对话控制器接入
 
@@ -123,7 +77,7 @@ if (pending != null && conversation.canAnswer(pending.id)) {
 
 ## 0.4 底层 Agent 接入
 
-`CoachAgent` 沿用 `CoachSession` 的构造参数、`send` / `reset` 和结果类型，另有过程事件及 `result.question`。系统提示词内含按 profile 筛选的紧凑动作索引与排课、讲要领、展示三条技能快路径；会实质改变方案的缺口先 `ask_user`，信息足够就直接 `show_plan`，`check_plan` 留作可选自检，最终门禁始终执行。明确点名的要领问答可自动预载少量详情，省去模型请求文件的一次往返。设计、文件地图、事件与记忆见 [docs/agent-plan.md](docs/agent-plan.md)。
+`CoachAgent` 提供 `send` / `reset` 和 `CoachTurnResult` 结果类型，另有过程事件及 `result.question`。系统提示词内含按 profile 筛选的紧凑动作索引与排课、讲要领、展示三条技能快路径；会实质改变方案的缺口先 `ask_user`，信息足够就直接 `show_plan`，`check_plan` 留作可选自检，最终门禁始终执行。明确点名的要领问答可自动预载少量详情，省去模型请求文件的一次往返。设计、文件地图、事件与记忆见 [docs/agent-plan.md](docs/agent-plan.md)。
 
 ```dart
 final agent = CoachAgent(
@@ -155,99 +109,6 @@ if (r.question != null) {
 普通排课首请求只提供直接交付路径，门禁拒绝后才开放 `check_plan`；用户明确要求检查/自检或 profile 配置了 App 专属技能时可从首请求使用。`AgentTools.build(includeCheckPlan:)` 默认 true，直接构造工具的调用方行为兼容。
 
 `remember` / `forget` 等待 `myMemoryStore.save` 成功后才返回 `ok:true`；App 实现必须在保存完成后才完成 Future，失败应抛出异常，SDK 会返回工具错误。已确认保存的操作在后续取消时保留；pending 保存被取消 / reset 后不会回写缓存或会话，底层迟到写入由串行队列补偿。每条 assistant 请求消息均带 `reasoning_content`，没有推理时为空串。
-
-## 0.2 工具版接入（降级）
-
-0.2 起入口是 `CoachSession`：模型每次回复只能是「纯文字」或「文字 + 一个工具」，两个工具：
-
-| 工具 | 用途 | 参数 |
-|---|---|---|
-| `show_actions` | 看动作（演示卡） | `items`: 1–6 个 `{actionId, note?}`，不带剂量，不重复 |
-| `show_plan` | 开练 / 改计划 | 完整 TrainingPlan v1（同一动作全计划只出现一次，多做用 sets） |
-
-门禁 `ToolGate` **只判不修**：不合格就把全部错误（位置、错误码、期望、实际、改法）作为 tool 结果回给模型重交，
-最多重交 2 次；仍不过、网络错误或回复里出现提示词暗号 → 回落 App 模板。卡片只接受门禁产出的
-`ValidatedPlan` / `ValidatedActions`（私有构造，App 造不出来；模板计划也要经 `admitTemplate`）。
-
-```dart
-import 'package:ugk_coach/ugk_coach.dart';
-
-// --dart-define=UGK_APP_KEY=...（值不进仓库）
-const appKey = String.fromEnvironment('UGK_APP_KEY');
-
-final client = OpenAiCompatibleClient(
-  config: LlmConfig.ugkWorker, // Base URL https://api.uuugk.win/v1，模型 deepseek-v4-flash-0731
-  auth: UgkWorkerAuth(
-    appKey: appKey,                          // 请求头 X-App-Key
-    deviceId: () => deviceIdStore.getOrCreateUuid(), // 请求头 X-Device-Id：每设备首次生成 UUID，持久保存一直用
-  ),                                         // 不带 Authorization（中转站 token 在 Worker 里）
-);
-
-final session = CoachSession(            // 一个 App 一个会话；关弹窗不清空
-  client: client,
-  catalog: () => catalogRepo.current,
-  profile: hiplabProfile,
-  fallback: (r) => SessionFallbackReply('先按模板给你排一套', plan: myTemplateFor(r.context)),
-);
-
-final r = await session.send(userText, context: CoachContext(scene: 'home', avoid: {'膝'}));
-switch (r.status) {
-  case TurnStatus.ok || TurnStatus.fallback:
-    showText(r.text);
-    if (r.plan != null) showPlanCard(r.plan!);        // ValidatedPlan
-    if (r.actions != null) showActionCards(r.actions!); // ValidatedActions
-  case TurnStatus.limitReached: askUserToReset();     // 旧 CoachSession 默认 20 轮 / 4 万字符；CoachAgent 默认 50 轮
-  case TurnStatus.inputTooLong: tellUserTooLong();    // 默认 500 字
-  case TurnStatus.busy: ignore();                     // 上一轮还在进行：本次被拒绝，未调模型
-  case TurnStatus.cancelled || TurnStatus.error: showTemplateEntry();
-}
-```
-
-- 并发策略：**拒绝，不排队**。同一会话一次只处理一轮，进行中再 `send` 立即返回 `TurnStatus.busy`（不调模型、不占轮数）；`isFull` 的硬上限把进行中的一轮也计入。App 应在等待回复时禁用发送按钮。
-- `reset()` 让进行中的旧轮作废（会话世代 +1）：旧轮的模型响应或异步回落晚到时返回 `cancelled`，不写历史、不计轮数。取消（`CancelToken`）在模型返回后、异步回落返回后都会复查，取消后历史与轮数不变。
-- 门禁以本轮 `CoachContext` 明确给出的 `level` / `minutes` 为准：计划的 `level` / `targetMinutes` 不一致报 `context_conflict`（E_CONTEXT）打回重交，不替模型改值。暗号检测覆盖参数 JSON 解码后的全部字符串（防 `\u0055…` 转义绕过）。
-
-- 自定义请求头：`LlmConfig.headers`（静态）或自定义 `AuthProvider`（动态）。直连 New API（ai.uuugk.win）时 Cloudflare 会拦 Python 默认 UA，Dart 默认 UA 实测可过。
-- 提示词：内核 v3（`prompts/kernel_v3.md`）= 身份与范围 / 防破甲 / 回答方式 / 何时用哪个工具 / 参数规则 / 被打回时 / 多轮修改 / App 配置（profile 生成）/ 用户上下文。本轮条件放用户消息前缀，系统消息不变以命中前缀缓存。暗号默认 `defaultPromptCanary`，可用 `ToolPromptBuilder(canary: ...)` 换。
-- 0.1 的 `CoachAssistant.ask`（JSON 信封）保留一版，标 deprecated，HipLab / 托马斯可不跟着升；后续版本移除。
-
-## 快速上手（0.1 旧接口，deprecated）
-
-```yaml
-# pubspec.yaml
-dependencies:
-  ugk_coach:
-    git: {url: https://github.com/mhgd3250905/ugk-3d-pose-sdk.git, ref: main}
-```
-
-```dart
-import 'package:ugk_coach/ugk_coach.dart';
-
-final repo = CatalogRepository(bundled: BundledCatalogSource(() => rootBundle.loadString('assets/coach/catalog.json')));
-await repo.load();
-
-final assistant = CoachAssistant(
-  client: OpenAiCompatibleClient(
-    config: LlmConfig.deepSeekOpenCsg.copyWith(baseUrl: 'https://coach-relay.example.workers.dev/v1'),
-    auth: RelayAuth(appToken: () async => appToken),
-  ),
-  catalog: () => repo.current,                 // 热更新后自动用新目录
-  profile: CoachProfile.fromJson(jsonDecode(await rootBundle.loadString('assets/coach/hiplab.json'))),
-  fallback: FallbackFn((r) => myTemplateReply(r)),   // 断网 / 两次不合格时
-  usage: myUsageSink,
-);
-
-final conv = CoachConversation();             // App 自己存：conv.toJson()
-final r = await assistant.ask('睡前想开开胯，10 分钟', context: const CoachContext(scene: 'home', avoid: {'膝'}), conversation: conv);
-switch (r.reply?.kind) {
-  case ReplyKind.plan:  showPlanCard(r.reply!.plan!);      // TrainingPlan v1，可保存、可直接练
-  case ReplyKind.ask:   showQuestion(r.reply!.text, r.reply!.options);
-  case ReplyKind.reply: showText(r.reply!.text);
-  case null:            showError(r.outcome);              // cancelled / 没配回落时的 error
-}
-```
-
-离线跑一遍完整流程（假模型故意先错后对）：`dart run example/quickstart.dart`。
 
 ## 配置
 
@@ -353,34 +214,7 @@ repo.updates.listen((c) => revalidateSavedPlans(c));
 
 Sink 可插拔：`MemoryUsageSink`（含 `summary`：调用数、轮数、token、花费、各走向轮数、按模型分）、`JsonlUsageSink`（io）、`CallbackUsageSink`（上报自己的服务）、`MultiUsageSink`。sink 抛错不影响对话。
 
-## 各 App 接入（0.1 接口示例）
-
-三个 App 的差异只在 profile + UI（`profiles/*.json`，SDK 与 `eval/` 共用，唯一来源）。
-
-**SmartFit（智能健身助手，全库 142 个）**
-```dart
-final assistant = CoachAssistant(
-  client: client, catalog: () => repo.current, profile: smartfitProfile,
-  preflight: (t, c, conv) => safetyScript.match(t),            // 现有 safety_script：胸痛、头晕等直接回复，不花钱
-  fallback: FallbackFn((r) async {                              // 断网/不合格：现有 RuleChatEngine + TemplatePlanGenerator
-    final reply = await ruleEngine.reply(r.userText, chatState);
-    return toCoachReply(reply);                                 // TrainingPlan JSON 两边相同：PlanCodec().decode(plan.toJson())
-  }),
-);
-```
-SmartFit 的 `TrainingPlan.fromJson` 能直接读 SDK 产出的计划（同一 v1 JSON）；`AiPlanGenerator` 占位改成调用 `assistant.ask` 即可。素材：`assetApps: ['smartfit']`，`resolve(id).voice['cue1']` 即 drill-pack 的 `voice/zh/cue1.m4a`。
-
-**HipLab（开胯训练助手，`apps: [hiplab]` 46 个）**
-```dart
-final r = assistant.resolve(id, variant: isDark ? 'dark' : 'light');  // 明暗两套封面/视频
-playKeys(r!.voiceKeys);                                               // HipLab 语音是 key 风格：drill.<id> / point.<id>
-```
-profile 只开 home / office；office 不着地。回落用现有模板 A–F/M（`profile.vars.fallbackTemplates`）。
-
-**FlareLab（托马斯训练助手，`apps: [flarelab]` 51 个）**
-profile 开 home / gym；A 徒手 / B 家用 / C 健身房三档由提示词侧重和场所规则决定。目前 FlareLab 动作缺语音（`missingReport` 可查），UI 用字幕即可。
-
-### Flutter 适配要点
+## Flutter 适配要点
 - 资源：`BundledCatalogSource(() => rootBundle.loadString(...))`，profile 同理；目录随包放一份，保证首启离线可用。
 - 缓存与记账：`FileCatalogCache` / `JsonlUsageSink` + `path_provider`。Web 端不要导入 `ugk_coach_io.dart`，自己实现 `CatalogCache`（如 shared_preferences）。
 - 取消：用户点「停止」→ `cancelToken.cancel()`，HTTP 请求真正中止。
@@ -412,8 +246,6 @@ dart pub get
 dart analyze           # 本次集成的最终结果见交付记录
 dart test              # 根包离线验证；历史 source 与验收边界见项目维护台账
 dart run tool/embed_prompts.dart        # 改了 prompts/*.md 之后
-dart run example/quickstart.dart        # 离线演示
-dart run example/smoke.dart             # 真实调用（花钱，按需跑一次）
 ```
 
 与评测同步（评测已并入 `eval/`，profile / 内核 / 目录快照只有仓库里这一份）：

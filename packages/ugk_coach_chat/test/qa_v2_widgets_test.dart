@@ -18,22 +18,6 @@ coach.LlmResponse _call(String tool, Map<String, Object?> args) =>
       ],
     );
 
-coach.LlmResponse _form({
-  String intent = 'actions',
-  String place = 'unknown',
-  String next = 'answer',
-  String status = 'none',
-  bool equipmentKnown = false,
-}) => _call('fill_form', {
-  'language': 'zh',
-  'intent': intent,
-  'place': place,
-  'next': next,
-  'answer_status': status,
-  'equipment_known': equipmentKnown,
-  'equipment': <String>[],
-});
-
 Future<void> _pump(WidgetTester tester) async {
   await tester.runAsync(
     () => Future<void>.delayed(const Duration(milliseconds: 1)),
@@ -51,48 +35,43 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final client = coach.FakeLlmClient([
-        _form(next: 'ask_place'),
         _call('ask_user', {
+          'step': 'place',
           'question': '你想在哪里练？',
           'options': ['居家', '健身房', '办公室', '直接推荐'],
         }),
-        _form(
-          intent: 'answer_pending',
-          place: 'home',
-          status: 'answered',
-          next: 'ask_equipment',
-        ),
+        _call('set_conditions', {'place': 'home'}),
         _call('ask_user', {
+          'step': 'equipment',
           'question': '手边有哪些器械？',
           'options': ['哑铃', '瑜伽垫', '椅子', '弹力带', '徒手', '直接推荐'],
+          'multi': true,
         }),
-        _form(
-          intent: 'answer_pending',
-          place: 'home',
-          status: 'answered',
-          equipmentKnown: true,
-        ),
-        _call('respond', {
+        _call('set_conditions', {
+          'equipment_known': true,
+          'equipment': <String>[],
+        }),
+        _call('reply', {
           'text': '试试这两个动作。',
           'items': [
             {'id': 'one', 'why': '适合当前条件'},
             {'id': 'two', 'why': '动作温和'},
           ],
-          'assumption': '按在家徒手安排',
           'chips': ['换场地'],
         }),
-        _form(place: 'home', equipmentKnown: true),
-        _call('respond', {
+        _call('show_actions', {
           'text': '继续按这些条件。',
           'items': [
             {'id': 'one', 'why': '适合当前条件'},
             {'id': 'two', 'why': '动作温和'},
+            {'id': 'three', 'why': '动作温和'},
           ],
           'assumption': '按在家徒手安排',
           'chips': ['换场地'],
         }),
-        _form(intent: 'change_place', next: 'ask_place'),
+        _call('set_conditions', {'place': 'unknown'}),
         _call('ask_user', {
+          'step': 'place',
           'question': '换到哪里练？',
           'options': ['居家', '健身房', '办公室', '直接推荐'],
         }),
@@ -183,7 +162,7 @@ void main() {
       await _pump(tester);
       expect(
         client.requests,
-        hasLength(4),
+        hasLength(3),
         reason: 'Multi-select waits for Submit',
       );
       await tester.ensureVisible(
@@ -213,7 +192,7 @@ void main() {
       await _pump(tester);
       expect(controller.messages.where((m) => m.isUser).last.text, '换场地');
       expect(find.text('换到哪里练？'), findsOneWidget);
-      expect(client.requests, hasLength(10));
+      expect(client.requests, hasLength(8));
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       var closed = false;

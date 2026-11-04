@@ -30,18 +30,6 @@
    "stretch": {
     "zh": "拉伸",
     "en": "Stretch"
-   },
-   "stability": {
-    "zh": "稳定",
-    "en": "Stability"
-   },
-   "balance": {
-    "zh": "平衡",
-    "en": "Balance"
-   },
-   "assessment": {
-    "zh": "评估",
-    "en": "Assessment"
    }
   },
   "muscleGroups": {
@@ -104,21 +92,6 @@
    },
    "tibialis": {
     "zh": "胫骨前肌"
-   },
-   "core": {
-    "zh": "腹直肌（含深层腹横肌）"
-   },
-   "glutes": {
-    "zh": "臀大肌"
-   },
-   "abductors": {
-    "zh": "臀中肌 · 髋外展"
-   },
-   "upper-back": {
-    "zh": "斜方肌中下部 · 菱形肌"
-   },
-   "lower-back": {
-    "zh": "竖脊肌"
    },
    "neck": {
     "zh": "颈部"
@@ -257,107 +230,6 @@
      "gym"
     ]
    },
-   "resistance-band": {
-    "zh": "弹力带",
-    "scenes": [
-     "gym"
-    ]
-   },
-   "mini-band": {
-    "zh": "迷你弹力圈",
-    "scenes": [
-     "gym"
-    ]
-   },
-   "ankle-strap": {
-    "zh": "脚踝绑带",
-    "scenes": [
-     "gym"
-    ]
-   },
-   "cable-machine": {
-    "zh": "绳索器械",
-    "scenes": [
-     "gym"
-    ]
-   },
-   "d-handle": {
-    "zh": "D 形把手",
-    "scenes": [
-     "gym"
-    ]
-   },
-   "pull-up-bar": {
-    "zh": "单杠",
-    "scenes": [
-     "gym"
-    ]
-   },
-   "gymnastic-rings": {
-    "zh": "吊环",
-    "scenes": [
-     "gym"
-    ]
-   },
-   "hip-abduction-machine": {
-    "zh": "髋外展机",
-    "scenes": [
-     "gym"
-    ]
-   },
-   "stability-ball": {
-    "zh": "瑞士球",
-    "scenes": [
-     "gym"
-    ]
-   },
-   "sliders": {
-    "zh": "滑垫（可用毛巾代替）",
-    "scenes": [
-     "gym"
-    ]
-   },
-   "barbell": {
-    "zh": "杠铃",
-    "scenes": [
-     "gym"
-    ]
-   },
-   "bench": {
-    "zh": "训练凳",
-    "scenes": [
-     "gym"
-    ]
-   },
-   "yoga-block": {
-    "zh": "瑜伽砖（可用厚书代替）",
-    "scenes": [
-     "home",
-     "gym"
-    ]
-   },
-   "yoga-blocks": {
-    "zh": "瑜伽砖（可用厚书代替）",
-    "scenes": [
-     "home",
-     "gym"
-    ]
-   },
-   "foam-block": {
-    "zh": "泡沫砖",
-    "scenes": [
-     "home",
-     "gym"
-    ]
-   },
-   "stool": {
-    "zh": "椅子/凳子",
-    "scenes": [
-     "home",
-     "office",
-     "gym"
-    ]
-   },
    "towel": {
     "zh": "毛巾",
     "scenes": [
@@ -371,6 +243,18 @@
     "scenes": [
      "home",
      "office",
+     "gym"
+    ]
+   },
+   "bench": {
+    "zh": "训练凳",
+    "scenes": [
+     "gym"
+    ]
+   },
+   "barbell": {
+    "zh": "杠铃",
+    "scenes": [
      "gym"
     ]
    }
@@ -411,22 +295,6 @@
    "hanging": {
     "zh": "悬垂",
     "floor": false
-   },
-   "plank": {
-    "zh": "平板支撑",
-    "floor": true
-   },
-   "side-lying": {
-    "zh": "侧卧/侧撑",
-    "floor": true
-   },
-   "half-kneeling": {
-    "zh": "单膝跪",
-    "floor": true
-   },
-   "other": {
-    "zh": "其他（器械/支撑）",
-    "floor": false
    }
   },
   "scenes": {
@@ -464,10 +332,10 @@
    "purpose": "练腹部，让身体更稳",
    "category": "strength",
    "muscles": [
-    "core"
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
-    "core"
+    "abs"
    ],
    "equipment": [
     "mat"
@@ -510,7 +378,9 @@
    "cautions": [
     "腰离地或发疼时，把腿抬高一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "w-dead-bug",
    "apps": [
     "flarelab"
@@ -537,17 +407,17 @@
    "purpose": "练腹部和抬腿的力量，提升撑住身体的能力",
    "category": "strength",
    "muscles": [
-    "core",
-    "hip-flexors"
+    "腹直肌（含深层腹横肌）",
+    "髋屈肌"
    ],
    "muscleGroups": [
-    "core",
+    "abs",
     "hip-flexors"
    ],
    "equipment": [
     "parallettes"
    ],
-   "position": "other",
+   "position": "support",
    "unilateral": false,
    "level": 2,
    "scenes": [
@@ -586,7 +456,9 @@
     "手腕疼或发麻时停下",
     "先活动手腕再做"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": "hip-flexors-A",
    "apps": [
     "flarelab"
@@ -613,17 +485,17 @@
    "purpose": "练腹部，提升在双杠上撑住时抬腿的能力",
    "category": "strength",
    "muscles": [
-    "core",
-    "hip-flexors"
+    "腹直肌（含深层腹横肌）",
+    "髋屈肌"
    ],
    "muscleGroups": [
-    "core",
+    "abs",
     "hip-flexors"
    ],
    "equipment": [
     "dip-bars"
    ],
-   "position": "other",
+   "position": "support",
    "unilateral": false,
    "level": 2,
    "scenes": [
@@ -660,7 +532,9 @@
    "cautions": [
     "肩前面夹着疼时，抬低一点或换简单版本"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": "h-reverse-crunch",
    "apps": [
     "flarelab"
@@ -687,14 +561,14 @@
    "purpose": "练大腿内侧和臀腿，让你能稳稳蹲向一侧",
    "category": "strength",
    "muscles": [
-    "adductors",
-    "quadriceps",
-    "glutes"
+    "内收肌群",
+    "股四头肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "adductors",
     "quadriceps",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [],
    "position": "standing",
@@ -736,7 +610,9 @@
    "cautions": [
     "膝盖不舒服时蹲浅一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": "n-squat-shift",
    "apps": [
     "flarelab"
@@ -763,8 +639,8 @@
    "purpose": "练大腿内侧和侧腰，让髋部更稳",
    "category": "strength",
    "muscles": [
-    "adductors",
-    "obliques"
+    "内收肌群",
+    "腹斜肌"
    ],
    "muscleGroups": [
     "adductors",
@@ -774,7 +650,7 @@
     "bench",
     "mat"
    ],
-   "position": "side-lying",
+   "position": "side_lying",
    "unilateral": true,
    "level": 2,
    "scenes": [
@@ -812,7 +688,9 @@
    "cautions": [
     "大腿根内侧刺痛时立刻停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "大腿内侧"
+   ],
    "alternative": "n-seated-squeeze",
    "apps": [
     "flarelab"
@@ -839,14 +717,13 @@
    "purpose": "练大腿内侧，让髋部更好控制",
    "category": "strength",
    "muscles": [
-    "adductors"
+    "内收肌群"
    ],
    "muscleGroups": [
     "adductors"
    ],
    "equipment": [
-    "cable-machine",
-    "ankle-strap"
+    "cable"
    ],
    "position": "standing",
    "unilateral": true,
@@ -912,8 +789,8 @@
    "purpose": "练胸部和肩膀，转身时稳住腰腹",
    "category": "strength",
    "muscles": [
-    "chest",
-    "obliques"
+    "胸大肌",
+    "腹斜肌"
    ],
    "muscleGroups": [
     "chest",
@@ -922,7 +799,7 @@
    "equipment": [
     "mat"
    ],
-   "position": "plank",
+   "position": "prone",
    "unilateral": true,
    "level": 2,
    "scenes": [
@@ -962,7 +839,9 @@
     "手腕疼或发麻时停下",
     "先活动手腕再做"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": "h-incline-pushup",
    "apps": [
     "flarelab"
@@ -989,7 +868,7 @@
    "purpose": "练胸部和手臂，比普通俯卧撑下得更深",
    "category": "strength",
    "muscles": [
-    "chest"
+    "胸大肌"
    ],
    "muscleGroups": [
     "chest"
@@ -997,7 +876,7 @@
    "equipment": [
     "parallettes"
    ],
-   "position": "plank",
+   "position": "prone",
    "unilateral": false,
    "level": 2,
    "scenes": [
@@ -1036,7 +915,10 @@
     "肩前面夹着疼时，下浅一点",
     "手腕疼或发麻时停下"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩",
+    "手腕"
+   ],
    "alternative": "h-incline-pushup",
    "apps": [
     "flarelab"
@@ -1063,14 +945,13 @@
    "purpose": "练胸部，同时练腰腹不让身体被拉转",
    "category": "strength",
    "muscles": [
-    "chest"
+    "胸大肌"
    ],
    "muscleGroups": [
     "chest"
    ],
    "equipment": [
-    "cable-machine",
-    "d-handle"
+    "cable"
    ],
    "position": "standing",
    "unilateral": true,
@@ -1110,7 +991,9 @@
    "cautions": [
     "肩前面夹着疼时，推的幅度小一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": "h-db-floor-press",
    "apps": [
     "flarelab"
@@ -1137,8 +1020,8 @@
    "purpose": "练肩膀和侧腰，让单手撑地更稳",
    "category": "strength",
    "muscles": [
-    "deltoids",
-    "obliques"
+    "三角肌",
+    "腹斜肌"
    ],
    "muscleGroups": [
     "deltoids",
@@ -1147,7 +1030,7 @@
    "equipment": [
     "mat"
    ],
-   "position": "side-lying",
+   "position": "side_lying",
    "unilateral": true,
    "level": 1,
    "scenes": [
@@ -1186,7 +1069,9 @@
     "手腕疼或发麻时停下",
     "先活动手腕再做"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": "rotator-cuff-A",
    "apps": [
     "flarelab"
@@ -1211,10 +1096,10 @@
     "en": "Dumbbell Half Turkish Get-Up"
    },
    "purpose": "练肩膀稳定，身体换姿势时手臂一直稳住",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "deltoids",
-    "rotator-cuff"
+    "三角肌",
+    "肩袖肌群"
    ],
    "muscleGroups": [
     "deltoids",
@@ -1263,7 +1148,9 @@
     "先用很轻的重量练熟",
     "肩前面夹着疼时停下"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": "deltoids-A",
    "apps": [
     "flarelab"
@@ -1290,7 +1177,7 @@
    "purpose": "练肩膀推举力量，斜着往上推对肩更友好",
    "category": "strength",
    "muscles": [
-    "deltoids"
+    "三角肌"
    ],
    "muscleGroups": [
     "deltoids"
@@ -1299,7 +1186,7 @@
     "landmine",
     "barbell"
    ],
-   "position": "half-kneeling",
+   "position": "kneeling",
    "unilateral": true,
    "level": 2,
    "scenes": [
@@ -1336,7 +1223,9 @@
    "cautions": [
     "肩前面夹着疼时，推的幅度小一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": "h-db-press",
    "apps": [
     "flarelab"
@@ -1363,13 +1252,13 @@
    "purpose": "练背部、臀部和大腿后侧",
    "category": "strength",
    "muscles": [
-    "lower-back",
-    "glutes",
-    "hamstrings"
+    "竖脊肌",
+    "臀大肌",
+    "腘绳肌"
    ],
    "muscleGroups": [
-    "lower-back",
-    "glutes",
+    "erectors",
+    "glute-max",
     "hamstrings"
    ],
    "equipment": [
@@ -1414,7 +1303,9 @@
     "手腕疼或发麻时停下",
     "先活动手腕再做"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": "h-tabletop",
    "apps": [
     "flarelab"
@@ -1441,15 +1332,15 @@
    "purpose": "练下背和臀部，让背更有耐力",
    "category": "strength",
    "muscles": [
-    "lower-back",
-    "glutes"
+    "竖脊肌",
+    "臀大肌"
    ],
    "muscleGroups": [
-    "lower-back",
-    "glutes"
+    "erectors",
+    "glute-max"
    ],
    "equipment": [
-    "stability-ball"
+    "swiss-ball"
    ],
    "position": "prone",
    "unilateral": false,
@@ -1489,7 +1380,9 @@
    "cautions": [
     "腰不舒服时抬低一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "h-superman",
    "apps": [
     "flarelab"
@@ -1516,19 +1409,19 @@
    "purpose": "练下背、臀部和大腿后侧，让你更有力地把身体抬起",
    "category": "strength",
    "muscles": [
-    "lower-back",
-    "glutes",
-    "hamstrings"
+    "竖脊肌",
+    "臀大肌",
+    "腘绳肌"
    ],
    "muscleGroups": [
-    "lower-back",
-    "glutes",
+    "erectors",
+    "glute-max",
     "hamstrings"
    ],
    "equipment": [
     "roman-chair"
    ],
-   "position": "other",
+   "position": "support",
    "unilateral": false,
    "level": 2,
    "scenes": [
@@ -1565,7 +1458,9 @@
    "cautions": [
     "腰不舒服时弯得浅一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "erectors-B",
    "apps": [
     "flarelab"
@@ -1592,7 +1487,7 @@
    "purpose": "活动手腕，为撑地的动作做准备",
    "category": "mobility",
    "muscles": [
-    "forearms"
+    "前臂 · 腕屈伸肌"
    ],
    "muscleGroups": [
     "forearms"
@@ -1638,7 +1533,9 @@
    "cautions": [
     "手腕刺痛或发麻时停下"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": null,
    "apps": [
     "flarelab"
@@ -1665,7 +1562,7 @@
    "purpose": "练前臂，让握力和手腕更有力",
    "category": "strength",
    "muscles": [
-    "forearms"
+    "前臂 · 腕屈伸肌"
    ],
    "muscleGroups": [
     "forearms"
@@ -1712,7 +1609,9 @@
    "cautions": [
     "手腕不舒服时用更轻的哑铃、幅度小一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": "forearms-A",
    "apps": [
     "flarelab"
@@ -1737,9 +1636,9 @@
     "en": "Bottoms-Up Kettlebell Carry"
    },
    "purpose": "练握力和前臂，让手腕更稳",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "forearms"
+    "前臂 · 腕屈伸肌"
    ],
    "muscleGroups": [
     "forearms"
@@ -1812,14 +1711,13 @@
    "purpose": "练臀部外侧，让髋部更稳",
    "category": "strength",
    "muscles": [
-    "abductors"
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
-    "abductors"
+    "hip-abductors"
    ],
    "equipment": [
-    "cable-machine",
-    "ankle-strap",
+    "cable",
     "chair"
    ],
    "position": "standing",
@@ -1876,14 +1774,13 @@
    "purpose": "练臀部，让你把腿往后推得更有力",
    "category": "strength",
    "muscles": [
-    "glutes"
+    "臀大肌"
    ],
    "muscleGroups": [
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
-    "cable-machine",
-    "ankle-strap",
+    "cable",
     "chair"
    ],
    "position": "standing",
@@ -1923,7 +1820,9 @@
    "cautions": [
     "腰不舒服时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -1940,10 +1839,10 @@
    "purpose": "练臀部，单腿把髋抬起",
    "category": "strength",
    "muscles": [
-    "glutes"
+    "臀大肌"
    ],
    "muscleGroups": [
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "mat"
@@ -1986,7 +1885,11 @@
     "腰不舒服时抬低一点，还疼就停",
     "头和肩放在垫子上，别用脖子撑"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰",
+    "肩",
+    "颈"
+   ],
    "alternative": "w-feet-on-chair-bridge",
    "apps": [
     "flarelab",
@@ -2017,13 +1920,13 @@
    "purpose": "练臀部，让你把腿往后抬得更有力",
    "category": "strength",
    "muscles": [
-    "glutes"
+    "臀大肌"
    ],
    "muscleGroups": [
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
-    "mini-band",
+    "band",
     "mat"
    ],
    "position": "quadruped",
@@ -2064,7 +1967,9 @@
    "cautions": [
     "腰不舒服时抬低一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "n-prone-hip-ext",
    "apps": [
     "flarelab"
@@ -2091,11 +1996,11 @@
    "purpose": "练臀部和大腿后侧，让你把腿往后抬得更有力",
    "category": "strength",
    "muscles": [
-    "glutes",
-    "hamstrings"
+    "臀大肌",
+    "腘绳肌"
    ],
    "muscleGroups": [
-    "glutes",
+    "glute-max",
     "hamstrings"
    ],
    "equipment": [
@@ -2138,7 +2043,9 @@
    "cautions": [
     "腰不舒服时抬低一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "w-chair-hip-thrust",
    "apps": [
     "flarelab"
@@ -2165,12 +2072,12 @@
    "purpose": "练大腿向内转的力量和控制，让髋更灵活",
    "category": "mobility",
    "muscles": [
-    "abductors",
-    "glutes"
+    "臀中肌 · 髋外展",
+    "臀大肌"
    ],
    "muscleGroups": [
-    "abductors",
-    "glutes"
+    "hip-abductors",
+    "glute-max"
    ],
    "equipment": [
     "mat"
@@ -2212,7 +2119,10 @@
    "cautions": [
     "髋或膝不舒服时抬低一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "髋"
+   ],
    "alternative": "h-reverse-clam",
    "apps": [
     "hiplab",
@@ -2235,7 +2145,7 @@
    "purpose": "拉伸大腿内侧，让髋更灵活",
    "category": "mobility",
    "muscles": [
-    "adductors"
+    "内收肌群"
    ],
    "muscleGroups": [
     "adductors"
@@ -2280,7 +2190,9 @@
    "cautions": [
     "大腿根内侧刺痛时停下"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "大腿内侧"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -2304,8 +2216,8 @@
    "purpose": "拉伸身体两侧的腰和背",
    "category": "stretch",
    "muscles": [
-    "obliques",
-    "lats"
+    "腹斜肌",
+    "背阔肌"
    ],
    "muscleGroups": [
     "obliques",
@@ -2363,6 +2275,56 @@
    }
   },
   {
+   "id": "h-band-biceps-curl",
+   "name": {
+    "zh": "站姿踩带弹力带弯举",
+    "en": "Standing Band Biceps Curl"
+   },
+   "purpose": "用弹力带练上臂前侧（二头肌）",
+   "category": "strength",
+   "muscles": [
+    "肱二头肌"
+   ],
+   "muscleGroups": [
+    "biceps"
+   ],
+   "equipment": [
+    "band"
+   ],
+   "position": "standing",
+   "unilateral": false,
+   "level": 1,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 12,
+    "restSeconds": 45
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "手肘贴住身体，双手弯向肩膀",
+     "双脚踩住弹力带中间，掌心朝前。",
+     "放下时慢一点，直到手臂伸直。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "手肘疼时换更轻的弹力带"
+   ],
+   "contraindications": [],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
    "id": "h-band-chest-fly",
    "name": {
     "zh": "站姿单臂弹力带夹胸",
@@ -2371,14 +2333,13 @@
    "purpose": "练胸部，让手臂往身前合拢更有力",
    "category": "strength",
    "muscles": [
-    "chest"
+    "胸大肌"
    ],
    "muscleGroups": [
     "chest"
    ],
    "equipment": [
-    "resistance-band",
-    "d-handle"
+    "band"
    ],
    "position": "standing",
    "unilateral": true,
@@ -2418,7 +2379,9 @@
     "固定点不牢时先别开始",
     "肩膀前侧疼时减小幅度或停下"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -2435,15 +2398,15 @@
    "purpose": "练上背和肩膀后侧，改善含胸圆肩",
    "category": "strength",
    "muscles": [
-    "deltoids",
-    "upper-back"
+    "三角肌",
+    "斜方肌中下部 · 菱形肌"
    ],
    "muscleGroups": [
     "deltoids",
-    "upper-back"
+    "scapular"
    ],
    "equipment": [
-    "resistance-band"
+    "band"
    ],
    "position": "standing",
    "unilateral": false,
@@ -2483,7 +2446,9 @@
     "固定点不牢时先别开始",
     "肩膀疼时换更轻的弹力带"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -2500,14 +2465,13 @@
    "purpose": "练臀部，让腿往后推更有力",
    "category": "strength",
    "muscles": [
-    "glutes"
+    "臀大肌"
    ],
    "muscleGroups": [
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
-    "resistance-band",
-    "ankle-strap",
+    "band",
     "chair"
    ],
    "position": "standing",
@@ -2565,15 +2529,15 @@
    "purpose": "练髋部往里转的力量和控制",
    "category": "strength",
    "muscles": [
-    "abductors",
-    "glutes"
+    "臀中肌 · 髋外展",
+    "臀大肌"
    ],
    "muscleGroups": [
-    "abductors",
-    "glutes"
+    "hip-abductors",
+    "glute-max"
    ],
    "equipment": [
-    "resistance-band",
+    "band",
     "chair"
    ],
    "position": "seated",
@@ -2615,7 +2579,10 @@
     "固定点不牢时先别开始",
     "髋或膝不舒服时摆小一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -2639,15 +2606,15 @@
    "purpose": "拉伸大腿内侧和大腿后侧",
    "category": "stretch",
    "muscles": [
-    "adductors",
-    "hamstrings"
+    "内收肌群",
+    "腘绳肌"
    ],
    "muscleGroups": [
     "adductors",
     "hamstrings"
    ],
    "equipment": [
-    "resistance-band",
+    "band",
     "mat"
    ],
    "position": "supine",
@@ -2688,7 +2655,9 @@
    "cautions": [
     "大腿根刺痛时就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "大腿内侧"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -2709,18 +2678,17 @@
     "en": "Band Anti-Rotation Press"
    },
    "purpose": "练腰腹两侧，让身体不被拉着转",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "obliques",
-    "core"
+    "腹斜肌",
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
     "obliques",
-    "core"
+    "abs"
    ],
    "equipment": [
-    "resistance-band",
-    "d-handle"
+    "band"
    ],
    "position": "standing",
    "unilateral": true,
@@ -2760,7 +2728,9 @@
     "固定点不牢时先别开始",
     "腰背不舒服时换更轻的弹力带"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -2779,15 +2749,15 @@
    "purpose": "练上背和肩膀后侧，改善圆肩",
    "category": "strength",
    "muscles": [
-    "upper-back",
-    "deltoids"
+    "斜方肌中下部 · 菱形肌",
+    "三角肌"
    ],
    "muscleGroups": [
-    "upper-back",
+    "scapular",
     "deltoids"
    ],
    "equipment": [
-    "resistance-band"
+    "band"
    ],
    "position": "standing",
    "unilateral": false,
@@ -2828,7 +2798,9 @@
     "肩膀疼时换更轻的弹力带",
     "弹力带有裂口时别用"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -2849,15 +2821,15 @@
    "purpose": "练背部，让拉的动作更有力",
    "category": "strength",
    "muscles": [
-    "lats",
-    "upper-back"
+    "背阔肌",
+    "斜方肌中下部 · 菱形肌"
    ],
    "muscleGroups": [
     "lats",
-    "upper-back"
+    "scapular"
    ],
    "equipment": [
-    "resistance-band",
+    "band",
     "mat"
    ],
    "position": "seated",
@@ -2897,7 +2869,10 @@
    "cautions": [
     "腰背发紧时膝盖弯一点再做"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "腰"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -2916,14 +2891,13 @@
    "purpose": "练肩膀深层的小肌肉，让肩更稳",
    "category": "strength",
    "muscles": [
-    "rotator-cuff"
+    "肩袖肌群"
    ],
    "muscleGroups": [
     "rotator-cuff"
    ],
    "equipment": [
-    "resistance-band",
-    "d-handle"
+    "band"
    ],
    "position": "standing",
    "unilateral": true,
@@ -2964,7 +2938,9 @@
     "固定点不牢时先别开始",
     "肩膀疼时减小幅度或停下"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -2981,14 +2957,13 @@
    "purpose": "练臀部外侧，让髋部更稳",
    "category": "strength",
    "muscles": [
-    "abductors"
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
-    "abductors"
+    "hip-abductors"
    ],
    "equipment": [
-    "resistance-band",
-    "ankle-strap",
+    "band",
     "chair"
    ],
    "position": "standing",
@@ -3029,7 +3004,9 @@
     "别把弹力带绑在椅子上",
     "髋部疼时停下"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -3046,14 +3023,13 @@
    "purpose": "练大腿内侧，让髋部更好控制",
    "category": "strength",
    "muscles": [
-    "adductors"
+    "内收肌群"
    ],
    "muscleGroups": [
     "adductors"
    ],
    "equipment": [
-    "resistance-band",
-    "ankle-strap",
+    "band",
     "chair"
    ],
    "position": "standing",
@@ -3094,7 +3070,9 @@
     "别把弹力带绑在椅子上",
     "大腿根疼时停下"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "大腿内侧"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -3109,18 +3087,17 @@
     "en": "Band Anti-Rotation Step-Out"
    },
    "purpose": "练核心，让身体在移动时也不被拉转",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "obliques",
-    "core"
+    "腹斜肌",
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
     "obliques",
-    "core"
+    "abs"
    ],
    "equipment": [
-    "resistance-band",
-    "d-handle"
+    "band"
    ],
    "position": "standing",
    "unilateral": true,
@@ -3177,16 +3154,15 @@
    "purpose": "练大腿根前侧和大腿前面",
    "category": "strength",
    "muscles": [
-    "hip-flexors",
-    "quadriceps"
+    "髋屈肌",
+    "股四头肌"
    ],
    "muscleGroups": [
     "hip-flexors",
     "quadriceps"
    ],
    "equipment": [
-    "resistance-band",
-    "ankle-strap",
+    "band",
     "chair"
    ],
    "position": "standing",
@@ -3244,14 +3220,13 @@
    "purpose": "练上臂后侧（三头肌）",
    "category": "strength",
    "muscles": [
-    "triceps"
+    "肱三头肌"
    ],
    "muscleGroups": [
     "triceps"
    ],
    "equipment": [
-    "resistance-band",
-    "d-handle"
+    "band"
    ],
    "position": "standing",
    "unilateral": true,
@@ -3300,6 +3275,59 @@
    }
   },
   {
+   "id": "h-bear-plank",
+   "name": {
+    "zh": "熊式支撑",
+    "en": "Bear Plank"
+   },
+   "purpose": "练核心稳定和肩膀的支撑力",
+   "category": "core",
+   "muscles": [
+    "腹直肌（含深层腹横肌）"
+   ],
+   "muscleGroups": [
+    "abs"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "quadruped",
+   "unilateral": false,
+   "level": 1,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "time",
+    "sets": 3,
+    "seconds": 20,
+    "restSeconds": 30
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "收紧肚子，膝盖离地一点点",
+     "手在肩膀下，膝盖在臀部下，脚尖踩地。",
+     "背放平，臀部别翘高，撑住均匀呼吸。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "先活动一下手腕再做",
+    "手腕刺痛或发麻时停下"
+   ],
+   "contraindications": [
+    "手腕"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
    "id": "h-bent-knee-calf-raise",
    "name": {
     "zh": "屈膝踮脚",
@@ -3308,7 +3336,7 @@
    "purpose": "练小腿，让脚踝更有力",
    "category": "strength",
    "muscles": [
-    "calves"
+    "小腿三头肌"
    ],
    "muscleGroups": [
     "calves"
@@ -3361,20 +3389,69 @@
    }
   },
   {
+   "id": "h-biceps-self",
+   "name": {
+    "zh": "双手对抗弯举",
+    "en": "Self-Resisted Biceps Curl"
+   },
+   "purpose": "不用器械，靠另一只手给阻力练上臂前侧",
+   "category": "strength",
+   "muscles": [
+    "肱二头肌"
+   ],
+   "muscleGroups": [
+    "biceps"
+   ],
+   "equipment": [],
+   "position": "standing",
+   "unilateral": true,
+   "level": 1,
+   "scenes": [
+    "home",
+    "office",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 6,
+    "restSeconds": 30
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "另一只手压住小臂，顶着它慢慢弯起",
+     "手肘贴住身体，掌心朝上。",
+     "放下时也要用力顶住，别松劲。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "手肘疼时少用点力"
+   ],
+   "contraindications": [],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
    "id": "h-bilateral-farmer-hold-native",
    "name": {
     "zh": "双哑铃农夫站姿保持",
     "en": "Dumbbell Farmer Hold"
    },
    "purpose": "练握力和身体的稳定",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "forearms",
-    "core"
+    "前臂 · 腕屈伸肌",
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
     "forearms",
-    "core"
+    "abs"
    ],
    "equipment": [
     "dumbbell"
@@ -3416,7 +3493,9 @@
    "cautions": [
     "手或腰不舒服时就放下哑铃"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -3433,10 +3512,10 @@
    "purpose": "拉伸上背和两块肩胛骨之间",
    "category": "stretch",
    "muscles": [
-    "upper-back"
+    "斜方肌中下部 · 菱形肌"
    ],
    "muscleGroups": [
-    "upper-back"
+    "scapular"
    ],
    "equipment": [],
    "position": "standing",
@@ -3495,11 +3574,11 @@
    "purpose": "练臀部和大腿后侧，让骨盆更稳",
    "category": "strength",
    "muscles": [
-    "glutes",
-    "hamstrings"
+    "臀大肌",
+    "腘绳肌"
    ],
    "muscleGroups": [
-    "glutes",
+    "glute-max",
     "hamstrings"
    ],
    "equipment": [
@@ -3543,11 +3622,69 @@
    "cautions": [
     "腰不舒服时脚抬低一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "w-feet-on-chair-bridge",
    "apps": [
     "smartfit"
    ],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "h-bridge-overhead",
+   "name": {
+    "zh": "臀桥过头伸臂",
+    "en": "Glute Bridge with Overhead Reach"
+   },
+   "purpose": "同时练臀部和手臂上举，为完整的桥做准备",
+   "category": "strength",
+   "muscles": [
+    "臀大肌",
+    "三角肌"
+   ],
+   "muscleGroups": [
+    "glute-max",
+    "deltoids"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "supine",
+   "unilateral": false,
+   "level": 1,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 10,
+    "restSeconds": 45
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "手臂贴地伸过头，夹臀把髋抬起",
+     "仰卧屈膝，双脚与髋同宽。",
+     "肋骨往下收，停住再慢慢放下。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "肩或腰疼时髋抬低一点"
+   ],
+   "contraindications": [
+    "腰",
+    "肩",
+    "髋"
+   ],
+   "alternative": null,
+   "apps": [],
    "tags": [],
    "review": {
     "status": "ai-reviewed-r2-needs-user-review"
@@ -3562,12 +3699,12 @@
    "purpose": "练前腿的大腿和臀部，提升单腿力量",
    "category": "strength",
    "muscles": [
-    "quadriceps",
-    "glutes"
+    "股四头肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "quadriceps",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "chair"
@@ -3610,7 +3747,9 @@
     "膝盖不舒服时蹲浅一点",
     "用稳固、不带轮子的椅子"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": "h-squat",
    "apps": [
     "smartfit"
@@ -3629,7 +3768,7 @@
    "purpose": "活动髋部，练大腿内侧的控制",
    "category": "mobility",
    "muscles": [
-    "adductors"
+    "内收肌群"
    ],
    "muscleGroups": [
     "adductors"
@@ -3674,7 +3813,9 @@
    "cautions": [
     "大腿根刺痛时开小一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "大腿内侧"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -3699,7 +3840,7 @@
    "purpose": "练小腿，让脚踝更有力",
    "category": "strength",
    "muscles": [
-    "calves"
+    "小腿三头肌"
    ],
    "muscleGroups": [
     "calves"
@@ -3766,12 +3907,12 @@
    "purpose": "让背部更灵活，放松腰背",
    "category": "mobility",
    "muscles": [
-    "lower-back",
-    "core"
+    "竖脊肌",
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
-    "lower-back",
-    "core"
+    "erectors",
+    "abs"
    ],
    "equipment": [
     "mat"
@@ -3815,7 +3956,11 @@
     "手腕不舒服时改成握拳撑地或换坐姿版本",
     "腰或脖子发紧时幅度小一点，慢慢做"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕",
+    "腰",
+    "颈"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -3834,7 +3979,7 @@
    "purpose": "练手臂后侧和胸部",
    "category": "strength",
    "muscles": [
-    "triceps"
+    "肱三头肌"
    ],
    "muscleGroups": [
     "triceps"
@@ -3842,7 +3987,7 @@
    "equipment": [
     "chair"
    ],
-   "position": "other",
+   "position": "support",
    "unilateral": false,
    "level": 1,
    "scenes": [
@@ -3880,11 +4025,70 @@
     "肩膀前面夹着疼时下得浅一点或换简单版本",
     "用结实、不带轮子的椅子"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": "h-incline-pushup",
    "apps": [
     "smartfit"
    ],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "h-chair-elbow-triceps-stretch",
+   "name": {
+    "zh": "扶椅屈肘手臂后侧拉伸",
+    "en": "Chair Bent-Elbow Triceps Stretch"
+   },
+   "purpose": "拉伸上臂后侧和腋下",
+   "category": "stretch",
+   "muscles": [
+    "肱三头肌",
+    "背阔肌"
+   ],
+   "muscleGroups": [
+    "triceps",
+    "lats"
+   ],
+   "equipment": [
+    "chair"
+   ],
+   "position": "standing",
+   "unilateral": false,
+   "level": 1,
+   "scenes": [
+    "home",
+    "office",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "time",
+    "sets": 2,
+    "seconds": 30,
+    "restSeconds": 15
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "手肘搭稳椅背，臀部往后让胸口下沉",
+     "双肘弯着，手放在后颈附近，别碰头。",
+     "停住不动，慢慢呼吸。",
+     "每次呼气再放松一点，别来回颠。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "肩膀疼时下沉少一点",
+    "用结实、不带轮子的椅子"
+   ],
+   "contraindications": [
+    "肩"
+   ],
+   "alternative": null,
+   "apps": [],
    "tags": [],
    "review": {
     "status": "ai-reviewed-r2-needs-user-review"
@@ -3899,10 +4103,10 @@
    "purpose": "练臀部，让腿往后抬更有力",
    "category": "strength",
    "muscles": [
-    "glutes"
+    "臀大肌"
    ],
    "muscleGroups": [
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "chair"
@@ -3946,7 +4150,9 @@
     "腰不舒服时抬低一点，还疼就停",
     "用结实、不带轮子的椅子"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -3967,7 +4173,7 @@
    "purpose": "拉伸腋下到身体两侧的后背",
    "category": "stretch",
    "muscles": [
-    "lats"
+    "背阔肌"
    ],
    "muscleGroups": [
     "lats"
@@ -4036,8 +4242,8 @@
    "purpose": "一点点拉开大腿后侧和髋前侧",
    "category": "stretch",
    "muscles": [
-    "hamstrings",
-    "hip-flexors"
+    "腘绳肌",
+    "髋屈肌"
    ],
    "muscleGroups": [
     "hamstrings",
@@ -4047,7 +4253,7 @@
     "chair",
     "mat"
    ],
-   "position": "half-kneeling",
+   "position": "kneeling",
    "unilateral": true,
    "level": 2,
    "scenes": [
@@ -4104,11 +4310,11 @@
    "purpose": "练臀部和大腿后侧，让单腿更有力",
    "category": "strength",
    "muscles": [
-    "glutes",
-    "hamstrings"
+    "臀大肌",
+    "腘绳肌"
    ],
    "muscleGroups": [
-    "glutes",
+    "glute-max",
     "hamstrings"
    ],
    "equipment": [
@@ -4153,7 +4359,9 @@
     "腰不舒服时抬低一点，还疼就停",
     "用结实、不带轮子的椅子"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -4170,12 +4378,12 @@
    "purpose": "练大腿和臀部，让起身更轻松",
    "category": "strength",
    "muscles": [
-    "quadriceps",
-    "glutes"
+    "股四头肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "quadriceps",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "chair"
@@ -4219,7 +4427,9 @@
     "用结实、不带轮子的椅子，最好靠墙放",
     "膝盖不舒服时换高一点的椅子，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -4236,12 +4446,12 @@
    "purpose": "练大腿前侧和臀部",
    "category": "strength",
    "muscles": [
-    "quadriceps",
-    "glutes"
+    "股四头肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "quadriceps",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "chair"
@@ -4285,7 +4495,9 @@
     "用结实、防滑、不带轮子的椅子或凳子，最好靠墙",
     "膝盖往里扣或疼时换矮一点的台阶"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": "h-squat",
    "apps": [
     "smartfit"
@@ -4304,11 +4516,11 @@
    "purpose": "让上背更灵活，打开肩膀",
    "category": "mobility",
    "muscles": [
-    "upper-back",
-    "lats"
+    "斜方肌中下部 · 菱形肌",
+    "背阔肌"
    ],
    "muscleGroups": [
-    "upper-back",
+    "scapular",
     "lats"
    ],
    "equipment": [
@@ -4372,7 +4584,7 @@
    "purpose": "拉伸大腿后侧和后背",
    "category": "stretch",
    "muscles": [
-    "hamstrings"
+    "腘绳肌"
    ],
    "muscleGroups": [
     "hamstrings"
@@ -4435,10 +4647,10 @@
    "purpose": "让背部更灵活，拉伸肚子前面",
    "category": "stretch",
    "muscles": [
-    "core"
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
-    "core"
+    "abs"
    ],
    "equipment": [
     "mat"
@@ -4480,7 +4692,9 @@
    "cautions": [
     "腰不舒服时抬低一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -4499,18 +4713,18 @@
    "purpose": "拉伸后腿的髋前侧和大腿前侧",
    "category": "stretch",
    "muscles": [
-    "hip-flexors",
-    "quadriceps"
+    "髋屈肌",
+    "股四头肌"
    ],
    "muscleGroups": [
     "hip-flexors",
     "quadriceps"
    ],
    "equipment": [
-    "stool",
+    "chair",
     "mat"
    ],
-   "position": "half-kneeling",
+   "position": "kneeling",
    "unilateral": true,
    "level": 2,
    "scenes": [
@@ -4549,7 +4763,9 @@
     "只拉到舒服的程度，疼就放松",
     "后膝下面垫软垫，膝盖不舒服就幅度小一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": "s-kneel-hipflex",
    "apps": [
     "hiplab",
@@ -4564,6 +4780,60 @@
    }
   },
   {
+   "id": "h-crossbody",
+   "name": {
+    "zh": "交叉臂肩后侧拉伸",
+    "en": "Cross-Body Shoulder Stretch"
+   },
+   "purpose": "拉伸肩膀后侧",
+   "category": "stretch",
+   "muscles": [
+    "三角肌",
+    "肩袖肌群"
+   ],
+   "muscleGroups": [
+    "deltoids",
+    "rotator-cuff"
+   ],
+   "equipment": [],
+   "position": "standing",
+   "unilateral": true,
+   "level": 1,
+   "scenes": [
+    "home",
+    "office",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "time",
+    "sets": 2,
+    "seconds": 30,
+    "restSeconds": 15
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "手臂横过胸前，另一手把它拉近",
+     "另一手按在肘关节上方，肩膀往下放别耸。",
+     "停住不动，慢慢呼吸。",
+     "每次呼气再放松一点，别来回颠。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "肩膀疼时拉轻一点，还疼就停"
+   ],
+   "contraindications": [
+    "肩"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
    "id": "h-crunch",
    "name": {
     "zh": "卷腹",
@@ -4572,10 +4842,10 @@
    "purpose": "练腹部",
    "category": "strength",
    "muscles": [
-    "core"
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
-    "core"
+    "abs"
    ],
    "equipment": [
     "mat"
@@ -4617,7 +4887,9 @@
    "cautions": [
     "脖子不舒服时卷低一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "颈"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -4636,7 +4908,7 @@
    "purpose": "拿哑铃练小腿，让脚踝更有力",
    "category": "strength",
    "muscles": [
-    "calves"
+    "小腿三头肌"
    ],
    "muscleGroups": [
     "calves"
@@ -4698,7 +4970,7 @@
    "purpose": "练手臂前侧",
    "category": "strength",
    "muscles": [
-    "biceps"
+    "肱二头肌"
    ],
    "muscleGroups": [
     "biceps"
@@ -4744,7 +5016,9 @@
    "cautions": [
     "用能控制的重量，手肘或手腕疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -4763,7 +5037,7 @@
    "purpose": "练胸部，让两臂往中间合的力量更强",
    "category": "strength",
    "muscles": [
-    "chest"
+    "胸大肌"
    ],
    "muscleGroups": [
     "chest"
@@ -4810,7 +5084,9 @@
     "从轻重量开始，疼就停",
     "肩膀前面夹着疼时打开少一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -4827,8 +5103,8 @@
    "purpose": "练胸部和手臂后侧",
    "category": "strength",
    "muscles": [
-    "chest",
-    "triceps"
+    "胸大肌",
+    "肱三头肌"
    ],
    "muscleGroups": [
     "chest",
@@ -4894,7 +5170,7 @@
    "purpose": "练肩膀前侧",
    "category": "strength",
    "muscles": [
-    "deltoids"
+    "三角肌"
    ],
    "muscleGroups": [
     "deltoids"
@@ -4940,7 +5216,9 @@
     "用轻重量，先做 1 组轻松的 6 次",
     "肩膀前面夹着疼时抬低一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -4957,8 +5235,8 @@
    "purpose": "练手臂前侧和小臂",
    "category": "strength",
    "muscles": [
-    "biceps",
-    "forearms"
+    "肱二头肌",
+    "前臂 · 腕屈伸肌"
    ],
    "muscleGroups": [
     "biceps",
@@ -5020,7 +5298,7 @@
    "purpose": "练手臂后侧",
    "category": "strength",
    "muscles": [
-    "triceps"
+    "肱三头肌"
    ],
    "muscleGroups": [
     "triceps"
@@ -5066,7 +5344,9 @@
     "用轻重量，先做 1 组轻松的 6 次",
     "腰不舒服时上身抬高一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -5083,7 +5363,7 @@
    "purpose": "练肩膀两侧",
    "category": "strength",
    "muscles": [
-    "deltoids"
+    "三角肌"
    ],
    "muscleGroups": [
     "deltoids"
@@ -5129,11 +5409,68 @@
     "从轻重量开始，疼就停",
     "肩膀前面夹着疼时抬低一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
    ],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "h-db-overhead-shrug",
+   "name": {
+    "zh": "双哑铃过头耸肩",
+    "en": "Standing Dumbbell Overhead Shrug"
+   },
+   "purpose": "手臂举过头时练肩膀上方的肌肉",
+   "category": "strength",
+   "muscles": [
+    "斜方肌中下部 · 菱形肌",
+    "三角肌"
+   ],
+   "muscleGroups": [
+    "scapular",
+    "deltoids"
+   ],
+   "equipment": [
+    "dumbbell"
+   ],
+   "position": "standing",
+   "unilateral": false,
+   "level": 2,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 10,
+    "restSeconds": 60
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "手臂伸直举过头，肩膀往耳朵耸",
+     "站直，肋骨往下收，头不动。",
+     "顶上停一下，再慢慢放下。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "用轻哑铃，肩膀或脖子疼就停"
+   ],
+   "contraindications": [
+    "肩",
+    "颈"
+   ],
+   "alternative": null,
+   "apps": [],
    "tags": [],
    "review": {
     "status": "ai-reviewed-r2-needs-user-review"
@@ -5148,7 +5485,7 @@
    "purpose": "练手臂后侧，让手臂伸直更有力",
    "category": "strength",
    "muscles": [
-    "triceps"
+    "肱三头肌"
    ],
    "muscleGroups": [
     "triceps"
@@ -5194,7 +5531,9 @@
     "从轻重量开始，出现疼痛就停止",
     "肩前侧夹着疼时，缩小幅度或换简单版本"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -5211,8 +5550,8 @@
    "purpose": "练肩膀和手臂后侧，让往上推更有力",
    "category": "strength",
    "muscles": [
-    "deltoids",
-    "triceps"
+    "三角肌",
+    "肱三头肌"
    ],
    "muscleGroups": [
     "deltoids",
@@ -5259,7 +5598,9 @@
     "从轻重量开始，出现疼痛就停止",
     "肩前侧夹着疼时，缩小幅度或换简单版本"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": "h-db-lateral",
    "apps": [
     "smartfit"
@@ -5278,12 +5619,12 @@
    "purpose": "练大腿后侧和臀部，学会从髋部弯腰而不弓背",
    "category": "strength",
    "muscles": [
-    "hamstrings",
-    "glutes"
+    "腘绳肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "hamstrings",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "dumbbell"
@@ -5326,11 +5667,67 @@
     "从轻重量开始，出现疼痛就停止",
     "腰不舒服时减小幅度，仍痛就停止"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "h-good-morning",
    "apps": [
     "smartfit"
    ],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "h-db-reverse-curl",
+   "name": {
+    "zh": "站姿哑铃反握弯举",
+    "en": "Standing Dumbbell Reverse Curl"
+   },
+   "purpose": "练前臂和上臂前侧，让握力和手腕更稳",
+   "category": "strength",
+   "muscles": [
+    "前臂 · 腕屈伸肌",
+    "肱二头肌"
+   ],
+   "muscleGroups": [
+    "forearms",
+    "biceps"
+   ],
+   "equipment": [
+    "dumbbell"
+   ],
+   "position": "standing",
+   "unilateral": false,
+   "level": 1,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 10,
+    "restSeconds": 45
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "手背朝前握哑铃，手肘贴身往上弯",
+     "手腕保持平直，不要往下折。",
+     "举到胸口高度停一下。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "手腕或手肘疼时停止，先用轻哑铃"
+   ],
+   "contraindications": [
+    "手腕"
+   ],
+   "alternative": null,
+   "apps": [],
    "tags": [],
    "review": {
     "status": "ai-reviewed-r2-needs-user-review"
@@ -5345,12 +5742,12 @@
    "purpose": "练肩膀后侧和上背，帮助改善圆肩",
    "category": "strength",
    "muscles": [
-    "deltoids",
-    "upper-back"
+    "三角肌",
+    "斜方肌中下部 · 菱形肌"
    ],
    "muscleGroups": [
     "deltoids",
-    "upper-back"
+    "scapular"
    ],
    "equipment": [
     "dumbbell"
@@ -5393,7 +5790,9 @@
     "从轻重量开始，出现疼痛就停止",
     "腰不舒服时减小幅度，仍痛就停止"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "h-band-pull-apart",
    "apps": [
     "smartfit"
@@ -5412,12 +5811,12 @@
    "purpose": "练背部，让往回拉更有力",
    "category": "strength",
    "muscles": [
-    "lats",
-    "upper-back"
+    "背阔肌",
+    "斜方肌中下部 · 菱形肌"
    ],
    "muscleGroups": [
     "lats",
-    "upper-back"
+    "scapular"
    ],
    "equipment": [
     "dumbbell",
@@ -5480,11 +5879,11 @@
    "purpose": "练肩膀上方和脖子两侧的肌肉",
    "category": "strength",
    "muscles": [
-    "upper-back",
-    "neck"
+    "斜方肌中下部 · 菱形肌",
+    "颈部"
    ],
    "muscleGroups": [
-    "upper-back",
+    "scapular",
     "neck"
    ],
    "equipment": [
@@ -5527,7 +5926,10 @@
    "cautions": [
     "脖子或肩膀不舒服时停止，先用轻重量"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩",
+    "颈"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -5544,12 +5946,12 @@
    "purpose": "练大腿和臀部，提升单腿力量",
    "category": "strength",
    "muscles": [
-    "quadriceps",
-    "glutes"
+    "股四头肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "quadriceps",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "dumbbell"
@@ -5592,7 +5994,9 @@
     "从轻重量开始，出现疼痛就停止",
     "膝盖不舒服时蹲浅一点，仍痛就停止"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -5609,7 +6013,7 @@
    "purpose": "负重练小腿，扶墙更稳",
    "category": "strength",
    "muscles": [
-    "calves"
+    "小腿三头肌"
    ],
    "muscleGroups": [
     "calves"
@@ -5665,6 +6069,60 @@
    }
   },
   {
+   "id": "h-db-zottman-curl",
+   "name": {
+    "zh": "站姿哑铃翻掌弯举",
+    "en": "Standing Dumbbell Zottman Curl"
+   },
+   "purpose": "同时练上臂前侧和前臂",
+   "category": "strength",
+   "muscles": [
+    "肱二头肌",
+    "前臂 · 腕屈伸肌"
+   ],
+   "muscleGroups": [
+    "biceps",
+    "forearms"
+   ],
+   "equipment": [
+    "dumbbell"
+   ],
+   "position": "standing",
+   "unilateral": false,
+   "level": 2,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 8,
+    "restSeconds": 60
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "掌心朝上举起，顶端翻成掌心朝下再放",
+     "手肘贴住身体，手腕平直。",
+     "放到底再把掌心翻回朝上。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "手腕或手肘疼时停止，先用轻哑铃"
+   ],
+   "contraindications": [
+    "手腕"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
    "id": "h-dd-shoulder",
    "name": {
     "zh": "下犬式压肩",
@@ -5673,8 +6131,8 @@
    "purpose": "打开肩膀，拉伸腋下和胸口",
    "category": "stretch",
    "muscles": [
-    "lats",
-    "chest"
+    "背阔肌",
+    "胸大肌"
    ],
    "muscleGroups": [
     "lats",
@@ -5683,7 +6141,7 @@
    "equipment": [
     "mat"
    ],
-   "position": "other",
+   "position": "prone",
    "unilateral": false,
    "level": 1,
    "scenes": [
@@ -5722,7 +6180,9 @@
     "出现疼痛时放松，只拉到舒服的程度",
     "手腕刺痛或发麻时停止，开始前先活动手腕"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": "h-chair-lat",
    "apps": [
     "smartfit"
@@ -5741,10 +6201,10 @@
    "purpose": "练臀部，让腿往后抬更有力",
    "category": "strength",
    "muscles": [
-    "glutes"
+    "臀大肌"
    ],
    "muscleGroups": [
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "mat"
@@ -5788,7 +6248,10 @@
     "腰不舒服时减小幅度，仍痛就停止",
     "手腕刺痛或发麻时停止，开始前先活动手腕"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰",
+    "手腕"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -5805,7 +6268,7 @@
    "purpose": "拉伸胸口和肩膀前侧",
    "category": "stretch",
    "muscles": [
-    "chest"
+    "胸大肌"
    ],
    "muscleGroups": [
     "chest"
@@ -5854,7 +6317,9 @@
     "出现疼痛时放松，只拉到舒服的程度",
     "肩前侧夹着疼时，缩小幅度或换简单版本"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -5871,15 +6336,15 @@
    "purpose": "练背部和手臂，为完整引体向上打基础",
    "category": "strength",
    "muscles": [
-    "lats",
-    "biceps"
+    "背阔肌",
+    "肱二头肌"
    ],
    "muscleGroups": [
     "lats",
     "biceps"
    ],
    "equipment": [
-    "pull-up-bar"
+    "pullup-bar"
    ],
    "position": "hanging",
    "unilateral": false,
@@ -5919,7 +6384,9 @@
     "肩前侧夹着疼时，缩小幅度或换简单版本",
     "单杠没装牢时不要做"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -5936,7 +6403,7 @@
    "purpose": "练大腿后侧，学会慢慢控制身体往前倒",
    "category": "strength",
    "muscles": [
-    "hamstrings"
+    "腘绳肌"
    ],
    "muscleGroups": [
     "hamstrings"
@@ -5984,7 +6451,9 @@
     "大腿后侧有拉扯感或疼时停止，先从小幅度做起",
     "脚跟固定不牢时不要做，膝下垫软垫"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -5999,19 +6468,19 @@
     "en": "Forearm Plank"
    },
    "purpose": "练腹部和身体两侧，让躯干更稳",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "core",
-    "obliques"
+    "腹直肌（含深层腹横肌）",
+    "腹斜肌"
    ],
    "muscleGroups": [
-    "core",
+    "abs",
     "obliques"
    ],
    "equipment": [
     "mat"
    ],
-   "position": "plank",
+   "position": "prone",
    "unilateral": false,
    "level": 1,
    "scenes": [
@@ -6048,7 +6517,9 @@
    "cautions": [
     "腰疼时缩短时间或改跪姿做"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -6067,12 +6538,12 @@
    "purpose": "练大腿和臀部，提升单腿控制",
    "category": "strength",
    "muscles": [
-    "quadriceps",
-    "glutes"
+    "股四头肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "quadriceps",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [],
    "position": "standing",
@@ -6114,7 +6585,9 @@
    "cautions": [
     "膝盖不舒服时蹲浅一点，仍痛就停止"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -6131,12 +6604,12 @@
    "purpose": "负重练大腿和臀部，让下蹲更稳",
    "category": "strength",
    "muscles": [
-    "quadriceps",
-    "glutes"
+    "股四头肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "quadriceps",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "kettlebell"
@@ -6180,7 +6653,9 @@
     "膝盖不舒服时蹲浅一点，仍痛就停止",
     "从轻重量开始，出现疼痛就停止"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -6197,12 +6672,12 @@
    "purpose": "练大腿后侧和下背，学会从髋部弯腰而不弓背",
    "category": "strength",
    "muscles": [
-    "hamstrings",
-    "lower-back"
+    "腘绳肌",
+    "竖脊肌"
    ],
    "muscleGroups": [
     "hamstrings",
-    "lower-back"
+    "erectors"
    ],
    "equipment": [],
    "position": "standing",
@@ -6243,7 +6718,9 @@
    "cautions": [
     "腰不舒服时减小幅度，仍痛就停止"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -6251,6 +6728,61 @@
    "tags": [
     "office"
    ],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "h-half-kneeling-quad-stretch",
+   "name": {
+    "zh": "半跪手拉脚大腿前侧拉伸",
+    "en": "Half-Kneeling Quad Stretch"
+   },
+   "purpose": "拉伸大腿前侧和髋部前面",
+   "category": "stretch",
+   "muscles": [
+    "股四头肌",
+    "髋屈肌"
+   ],
+   "muscleGroups": [
+    "quadriceps",
+    "hip-flexors"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "kneeling",
+   "unilateral": true,
+   "level": 2,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "time",
+    "sets": 2,
+    "seconds": 30,
+    "restSeconds": 15
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "手拉后脚靠近臀部，髋轻轻往前送",
+     "后膝跪在垫上，前脚踩地，另一只手扶髋。",
+     "停住不动，慢慢呼吸。",
+     "每次呼气再放松一点，别来回颠。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "跪的膝盖疼时多垫软垫，并少弯一点"
+   ],
+   "contraindications": [
+    "膝"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
    "review": {
     "status": "ai-reviewed-r2-needs-user-review"
    }
@@ -6264,12 +6796,12 @@
    "purpose": "活动髋部，让腿往外打开和转动更灵活",
    "category": "mobility",
    "muscles": [
-    "hip-flexors",
-    "abductors"
+    "髋屈肌",
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
     "hip-flexors",
-    "abductors"
+    "hip-abductors"
    ],
    "equipment": [
     "chair"
@@ -6313,7 +6845,9 @@
     "髋不舒服时减小幅度，仍痛就停止",
     "椅子会滑动时换一把稳固、不带轮子的"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -6340,17 +6874,17 @@
    "purpose": "练胸口和手臂，适合入门的俯卧撑",
    "category": "strength",
    "muscles": [
-    "chest",
-    "triceps"
+    "胸大肌",
+    "肱三头肌"
    ],
    "muscleGroups": [
     "chest",
     "triceps"
    ],
    "equipment": [
-    "stool"
+    "chair"
    ],
-   "position": "plank",
+   "position": "prone",
    "unilateral": false,
    "level": 1,
    "scenes": [
@@ -6389,7 +6923,9 @@
     "手腕刺痛或发麻时停止，开始前先活动手腕",
     "凳子会滑动时不要做，换稳固的"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -6397,6 +6933,114 @@
    "tags": [
     "office"
    ],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "h-inner-thigh",
+   "name": {
+    "zh": "侧卧大腿内侧抬腿",
+    "en": "Side-Lying Inner-Thigh Lift"
+   },
+   "purpose": "练大腿内侧",
+   "category": "strength",
+   "muscles": [
+    "内收肌群"
+   ],
+   "muscleGroups": [
+    "adductors"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "side_lying",
+   "unilateral": true,
+   "level": 1,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 12,
+    "restSeconds": 30
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "下面的腿伸直，夹紧大腿内侧往上抬",
+     "侧躺用前臂撑地，上面的脚踩在下面膝盖前。",
+     "顶端停一下，放下时不砸地。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "大腿内侧或髋部疼时抬低一点，仍痛就停止"
+   ],
+   "contraindications": [
+    "髋",
+    "大腿内侧"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "h-kb-swing",
+   "name": {
+    "zh": "单臂壶铃摆荡",
+    "en": "One-Arm Kettlebell Swing"
+   },
+   "purpose": "用髋部发力练臀部和大腿后侧的爆发力",
+   "category": "strength",
+   "muscles": [
+    "臀大肌",
+    "腘绳肌"
+   ],
+   "muscleGroups": [
+    "glute-max",
+    "hamstrings"
+   ],
+   "equipment": [
+    "kettlebell"
+   ],
+   "position": "standing",
+   "unilateral": true,
+   "level": 2,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 10,
+    "restSeconds": 60
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "髋部猛地往前推，让手臂把壶铃荡起来",
+     "背保持平直，臀部往后推，壶铃荡到两腿之间。",
+     "顶端站直夹臀，身体不后仰。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "腰疼时停止，先用轻壶铃",
+    "周围有人或东西时不要做"
+   ],
+   "contraindications": [
+    "腰"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
    "review": {
     "status": "ai-reviewed-r2-needs-user-review"
    }
@@ -6410,12 +7054,12 @@
    "purpose": "放松下背和臀部",
    "category": "stretch",
    "muscles": [
-    "lower-back",
-    "glutes"
+    "竖脊肌",
+    "臀大肌"
    ],
    "muscleGroups": [
-    "lower-back",
-    "glutes"
+    "erectors",
+    "glute-max"
    ],
    "equipment": [
     "mat"
@@ -6481,7 +7125,7 @@
    "purpose": "让脚踝往前弯得更多，下蹲和走路更轻松",
    "category": "mobility",
    "muscles": [
-    "calves"
+    "小腿三头肌"
    ],
    "muscleGroups": [
     "calves"
@@ -6545,7 +7189,7 @@
    "purpose": "拉伸脚背和小腿前面",
    "category": "stretch",
    "muscles": [
-    "tibialis"
+    "胫骨前肌"
    ],
    "muscleGroups": [
     "tibialis"
@@ -6592,7 +7236,9 @@
     "出现疼痛时放松，只拉到舒服的程度",
     "膝盖或脚背不舒服时垫个软垫，或少坐一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -6609,8 +7255,8 @@
    "purpose": "练胸部和手臂，适合入门的俯卧撑",
    "category": "strength",
    "muscles": [
-    "chest",
-    "triceps"
+    "胸大肌",
+    "肱三头肌"
    ],
    "muscleGroups": [
     "chest",
@@ -6657,7 +7303,9 @@
    "cautions": [
     "手腕刺痛或发麻时停止，开始前先活动手腕"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -6674,10 +7322,10 @@
    "purpose": "让上背转动更灵活，放松肩膀",
    "category": "mobility",
    "muscles": [
-    "upper-back"
+    "斜方肌中下部 · 菱形肌"
    ],
    "muscleGroups": [
-    "upper-back"
+    "scapular"
    ],
    "equipment": [
     "mat"
@@ -6708,7 +7356,9 @@
     "出现疼痛时放松，只拉到舒服的程度",
     "手腕刺痛或发麻时停止，开始前先活动手腕"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -6725,13 +7375,13 @@
    "purpose": "练大腿、臀部和大腿内侧，左右移动更稳",
    "category": "strength",
    "muscles": [
-    "quadriceps",
-    "glutes",
-    "adductors"
+    "股四头肌",
+    "臀大肌",
+    "内收肌群"
    ],
    "muscleGroups": [
     "quadriceps",
-    "glutes",
+    "glute-max",
     "adductors"
    ],
    "equipment": [],
@@ -6774,7 +7424,118 @@
    "cautions": [
     "膝盖不舒服时蹲浅一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "h-mountain-climber",
+   "name": {
+    "zh": "慢速登山跑",
+    "en": "Slow Mountain Climber"
+   },
+   "purpose": "慢慢做，练核心和肩膀的稳定",
+   "category": "core",
+   "muscles": [
+    "腹直肌（含深层腹横肌）",
+    "髋屈肌"
+   ],
+   "muscleGroups": [
+    "abs",
+    "hip-flexors"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "prone",
+   "unilateral": true,
+   "level": 1,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 8,
+    "restSeconds": 45
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "膝盖慢慢收向胸口，屁股别翘高",
+     "手在肩膀正下方，身体一条直线。",
+     "两条腿轮流收，每次停一下再踩回。",
+     "两边各做一次算 1 次。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "手腕刺痛或发麻时停止，开始前先活动手腕"
+   ],
+   "contraindications": [
+    "手腕"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "h-open-book",
+   "name": {
+    "zh": "侧卧开书式",
+    "en": "Side-Lying Open Book"
+   },
+   "purpose": "让上背转动更灵活，拉伸胸口和肩膀前面",
+   "category": "mobility",
+   "muscles": [
+    "斜方肌中下部 · 菱形肌",
+    "胸大肌"
+   ],
+   "muscleGroups": [
+    "scapular",
+    "chest"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "side_lying",
+   "unilateral": true,
+   "level": 1,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 2,
+    "reps": 6,
+    "restSeconds": 20
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "双膝并拢，上面的手臂画个大弧往后打开",
+     "侧躺，头枕垫子，髋和膝盖都弯成直角。",
+     "眼睛跟着手走。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "肩膀前面夹着疼时，幅度小一点或换简单版本"
+   ],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -6791,7 +7552,7 @@
    "purpose": "拉伸上臂后侧和肩膀",
    "category": "stretch",
    "muscles": [
-    "triceps"
+    "肱三头肌"
    ],
    "muscleGroups": [
     "triceps"
@@ -6846,6 +7607,62 @@
    }
   },
   {
+   "id": "h-pike-pushup",
+   "name": {
+    "zh": "派克俯卧撑",
+    "en": "Pike Push-Up"
+   },
+   "purpose": "练肩膀往上推的力量，为倒立做准备",
+   "category": "strength",
+   "muscles": [
+    "三角肌",
+    "肱三头肌"
+   ],
+   "muscleGroups": [
+    "deltoids",
+    "triceps"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "prone",
+   "unilateral": false,
+   "level": 2,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 8,
+    "restSeconds": 60
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "屁股保持高，弯肘让头落到双手前面",
+     "身体成倒 V 字，双手与肩同宽，腿伸直。",
+     "手肘斜着往后弯，再撑回手臂伸直。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "手腕刺痛或发麻时停止，开始前先活动手腕",
+    "肩膀疼时下得浅一点"
+   ],
+   "contraindications": [
+    "手腕",
+    "肩"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
    "id": "h-pike-scapular-elevation",
    "name": {
     "zh": "派克位直臂耸肩",
@@ -6854,17 +7671,17 @@
    "purpose": "练肩膀上方的控制，为倒立类动作做准备",
    "category": "strength",
    "muscles": [
-    "upper-back",
-    "deltoids"
+    "斜方肌中下部 · 菱形肌",
+    "三角肌"
    ],
    "muscleGroups": [
-    "upper-back",
+    "scapular",
     "deltoids"
    ],
    "equipment": [
     "mat"
    ],
-   "position": "other",
+   "position": "prone",
    "unilateral": false,
    "level": 2,
    "scenes": [
@@ -6903,7 +7720,10 @@
     "先确认倒 V 支撑不疼；手腕或肩膀不舒服时停",
     "先做 1 组轻松的 4–6 次"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩",
+    "手腕"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -6918,21 +7738,21 @@
     "en": "High Plank Alternating Side Toe Tap"
    },
    "purpose": "练核心，脚换位置时身体也稳住不晃",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "core",
-    "obliques",
-    "abductors"
+    "腹直肌（含深层腹横肌）",
+    "腹斜肌",
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
-    "core",
+    "abs",
     "obliques",
-    "abductors"
+    "hip-abductors"
    ],
    "equipment": [
     "mat"
    ],
-   "position": "plank",
+   "position": "prone",
    "unilateral": true,
    "level": 2,
    "scenes": [
@@ -6972,7 +7792,10 @@
     "手腕刺痛或发麻时停止，开始前先活动手腕",
     "肩膀前面夹着疼时，幅度小一点或换简单版本"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕",
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -6989,13 +7812,13 @@
    "purpose": "让髋部在最大范围内慢慢转动，更灵活",
    "category": "mobility",
    "muscles": [
-    "glutes",
-    "abductors",
-    "hip-flexors"
+    "臀大肌",
+    "臀中肌 · 髋外展",
+    "髋屈肌"
    ],
    "muscleGroups": [
-    "glutes",
-    "abductors",
+    "glute-max",
+    "hip-abductors",
     "hip-flexors"
    ],
    "equipment": [
@@ -7039,7 +7862,10 @@
     "髋部不舒服时幅度小一点，还疼就停",
     "手腕刺痛或发麻时停止，开始前先活动手腕"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋",
+    "手腕"
+   ],
    "alternative": "h-hip-gate",
    "apps": [
     "hiplab",
@@ -7067,11 +7893,11 @@
    "purpose": "让上背转动更灵活，打开胸口",
    "category": "mobility",
    "muscles": [
-    "upper-back",
-    "chest"
+    "斜方肌中下部 · 菱形肌",
+    "胸大肌"
    ],
    "muscleGroups": [
-    "upper-back",
+    "scapular",
     "chest"
    ],
    "equipment": [
@@ -7116,7 +7942,9 @@
     "出现疼痛时放松，只拉到舒服的程度",
     "手腕刺痛或发麻时停止，开始前先活动手腕"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -7133,11 +7961,11 @@
    "purpose": "活动髋部，练习往后坐时背保持平直",
    "category": "mobility",
    "muscles": [
-    "glutes",
-    "hip-flexors"
+    "臀大肌",
+    "髋屈肌"
    ],
    "muscleGroups": [
-    "glutes",
+    "glute-max",
     "hip-flexors"
    ],
    "equipment": [
@@ -7182,7 +8010,10 @@
     "髋部不舒服时幅度小一点，还疼就停",
     "手腕刺痛或发麻时停止，开始前先活动手腕"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋",
+    "手腕"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -7199,17 +8030,17 @@
    "purpose": "练臀部，让大腿向内转更有控制",
    "category": "mobility",
    "muscles": [
-    "abductors",
-    "glutes"
+    "臀中肌 · 髋外展",
+    "臀大肌"
    ],
    "muscleGroups": [
-    "abductors",
-    "glutes"
+    "hip-abductors",
+    "glute-max"
    ],
    "equipment": [
     "mat"
    ],
-   "position": "side-lying",
+   "position": "side_lying",
    "unilateral": true,
    "level": 1,
    "scenes": [
@@ -7246,7 +8077,9 @@
    "cautions": [
     "髋部不舒服时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -7269,10 +8102,10 @@
    "purpose": "练下腹部",
    "category": "strength",
    "muscles": [
-    "core"
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
-    "core"
+    "abs"
    ],
    "equipment": [
     "mat"
@@ -7314,11 +8147,67 @@
    "cautions": [
     "腰不舒服时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "h-crunch",
    "apps": [
     "smartfit"
    ],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "h-reverse-lunge",
+   "name": {
+    "zh": "后撤步弓步蹲",
+    "en": "Reverse Lunge"
+   },
+   "purpose": "练大腿和臀部，单腿站得更稳",
+   "category": "strength",
+   "muscles": [
+    "股四头肌",
+    "臀大肌"
+   ],
+   "muscleGroups": [
+    "quadriceps",
+    "glute-max"
+   ],
+   "equipment": [],
+   "position": "standing",
+   "unilateral": true,
+   "level": 1,
+   "scenes": [
+    "home",
+    "office",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 8,
+    "restSeconds": 60
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "往后退一步，两腿弯到后膝快碰地",
+     "前膝在脚踝正上方，上身直立稍前倾。",
+     "前脚跟推地站起，后脚收回，再换另一条腿。",
+     "两边各做一次算 1 次。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "膝盖不舒服时蹲浅一点，还疼就停"
+   ],
+   "contraindications": [
+    "膝"
+   ],
+   "alternative": null,
+   "apps": [],
    "tags": [],
    "review": {
     "status": "ai-reviewed-r2-needs-user-review"
@@ -7333,12 +8222,12 @@
    "purpose": "练侧腹，让身体转动更有控制",
    "category": "strength",
    "muscles": [
-    "obliques",
-    "core"
+    "腹斜肌",
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
     "obliques",
-    "core"
+    "abs"
    ],
    "equipment": [
     "mat"
@@ -7381,7 +8270,9 @@
    "cautions": [
     "腰不舒服时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "h-band-pallof",
    "apps": [
     "smartfit"
@@ -7400,8 +8291,8 @@
    "purpose": "拉伸胸口和肩膀前面",
    "category": "stretch",
    "muscles": [
-    "chest",
-    "deltoids"
+    "胸大肌",
+    "三角肌"
    ],
    "muscleGroups": [
     "chest",
@@ -7449,7 +8340,9 @@
     "出现疼痛时放松，只拉到舒服的程度",
     "手腕刺痛或发麻时停止，开始前先活动手腕"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -7466,19 +8359,19 @@
     "en": "Bent-Knee Side Plank"
    },
    "purpose": "练侧腹和臀部外侧，适合入门的侧撑",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "obliques",
-    "core"
+    "腹斜肌",
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
     "obliques",
-    "core"
+    "abs"
    ],
    "equipment": [
     "mat"
    ],
-   "position": "side-lying",
+   "position": "side_lying",
    "unilateral": true,
    "level": 1,
    "scenes": [
@@ -7516,7 +8409,9 @@
    "cautions": [
     "肩膀前面夹着疼时，幅度小一点或换简单版本"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -7533,7 +8428,7 @@
    "purpose": "练肩膀深处的小肌肉，让肩膀更稳",
    "category": "strength",
    "muscles": [
-    "rotator-cuff"
+    "肩袖肌群"
    ],
    "muscleGroups": [
     "rotator-cuff"
@@ -7541,7 +8436,7 @@
    "equipment": [
     "mat"
    ],
-   "position": "side-lying",
+   "position": "side_lying",
    "unilateral": true,
    "level": 1,
    "scenes": [
@@ -7579,7 +8474,9 @@
     "肩膀前面夹着疼时，幅度小一点或换简单版本",
     "想加重量时手里拿一瓶水就够"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -7598,10 +8495,10 @@
    "purpose": "练臀部外侧，单腿站得更稳",
    "category": "strength",
    "muscles": [
-    "abductors"
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
-    "abductors"
+    "hip-abductors"
    ],
    "equipment": [],
    "position": "standing",
@@ -7642,7 +8539,9 @@
    "cautions": [
     "髋部不舒服时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -7661,18 +8560,18 @@
     "en": "Straight-Arm Slider Body Saw"
    },
    "purpose": "练核心，身体变长时腰也不塌",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "core"
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
-    "core"
+    "abs"
    ],
    "equipment": [
-    "sliders",
+    "slider",
     "mat"
    ],
-   "position": "plank",
+   "position": "prone",
    "unilateral": false,
    "level": 3,
    "scenes": [
@@ -7711,7 +8610,11 @@
     "先能不疼地做直臂平板再练，先做 1 组 4 次",
     "手腕、肩膀或腰疼时停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰",
+    "肩",
+    "手腕"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -7728,12 +8631,12 @@
    "purpose": "练大腿和臀部，蹲下站起更轻松",
    "category": "strength",
    "muscles": [
-    "quadriceps",
-    "glutes"
+    "股四头肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "quadriceps",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [],
    "position": "standing",
@@ -7774,7 +8677,9 @@
    "cautions": [
     "膝盖不舒服时蹲浅一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -7790,6 +8695,59 @@
    }
   },
   {
+   "id": "h-standing-arm-extension-stretch",
+   "name": {
+    "zh": "站姿双臂后抬开肩",
+    "en": "Standing Arms-Back Shoulder Stretch"
+   },
+   "purpose": "拉伸肩膀前面和胸口",
+   "category": "stretch",
+   "muscles": [
+    "胸大肌",
+    "三角肌"
+   ],
+   "muscleGroups": [
+    "chest",
+    "deltoids"
+   ],
+   "equipment": [],
+   "position": "standing",
+   "unilateral": false,
+   "level": 1,
+   "scenes": [
+    "home",
+    "office",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 2,
+    "reps": 5,
+    "restSeconds": 15
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "手臂伸直，慢慢往后抬",
+     "站直，膝盖微弯，肩胛骨轻轻往后往下收。",
+     "上身别往前倾，停一下再慢慢放下。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "肩膀前面夹着疼时，幅度小一点或换简单版本"
+   ],
+   "contraindications": [
+    "肩"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
    "id": "h-standing-forearm-rotation",
    "name": {
     "zh": "站姿屈肘前臂旋转",
@@ -7798,7 +8756,7 @@
    "purpose": "活动前臂，让手掌翻转更灵活、更好控制",
    "category": "mobility",
    "muscles": [
-    "forearms"
+    "前臂 · 腕屈伸肌"
    ],
    "muscleGroups": [
     "forearms"
@@ -7860,7 +8818,7 @@
    "purpose": "活动手腕，练习手腕往两边摆的控制",
    "category": "mobility",
    "muscles": [
-    "forearms"
+    "前臂 · 腕屈伸肌"
    ],
    "muscleGroups": [
     "forearms"
@@ -7922,7 +8880,7 @@
    "purpose": "拉伸前臂靠手背的一侧，让手腕更放松",
    "category": "stretch",
    "muscles": [
-    "forearms"
+    "前臂 · 腕屈伸肌"
    ],
    "muscleGroups": [
     "forearms"
@@ -7984,12 +8942,12 @@
    "purpose": "不跳的开合跳，让心跳加快、全身更协调",
    "category": "cardio",
    "muscles": [
-    "deltoids",
-    "abductors"
+    "三角肌",
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
     "deltoids",
-    "abductors"
+    "hip-abductors"
    ],
    "equipment": [],
    "position": "standing",
@@ -8050,17 +9008,17 @@
     "en": "Straight-Arm Bar Hang"
    },
    "purpose": "练握力，放松拉长背部两侧",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "forearms",
-    "lats"
+    "前臂 · 腕屈伸肌",
+    "背阔肌"
    ],
    "muscleGroups": [
     "forearms",
     "lats"
    ],
    "equipment": [
-    "pull-up-bar"
+    "pullup-bar"
    ],
    "position": "hanging",
    "unilateral": false,
@@ -8100,7 +9058,9 @@
     "肩膀疼时缩短时间，或脚踩地分担体重",
     "单杠不牢或下方没有落脚处时不要做"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -8115,14 +9075,14 @@
     "en": "Single-Arm Suitcase Hold"
    },
    "purpose": "练身体侧面，单手提重物时身体不歪",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "obliques",
-    "core"
+    "腹斜肌",
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
     "obliques",
-    "core"
+    "abs"
    ],
    "equipment": [
     "dumbbell"
@@ -8165,7 +9125,10 @@
    "cautions": [
     "腰或肩膀疼时停止，换轻一点的哑铃"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰",
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -8180,14 +9143,14 @@
     "en": "Single-Arm Suitcase March"
    },
    "purpose": "练身体侧面和臀部，单手提重物走路时身体更稳",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "obliques",
-    "abductors"
+    "腹斜肌",
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
     "obliques",
-    "abductors"
+    "hip-abductors"
    ],
    "equipment": [
     "dumbbell"
@@ -8231,7 +9194,10 @@
    "cautions": [
     "腰或肩膀疼时停止，换轻一点的哑铃"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰",
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -8248,12 +9214,12 @@
    "purpose": "打开髋部，拉伸大腿内侧",
    "category": "mobility",
    "muscles": [
-    "adductors",
-    "glutes"
+    "内收肌群",
+    "臀大肌"
    ],
    "muscleGroups": [
     "adductors",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [],
    "position": "standing",
@@ -8293,7 +9259,9 @@
    "cautions": [
     "膝盖不舒服时蹲浅一点，仍痛就停止"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": "h-squat",
    "apps": [
     "hiplab",
@@ -8318,12 +9286,12 @@
    "purpose": "练背部和臀部，让身体后面更有力",
    "category": "strength",
    "muscles": [
-    "lower-back",
-    "glutes"
+    "竖脊肌",
+    "臀大肌"
    ],
    "muscleGroups": [
-    "lower-back",
-    "glutes"
+    "erectors",
+    "glute-max"
    ],
    "equipment": [
     "mat"
@@ -8365,7 +9333,9 @@
    "cautions": [
     "腰不舒服时减小幅度，仍痛就停止"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "w-prone-swimmer",
    "apps": [
     "smartfit"
@@ -8384,11 +9354,11 @@
    "purpose": "练腹部和大腿根前侧",
    "category": "strength",
    "muscles": [
-    "core",
-    "hip-flexors"
+    "腹直肌（含深层腹横肌）",
+    "髋屈肌"
    ],
    "muscleGroups": [
-    "core",
+    "abs",
     "hip-flexors"
    ],
    "equipment": [
@@ -8432,7 +9402,63 @@
    "cautions": [
     "腰不舒服时减小幅度，仍痛就停止"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "h-supine-cactus-chest",
+   "name": {
+    "zh": "仰卧仙人掌开胸",
+    "en": "Lying Cactus-Arm Chest Stretch"
+   },
+   "purpose": "轻轻打开胸口和肩膀前侧",
+   "category": "stretch",
+   "muscles": [
+    "胸大肌",
+    "三角肌"
+   ],
+   "muscleGroups": [
+    "chest",
+    "deltoids"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "supine",
+   "unilateral": false,
+   "level": 1,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 2,
+    "reps": 5,
+    "restSeconds": 15
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "手肘和手背贴地，双臂沿地面往头的方向滑",
+     "仰躺屈膝，双脚踩地，腰放松。",
+     "有轻微拉伸感就停住，再慢慢滑回。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "肩膀疼时减小幅度，仍痛就停止"
+   ],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -8449,10 +9475,10 @@
    "purpose": "活动髋和膝盖，同时练肚子稳住",
    "category": "mobility",
    "muscles": [
-    "core"
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
-    "core"
+    "abs"
    ],
    "equipment": [
     "mat"
@@ -8512,12 +9538,12 @@
    "purpose": "放松腰部，拉伸身体两侧",
    "category": "stretch",
    "muscles": [
-    "obliques",
-    "lower-back"
+    "腹斜肌",
+    "竖脊肌"
    ],
    "muscleGroups": [
     "obliques",
-    "lower-back"
+    "erectors"
    ],
    "equipment": [
     "mat"
@@ -8584,7 +9610,7 @@
    "purpose": "练单腿小腿力量",
    "category": "strength",
    "muscles": [
-    "calves"
+    "小腿三头肌"
    ],
    "muscleGroups": [
     "calves"
@@ -8647,11 +9673,11 @@
    "purpose": "练臀部和肩膀，打开胸口",
    "category": "strength",
    "muscles": [
-    "glutes",
-    "deltoids"
+    "臀大肌",
+    "三角肌"
    ],
    "muscleGroups": [
-    "glutes",
+    "glute-max",
     "deltoids"
    ],
    "equipment": [
@@ -8695,7 +9721,10 @@
     "手腕刺痛或发麻时停止，开始前先活动手腕",
     "肩前侧夹着疼时，缩小幅度或换简单版本"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕",
+    "肩"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -8714,7 +9743,7 @@
    "purpose": "练小腿前侧，走路跑步时脚尖更有力",
    "category": "strength",
    "muscles": [
-    "tibialis"
+    "胫骨前肌"
    ],
    "muscleGroups": [
     "tibialis"
@@ -8773,6 +9802,61 @@
    }
   },
   {
+   "id": "h-towel-behind",
+   "name": {
+    "zh": "背后握毛巾抬臂",
+    "en": "Behind-Back Towel Arm Lift"
+   },
+   "purpose": "拉伸肩膀前侧和胸口",
+   "category": "stretch",
+   "muscles": [
+    "胸大肌",
+    "三角肌"
+   ],
+   "muscleGroups": [
+    "chest",
+    "deltoids"
+   ],
+   "equipment": [
+    "towel"
+   ],
+   "position": "standing",
+   "unilateral": false,
+   "level": 1,
+   "scenes": [
+    "home",
+    "office",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 2,
+    "reps": 8,
+    "restSeconds": 20
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "手臂伸直，把毛巾往上往后抬离后背",
+     "背后双手拉紧毛巾，比髋略宽。",
+     "挺胸，上身不前倾，抬到顶停一下再放下。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "肩膀疼时减小幅度，仍痛就停止"
+   ],
+   "contraindications": [
+    "肩"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
    "id": "h-towel-isometric-curl",
    "name": {
     "zh": "脚踩毛巾静力弯举",
@@ -8781,7 +9865,7 @@
    "purpose": "不用器械练手臂前侧",
    "category": "strength",
    "muscles": [
-    "biceps"
+    "肱二头肌"
    ],
    "muscleGroups": [
     "biceps"
@@ -8814,7 +9898,119 @@
    "cautions": [
     "手肘或手腕疼时停止，力量慢慢加上去"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "h-towel-pass",
+   "name": {
+    "zh": "毛巾过头转肩",
+    "en": "Towel Shoulder Pass-Through"
+   },
+   "purpose": "打开肩膀前侧和胸口，让手臂举过头更顺",
+   "category": "mobility",
+   "muscles": [
+    "三角肌",
+    "胸大肌"
+   ],
+   "muscleGroups": [
+    "deltoids",
+    "chest"
+   ],
+   "equipment": [
+    "towel"
+   ],
+   "position": "standing",
+   "unilateral": false,
+   "level": 1,
+   "scenes": [
+    "home",
+    "office",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 2,
+    "reps": 8,
+    "restSeconds": 20
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "手臂伸直，毛巾画大圈举过头再往后",
+     "两手握宽拉紧毛巾，肋骨往下收。",
+     "手肘弯了就把两手再分开些。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "肩膀疼时减小幅度，仍痛就停止"
+   ],
+   "contraindications": [
+    "肩"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "h-towel-pulldown",
+   "name": {
+    "zh": "站姿毛巾下拉",
+    "en": "Standing Towel Pulldown"
+   },
+   "purpose": "用毛巾练背部，让肩胛骨更会往下收",
+   "category": "strength",
+   "muscles": [
+    "背阔肌",
+    "斜方肌中下部 · 菱形肌"
+   ],
+   "muscleGroups": [
+    "lats",
+    "scapular"
+   ],
+   "equipment": [
+    "towel"
+   ],
+   "position": "standing",
+   "unilateral": false,
+   "level": 1,
+   "scenes": [
+    "home",
+    "office",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 10,
+    "restSeconds": 30
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "毛巾往两边拉紧，手肘往下往后拉",
+     "双手宽握毛巾，从头顶 V 字开始。",
+     "推回头顶时毛巾也不松。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "肩膀疼时减小幅度，仍痛就停止"
+   ],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -8829,14 +10025,14 @@
     "en": "Single-Leg Three-Way Toe Tap"
    },
    "purpose": "练单腿平衡和臀部控制",
-   "category": "balance",
+   "category": "core",
    "muscles": [
-    "glutes",
-    "abductors"
+    "臀大肌",
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
-    "glutes",
-    "abductors"
+    "glute-max",
+    "hip-abductors"
    ],
    "equipment": [],
    "position": "standing",
@@ -8894,14 +10090,14 @@
    "purpose": "练手臂举过头时肩膀的控制，打开上背和肩膀",
    "category": "mobility",
    "muscles": [
-    "deltoids",
-    "rotator-cuff",
-    "upper-back"
+    "三角肌",
+    "肩袖肌群",
+    "斜方肌中下部 · 菱形肌"
    ],
    "muscleGroups": [
     "deltoids",
     "rotator-cuff",
-    "upper-back"
+    "scapular"
    ],
    "equipment": [
     "wall"
@@ -8944,7 +10140,9 @@
    "cautions": [
     "肩膀疼时少往上滑，仍痛就停止"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -8965,7 +10163,7 @@
    "purpose": "拉伸小腿后面，让脚踝更灵活",
    "category": "stretch",
    "muscles": [
-    "calves"
+    "小腿三头肌"
    ],
    "muscleGroups": [
     "calves"
@@ -9033,7 +10231,7 @@
    "purpose": "拉伸小腿靠下的深处，让脚踝更灵活",
    "category": "stretch",
    "muscles": [
-    "calves"
+    "小腿三头肌"
    ],
    "muscleGroups": [
     "calves"
@@ -9096,9 +10294,9 @@
     "en": "Wall Fingertip Palm Lift"
    },
    "purpose": "检查指尖撑墙时，掌根能不能稳稳抬起",
-   "category": "assessment",
+   "category": "mobility",
    "muscles": [
-    "forearms"
+    "前臂 · 腕屈伸肌"
    ],
    "muscleGroups": [
     "forearms"
@@ -9132,7 +10330,65 @@
    "cautions": [
     "手腕或手指疼时减小幅度，仍痛就停止"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "h-wall-pec",
+   "name": {
+    "zh": "靠墙单臂胸肌拉伸",
+    "en": "Single-Arm Wall Pec Stretch"
+   },
+   "purpose": "拉伸胸部、肩膀前面和上臂前侧",
+   "category": "stretch",
+   "muscles": [
+    "胸大肌",
+    "三角肌"
+   ],
+   "muscleGroups": [
+    "chest",
+    "deltoids"
+   ],
+   "equipment": [
+    "wall"
+   ],
+   "position": "standing",
+   "unilateral": true,
+   "level": 1,
+   "scenes": [
+    "home",
+    "office",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "time",
+    "sets": 2,
+    "seconds": 30,
+    "restSeconds": 15
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "手掌贴墙不动，身体慢慢转离墙面",
+     "手臂向后贴墙，和肩同高，肩膀往下沉。",
+     "停住不动，慢慢呼吸。",
+     "每次呼气再放松一点，别来回颠。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "肩膀疼时幅度小一点，还疼就停"
+   ],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -9149,7 +10405,7 @@
    "purpose": "借重力慢慢打开大腿内侧",
    "category": "stretch",
    "muscles": [
-    "adductors"
+    "内收肌群"
    ],
    "muscleGroups": [
     "adductors"
@@ -9196,7 +10452,10 @@
    "cautions": [
     "大腿内侧或髋部疼时分得小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋",
+    "大腿内侧"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -9219,7 +10478,7 @@
    "purpose": "轻轻拉伸手腕和前臂内侧",
    "category": "stretch",
    "muscles": [
-    "forearms"
+    "前臂 · 腕屈伸肌"
    ],
    "muscleGroups": [
     "forearms"
@@ -9265,7 +10524,9 @@
    "cautions": [
     "手腕疼或手指发麻时停下"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -9282,12 +10543,12 @@
    "purpose": "练大腿后侧和臀部，单腿站得更稳",
    "category": "strength",
    "muscles": [
-    "hamstrings",
-    "glutes"
+    "腘绳肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "hamstrings",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [],
    "position": "standing",
@@ -9328,7 +10589,9 @@
    "cautions": [
     "腰发紧或疼时前倾少一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "h-good-morning",
    "apps": [
     "flarelab"
@@ -9355,13 +10618,13 @@
    "purpose": "臀部抬着，脚跟推出去再拉回来，练大腿后侧",
    "category": "strength",
    "muscles": [
-    "hamstrings"
+    "腘绳肌"
    ],
    "muscleGroups": [
     "hamstrings"
    ],
    "equipment": [
-    "sliders"
+    "slider"
    ],
    "position": "supine",
    "unilateral": false,
@@ -9428,7 +10691,7 @@
    "purpose": "身体慢慢往前倒再拉回来，练大腿后侧力量，减少拉伤",
    "category": "strength",
    "muscles": [
-    "hamstrings"
+    "腘绳肌"
    ],
    "muscleGroups": [
     "hamstrings"
@@ -9500,17 +10763,17 @@
    "purpose": "侧撑住身体，练臀部侧面把腿往外抬的力量",
    "category": "strength",
    "muscles": [
-    "abductors",
-    "glutes"
+    "臀中肌 · 髋外展",
+    "臀大肌"
    ],
    "muscleGroups": [
-    "abductors",
-    "glutes"
+    "hip-abductors",
+    "glute-max"
    ],
    "equipment": [
     "mat"
    ],
-   "position": "side-lying",
+   "position": "side_lying",
    "unilateral": true,
    "level": 2,
    "scenes": [
@@ -9548,7 +10811,10 @@
    "cautions": [
     "肩膀疼时改成屈膝侧撑或少做几次，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "肩"
+   ],
    "alternative": "w-clamshell",
    "apps": [
     "flarelab"
@@ -9575,15 +10841,15 @@
    "purpose": "双腿举起，对抗弹力带往外分开，练臀部侧面",
    "category": "strength",
    "muscles": [
-    "abductors",
-    "glutes"
+    "臀中肌 · 髋外展",
+    "臀大肌"
    ],
    "muscleGroups": [
-    "abductors",
-    "glutes"
+    "hip-abductors",
+    "glute-max"
    ],
    "equipment": [
-    "mini-band",
+    "band",
     "mat"
    ],
    "position": "supine",
@@ -9624,7 +10890,9 @@
    "cautions": [
     "髋部疼时分得小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋"
+   ],
    "alternative": "w-clamshell",
    "apps": [
     "flarelab"
@@ -9651,15 +10919,15 @@
    "purpose": "用器械稳定加重量，练臀部侧面开腿的力量和耐力",
    "category": "strength",
    "muscles": [
-    "abductors",
-    "glutes"
+    "臀中肌 · 髋外展",
+    "臀大肌"
    ],
    "muscleGroups": [
-    "abductors",
-    "glutes"
+    "hip-abductors",
+    "glute-max"
    ],
    "equipment": [
-    "hip-abduction-machine"
+    "hip-abductor-machine"
    ],
    "position": "seated",
    "unilateral": false,
@@ -9698,7 +10966,9 @@
    "cautions": [
     "髋部疼时减轻重量或推小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋"
+   ],
    "alternative": "hip-abductors-B",
    "apps": [
     "flarelab"
@@ -9725,8 +10995,8 @@
    "purpose": "身体前倾时把腿抬起来，练大腿前面根部的力量",
    "category": "strength",
    "muscles": [
-    "hip-flexors",
-    "quadriceps"
+    "髋屈肌",
+    "股四头肌"
    ],
    "muscleGroups": [
     "hip-flexors",
@@ -9772,7 +11042,9 @@
    "cautions": [
     "大腿前面抽筋或髋部疼时停下休息"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋"
+   ],
    "alternative": "n-seated-knee-lift",
    "apps": [
     "flarelab",
@@ -9803,13 +11075,13 @@
    "purpose": "给抬膝加上弹力带阻力，练把大腿抬高的力量",
    "category": "strength",
    "muscles": [
-    "hip-flexors"
+    "髋屈肌"
    ],
    "muscleGroups": [
     "hip-flexors"
    ],
    "equipment": [
-    "resistance-band",
+    "band",
     "wall"
    ],
    "position": "standing",
@@ -9850,7 +11122,10 @@
    "cautions": [
     "髋部前面疼时膝盖抬低一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "髋"
+   ],
    "alternative": "n-seated-knee-lift",
    "apps": [
     "flarelab"
@@ -9877,16 +11152,15 @@
    "purpose": "直腿往前抬，练大腿前面根部的力量",
    "category": "strength",
    "muscles": [
-    "hip-flexors",
-    "quadriceps"
+    "髋屈肌",
+    "股四头肌"
    ],
    "muscleGroups": [
     "hip-flexors",
     "quadriceps"
    ],
    "equipment": [
-    "cable-machine",
-    "ankle-strap"
+    "cable"
    ],
    "position": "standing",
    "unilateral": true,
@@ -9925,7 +11199,9 @@
    "cautions": [
     "腰发紧或疼时抬低一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "hip-flexors-B",
    "apps": [
     "flarelab"
@@ -9952,7 +11228,7 @@
    "purpose": "手臂撑地、肩膀往下压把身体撑起，练背部两侧",
    "category": "strength",
    "muscles": [
-    "lats"
+    "背阔肌"
    ],
    "muscleGroups": [
     "lats"
@@ -9996,7 +11272,9 @@
    "cautions": [
     "先活动一下手腕，手腕刺痛或发麻时停下"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": "h-tabletop",
    "apps": [
     "flarelab"
@@ -10023,13 +11301,13 @@
    "purpose": "直臂把弹力带往下拉，练背部两侧",
    "category": "strength",
    "muscles": [
-    "lats"
+    "背阔肌"
    ],
    "muscleGroups": [
     "lats"
    ],
    "equipment": [
-    "resistance-band"
+    "band"
    ],
    "position": "standing",
    "unilateral": false,
@@ -10069,7 +11347,9 @@
    "cautions": [
     "肩膀疼时拉小一点或换轻的弹力带，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [
     "flarelab"
@@ -10096,7 +11376,7 @@
    "purpose": "撑在双杠上，只靠肩膀下压把身体顶高，练背部和肩膀稳定",
    "category": "strength",
    "muscles": [
-    "lats"
+    "背阔肌"
    ],
    "muscleGroups": [
     "lats"
@@ -10104,7 +11384,7 @@
    "equipment": [
     "dip-bars"
    ],
-   "position": "other",
+   "position": "support",
    "unilateral": false,
    "level": 2,
    "scenes": [
@@ -10141,7 +11421,9 @@
    "cautions": [
     "肩膀前面夹着疼时少做一会儿或换简单版本"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": "lats-A",
    "apps": [
     "flarelab"
@@ -10168,12 +11450,12 @@
    "purpose": "坐在椅子上放松髋部，适合久坐时做",
    "category": "mobility",
    "muscles": [
-    "glutes",
-    "abductors"
+    "臀大肌",
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
-    "glutes",
-    "abductors"
+    "glute-max",
+    "hip-abductors"
    ],
    "equipment": [
     "chair"
@@ -10217,7 +11499,10 @@
    "cautions": [
     "膝盖或髋部疼时倒小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -10241,16 +11526,16 @@
    "purpose": "拉伸前腿的大腿后侧，为前后劈叉打基础",
    "category": "stretch",
    "muscles": [
-    "hamstrings"
+    "腘绳肌"
    ],
    "muscleGroups": [
     "hamstrings"
    ],
    "equipment": [
-    "yoga-blocks",
+    "block",
     "mat"
    ],
-   "position": "half-kneeling",
+   "position": "kneeling",
    "unilateral": true,
    "level": 1,
    "scenes": [
@@ -10289,7 +11574,9 @@
     "跪着的膝盖下面垫个软垫",
     "大腿后侧疼时坐得少一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": "o-seated-ham",
    "apps": [
     "hiplab",
@@ -10312,13 +11599,13 @@
    "purpose": "练髋部往各个方向的控制",
    "category": "mobility",
    "muscles": [
-    "hip-flexors",
-    "abductors",
-    "adductors"
+    "髋屈肌",
+    "臀中肌 · 髋外展",
+    "内收肌群"
    ],
    "muscleGroups": [
     "hip-flexors",
-    "abductors",
+    "hip-abductors",
     "adductors"
    ],
    "equipment": [
@@ -10361,7 +11648,9 @@
    "cautions": [
     "髋部疼或响得不舒服时圈画小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -10386,14 +11675,14 @@
    "purpose": "活动髋部和腰，久坐后快速放松",
    "category": "mobility",
    "muscles": [
-    "hip-flexors",
-    "glutes",
-    "core"
+    "髋屈肌",
+    "臀大肌",
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
     "hip-flexors",
-    "glutes",
-    "core"
+    "glute-max",
+    "abs"
    ],
    "equipment": [],
    "position": "standing",
@@ -10434,7 +11723,9 @@
    "cautions": [
     "腰疼时圈画小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -10461,11 +11752,11 @@
    "purpose": "练臀部把大腿往后抬，适合久坐的人和劈叉的后腿",
    "category": "strength",
    "muscles": [
-    "glutes",
-    "hamstrings"
+    "臀大肌",
+    "腘绳肌"
    ],
    "muscleGroups": [
-    "glutes",
+    "glute-max",
     "hamstrings"
    ],
    "equipment": [
@@ -10508,7 +11799,9 @@
    "cautions": [
     "腰疼时抬低一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -10531,12 +11824,12 @@
    "purpose": "轻松活动髋关节，让大腿往里转得更顺",
    "category": "mobility",
    "muscles": [
-    "glutes",
-    "abductors"
+    "臀大肌",
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
-    "glutes",
-    "abductors"
+    "glute-max",
+    "hip-abductors"
    ],
    "equipment": [
     "mat"
@@ -10578,7 +11871,10 @@
    "cautions": [
     "膝盖或髋部疼时打开小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -10601,12 +11897,12 @@
    "purpose": "坐着放松髋部外后侧，让大腿往里转得更多",
    "category": "mobility",
    "muscles": [
-    "glutes",
-    "abductors"
+    "臀大肌",
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
-    "glutes",
-    "abductors"
+    "glute-max",
+    "hip-abductors"
    ],
    "equipment": [
     "mat"
@@ -10649,7 +11945,10 @@
    "cautions": [
     "膝盖或髋部疼时倒小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -10672,7 +11971,7 @@
    "purpose": "坐在椅子上练抬腿的力量",
    "category": "strength",
    "muscles": [
-    "hip-flexors"
+    "髋屈肌"
    ],
    "muscleGroups": [
     "hip-flexors"
@@ -10719,7 +12018,9 @@
    "cautions": [
     "髋部前面疼时抬低一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -10743,14 +12044,14 @@
    "purpose": "坐着就能练大腿内侧力量",
    "category": "strength",
    "muscles": [
-    "adductors"
+    "内收肌群"
    ],
    "muscleGroups": [
     "adductors"
    ],
    "equipment": [
     "chair",
-    "yoga-block"
+    "block"
    ],
    "position": "seated",
    "unilateral": false,
@@ -10790,7 +12091,10 @@
    "cautions": [
     "大腿内侧或膝盖疼时夹轻一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "大腿内侧"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -10814,7 +12118,7 @@
    "purpose": "腿往侧面滑到最远时练大腿内侧的控制，帮助横叉",
    "category": "mobility",
    "muscles": [
-    "adductors"
+    "内收肌群"
    ],
    "muscleGroups": [
     "adductors"
@@ -10859,7 +12163,10 @@
    "cautions": [
     "大腿内侧或膝盖疼时滑近一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "大腿内侧"
+   ],
    "alternative": "h-adductor-rock",
    "apps": [
     "hiplab",
@@ -10882,14 +12189,14 @@
    "purpose": "练大腿内侧和臀部在深蹲位的控制，为哥萨克蹲打基础",
    "category": "mobility",
    "muscles": [
-    "adductors",
-    "quadriceps",
-    "glutes"
+    "内收肌群",
+    "股四头肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "adductors",
     "quadriceps",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [],
    "position": "standing",
@@ -10930,7 +12237,10 @@
    "cautions": [
     "膝盖或髋部疼时蹲浅一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "髋"
+   ],
    "alternative": "h-adductor-rock",
    "apps": [
     "hiplab",
@@ -10954,15 +12264,15 @@
    "purpose": "拉伸大腿内侧和后侧",
    "category": "stretch",
    "muscles": [
-    "adductors",
-    "hamstrings"
+    "内收肌群",
+    "腘绳肌"
    ],
    "muscleGroups": [
     "adductors",
     "hamstrings"
    ],
    "equipment": [
-    "yoga-blocks",
+    "block",
     "mat"
    ],
    "position": "seated",
@@ -11025,9 +12335,9 @@
     "en": "Supine Single Knee-to-Chest (Thomas Test)"
    },
    "purpose": "看看髋前侧紧不紧，同时轻轻拉伸髋前侧",
-   "category": "assessment",
+   "category": "mobility",
    "muscles": [
-    "hip-flexors"
+    "髋屈肌"
    ],
    "muscleGroups": [
     "hip-flexors"
@@ -11073,7 +12383,10 @@
    "cautions": [
     "膝盖或髋部疼时抱得松一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -11096,8 +12409,8 @@
    "purpose": "拉伸大腿内侧和后侧，在办公室就能做",
    "category": "stretch",
    "muscles": [
-    "hamstrings",
-    "adductors"
+    "腘绳肌",
+    "内收肌群"
    ],
    "muscleGroups": [
     "hamstrings",
@@ -11171,11 +12484,11 @@
    "purpose": "轻松活动髋部转动，放松髋部",
    "category": "mobility",
    "muscles": [
-    "glutes",
-    "obliques"
+    "臀大肌",
+    "腹斜肌"
    ],
    "muscleGroups": [
-    "glutes",
+    "glute-max",
     "obliques"
    ],
    "equipment": [
@@ -11219,7 +12532,10 @@
    "cautions": [
     "腰或髋部疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰",
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -11243,7 +12559,7 @@
    "purpose": "不加重量，练大腿前侧的控制",
    "category": "strength",
    "muscles": [
-    "quadriceps"
+    "股四头肌"
    ],
    "muscleGroups": [
     "quadriceps"
@@ -11290,7 +12606,9 @@
    "cautions": [
     "膝盖疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -11307,7 +12625,7 @@
    "purpose": "不加重量，练小腿和脚踝的控制",
    "category": "strength",
    "muscles": [
-    "calves"
+    "小腿三头肌"
    ],
    "muscleGroups": [
     "calves"
@@ -11371,14 +12689,14 @@
    "purpose": "坐在椅子上活动整条脊柱，缓解久坐僵硬",
    "category": "mobility",
    "muscles": [
-    "lower-back",
-    "upper-back",
-    "core"
+    "竖脊肌",
+    "斜方肌中下部 · 菱形肌",
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
-    "lower-back",
-    "upper-back",
-    "core"
+    "erectors",
+    "scapular",
+    "abs"
    ],
    "equipment": [
     "chair"
@@ -11420,7 +12738,9 @@
    "cautions": [
     "腰背疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -11441,10 +12761,10 @@
    "purpose": "拉伸臀部，缓解久坐髋部发紧",
    "category": "stretch",
    "muscles": [
-    "glutes"
+    "臀大肌"
    ],
    "muscleGroups": [
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "chair"
@@ -11488,7 +12808,9 @@
    "cautions": [
     "膝盖疼时少往前倾一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -11512,7 +12834,7 @@
    "purpose": "坐在椅子上拉伸大腿后侧",
    "category": "stretch",
    "muscles": [
-    "hamstrings"
+    "腘绳肌"
    ],
    "muscleGroups": [
     "hamstrings"
@@ -11583,10 +12905,10 @@
    "purpose": "不加重量，练髋部向外转的控制",
    "category": "mobility",
    "muscles": [
-    "glutes"
+    "臀大肌"
    ],
    "muscleGroups": [
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "chair"
@@ -11628,7 +12950,10 @@
    "cautions": [
     "膝盖或髋部疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "髋"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -11645,8 +12970,8 @@
    "purpose": "拉伸身体侧面，缓解久坐腰背发紧",
    "category": "stretch",
    "muscles": [
-    "obliques",
-    "lats"
+    "腹斜肌",
+    "背阔肌"
    ],
    "muscleGroups": [
     "obliques",
@@ -11695,7 +13020,10 @@
    "cautions": [
     "腰背或肩膀疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰",
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -11712,12 +13040,12 @@
    "purpose": "转动上背和腰，缓解久坐僵硬",
    "category": "stretch",
    "muscles": [
-    "obliques",
-    "upper-back"
+    "腹斜肌",
+    "斜方肌中下部 · 菱形肌"
    ],
    "muscleGroups": [
     "obliques",
-    "upper-back"
+    "scapular"
    ],
    "equipment": [
     "chair"
@@ -11760,7 +13088,9 @@
    "cautions": [
     "腰背疼时转得少一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -11781,11 +13111,11 @@
    "purpose": "拉伸髋部外侧和腰侧",
    "category": "stretch",
    "muscles": [
-    "abductors",
-    "obliques"
+    "臀中肌 · 髋外展",
+    "腹斜肌"
    ],
    "muscleGroups": [
-    "abductors",
+    "hip-abductors",
     "obliques"
    ],
    "equipment": [
@@ -11830,7 +13160,10 @@
    "cautions": [
     "髋部或腰疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰",
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -11854,7 +13187,7 @@
    "purpose": "站着拉伸大腿后侧",
    "category": "stretch",
    "muscles": [
-    "hamstrings"
+    "腘绳肌"
    ],
    "muscleGroups": [
     "hamstrings"
@@ -11917,7 +13250,7 @@
    "purpose": "拉伸髋部前侧，缓解久坐发紧",
    "category": "stretch",
    "muscles": [
-    "hip-flexors"
+    "髋屈肌"
    ],
    "muscleGroups": [
     "hip-flexors"
@@ -11964,7 +13297,9 @@
    "cautions": [
     "腰疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -11988,8 +13323,8 @@
    "purpose": "拉伸大腿前侧",
    "category": "stretch",
    "muscles": [
-    "quadriceps",
-    "hip-flexors"
+    "股四头肌",
+    "髋屈肌"
    ],
    "muscleGroups": [
     "quadriceps",
@@ -12037,7 +13372,9 @@
    "cautions": [
     "膝盖疼时少弯一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -12058,8 +13395,8 @@
    "purpose": "拉伸腰侧和背部侧面",
    "category": "stretch",
    "muscles": [
-    "obliques",
-    "lats"
+    "腹斜肌",
+    "背阔肌"
    ],
    "muscleGroups": [
     "obliques",
@@ -12105,7 +13442,10 @@
    "cautions": [
     "腰背或肩膀疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰",
+    "肩"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -12126,7 +13466,7 @@
    "purpose": "不加重量，练脚踝把脚底往外翻的控制",
    "category": "mobility",
    "muscles": [
-    "calves"
+    "小腿三头肌"
    ],
    "muscleGroups": [
     "calves"
@@ -12188,7 +13528,7 @@
    "purpose": "不加重量，练脚踝把脚底往里翻的控制",
    "category": "mobility",
    "muscles": [
-    "tibialis"
+    "胫骨前肌"
    ],
    "muscleGroups": [
     "tibialis"
@@ -12250,8 +13590,8 @@
    "purpose": "活动脚踝，让小腿放松",
    "category": "mobility",
    "muscles": [
-    "calves",
-    "tibialis"
+    "小腿三头肌",
+    "胫骨前肌"
    ],
    "muscleGroups": [
     "calves",
@@ -12312,14 +13652,14 @@
     "en": "Chair-Supported Hip Airplane"
    },
    "purpose": "练单腿站时髋部的转动控制",
-   "category": "balance",
+   "category": "core",
    "muscles": [
-    "glutes",
-    "abductors"
+    "臀大肌",
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
-    "glutes",
-    "abductors"
+    "glute-max",
+    "hip-abductors"
    ],
    "equipment": [
     "chair"
@@ -12376,14 +13716,14 @@
     "en": "Chair-Supported Hip Hitch"
    },
    "purpose": "练单腿站时骨盆左右不歪的控制",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "abductors",
-    "glutes"
+    "臀中肌 · 髋外展",
+    "臀大肌"
    ],
    "muscleGroups": [
-    "abductors",
-    "glutes"
+    "hip-abductors",
+    "glute-max"
    ],
    "equipment": [
     "chair"
@@ -12426,7 +13766,11 @@
     "刚开始时每侧先做 1 组 4 次，幅度小一点",
     "腰、髋或膝盖疼，或站不稳时就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "腰",
+    "髋"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -12443,12 +13787,12 @@
    "purpose": "不加重量，练髋部向内转的控制",
    "category": "mobility",
    "muscles": [
-    "glutes",
-    "abductors"
+    "臀大肌",
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
-    "glutes",
-    "abductors"
+    "glute-max",
+    "hip-abductors"
    ],
    "equipment": [
     "chair"
@@ -12507,7 +13851,7 @@
    "purpose": "不加重量，练大腿后侧弯膝的控制",
    "category": "strength",
    "muscles": [
-    "hamstrings"
+    "腘绳肌"
    ],
    "muscleGroups": [
     "hamstrings"
@@ -12567,9 +13911,9 @@
     "en": "Chair-Supported Alternating March"
    },
    "purpose": "扶着椅子练平衡和抬腿力量",
-   "category": "balance",
+   "category": "core",
    "muscles": [
-    "hip-flexors"
+    "髋屈肌"
    ],
    "muscleGroups": [
     "hip-flexors"
@@ -12632,12 +13976,12 @@
    "purpose": "扶着椅子练大腿和臀部力量，适合入门",
    "category": "strength",
    "muscles": [
-    "quadriceps",
-    "glutes"
+    "股四头肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "quadriceps",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "chair"
@@ -12680,7 +14024,9 @@
     "用不带轮子的稳固椅子，站不稳就停",
     "膝盖疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -12697,12 +14043,12 @@
    "purpose": "扶着椅子单腿前倾，练臀部和大腿后侧",
    "category": "strength",
    "muscles": [
-    "hamstrings",
-    "glutes"
+    "腘绳肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "hamstrings",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "chair"
@@ -12745,7 +14091,9 @@
     "用不带轮子的稳固椅子，站不稳就停",
     "腰或大腿后侧疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -12760,14 +14108,14 @@
     "en": "Chair-Supported Three-Direction Reach"
    },
    "purpose": "单腿微蹲时练稳定和控制",
-   "category": "balance",
+   "category": "core",
    "muscles": [
-    "quadriceps",
-    "glutes"
+    "股四头肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "quadriceps",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "chair"
@@ -12827,7 +14175,7 @@
    "purpose": "拉伸背部两侧和腋下",
    "category": "stretch",
    "muscles": [
-    "lats"
+    "背阔肌"
    ],
    "muscleGroups": [
     "lats"
@@ -12873,7 +14221,9 @@
    "cautions": [
     "肩膀疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": null,
    "apps": [],
    "tags": [],
@@ -12890,12 +14240,12 @@
    "purpose": "单手撑地时练身体转动和控制",
    "category": "strength",
    "muscles": [
-    "obliques",
-    "core"
+    "腹斜肌",
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
     "obliques",
-    "core"
+    "abs"
    ],
    "equipment": [],
    "position": "quadruped",
@@ -12938,7 +14288,9 @@
     "手腕不舒服时先活动一下手腕",
     "手腕刺痛或发麻时马上停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": "h-russian-twist",
    "apps": [
     "flarelab"
@@ -12963,17 +14315,17 @@
     "en": "Banded Pallof Press"
    },
    "purpose": "练腰腹两侧，让身体不被拉着转",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "obliques",
-    "core"
+    "腹斜肌",
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
     "obliques",
-    "core"
+    "abs"
    ],
    "equipment": [
-    "resistance-band"
+    "band"
    ],
    "position": "standing",
    "unilateral": true,
@@ -13014,7 +14366,9 @@
     "固定点不牢时先别开始",
     "腰背不舒服时换更轻的弹力带"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "h-band-pallof",
    "apps": [
     "flarelab"
@@ -13041,15 +14395,15 @@
    "purpose": "练肩膀和髋一起转的力量",
    "category": "strength",
    "muscles": [
-    "obliques",
-    "core"
+    "腹斜肌",
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
     "obliques",
-    "core"
+    "abs"
    ],
    "equipment": [
-    "cable-machine"
+    "cable"
    ],
    "position": "standing",
    "unilateral": true,
@@ -13088,7 +14442,9 @@
    "cautions": [
     "腰发紧或疼时转小一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "obliques-B",
    "apps": [
     "flarelab"
@@ -13115,7 +14471,7 @@
    "purpose": "在拉长的位置加强大腿前侧",
    "category": "strength",
    "muscles": [
-    "quadriceps"
+    "股四头肌"
    ],
    "muscleGroups": [
     "quadriceps"
@@ -13161,7 +14517,9 @@
    "cautions": [
     "膝前不舒服时少倒一点，膝下加垫"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": "w-wall-sit",
    "apps": [
     "flarelab"
@@ -13188,13 +14546,13 @@
    "purpose": "专练膝盖最后伸直的那一下",
    "category": "strength",
    "muscles": [
-    "quadriceps"
+    "股四头肌"
    ],
    "muscleGroups": [
     "quadriceps"
    ],
    "equipment": [
-    "resistance-band"
+    "band"
    ],
    "position": "standing",
    "unilateral": true,
@@ -13234,7 +14592,9 @@
    "cautions": [
     "膝盖疼时换更轻的弹力带，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": "w-wall-sit",
    "apps": [
     "flarelab"
@@ -13261,7 +14621,7 @@
    "purpose": "在膝盖完全伸直时加强大腿前侧",
    "category": "strength",
    "muscles": [
-    "quadriceps"
+    "股四头肌"
    ],
    "muscleGroups": [
     "quadriceps"
@@ -13307,7 +14667,9 @@
     "重量从轻开始",
     "膝盖前面疼时幅度小一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": "quadriceps-B",
    "apps": [
     "flarelab"
@@ -13332,17 +14694,17 @@
     "en": "Plank Shoulder Taps"
    },
    "purpose": "一只手撑住体重，练肩膀稳定",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "rotator-cuff",
-    "core"
+    "肩袖肌群",
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
     "rotator-cuff",
-    "core"
+    "abs"
    ],
    "equipment": [],
-   "position": "plank",
+   "position": "prone",
    "unilateral": true,
    "level": 1,
    "scenes": [
@@ -13382,7 +14744,9 @@
     "手腕不舒服时先活动一下手腕",
     "手腕刺痛或发麻时马上停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": "h-forearm-plank",
    "apps": [
     "flarelab"
@@ -13409,14 +14773,14 @@
    "purpose": "加强肩膀深处的小肌肉，让肩更稳",
    "category": "strength",
    "muscles": [
-    "rotator-cuff"
+    "肩袖肌群"
    ],
    "muscleGroups": [
     "rotator-cuff"
    ],
    "equipment": [
-    "resistance-band",
-    "foam-block"
+    "band",
+    "block"
    ],
    "position": "standing",
    "unilateral": true,
@@ -13456,7 +14820,9 @@
    "cautions": [
     "肩膀疼时换更轻的弹力带或转小一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": "h-side-er",
    "apps": [
     "flarelab"
@@ -13483,13 +14849,13 @@
    "purpose": "练手臂抬高时肩膀的控制",
    "category": "strength",
    "muscles": [
-    "rotator-cuff"
+    "肩袖肌群"
    ],
    "muscleGroups": [
     "rotator-cuff"
    ],
    "equipment": [
-    "cable-machine"
+    "cable"
    ],
    "position": "standing",
    "unilateral": true,
@@ -13529,7 +14895,9 @@
     "选很轻的重量",
     "肩膀前面疼时马上停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": "rotator-cuff-B",
    "apps": [
     "flarelab"
@@ -13556,10 +14924,10 @@
    "purpose": "拉伸前腿的臀部和髋外侧",
    "category": "stretch",
    "muscles": [
-    "glutes"
+    "臀大肌"
    ],
    "muscleGroups": [
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "mat"
@@ -13602,7 +14970,9 @@
    "cautions": [
     "膝盖疼时少倾一点或垫高臀部，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -13626,7 +14996,7 @@
    "purpose": "拉伸大腿内侧",
    "category": "stretch",
    "muscles": [
-    "adductors"
+    "内收肌群"
    ],
    "muscleGroups": [
     "adductors"
@@ -13672,7 +15042,9 @@
    "cautions": [
     "大腿内侧疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "大腿内侧"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -13696,10 +15068,10 @@
    "purpose": "拉伸臀部深处，缓解髋部发紧",
    "category": "stretch",
    "muscles": [
-    "glutes"
+    "臀大肌"
    ],
    "muscleGroups": [
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "mat"
@@ -13742,7 +15114,9 @@
    "cautions": [
     "膝盖疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -13765,7 +15139,7 @@
    "purpose": "拉伸大腿内侧",
    "category": "stretch",
    "muscles": [
-    "adductors"
+    "内收肌群"
    ],
    "muscleGroups": [
     "adductors"
@@ -13812,7 +15186,10 @@
     "膝盖下面垫软垫，膝盖不舒服就别再分开",
     "大腿内侧疼时坐浅一点，别让别人帮你压"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "大腿内侧"
+   ],
    "alternative": "s-butterfly",
    "apps": [
     "hiplab",
@@ -13836,7 +15213,7 @@
    "purpose": "拉伸髋部前面，缓解久坐发紧",
    "category": "stretch",
    "muscles": [
-    "hip-flexors"
+    "髋屈肌"
    ],
    "muscleGroups": [
     "hip-flexors"
@@ -13844,7 +15221,7 @@
    "equipment": [
     "mat"
    ],
-   "position": "half-kneeling",
+   "position": "kneeling",
    "unilateral": true,
    "level": 1,
    "scenes": [
@@ -13883,7 +15260,10 @@
     "跪地的膝盖下面垫软垫",
     "髋前侧疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -13906,18 +15286,18 @@
    "purpose": "拉伸后腿髋前侧和前腿大腿内侧",
    "category": "stretch",
    "muscles": [
-    "hip-flexors",
-    "adductors"
+    "髋屈肌",
+    "内收肌群"
    ],
    "muscleGroups": [
     "hip-flexors",
     "adductors"
    ],
    "equipment": [
-    "yoga-blocks",
+    "block",
     "mat"
    ],
-   "position": "half-kneeling",
+   "position": "kneeling",
    "unilateral": true,
    "level": 2,
    "scenes": [
@@ -13956,7 +15336,11 @@
     "跪地的膝盖下面垫软垫",
     "髋或大腿内侧疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝",
+    "髋",
+    "大腿内侧"
+   ],
    "alternative": "o-stand-lunge",
    "apps": [
     "hiplab",
@@ -13980,18 +15364,18 @@
    "purpose": "拉伸前腿的臀部和后腿的髋前侧",
    "category": "stretch",
    "muscles": [
-    "glutes",
-    "hip-flexors"
+    "臀大肌",
+    "髋屈肌"
    ],
    "muscleGroups": [
-    "glutes",
+    "glute-max",
     "hip-flexors"
    ],
    "equipment": [
-    "yoga-blocks",
+    "block",
     "mat"
    ],
-   "position": "other",
+   "position": "prone",
    "unilateral": true,
    "level": 2,
    "scenes": [
@@ -14029,7 +15413,9 @@
    "cautions": [
     "膝盖疼时垫高臀部，或换成仰卧4字拉伸"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": "s-figure4",
    "apps": [
     "hiplab",
@@ -14053,7 +15439,7 @@
    "purpose": "拉伸大腿后侧",
    "category": "stretch",
    "muscles": [
-    "hamstrings"
+    "腘绳肌"
    ],
    "muscleGroups": [
     "hamstrings"
@@ -14122,11 +15508,11 @@
    "purpose": "加强上背和肩胛周围，让肩膀摆正",
    "category": "strength",
    "muscles": [
-    "upper-back",
-    "rotator-cuff"
+    "斜方肌中下部 · 菱形肌",
+    "肩袖肌群"
    ],
    "muscleGroups": [
-    "upper-back",
+    "scapular",
     "rotator-cuff"
    ],
    "equipment": [
@@ -14171,7 +15557,9 @@
    "cautions": [
     "肩膀疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": "w-prone-swimmer",
    "apps": [
     "flarelab"
@@ -14198,15 +15586,15 @@
    "purpose": "练肩胛骨往下压的力量和稳定",
    "category": "strength",
    "muscles": [
-    "lats",
-    "upper-back"
+    "背阔肌",
+    "斜方肌中下部 · 菱形肌"
    ],
    "muscleGroups": [
     "lats",
-    "upper-back"
+    "scapular"
    ],
    "equipment": [
-    "pull-up-bar"
+    "pullup-bar"
    ],
    "position": "hanging",
    "unilateral": false,
@@ -14247,7 +15635,9 @@
     "先确认单杠装牢",
     "肩膀前面夹着疼时减少次数"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": "lats-B",
    "apps": [
     "flarelab"
@@ -14274,15 +15664,15 @@
    "purpose": "练把地面推远的力量，让肩胛骨贴住身体",
    "category": "strength",
    "muscles": [
-    "chest",
-    "core"
+    "胸大肌",
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
     "chest",
-    "core"
+    "abs"
    ],
    "equipment": [],
-   "position": "plank",
+   "position": "prone",
    "unilateral": false,
    "level": 1,
    "scenes": [
@@ -14321,7 +15711,9 @@
     "手腕不舒服时先活动一下手腕",
     "手腕刺痛或发麻时马上停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": "serratus-B",
    "apps": [
     "flarelab"
@@ -14348,8 +15740,8 @@
    "purpose": "练手臂举过头时，肩胛骨跟着往上转、贴住身体",
    "category": "strength",
    "muscles": [
-    "chest",
-    "deltoids"
+    "胸大肌",
+    "三角肌"
    ],
    "muscleGroups": [
     "chest",
@@ -14397,7 +15789,9 @@
    "cautions": [
     "肩膀疼时少往上滑一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": "h-wall-angel",
    "apps": [
     "flarelab"
@@ -14424,17 +15818,17 @@
    "purpose": "在晃动的吊环上练胸、手臂和肩胛骨的稳定",
    "category": "strength",
    "muscles": [
-    "chest",
-    "triceps"
+    "胸大肌",
+    "肱三头肌"
    ],
    "muscleGroups": [
     "chest",
     "triceps"
    ],
    "equipment": [
-    "gymnastic-rings"
+    "rings"
    ],
-   "position": "plank",
+   "position": "prone",
    "unilateral": false,
    "level": 3,
    "scenes": [
@@ -14472,7 +15866,10 @@
     "肩膀前面夹着疼时，下浅一点或换简单版",
     "手腕刺痛或发麻时马上停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩",
+    "手腕"
+   ],
    "alternative": "serratus-A",
    "apps": [
     "flarelab"
@@ -14491,6 +15888,341 @@
    }
   },
   {
+   "id": "t-flare-side-hold",
+   "name": {
+    "zh": "托马斯侧撑定格",
+    "en": "Flare Side Hold"
+   },
+   "purpose": "练托马斯全旋需要的单手单脚侧撑力量",
+   "category": "strength",
+   "muscles": [
+    "腹斜肌",
+    "三角肌"
+   ],
+   "muscleGroups": [
+    "obliques",
+    "deltoids"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "side_lying",
+   "unilateral": true,
+   "level": 3,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "time",
+    "sets": 3,
+    "seconds": 10,
+    "restSeconds": 60
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "下面的手和脚撑地，身体接近水平",
+     "上面的腿抬起，另一只手向上伸直。",
+     "撑地的手推地，肩膀远离耳朵。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "手腕不舒服时先活动一下手腕",
+    "手腕或肩膀疼时缩短时间，还疼就停"
+   ],
+   "contraindications": [
+    "手腕",
+    "肩"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "t-lsit-open-close",
+   "name": {
+    "zh": "L撑开合",
+    "en": "L-Sit Open-Close"
+   },
+   "purpose": "撑住L撑，练双腿分开再并拢的控制",
+   "category": "strength",
+   "muscles": [
+    "髋屈肌",
+    "腹直肌（含深层腹横肌）"
+   ],
+   "muscleGroups": [
+    "hip-flexors",
+    "abs"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "seated",
+   "unilateral": false,
+   "level": 3,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 6,
+    "restSeconds": 60
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "撑住不落地，伸直的双腿慢慢分开再并拢",
+     "肩膀往下压，手臂伸直。",
+     "整组腿一直离地，膝盖不弯。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "手腕不舒服时先活动一下手腕",
+    "手腕或肩膀疼时少做一点，还疼就停"
+   ],
+   "contraindications": [
+    "手腕",
+    "肩"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "t-lsit-tuck",
+   "name": {
+    "zh": "L撑收腿伸腿",
+    "en": "L-Sit to Tuck"
+   },
+   "purpose": "撑住身体，练双腿收回和伸直的控制",
+   "category": "strength",
+   "muscles": [
+    "髋屈肌",
+    "腹直肌（含深层腹横肌）"
+   ],
+   "muscleGroups": [
+    "hip-flexors",
+    "abs"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "seated",
+   "unilateral": false,
+   "level": 3,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 6,
+    "restSeconds": 60
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "撑住不落地，腿伸直成L撑再收回膝盖",
+     "肩膀往下压，手臂伸直。",
+     "收腿时脚跟收到身体下面。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "手腕不舒服时先活动一下手腕",
+    "手腕或肩膀疼时少做一点，还疼就停"
+   ],
+   "contraindications": [
+    "手腕",
+    "肩"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "t-lsit-vsit-circles",
+   "name": {
+    "zh": "L 撑到 V 撑画圈",
+    "en": "L-Sit to V-Sit Circles"
+   },
+   "purpose": "撑住身体，练双腿画圈抬高的控制",
+   "category": "strength",
+   "muscles": [
+    "髋屈肌",
+    "腹直肌（含深层腹横肌）"
+   ],
+   "muscleGroups": [
+    "hip-flexors",
+    "abs"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "seated",
+   "unilateral": false,
+   "level": 3,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 4,
+    "restSeconds": 60
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "撑住不落地，双腿向外打开再往上画圈",
+     "肩膀往下压，手臂伸直。",
+     "画一圈算 1 次，每圈换方向，慢而稳。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "手腕不舒服时先活动一下手腕",
+    "手腕或肩膀疼时少做一点，还疼就停"
+   ],
+   "contraindications": [
+    "手腕",
+    "肩"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "t-lsit-wide",
+   "name": {
+    "zh": "宽腿L撑",
+    "en": "Wide-Leg L-Sit"
+   },
+   "purpose": "练撑住身体、把分开的双腿抬离地面的力量",
+   "category": "strength",
+   "muscles": [
+    "髋屈肌",
+    "腹直肌（含深层腹横肌）"
+   ],
+   "muscleGroups": [
+    "hip-flexors",
+    "abs"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "seated",
+   "unilateral": false,
+   "level": 3,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "time",
+    "sets": 3,
+    "seconds": 10,
+    "restSeconds": 60
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "双手撑起，伸直的双腿分开离地",
+     "肩膀往下压，手臂伸直。",
+     "均匀呼吸，别憋气。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "手腕不舒服时先活动一下手腕",
+    "手腕或肩膀疼时缩短时间，还疼就停"
+   ],
+   "contraindications": [
+    "手腕",
+    "肩"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "t-seated-straddle-ext",
+   "name": {
+    "zh": "分腿坐收腿伸腿",
+    "en": "Seated Straddle Tuck and Extend"
+   },
+   "purpose": "分腿坐、双脚离地，练腿收回和伸直的控制",
+   "category": "strength",
+   "muscles": [
+    "髋屈肌",
+    "腹直肌（含深层腹横肌）"
+   ],
+   "muscleGroups": [
+    "hip-flexors",
+    "abs"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "seated",
+   "unilateral": false,
+   "level": 2,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 8,
+    "restSeconds": 45
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "双脚不落地，腿伸直再往两边收回",
+     "双手撑在身体前面，胸口朝前。",
+     "别往后仰，慢一点做。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "髋或腰疼时幅度小一点，还疼就停"
+   ],
+   "contraindications": [
+    "腰",
+    "髋"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
    "id": "t-seated-straddle-lift-1leg",
    "name": {
     "zh": "分腿坐单腿抬起",
@@ -14499,8 +16231,8 @@
    "purpose": "分腿坐，练大腿前侧把伸直的腿抬起来",
    "category": "strength",
    "muscles": [
-    "hip-flexors",
-    "quadriceps"
+    "髋屈肌",
+    "股四头肌"
    ],
    "muscleGroups": [
     "hip-flexors",
@@ -14547,7 +16279,9 @@
    "cautions": [
     "大腿前侧抽筋或髋疼时停下休息"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋"
+   ],
    "alternative": "n-leg-circles",
    "apps": [
     "hiplab",
@@ -14564,6 +16298,230 @@
    }
   },
   {
+   "id": "t-seated-straddle-lifts",
+   "name": {
+    "zh": "坐姿分腿双腿抬起",
+    "en": "Seated Straddle Lifts"
+   },
+   "purpose": "分腿坐，练大腿前侧把双腿抬起来",
+   "category": "strength",
+   "muscles": [
+    "髋屈肌",
+    "股四头肌"
+   ],
+   "muscleGroups": [
+    "hip-flexors",
+    "quadriceps"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "seated",
+   "unilateral": false,
+   "level": 2,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "reps",
+    "sets": 3,
+    "reps": 8,
+    "restSeconds": 45
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "双腿伸直，同时抬离地面几厘米",
+     "宽分腿坐，双手在两腿之间撑地，上身前倾。",
+     "屁股不离地，停一下再放下。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "大腿前侧抽筋或髋疼时停下休息"
+   ],
+   "contraindications": [
+    "髋"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "t-straddle-hold",
+   "name": {
+    "zh": "分腿支撑",
+    "en": "Straddle Support Hold"
+   },
+   "purpose": "练托马斯全旋需要的分腿撑起力量",
+   "category": "strength",
+   "muscles": [
+    "髋屈肌",
+    "腹直肌（含深层腹横肌）",
+    "肱三头肌"
+   ],
+   "muscleGroups": [
+    "hip-flexors",
+    "abs",
+    "triceps"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "seated",
+   "unilateral": false,
+   "level": 3,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "time",
+    "sets": 3,
+    "seconds": 10,
+    "restSeconds": 60
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "手臂伸直推地，把屁股和双腿撑离地面",
+     "宽分腿坐，双手在两腿之间撑地。",
+     "肩膀往下压，身体前倾，撑住别落地。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "手腕不舒服时先活动一下手腕",
+    "手腕或肩膀疼时少做一点，还疼就停"
+   ],
+   "contraindications": [
+    "手腕",
+    "肩"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "t-tuck-planche",
+   "name": {
+    "zh": "团身俄挺",
+    "en": "Tuck Planche"
+   },
+   "purpose": "练手撑平衡和肩膀往前顶的力量",
+   "category": "strength",
+   "muscles": [
+    "三角肌",
+    "腹直肌（含深层腹横肌）"
+   ],
+   "muscleGroups": [
+    "deltoids",
+    "abs"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "prone",
+   "unilateral": false,
+   "level": 3,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "time",
+    "sets": 3,
+    "seconds": 8,
+    "restSeconds": 90
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "肩膀往前送过手，双脚离地",
+     "蹲着双手撑地，手指稍微朝外，手臂伸直。",
+     "膝盖收在胸口下面，背微微拱起，稳住平衡。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "手腕不舒服时先活动一下手腕",
+    "手腕或肩膀疼时缩短时间，还疼就停"
+   ],
+   "contraindications": [
+    "手腕",
+    "肩"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
+   "id": "t-vsit",
+   "name": {
+    "zh": "V撑",
+    "en": "V-Sit"
+   },
+   "purpose": "练把双腿高高抬起、贴近身体的力量",
+   "category": "strength",
+   "muscles": [
+    "髋屈肌",
+    "腹直肌（含深层腹横肌）"
+   ],
+   "muscleGroups": [
+    "hip-flexors",
+    "abs"
+   ],
+   "equipment": [
+    "mat"
+   ],
+   "position": "seated",
+   "unilateral": false,
+   "level": 3,
+   "scenes": [
+    "home",
+    "gym"
+   ],
+   "defaultDose": {
+    "mode": "time",
+    "sets": 3,
+    "seconds": 8,
+    "restSeconds": 60
+   },
+   "doseRange": null,
+   "cues": {
+    "zh": [
+     "大腿折向胸口，双腿抬高成V字",
+     "双手撑地，肩膀往下压。",
+     "靠大腿往胸口收来抬腿，别整个人往后倒。"
+    ]
+   },
+   "primaryCue": 0,
+   "cautions": [
+    "手腕不舒服时先活动一下手腕",
+    "手腕或肩膀疼时缩短时间，还疼就停"
+   ],
+   "contraindications": [
+    "手腕",
+    "肩"
+   ],
+   "alternative": null,
+   "apps": [],
+   "tags": [],
+   "review": {
+    "status": "ai-reviewed-r2-needs-user-review"
+   }
+  },
+  {
    "id": "triceps-A",
    "name": {
     "zh": "窄距俯卧撑（锁肘停顿）",
@@ -14572,15 +16530,15 @@
    "purpose": "练手臂后侧，推到顶把手肘完全伸直",
    "category": "strength",
    "muscles": [
-    "triceps",
-    "chest"
+    "肱三头肌",
+    "胸大肌"
    ],
    "muscleGroups": [
     "triceps",
     "chest"
    ],
    "equipment": [],
-   "position": "plank",
+   "position": "prone",
    "unilateral": false,
    "level": 1,
    "scenes": [
@@ -14619,7 +16577,9 @@
     "手腕不舒服时先活动一下手腕",
     "手腕刺痛或发麻时马上停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": "h-incline-pushup",
    "apps": [
     "flarelab"
@@ -14646,8 +16606,8 @@
    "purpose": "练手臂伸直撑住体重",
    "category": "strength",
    "muscles": [
-    "triceps",
-    "chest"
+    "肱三头肌",
+    "胸大肌"
    ],
    "muscleGroups": [
     "triceps",
@@ -14656,7 +16616,7 @@
    "equipment": [
     "parallettes"
    ],
-   "position": "other",
+   "position": "support",
    "unilateral": false,
    "level": 2,
    "scenes": [
@@ -14695,7 +16655,9 @@
     "手腕不舒服时先活动一下手腕",
     "手腕刺痛或发麻时马上停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "手腕"
+   ],
    "alternative": "h-chair-dip",
    "apps": [
     "flarelab"
@@ -14722,8 +16684,8 @@
    "purpose": "练手臂后侧和胸，从低处把身体推起",
    "category": "strength",
    "muscles": [
-    "triceps",
-    "chest"
+    "肱三头肌",
+    "胸大肌"
    ],
    "muscleGroups": [
     "triceps",
@@ -14732,7 +16694,7 @@
    "equipment": [
     "dip-bars"
    ],
-   "position": "other",
+   "position": "support",
    "unilateral": false,
    "level": 3,
    "scenes": [
@@ -14769,7 +16731,9 @@
    "cautions": [
     "肩膀不舒服时先只做顶端撑住，再慢慢加深"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "肩"
+   ],
    "alternative": "h-chair-dip",
    "apps": [
     "flarelab"
@@ -14794,14 +16758,14 @@
     "en": "Bird Dog"
    },
    "purpose": "练腰腹稳定，让一只手和另一侧的腿配合",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "core",
-    "glutes"
+    "腹直肌（含深层腹横肌）",
+    "臀大肌"
    ],
    "muscleGroups": [
-    "core",
-    "glutes"
+    "abs",
+    "glute-max"
    ],
    "equipment": [
     "mat"
@@ -14843,7 +16807,9 @@
    "cautions": [
     "腰疼时伸得近一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -14862,10 +16828,10 @@
    "purpose": "上背靠在椅子上，练臀部力量",
    "category": "strength",
    "muscles": [
-    "glutes"
+    "臀大肌"
    ],
    "muscleGroups": [
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "chair"
@@ -14908,7 +16874,9 @@
     "确认椅子稳固不滑",
     "腰疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰"
+   ],
    "alternative": "w-feet-on-chair-bridge",
    "apps": [
     "smartfit"
@@ -14927,17 +16895,17 @@
    "purpose": "练臀部外侧，让髋更稳",
    "category": "strength",
    "muscles": [
-    "glutes",
-    "abductors"
+    "臀大肌",
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
-    "glutes",
-    "abductors"
+    "glute-max",
+    "hip-abductors"
    ],
    "equipment": [
     "mat"
    ],
-   "position": "side-lying",
+   "position": "side_lying",
    "unilateral": true,
    "level": 1,
    "scenes": [
@@ -14974,7 +16942,9 @@
    "cautions": [
     "髋疼时打开小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "hiplab",
@@ -14996,12 +16966,12 @@
     "en": "Dead Bug"
    },
    "purpose": "练腰腹稳定，手脚动的时候腰不离地",
-   "category": "stability",
+   "category": "core",
    "muscles": [
-    "core"
+    "腹直肌（含深层腹横肌）"
    ],
    "muscleGroups": [
-    "core"
+    "abs"
    ],
    "equipment": [
     "mat"
@@ -15045,7 +17015,10 @@
     "腰拱起来时伸得近一点",
     "髋前面不舒服时腿放高一点"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰",
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -15064,11 +17037,11 @@
    "purpose": "练臀部和大腿后侧",
    "category": "strength",
    "muscles": [
-    "glutes",
-    "hamstrings"
+    "臀大肌",
+    "腘绳肌"
    ],
    "muscleGroups": [
-    "glutes",
+    "glute-max",
     "hamstrings"
    ],
    "equipment": [
@@ -15136,12 +17109,12 @@
    "purpose": "练臀部外侧，让髋更稳",
    "category": "strength",
    "muscles": [
-    "glutes",
-    "abductors"
+    "臀大肌",
+    "臀中肌 · 髋外展"
    ],
    "muscleGroups": [
-    "glutes",
-    "abductors"
+    "glute-max",
+    "hip-abductors"
    ],
    "equipment": [
     "mat"
@@ -15183,7 +17156,9 @@
    "cautions": [
     "髋疼时抬低一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "髋"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -15202,11 +17177,11 @@
    "purpose": "练上背，让肩膀活动更顺",
    "category": "strength",
    "muscles": [
-    "upper-back",
-    "rotator-cuff"
+    "斜方肌中下部 · 菱形肌",
+    "肩袖肌群"
    ],
    "muscleGroups": [
-    "upper-back",
+    "scapular",
     "rotator-cuff"
    ],
    "equipment": [
@@ -15249,7 +17224,10 @@
    "cautions": [
     "腰或肩膀疼时幅度小一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "腰",
+    "肩"
+   ],
    "alternative": null,
    "apps": [
     "smartfit"
@@ -15268,17 +17246,17 @@
    "purpose": "静止蹲住，练大腿和臀部的耐力",
    "category": "strength",
    "muscles": [
-    "quadriceps",
-    "glutes"
+    "股四头肌",
+    "臀大肌"
    ],
    "muscleGroups": [
     "quadriceps",
-    "glutes"
+    "glute-max"
    ],
    "equipment": [
     "wall"
    ],
-   "position": "other",
+   "position": "standing",
    "unilateral": false,
    "level": 1,
    "scenes": [
@@ -15315,7 +17293,9 @@
    "cautions": [
     "膝盖疼时蹲高一点，还疼就停"
    ],
-   "contraindications": [],
+   "contraindications": [
+    "膝"
+   ],
    "alternative": "h-squat",
    "apps": [
     "smartfit"

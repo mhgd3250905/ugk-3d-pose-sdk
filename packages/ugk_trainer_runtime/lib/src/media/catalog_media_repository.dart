@@ -33,7 +33,7 @@ abstract interface class CatalogMediaRepository
     required String catalogRevision,
     required List<Uri> mediaBaseUrls,
 
-    /// Null uses the catalogue's own pack (`r1-v3` when it has none).
+    /// Null uses the catalogue's own pack (the legacy fallback when it has none).
     String? packVersion,
     String? rootDirectory,
     CatalogBundledFileLoader? bundledFileLoader,
@@ -62,7 +62,7 @@ abstract interface class CatalogMediaRepository
     required String catalogRevision,
     required List<Uri> mediaBaseUrls,
 
-    /// Null uses the catalogue's own pack (`r1-v3` when it has none).
+    /// Null uses the catalogue's own pack (the legacy fallback when it has none).
     String? packVersion,
     required String rootDirectory,
     CatalogBundledFileLoader? bundledFileLoader,

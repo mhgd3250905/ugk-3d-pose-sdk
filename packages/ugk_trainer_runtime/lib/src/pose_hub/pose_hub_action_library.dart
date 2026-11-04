@@ -15,7 +15,7 @@ abstract final class PoseHubActionLibrary {
   /// Audit digest of this SDK's bundled catalogue, not an acceptance gate for
   /// other internally consistent catalogue versions.
   static const catalogSha256 =
-      '3650153aed158a404271d64cc185244fe642f1a7be077d45b3a0d88cfb58e959';
+      'e0953fc81779063ac7acda48253836b354d3f508eef58015f8fec57a477a40d3';
 
   /// Bundled pack version (`pack` in the bundled catalogue).
   static const packVersion = 'r2-v1';
@@ -29,11 +29,6 @@ abstract final class PoseHubActionLibrary {
   static Uri mediaBaseUriFor(PoseHubAppTestCatalog catalog) =>
       poseHubMediaBaseUriForPack(poseHubPackVersionOf(catalog));
 
-  /// Legacy v2 whole-pack ZIP, retained for existing hosts. V3 hosts use
-  /// [catalogDownloadUri] and each file's individual download location.
-  static const downloadUri =
-      'https://github.com/mhgd3250905/ugk-3d-pose-sdk/releases/download/'
-      'posehub-app-test-pack-r1-v2/posehub-app-test-pack-r1-v2.zip';
   static Future<PoseHubAppTestCatalog>? _bundled;
   static PoseHubCatalogStore? _verifiedCache;
 

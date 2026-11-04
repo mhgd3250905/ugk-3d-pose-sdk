@@ -243,7 +243,7 @@ class PoseHubCatalogUpdater {
       throw _Failure('catalog_pack_mismatch: $indexPack', pack);
     }
     // Add-only counts from r2-v1, the first catalogue that declares `pack`.
-    // The legacy bundled r1-v3 has no lineage to keep (user, 2026-11-04).
+    // A local catalogue without `pack` has no lineage to keep (user, 2026-11-04).
     final newIds = {for (final a in index.allActions) a.id};
     final missing = [
       if (local.raw['pack'] != null)

@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:ugk_coach/ugk_coach.dart' as coach;
 
-/// The bundled R1 v3 catalogue carries no `pack` field; it is this version.
+/// Fallback pack version for a catalogue without a `pack` field.
 const poseHubLegacyPackVersion = 'r1-v3';
 
 /// The SDK version a pointer's `min_sdk` is compared against: the release
@@ -16,8 +16,8 @@ Uri poseHubMediaBaseUriForPack(String pack) {
   return Uri.parse('https://media.uuugk.win/pack/$pack/');
 }
 
-/// The pack version of a catalogue: its `pack` field, or `r1-v3` when absent
-/// (keeps the bundled R1 v3 catalogue unchanged).
+/// The pack version of a catalogue: its `pack` field, or
+/// [poseHubLegacyPackVersion] when absent (catalogues older than `pack`).
 String poseHubPackVersionOf(coach.PoseHubAppTestCatalog catalog) {
   final pack = catalog.raw['pack'];
   if (pack == null) return poseHubLegacyPackVersion;

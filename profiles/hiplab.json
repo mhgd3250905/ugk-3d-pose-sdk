@@ -25,7 +25,12 @@
  "select": {
   "apps": [
    "hiplab"
-  ]
+  ],
+  "rules": {
+   "muscleGroups": ["glute-max", "hip-abductors", "adductors", "hip-flexors", "hamstrings", "quadriceps", "hip-rotators"],
+   "categories": ["stretch", "mobility", "strength"],
+   "equipment": ["mat", "chair", "wall", "block", "band", "slider"]
+  }
  },
  "scenes": {
   "home": {

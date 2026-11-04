@@ -6,7 +6,44 @@ import '../catalog/catalog.dart';
 import '../util/json.dart';
 import 'plan_rules_defaults.g.dart';
 
+/// App profile 规则（规格第 7 节）：按部位、类型、器械筛选目录里**没标 apps/tags** 的动作，
+/// 让新动作符合规则就自动进入 App 范围。每个非空维度都要满足：
+/// - [muscleGroups]：动作的全部 muscleGroups 都在其中（且至少一个）；
+/// - [categories]：动作 category 在其中；
+/// - [equipment]：动作的每件器械都在其中（徒手总是满足）。
+class DrillRule {
+  const DrillRule({this.muscleGroups = const {}, this.categories = const {}, this.equipment = const {}});
+
+  final Set<String> muscleGroups;
+  final Set<String> categories;
+  final Set<String> equipment;
+
+  bool get isEmpty => muscleGroups.isEmpty && categories.isEmpty && equipment.isEmpty;
+
+  bool matches(Drill d) =>
+      !isEmpty &&
+      (muscleGroups.isEmpty || (d.muscleGroups.isNotEmpty && d.muscleGroups.every(muscleGroups.contains))) &&
+      (categories.isEmpty || categories.contains(d.category)) &&
+      (equipment.isEmpty || d.equipment.where((e) => e != 'none').every(equipment.contains));
+
+  factory DrillRule.fromJson(Object? raw) {
+    final j = asMap(raw);
+    return DrillRule(
+      muscleGroups: asStringList(j['muscleGroups']).toSet(),
+      categories: asStringList(j['categories']).toSet(),
+      equipment: asStringList(j['equipment']).toSet(),
+    );
+  }
+
+  Map<String, Object?> toJson() => {
+    if (muscleGroups.isNotEmpty) 'muscleGroups': muscleGroups.toList(),
+    if (categories.isNotEmpty) 'categories': categories.toList(),
+    if (equipment.isNotEmpty) 'equipment': equipment.toList(),
+  };
+}
+
 /// 动作筛选：ids / idPrefixes / apps / tags / categories 取并集（全空 = 全库），再减 exclude。
+/// [rules] 只放行没标 apps/tags 的动作（见 [DrillRule]），也并入上面的并集。
 class DrillSelector {
   const DrillSelector({
     this.ids = const {},
@@ -16,6 +53,7 @@ class DrillSelector {
     this.categories = const {},
     this.exclude = const {},
     this.excludeTags = const {},
+    this.rules = const DrillRule(),
   });
 
   final Set<String> ids;
@@ -25,8 +63,10 @@ class DrillSelector {
   final Set<String> categories;
   final Set<String> exclude;
   final Set<String> excludeTags;
+  final DrillRule rules;
 
-  bool get selectsAll => ids.isEmpty && idPrefixes.isEmpty && apps.isEmpty && tags.isEmpty && categories.isEmpty;
+  bool get selectsAll =>
+      ids.isEmpty && idPrefixes.isEmpty && apps.isEmpty && tags.isEmpty && categories.isEmpty && rules.isEmpty;
 
   bool matches(Drill d) {
     if (exclude.contains(d.id) || d.tags.any(excludeTags.contains)) return false;
@@ -35,7 +75,8 @@ class DrillSelector {
         idPrefixes.any(d.id.startsWith) ||
         d.apps.any(apps.contains) ||
         d.tags.any(tags.contains) ||
-        categories.contains(d.category);
+        categories.contains(d.category) ||
+        (d.apps.isEmpty && d.tags.isEmpty && rules.matches(d));
   }
 
   factory DrillSelector.fromJson(Object? raw) {
@@ -48,6 +89,7 @@ class DrillSelector {
       categories: asStringList(j['categories']).toSet(),
       exclude: asStringList(j['exclude']).toSet(),
       excludeTags: asStringList(j['excludeTags']).toSet(),
+      rules: DrillRule.fromJson(j['rules']),
     );
   }
 
@@ -59,6 +101,7 @@ class DrillSelector {
     if (categories.isNotEmpty) 'categories': categories.toList(),
     if (exclude.isNotEmpty) 'exclude': exclude.toList(),
     if (excludeTags.isNotEmpty) 'excludeTags': excludeTags.toList(),
+    if (!rules.isEmpty) 'rules': rules.toJson(),
   };
 }
 

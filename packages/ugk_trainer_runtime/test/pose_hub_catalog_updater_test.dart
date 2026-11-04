@@ -397,6 +397,31 @@ void main() {
     expect(http.requests, hasLength(3));
   });
 
+  test('after a switch only the current and previous packs stay cached', () async {
+    for (final pack in ['r2-v1', 'r2-v2']) {
+      publish(pack, repack(pack));
+      expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.updated);
+    }
+    Set<String> cachedPacks() => {
+      for (final key in store.values.keys)
+        if (key.startsWith('packs/')) key.split('/')[1],
+    };
+    expect(cachedPacks(), {'r2-v1', 'r2-v2'});
+    publish('r2-v3', repack('r2-v3'));
+    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.updated);
+    expect(cachedPacks(), {'r2-v2', 'r2-v3'});
+    expect(await loadedPack(), 'r2-v3');
+    // A failed update deletes nothing.
+    http.serve(_pointerUrl, _json(_pointer('r2-v4', repack('r2-v4'))));
+    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.failed);
+    expect(cachedPacks(), {'r2-v2', 'r2-v3'});
+  });
+
+  test('the SDK compares min_sdk against 0.8.0', () {
+    expect(poseHubCatalogSdkVersion, '0.8.0');
+    expect(_config.sdkVersion, '0.8.0');
+  });
+
   test('file store writes atomically and reads back', () async {
     final dir = await Directory.systemTemp.createTemp('posehub-cache-');
     addTearDown(() => dir.delete(recursive: true));
@@ -410,5 +435,12 @@ void main() {
       isEmpty,
     );
     await expectLater(files.read('../x'), throwsFormatException);
+    await files.writeAtomic('packs/r2-v2/semantic.json', [4]);
+    expect((await files.list('packs'))..sort(), ['r2-v1', 'r2-v2']);
+    await files.delete('packs/r2-v1');
+    await files.delete('packs/never-there');
+    expect(await files.list('packs'), ['r2-v2']);
+    expect(await files.read('packs/r2-v1/catalog.json'), isNull);
+    expect(await files.list('missing'), isEmpty);
   });
 }

@@ -25,8 +25,9 @@ PoseHubCatalogStore createPoseHubCatalogFileStore(String directory) =>
 
 const _currentName = 'current.json';
 const _stateName = 'state.json';
-String _catalogName(String pack) => 'packs/$pack/catalog.json';
-String _semanticName(String pack) => 'packs/$pack/semantic.json';
+const _packsDir = 'packs';
+String _catalogName(String pack) => '$_packsDir/$pack/catalog.json';
+String _semanticName(String pack) => '$_packsDir/$pack/semantic.json';
 
 String _sha(List<int> bytes) => crypto.sha256.convert(bytes).toString();
 
@@ -289,11 +290,25 @@ class PoseHubCatalogUpdater {
     } catch (error) {
       throw _Failure('cache_write_failed: $error', pack);
     }
+    await _prune(keep: {pack, poseHubPackVersionOf(local)});
     keepEtag(pointerResponse.etag);
     onEvent?.call(
       PoseHubCatalogUpdateEvent(PoseHubCatalogUpdateEvent.updated, pack: pack),
     );
     return PoseHubCatalogUpdateOutcome.updated;
+  }
+
+  /// Keeps only the current and the previous pack in the cache. Best
+  /// effort: the switch has already happened, so a failed delete is retried
+  /// on the next successful update.
+  Future<void> _prune({required Set<String> keep}) async {
+    try {
+      for (final name in await store.list(_packsDir)) {
+        if (!keep.contains(name)) await store.delete('$_packsDir/$name');
+      }
+    } catch (error) {
+      debugPrint('PoseHub catalogue cache not pruned: $error');
+    }
   }
 
   Future<coach.PoseHubAppTestCatalog> _local() async {

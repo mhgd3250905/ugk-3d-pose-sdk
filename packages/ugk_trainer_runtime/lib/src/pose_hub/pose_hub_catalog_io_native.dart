@@ -67,6 +67,27 @@ class _FileStore implements PoseHubCatalogStore {
   }
 
   @override
+  Future<List<String>> list(String directory) async {
+    final dir = Directory(_file(directory).path);
+    if (!await dir.exists()) return const [];
+    return [
+      await for (final entity in dir.list())
+        entity.uri.pathSegments.lastWhere((s) => s.isNotEmpty),
+    ];
+  }
+
+  @override
+  Future<void> delete(String name) async {
+    final path = _file(name).path;
+    final type = await FileSystemEntity.type(path, followLinks: false);
+    if (type == FileSystemEntityType.notFound) return;
+    await (type == FileSystemEntityType.directory
+            ? Directory(path)
+            : File(path))
+        .delete(recursive: true);
+  }
+
+  @override
   Future<void> writeAtomic(String name, List<int> bytes) async {
     final target = _file(name);
     await target.parent.create(recursive: true);

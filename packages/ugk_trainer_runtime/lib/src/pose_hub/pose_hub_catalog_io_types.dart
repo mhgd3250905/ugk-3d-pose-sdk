@@ -22,6 +22,12 @@ class PoseHubCatalogHttpResponse {
 abstract interface class PoseHubCatalogStore {
   Future<Uint8List?> read(String name);
   Future<void> writeAtomic(String name, List<int> bytes);
+
+  /// Names of the direct children (files or directories) under [directory].
+  Future<List<String>> list(String directory);
+
+  /// Removes [name] and everything under it; missing is not an error.
+  Future<void> delete(String name);
 }
 
 /// In-memory store for tests and hosts without a file system.
@@ -32,5 +38,19 @@ class MemoryPoseHubCatalogStore implements PoseHubCatalogStore {
   @override
   Future<void> writeAtomic(String name, List<int> bytes) async {
     values[name] = Uint8List.fromList(bytes);
+  }
+
+  @override
+  Future<List<String>> list(String directory) async {
+    final prefix = directory.endsWith('/') ? directory : '$directory/';
+    return {
+      for (final key in values.keys)
+        if (key.startsWith(prefix)) key.substring(prefix.length).split('/').first,
+    }.toList();
+  }
+
+  @override
+  Future<void> delete(String name) async {
+    values.removeWhere((key, _) => key == name || key.startsWith('$name/'));
   }
 }

@@ -29,6 +29,10 @@ const poseHubEquipmentLabels = <String, String>{
   'hip-abductor-machine': '髋外展机',
   'leg-extension-machine': '腿屈伸机',
   'foam-roller': '泡沫轴',
+  'towel': '毛巾',
+  'doorframe': '门框',
+  'bench': '训练凳',
+  'barbell': '杠铃',
 };
 
 /// User-facing facets derived from complete catalogue definitions.

@@ -27,7 +27,7 @@ void main() {
     '20 minute home plan admits, plays, saves and restores with actual equipment',
     () async {
       final meta = File(
-        '../ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json',
+        '../ugk_trainer/assets/pose_hub/app-pack-r2-v1/catalog.json',
       );
       final descriptor = coach.PoseHubAppTestCatalog.fromBytes(
         meta.readAsBytesSync(),

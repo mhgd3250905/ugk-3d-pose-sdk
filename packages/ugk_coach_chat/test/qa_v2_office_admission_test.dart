@@ -199,6 +199,15 @@ void main() {
           'block_names': {'warmup': '热身', 'main': '拉伸', 'cooldown': '放松'},
           'chips': ['再来'],
         }),
+        // 代码先退回「时长对不上」的原因；模型坚持原样重交，代码才按原因补动作。
+        call('build_plan', {
+          'title': '办公室拉伸',
+          'text': '按15分钟安排。',
+          'minutes': 15,
+          'main_ids': mainIds,
+          'block_names': {'warmup': '热身', 'main': '拉伸', 'cooldown': '放松'},
+          'chips': ['再来'],
+        }),
       ], latency: Duration.zero);
       final plans = ChatPlans(),
           history = ChatHistory(),

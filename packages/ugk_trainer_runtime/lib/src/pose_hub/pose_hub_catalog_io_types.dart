@@ -1,0 +1,56 @@
+import 'dart:typed_data';
+
+/// Minimal HTTP surface used by the catalogue updater; tests supply fakes.
+abstract interface class PoseHubCatalogHttpClient {
+  /// Returns the full body. [maxBytes] aborts a larger response.
+  Future<PoseHubCatalogHttpResponse> get(
+    Uri uri, {
+    Map<String, String> headers = const {},
+    int maxBytes = 64 * 1024 * 1024,
+  });
+}
+
+class PoseHubCatalogHttpResponse {
+  const PoseHubCatalogHttpResponse(this.statusCode, this.body, {this.etag});
+  final int statusCode;
+  final Uint8List body;
+  final String? etag;
+}
+
+/// Key/value storage for verified catalogue files. [writeAtomic] must never
+/// leave a partially written value under [name].
+abstract interface class PoseHubCatalogStore {
+  Future<Uint8List?> read(String name);
+  Future<void> writeAtomic(String name, List<int> bytes);
+
+  /// Names of the direct children (files or directories) under [directory].
+  Future<List<String>> list(String directory);
+
+  /// Removes [name] and everything under it; missing is not an error.
+  Future<void> delete(String name);
+}
+
+/// In-memory store for tests and hosts without a file system.
+class MemoryPoseHubCatalogStore implements PoseHubCatalogStore {
+  final Map<String, Uint8List> values = {};
+  @override
+  Future<Uint8List?> read(String name) async => values[name];
+  @override
+  Future<void> writeAtomic(String name, List<int> bytes) async {
+    values[name] = Uint8List.fromList(bytes);
+  }
+
+  @override
+  Future<List<String>> list(String directory) async {
+    final prefix = directory.endsWith('/') ? directory : '$directory/';
+    return {
+      for (final key in values.keys)
+        if (key.startsWith(prefix)) key.substring(prefix.length).split('/').first,
+    }.toList();
+  }
+
+  @override
+  Future<void> delete(String name) async {
+    values.removeWhere((key, _) => key == name || key.startsWith('$name/'));
+  }
+}

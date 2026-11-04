@@ -32,8 +32,7 @@ flutter:
   assets:
     - assets/silence.m4a
     - assets/media_player/
-    - assets/pose_hub/app-test-pack-r1/catalog.json
-    - assets/pose_hub/app-test-pack-r1/manifest.json
-    - assets/pose_hub/app-test-pack-r1/catalog/catalog.json
-    - assets/pose_hub/app-test-pack-r1/standing/
+    - assets/pose_hub/app-pack-r2-v1/catalog.json
+    - assets/pose_hub/app-pack-r2-v1/catalog/catalog.json
+    - assets/pose_hub/app-pack-r2-v1/standing/
     - assets/pose_hub_player/

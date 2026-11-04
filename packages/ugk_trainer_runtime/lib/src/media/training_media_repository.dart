@@ -45,7 +45,9 @@ class TrainingMediaRepository extends ChangeNotifier {
     required coach.PoseHubAppTestCatalog catalog,
     required String catalogRevision,
     required List<Uri> mediaBaseUrls,
-    String packVersion = 'r1-v3',
+
+    /// Null uses the catalogue's own pack (the legacy fallback when it has none).
+    String? packVersion,
     String? rootDirectory,
     CatalogBundledFileLoader? bundledFileLoader,
     int maxVideoCacheBytes = catalogVideoCacheLimitBytes,

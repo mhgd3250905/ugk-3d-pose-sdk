@@ -72,7 +72,7 @@ String _rejection(LlmRequest r) {
 }
 
 void main() {
-  final meta = File('packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json');
+  final meta = File('test/fixtures/pose_hub/r1-v3/catalog.json');
   if (!meta.existsSync()) return;
   final m = PoseHubAppTestCatalog.fromBytes(meta.readAsBytesSync());
   final sem = File('${meta.parent.path}/${m.semanticCatalogFile.path}').readAsBytesSync();

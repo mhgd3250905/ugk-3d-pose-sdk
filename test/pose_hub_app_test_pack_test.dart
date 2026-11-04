@@ -7,7 +7,7 @@ import 'package:ugk_coach/ugk_coach.dart';
 
 import 'support.dart';
 
-const _pack = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+const _pack = 'test/fixtures/pose_hub/r1-v3';
 
 Map<String, Object?> _read(String path) =>
     jsonDecode(File(path).readAsStringSync()) as Map<String, Object?>;

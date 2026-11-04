@@ -276,7 +276,7 @@ void main() {
   test(
     'real strength cooldown produces an advisory and does not impersonate a safety error',
     () {
-      const pack = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+      const pack = 'test/fixtures/pose_hub/r1-v3';
       final published = PoseHubAppTestCatalog.fromBytes(
         File('$pack/catalog.json').readAsBytesSync(),
         semanticCatalogBytes: File(

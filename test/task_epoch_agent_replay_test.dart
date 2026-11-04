@@ -35,10 +35,10 @@ void main() {
   );
   final catalog = PoseHubAppTestCatalog.fromBytes(
     File(
-      'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json',
+      'test/fixtures/pose_hub/r1-v3/catalog.json',
     ).readAsBytesSync(),
     semanticCatalogBytes: File(
-      'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog/catalog.json',
+      'test/fixtures/pose_hub/r1-v3/catalog/catalog.json',
     ).readAsBytesSync(),
   ).toAiCatalog();
   final profile = loadProfile('smartfit');

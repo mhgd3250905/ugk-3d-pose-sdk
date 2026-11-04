@@ -12,9 +12,9 @@
     "replayed-tool-calls.json": "5c83c270beaf07e7e00b9c4d00d3471ebee6640c0b5c113338131096c416a88d"
   },
   "sourceCatalog": {
-    "sdkPath": "packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json",
+    "sdkPath": "test/fixtures/pose_hub/r1-v3/catalog.json",
     "sha256": "75881cf91621c967f80732f0219f23e85b35e8bde5d1a51ee75dec5f7c5edd36",
-    "semanticPath": "packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog/catalog.json",
+    "semanticPath": "test/fixtures/pose_hub/r1-v3/catalog/catalog.json",
     "semanticSha256": "40610dbb71b58886ebe001409ae15161761747b4f776e74a252e7b1f8df6e983",
     "projection": "SDK toAiCatalog plus unchanged SF _planningCadence; retain original32 seen drills in originalorder; all5 selected raw definitions structurally identical to captured offline replay."
   },

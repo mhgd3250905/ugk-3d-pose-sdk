@@ -77,7 +77,7 @@ void main() {
   Map<String, Object?> caseTurn(String id, int i) =>
       ((cases[id]!['turns']! as List<Object?>)[i]! as Map<String, Object?>);
   String turn(String id, int i) => caseTurn(id, i)['text']! as String;
-  final base = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+  final base = 'test/fixtures/pose_hub/r1-v3';
   final app = PoseHubAppTestCatalog.fromBytes(
     File('$base/catalog.json').readAsBytesSync(),
     semanticCatalogBytes: File('$base/catalog/catalog.json').readAsBytesSync(),

@@ -358,7 +358,7 @@ void main() {
   test(
     'SF configuration has 219 allowed and 211 complete planning actions',
     () {
-      const pack = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+      const pack = 'test/fixtures/pose_hub/r1-v3';
       final bytes = File('$pack/catalog.json').readAsBytesSync();
       final planning = PoseHubAppTestCatalog.fromBytes(
         bytes,
@@ -394,7 +394,7 @@ void main() {
   test(
     'HipLab 45-ID fixture remains a candidate rather than a signed manifest',
     () {
-      const pack = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+      const pack = 'test/fixtures/pose_hub/r1-v3';
       final bytes = File('$pack/catalog.json').readAsBytesSync();
       final planning = PoseHubAppTestCatalog.fromBytes(
         bytes,

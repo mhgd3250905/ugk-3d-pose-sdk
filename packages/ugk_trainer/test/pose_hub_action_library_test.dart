@@ -37,12 +37,13 @@ Map<String, Object?> _futureRelease() {
   final data =
       jsonDecode(
             File(
-              'assets/pose_hub/app-test-pack-r1/catalog.json',
+              'assets/pose_hub/app-pack-r2-v1/catalog.json',
             ).readAsStringSync(),
           )
           as Map<String, Object?>;
-  const version = 'posehub-app-test-pack-r1-v4';
-  const prefix = 'pack/r1-v4/';
+  const version = 'app-pack-r2-v2';
+  const prefix = 'pack/r2-v2/';
+  data['pack'] = 'r2-v2';
   const base = 'https://media.uuugk.win/$prefix';
   var files = 0;
   var bytes = 0;
@@ -76,20 +77,14 @@ void main() {
     catalog = await PoseHubActionLibrary.load(bundle: _PackBundle());
   });
 
-  test('v3 standalone locations preserve the legacy whole-pack ZIP URL', () {
-    const release =
-        'https://github.com/mhgd3250905/ugk-3d-pose-sdk/releases/download/';
+  test('r2-v1 locations come from the pack', () {
     expect(
       PoseHubActionLibrary.mediaReleaseBaseUri,
-      'https://media.uuugk.win/pack/r1-v3/',
+      'https://media.uuugk.win/pack/r2-v1/',
     );
     expect(
       PoseHubActionLibrary.catalogDownloadUri,
-      '${release}posehub-app-test-pack-r1-v3/catalog.json',
-    );
-    expect(
-      PoseHubActionLibrary.downloadUri,
-      '${release}posehub-app-test-pack-r1-v2/posehub-app-test-pack-r1-v2.zip',
+      'https://media.uuugk.win/pack/r2-v1/catalog.json',
     );
   });
 
@@ -97,7 +92,7 @@ void main() {
     'bundled audit digest records this release without gating future data',
     () async {
       final source = await File(
-        'assets/pose_hub/app-test-pack-r1/catalog.json',
+        'assets/pose_hub/app-pack-r2-v1/catalog.json',
       ).readAsBytes();
       expect(
         sha256.convert(source).toString(),
@@ -107,12 +102,12 @@ void main() {
   );
 
   test(
-    'bundled original metadata loads all 219 media identities unchanged',
+    'bundled r2-v1 metadata loads all 249 media identities unchanged',
     () {
-      expect(catalog.allActions, hasLength(219));
-      expect(catalog.semanticCompleteActions, hasLength(211));
-      expect(catalog.pendingActions, hasLength(8));
-      expect(catalog.allActions.map((a) => a.id).toSet(), hasLength(219));
+      expect(catalog.allActions, hasLength(249));
+      expect(catalog.semanticCompleteActions, hasLength(249));
+      expect(catalog.pendingActions, isEmpty);
+      expect(catalog.allActions.map((a) => a.id).toSet(), hasLength(249));
       for (final action in catalog.allActions) {
         expect(catalog.tryGet(action.id), same(action));
         for (final file in [action.video, action.cover, action.thumbnail]) {
@@ -123,7 +118,7 @@ void main() {
           expect(file.bytes, greaterThan(0));
         }
       }
-      expect(catalog.toAiCatalog().drills, hasLength(211));
+      expect(catalog.toAiCatalog().drills, hasLength(249));
     },
   );
 
@@ -141,13 +136,13 @@ void main() {
       final loaded = await PoseHubActionLibrary.load(
         bundle: _PackBundle(catalogBytes: utf8.encode(jsonEncode(future))),
       );
-      expect(loaded.allActions, hasLength(219));
-      expect(loaded.semanticCompleteActions, hasLength(211));
-      expect(loaded.pendingActions, hasLength(8));
-      expect(loaded.toAiCatalog().length, 211);
+      expect(loaded.allActions, hasLength(249));
+      expect(loaded.semanticCompleteActions, hasLength(249));
+      expect(loaded.pendingActions, isEmpty);
+      expect(loaded.toAiCatalog().length, 249);
       expect(
         (loaded.raw['mediaDistribution']! as Map<String, Object?>)['version'],
-        'posehub-app-test-pack-r1-v4',
+        'app-pack-r2-v2',
       );
     },
   );
@@ -170,7 +165,7 @@ void main() {
       const path = 'catalog/revisions/v4.json';
       (future['semanticCatalog']! as Map<String, Object?>)['path'] = path;
       final canonicalBytes = await File(
-        'assets/pose_hub/app-test-pack-r1/catalog/catalog.json',
+        'assets/pose_hub/app-pack-r2-v1/catalog/catalog.json',
       ).readAsBytes();
       final loaded = await PoseHubActionLibrary.load(
         bundle: _PackBundle(
@@ -181,7 +176,7 @@ void main() {
         ),
       );
       expect(loaded.semanticCatalogFile.path, path);
-      expect(loaded.toAiCatalog().length, 211);
+      expect(loaded.toAiCatalog().length, 249);
     },
   );
 
@@ -197,7 +192,7 @@ void main() {
         ),
       );
       expect(find.text('动作库'), findsOneWidget);
-      expect(find.textContaining('219'), findsNothing);
+      expect(find.textContaining('249'), findsNothing);
       expect(find.textContaining('说明完整'), findsNothing);
       final grid = tester.widget<GridView>(find.byType(GridView));
       expect(
@@ -205,7 +200,7 @@ void main() {
             .crossAxisCount,
         2,
       );
-      expect(grid.childrenDelegate.estimatedChildCount, 211);
+      expect(grid.childrenDelegate.estimatedChildCount, 249);
       final action = catalog.semanticCompleteActions.first;
       await tester.enterText(
         find.byKey(const ValueKey('posehub-search')),

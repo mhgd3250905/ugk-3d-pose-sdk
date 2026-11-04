@@ -286,7 +286,7 @@ class PoseHubSinglePracticePage extends StatelessWidget {
               targetMuscles: action.raw['muscleGroupsZh'] as String?,
               equipment: _actionEquipment(action),
               thumbnailAsset:
-                  'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/standing/$id.webp',
+                  'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v1/standing/$id.webp',
             )
           : null,
       poseHubActionOf: (id) => id == action.id ? action : null,

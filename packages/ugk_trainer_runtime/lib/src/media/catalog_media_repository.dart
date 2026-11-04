@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:ugk_coach/ugk_coach.dart' as coach;
 
+import '../pose_hub/pose_hub_catalog_channel.dart';
 import 'catalog_legacy_video_catalog.dart';
 import 'catalog_media_repository_stub.dart'
     if (dart.library.io) 'catalog_media_repository_io.dart'
@@ -31,7 +32,9 @@ abstract interface class CatalogMediaRepository
     required coach.PoseHubAppTestCatalog catalog,
     required String catalogRevision,
     required List<Uri> mediaBaseUrls,
-    String packVersion = 'r1-v3',
+
+    /// Null uses the catalogue's own pack (the legacy fallback when it has none).
+    String? packVersion,
     String? rootDirectory,
     CatalogBundledFileLoader? bundledFileLoader,
     int maxVideoCacheBytes = catalogVideoCacheLimitBytes,
@@ -58,7 +61,9 @@ abstract interface class CatalogMediaRepository
     required coach.PoseHubAppTestCatalog catalog,
     required String catalogRevision,
     required List<Uri> mediaBaseUrls,
-    String packVersion = 'r1-v3',
+
+    /// Null uses the catalogue's own pack (the legacy fallback when it has none).
+    String? packVersion,
     required String rootDirectory,
     CatalogBundledFileLoader? bundledFileLoader,
     bool allowInsecureLocalhost = false,
@@ -108,7 +113,7 @@ Future<CatalogMediaRepository> _create({
   required coach.PoseHubAppTestCatalog catalog,
   required String catalogRevision,
   required List<Uri> mediaBaseUrls,
-  required String packVersion,
+  required String? packVersion,
   String? rootDirectory,
   CatalogBundledFileLoader? bundledFileLoader,
   bool allowInsecureLocalhost = false,
@@ -122,9 +127,15 @@ Future<CatalogMediaRepository> _create({
   String? legacyManifestAsset,
   AssetBundle? legacyBundle,
 }) async {
+  final String resolvedPack;
+  try {
+    resolvedPack = packVersion ?? poseHubPackVersionOf(catalog);
+  } on FormatException {
+    throw const FormatException('Invalid media repository configuration.');
+  }
   if (!RegExp(r'^[a-f0-9]{64}$').hasMatch(catalogRevision) ||
-      !RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$').hasMatch(packVersion) ||
-      packVersion.length > 64 ||
+      !RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$').hasMatch(resolvedPack) ||
+      resolvedPack.length > 64 ||
       timeout <= Duration.zero ||
       progressInterval < Duration.zero ||
       maxConcurrent < 1 ||
@@ -142,7 +153,7 @@ Future<CatalogMediaRepository> _create({
   final bases = List<Uri>.unmodifiable(mediaBaseUrls);
   final store = await platform.createCatalogMediaStore(
     revision: catalogRevision,
-    packVersion: packVersion,
+    packVersion: resolvedPack,
     rootDirectory: rootDirectory,
     files: files.values.toList(),
     videos: {

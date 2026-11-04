@@ -29,7 +29,8 @@ class MethodChannelPackedAlphaPlatform
   @override
   bool get isSupported =>
       !kIsWeb &&
-      defaultTargetPlatform == TargetPlatform.android &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS) &&
       ui.ImageFilter.isShaderFilterSupported;
 
   @override

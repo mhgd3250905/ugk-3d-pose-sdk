@@ -81,37 +81,23 @@ class _SwapModel implements LlmClient {
   @override
   Pricing? get pricing => null;
   @override
-  Future<LlmResponse> complete(LlmRequest request, {CancelToken? cancel}) async {
-    final tool = request.tools.first.name;
-    return LlmResponse(
-      content: '',
-      toolCalls: [
-        LlmToolCall(
-          id: tool,
-          name: tool,
-          arguments: jsonEncode(
-            tool == 'fill_form'
-                ? {
-                    'language': 'en',
-                    'intent': 'swap',
-                    'answer_status': 'none',
-                    'place': 'gym',
-                    'equipment_known': false,
-                    'positions': [1],
-                    'next': 'answer',
-                  }
-                : {
-                    'text': 'Updated.',
-                    'changes': [
-                      {'position': 1, 'new_id': 'after', 'why': 'Same target'},
-                    ],
-                    'chips': <String>[],
-                  },
-          ),
-        ),
-      ],
-    );
-  }
+  Future<LlmResponse> complete(LlmRequest request, {CancelToken? cancel}) async => LlmResponse(
+    content: '',
+    toolCalls: [
+      LlmToolCall(
+        id: 'swap',
+        name: 'swap',
+        arguments: jsonEncode({
+          'mode': 'swap',
+          'text': 'Updated.',
+          'changes': [
+            {'position': 1, 'new_id': 'after', 'why': 'Same target'},
+          ],
+          'chips': <String>[],
+        }),
+      ),
+    ],
+  );
 }
 
 void main() {
@@ -145,11 +131,15 @@ void main() {
     final index = QaActionIndex(catalog, aiTags: tags);
     final builder = QaPlanBuilder(QaFinder(index, profile: _profile()));
     final base = QaQuery(scene: 'gym', equipment: const {}, strict: true);
+    // v3：热身、收操由模型指定，代码不自动挑；这里给出一组再按原样沿用。
     final original = builder.build(
       mainIds: ['adductors-B', 'h-band-standing-adduction', 'h-lateral-step-lunge'],
       minutes: 15,
       base: base,
+      warmIds: [for (final a in index.all.where((a) => a.sessionRole.contains('warmup')).take(1)) a.id],
+      coolIds: [for (final a in index.all.where((a) => a.sessionRole.contains('cooldown')).take(1)) a.id],
     );
+    expect(original.plan.blocks.map((b) => b.type), [BlockType.warmup, BlockType.main, BlockType.cooldown]);
     for (final result in [
       original,
       builder.build(

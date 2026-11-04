@@ -46,31 +46,22 @@ void main() {
         },
       };
       final client = FakeLlmClient([
-        _call('fill_form', {
-          'language': 'zh',
-          'intent': 'safety',
-          'answer_status': 'none',
-          'place': 'unknown',
-          'equipment_known': false,
-          'muscles': ['chest'],
-          'avoid_joints': ['shoulder'],
-          'next': 'ask_safety',
-        }),
+        _call('set_conditions', {'avoid_joints': ['shoulder']}),
         _call('ask_user', {
+          'step': 'safety',
           'question': '你的肩具体是怎样的痛？',
           'options': ['抬手或发力时刺痛、有卡住感', '平时酸胀，活动开就好一些'],
         }),
-        _call('fill_form', {
-          'language': 'zh',
-          'intent': 'safety',
-          'answer_status': 'answered',
-          'place': 'unknown',
-          'equipment_known': false,
-          'muscles': ['chest'],
-          'avoid_joints': ['shoulder'],
-          'next': 'answer',
+        _call('set_conditions', {'red_flag': true}),
+        // 模型想附一个上斜俯卧撑：危险信号已确认，验收退回。
+        _call('reply', {
+          'text': '先停止会引起刺痛的训练。',
+          'items': [
+            {'id': 'h-incline-pushup', 'why': '负担低'},
+          ],
+          'chips': <String>[],
         }),
-        _call('respond', {
+        _call('reply', {
           'text': '先停止会引起刺痛的训练，安排专业评估。',
           'items': <Object?>[],
           'chips': ['怎么安排专业评估'],
@@ -86,6 +77,7 @@ void main() {
       expect(first.askStep, QaAskStep.safety);
       final reply = await agent.send(first.question!.options.first);
       expect(agent.state.avoidJoints, contains('shoulder'));
+      expect(agent.state.redFlag, isTrue);
       // The QA tag stays low; the shared core admission still rejects the
       // action because the App catalogue lists a shoulder caution.
       expect(
@@ -113,16 +105,19 @@ void main() {
         ),
         isFalse,
       );
-      final responseRequest = client.requests.last;
-      expect(responseRequest.tools.single.name, 'respond');
-      expect(responseRequest.messages.first.content, contains(coachQaSop));
-      expect(responseRequest.messages.first.content, contains('low 不等于没有负担'));
-      expect(responseRequest.messages.first.content, contains('items 可以为空'));
-      expect(responseRequest.messages.last.content, contains('抬手或发力时刺痛、有卡住感'));
+      final last = client.requests.last;
+      expect(last.tools.map((t) => t.name), contains('reply'));
+      expect(last.messages.first.content, contains(coachQaSop));
+      expect(last.messages.first.content, contains('low 不等于没有负担'));
+      expect(last.messages.last.content, contains('items 必须为空'));
+      expect(
+        last.messages.firstWhere((m) => m.content.contains('[用户这句话]')).content,
+        contains('抬手或发力时刺痛、有卡住感'),
+      );
       expect(reply.kind, 'answer');
       expect(reply.cards, isEmpty);
       expect(reply.plan, isNull);
-      expect(reply.llmCalls, 2);
+      expect(reply.llmCalls, 3);
     },
   );
 }

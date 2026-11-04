@@ -5,12 +5,19 @@ import 'package:test/test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 import 'package:ugk_coach/ugk_coach_qa_v2.dart';
 
-/// 桩模型：按工具名交给脚本函数回参数；记下每个请求。只验证代码路径，不评估模型质量。
-class _Scripted implements LlmClient {
-  _Scripted(this.handler);
-  final Map<String, Object?> Function(String tool, String context, int nth) handler;
+// 宿主的 QA 状态持久化（packages/ugk_coach_chat 里的纯 Dart 文件，按路径引用以验证存取兼容；
+// 该包依赖 Flutter，SDK 根目录的 dart test 无法以 package: 方式引用）。
+// ignore: avoid_relative_lib_imports
+import '../../packages/ugk_coach_chat/lib/src/core/qa_state.dart';
+
+/// 模型的一步：调用工具 (name, args)，或直接输出文字（String）。
+typedef _Act = Object Function(LlmRequest request);
+
+/// 桩模型：按脚本顺序一步一步回；每步可以读到整份请求（含之前的 tool result）。只验证代码路径。
+class _Stub implements LlmClient {
+  _Stub(List<_Act> script) : _script = [...script];
+  final List<_Act> _script;
   final requests = <LlmRequest>[];
-  final _count = <String, int>{};
   @override
   String get model => 'stub';
   @override
@@ -18,49 +25,51 @@ class _Scripted implements LlmClient {
   @override
   Future<LlmResponse> complete(LlmRequest r, {CancelToken? cancel}) async {
     requests.add(r);
-    final tool = r.tools.first.name;
-    final n = _count[tool] = (_count[tool] ?? 0) + 1;
-    final ctx = r.messages.where((m) => m.role == LlmRole.user).last.content;
-    return LlmResponse(content: '', toolCalls: [LlmToolCall(id: 'c$n', name: tool, arguments: jsonEncode(handler(tool, ctx, n)))]);
+    if (_script.isEmpty) throw StateError('stub script exhausted at call ${requests.length}');
+    final out = _script.removeAt(0)(r);
+    if (out is String) return LlmResponse(content: out);
+    final (name, args) = out as (String, Map<String, Object?>);
+    return LlmResponse(content: '', toolCalls: [LlmToolCall(id: 'c${requests.length}', name: name, arguments: jsonEncode(args))]);
   }
 
-  int calls(String tool) => _count[tool] ?? 0;
+  int get left => _script.length;
 }
 
-/// 上下文里的候选 id（`id | …` 行，或 `  候选：id | …`）。
-List<String> _candidates(String ctx) => [
-  for (final l in const LineSplitter().convert(ctx))
-    if (RegExp(r'^(\s*候选：)?[\w-]+ \| ').hasMatch(l)) l.replaceFirst(RegExp(r'^\s*候选：'), '').split(' | ').first,
+_Act _do(String tool, [Map<String, Object?> args = const {}]) => (_) => (tool, args);
+_Act _fn(Object Function(LlmRequest r) f) => f;
+
+/// 最后一条 tool result（上一次工具调用的结果或退回原因）。
+String _lastResult(LlmRequest r) => r.messages.lastWhere((m) => m.role == LlmRole.tool).content;
+
+/// 本轮上下文（带 [用户这句话] 的那条 user 消息）。
+String _ctx(LlmRequest r) => r.messages.lastWhere((m) => m.role == LlmRole.user && m.content.contains('[用户这句话]')).content;
+
+/// 文本里的动作行 id（`id | …`）。
+List<String> _rows(String text) => [
+  for (final l in const LineSplitter().convert(text))
+    if (RegExp(r'^[\w-]+ \| ').hasMatch(l)) l.split(' | ').first,
 ];
 
-Map<String, Object?> _form({
-  String intent = 'actions',
-  String place = 'unknown',
-  bool eqKnown = false,
-  List<String> eq = const [],
-  String status = 'none',
-  List<String> muscles = const [],
-  String next = 'answer',
-  int? minutes,
-  List<int> positions = const [],
-  String lang = 'zh',
-}) => {
-  'language': lang,
-  'intent': intent,
-  'answer_status': status,
-  'place': place,
-  'equipment_known': eqKnown,
-  'equipment': eq,
-  'muscles': muscles,
-  'next': next,
-  'minutes': ?minutes,
-  if (positions.isNotEmpty) 'positions': positions,
+/// 最后一次搜索结果里的 id。
+List<String> _found(LlmRequest r) => _rows(_lastResult(r));
+
+/// 预选候选里的 id。
+List<String> _pre(LlmRequest r) {
+  final c = _ctx(r);
+  return _rows(c.substring(c.indexOf('[预选候选]'), c.indexOf('[用户这句话]')));
+}
+
+Map<String, Object?> _items(List<String> ids) => {
+  'text': 'ok',
+  'items': [for (final id in ids) {'id': id, 'why': 'w'}],
+  'chips': ['c'],
 };
 
-/// 第 [k] 个 build_plan 请求里的候选顺序。
-List<String> _candidatesOrder(_Scripted c, int k) => _candidates(
-  c.requests.where((r) => r.tools.first.name == 'build_plan').elementAt(k).messages.where((m) => m.role == LlmRole.user).last.content,
-);
+String _rejection(LlmRequest r) {
+  final t = _lastResult(r);
+  expect(t, startsWith('不合规：'));
+  return t;
+}
 
 void main() {
   final meta = File('packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json');
@@ -76,6 +85,35 @@ void main() {
           for (final f in tagDir.listSync().whereType<File>().where((f) => f.path.endsWith('.json')))
             for (final j in [jsonDecode(f.readAsStringSync()) as Map<String, Object?>]) j['id'] as String: j,
         };
+  CoachQaAgent make(_Stub c, {CoachQaMemory memory = const CoachQaMemory()}) =>
+      CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags, memory: memory);
+
+  /// 让 [ids] 配时落进 ±12% 的分钟数（模型看到时长退回后会这样改 minutes）。
+  int fitMinutes(CoachQaAgent agent, List<String> ids, {List<String> warm = const [], List<String> cool = const []}) {
+    for (var minutes = 3; minutes <= 60; minutes++) {
+      final r = agent.builder.build(mainIds: ids, minutes: minutes, base: QaQuery(scene: 'gym', equipment: const {}, strict: true), warmIds: warm, coolIds: cool);
+      if (QaPlanBuilder.deviation(r).abs() <= 0.12) return minutes;
+    }
+    throw StateError('no fitting minutes for $ids');
+  }
+
+  /// 健身房里的一套：先 search，再 build_plan（时长按 [fitMinutes]）。
+  Future<(CoachQaAgent, _Stub, CoachQaReply)> gymPlan({List<String> Function(List<String> found)? pick, Map<String, Object?> extra = const {}}) async {
+    late CoachQaAgent agent;
+    final c = _Stub([
+      _do('set_conditions', {'place': 'gym'}),
+      _do('search_actions', {'muscles': ['quadriceps', 'glute-max'], 'limit': 12}),
+      _fn((r) {
+        final ids = (pick ?? (f) => f.take(4).toList())(_found(r));
+        return ('build_plan', {'mode': 'new', 'title': 't', 'text': 'x', 'minutes': fitMinutes(agent, ids), 'main_ids': ids, 'chips': <String>[], ...extra});
+      }),
+    ]);
+    agent = make(c);
+    final r = await agent.send('健身房练腿');
+    return (agent, c, r);
+  }
+
+  // ------------------------------------------------------------------ 基础
 
   test('SOP markdown and generated constant are identical', () {
     expect(coachQaSop, File('lib/src/qa_v2/coach_qa_sop.md').readAsStringSync());
@@ -92,12 +130,13 @@ void main() {
     }
   });
 
-  test('every request asks for max thinking; OpenAI body merges request extraBody last', () async {
-    final c = _Scripted((tool, ctx, n) => tool == 'fill_form' ? _form(intent: 'knowledge') : {'text': 'ok', 'items': [], 'chips': []});
-    final agent = CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags);
-    await agent.send('平板支撑多久合适');
-    expect(c.requests, hasLength(2));
+  test('every request carries all tools, toolChoice auto and max thinking; OpenAI body merges extraBody last', () async {
+    final c = _Stub([_do('reply', {'text': '30 到 60 秒。', 'chips': <String>[]})]);
+    await make(c).send('平板支撑多久合适');
+    expect(c.requests, hasLength(1));
     for (final r in c.requests) {
+      expect(r.tools.map((t) => t.name), ['set_conditions', 'search_actions', 'ask_user', 'show_actions', 'build_plan', 'swap', 'reply']);
+      expect(r.toolChoice, 'auto');
       expect(r.extraBody['reasoning_effort'], 'max');
       expect(r.extraBody['thinking'], {'type': 'enabled'});
       expect(r.messages.first.content, contains(coachQaSop));
@@ -111,57 +150,72 @@ void main() {
     expect(body['thinking'], {'type': 'enabled'});
   });
 
-  test('place, then equipment, questions written by the model; answer is strictly scoped', () async {
-    final c = _Scripted((tool, ctx, n) {
-      switch (tool) {
-        case 'fill_form':
-          return switch (n) {
-            1 => _form(muscles: ['lats', 'scapular'], next: 'ask_place'),
-            2 => _form(muscles: const [], place: 'home', status: 'answered', next: 'ask_equipment', intent: 'answer_pending'),
-            _ => _form(muscles: const [], place: 'home', eqKnown: true, status: 'answered', intent: 'answer_pending'),
-          };
-        case 'ask_user':
-          return n == 1
-              ? {'question': 'Q-place', 'options': ['A', 'B', 'C', 'D']}
-              : {'question': 'Q-eq', 'options': ['1', '2', '3', '4', '5', '6']};
-        default:
-          return {'text': 'ok', 'items': [for (final id in _candidates(ctx).take(4)) {'id': id, 'why': 'w'}], 'chips': ['c']};
-      }
-    });
-    final agent = CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags);
-    final r1 = await agent.send('想练背');
+  // ------------------------------------------------------------------ 规格「测试」1–19
+
+  test('1. place unknown → ask place; asking place again next turn is sent back', () async {
+    final c = _Stub([
+      _do('ask_user', {'step': 'place', 'question': 'Q-place', 'options': ['A', 'B', 'C', 'D']}),
+      _do('ask_user', {'step': 'place', 'question': 'Q-again', 'options': ['A', 'B', 'C', 'D']}),
+      _do('search_actions', {'muscles': ['quadriceps', 'glute-max'], 'limit': 12}),
+      _fn((r) => ('show_actions', _items(_found(r).take(3).toList()))),
+    ]);
+    final agent = make(c);
+    final r1 = await agent.send('想练腿');
     expect(r1.kind, 'ask');
     expect(r1.askStep, QaAskStep.place);
     expect(r1.text, 'Q-place');
-    expect(r1.question!.mode, AskUserMode.choice);
     expect(r1.question!.multiple, isFalse);
-    expect(r1.steps.map((s) => s.step), ['understand', 'ask']);
-    final r2 = await agent.send('居家');
-    expect(r2.askStep, QaAskStep.equipment);
-    expect(r2.question!.multiple, isTrue);
-    expect(r2.question!.options, hasLength(6));
-    final r3 = await agent.send('都没有');
-    expect(r3.kind, 'recommend');
-    expect(r3.conditionsAssumed, isFalse);
-    expect(r3.cards, isNotEmpty);
-    for (final card in r3.cards) {
-      expect(agent.index[card.id]!.requiredEquipment.difference(homeAlwaysAvailable), isEmpty, reason: card.id);
-      // 焦点沿用原请求（练背）。
-      final a = agent.index[card.id]!;
-      expect([...a.primaryMuscles, ...a.secondaryMuscles, ...a.stretchedMuscles].any({'lats', 'scapular'}.contains), isTrue, reason: card.id);
+    final r2 = await agent.send('随便');
+    expect(_rejection(c.requests[2]), contains('上一轮刚问过 place'));
+    expect(r2.kind, 'recommend', reason: '${r2.issues}');
+    expect(r2.toolTrace, ['ask_user', 'search_actions', 'show_actions']);
+  });
+
+  test('2. home with unknown equipment → ask equipment; asking equipment at the gym is sent back', () async {
+    final c = _Stub([
+      _do('set_conditions', {'place': 'home'}),
+      _do('ask_user', {'step': 'equipment', 'question': 'Q-eq', 'options': ['1', '2', '3', '4', '5', '6'], 'multi': true}),
+    ]);
+    final r = await make(c).send('在家练腿');
+    expect(r.askStep, QaAskStep.equipment);
+    expect(r.question!.multiple, isTrue);
+    expect(r.question!.options, hasLength(6));
+
+    final g = _Stub([
+      _do('set_conditions', {'place': 'gym'}),
+      _do('ask_user', {'step': 'equipment', 'question': 'Q-eq', 'options': ['1', '2']}),
+      _fn((r) => ('show_actions', _items(_pre(r).take(3).toList()))),
+    ]);
+    final rg = await make(g).send('健身房练腿');
+    expect(_rejection(g.requests[2]), contains('不能问器械'));
+    expect(rg.kind, 'recommend');
+  });
+
+  test('3. place known from memory → asking place is sent back', () async {
+    final c = _Stub([
+      _do('ask_user', {'step': 'place', 'question': 'Q', 'options': ['A', 'B', 'C', 'D']}),
+      _fn((r) => ('show_actions', _items(_pre(r).take(3).toList()))),
+    ]);
+    final agent = make(c, memory: const CoachQaMemory(scene: 'home', equipment: {'band'}));
+    final r = await agent.send('练腿');
+    expect(_rejection(c.requests[1]), contains('地点已知'));
+    expect(r.kind, 'recommend');
+    expect(r.conditions['placeSource'], 'memory');
+    for (final card in r.cards) {
+      expect(agent.index[card.id]!.requiredEquipment.difference({'band', ...homeAlwaysAvailable}), isEmpty, reason: card.id);
     }
   });
 
-  test('never asks the same step twice; a skipped answer falls back to home bodyweight', () async {
-    final c = _Scripted((tool, ctx, n) {
-      if (tool == 'fill_form') return _form(muscles: ['abs'], next: 'ask_place', status: n == 1 ? 'none' : 'skipped');
-      if (tool == 'ask_user') return {'question': 'Q', 'options': ['A', 'B', 'C', 'D']};
-      return {'text': 'ok', 'items': [for (final id in _candidates(ctx).take(3)) {'id': id, 'why': 'w'}], 'assumption': 'as', 'chips': ['change']};
-    });
-    final agent = CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags);
-    expect((await agent.send('x')).askStep, QaAskStep.place);
-    final r = await agent.send('y');
-    expect(r.kind, 'recommend');
+  test('4. a skipped question falls back to default conditions with placeSource=skipped', () async {
+    final c = _Stub([
+      _do('ask_user', {'step': 'place', 'question': 'Q', 'options': ['A', 'B', 'C', 'D']}),
+      _do('search_actions', {'muscles': ['abs', 'obliques'], 'limit': 12}),
+      _fn((r) => ('show_actions', {..._items(_found(r).take(3).toList()), 'assumption': 'as'})),
+    ]);
+    final agent = make(c);
+    await agent.send('练腹');
+    final r = await agent.send('直接推荐');
+    expect(r.conditions['placeSource'], 'skipped', reason: '${r.issues}');
     expect(r.conditions['place'], 'home');
     expect(r.conditions['equipment'], isEmpty);
     expect(r.conditionsAssumed, isTrue);
@@ -171,159 +225,317 @@ void main() {
     }
   });
 
-  test('skipped equipment question stays a default even if the model fills equipment', () async {
-    final c = _Scripted((tool, ctx, n) {
-      if (tool == 'fill_form') {
-        return n == 1
-            ? _form(muscles: ['quadriceps'], place: 'home', next: 'ask_equipment')
-            : _form(muscles: ['quadriceps'], place: 'home', eqKnown: true, eq: ['dumbbell'], status: 'skipped');
-      }
-      if (tool == 'ask_user') return {'question': 'Q', 'options': ['1', '2', '3', '4', '5', '6']};
-      return {'text': 'ok', 'items': [for (final id in _candidates(ctx).take(3)) {'id': id, 'why': 'w'}], 'assumption': 'as', 'chips': ['c']};
-    });
-    final agent = CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags);
-    expect((await agent.send('x')).askStep, QaAskStep.equipment);
-    final r = await agent.send('y');
-    expect(r.conditions['equipment'], isEmpty);
-    expect(r.conditions['equipmentSource'], 'skipped');
-    expect(r.conditionsAssumed, isTrue);
-    expect(r.assumption, 'as');
+  test('5. office: a floor move in show_actions is sent back', () async {
+    late CoachQaAgent agent;
+    late String floor;
+    late final _Stub c;
+    c = _Stub([
+      _do('set_conditions', {'place': 'office', 'place_word': '公司'}),
+      _do('search_actions', {'stretch_muscles': ['hamstrings', 'hip-flexors'], 'types': ['static-stretch']}),
+      _fn((r) => ('show_actions', _items([floor, ..._found(r).take(2)]))),
+      _fn((r) => ('show_actions', _items(_found(c.requests[2]).take(3).toList()))),
+    ]);
+    agent = make(c);
+    floor = agent.index.all.firstWhere((a) => a.floorRequired).id;
+    final r = await agent.send('办公室拉伸');
+    expect(_rejection(c.requests[3]), allOf(contains(floor), contains('不符合用户当前条件')));
+    expect(r.kind, 'recommend');
+    for (final card in r.cards) {
+      expect(agent.index[card.id]!.floorRequired, isFalse, reason: card.id);
+    }
   });
 
-  test('known place (memory) is not asked again even if the model wants to', () async {
-    final c = _Scripted((tool, ctx, n) => tool == 'fill_form'
-        ? _form(muscles: ['quadriceps'], next: 'ask_place', place: 'home', eqKnown: true, eq: ['band'])
-        : {'text': 'ok', 'items': [for (final id in _candidates(ctx).take(3)) {'id': id, 'why': 'w'}], 'chips': []});
-    final agent = CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags, memory: const CoachQaMemory(scene: 'home', equipment: {'band'}));
-    final r = await agent.send('x');
-    expect(r.kind, isNot('ask'));
-    expect(c.calls('ask_user'), 0);
-    expect(r.issues.join(), contains('guard'));
+  test('6. "seated ones too" → search_actions position=seated returns only seated moves', () async {
+    late CoachQaAgent agent;
+    final c = _Stub([
+      _do('set_conditions', {'place': 'office'}),
+      _do('search_actions', {'position': ['seated'], 'limit': 12}),
+      _fn((r) {
+        final ids = _found(r);
+        expect(ids, isNotEmpty);
+        for (final id in ids) {
+          expect(agent.index[id]!.drill.position, 'seated', reason: id);
+        }
+        return ('show_actions', _items(ids.take(3).toList()));
+      }),
+    ]);
+    agent = make(c);
+    final r = await agent.send('还有坐椅子的吗');
+    expect(r.kind, 'recommend');
+    expect(r.cards.every((x) => agent.index[x.id]!.drill.position == 'seated'), isTrue);
   });
 
-  test('out-of-candidate id is sent back to the model and retried', () async {
-    final c = _Scripted((tool, ctx, n) {
-      if (tool == 'fill_form') return _form(place: 'gym', muscles: ['chest']);
-      return n == 1
-          ? {'text': 'ok', 'items': [{'id': 'not-a-move', 'why': 'w'}], 'chips': []}
-          : {'text': 'ok', 'items': [for (final id in _candidates(ctx).take(3)) {'id': id, 'why': 'w'}], 'chips': []};
-    });
-    final agent = CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags);
-    final r = await agent.send('x');
-    expect(c.calls('respond'), 2);
-    expect(r.cards, hasLength(3));
-    expect(r.issues.join(), contains('retry'));
+  test('7. 15 minutes with only 2 moves → duration deviation sent back; model adds moves; code never pads', () async {
+    var tries = 0;
+    late List<String> last;
+    late final _Stub c;
+    c = _Stub([
+      _do('set_conditions', {'place': 'gym'}),
+      _do('search_actions', {'muscles': ['chest'], 'limit': 12}),
+      for (var k = 0; k < 6; k++)
+        _fn((r) {
+          tries++;
+          last = _found(c.requests[2]).take(2 * tries).toList();
+          return ('build_plan', {'mode': 'new', 'title': 't', 'text': 'x', 'minutes': 15, 'main_ids': last, 'chips': <String>[]});
+        }),
+    ]);
+    final r = await make(c).send('练胸 15 分钟');
+    expect(r.kind, 'plan');
+    expect(tries, greaterThan(1));
+    expect(_rejection(c.requests[3]), allOf(contains('偏差'), contains('建议再加')));
+    expect(r.planOrderedIds, last, reason: 'exactly the moves the model gave, nothing padded');
+    expect((r.planSeconds! / 900 - 1).abs(), lessThanOrEqualTo(0.12));
   });
 
-  test('text naming an off-card move is rewritten', () async {
-    String? offName;
-    final c = _Scripted((tool, ctx, n) {
-      if (tool == 'fill_form') return _form(place: 'gym', muscles: ['glute-max']);
-      if (tool == 'rewrite') return {'text': 'clean'};
-      final ids = _candidates(ctx);
-      return {'text': 'try $offName', 'items': [for (final id in ids.take(2)) {'id': id, 'why': 'w'}], 'chips': []};
-    });
-    final agent = CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags);
-    // 选一个名字足够长、且不会出现在卡片里的动作。
-    offName = agent.index.all.firstWhere((a) => (a.drill.name.values['zh'] ?? '').runes.length >= 5 && a.primaryMuscles.contains('chest')).drill.name.values['zh'];
-    final r = await agent.send('x');
-    expect(c.calls('rewrite'), 1);
+  test('8. first half seated, second half standing → two segments kept in order', () async {
+    final (agent, _, r) = await gymPlan(
+      pick: (f) => f.take(4).toList(),
+      extra: const {},
+    );
+    final ids = r.planMainIds;
+    final c = _Stub([
+      _do('build_plan', {
+        'mode': 'retime', 'title': 't', 'text': 'x', 'minutes': r.plan!.targetMinutes, 'chips': <String>[],
+        'segments': [
+          {'name': 'A', 'ids': ids.take(2).toList()},
+          {'name': 'B', 'ids': ids.skip(2).toList()},
+        ],
+      }),
+    ]);
+    final next = make(c)
+      ..state.place = 'gym'
+      ..state.placeSource = 'user'
+      ..state.lastPlan = agent.state.lastPlan;
+    final r2 = await next.send('前半坐着后半站着');
+    expect(r2.kind, 'plan');
+    expect(r2.plan!.blocks.map((b) => b.name).toList(), ['A', 'B']);
+    expect(r2.planMainIds, ids);
+  });
+
+  test('9. "the order is wrong" → resubmitted order takes effect', () async {
+    final (agent, _, r1) = await gymPlan();
+    final c = _Stub([
+      _do('build_plan', {'mode': 'retime', 'title': 't', 'text': 'x', 'minutes': r1.plan!.targetMinutes, 'main_ids': r1.planMainIds.reversed.toList(), 'chips': <String>[]}),
+    ]);
+    final next = make(c)
+      ..state.place = 'gym'
+      ..state.placeSource = 'user'
+      ..state.lastPlan = agent.state.lastPlan;
+    final r2 = await next.send('顺序不对，倒过来');
+    expect(r2.planMainIds, r1.planMainIds.reversed.toList());
+  });
+
+  test('10. swap the Nth (warm-up position) → only that position changes', () async {
+    late CoachQaAgent agent;
+    final scope = QaQuery(scene: 'gym', equipment: const {}, strict: true);
+    late String warm;
+    late String replacement;
+    final c = _Stub([
+      _do('set_conditions', {'place': 'gym'}),
+      _do('search_actions', {'roles': ['warmup'], 'limit': 12}),
+      _fn((r) {
+        for (final id in _found(r)) {
+          final a = agent.index[id]!;
+          final alt = agent.finder.swapCandidates(a, scope, role: 'warmup').where((b) => QaFinder.sameArea(a, b)).firstOrNull;
+          if (alt != null) {
+            warm = id;
+            replacement = alt.id;
+            break;
+          }
+        }
+        return ('search_actions', {'muscles': ['quadriceps'], 'limit': 12, 'exclude': [warm, replacement]});
+      }),
+      _fn((r) {
+        final mains = _found(r).take(4).toList();
+        return ('build_plan', {'mode': 'new', 'title': 't', 'text': 'x', 'minutes': fitMinutes(agent, mains, warm: [warm]), 'main_ids': mains, 'warmup_ids': [warm], 'chips': <String>[]});
+      }),
+      _fn((_) => ('swap', {'mode': 'swap', 'text': 'x', 'changes': [{'position': 1, 'new_id': replacement, 'why': 'w'}], 'chips': <String>[]})),
+    ]);
+    agent = make(c);
+    final r1 = await agent.send('练腿一套');
+    expect(r1.plan!.blocks.first.type, BlockType.warmup);
+    final before = r1.planOrderedIds;
+    final r2 = await agent.send('换第 1 个');
+    expect(r2.kind, 'replace');
+    final after = r2.planOrderedIds;
+    expect(after.length, before.length);
+    expect([for (var k = 0; k < after.length; k++) if (after[k] != before[k]) k], [0]);
+    expect(after.first, replacement);
+  });
+
+  test('11. no qualifying replacement → reply, the card stays', () async {
+    final c = _Stub([
+      _do('set_conditions', {'place': 'gym'}),
+      _fn((r) => ('show_actions', _items(_pre(r).take(3).toList()))),
+      _do('swap', {'mode': 'swap', 'text': 'x', 'changes': <Object>[], 'chips': <String>[]}),
+      _do('reply', {'text': 'only N', 'chips': <String>[]}),
+    ]);
+    final agent = make(c);
+    final r1 = await agent.send('练胸');
+    final r2 = await agent.send('换第 2 个');
+    expect(_rejection(c.requests[3]), contains('reply'));
+    expect(r2.kind, 'answer');
+    expect(r2.text, 'only N');
+    expect(agent.state.lastShown, r1.cards.map((x) => x.id).toList());
+  });
+
+  test('12. easier with a harder move is sent back', () async {
+    late CoachQaAgent agent;
+    final c = _Stub([]);
+    agent = make(c);
+    final scope = QaQuery(scene: 'gym', equipment: const {}, strict: true);
+    final inScope = agent.finder.inScope(scope);
+    final card = inScope.firstWhere((a) =>
+        agent.finder.swapCandidates(a, scope, mode: QaSwapMode.easier).isNotEmpty &&
+        inScope.any((b) => b.difficulty > a.difficulty && QaFinder.sameArea(a, b)));
+    final harder = inScope.firstWhere((b) => b.difficulty > card.difficulty && QaFinder.sameArea(card, b) && b.id != card.id);
+    final easier = agent.finder.swapCandidates(card, scope, mode: QaSwapMode.easier).first;
+    c._script.addAll([
+      _do('swap', {'mode': 'easier', 'text': 'x', 'changes': [{'position': 1, 'new_id': harder.id, 'why': 'w'}], 'chips': <String>[]}),
+      _do('swap', {'mode': 'easier', 'text': 'x', 'changes': [{'position': 1, 'new_id': easier.id, 'why': 'w'}], 'chips': <String>[]}),
+    ]);
+    agent.state
+      ..place = 'gym'
+      ..placeSource = 'user'
+      ..lastShown = [card.id];
+    final r = await agent.send('太难了');
+    expect(_rejection(c.requests[1]), contains('要更简单'));
+    expect(r.kind, 'easier');
+    expect(r.cards.single.id, easier.id);
+  });
+
+  test('13. retime that changes the moves is sent back', () async {
+    final (agent, _, r1) = await gymPlan();
+    final mains = r1.planMainIds;
+    final other = agent.state.seen.firstWhere((id) => !mains.contains(id));
+    final c = _Stub([
+      _do('build_plan', {'mode': 'retime', 'title': 't', 'text': 'x', 'minutes': r1.plan!.targetMinutes, 'main_ids': [other, ...mains.skip(1)], 'chips': <String>[]}),
+      _do('build_plan', {'mode': 'retime', 'title': 't', 'text': 'x', 'minutes': r1.plan!.targetMinutes, 'main_ids': mains, 'chips': <String>[]}),
+    ]);
+    final next = make(c)
+      ..state.place = 'gym'
+      ..state.placeSource = 'user'
+      ..state.lastPlan = agent.state.lastPlan;
+    final r2 = await next.send('改成别的时长');
+    expect(_rejection(c.requests[1]), allOf(contains('retime 不换动作'), contains(other)));
+    expect(r2.planMainIds, mains);
+  });
+
+  test('14. "another one" repeating the previous set is sent back', () async {
+    final (agent, _, r1) = await gymPlan();
+    final mains = r1.planMainIds;
+    final c = _Stub([
+      _do('build_plan', {'mode': 'another', 'title': 't', 'text': 'x', 'minutes': r1.plan!.targetMinutes, 'main_ids': mains, 'chips': <String>[]}),
+      _do('search_actions', {'muscles': ['quadriceps', 'glute-max'], 'exclude': mains, 'limit': 12}),
+      _fn((r) {
+        final ids = _found(r).take(4).toList();
+        return ('build_plan', {'mode': 'another', 'title': 't', 'text': 'x', 'minutes': fitMinutes(agent, ids), 'main_ids': ids, 'chips': <String>[]});
+      }),
+    ]);
+    final next = make(c)
+      ..state.place = 'gym'
+      ..state.placeSource = 'user'
+      ..state.lastPlan = agent.state.lastPlan;
+    final r2 = await next.send('再来一套');
+    expect(_rejection(c.requests[1]), contains('不能和上一套重复'));
+    expect(r2.planMainIds.toSet().intersection(mains.toSet()), isEmpty);
+  });
+
+  test('15. knowledge question → reply', () async {
+    final c = _Stub([_do('reply', {'text': '一般 30–60 秒，保持身体成一条直线。', 'chips': ['怎么进阶']})]);
+    final r = await make(c).send('平板支撑多久合适');
+    expect(r.kind, 'answer');
+    expect(r.cards, isEmpty);
+    expect(r.llmCalls, 1);
+  });
+
+  test('16. confirmed shoulder red flag → reply with items is sent back', () async {
+    final c = _Stub([
+      _do('set_conditions', {'avoid_joints': ['shoulder'], 'red_flag': true}),
+      _fn((r) => ('reply', {..._items(_pre(r).take(1).toList()), 'text': '先停训。'})),
+      _do('reply', {'text': '先停止会引起刺痛的训练，安排专业评估。', 'chips': <String>[]}),
+    ]);
+    final agent = make(c);
+    final r = await agent.send('肩一发力就刺痛还卡住');
+    expect(_rejection(c.requests[2]), contains('items 必须为空'));
+    expect(r.kind, 'answer');
+    expect(r.cards, isEmpty);
+    expect(agent.state.redFlag, isTrue);
+    expect(agent.state.avoidJoints, contains('shoulder'));
+  });
+
+  test('17. text naming an off-card move is sent back, then delivered as written', () async {
+    late CoachQaAgent agent;
+    late String offName;
+    late final _Stub c;
+    c = _Stub([
+      _do('set_conditions', {'place': 'gym'}),
+      _do('search_actions', {'muscles': ['glute-max']}),
+      _fn((r) {
+        final ids = _found(r).take(3).toList();
+        offName = agent.index.all
+            .firstWhere((a) => !ids.contains(a.id) && (a.drill.name.values['zh'] ?? '').runes.length >= 5 && agent.offCardMentions(a.drill.name.values['zh']!, ids.toSet()).isNotEmpty)
+            .drill
+            .name
+            .values['zh']!;
+        return ('show_actions', {..._items(ids), 'text': '也可以试试$offName'});
+      }),
+      _fn((r) => ('show_actions', {..._items(_found(c.requests[2]).take(3).toList()), 'text': 'clean'})),
+    ]);
+    agent = make(c);
+    final r = await agent.send('练臀');
+    expect(_rejection(c.requests[3]), contains('正文提到了卡片外的动作'));
     expect(r.text, 'clean');
   });
 
-  test('"Nth" follows the plan card numbering incl. warm-up; only that position changes', () async {
-    late List<String> ordered;
-    final c = _Scripted((tool, ctx, n) {
-      switch (tool) {
-        case 'fill_form':
-          return n == 1 ? _form(intent: 'plan', place: 'gym', muscles: ['quadriceps', 'glute-max'], minutes: 15) : _form(intent: 'swap', place: 'gym', positions: [1]);
-        case 'build_plan':
-          return {'title': 't', 'text': 'x', 'minutes': 15, 'main_ids': _candidates(ctx).take(4).toList(), 'chips': []};
-        default: // swap
-          final cand = _candidates(ctx).where((id) => id != ordered.first).toList();
-          return {'text': 'x', 'changes': [{'position': 1, 'new_id': cand.first, 'why': 'w'}], 'chips': []};
-      }
-    });
-    final agent = CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags);
-    final r1 = await agent.send('x');
-    expect(r1.kind, 'plan');
-    expect(r1.plan!.blocks.first.type, BlockType.warmup);
-    ordered = r1.planOrderedIds;
-    final r2 = await agent.send('y');
-    expect(r2.kind, 'replace');
-    final after = r2.planOrderedIds;
-    expect(after.length, ordered.length);
-    expect([for (var k = 0; k < after.length; k++) if (after[k] != ordered[k]) k], [0]);
-    expect(agent.index[after.first]!.sessionRole, contains('warmup'));
+  test('18. repeated rejections then a correct delivery; every reason reaches the following requests', () async {
+    final c = _Stub([
+      _do('set_conditions', {'place': 'gym'}),
+      _fn((_) => 'I think these are good.'),
+      _fn((r) => ('show_actions', _items(_pre(r).take(2).toList()))),
+      _do('show_actions', {'text': 'ok', 'items': [{'id': 'not-a-move', 'why': 'w'}, {'id': 'x2', 'why': 'w'}, {'id': 'x3', 'why': 'w'}], 'chips': <String>[]}),
+      _fn((r) => ('show_actions', _items(_pre(r).take(3).toList()))),
+    ]);
+    final r = await make(c).send('练胸');
+    expect(r.kind, 'recommend');
+    expect(r.cards, hasLength(3));
+    expect(r.llmCalls, 5);
+    final last = c.requests.last.messages.map((m) => m.content).join('\n');
+    expect(last, contains('请调用工具交结果。'));
+    expect(last, contains('items 要 3–5 个，现在 2 个'));
+    expect(last, contains('这些 id 不存在：not-a-move'));
+    expect(r.issues.where((i) => i.startsWith('show_actions rejected')), hasLength(2));
   });
 
-  test('swap with no qualifying candidate keeps the card and lets the model say so', () async {
-    final c = _Scripted((tool, ctx, n) {
-      if (tool == 'fill_form') return n == 1 ? _form(place: 'gym', muscles: ['abs']) : _form(intent: 'swap', place: 'gym', positions: [99]);
-      if (tool == 'swap') return {'text': 'only N', 'changes': [], 'chips': []};
-      return {'text': 'ok', 'items': [for (final id in _candidates(ctx).take(3)) {'id': id, 'why': 'w'}], 'chips': []};
-    });
-    final agent = CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags);
-    final r1 = await agent.send('x');
-    final r2 = await agent.send('y');
-    expect(r2.kind, 'answer');
-    expect(r2.cards.map((x) => x.id), r1.cards.map((x) => x.id));
-    expect(c.requests.last.messages.last.content, contains('99'));
+  test('19. persistence: qa_state.dart roundtrip keeps the state, incl. a segmented plan', () async {
+    late CoachQaAgent agent;
+    final c = _Stub([
+      _do('set_conditions', {'place': 'gym', 'avoid_joints': ['knee'], 'red_flag': false}),
+      _do('search_actions', {'muscles': ['chest', 'lats'], 'limit': 12}),
+      _fn((r) {
+        final ids = _found(r).take(4).toList();
+        return ('build_plan', {
+          'mode': 'new', 'title': 't', 'text': 'x', 'minutes': fitMinutes(agent, ids), 'chips': <String>[],
+          'segments': [
+            {'name': 'A', 'ids': ids.take(2).toList()},
+            {'name': 'B', 'ids': ids.skip(2).toList()},
+          ],
+        });
+      }),
+    ]);
+    agent = make(c);
+    final r = await agent.send('上下分段');
+    expect(r.plan!.blocks.map((b) => b.name).toList(), ['A', 'B']);
+    final json = jsonDecode(jsonEncode(encodeQaState(agent.state))) as Map<String, Object?>;
+    final restored = make(_Stub([]));
+    restoreQaState(restored.state, json, allowedIds: {for (final a in agent.index.all) a.id});
+    expect(encodeQaState(restored.state), encodeQaState(agent.state));
+    expect(restored.state.lastPlan!.plan.blocks.map((b) => b.name).toList(), ['A', 'B']);
+    expect(restored.state.lastPlan!.orderedIds, r.planOrderedIds);
+    expect(restored.state.avoidJoints, {'knee'});
   });
 
-  test('retime keeps the main moves and refits the duration', () async {
-    final c = _Scripted((tool, ctx, n) {
-      if (tool == 'fill_form') return n == 1 ? _form(intent: 'plan', place: 'gym', muscles: ['chest'], minutes: 20) : _form(intent: 'retime', place: 'gym', minutes: 10);
-      return {'title': 't', 'text': 'x', 'minutes': n == 1 ? 20 : 10, 'main_ids': _candidates(ctx).take(4).toList(), 'chips': []};
-    });
-    final agent = CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags);
-    final r1 = await agent.send('x');
-    final r2 = await agent.send('y');
-    expect(r2.planMainIds.toSet().containsAll(r1.planMainIds.take(2)), isTrue);
-    expect(r2.planSeconds! / 60, inInclusiveRange(8, 12));
-  });
-
-  test('build_plan keeps the model order and segments; reorder via use_these is honored', () async {
-    late List<String> first;
-    final c = _Scripted((tool, ctx, n) {
-      if (tool == 'fill_form') {
-        return n == 1 ? _form(intent: 'plan', place: 'gym', muscles: ['hamstrings', 'glute-max'], minutes: 15) : _form(intent: 'use_these', place: 'gym');
-      }
-      final cand = _candidates(ctx);
-      if (n == 1) return {'title': 't', 'text': 'x', 'minutes': 15, 'main_ids': cand.take(4).toList(), 'chips': []};
-      final rev = cand.reversed.toList();
-      return {
-        'title': 't', 'text': 'x', 'minutes': 15, 'main_ids': rev, 'chips': [], 'warmup': false, 'cooldown': false,
-        'segments': [
-          {'name': 'A', 'ids': rev.take(2).toList()},
-          {'name': 'B', 'ids': rev.skip(2).toList()},
-        ],
-      };
-    });
-    final agent = CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags);
-    final r1 = await agent.send('x');
-    first = r1.planMainIds;
-    expect(first.take(4), _candidatesOrder(c, 0).take(4));
-    final r2 = await agent.send('y');
-    expect(r2.kind, 'plan');
-    expect(r2.plan!.blocks.map((b) => b.type).toSet(), {BlockType.main});
-    expect(r2.plan!.blocks.map((b) => b.name).toList(), ['A', 'B']);
-    expect(r2.planMainIds.toSet(), first.toSet());
-    expect(r2.planMainIds.take(2).toList(), first.reversed.take(2).toList());
-  });
-
-  test('code-side padding is reported back to the model before it is applied', () async {
-    final c = _Scripted((tool, ctx, n) {
-      if (tool == 'fill_form') return _form(intent: 'plan', place: 'gym', muscles: ['chest'], minutes: 45);
-      return {'title': 't', 'text': 'x', 'minutes': 45, 'main_ids': _candidates(ctx).take(2).toList(), 'chips': []};
-    });
-    final agent = CoachQaAgent(client: c, catalog: catalog, profile: profile, aiTags: tags);
-    final r = await agent.send('x');
-    expect(r.kind, 'plan');
-    expect(c.calls('build_plan'), 2);
-    final retry = c.requests.where((q) => q.tools.first.name == 'build_plan').last.messages.last.content;
-    expect(retry, contains('对不上'));
-  });
+  // ------------------------------------------------------------------ 标签与范围
 
   test('swap candidates follow tags: same area, easier is easier, all in scope', () {
     final index = QaActionIndex(catalog, aiTags: tags);

@@ -15,7 +15,7 @@ abstract final class PoseHubActionLibrary {
   /// Audit digest of this SDK's bundled catalogue, not an acceptance gate for
   /// other internally consistent catalogue versions.
   static const catalogSha256 =
-      'e0953fc81779063ac7acda48253836b354d3f508eef58015f8fec57a477a40d3';
+      '02721e4c24a0445f2a05ef185b2569dc105566d630c5b8f901da059c0945117b';
 
   /// Bundled pack version (`pack` in the bundled catalogue).
   static const packVersion = 'r2-v1';

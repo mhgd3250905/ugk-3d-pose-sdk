@@ -112,12 +112,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "abs-A",
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -607,13 +603,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "abs-B",
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）",
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "平行杆（俯撑架）"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）、髋屈肌",
+   "equipmentZh": "平行杆（俯撑架）",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -1115,13 +1106,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "abs-C",
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）",
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "双杠"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）、髋屈肌",
+   "equipmentZh": "双杠",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -1653,12 +1639,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "adductors-A",
-   "muscleGroupsZh": [
-    "内收肌群",
-    "股四头肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "内收肌群、股四头肌、臀大肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -2211,14 +2193,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "adductors-B",
-   "muscleGroupsZh": [
-    "内收肌群",
-    "腹斜肌"
-   ],
-   "equipmentZh": [
-    "训练凳",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "内收肌群、腹斜肌",
+   "equipmentZh": "训练凳、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -2717,12 +2693,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "adductors-C",
-   "muscleGroupsZh": [
-    "内收肌群"
-   ],
-   "equipmentZh": [
-    "绳索器械"
-   ],
+   "muscleGroupsZh": "内收肌群",
+   "equipmentZh": "绳索器械",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -3313,13 +3285,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "chest-A",
-   "muscleGroupsZh": [
-    "胸大肌",
-    "腹斜肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "胸大肌、腹斜肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -3872,12 +3839,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "chest-B",
-   "muscleGroupsZh": [
-    "胸大肌"
-   ],
-   "equipmentZh": [
-    "平行杆（俯撑架）"
-   ],
+   "muscleGroupsZh": "胸大肌",
+   "equipmentZh": "平行杆（俯撑架）",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -4479,12 +4442,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "chest-C",
-   "muscleGroupsZh": [
-    "胸大肌"
-   ],
-   "equipmentZh": [
-    "绳索器械"
-   ],
+   "muscleGroupsZh": "胸大肌",
+   "equipmentZh": "绳索器械",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -5038,13 +4997,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "deltoids-A",
-   "muscleGroupsZh": [
-    "三角肌",
-    "腹斜肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "三角肌、腹斜肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -5587,14 +5541,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "deltoids-B",
-   "muscleGroupsZh": [
-    "三角肌",
-    "肩袖肌群"
-   ],
-   "equipmentZh": [
-    "哑铃",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "三角肌、肩袖肌群",
+   "equipmentZh": "哑铃、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -6146,13 +6094,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "deltoids-C",
-   "muscleGroupsZh": [
-    "三角肌"
-   ],
-   "equipmentZh": [
-    "地雷杆",
-    "杠铃"
-   ],
+   "muscleGroupsZh": "三角肌",
+   "equipmentZh": "地雷杆、杠铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -6690,14 +6633,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "erectors-A",
-   "muscleGroupsZh": [
-    "竖脊肌",
-    "臀大肌",
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "竖脊肌、臀大肌、腘绳肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -7244,13 +7181,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "erectors-B",
-   "muscleGroupsZh": [
-    "竖脊肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "瑞士球"
-   ],
+   "muscleGroupsZh": "竖脊肌、臀大肌",
+   "equipmentZh": "瑞士球",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -7845,14 +7777,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "erectors-C",
-   "muscleGroupsZh": [
-    "竖脊肌",
-    "臀大肌",
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "45° 罗马椅"
-   ],
+   "muscleGroupsZh": "竖脊肌、臀大肌、腘绳肌",
+   "equipmentZh": "45° 罗马椅",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -8388,12 +8314,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "forearms-A",
-   "muscleGroupsZh": [
-    "前臂 · 腕屈伸肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "前臂 · 腕屈伸肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -8925,13 +8847,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "forearms-B",
-   "muscleGroupsZh": [
-    "前臂 · 腕屈伸肌"
-   ],
-   "equipmentZh": [
-    "哑铃",
-    "训练凳"
-   ],
+   "muscleGroupsZh": "前臂 · 腕屈伸肌",
+   "equipmentZh": "哑铃、训练凳",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -9462,12 +9379,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "forearms-C",
-   "muscleGroupsZh": [
-    "前臂 · 腕屈伸肌"
-   ],
-   "equipmentZh": [
-    "壶铃"
-   ],
+   "muscleGroupsZh": "前臂 · 腕屈伸肌",
+   "equipmentZh": "壶铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -9964,13 +9877,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "g-cable-hip-abduction",
-   "muscleGroupsZh": [
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [
-    "绳索器械",
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀中肌 · 髋外展",
+   "equipmentZh": "绳索器械、椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -10571,13 +10479,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "g-cable-hip-extension",
-   "muscleGroupsZh": [
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "绳索器械",
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀大肌",
+   "equipmentZh": "绳索器械、椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -11111,12 +11014,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "glute-max-A",
-   "muscleGroupsZh": [
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -11665,13 +11564,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "glute-max-B",
-   "muscleGroupsZh": [
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "弹力带",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌",
+   "equipmentZh": "弹力带、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -12208,13 +12102,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "glute-max-C",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "反向背伸机"
-   ],
+   "muscleGroupsZh": "臀大肌、腘绳肌",
+   "equipmentZh": "反向背伸机",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -12746,13 +12635,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-9090-liftoff",
-   "muscleGroupsZh": [
-    "臀中肌 · 髋外展",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀中肌 · 髋外展、臀大肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -13290,12 +13174,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-adductor-rock",
-   "muscleGroupsZh": [
-    "内收肌群"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "内收肌群",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -13828,13 +13708,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-banana",
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "背阔肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹斜肌、背阔肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -14344,12 +14219,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-band-biceps-curl",
-   "muscleGroupsZh": [
-    "肱二头肌"
-   ],
-   "equipmentZh": [
-    "弹力带"
-   ],
+   "muscleGroupsZh": "肱二头肌",
+   "equipmentZh": "弹力带",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -14859,12 +14730,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-band-chest-fly",
-   "muscleGroupsZh": [
-    "胸大肌"
-   ],
-   "equipmentZh": [
-    "弹力带"
-   ],
+   "muscleGroupsZh": "胸大肌",
+   "equipmentZh": "弹力带",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -15514,13 +15381,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "三角肌",
-    "斜方肌中下部 · 菱形肌"
-   ],
-   "equipmentZh": [
-    "弹力带"
-   ],
+   "muscleGroupsZh": "三角肌、斜方肌中下部 · 菱形肌",
+   "equipmentZh": "弹力带",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -16071,13 +15933,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-band-hip-extension",
-   "muscleGroupsZh": [
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "弹力带",
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀大肌",
+   "equipmentZh": "弹力带、椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -16679,14 +16536,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-band-hip-ir",
-   "muscleGroupsZh": [
-    "臀中肌 · 髋外展",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "弹力带",
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀中肌 · 髋外展、臀大肌",
+   "equipmentZh": "弹力带、椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -17232,14 +17083,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-band-leg-out",
-   "muscleGroupsZh": [
-    "内收肌群",
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "弹力带",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "内收肌群、腘绳肌",
+   "equipmentZh": "弹力带、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -17751,13 +17596,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-band-pallof",
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "弹力带"
-   ],
+   "muscleGroupsZh": "腹斜肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "弹力带",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -18302,13 +18142,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-band-pull-apart",
-   "muscleGroupsZh": [
-    "斜方肌中下部 · 菱形肌",
-    "三角肌"
-   ],
-   "equipmentZh": [
-    "弹力带"
-   ],
+   "muscleGroupsZh": "斜方肌中下部 · 菱形肌、三角肌",
+   "equipmentZh": "弹力带",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -18846,14 +18681,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-band-row",
-   "muscleGroupsZh": [
-    "背阔肌",
-    "斜方肌中下部 · 菱形肌"
-   ],
-   "equipmentZh": [
-    "弹力带",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "背阔肌、斜方肌中下部 · 菱形肌",
+   "equipmentZh": "弹力带、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -19388,12 +19217,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-band-shoulder-ir",
-   "muscleGroupsZh": [
-    "肩袖肌群"
-   ],
-   "equipmentZh": [
-    "弹力带"
-   ],
+   "muscleGroupsZh": "肩袖肌群",
+   "equipmentZh": "弹力带",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -20005,13 +19830,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-band-standing-abduction",
-   "muscleGroupsZh": [
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [
-    "弹力带",
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀中肌 · 髋外展",
+   "equipmentZh": "弹力带、椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -20614,13 +20434,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-band-standing-adduction",
-   "muscleGroupsZh": [
-    "内收肌群"
-   ],
-   "equipmentZh": [
-    "弹力带",
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "内收肌群",
+   "equipmentZh": "弹力带、椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -21221,13 +21036,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-band-stepout",
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "弹力带"
-   ],
+   "muscleGroupsZh": "腹斜肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "弹力带",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -21778,14 +21588,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-band-straight-leg-raise",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "股四头肌"
-   ],
-   "equipmentZh": [
-    "弹力带",
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "髋屈肌、股四头肌",
+   "equipmentZh": "弹力带、椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -22392,12 +22196,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-band-triceps-pressdown",
-   "muscleGroupsZh": [
-    "肱三头肌"
-   ],
-   "equipmentZh": [
-    "弹力带"
-   ],
+   "muscleGroupsZh": "肱三头肌",
+   "equipmentZh": "弹力带",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -22942,12 +22742,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-bear-plank",
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -23457,10 +23253,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "小腿三头肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "小腿三头肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -23990,10 +23784,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-biceps-self",
-   "muscleGroupsZh": [
-    "肱二头肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "肱二头肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -24529,13 +24321,8 @@
    },
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "前臂 · 腕屈伸肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "前臂 · 腕屈伸肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -25077,10 +24864,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "斜方肌中下部 · 菱形肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "斜方肌中下部 · 菱形肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -25569,13 +25354,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-bridge-march",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌、腘绳肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -26122,13 +25902,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-bridge-overhead",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "三角肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌、三角肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -26652,13 +26427,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-bulgarian",
-   "muscleGroupsZh": [
-    "股四头肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "股四头肌、臀大肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -27198,12 +26968,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-butterfly-active",
-   "muscleGroupsZh": [
-    "内收肌群"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "内收肌群",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -27732,12 +27498,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-calf-raise",
-   "muscleGroupsZh": [
-    "小腿三头肌"
-   ],
-   "equipmentZh": [
-    "墙"
-   ],
+   "muscleGroupsZh": "小腿三头肌",
+   "equipmentZh": "墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -28261,13 +28023,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-catcow-quad",
-   "muscleGroupsZh": [
-    "竖脊肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "竖脊肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -28824,12 +28581,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-chair-dip",
-   "muscleGroupsZh": [
-    "肱三头肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "肱三头肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -29369,13 +29122,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-chair-elbow-triceps-stretch",
-   "muscleGroupsZh": [
-    "肱三头肌",
-    "背阔肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "肱三头肌、背阔肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -29879,12 +29627,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-chair-kickback",
-   "muscleGroupsZh": [
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀大肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -30486,12 +30230,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-chair-lat",
-   "muscleGroupsZh": [
-    "背阔肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "背阔肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -31048,14 +30788,8 @@
    },
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "腘绳肌",
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腘绳肌、髋屈肌",
+   "equipmentZh": "椅子/凳子、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -31533,13 +31267,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "臀大肌",
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀大肌、腘绳肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -32098,13 +31827,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-chair-sit-to-stand",
-   "muscleGroupsZh": [
-    "股四头肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "股四头肌、臀大肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -32715,13 +32439,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-chair-step-up",
-   "muscleGroupsZh": [
-    "股四头肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "股四头肌、臀大肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -33283,14 +33002,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-chair-tspine",
-   "muscleGroupsZh": [
-    "斜方肌中下部 · 菱形肌",
-    "背阔肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "斜方肌中下部 · 菱形肌、背阔肌",
+   "equipmentZh": "椅子/凳子、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -33869,10 +33582,8 @@
    },
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "腘绳肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "腘绳肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -34387,12 +34098,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-cobra",
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -34923,14 +34630,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-couch-stretch",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "股四头肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌、股四头肌",
+   "equipmentZh": "椅子/凳子、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -35448,11 +35149,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-crossbody",
-   "muscleGroupsZh": [
-    "三角肌",
-    "肩袖肌群"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "三角肌、肩袖肌群",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -35948,12 +35646,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-crunch",
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -36482,12 +36176,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-calf-raise",
-   "muscleGroupsZh": [
-    "小腿三头肌"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "小腿三头肌",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -37082,12 +36772,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-curl",
-   "muscleGroupsZh": [
-    "肱二头肌"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "肱二头肌",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -37674,13 +37360,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "胸大肌"
-   ],
-   "equipmentZh": [
-    "哑铃",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "胸大肌",
+   "equipmentZh": "哑铃、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -38229,14 +37910,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-floor-press",
-   "muscleGroupsZh": [
-    "胸大肌",
-    "肱三头肌"
-   ],
-   "equipmentZh": [
-    "哑铃",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "胸大肌、肱三头肌",
+   "equipmentZh": "哑铃、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -38766,12 +38441,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-front-raise",
-   "muscleGroupsZh": [
-    "三角肌"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "三角肌",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -39375,13 +39046,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-hammer-curl",
-   "muscleGroupsZh": [
-    "肱二头肌",
-    "前臂 · 腕屈伸肌"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "肱二头肌、前臂 · 腕屈伸肌",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -39966,12 +39632,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-kickback",
-   "muscleGroupsZh": [
-    "肱三头肌"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "肱三头肌",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -40578,12 +40240,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-lateral",
-   "muscleGroupsZh": [
-    "三角肌"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "三角肌",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -41118,13 +40776,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-overhead-shrug",
-   "muscleGroupsZh": [
-    "斜方肌中下部 · 菱形肌",
-    "三角肌"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "斜方肌中下部 · 菱形肌、三角肌",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -41680,12 +41333,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "肱三头肌"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "肱三头肌",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -42299,13 +41948,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-press",
-   "muscleGroupsZh": [
-    "三角肌",
-    "肱三头肌"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "三角肌、肱三头肌",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -42844,13 +42488,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-rdl",
-   "muscleGroupsZh": [
-    "腘绳肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "腘绳肌、臀大肌",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -43389,13 +43028,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-reverse-curl",
-   "muscleGroupsZh": [
-    "前臂 · 腕屈伸肌",
-    "肱二头肌"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "前臂 · 腕屈伸肌、肱二头肌",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -43910,13 +43544,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-reverse-fly",
-   "muscleGroupsZh": [
-    "三角肌",
-    "斜方肌中下部 · 菱形肌"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "三角肌、斜方肌中下部 · 菱形肌",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -44454,14 +44083,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-row",
-   "muscleGroupsZh": [
-    "背阔肌",
-    "斜方肌中下部 · 菱形肌"
-   ],
-   "equipmentZh": [
-    "哑铃",
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "背阔肌、斜方肌中下部 · 菱形肌",
+   "equipmentZh": "哑铃、椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -45063,13 +44686,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-shrug",
-   "muscleGroupsZh": [
-    "斜方肌中下部 · 菱形肌",
-    "颈部"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "斜方肌中下部 · 菱形肌、颈部",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -45608,13 +45226,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-split-squat",
-   "muscleGroupsZh": [
-    "股四头肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "股四头肌、臀大肌",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -46165,13 +45778,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-supported-calf-raise",
-   "muscleGroupsZh": [
-    "小腿三头肌"
-   ],
-   "equipmentZh": [
-    "哑铃",
-    "墙"
-   ],
+   "muscleGroupsZh": "小腿三头肌",
+   "equipmentZh": "哑铃、墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -46771,13 +46379,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-db-zottman-curl",
-   "muscleGroupsZh": [
-    "肱二头肌",
-    "前臂 · 腕屈伸肌"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "肱二头肌、前臂 · 腕屈伸肌",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -47293,13 +46896,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-dd-shoulder",
-   "muscleGroupsZh": [
-    "背阔肌",
-    "胸大肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "背阔肌、胸大肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -47816,12 +47414,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-donkey-kick",
-   "muscleGroupsZh": [
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -48324,12 +47918,8 @@
    },
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "胸大肌"
-   ],
-   "equipmentZh": [
-    "门框"
-   ],
+   "muscleGroupsZh": "胸大肌",
+   "equipmentZh": "门框",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -48932,13 +48522,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "背阔肌",
-    "肱二头肌"
-   ],
-   "equipmentZh": [
-    "单杠"
-   ],
+   "muscleGroupsZh": "背阔肌、肱二头肌",
+   "equipmentZh": "单杠",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -49524,13 +49109,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫",
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "腘绳肌",
+   "equipmentZh": "瑜伽垫、椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -50006,13 +49586,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-forearm-plank",
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）",
-    "腹斜肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）、腹斜肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -50529,11 +50104,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "股四头肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "股四头肌、臀大肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -51176,13 +50748,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "股四头肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "壶铃"
-   ],
+   "muscleGroupsZh": "股四头肌、臀大肌",
+   "equipmentZh": "壶铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -51788,11 +51355,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-good-morning",
-   "muscleGroupsZh": [
-    "腘绳肌",
-    "竖脊肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "腘绳肌、竖脊肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -52320,13 +51884,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-half-kneeling-quad-stretch",
-   "muscleGroupsZh": [
-    "股四头肌",
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "股四头肌、髋屈肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -52821,13 +52380,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-hip-gate",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "髋屈肌、臀中肌 · 髋外展",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -53365,13 +52919,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-incline-pushup",
-   "muscleGroupsZh": [
-    "胸大肌",
-    "肱三头肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "胸大肌、肱三头肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -53910,12 +53459,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-inner-thigh",
-   "muscleGroupsZh": [
-    "内收肌群"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "内收肌群",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -54434,13 +53979,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-kb-swing",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "壶铃"
-   ],
+   "muscleGroupsZh": "臀大肌、腘绳肌",
+   "equipmentZh": "壶铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -54981,13 +54521,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-knee-hug",
-   "muscleGroupsZh": [
-    "竖脊肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "竖脊肌、臀大肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -55535,12 +55070,8 @@
    },
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "小腿三头肌"
-   ],
-   "equipmentZh": [
-    "墙"
-   ],
+   "muscleGroupsZh": "小腿三头肌",
+   "equipmentZh": "墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -56109,12 +55640,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "胫骨前肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "胫骨前肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -56510,13 +56037,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "胸大肌",
-    "肱三头肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "胸大肌、肱三头肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -56945,12 +56467,8 @@
    "boundary": "低位小范围；未恢复原高位起点",
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "斜方肌中下部 · 菱形肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "斜方肌中下部 · 菱形肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -57438,12 +56956,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "股四头肌",
-    "臀大肌",
-    "内收肌群"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "股四头肌、臀大肌、内收肌群",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -58000,13 +57514,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-mountain-climber",
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）",
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）、髋屈肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -58547,13 +58056,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-open-book",
-   "muscleGroupsZh": [
-    "斜方肌中下部 · 菱形肌",
-    "胸大肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "斜方肌中下部 · 菱形肌、胸大肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -58954,10 +58458,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "肱三头肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "肱三头肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -59530,13 +59032,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-pike-pushup",
-   "muscleGroupsZh": [
-    "三角肌",
-    "肱三头肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "三角肌、肱三头肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -60068,13 +59565,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-pike-scapular-elevation",
-   "muscleGroupsZh": [
-    "斜方肌中下部 · 菱形肌",
-    "三角肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "斜方肌中下部 · 菱形肌、三角肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -60620,14 +60112,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-plank-side-step",
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）",
-    "腹斜肌",
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）、腹斜肌、臀中肌 · 髋外展",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -61197,14 +60683,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-quad-cars",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "臀中肌 · 髋外展",
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌、臀中肌 · 髋外展、髋屈肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -61649,13 +61129,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "斜方肌中下部 · 菱形肌",
-    "胸大肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "斜方肌中下部 · 菱形肌、胸大肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -62150,13 +61625,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "臀大肌",
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌、髋屈肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -62624,13 +62094,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-reverse-clam",
-   "muscleGroupsZh": [
-    "臀中肌 · 髋外展",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀中肌 · 髋外展、臀大肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -63164,12 +62629,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-reverse-crunch",
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -63698,11 +63159,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-reverse-lunge",
-   "muscleGroupsZh": [
-    "股四头肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "股四头肌、臀大肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -64243,13 +63701,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-russian-twist",
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹斜肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -64797,13 +64250,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-seated-reachback",
-   "muscleGroupsZh": [
-    "胸大肌",
-    "三角肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "胸大肌、三角肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -65330,13 +64778,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹斜肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -65706,12 +65149,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-side-er",
-   "muscleGroupsZh": [
-    "肩袖肌群"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "肩袖肌群",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -66250,10 +65689,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-side-leg-raise",
-   "muscleGroupsZh": [
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "臀中肌 · 髋外展",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -66790,13 +66227,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-slider-body-saw",
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "滑垫（可用毛巾代替）",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）",
+   "equipmentZh": "滑垫（可用毛巾代替）、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -67353,11 +66785,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-squat",
-   "muscleGroupsZh": [
-    "股四头肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "股四头肌、臀大肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -67890,11 +67319,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-standing-arm-extension-stretch",
-   "muscleGroupsZh": [
-    "胸大肌",
-    "三角肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "胸大肌、三角肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -68410,10 +67836,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-standing-forearm-rotation",
-   "muscleGroupsZh": [
-    "前臂 · 腕屈伸肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "前臂 · 腕屈伸肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -69006,10 +68430,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-standing-wrist-deviation",
-   "muscleGroupsZh": [
-    "前臂 · 腕屈伸肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "前臂 · 腕屈伸肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -69598,10 +69020,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-standing-wrist-extensor-stretch",
-   "muscleGroupsZh": [
-    "前臂 · 腕屈伸肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "前臂 · 腕屈伸肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -70192,11 +69612,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-step-jack",
-   "muscleGroupsZh": [
-    "三角肌",
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "三角肌、臀中肌 · 髋外展",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -70768,13 +70185,8 @@
    },
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "前臂 · 腕屈伸肌",
-    "背阔肌"
-   ],
-   "equipmentZh": [
-    "单杠"
-   ],
+   "muscleGroupsZh": "前臂 · 腕屈伸肌、背阔肌",
+   "equipmentZh": "单杠",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -71281,13 +70693,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-suitcase-hold",
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "腹斜肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -71852,13 +71259,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-suitcase-march",
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [
-    "哑铃"
-   ],
+   "muscleGroupsZh": "腹斜肌、臀中肌 · 髋外展",
+   "equipmentZh": "哑铃",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -72418,11 +71820,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-sumo-pry",
-   "muscleGroupsZh": [
-    "内收肌群",
-    "臀大肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "内收肌群、臀大肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -72953,13 +72352,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-superman",
-   "muscleGroupsZh": [
-    "竖脊肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "竖脊肌、臀大肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -73527,13 +72921,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）",
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）、髋屈肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -73939,13 +73328,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-supine-cactus-chest",
-   "muscleGroupsZh": [
-    "胸大肌",
-    "三角肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "胸大肌、三角肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -74355,12 +73739,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -74766,13 +74146,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-supine-twist",
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "竖脊肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹斜肌、竖脊肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -75284,12 +74659,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-supported-single-leg-calf",
-   "muscleGroupsZh": [
-    "小腿三头肌"
-   ],
-   "equipmentZh": [
-    "墙"
-   ],
+   "muscleGroupsZh": "小腿三头肌",
+   "equipmentZh": "墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -75826,13 +75197,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-tabletop",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "三角肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌、三角肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -76373,12 +75739,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-tib-raise",
-   "muscleGroupsZh": [
-    "胫骨前肌"
-   ],
-   "equipmentZh": [
-    "墙"
-   ],
+   "muscleGroupsZh": "胫骨前肌",
+   "equipmentZh": "墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -76904,13 +76266,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-towel-behind",
-   "muscleGroupsZh": [
-    "胸大肌",
-    "三角肌"
-   ],
-   "equipmentZh": [
-    "毛巾"
-   ],
+   "muscleGroupsZh": "胸大肌、三角肌",
+   "equipmentZh": "毛巾",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -77446,12 +76803,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "肱二头肌"
-   ],
-   "equipmentZh": [
-    "毛巾"
-   ],
+   "muscleGroupsZh": "肱二头肌",
+   "equipmentZh": "毛巾",
    "renderPropTypes": [
     "band"
    ],
@@ -77937,13 +77290,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-towel-pass",
-   "muscleGroupsZh": [
-    "三角肌",
-    "胸大肌"
-   ],
-   "equipmentZh": [
-    "毛巾"
-   ],
+   "muscleGroupsZh": "三角肌、胸大肌",
+   "equipmentZh": "毛巾",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -78466,13 +77814,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-towel-pulldown",
-   "muscleGroupsZh": [
-    "背阔肌",
-    "斜方肌中下部 · 菱形肌"
-   ],
-   "equipmentZh": [
-    "毛巾"
-   ],
+   "muscleGroupsZh": "背阔肌、斜方肌中下部 · 菱形肌",
+   "equipmentZh": "毛巾",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -79030,11 +78373,8 @@
    },
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "臀大肌",
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "臀大肌、臀中肌 · 髋外展",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -79577,14 +78917,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-wall-angel",
-   "muscleGroupsZh": [
-    "三角肌",
-    "肩袖肌群",
-    "斜方肌中下部 · 菱形肌"
-   ],
-   "equipmentZh": [
-    "墙"
-   ],
+   "muscleGroupsZh": "三角肌、肩袖肌群、斜方肌中下部 · 菱形肌",
+   "equipmentZh": "墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -80119,12 +79453,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-wall-calf",
-   "muscleGroupsZh": [
-    "小腿三头肌"
-   ],
-   "equipmentZh": [
-    "墙"
-   ],
+   "muscleGroupsZh": "小腿三头肌",
+   "equipmentZh": "墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -80629,12 +79959,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-wall-calf-bent-knee",
-   "muscleGroupsZh": [
-    "小腿三头肌"
-   ],
-   "equipmentZh": [
-    "墙"
-   ],
+   "muscleGroupsZh": "小腿三头肌",
+   "equipmentZh": "墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -81246,12 +80572,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "前臂 · 腕屈伸肌"
-   ],
-   "equipmentZh": [
-    "墙"
-   ],
+   "muscleGroupsZh": "前臂 · 腕屈伸肌",
+   "equipmentZh": "墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -81836,13 +81158,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-wall-pec",
-   "muscleGroupsZh": [
-    "胸大肌",
-    "三角肌"
-   ],
-   "equipmentZh": [
-    "墙"
-   ],
+   "muscleGroupsZh": "胸大肌、三角肌",
+   "equipmentZh": "墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -82342,13 +81659,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-wall-straddle",
-   "muscleGroupsZh": [
-    "内收肌群"
-   ],
-   "equipmentZh": [
-    "墙",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "内收肌群",
+   "equipmentZh": "墙、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -82855,12 +82167,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "h-wall-wrist-flexor-stretch",
-   "muscleGroupsZh": [
-    "前臂 · 腕屈伸肌"
-   ],
-   "equipmentZh": [
-    "墙"
-   ],
+   "muscleGroupsZh": "前臂 · 腕屈伸肌",
+   "equipmentZh": "墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -83432,11 +82740,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "hamstrings-A",
-   "muscleGroupsZh": [
-    "腘绳肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "腘绳肌、臀大肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -83973,12 +83278,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "hamstrings-B",
-   "muscleGroupsZh": [
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "滑垫（可用毛巾代替）"
-   ],
+   "muscleGroupsZh": "腘绳肌",
+   "equipmentZh": "滑垫（可用毛巾代替）",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -84500,12 +83801,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "hamstrings-C",
-   "muscleGroupsZh": [
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "GHD 臀腿训练器"
-   ],
+   "muscleGroupsZh": "腘绳肌",
+   "equipmentZh": "GHD 臀腿训练器",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -85038,13 +84335,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "hip-abductors-A",
-   "muscleGroupsZh": [
-    "臀中肌 · 髋外展",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀中肌 · 髋外展、臀大肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -85457,14 +84749,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "hip-abductors-B",
-   "muscleGroupsZh": [
-    "臀中肌 · 髋外展",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "弹力带",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀中肌 · 髋外展、臀大肌",
+   "equipmentZh": "弹力带、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -86000,13 +85286,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "hip-abductors-C",
-   "muscleGroupsZh": [
-    "臀中肌 · 髋外展",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "髋外展机"
-   ],
+   "muscleGroupsZh": "臀中肌 · 髋外展、臀大肌",
+   "equipmentZh": "髋外展机",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -86536,13 +85817,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "hip-flexors-A",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "股四头肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌、股四头肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -87077,13 +86353,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "hip-flexors-B",
-   "muscleGroupsZh": [
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "弹力带",
-    "墙"
-   ],
+   "muscleGroupsZh": "髋屈肌",
+   "equipmentZh": "弹力带、墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -87681,13 +86952,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "hip-flexors-C",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "股四头肌"
-   ],
-   "equipmentZh": [
-    "绳索器械"
-   ],
+   "muscleGroupsZh": "髋屈肌、股四头肌",
+   "equipmentZh": "绳索器械",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -88213,10 +87479,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "lats-A",
-   "muscleGroupsZh": [
-    "背阔肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "背阔肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -88746,12 +88010,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "lats-B",
-   "muscleGroupsZh": [
-    "背阔肌"
-   ],
-   "equipmentZh": [
-    "弹力带"
-   ],
+   "muscleGroupsZh": "背阔肌",
+   "equipmentZh": "弹力带",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -89342,12 +88602,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "lats-C",
-   "muscleGroupsZh": [
-    "背阔肌"
-   ],
-   "equipmentZh": [
-    "双杠"
-   ],
+   "muscleGroupsZh": "背阔肌",
+   "equipmentZh": "双杠",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -89872,13 +89128,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-chair-wiper",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀大肌、臀中肌 · 髋外展",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -90428,13 +89679,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-half-split",
-   "muscleGroupsZh": [
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "瑜伽砖（可用厚书代替）",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腘绳肌",
+   "equipmentZh": "瑜伽砖（可用厚书代替）、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -90822,14 +90068,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-leg-circles",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "臀中肌 · 髋外展",
-    "内收肌群"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌、臀中肌 · 髋外展、内收肌群",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -91360,12 +90600,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-pelvis-circle",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "臀大肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "髋屈肌、臀大肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -91872,13 +91108,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-prone-hip-ext",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌、腘绳肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -92414,13 +91645,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-prone-ir",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌、臀中肌 · 髋外展",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -92954,13 +92180,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-seated-ir-drop",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌、臀中肌 · 髋外展",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -93510,12 +92731,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-seated-knee-lift",
-   "muscleGroupsZh": [
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "髋屈肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -94056,13 +93273,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-seated-squeeze",
-   "muscleGroupsZh": [
-    "内收肌群"
-   ],
-   "equipmentZh": [
-    "椅子/凳子",
-    "瑜伽砖（可用厚书代替）"
-   ],
+   "muscleGroupsZh": "内收肌群",
+   "equipmentZh": "椅子/凳子、瑜伽砖（可用厚书代替）",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -94584,12 +93796,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-slider-lateral",
-   "muscleGroupsZh": [
-    "内收肌群"
-   ],
-   "equipmentZh": [
-    "滑垫（可用毛巾代替）"
-   ],
+   "muscleGroupsZh": "内收肌群",
+   "equipmentZh": "滑垫（可用毛巾代替）",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -95124,12 +94332,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-squat-shift",
-   "muscleGroupsZh": [
-    "内收肌群",
-    "股四头肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "内收肌群、股四头肌、臀大肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -95678,14 +94882,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-straddle-fold",
-   "muscleGroupsZh": [
-    "内收肌群",
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "瑜伽砖（可用厚书代替）",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "内收肌群、腘绳肌",
+   "equipmentZh": "瑜伽砖（可用厚书代替）、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -96060,12 +95258,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-thomas-test",
-   "muscleGroupsZh": [
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -96576,13 +95770,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-wide-fold",
-   "muscleGroupsZh": [
-    "腘绳肌",
-    "内收肌群"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "腘绳肌、内收肌群",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -97096,13 +96285,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "n-windshield",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "腹斜肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌、腹斜肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -97731,12 +96915,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "股四头肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "股四头肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -98295,12 +97475,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "小腿三头肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "小腿三头肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -98890,14 +98066,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-seated-catcow",
-   "muscleGroupsZh": [
-    "竖脊肌",
-    "斜方肌中下部 · 菱形肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "竖脊肌、斜方肌中下部 · 菱形肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -99419,12 +98589,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-seated-fig4",
-   "muscleGroupsZh": [
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀大肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -99932,12 +99098,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-seated-ham",
-   "muscleGroupsZh": [
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "腘绳肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -100441,12 +99603,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-seated-hip-er",
-   "muscleGroupsZh": [
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀大肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -101001,13 +100159,8 @@
    "boundary": null,
    "reviewed": false,
    "releaseEligible": false,
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "背阔肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "腹斜肌、背阔肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -101528,13 +100681,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-seated-twist",
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "斜方肌中下部 · 菱形肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "腹斜肌、斜方肌中下部 · 菱形肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -102045,13 +101193,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-stand-crossreach",
-   "muscleGroupsZh": [
-    "臀中肌 · 髋外展",
-    "腹斜肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀中肌 · 髋外展、腹斜肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -102563,12 +101706,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-stand-ham",
-   "muscleGroupsZh": [
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "腘绳肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -103143,12 +102282,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-stand-lunge",
-   "muscleGroupsZh": [
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "髋屈肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -103662,13 +102797,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-stand-quad",
-   "muscleGroupsZh": [
-    "股四头肌",
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "股四头肌、髋屈肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -104177,11 +103307,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-stand-sidebend",
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "背阔肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "腹斜肌、背阔肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -104746,12 +103873,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-supported-ankle-eversion",
-   "muscleGroupsZh": [
-    "小腿三头肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "小腿三头肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -105282,12 +104405,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-supported-ankle-inversion",
-   "muscleGroupsZh": [
-    "胫骨前肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "胫骨前肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -105817,13 +104936,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-supported-ankle-pump",
-   "muscleGroupsZh": [
-    "小腿三头肌",
-    "胫骨前肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "小腿三头肌、胫骨前肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -106355,13 +105469,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-supported-hip-airplane",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀大肌、臀中肌 · 髋外展",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -106961,13 +106070,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-supported-hip-hitch",
-   "muscleGroupsZh": [
-    "臀中肌 · 髋外展",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀中肌 · 髋外展、臀大肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -107386,13 +106490,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-supported-hip-ir",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀大肌、臀中肌 · 髋外展",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -107934,12 +107033,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-supported-knee-curl",
-   "muscleGroupsZh": [
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "腘绳肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -108526,12 +107621,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-supported-march",
-   "muscleGroupsZh": [
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "髋屈肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -109144,13 +108235,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-supported-mini-squat",
-   "muscleGroupsZh": [
-    "股四头肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "股四头肌、臀大肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -109752,13 +108838,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-supported-single-leg-rdl",
-   "muscleGroupsZh": [
-    "腘绳肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "腘绳肌、臀大肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -110310,13 +109391,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-supported-star-reach",
-   "muscleGroupsZh": [
-    "股四头肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "股四头肌、臀大肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -110866,12 +109942,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "o-wall-hip-hinge-stretch",
-   "muscleGroupsZh": [
-    "背阔肌"
-   ],
-   "equipmentZh": [
-    "墙"
-   ],
+   "muscleGroupsZh": "背阔肌",
+   "equipmentZh": "墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -111446,11 +110518,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "obliques-A",
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "腹斜肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -112005,13 +111074,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "obliques-B",
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "弹力带"
-   ],
+   "muscleGroupsZh": "腹斜肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "弹力带",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -112557,13 +111621,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "obliques-C",
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "绳索器械"
-   ],
+   "muscleGroupsZh": "腹斜肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "绳索器械",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -113102,12 +112161,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "quadriceps-A",
-   "muscleGroupsZh": [
-    "股四头肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "股四头肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -113644,12 +112699,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "quadriceps-B",
-   "muscleGroupsZh": [
-    "股四头肌"
-   ],
-   "equipmentZh": [
-    "弹力带"
-   ],
+   "muscleGroupsZh": "股四头肌",
+   "equipmentZh": "弹力带",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -114171,12 +113222,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "quadriceps-C",
-   "muscleGroupsZh": [
-    "股四头肌"
-   ],
-   "equipmentZh": [
-    "腿屈伸机"
-   ],
+   "muscleGroupsZh": "股四头肌",
+   "equipmentZh": "腿屈伸机",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -114702,11 +113749,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "rotator-cuff-A",
-   "muscleGroupsZh": [
-    "肩袖肌群",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "肩袖肌群、腹直肌（含深层腹横肌）",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -115261,13 +114305,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "rotator-cuff-B",
-   "muscleGroupsZh": [
-    "肩袖肌群"
-   ],
-   "equipmentZh": [
-    "弹力带",
-    "瑜伽砖（可用厚书代替）"
-   ],
+   "muscleGroupsZh": "肩袖肌群",
+   "equipmentZh": "弹力带、瑜伽砖（可用厚书代替）",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -115674,12 +114713,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "rotator-cuff-C",
-   "muscleGroupsZh": [
-    "肩袖肌群"
-   ],
-   "equipmentZh": [
-    "绳索器械"
-   ],
+   "muscleGroupsZh": "肩袖肌群",
+   "equipmentZh": "绳索器械",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -116214,12 +115249,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "s-9090",
-   "muscleGroupsZh": [
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -116730,12 +115761,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "s-butterfly",
-   "muscleGroupsZh": [
-    "内收肌群"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "内收肌群",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -117239,12 +116266,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "s-figure4",
-   "muscleGroupsZh": [
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -117753,12 +116776,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "s-frog",
-   "muscleGroupsZh": [
-    "内收肌群"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "内收肌群",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -118134,12 +117153,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "s-kneel-hipflex",
-   "muscleGroupsZh": [
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -118519,14 +117534,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "s-lizard",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "内收肌群"
-   ],
-   "equipmentZh": [
-    "瑜伽砖（可用厚书代替）",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌、内收肌群",
+   "equipmentZh": "瑜伽砖（可用厚书代替）、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -118918,14 +117927,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "s-pigeon",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "髋屈肌"
-   ],
-   "equipmentZh": [
-    "瑜伽砖（可用厚书代替）",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌、髋屈肌",
+   "equipmentZh": "瑜伽砖（可用厚书代替）、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -119305,12 +118308,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "s-seated-fold",
-   "muscleGroupsZh": [
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腘绳肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -119808,13 +118807,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "scapular-A",
-   "muscleGroupsZh": [
-    "斜方肌中下部 · 菱形肌",
-    "肩袖肌群"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "斜方肌中下部 · 菱形肌、肩袖肌群",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -120229,13 +119223,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "scapular-B",
-   "muscleGroupsZh": [
-    "背阔肌",
-    "斜方肌中下部 · 菱形肌"
-   ],
-   "equipmentZh": [
-    "单杠"
-   ],
+   "muscleGroupsZh": "背阔肌、斜方肌中下部 · 菱形肌",
+   "equipmentZh": "单杠",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -120766,11 +119755,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "serratus-A",
-   "muscleGroupsZh": [
-    "胸大肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "胸大肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -121373,14 +120359,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "serratus-B",
-   "muscleGroupsZh": [
-    "胸大肌",
-    "三角肌"
-   ],
-   "equipmentZh": [
-    "泡沫轴",
-    "墙"
-   ],
+   "muscleGroupsZh": "胸大肌、三角肌",
+   "equipmentZh": "泡沫轴、墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -121919,13 +120899,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "serratus-C",
-   "muscleGroupsZh": [
-    "胸大肌",
-    "肱三头肌"
-   ],
-   "equipmentZh": [
-    "吊环"
-   ],
+   "muscleGroupsZh": "胸大肌、肱三头肌",
+   "equipmentZh": "吊环",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -122527,13 +121502,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "t-flare-side-hold",
-   "muscleGroupsZh": [
-    "腹斜肌",
-    "三角肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹斜肌、三角肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -123024,13 +121994,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "t-lsit-open-close",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -123562,13 +122527,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "t-lsit-tuck",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -124100,13 +123060,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "t-lsit-vsit-circles",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -124629,13 +123584,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "t-lsit-wide",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -125121,13 +124071,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "t-seated-straddle-ext",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -125649,13 +124594,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "t-seated-straddle-lift-1leg",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "股四头肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌、股四头肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -126066,13 +125006,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "t-seated-straddle-lifts",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "股四头肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌、股四头肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -126592,14 +125527,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "t-straddle-hold",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "腹直肌（含深层腹横肌）",
-    "肱三头肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌、腹直肌（含深层腹横肌）、肱三头肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -127088,13 +126017,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "t-tuck-planche",
-   "muscleGroupsZh": [
-    "三角肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "三角肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -127580,13 +126504,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "t-vsit",
-   "muscleGroupsZh": [
-    "髋屈肌",
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "髋屈肌、腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -128069,11 +126988,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "triceps-A",
-   "muscleGroupsZh": [
-    "肱三头肌",
-    "胸大肌"
-   ],
-   "equipmentZh": [],
+   "muscleGroupsZh": "肱三头肌、胸大肌",
+   "equipmentZh": "",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -128609,13 +127525,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "triceps-B",
-   "muscleGroupsZh": [
-    "肱三头肌",
-    "胸大肌"
-   ],
-   "equipmentZh": [
-    "平行杆（俯撑架）"
-   ],
+   "muscleGroupsZh": "肱三头肌、胸大肌",
+   "equipmentZh": "平行杆（俯撑架）",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -129117,13 +128028,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "triceps-C",
-   "muscleGroupsZh": [
-    "肱三头肌",
-    "胸大肌"
-   ],
-   "equipmentZh": [
-    "双杠"
-   ],
+   "muscleGroupsZh": "肱三头肌、胸大肌",
+   "equipmentZh": "双杠",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -129655,13 +128561,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "w-bird-dog",
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）、臀大肌",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -130066,12 +128967,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "w-chair-hip-thrust",
-   "muscleGroupsZh": [
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子"
-   ],
+   "muscleGroupsZh": "臀大肌",
+   "equipmentZh": "椅子/凳子",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -130609,13 +129506,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "w-clamshell",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌、臀中肌 · 髋外展",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -131148,12 +130040,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "w-dead-bug",
-   "muscleGroupsZh": [
-    "腹直肌（含深层腹横肌）"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "腹直肌（含深层腹横肌）",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -131711,14 +130599,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "w-feet-on-chair-bridge",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "腘绳肌"
-   ],
-   "equipmentZh": [
-    "椅子/凳子",
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌、腘绳肌",
+   "equipmentZh": "椅子/凳子、瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -132254,13 +131136,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "w-fire-hydrant",
-   "muscleGroupsZh": [
-    "臀大肌",
-    "臀中肌 · 髋外展"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "臀大肌、臀中肌 · 髋外展",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -132661,13 +131538,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "w-prone-swimmer",
-   "muscleGroupsZh": [
-    "斜方肌中下部 · 菱形肌",
-    "肩袖肌群"
-   ],
-   "equipmentZh": [
-    "瑜伽垫"
-   ],
+   "muscleGroupsZh": "斜方肌中下部 · 菱形肌、肩袖肌群",
+   "equipmentZh": "瑜伽垫",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",
@@ -133199,13 +132071,8 @@
    "reviewed": false,
    "releaseEligible": false,
    "family": "w-wall-sit",
-   "muscleGroupsZh": [
-    "股四头肌",
-    "臀大肌"
-   ],
-   "equipmentZh": [
-    "墙"
-   ],
+   "muscleGroupsZh": "股四头肌、臀大肌",
+   "equipmentZh": "墙",
    "trainingDefinitionComplete": true,
    "trainingSemantics": {
     "status": "complete-unreviewed",

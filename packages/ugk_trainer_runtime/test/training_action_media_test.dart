@@ -264,7 +264,7 @@ void main() {
   setUpAll(() {
     catalog = coach.PoseHubAppTestCatalog.fromBytes(
       File(
-        '../ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json',
+        '../ugk_trainer/assets/pose_hub/app-pack-r2-v1/catalog.json',
       ).readAsBytesSync(),
     );
   });

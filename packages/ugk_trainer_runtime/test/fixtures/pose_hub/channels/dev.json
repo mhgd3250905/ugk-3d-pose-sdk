@@ -2,8 +2,8 @@
  "schema": 1,
  "pack": "r2-v1",
  "catalog": "https://media.uuugk.win/pack/r2-v1/catalog.json",
- "catalog_sha256": "e0953fc81779063ac7acda48253836b354d3f508eef58015f8fec57a477a40d3",
- "catalog_bytes": 3966405,
+ "catalog_sha256": "02721e4c24a0445f2a05ef185b2569dc105566d630c5b8f901da059c0945117b",
+ "catalog_bytes": 3960271,
  "min_sdk": "0.8.0",
  "published_at": "2026-11-04T21:00:00+08:00"
 }

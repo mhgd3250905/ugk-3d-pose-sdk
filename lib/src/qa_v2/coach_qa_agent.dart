@@ -986,7 +986,10 @@ final class CoachQaAgent {
       summary: p.summary,
       goal: p.goal,
       scene: p.scene,
-      equipment: p.equipment,
+      equipment: builder.equipmentFor([
+        for (final block in blocks)
+          for (final item in block.items) item.exerciseId,
+      ]),
       level: p.level,
       targetMinutes: p.targetMinutes,
       blocks: blocks,

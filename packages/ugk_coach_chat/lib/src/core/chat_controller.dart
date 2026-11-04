@@ -146,7 +146,15 @@ class CoachChatController extends ChangeNotifier {
       if (bindings.storageNamespace.trim().isEmpty) {
         throw ArgumentError('storageNamespace must not be empty');
       }
-      final planning = profile.planningCatalog(_sourceCatalog);
+      var planning = profile.planningCatalog(_sourceCatalog);
+      if (_usesQaV2) {
+        // Candidate scope, plan declarations and admission share the App's
+        // tag equipment facts. Other catalogue fields and legacy stay intact.
+        planning = qa.QaActionIndex(
+          planning,
+          aiTags: profile.aiTags,
+        ).equipmentCatalog();
+      }
       _preferences = await bindings.preferences.load();
       _saved = await bindings.plans.load();
       _trainingContext = await bindings.history.readTrainingContext();
@@ -390,6 +398,7 @@ class CoachChatController extends ChangeNotifier {
       }
       final reply = _normalizeQaReply(
         await working.send(input, language: context.language),
+        builder: working.builder,
       );
       if (replyDelay > Duration.zero) await Future<void>.delayed(replyDelay);
       if (_closed || generation != _generation) return null;
@@ -507,7 +516,10 @@ class CoachChatController extends ChangeNotifier {
   /// QA's prototype plan has no summary and uses its own source marker.
   /// Adapt it to the existing AI plan storage/admission contract, retaining
   /// model-written text and the exact order/doses used for ordinal follow-ups.
-  qa.CoachQaReply _normalizeQaReply(qa.CoachQaReply reply) {
+  qa.CoachQaReply _normalizeQaReply(
+    qa.CoachQaReply reply, {
+    required qa.QaPlanBuilder builder,
+  }) {
     final raw = reply.plan;
     if (raw == null) return reply;
     final decoded = const coach.PlanCodec().decodeStrict({
@@ -520,6 +532,11 @@ class CoachChatController extends ChangeNotifier {
           : raw.title,
     });
     if (!decoded.ok) throw StateError('Invalid QA plan');
+    final fitted = builder.fitForExecution(
+      decoded.plan!,
+      profile: profile.coachProfile,
+      executionTiming: profile.executionTiming,
+    );
     return qa.CoachQaReply(
       kind: reply.kind,
       text: reply.text,
@@ -527,8 +544,8 @@ class CoachChatController extends ChangeNotifier {
       chips: reply.chips,
       assumption: reply.assumption,
       conditions: reply.conditions,
-      plan: decoded.plan,
-      planSeconds: reply.planSeconds,
+      plan: fitted.plan,
+      planSeconds: fitted.seconds,
       question: reply.question,
       askStep: reply.askStep,
       llmCalls: reply.llmCalls,

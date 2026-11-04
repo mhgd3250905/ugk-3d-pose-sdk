@@ -1,8 +1,14 @@
 /// build_plan：模型只给主训练动作和时长，热身/主训/收操、组数、时长由代码确定性排出。
 library;
 
+import '../agent/action_tags.dart';
+import '../agent/plan_builder.dart';
+import '../agent/session_state.dart';
 import '../catalog/catalog.dart';
+import '../plan/plan_codec.dart';
+import '../plan/plan_execution_timing.dart';
 import '../plan/training_plan.dart';
+import '../profile/coach_profile.dart';
 import 'qa_action.dart';
 import 'qa_finder.dart';
 
@@ -12,15 +18,24 @@ final class QaPlanResult {
   final int seconds;
   final List<String> notes;
 
-  List<String> get orderedIds => [for (final b in plan.blocks) for (final i in b.items) i.exerciseId];
+  List<String> get orderedIds => [
+    for (final b in plan.blocks)
+      for (final i in b.items) i.exerciseId,
+  ];
   List<String> get mainIds => [
     for (final b in plan.blocks)
-      if (b.type == BlockType.main || b.type == BlockType.circuit) for (final i in b.items) i.exerciseId,
+      if (b.type == BlockType.main || b.type == BlockType.circuit)
+        for (final i in b.items) i.exerciseId,
   ];
 }
 
 final class QaPlanBuilder {
-  QaPlanBuilder(this.finder, {this.warmupFromMinutes = 9, this.cooldownFromMinutes = 9, this.maxItems = 10});
+  QaPlanBuilder(
+    this.finder, {
+    this.warmupFromMinutes = 9,
+    this.cooldownFromMinutes = 9,
+    this.maxItems = 10,
+  });
 
   final QaFinder finder;
   final int warmupFromMinutes;
@@ -29,6 +44,76 @@ final class QaPlanBuilder {
   final _duration = const PlanDuration();
 
   Catalog get _catalog => finder.index.catalog;
+
+  /// Reuse the existing integer-dose fitter with the host's actual timeline.
+  /// This only adjusts doses; selected IDs, block order and card numbers stay
+  /// intact. Scope and final playback admission remain the caller's gates.
+  QaPlanResult fitForExecution(
+    TrainingPlan plan, {
+    required CoachProfile profile,
+    required PlanExecutionTimingCallback executionTiming,
+  }) {
+    final target = plan.targetMinutes * 60.0;
+    final tolerance = profile.limits.durationTolerance.clamp(0.0, .1);
+    final card = _duration.estimateSeconds(plan, _catalog);
+    final execution = evaluatePlanExecutionTiming(plan, executionTiming);
+    if ((card - target).abs() <= target * tolerance + 1e-9 &&
+        (execution.totalSeconds - target).abs() <= target * tolerance + 1e-9) {
+      return QaPlanResult(plan, card.round(), const []);
+    }
+    final catalog = finder.index.equipmentCatalog();
+    final tags = ActionTags(profile, catalog);
+    CoachParamValue param(Object value) =>
+        CoachParamValue(value: value, source: 'app', turn: 0);
+    final state = CoachSessionState(
+      params: {
+        'scene': param(plan.scene),
+        'minutes': param(plan.targetMinutes),
+        'equipment': param([
+          for (final id in plan.equipment) ?tags.equipmentCode(id),
+        ]),
+        'limits': param([
+          for (final id in plan.avoid) tags.canonicalLimitCode(id) ?? id,
+        ]),
+      },
+      seenActionIds: plan.exerciseIds,
+      picks: plan.exerciseIds.toList(),
+      activePlanId: plan.id,
+      plans: {
+        plan.id: [
+          CoachPlanVersion(
+            version: 1,
+            plan: plan.toJson(),
+            estimateSec: card,
+            fitLog: const [],
+          ),
+        ],
+      },
+    );
+    final fitted = PlanBuilder(
+      profile,
+      catalog,
+      minPicks: profile.minActions,
+      executionTiming: executionTiming,
+    ).refit(state, plan);
+    if (!fitted.ok || fitted.feasibility != null) {
+      throw StateError('QA plan duration fit failed: ${fitted.error}');
+    }
+    final result = const PlanCodec()
+        .decodeStrict(fitted.state.plans[plan.id]!.last.plan)
+        .plan!;
+    return QaPlanResult(
+      result,
+      _duration.estimateSeconds(result, catalog).round(),
+      const [],
+    );
+  }
+
+  /// The selected actions determine the declaration, including warm-up and
+  /// cooldown. Owning an unused item does not make it part of this plan.
+  List<String> equipmentFor(Iterable<String> actionIds) => (<String>{
+    for (final id in actionIds) ...?finder.index[id]?.requiredEquipment,
+  }.toList()..sort());
 
   QaPlanResult build({
     required List<String> mainIds,
@@ -68,8 +153,14 @@ final class QaPlanBuilder {
     }
 
     // 改时长时沿用原来的热身/收操（含用户换过的），不重新挑。
-    final warm = <QaAction>[for (final id in warmIds ?? const <String>[]) if (finder.index[id] != null && !used.contains(id)) finder.index[id]!];
-    final cool = <QaAction>[for (final id in coolIds ?? const <String>[]) if (finder.index[id] != null && !used.contains(id)) finder.index[id]!];
+    final warm = <QaAction>[
+      for (final id in warmIds ?? const <String>[])
+        if (finder.index[id] != null && !used.contains(id)) finder.index[id]!,
+    ];
+    final cool = <QaAction>[
+      for (final id in coolIds ?? const <String>[])
+        if (finder.index[id] != null && !used.contains(id)) finder.index[id]!,
+    ];
     used.addAll([...warm.map((a) => a.id), ...cool.map((a) => a.id)]);
     if (warmIds == null && !pureStretch && minutes >= warmupFromMinutes) {
       final region = {for (final a in main) ...a.primaryMuscles};
@@ -117,7 +208,9 @@ final class QaPlanBuilder {
       used.addAll(cool.map((a) => a.id));
     }
 
-    final mainSets = <String, int>{for (final a in main) a.id: _defaultSets(a, pureStretch)};
+    final mainSets = <String, int>{
+      for (final a in main) a.id: _defaultSets(a, pureStretch),
+    };
     TrainingPlan make() => _plan(
       title: title,
       minutes: minutes,
@@ -135,9 +228,11 @@ final class QaPlanBuilder {
     // 先调组数，再增删动作，直到落在 ±12% 内。
     for (var guard = 0; guard < 40; guard++) {
       if (secs < target * 0.88) {
-        final grow = main.where((a) => mainSets[a.id]! < (pureStretch ? 2 : 4)).toList()
-          ..sort((x, y) => mainSets[x.id]!.compareTo(mainSets[y.id]!));
-        if (grow.isNotEmpty && (main.length >= 4 || pureStretch || mainSets[grow.first.id]! < 3)) {
+        final grow =
+            main.where((a) => mainSets[a.id]! < (pureStretch ? 2 : 4)).toList()
+              ..sort((x, y) => mainSets[x.id]!.compareTo(mainSets[y.id]!));
+        if (grow.isNotEmpty &&
+            (main.length >= 4 || pureStretch || mainSets[grow.first.id]! < 3)) {
           mainSets[grow.first.id] = mainSets[grow.first.id]! + 1;
         } else if (main.length + warm.length + cool.length < maxItems) {
           final extra = finder.find(base.withExclude(used)).firstOrNull;
@@ -234,7 +329,12 @@ final class QaPlanBuilder {
     // 段名由模型按用户语言给；没给时用目录约定的英文 id，App 可按 BlockType 自己本地化。
     final blocks = <PlanBlock>[
       if (warm.isNotEmpty)
-        PlanBlock(id: 'warmup', name: blockNames['warmup'] ?? 'Warm-up', type: BlockType.warmup, items: [for (final a in warm) _item(a, 1, light: true)]),
+        PlanBlock(
+          id: 'warmup',
+          name: blockNames['warmup'] ?? 'Warm-up',
+          type: BlockType.warmup,
+          items: [for (final a in warm) _item(a, 1, light: true)],
+        ),
       PlanBlock(
         id: 'main',
         name: blockNames['main'] ?? (pureStretch ? 'Stretch' : 'Main'),
@@ -242,16 +342,28 @@ final class QaPlanBuilder {
         items: [for (final a in main) _item(a, mainSets[a.id] ?? 1)],
       ),
       if (cool.isNotEmpty)
-        PlanBlock(id: 'cooldown', name: blockNames['cooldown'] ?? 'Cool-down', type: BlockType.cooldown, items: [for (final a in cool) _item(a, 1, light: true)]),
+        PlanBlock(
+          id: 'cooldown',
+          name: blockNames['cooldown'] ?? 'Cool-down',
+          type: BlockType.cooldown,
+          items: [for (final a in cool) _item(a, 1, light: true)],
+        ),
     ];
     final cleanTitle = (title ?? '').trim();
     return TrainingPlan(
       id: 'qa-v2-${DateTime.now().microsecondsSinceEpoch}',
       source: 'ai-qa-v2',
-      title: cleanTitle.isEmpty ? (pureStretch ? 'Stretch' : 'Workout') : cleanTitle,
+      title: cleanTitle.isEmpty
+          ? (pureStretch ? 'Stretch' : 'Workout')
+          : cleanTitle,
       goal: pureStretch ? 'relax' : 'strength',
-      scene: base.scene == 'hotel' || base.scene == 'outdoor' ? 'home' : base.scene,
-      equipment: base.equipment.toList(),
+      scene: base.scene == 'hotel' || base.scene == 'outdoor'
+          ? 'home'
+          : base.scene,
+      equipment: equipmentFor([
+        for (final block in blocks)
+          for (final item in block.items) item.exerciseId,
+      ]),
       level: 1,
       targetMinutes: minutes,
       blocks: blocks,

@@ -112,6 +112,7 @@ class _Platform extends PackedAlphaPlatform implements PackedAlphaUriPlatform {
   bool delayCreate = false;
   bool delayDispose = false;
   bool delayReturn = false;
+  bool failCreate = false;
 
   @override
   bool get isSupported => true;
@@ -123,6 +124,9 @@ class _Platform extends PackedAlphaPlatform implements PackedAlphaUriPlatform {
 
   @override
   Future<({int playerId, int textureId})> createUri(Uri source) {
+    if (failCreate) {
+      return Future.error(PlatformException(code: 'packed_alpha'));
+    }
     sources.add(source);
     final id = sources.length;
     order.add('create:$id');
@@ -892,6 +896,31 @@ void main() {
     expect(platform.sources, hasLength(1));
     expect(tester.widget<RawImage>(find.byType(RawImage)).image, isNotNull);
   });
+
+  for (final failCreate in [true, false]) {
+    testWidgets(
+      'iOS ${failCreate ? 'create' : 'ready'} failure shows explicit retry status',
+      (tester) async {
+        repository.ready = true;
+        platform.failCreate = failCreate;
+        await _mount(
+          tester,
+          bundle,
+          child: TrainingActionMedia(actionId: _actionId, policy: policy),
+        );
+        await tester.pump();
+        await tester.pump();
+        if (!failCreate) platform.emit(1, 'error');
+        await tester.pump();
+        await tester.pump();
+        expect(find.text('视频暂不可用，训练继续 · 重试'), findsOneWidget);
+        expect(find.byType(TrainerPoster), findsOneWidget);
+        expect(find.byType(UgkPackedAlphaVideo), findsNothing);
+        expect(order, contains('release:$_actionId'));
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    );
+  }
 
   testWidgets(
     'launcher prefetches only video while pending training advances',

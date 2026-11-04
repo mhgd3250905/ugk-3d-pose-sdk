@@ -1,6 +1,6 @@
 # Packed alpha implementation notes
 
-This is original SDK glue around Android and Flutter APIs. No third-party
+This is original SDK glue around Android, AVFoundation and Flutter APIs. No third-party
 player or sampler implementation was copied. The design references are:
 
 - Flutter 3.44.7 `ImageFilter.shader` (BSD-3-Clause):
@@ -15,9 +15,29 @@ player or sampler implementation was copied. The design references are:
   https://developer.android.com/reference/android/media/MediaPlayer#MEDIA_INFO_VIDEO_RENDERING_START
 
 `video_player` exposes initialization/play state, not a true first-frame event.
-This Android-only adapter therefore uses MediaPlayer's rendering-start event
+The Android adapter therefore uses MediaPlayer's rendering-start event
 and Flutter SurfaceProducer without adding a decoder dependency. Unsupported
 platforms/backends report failure to the existing ordinary-MP4 fallback.
+
+The iOS 15+ adapter uses AVPlayerItemVideoOutput and FlutterTexture, sharing
+one Swift implementation between Swift Package Manager and CocoaPods:
+
+- FlutterTexture's supported pixel formats and raster-thread callback:
+  https://api.flutter.dev/ios-embedder/protocol_flutter_texture-p.html
+- Flutter plugin packaging (the directory and manifest layout was also checked
+  against `flutter create --template=plugin --platforms=ios` in Flutter 3.44.7):
+  https://docs.flutter.dev/packages-and-plugins/swift-package-manager/for-plugin-authors
+- AVPlayerItemVideoOutput's pull-based CoreVideo buffers:
+  https://developer.apple.com/documentation/avfoundation/avplayeritemvideooutput
+
+CADisplayLink pulls new BGRA buffers only while playback is requested, active
+and visible. CoreVideo performs the video-range-to-BGRA conversion; the alpha
+plane is then sampled directly, without a second 16–235 range expansion.
+The latest buffer and one-time first-frame flag are locked across platform and
+raster threads. `first-frame` is sent after Flutter actually requests a buffer,
+not when item metadata becomes ready. Loop seeks retain the last buffer.
+The iOS shader uses the existing Metal path without the OpenGLES y flip.
+Device checks remain required for range endpoints, orientation and edge color.
 
 The texture input remains width x 2*width. The shader samples RGB from the
 upper half and alpha from the lower half and emits premultiplied RGBA at the

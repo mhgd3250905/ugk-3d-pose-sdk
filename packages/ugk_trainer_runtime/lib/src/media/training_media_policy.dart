@@ -16,9 +16,9 @@ class TrainingMediaPolicy {
     this.prefetchBeforeTraining = true,
   });
 
-  /// The R1 v3 media root; packs with their own `pack` use
+  /// The bundled r2-v1 media root; other packs use
   /// [poseHubMediaBaseUriForPack].
-  static const publicBaseUrl = 'https://media.uuugk.win/pack/r1-v3/';
+  static const publicBaseUrl = 'https://media.uuugk.win/pack/r2-v1/';
   final CatalogMediaRepository repository;
   final String posterAssetRoot;
   final bool prefetchBeforeTraining;

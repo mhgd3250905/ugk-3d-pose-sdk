@@ -15,7 +15,7 @@ void main() {
     'confirmed shoulder red flags can decline low-stress push candidates',
     () async {
       final metaFile = File(
-        'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json',
+        'test/fixtures/pose_hub/r1-v3/catalog.json',
       );
       final descriptor = PoseHubAppTestCatalog.fromBytes(
         metaFile.readAsBytesSync(),

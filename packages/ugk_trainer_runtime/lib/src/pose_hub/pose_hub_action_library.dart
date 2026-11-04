@@ -5,24 +5,27 @@ import 'pose_hub_catalog_channel.dart';
 import 'pose_hub_catalog_io_types.dart';
 import 'pose_hub_catalog_updater.dart' show readVerifiedPoseHubCatalog;
 
-/// Compressed R1 v3 metadata ships with the SDK. Hosts download and verify
+/// The r2-v1 baseline catalogue (249 actions, first action-library version)
+/// ships with the SDK. Hosts download and verify
 /// individual media objects separately; no video or image is embedded in Git.
 abstract final class PoseHubActionLibrary {
   static const assetRoot =
-      'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/';
+      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v1/';
 
   /// Audit digest of this SDK's bundled catalogue, not an acceptance gate for
   /// other internally consistent catalogue versions.
   static const catalogSha256 =
-      '75881cf91621c967f80732f0219f23e85b35e8bde5d1a51ee75dec5f7c5edd36';
+      '3650153aed158a404271d64cc185244fe642f1a7be077d45b3a0d88cfb58e959';
 
-  /// Public v3 metadata. Media download URLs are declared on each file record.
+  /// Bundled pack version (`pack` in the bundled catalogue).
+  static const packVersion = 'r2-v1';
+
+  /// Public r2-v1 metadata. Media download URLs are declared on each file.
   static const catalogDownloadUri =
-      'https://github.com/mhgd3250905/ugk-3d-pose-sdk/releases/download/'
-      'posehub-app-test-pack-r1-v3/catalog.json';
-  static const mediaReleaseBaseUri = 'https://media.uuugk.win/pack/r1-v3/';
+      'https://media.uuugk.win/pack/r2-v1/catalog.json';
+  static const mediaReleaseBaseUri = 'https://media.uuugk.win/pack/r2-v1/';
 
-  /// Media root of [catalog]'s pack (`r1-v3` when it declares none).
+  /// Media root of [catalog]'s pack.
   static Uri mediaBaseUriFor(PoseHubAppTestCatalog catalog) =>
       poseHubMediaBaseUriForPack(poseHubPackVersionOf(catalog));
 

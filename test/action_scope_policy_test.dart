@@ -233,7 +233,7 @@ void main() {
   test(
     'public Hip candidate butterfly name resolves without granting a seen action',
     () {
-      const pack = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+      const pack = 'test/fixtures/pose_hub/r1-v3';
       final bytes = File('$pack/catalog.json').readAsBytesSync();
       final catalog = PoseHubAppTestCatalog.fromBytes(
         bytes,

@@ -19,7 +19,7 @@ Set<String> mainIds(TrainingPlan plan) => {
 };
 
 void main() {
-  const base = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+  const base = 'test/fixtures/pose_hub/r1-v3';
   final catalog = PoseHubAppTestCatalog.fromBytes(
     File('$base/catalog.json').readAsBytesSync(),
     semanticCatalogBytes: File('$base/catalog/catalog.json').readAsBytesSync(),

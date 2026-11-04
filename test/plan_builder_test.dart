@@ -13,7 +13,7 @@ import 'package:ugk_coach/src/profile/coach_profile.dart';
 import 'support.dart';
 
 void main() {
-  const pack = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+  const pack = 'test/fixtures/pose_hub/r1-v3';
   final manifest =
       jsonDecode(File('$pack/catalog.json').readAsStringSync())
           as Map<String, Object?>;

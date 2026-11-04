@@ -132,7 +132,7 @@ void main() {
   );
 
   test('real Agent check_plan invokes the host rejection rule', () async {
-    const root = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+    const root = 'test/fixtures/pose_hub/r1-v3';
     final published = PoseHubAppTestCatalog.fromBytes(
       File('$root/catalog.json').readAsBytesSync(),
       semanticCatalogBytes: File(

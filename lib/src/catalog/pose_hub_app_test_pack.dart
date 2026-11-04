@@ -217,6 +217,9 @@ final class PoseHubAppTestCatalog {
       throw const FormatException('Unsupported app-test catalog format');
     }
     id = _id(raw['id'], 'catalog.id');
+    if (raw.containsKey('schema') && raw['schema'] != supportedSchema) {
+      throw FormatException('Unsupported catalog schema: ${raw['schema']}');
+    }
     _reviewFlags(raw, 'catalog');
     final summary = _map(raw['trainingSemantics'], 'catalog.trainingSemantics');
     if (summary.containsKey('semanticRevision')) {
@@ -332,6 +335,9 @@ final class PoseHubAppTestCatalog {
   }
 
   static const format = 'pose-hub-app-test-catalog@1';
+
+  /// Catalogue `schema` this SDK reads; a catalogue without one is legacy.
+  static const supportedSchema = 1;
   final Map<String, Object?> raw;
   final Catalog? _semanticCatalog;
   late final String id;

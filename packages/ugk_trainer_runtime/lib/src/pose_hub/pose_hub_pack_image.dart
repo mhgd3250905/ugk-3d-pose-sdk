@@ -19,7 +19,7 @@ class PoseHubStandingImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Image.asset(
-    'assets/pose_hub/app-test-pack-r1/standing/${action.id}.webp',
+    'assets/pose_hub/app-pack-r2-v1/standing/${action.id}.webp',
     package: 'ugk_trainer',
     fit: BoxFit.contain,
     gaplessPlayback: true,

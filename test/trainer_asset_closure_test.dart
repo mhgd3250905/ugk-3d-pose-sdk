@@ -9,7 +9,7 @@ import '../tool/trainer_asset_closure.dart';
 
 const _primary = 's-butterfly';
 const _other = 'h-adductor-rock';
-const _pack = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+const _pack = 'test/fixtures/pose_hub/r1-v3';
 const _kitFixtures =
     'packages/ugk_trainer/test/fixtures/hiplab/executed-duration';
 

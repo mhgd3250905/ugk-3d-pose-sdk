@@ -9,7 +9,7 @@ import 'package:ugk_coach/ugk_coach_qa_v2.dart';
 /// the coach never suggests `not_recommended` / `retired`, while the
 /// definitions stay in the catalogue for saved plans and history.
 void main() {
-  final root = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+  final root = 'test/fixtures/pose_hub/r1-v3';
   final catalogJson =
       jsonDecode(File('$root/catalog.json').readAsStringSync())
           as Map<String, Object?>;

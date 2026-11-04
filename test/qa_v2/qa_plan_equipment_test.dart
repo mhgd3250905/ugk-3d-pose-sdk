@@ -7,7 +7,7 @@ import 'package:ugk_coach/ugk_coach_qa_v2.dart';
 
 Catalog _publicCatalog() {
   final meta = File(
-    'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json',
+    'test/fixtures/pose_hub/r1-v3/catalog.json',
   );
   final descriptor = PoseHubAppTestCatalog.fromBytes(meta.readAsBytesSync());
   final semantics = File(

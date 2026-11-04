@@ -156,7 +156,7 @@ void main() {
   test(
     'every published profile action has a compact nonempty Chinese and English search row',
     () {
-      const root = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+      const root = 'test/fixtures/pose_hub/r1-v3';
       final manifest =
           jsonDecode(File('$root/catalog.json').readAsStringSync())
               as Map<String, Object?>;

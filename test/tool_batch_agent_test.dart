@@ -458,7 +458,7 @@ void main() {
   test(
     'reserved ID supports a real six-tool planning batch through delivery',
     () async {
-      const base = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+      const base = 'test/fixtures/pose_hub/r1-v3';
       final realCatalog = PoseHubAppTestCatalog.fromBytes(
         File('$base/catalog.json').readAsBytesSync(),
         semanticCatalogBytes: File(

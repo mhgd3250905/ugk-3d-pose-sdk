@@ -13,7 +13,7 @@ import 'package:ugk_coach/ugk_coach.dart';
 import 'support.dart';
 
 void main() {
-  const root = 'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1';
+  const root = 'test/fixtures/pose_hub/r1-v3';
   final catalog = PoseHubAppTestCatalog.fromBytes(
     File('$root/catalog.json').readAsBytesSync(),
     semanticCatalogBytes: File('$root/catalog/catalog.json').readAsBytesSync(),

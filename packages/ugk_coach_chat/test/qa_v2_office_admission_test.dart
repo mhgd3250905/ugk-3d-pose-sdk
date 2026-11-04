@@ -120,21 +120,28 @@ void main() {
     expect(finder.passes(fold, office), isFalse);
     expect(finder.inScope(office).map((a) => a.id), isNot(contains(_fold)));
 
-    // The SF device group named the fold directly: the builder's scope check
-    // is the same verdict, so the delivered card and its refit agree.
+    // The SF device group named the fold directly. v3: the builder no longer
+    // drops anything on its own; the agent's build_plan acceptance rejects
+    // the fold with this same verdict, so only admitted moves reach the
+    // builder and its refit agrees.
     final builder = qa.QaPlanBuilder(finder);
-    final built = builder.build(
-      mainIds: const [
+    final admitted = [
+      for (final id in const [
         'o-stand-crossreach',
         'n-wide-fold',
         'o-stand-ham',
         'o-supported-hip-ir',
         _fold,
-      ],
+      ])
+        if (finder.passes(finder.index[id]!, office)) id,
+    ];
+    expect(admitted, isNot(contains(_fold)));
+    final built = builder.build(
+      mainIds: admitted,
       minutes: 15,
       base: office.copyWith(types: const {'static-stretch', 'mobility'}),
     );
-    expect(built.orderedIds, isNot(contains(_fold)));
+    expect(built.orderedIds, admitted);
     final decoded = const coach.PlanCodec().decodeStrict({
       ...built.plan.toJson(),
       'source': 'ai',
@@ -165,17 +172,42 @@ void main() {
               ),
             ],
           );
+      String lastTool(coach.LlmRequest r) =>
+          r.messages.lastWhere((m) => m.role == coach.LlmRole.tool).content;
+      List<String> rows(String text) => [
+        for (final l in const LineSplitter().convert(text))
+          if (RegExp(r'^[\w-]+ \| ').hasMatch(l)) l.split(' | ').first,
+      ];
+      late List<String> found;
+      var extra = 0;
+      // 模型先按原组交 build_plan；时长偏差被退回后按建议从搜索结果里加动作再交。
+      coach.FakeStep submit(bool fold) => (r) {
+        final result = lastTool(r);
+        if (result.startsWith('[搜索结果]')) found = rows(result);
+        if (result.contains('建议再加')) extra += 2;
+        final more = [
+          for (final id in found)
+            if (!mainIds.contains(id)) id,
+        ].take(extra);
+        return call('build_plan', {
+          'mode': 'new',
+          'title': '办公室拉伸',
+          'text': '按15分钟安排。',
+          'minutes': 15,
+          'main_ids': [...mainIds, ...more, if (fold) _fold],
+          'block_names': {'warmup': '热身', 'main': '拉伸', 'cooldown': '放松'},
+          'chips': ['再来'],
+        });
+      };
       final client = coach.FakeLlmClient([
-        call('fill_form', {
-          'language': 'zh',
-          'intent': 'plan',
-          'answer_status': 'none',
+        call('set_conditions', {
           'place': 'office',
           'place_word': '公司',
-          'equipment_known': true,
-          'equipment': <String>[],
           'no_floor': true,
           'small_space': true,
+          'minutes': 15,
+        }),
+        call('search_actions', {
           'stretch_muscles': [
             'hip-flexors',
             'hip-rotators',
@@ -188,26 +220,11 @@ void main() {
             'adductors',
           ],
           'types': ['static-stretch', 'mobility'],
-          'minutes': 15,
-          'next': 'answer',
+          'limit': 12,
         }),
-        call('build_plan', {
-          'title': '办公室拉伸',
-          'text': '按15分钟安排。',
-          'minutes': 15,
-          'main_ids': mainIds,
-          'block_names': {'warmup': '热身', 'main': '拉伸', 'cooldown': '放松'},
-          'chips': ['再来'],
-        }),
-        // 代码先退回「时长对不上」的原因；模型坚持原样重交，代码才按原因补动作。
-        call('build_plan', {
-          'title': '办公室拉伸',
-          'text': '按15分钟安排。',
-          'minutes': 15,
-          'main_ids': mainIds,
-          'block_names': {'warmup': '热身', 'main': '拉伸', 'cooldown': '放松'},
-          'chips': ['再来'],
-        }),
+        // 设备上的组里点名了 fold：验收按同一 core 准入退回。
+        submit(true),
+        for (var k = 0; k < 6; k++) submit(false),
       ], latency: Duration.zero);
       final plans = ChatPlans(),
           history = ChatHistory(),
@@ -246,6 +263,10 @@ void main() {
       });
       final result = await chat.send('帮我做成一个训练组');
       expect(result?.status, coach.TurnStatus.ok, reason: '${result?.error}');
+      expect(
+        client.requests[3].messages.last.content,
+        allOf(startsWith('不合规：'), contains(_fold)),
+      );
       final plan = result!.plan!.plan;
       expect(plan.scene, 'office');
       expect(plan.exerciseIds, isNot(contains(_fold)));

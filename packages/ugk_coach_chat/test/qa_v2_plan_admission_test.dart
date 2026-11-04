@@ -85,6 +85,9 @@ void main() {
           strict: true,
           types: {'strength'},
         ),
+        // v3：热身、收操由模型指定（下面的 build_plan 给同一组）。
+        warmIds: _warmIds,
+        coolIds: _coolIds,
       );
       final oldDeclaration = const coach.PlanCodec().decodeStrict({
         ...before.plan.toJson(),
@@ -149,22 +152,22 @@ void main() {
             ],
           );
       final client = coach.FakeLlmClient([
-        call('fill_form', {
-          'language': 'zh',
-          'intent': 'plan',
+        call('set_conditions', {
           'place': 'home',
           'equipment_known': true,
           'equipment': ['dumbbell'],
-          'answer_status': 'none',
-          'types': ['strength'],
           'minutes': 20,
-          'next': 'answer',
         }),
+        call('search_actions', {'limit': 12}),
         call('build_plan', {
+          'mode': 'new',
           'text': '这套训练按20分钟安排。',
           'title': '全身训练',
           'minutes': 20,
           'main_ids': _mainIds,
+          'warmup_ids': _warmIds,
+          'cooldown_ids': _coolIds,
+          'chips': <String>[],
         }),
       ], latency: Duration.zero);
       final plans = ChatPlans(),
@@ -240,7 +243,7 @@ void main() {
         plan.toJson(),
       );
       expect(restored.qaAgent.state.lastPlan!.plan.toJson(), plan.toJson());
-      expect(client.requests, hasLength(2));
+      expect(client.requests, hasLength(3));
     },
   );
 }

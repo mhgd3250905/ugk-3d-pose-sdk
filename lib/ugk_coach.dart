@@ -1,8 +1,8 @@
 /// ugk_coach：FlareLab / HipLab / SmartFit 共用的 AI 训练助理 SDK（纯 Dart，不依赖 Flutter）。
 ///
-/// 入口是 [CoachAgent]（0.3 Agent 版：skill 渐进式披露 + 工具循环）；[CoachSession]（0.2 工具版）保留作降级；
-/// 0.1 的 [CoachAssistant] 保留一版（deprecated）。
-///其余是它的零件，App 也可单独使用（如只用 [PlanValidator] 校验模板计划）。
+/// 入口是 [CoachAgent]（skill 渐进式披露 + 工具循环）与 [CoachConversationController]；
+/// 问答 Agent 见 `package:ugk_coach/ugk_coach_qa_v2.dart`。0.1 CoachAssistant、0.2 CoachSession 已删除。
+/// 其余是它的零件，App 也可单独使用（如只用 [PlanValidator] 校验模板计划）。
 library;
 
 export 'src/agent/agent_prompt.dart';
@@ -16,7 +16,6 @@ export 'src/agent/session_state.dart';
 export 'src/agent/skill_files.dart';
 export 'src/agent/task_summary.dart';
 export 'src/agent/user_memory.dart';
-export 'src/assistant/coach_assistant.dart';
 export 'src/assistant/conversation.dart';
 export 'src/assistant/fallback.dart';
 export 'src/catalog/asset_resolver.dart';

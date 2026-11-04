@@ -74,42 +74,4 @@ void main() {
       expect(coach.sessionState.plans, isEmpty);
     },
   );
-
-  test('legacy CoachSession retains its original CoachTools payload', () async {
-    final action = profile.scope(catalog).first;
-    final client = FakeLlmClient([
-      LlmResponse(
-        content: '看看这个动作。',
-        toolCalls: [
-          LlmToolCall(
-            id: 'legacy',
-            name: 'show_actions',
-            arguments: jsonEncode({
-              'items': [
-                {'actionId': action.id},
-              ],
-            }),
-          ),
-        ],
-        finishReason: 'tool_calls',
-        model: 'fake',
-      ),
-    ], latency: Duration.zero);
-    final session = CoachSession(
-      client: client,
-      catalog: () => catalog,
-      profile: profile,
-    );
-    final reply = await session.send('看看动作');
-    expect(reply.status, TurnStatus.ok);
-    expect(reply.actions, isNotNull);
-    expect(
-      client.requests.single.tools.map((t) => t.toJson()),
-      CoachTools.build(profile, catalog).map((t) => t.toJson()),
-    );
-    expect(client.requests.single.tools.map((t) => t.name), [
-      'show_actions',
-      'show_plan',
-    ]);
-  });
 }

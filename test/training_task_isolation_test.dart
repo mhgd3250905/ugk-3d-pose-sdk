@@ -796,39 +796,34 @@ void main() {
             ],
           },
         ];
-      final session = CoachSession(
-        client: FakeLlmClient([_tool(AgentTools.showPlan, data)]),
-        catalog: () => catalog,
-        profile: profile,
-      );
-      final result = await session.send(
-        '在家有瑜伽垫5分钟做训练计划',
+      final gate = ToolGate(catalog: catalog, profile: profile);
+      final result = gate.check(
+        '',
+        _tool(AgentTools.showPlan, data).toolCalls,
         context: const CoachContext(
           scene: 'home',
           equipment: {'mat'},
           minutes: 5,
         ),
+        planId: 'plan-1',
       );
-      expect(result.plan, isNotNull, reason: '${result.issues}');
+      expect(result.plan, isNotNull, reason: '${result.errors}');
       final segment = result.plan!.plan.items.single.segments.single;
       expect(segment.exerciseId, 'h-squat');
       expect(segment.reps, 12);
       expect(result.plan!.plan.items.single.exerciseId, 'n-windshield');
       final sixMinute = {...data, 'targetMinutes': 6};
-      final secondSession = CoachSession(
-        client: FakeLlmClient([_tool(AgentTools.showPlan, sixMinute)]),
-        catalog: () => catalog,
-        profile: profile,
-      );
-      final prior = await secondSession.send(
-        '在家有瑜伽垫6分钟做训练计划',
+      final prior = gate.check(
+        '',
+        _tool(AgentTools.showPlan, sixMinute).toolCalls,
         context: const CoachContext(
           scene: 'home',
           equipment: {'mat'},
           minutes: 6,
         ),
+        planId: 'plan-2',
       );
-      expect(prior.plan, isNotNull, reason: '${prior.issues}');
+      expect(prior.plan, isNotNull, reason: '${prior.errors}');
       final legacy = prior.plan!;
       final planId = legacy.plan.id;
       final estimate = const PlanDuration().estimateSeconds(

@@ -130,6 +130,14 @@ Future<void> main(List<String> args) async {
 }
 
 Map<String, Map<String, Object?>> _loadAiTags() {
+  // App 打包的单文件（如 SF assets/coach/ai-tags/actions.json：{id: tags}）。
+  final file = Platform.environment['AI_TAGS_FILE'];
+  if (file != null) {
+    return {
+      for (final e in (jsonDecode(File(file).readAsStringSync()) as Map<String, dynamic>).entries)
+        e.key: (e.value as Map).cast<String, Object?>(),
+    };
+  }
   final dir = Directory(Platform.environment['AI_TAGS_DIR'] ?? '../../pose-hub/catalog/ai-tags/actions');
   if (!dir.existsSync()) return const {};
   return {
@@ -222,7 +230,7 @@ Future<void> _runV2(
   }
 }
 
-/// 桩模型：按工具名回最简单的合规结果（只跑流程和自动检查，不评估模型质量）。
+/// 桩模型（v3 工具）：首次调用按预选候选交 show_actions；被退回就改用 reply（只跑流程和自动检查，不评估模型质量）。
 class StubClient implements LlmClient {
   @override
   String get model => 'stub';
@@ -230,21 +238,16 @@ class StubClient implements LlmClient {
   Pricing? get pricing => null;
   @override
   Future<LlmResponse> complete(LlmRequest r, {CancelToken? cancel}) async {
-    final last = r.messages.last.content;
-    final tool = r.tools.first.name;
+    final ctx = r.messages.lastWhere((m) => m.role == LlmRole.user).content;
     final ids = [
-      for (final l in const LineSplitter().convert(last))
-        if (RegExp(r'^(\s*候选：)?[\w-]+ \| ').hasMatch(l)) l.replaceFirst(RegExp(r'^\s*候选：'), '').split(' | ').first,
+      for (final l in const LineSplitter().convert(ctx))
+        if (RegExp(r'^[\w-]+ \| ').hasMatch(l)) l.split(' | ').first,
     ];
-    final args = switch (tool) {
-      'fill_form' => {'language': 'zh', 'intent': 'actions', 'answer_status': 'none', 'place': 'unknown', 'equipment_known': false, 'muscles': ['abs'], 'next': 'answer'},
-      'ask_user' => {'question': '你在哪练？', 'options': ['居家', '健身房', '办公室', '直接推荐']},
-      'build_plan' => {'title': 'T', 'text': 'x', 'minutes': 15, 'main_ids': ids.take(4).toList(), 'chips': []},
-      'swap' => {'text': 'x', 'changes': [], 'chips': []},
-      'rewrite' => {'text': 'x'},
-      _ => {'text': 'x', 'items': [for (final id in ids.take(4)) {'id': id, 'why': 'y'}], 'chips': []},
-    };
-    return LlmResponse(content: '', toolCalls: [LlmToolCall(id: 'c1', name: tool, arguments: jsonEncode(args))]);
+    final rejected = r.messages.last.role == LlmRole.tool;
+    final (tool, args) = rejected || ids.length < 3
+        ? ('reply', <String, Object?>{'text': 'x', 'items': <Object?>[], 'chips': <String>[]})
+        : ('show_actions', <String, Object?>{'text': 'x', 'items': [for (final id in ids.take(4)) {'id': id, 'why': 'y'}], 'chips': <String>[]});
+    return LlmResponse(content: '', toolCalls: [LlmToolCall(id: 'c${r.messages.length}', name: tool, arguments: jsonEncode(args))]);
   }
 }
 

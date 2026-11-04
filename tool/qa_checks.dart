@@ -10,6 +10,8 @@
 //   lang: ja             模型判断的语言
 //   gap: true            要如实说器械不够
 //   mustSay: "正则"
+//   noneOk: true         replace / easier 时范围里确实没有合格候选，可以如实说不换（核对：同一处 + 过准入的候选为空）
+//   segments: [seated, standing]  分段计划：主训练各段按顺序，每段动作的姿势（drill.position）都要对
 import 'package:ugk_coach/ugk_coach.dart';
 import 'package:ugk_coach/ugk_coach_qa_v2.dart';
 
@@ -135,6 +137,19 @@ List<String> checkTurn({
           fails.add('修改：替换动作「${nm(no[n])}」和原动作练的不是一处');
         }
       }
+      final unchanged = po.length == no.length && [for (var k = 0; k < po.length; k++) po[k] == no[k]].every((v) => v);
+      if (unchanged && expect['noneOk'] == true && n < po.length && idx[po[n]] != null) {
+        // 没换：只有范围里确实没有同一处的合格动作时才算对，且正文要如实说。
+        fails.removeWhere((f) => f.startsWith('修改：应只换卡片第'));
+        final a = idx[po[n]]!;
+        final others = po.toSet();
+        final can = [
+          for (final b in agent.finder.inScope(scopeOf(agent)))
+            if (!others.contains(b.id) && QaFinder.sameArea(a, b)) b.id,
+        ];
+        if (can.isNotEmpty) fails.add('修改：范围里有可换的（${can.take(3).map(nm).join('、')}）却没换');
+        if (!_honest.hasMatch(r.text)) fails.add('修改：没换也没如实说没有合适的');
+      }
       final ord = RegExp(r'第\s*(\d+)\s*个').firstMatch(r.text);
       if (r.kind == 'replace' && ord != null && int.parse(ord.group(1)!) != n + 1) fails.add('修改：回复里说的是第${ord.group(1)}个，用户要第${n + 1}个');
     }
@@ -146,6 +161,18 @@ List<String> checkTurn({
           fails.add('修改：「${nm(b.id)}」和原来的「${nm(a.id)}」部位不同');
         }
         if (mod == 'easier' && b.difficulty > a.difficulty) fails.add('修改：「${nm(b.id)}」反而更难');
+      }
+      final same = pm.length == main.length && [for (var k = 0; k < pm.length; k++) pm[k] == main[k]].every((v) => v);
+      if (same && expect['noneOk'] == true) {
+        final easier = mod == 'easier';
+        final can = <String>{
+          for (final id in pm)
+            if (idx[id] case final a?)
+              for (final b in agent.finder.inScope(scopeOf(agent)))
+                if (!pm.contains(b.id) && QaFinder.sameArea(a, b) && (easier ? b.difficulty < a.difficulty : b.difficulty > a.difficulty)) b.id,
+        };
+        if (can.isNotEmpty) fails.add('修改：范围里有${easier ? '更简单' : '更难'}的（${can.take(3).map(nm).join('、')}）却没换');
+        if (!_honest.hasMatch(r.text)) fails.add('修改：没换也没如实说没有合适的');
       }
     }
     final keepMinutes = mod == 'easier' || mod == 'harder' || mod.startsWith('replace:') || mod == 'another';
@@ -159,6 +186,20 @@ List<String> checkTurn({
       if (!main.toSet().containsAll(pm.take(2))) fails.add('修改：改时长时换了动作');
     }
     if (mod == 'another' && main.toSet().intersection(pm.toSet()).length > 1) fails.add('修改：再来一套和上一套重复太多');
+  }
+  final segs = (expect['segments'] as List?)?.cast<String>();
+  if (segs != null) {
+    final mains = [for (final b in r.plan?.blocks ?? const <PlanBlock>[]) if (b.type == BlockType.main) b];
+    if (mains.length != segs.length) {
+      fails.add('分段：要${segs.length}段（${segs.join('→')}），实际主训练${mains.length}段');
+    } else {
+      for (var k = 0; k < segs.length; k++) {
+        for (final i in mains[k].items) {
+          final pos = idx[i.exerciseId]?.drill.position;
+          if (pos != segs[k]) fails.add('分段：第${k + 1}段应为${segs[k]}，「${nm(i.exerciseId)}」是$pos');
+        }
+      }
+    }
   }
   final minutes = expect['minutes'] as int?;
   if (minutes != null) {
@@ -181,6 +222,23 @@ List<String> checkTurn({
   final must = expect['mustSay'] as String?;
   if (must != null && !RegExp(must, caseSensitive: false).hasMatch(r.text)) fails.add('内容：没提到「$must」');
   return fails;
+}
+
+final _honest = RegExp(r'没有|找不到|无法|没法|不换|暂时只有|no (other|easier|suitable)|ない|ありません|no hay|no tengo', caseSensitive: false);
+
+/// 当前已知条件下的范围（和 Agent 的准入同一套 [QaFinder.passes]）。
+QaQuery scopeOf(CoachQaAgent agent) {
+  final st = agent.state;
+  return QaQuery(
+    scene: st.place ?? agent.profile.defaultScene,
+    equipment: {...st.equipment},
+    strict: st.placeKnown && (st.place != 'home' || st.equipmentKnown),
+    avoidJoints: {...st.avoidJoints},
+    noFloor: st.noFloor,
+    smallSpace: st.smallSpace,
+    maxImpact: st.quiet ? 'none' : null,
+    maxDifficulty: st.easy ? 2 : null,
+  );
 }
 
 String _stepZh(String s) => const {'place': '在哪练', 'equipment': '器械', 'safety': '安全追问', 'none': '不问'}[s] ?? s;

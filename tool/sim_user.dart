@@ -189,7 +189,8 @@ Future<void> _runV2(
         final plan = r.plan;
         final exp = {...base, if (turn - 1 < perTurn.length && perTurn[turn - 1] != null) ...(perTurn[turn - 1] as Map).cast<String, dynamic>()};
         final fails = checkTurn(agent: agent, expect: exp, r: r, prev: prev, lang: lang);
-        prev = r;
+        // 没带卡片的回复（如实说不换、知识题）不改变用户眼前的卡片。
+        if (r.plan != null || r.cards.isNotEmpty) prev = r;
         rec = {
           'status': r.kind,
           'text': r.text,

@@ -121,7 +121,8 @@ List<String> checkTurn({
       // 第 N 个 = 卡片上显示的编号：计划按全部动作连续编号（含热身/收操），动作卡按展示顺序。
       final n = int.parse(mod.split(':')[1]) - 1;
       final po = prev.plan != null ? prev.planOrderedIds : pm;
-      final no = r.plan != null ? r.planOrderedIds : main;
+      // 没带卡片的回复 = 卡片原样不动。
+      final no = r.plan != null ? r.planOrderedIds : (main.isEmpty && r.cards.isEmpty ? po : main);
       if (po.length != no.length) fails.add('修改：动作数量变了 ${po.length}→${no.length}');
       final changed = [for (var k = 0; k < po.length && k < no.length; k++) if (po[k] != no[k]) k];
       if (changed.length != 1 || changed.first != n) fails.add('修改：应只换卡片第${n + 1}个，实际换了${changed.map((k) => k + 1).toList()}');

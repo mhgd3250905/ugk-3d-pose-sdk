@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import '../pose_hub/pose_hub_catalog_channel.dart';
 import 'catalog_media_repository.dart';
 
 /// Opt-in delivery of the shared action package. Only its frame-zero posters
@@ -15,6 +16,8 @@ class TrainingMediaPolicy {
     this.prefetchBeforeTraining = true,
   });
 
+  /// The R1 v3 media root; packs with their own `pack` use
+  /// [poseHubMediaBaseUriForPack].
   static const publicBaseUrl = 'https://media.uuugk.win/pack/r1-v3/';
   final CatalogMediaRepository repository;
   final String posterAssetRoot;
@@ -36,10 +39,13 @@ class TrainingMediaPolicy {
       data.offsetInBytes,
       data.lengthInBytes,
     );
+    final catalog = PoseHubAppTestCatalog.fromBytes(bytes);
     final repository = await CatalogMediaRepository.create(
-      catalog: PoseHubAppTestCatalog.fromBytes(bytes),
+      catalog: catalog,
       catalogRevision: sha256.convert(bytes).toString(),
-      mediaBaseUrls: mediaBaseUrls ?? [Uri.parse(publicBaseUrl)],
+      mediaBaseUrls:
+          mediaBaseUrls ??
+          [poseHubMediaBaseUriForPack(poseHubPackVersionOf(catalog))],
       rootDirectory: rootDirectory,
       maxVideoCacheBytes: maxVideoCacheBytes,
     );

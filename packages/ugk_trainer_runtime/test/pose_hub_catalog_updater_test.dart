@@ -1,0 +1,373 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:crypto/crypto.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:ugk_coach/ugk_coach.dart' as coach;
+import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart';
+
+const _assetDir = '../ugk_trainer/assets/pose_hub/app-test-pack-r1/';
+
+/// Reads the SDK's real bundled R1 v3 catalogue from the sibling package.
+class _PackBundle extends CachingAssetBundle {
+  @override
+  Future<ByteData> load(String key) async {
+    final path = key.replaceFirst(
+      'packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/',
+      _assetDir,
+    );
+    return ByteData.sublistView(await File(path).readAsBytes());
+  }
+}
+
+/// No network: every response is scripted per URL.
+class _FakeHttp implements PoseHubCatalogHttpClient {
+  final routes =
+      <String, PoseHubCatalogHttpResponse Function(Map<String, String>)>{};
+  final requests = <String>[];
+  final requestHeaders = <Map<String, String>>[];
+
+  void serve(String url, List<int> body, {String? etag}) =>
+      routes[url] = (_) =>
+          PoseHubCatalogHttpResponse(200, Uint8List.fromList(body), etag: etag);
+
+  @override
+  Future<PoseHubCatalogHttpResponse> get(
+    Uri uri, {
+    Map<String, String> headers = const {},
+    int maxBytes = 64 * 1024 * 1024,
+  }) async {
+    requests.add(uri.toString());
+    requestHeaders.add(headers);
+    final route = routes[uri.toString()];
+    if (route == null) throw const SocketException('offline');
+    final response = route(headers);
+    if (response.body.length > maxBytes) {
+      throw const HttpException('Response exceeds its size limit');
+    }
+    return response;
+  }
+}
+
+const _pointerUrl = 'https://media.uuugk.win/pack/channels/dev.json';
+const _config = PoseHubCatalogUpdateConfig(channel: PoseHubCatalogChannel.dev);
+
+Map<String, Object?> _pointer(
+  String pack,
+  List<int> catalog, {
+  String? sha,
+  int? bytes,
+  String minSdk = '0.7.0',
+}) => {
+  'schema': 1,
+  'pack': pack,
+  'catalog': 'https://media.uuugk.win/pack/$pack/catalog.json',
+  'catalog_sha256': sha ?? sha256.convert(catalog).toString(),
+  'catalog_bytes': bytes ?? catalog.length,
+  'min_sdk': minSdk,
+  'published_at': '2026-11-04T17:47:00+08:00',
+};
+
+List<int> _json(Object value) => utf8.encode(jsonEncode(value));
+
+/// A small catalogue with only [count] fixture actions (missing all R1 IDs).
+List<int> _smallCatalog(String pack, int count) {
+  const flags = {
+    'status': 'test-unreviewed',
+    'reviewed': false,
+    'releaseEligible': false,
+  };
+  final rows = [
+    for (var i = 0; i < count; i++)
+      {
+        'id': 'action-$i',
+        'nameZh': 'Fixture $i',
+        ...flags,
+        'availableForApp': true,
+        'availableForTraining': false,
+        'trainingDefinitionComplete': false,
+        'trainingSemantics': {
+          ...flags,
+          'status': 'partial-fixture',
+          'definitionComplete': false,
+          'missingRequiredFields': ['defaultDose'],
+          'unknownFields': [],
+          'videoLoopIsTrainingDose': false,
+        },
+        'rhythm': {'videoLoopIsTrainingDose': false},
+        'files': {
+          for (final role in ['video', 'cover', 'thumbnail'])
+            role: {
+              'path':
+                  'media/action-$i/$role.${role == 'video' ? 'mp4' : 'webp'}',
+              'bytes': 4,
+              'sha256': sha256.convert([i, 1, 2, role.length]).toString(),
+            },
+        },
+      },
+  ];
+  return _json({
+    'format': 'pose-hub-app-test-catalog@1',
+    'id': 'fixture',
+    'pack': pack,
+    ...flags,
+    'totalCount': count,
+    'readyCount': count,
+    'pendingCount': 0,
+    'actions': rows,
+    'semanticCatalog': {
+      'path': 'catalog/catalog.json',
+      'bytes': 2,
+      'sha256': sha256.convert(utf8.encode('{}')).toString(),
+      'version': '0.0.0',
+    },
+    'trainingSemantics': {
+      ...flags,
+      'definitionCompleteCount': 0,
+      'definitionCompleteIds': [],
+      'incompleteActionIds': [for (final r in rows) r['id']],
+      'videoLoopIsTrainingDose': false,
+    },
+  });
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  late Uint8List r1Bytes;
+  late Uint8List semanticBytes;
+  late coach.PoseHubAppTestCatalog bundled;
+
+  /// The real R1 catalogue re-released as [pack] (same IDs, add-only OK).
+  List<int> repack(String pack) {
+    final raw = jsonDecode(utf8.decode(r1Bytes)) as Map<String, Object?>;
+    return _json({...raw, 'pack': pack});
+  }
+
+  late _FakeHttp http;
+  late MemoryPoseHubCatalogStore store;
+  late List<PoseHubCatalogUpdateEvent> events;
+  late DateTime now;
+
+  PoseHubCatalogUpdater updater() => PoseHubCatalogUpdater(
+    config: _config,
+    store: store,
+    http: http,
+    now: () => now,
+    loadLocal: () async => await readVerifiedPoseHubCatalog(store) ?? bundled,
+    onEvent: events.add,
+  );
+
+  void publish(
+    String pack,
+    List<int> catalog, {
+    Map<String, Object?>? pointer,
+  }) {
+    http.serve(_pointerUrl, _json(pointer ?? _pointer(pack, catalog)));
+    http.serve('https://media.uuugk.win/pack/$pack/catalog.json', catalog);
+    http.serve(
+      'https://media.uuugk.win/pack/$pack/catalog/catalog.json',
+      semanticBytes,
+    );
+  }
+
+  Future<String> loadedPack() async => poseHubPackVersionOf(
+    await PoseHubActionLibrary.load(
+      bundle: _PackBundle(),
+      verifiedCache: store,
+    ),
+  );
+
+  setUpAll(() async {
+    r1Bytes = await File('${_assetDir}catalog.json').readAsBytes();
+    semanticBytes = await File(
+      '${_assetDir}catalog/catalog.json',
+    ).readAsBytes();
+    bundled = await PoseHubActionLibrary.loadBundled(bundle: _PackBundle());
+  });
+
+  setUp(() {
+    http = _FakeHttp();
+    store = MemoryPoseHubCatalogStore();
+    events = [];
+    now = DateTime.utc(2026, 11, 4, 10);
+  });
+
+  test('bundled R1 v3 keeps pack r1-v3 and its media root', () {
+    expect(bundled.raw.containsKey('pack'), isFalse);
+    expect(poseHubPackVersionOf(bundled), 'r1-v3');
+    expect(
+      PoseHubActionLibrary.mediaBaseUriFor(bundled).toString(),
+      PoseHubActionLibrary.mediaReleaseBaseUri,
+    );
+    expect(
+      poseHubMediaBaseUriForPack('r2-v1').toString(),
+      'https://media.uuugk.win/pack/r2-v1/',
+    );
+    expect(_config.pointerUri.toString(), _pointerUrl);
+  });
+
+  test('pointer parsing rejects bad fields', () {
+    final good = _pointer('r2-v1', [1, 2, 3]);
+    final parsed = PoseHubCatalogPointer.fromJson(good);
+    expect(parsed.pack, 'r2-v1');
+    expect(parsed.catalogBytes, 3);
+    for (final bad in [
+      {...good, 'schema': 2},
+      {...good, 'pack': 'R2 v1'},
+      {...good, 'catalog': 'http://media.uuugk.win/x.json'},
+      {...good, 'catalog_sha256': 'abc'},
+      {...good, 'catalog_bytes': 0},
+      {...good, 'min_sdk': '1.0'},
+      {...good, 'published_at': 'soon'},
+    ]) {
+      expect(() => PoseHubCatalogPointer.fromJson(bad), throwsFormatException);
+    }
+    expect(comparePoseHubSdkVersions('0.10.0', '0.9.9'), greaterThan(0));
+  });
+
+  test('offline first launch uses the bundled baseline', () async {
+    expect(await updater().maybeCheck(), PoseHubCatalogUpdateOutcome.failed);
+    expect(events.single.name, PoseHubCatalogUpdateEvent.failed);
+    expect(events.single.reason, startsWith('pointer_download_failed'));
+    expect(await loadedPack(), 'r1-v3');
+    final loaded = await PoseHubActionLibrary.load(
+      bundle: _PackBundle(),
+      verifiedCache: store,
+    );
+    expect(loaded.allActions, hasLength(219));
+  });
+
+  test('unchanged pointer ends; stored ETag then gets 304', () async {
+    http.routes[_pointerUrl] = (headers) => headers['If-None-Match'] == '"e1"'
+        ? PoseHubCatalogHttpResponse(304, Uint8List(0), etag: '"e1"')
+        : PoseHubCatalogHttpResponse(
+            200,
+            Uint8List.fromList(_json(_pointer('r1-v3', r1Bytes))),
+            etag: '"e1"',
+          );
+    final u = updater();
+    expect(await u.checkNow(), PoseHubCatalogUpdateOutcome.unchanged);
+    expect(http.requests, [_pointerUrl]);
+    expect(await u.checkNow(), PoseHubCatalogUpdateOutcome.notModified);
+    expect(http.requestHeaders.last['If-None-Match'], '"e1"');
+    expect(events, isEmpty);
+  });
+
+  test('SHA-256 mismatch keeps the old catalogue', () async {
+    final next = repack('r2-v1');
+    publish('r2-v1', next, pointer: _pointer('r2-v1', next, sha: 'a' * 64));
+    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.failed);
+    expect(events.single.reason, 'catalog_sha256_mismatch');
+    expect(await store.read('current.json'), isNull);
+    expect(await loadedPack(), 'r1-v3');
+  });
+
+  test('byte-count mismatch is rejected', () async {
+    final next = repack('r2-v1');
+    publish(
+      'r2-v1',
+      next,
+      pointer: _pointer('r2-v1', next, bytes: next.length + 10),
+    );
+    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.failed);
+    expect(events.single.reason, startsWith('catalog_bytes_mismatch'));
+    expect(await loadedPack(), 'r1-v3');
+  });
+
+  test('min_sdk above this SDK blocks without downloading', () async {
+    final next = repack('r2-v1');
+    publish('r2-v1', next, pointer: _pointer('r2-v1', next, minSdk: '9.0.0'));
+    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.blocked);
+    expect(events.single.name, PoseHubCatalogUpdateEvent.blocked);
+    expect(events.single.pack, 'r2-v1');
+    expect(http.requests, [_pointerUrl]);
+    expect(await loadedPack(), 'r1-v3');
+  });
+
+  test('catalogue missing an existing action ID is rejected', () async {
+    final small = _smallCatalog('r2-v1', 3);
+    publish('r2-v1', small);
+    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.failed);
+    expect(events.single.reason, startsWith('missing_action_ids: '));
+    expect(events.single.reason, contains(bundled.allActions.first.id));
+    expect(await store.read('current.json'), isNull);
+  });
+
+  test('success applies on next load; an interrupted later download keeps '
+      'it', () async {
+    final before = await PoseHubActionLibrary.load(
+      bundle: _PackBundle(),
+      verifiedCache: store,
+    );
+    publish('r2-v1', repack('r2-v1'));
+    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.updated);
+    expect(events.single.name, PoseHubCatalogUpdateEvent.updated);
+    expect(
+      http.requests.last,
+      'https://media.uuugk.win/pack/r2-v1/catalog/catalog.json',
+    );
+    // The catalogue already in use is untouched; the next load switches.
+    expect(poseHubPackVersionOf(before), 'r1-v3');
+    final next = await PoseHubActionLibrary.load(
+      bundle: _PackBundle(),
+      verifiedCache: store,
+    );
+    expect(poseHubPackVersionOf(next), 'r2-v1');
+    expect(next.allActions, hasLength(219));
+    expect(
+      PoseHubActionLibrary.mediaBaseUriFor(next).toString(),
+      'https://media.uuugk.win/pack/r2-v1/',
+    );
+
+    // r2-v2 is announced but its catalogue download breaks off.
+    events.clear();
+    final v2 = repack('r2-v2');
+    http.serve(_pointerUrl, _json(_pointer('r2-v2', v2)));
+    http.routes['https://media.uuugk.win/pack/r2-v2/catalog.json'] = (_) =>
+        throw const SocketException('connection reset');
+    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.failed);
+    expect(events.single.reason, startsWith('catalog_download_failed'));
+    expect(await loadedPack(), 'r2-v1');
+  });
+
+  test('a tampered cache falls back to the bundled baseline', () async {
+    publish('r2-v1', repack('r2-v1'));
+    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.updated);
+    final cached = store.values['packs/r2-v1/catalog.json']!;
+    cached[cached.length - 2] ^= 1;
+    expect(await loadedPack(), 'r1-v3');
+  });
+
+  test('checks on every launch, then at most once per 24 hours', () async {
+    publish('r1-v3', r1Bytes);
+    final launch = updater();
+    expect(await launch.maybeCheck(), PoseHubCatalogUpdateOutcome.unchanged);
+    now = now.add(const Duration(hours: 23));
+    expect(await launch.maybeCheck(), PoseHubCatalogUpdateOutcome.throttled);
+    expect(http.requests, hasLength(1));
+    // A new App launch checks immediately, even within 24 hours.
+    expect(await updater().maybeCheck(), PoseHubCatalogUpdateOutcome.unchanged);
+    expect(http.requests, hasLength(2));
+    now = now.add(const Duration(hours: 23, minutes: 59));
+    expect(await launch.maybeCheck(), PoseHubCatalogUpdateOutcome.throttled);
+    now = now.add(const Duration(minutes: 1));
+    expect(await launch.maybeCheck(), PoseHubCatalogUpdateOutcome.unchanged);
+    expect(http.requests, hasLength(3));
+  });
+
+  test('file store writes atomically and reads back', () async {
+    final dir = await Directory.systemTemp.createTemp('posehub-cache-');
+    addTearDown(() => dir.delete(recursive: true));
+    store = MemoryPoseHubCatalogStore();
+    final files = createPoseHubCatalogFileStore(dir.path);
+    await files.writeAtomic('packs/r2-v1/catalog.json', [1, 2, 3]);
+    expect(await files.read('packs/r2-v1/catalog.json'), [1, 2, 3]);
+    expect(await files.read('missing.json'), isNull);
+    expect(
+      dir.listSync(recursive: true).where((e) => e.path.contains('.tmp-')),
+      isEmpty,
+    );
+    await expectLater(files.read('../x'), throwsFormatException);
+  });
+}

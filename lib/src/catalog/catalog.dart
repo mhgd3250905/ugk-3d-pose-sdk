@@ -383,6 +383,15 @@ class Drill {
 
   bool get bodyweight => equipment.isEmpty;
 
+  /// Lifecycle status from the action catalogue: `active` (default),
+  /// `not_recommended` or `retired`.
+  String get lifecycleStatus => asString(raw['status']) ?? 'active';
+
+  /// The coach may search, recommend, plan or swap in this action.
+  /// `not_recommended` and `retired` actions are only kept so saved plans and
+  /// history still validate and play.
+  bool get suggestible => lifecycleStatus == 'active';
+
   static Drill? tryParse(Object? json, List<String> problems) {
     final j = asMap(json);
     final id = asString(j['id']);

@@ -182,8 +182,15 @@ final class PoseHubPackAction {
   final bool trainingDefinitionComplete;
 
   /// Lifecycle status; absent means [PoseHubActionStatus.active].
-  /// Filtering by status is applied by callers (batch B), not here.
+  /// Filtering by status is applied by callers, not here: saved plans and
+  /// history keep resolving and playing every ID.
   final PoseHubActionStatus status;
+
+  /// The coach may search, recommend, plan or swap in this action.
+  bool get suggestible => status == PoseHubActionStatus.active;
+
+  /// The action library lists this action (everything but `retired`).
+  bool get browsable => status != PoseHubActionStatus.retired;
 
   /// Optional pack version since which [status] holds, e.g. `r2-v2`.
   final String? statusSince;
@@ -350,7 +357,7 @@ final class PoseHubAppTestCatalog {
     }
     final drills = [
       for (final action in semanticCompleteActions)
-        canonical?[action.id] ?? _definition(action),
+        _withStatus(canonical?[action.id] ?? _definition(action), action),
     ];
     final version = canonical?.version ?? semanticCatalogVersion;
     final formatVersion =
@@ -482,6 +489,16 @@ final class PoseHubAppTestCatalog {
         'Media distribution totals differ from files',
       );
     }
+  }
+
+  /// Carries the catalogue's lifecycle status onto the coach definition, so
+  /// selection can skip it while validation of saved plans still finds it.
+  static Drill _withStatus(Drill drill, PoseHubPackAction action) {
+    if (action.status == PoseHubActionStatus.active) return drill;
+    return Drill.tryParse({
+      ...drill.toJson(),
+      'status': action.status.wireName,
+    }, <String>[])!;
   }
 
   Drill _definition(PoseHubPackAction action) {

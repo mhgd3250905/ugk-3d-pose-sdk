@@ -44,7 +44,10 @@ class ActionSearchResult {
 class ActionSearch {
   ActionSearch(CoachProfile profile, this.catalog, {required int minPicks})
     : gate = NodeGates(profile, catalog, minPicks: minPicks),
-      _drills = List.unmodifiable(profile.scope(catalog)) {
+      _drills = List.unmodifiable([
+        for (final d in profile.scope(catalog))
+          if (d.suggestible) d,
+      ]) {
     _bodies = List.unmodifiable(
       gate.tags.tags.where((t) => t.startsWith('body.')).toList()..sort(),
     );

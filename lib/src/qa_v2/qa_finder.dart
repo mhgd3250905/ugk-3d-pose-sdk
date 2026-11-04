@@ -159,6 +159,8 @@ final class QaFinder {
   /// 硬过滤：场景、器械、躺地、冲击、避开部位、难度上限。
   bool passes(QaAction a, QaQuery q) {
     if (q.exclude.contains(a.id)) return false;
+    // 不推荐 / 停用的动作不进搜索、推荐、新计划和换动作候选。
+    if (!a.drill.suggestible) return false;
     // 计划会按动作自身要求声明器械（见 QaPlanBuilder.equipmentFor），
     // 这里用同一声明、同一场景映射、同一避开部位走 core 门禁。
     if (admission.problem(

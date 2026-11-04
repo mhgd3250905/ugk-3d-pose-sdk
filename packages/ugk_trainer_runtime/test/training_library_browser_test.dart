@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -68,4 +69,38 @@ void main() {
       );
     },
   );
+
+  testWidgets('browser hides retired but keeps not_recommended', (
+    tester,
+  ) async {
+    final json =
+        jsonDecode(
+              File(
+                '../ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, Object?>;
+    final ids = actions.map((a) => a.id).toList();
+    for (final row in json['actions']! as List<Object?>) {
+      final action = row! as Map<String, Object?>;
+      if (action['id'] == ids[0]) action['status'] = 'not_recommended';
+      if (action['id'] == ids[1]) action['status'] = 'retired';
+    }
+    final flagged = PoseHubAppTestCatalog.fromBytes(
+      utf8.encode(jsonEncode(json)),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TrainingLibraryBrowser(
+          actions: [for (final id in ids) flagged.tryGet(id)!],
+          actionArtwork: (_, action, _) => const SizedBox(),
+          onOpenAction: (_) {},
+        ),
+      ),
+    );
+    expect(find.byKey(ValueKey('posehub-action-${ids[0]}')), findsOneWidget);
+    expect(find.byKey(ValueKey('posehub-action-${ids[1]}')), findsNothing);
+    // Saved plans and history still resolve the retired action.
+    expect(flagged.tryGet(ids[1])!.browsable, isFalse);
+  });
 }

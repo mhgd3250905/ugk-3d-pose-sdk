@@ -4,7 +4,10 @@
 
 开发阶段不考虑旧版本用户的历史数据（用户 2026-11-04 确认）。
 
-**规则：动作可增、可改、不删（用户 2026-11-04 18:57 定）。** 改名称、描述、标签、建模都出新包版本； 动作 ID 一旦发布就永远留在目录里；不想再推荐的动作标 `retired: true`：不进搜索、推荐和新计划，但已存计划和训练记录照常能播放。
+**规则：动作可增、可改、不删（用户 2026-11-04 18:57 定）。** 改名称、描述、标签、建模都出新包版本； 动作 ID 一旦发布就永远留在目录里；每个动作带 `status`：
+- `active`（默认）：正常使用。
+- `not_recommended`（不推荐）：教练不主动推荐、不进新计划，但动作库里能找到、用户可以手动加。
+- `retired`（停用）：动作库和教练都不再出现；已存计划和训练记录照常显示、照常播放。
 
 ## 1. 现状
 
@@ -58,7 +61,7 @@ pack/channels/stable.json
 
 - `schema`：目录格式版本，SDK 只接受自己认识的范围。
 - `pack`：包版本号，如 `r2-v1`。
-- 每个动作可带 `retired: true`（停用，见上方规则）与可选 `retired_in`（如 `r2-v2`）。目录里不允许少掉上一版已有的 ID，产包 check_run 加这条检查。
+- 每个动作可带 `status`（见上方规则）与可选 `status_since`（如 `r2-v2`）；缺省为 `active`。目录里不允许少掉上一版已有的 ID，产包 check_run 加这条检查。
 
 ## 5. SDK 加载流程
 
@@ -72,9 +75,9 @@ pack/channels/stable.json
 
 ## 6. 停用动作与已存计划
 
-- `search_actions`、推荐、`build_plan`、`swap` 的候选都排除 `retired`。
+- 教练的 `search_actions`、推荐、`build_plan`、`swap` 候选排除 `not_recommended` 和 `retired`；动作库浏览只排除 `retired`。
 - 已存计划和历史记录里的停用动作照常显示、照常播放（媒体文件仍在线）。
-- r2-v1 已经删掉了 `scapular-C`、`h-sleeper-stretch`，与新规则冲突：出 r2-v2，把这两个加回目录并标 `retired`，媒体直接引用 r1-v3 里已有的文件（逐文件地址，不重传）。
+- r2-v1 已经删掉了 `scapular-C`、`h-sleeper-stretch`，与新规则冲突：出 r2-v2，把这两个加回目录，状态由用户定（`not_recommended` 或 `retired`），媒体直接引用 r1-v3 里已有的文件（逐文件地址，不重传）。
 - SDK 校验新目录时，发现比本地少了 ID 就拒绝更新。
 
 ## 7. App 范围
@@ -95,7 +98,7 @@ pack/channels/stable.json
 | 批 | 内容 |
 | --- | --- |
 | A | SDK：指针与 catalog 下载、校验、原子缓存、失败回退；`packVersion` 不再写死，来自当前目录 |
-| B | SDK：`retired` 过滤与「不许少 ID」校验；问答 `search_actions`、准入、PlanBuilder 读当前目录 |
+| B | SDK：`status` 过滤与「不许少 ID」校验；问答 `search_actions`、准入、PlanBuilder 读当前目录 |
 | C | 内置基线换成 r2-v1；上线 `channels/*.json` 与 r2-v1 scope 文件 |
 | D | 三个 App：去掉写死的 `r1-v3`、Flare 授权列表改为远程覆盖 + 内置基线、改锁、出包验收 |
 
@@ -104,5 +107,5 @@ pack/channels/stable.json
 ## 10. 已定（2026-11-04）
 
 - 指针检查：每天一次，另外每次启动 App 查一次。
-- 动作可增、可改、不删；不再推荐的用 `retired` 标记。
+- 动作可增、可改、不删；用 `status` 标不推荐（`not_recommended`）或停用（`retired`）。
 - 本版只做 SHA 校验，不加签名（签名防的是服务器被黑后换假包，当前收益小）。

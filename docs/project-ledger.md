@@ -1,10 +1,32 @@
 # 项目维护台账
 
-更新日期：2026-11-02。仓库：[mhgd3250905/ugk-3d-pose-sdk](https://github.com/mhgd3250905/ugk-3d-pose-sdk)。
+更新日期：2026-11-04。仓库：[mhgd3250905/ugk-3d-pose-sdk](https://github.com/mhgd3250905/ugk-3d-pose-sdk)。
 
 本台账统一记录维护状态、已合并成果、验证证据和待办。包版本、接口行为仍以对应清单和实现为准；发布历史保留在 CHANGELOG。表内 SHA 是核验快照，后续文档提交会推进 main，不能把快照当成永远最新的分支指针。
 
-## 当前快照：长会话修复已合入，默认预算放宽已审核通过（2026-11-02）
+## 当前快照：SDK 固定 tag v0.7.2 / 问答 v3（2026-11-04）
+
+| 项目 | 本次核对结果 |
+|---|---|
+| 固定版本 | `ugk_trainer-v0.7.2` → `c1a51a09cdc3add3696cad159ca6044ccf5af6c8`；PR #12 已合入，合并树与其父 `f7b8a8e4853e9f50fc93888e1768ec1dbc75b588` 无差异 |
+| 远端快照 | 普通文档提交前 `origin/main` 和远端 main 均为 `c1a51a0`；远端 annotated tag 对象 `ece317660d84cd11358cae72e41575e2b551a05b` 解引用为同一完整 SHA；后续文档提交只推进 main，不移动 tag |
+| 包内版本 | 根 `ugk_coach` 0.8.0、`ugk_trainer` 0.6.0、`ugk_coach_ui` 0.4.0，分别按清单管理；不是把 tag 名写回所有包版本，也不表示 pub.dev 发布 |
+| 问答路径 | v3 常规循环，七工具由模型选择；验收失败退回原因，不静默补删/重排。App 继续用 `CoachChatAgentMode.qaV2` + `aiTags`，默认 `legacy`；标签不随 SDK 打包 |
+| 准入与配时 | 条件/白名单、标签器械、安全与 core 交付/恢复同口径；卡片/执行双时长门禁保留。`redFlag` 追加持久化，危险信号确认后不附动作卡；无卡 reply 保留当前卡片/计划 |
+| 迁移与恢复 | `CoachAssistant` / `CoachSession` 已删除，回落/结果协议保留；直接构造 `QaFinder` 需 `profile`。启动恢复失败先交宿主备份/归档钩子，再给新会话；默认空备份端口不等于备份成功 |
+| 范围边界 | 本次只对齐版本/接口/证据文档并普通 push；不改运行代码、包清单、tag、App/pin 或 `codex/ios-packed-alpha`（PR #13），不结束 Cockpit 会话 |
+
+### 本次 Preflight 与验证绑定
+
+- baseline：`9dd93163e9f355665e5c923f374c64f03bf65a86`（`ugk_trainer-v0.7.1`），为用户指定的本阶段起点，已核对为收束前 HEAD `c1a51a09cdc3add3696cad159ca6044ccf5af6c8` 的祖先。
+- baseline..HEAD：15 提交、44 路径（28 M / 12 A / 4 D）：文档 6、核心源码 11、聊天源码 4、测试 14、工具 7、旧样例删除 2。提交归属为已合入 PR #12 的本阶段成果；初始完整 `git status --porcelain=v1 --untracked-files=all` 为空，tracked/staged/unstaged/deleted/renamed/untracked 均 0，无需处置用户改动。
+- canonical 从根 AGENTS/README 直接声明发现：README、本文、根 CHANGELOG、根/trainer/UI pubspec、trainer/UI CHANGELOG、`docs/agent-plan.md`、`docs/coach-qa-agent-v3.md`、`docs/coach-chat-module.md` 和 chat README 按 current 核对；`docs/design.md` 与下方旧快照按 archive/history 处理。未递归读取历史报告、构建产物、凭据或其他仓库。
+- 在干净的上述完整 HEAD、2026-11-04 18:47（Asia/Shanghai）执行：根 `dart analyze --fatal-infos lib test tool` 0 问题；`dart test test/qa_v2 test/reasoning_replay_test.dart test/training_task_isolation_test.dart test/output_schema_test.dart test/plan_check_schema_test.dart --reporter expanded` **80 通过**。chat 目录执行 `dart analyze --fatal-infos lib test` 0 问题；`flutter test --no-pub --reporter expanded test/qa_v2_controller_test.dart test/qa_v2_plan_admission_test.dart test/qa_v2_office_admission_test.dart test/qa_v2_widgets_test.dart test/chat_legacy_restore_regression_test.dart` **26 通过**。
+- 这些是当前 v3/恢复/公开入口迁移的定向验证，不写成五包全量、真实模型或设备验收。本次后续仅改 Markdown，运行/测试/配置树不变，以上证据继续适用；文档链接与 tag/版本映射另作核对。
+- 本会话较早的 `fd7f28b49a09ad3d5314375591d5e1b595afb439` 全量 2471 / 真实模型 12 轮属于 v2 修复候选；其到当前 HEAD 的核心/聊天/工具有变化，不能当作 v3 证明。本次未重跑真实模型，未解决的标签伤痛适用性仍需人工复核。
+- 本次修正：补齐 v0.7.2 固定版本记录，区分旧快照与当前来源，删除已移除入口的推荐，补齐 v3 `red_flag`/reply 数量说明、实际评测入口及恢复备份边界。
+
+## 历史快照：长会话修复已合入，默认预算放宽已审核通过（2026-11-02）
 
 第 2 批经用户批准已快进并推送 main `67c9747b8e29955d2be21c020c5ef3881b4966e6`。
 SF five-1 r3、Hip R1/R2 的剩余调用目标偏差已接受，不再单独修复。
@@ -112,9 +134,9 @@ trainer 0.2.1 仅将相对 coach 依赖改锁正式 tag，解决宿主分别锁�
 | 历史证据 | coach 0.4.0 的 426 项/真实六例、0.3.3 的 377 项及 trainer 0.1.7 的 170 项保留原 source 语境，不作为当前整 App 或真机验收证明 |
 | Cockpit | 当前绑定会话 active；本次保存后只登记一次非终态检查点，不结束会话或生成交接 |
 
-## 事实来源与文档分工
+## 历史文档分工快照（保留原核验语境）
 
-以下来源均已从根 README 的直接声明核对。本台账新增后，也由根 README 直接指向。
+以下为早期文档收束时的来源与版本快照，表中的 current 指当时用途，不代表 2026-11-04 的当前包版本或接口；今天的来源和验证见顶部当前快照。本台账仍由根 README 直接指向。
 
 | 路径 | 类别 | current / archive-history | 用途与核对结果 |
 |---|---|---|---|

@@ -2,6 +2,8 @@
 
 日期：2026-11-04。分支：codex/qa-v2-fixes（PR #12）。决定人：用户（13:59、14:28、14:34）。
 
+PR #12 已合入 main；固定 tag `ugk_trainer-v0.7.2` 指向 `c1a51a09cdc3add3696cad159ca6044ccf5af6c8`。后续文档提交不移动该 tag。
+
 ## 原则
 
 1. **模型掌舵**。每一轮由模型自己决定：先查动作库、先问、还是直接交结果。代码不判意图、不改路由、不替模型改结果。
@@ -13,6 +15,8 @@
 ## 对外接口不变
 
 `CoachQaAgent` 构造参数、`send(text, language:)`、`CoachQaReply`（kind / text / cards / chips / assumption / conditions / plan / planSeconds / question / askStep / llmCalls / elapsed / usage / issues / toolTrace / steps / form / language）、`planOrderedIds` / `planMainIds`、`CoachQaState` 的持久化字段（`ugk_coach_chat/lib/src/core/qa_state.dart` 读写的部分）全部保持兼容。三个 App 不改代码。新增字段只追加，旧字段照常写（`form` 可以写模型最后一次 `set_conditions` 的参数）。
+
+聊天主接入仍使用 `CoachChatAgentMode.qaV2` 和 App 注入的 `aiTags`，默认仍为 `legacy`。这不表示所有底层 API 都无变化：直接构造 `QaFinder` 必须传 `profile`，旧 `CoachAssistant` / `CoachSession` 已删除。
 
 ## 一轮怎么跑
 
@@ -35,13 +39,13 @@ loop（不设次数上限）:
 
 | 工具 | 参数 | 验收（不过就退回原因） |
 |---|---|---|
-| `set_conditions` | place、place_word、equipment、equipment_known、avoid_joints、no_floor、quiet、easy、small_space、minutes、language | id 合法（场景、器械、关节都在 taxonomy 里）。记入状态，返回更新后的 [已知条件] |
+| `set_conditions` | place、place_word、equipment、equipment_known、avoid_joints、red_flag、no_floor、quiet、easy、small_space、minutes、language | id 合法（场景、器械、关节都在 taxonomy 里）。记入状态，返回更新后的 [已知条件] |
 | `search_actions` | muscles、stretch_muscles、types、roles、goals、patterns、position（坐/站/跪…）、exclude、limit≤12 | 参数 id 合法。返回范围内动作行（带姿势、躺地、器械、关节负担标签）；范围外的不返回 |
 | `ask_user` | step（place / equipment / safety）、question、options、multi | 同一步本轮或上轮刚问过 → 退回；place 已知还问 place → 退回；非居家问器械 → 退回；选项数 place 4、equipment ≤6 |
 | `show_actions` | text、items[{id, why}] 3–5 个、chips、assumption | id 必须在本轮 search 结果或预选候选里；且过准入；不重复；正文提到卡片外动作 → 退回 |
 | `build_plan` | title、text、minutes、segments[{name, ids}] 或 main_ids、warmup_ids、cooldown_ids、block_names、chips、assumption | 全部 id 过准入且在已见候选里；无重复；retime（模型自报 mode=retime）时主训练集合必须等于当前计划；配时后时长偏差超出 ±12% → 退回「差多少、建议加/减几个或改组数」，不自动补删；正文提到卡片外动作 → 退回。热身收操由模型从 roles=warmup/cooldown 的搜索结果里指定，不给就没有 |
 | `swap` | text、changes[{position, new_id, why}]、mode（swap/easier/harder）、chips | 编号在卡片范围内；new_id 过准入；easier 难度必须更低、harder 更高；同一处（`QaFinder.sameArea`）；其他编号不变 |
-| `reply` | text、items（可空）、chips | 知识、安全、闲聊、无合格替换时用。items 同 show_actions 规则；安全危险信号已确认时 items 必须为空（由 `safety` 状态判定） |
+| `reply` | text、items（可空或 1–5 项）、chips | 知识、安全、闲聊、无合格替换时用。非空 items 的 ID、准入、去重和文字一致性规则同 show_actions，但不要求至少 3 项；安全危险信号已确认时 items 必须为空（由 `redFlag` 状态判定） |
 
 退回文案格式统一：`不合规：<原因>。请改好后重新调用 <工具>。`
 
@@ -52,6 +56,7 @@ loop（不设次数上限）:
 - 当前卡片（动作卡 ids 或计划，带全局编号，含热身收操）。
 - 本轮已见候选（search 结果 + 预选）。
 - 焦点（muscles / types / minutes）。
+- `redFlag`：安全危险信号状态；持久化为追加字段，旧快照缺字段时默认 false。
 
 ## 删除
 
@@ -84,8 +89,8 @@ loop（不设次数上限）:
 18. 模型连续退回后改对 → 最终交付通过，退回原因都出现在后续请求里。
 19. 持久化：`qa_state.dart` 存取后状态一致（含 segments 计划）。
 
-另外 `packages/ugk_coach_chat` 全部测试通过（脚本化假模型按新工具更新）。
+`packages/ugk_coach_chat` 的脚本化假模型已按新工具更新。当前固定 tag 上的定向测试、命令和 source SHA 见[维护台账](project-ledger.md)，不把早先 v2 的全量数当作 v3 结果。
 
 ## 评测（交付后，真实模型）
 
-沿用 `tool/coach/qa_v2_live_probe.dart` 的问法集，指标：该问/不该问、编号换动作、文字与卡片一致、平均调用次数与耗时（目标：平均 ≤3 次、回答轮 ≤20 秒）。
+当前仓库入口是 `tool/sim_user.dart`，问法集为 `tool/qa_eval/qa_v3_scenarios.json`，汇总脚本为 `tool/qa_eval/summarize.py`，运行说明见 [QA v3 评测](../tool/qa_eval/README.md)。兼容启动选择仍用 `SIM_AGENT=v2`；指标为该问/不该问、编号换动作、文字与卡片一致、平均调用次数与耗时（目标：平均 ≤3 次、回答轮 ≤20 秒）。版本文档收束未重新调用真实模型，不把目标值记成验收结果。

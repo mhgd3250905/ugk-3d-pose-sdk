@@ -1,5 +1,13 @@
 # Changelog
 
+## SDK tag ugk_trainer-v0.7.2 — 2026-11-04（已发布固定 tag）
+
+- PR #12 merged at `c1a51a09cdc3add3696cad159ca6044ccf5af6c8`; the tag remains fixed there. This is a repository integration tag, not a package-manifest bump: coach remains 0.8.0, trainer 0.6.0 and coach_ui 0.4.0; `publish_to: none` is unchanged.
+- QA v3 uses a normal agent loop and seven tools for conditions, search, questions and delivery. Invalid tool output returns reasons to the model; code no longer routes `fill_form` intents or silently inserts/deletes/reorders selected actions. The App entry remains `CoachChatAgentMode.qaV2` with App-supplied tags and legacy as the default.
+- Share core scope/equipment/safety admission across QA selection, timing, delivery and restore. Preserve card numbering; no-card replies retain the current cards/plan. Add persisted `redFlag` and reject action cards after a confirmed safety red flag. Existing card/execution duration gates remain in force.
+- On startup restore failure, offer the snapshot to host backup/archive callbacks, then start a usable fresh conversation with a notice. `preserveUnreadable` defaults to no backup; hosts must implement it for a retained copy.
+- **Migration:** remove unused `CoachAssistant` and `CoachSession` entry classes; retain fallback/result protocols. Direct `QaFinder` construction now requires `profile`. See [QA v3](docs/coach-qa-agent-v3.md) and the [maintenance ledger](docs/project-ledger.md) for source-bound verification and limits. Earlier candidate test/model results are historical, not proof of this tag.
+
 ## coach 0.8.0 — 2026-10-27 (candidate)
 
 - Isolate scene, equipment and duration for each new planning request. Previous values are offered only as labelled suggestions on an explicit confirmation card; edits to the current plan retain its confirmed conditions.

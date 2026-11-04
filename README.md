@@ -1,5 +1,12 @@
 # ugk_coach · 三 App 共用的 AI 训练助理 SDK
 
+当前固定 SDK tag 为 **`ugk_trainer-v0.7.2`**（2026-11-04），目标提交
+`c1a51a09cdc3add3696cad159ca6044ccf5af6c8`，包含 PR #12 的问答 v3、统一准入及恢复失败处理。
+App 继续通过 `CoachChatAgentMode.qaV2` 配置启用问答 Agent；旧 `CoachAssistant` / `CoachSession` 已删除。
+tag 名与各包清单版本独立，后续文档提交不会移动 tag。当前版本、迁移点和证据范围见
+[项目维护台账](docs/project-ledger.md)及[问答 v3 说明](docs/coach-qa-agent-v3.md)。
+以下集成记录保留各自当时的提交与验收语境，不作为最新 main 指针。
+
 第 2 批已审核快进并推送 main `67c9747b8e29955d2be21c020c5ef3881b4966e6`，剩余调用优化目标已获用户接受。
 第 3 批在 `codex/coach-chat-extract` 新增 [`ugk_coach_chat`](packages/ugk_coach_chat/README.md)，
 把 SF `3eb2a9e` 的页面与对话功能抽入共享模块；[接入边界与验证方式](docs/coach-chat-module.md)。App/pin 未修改。
@@ -49,13 +56,13 @@ HipLab / Flare 可按 UI 包 README 的固定 tag 接入，并各自验收真机
 给 **FlareLab（托马斯训练助手）/ HipLab（开胯训练助手）/ SmartFit（智能健身助手）** 用的同一套助理内核：AI 只从 Pose-Hub 动作目录里挑动作，输出统一的 **TrainingPlan v1**，SDK 负责校验，不合格时回传错误重交，达到对应入口上限后回落到 App 自己的模板；每次模型调用都记账。各 App 只需提供 **profile（侧重/范围）+ 自己的 UI**。
 
 - 纯 Dart，不依赖 Flutter（Web 也能用）；`dart:io` 的部分（文件缓存、JSONL 记账）单独在 `package:ugk_coach/ugk_coach_io.dart`。
-- 一个动作 id = 定义 + 封面 + 示范视频 + 建模源（Pose-Hub spec）+ 语音：`assistant.resolve(id)` 带出整套素材。
+- 一个动作 id = 定义 + 封面 + 示范视频 + 建模源（Pose-Hub spec）+ 语音：取得目录中的 Drill 后，用 `AssetResolver.resolve(drill)` 解析整套素材。
 - **main 的 0.4.0 基线**已获开哥批准合入，包含验收提交 `8ba0cde`。Agent 新增 `ask_user`：一次一个 text / choice 问题，事件交给 App，用户下一条消息继续；SDK 限制同任务最多问 3 次，信息足够时直接排课。426 项测试、分析无问题及 6 例真实多轮评测通过，见 [0.4.0 评测记录](docs/coach-040-ask-user-eval-2026-10-23.md)。字段、事件顺序和可审阅的 Dart 接入代码见 [ask_user 接口说明](docs/ask-user.md)。本仓库提供 SDK 接口，气泡和选项 UI 由各 App 接入。
 - **0.3.3 历史验收**：已获开哥批准合入 main，包含验收提交 `a931a04`。377 项 SDK 测试、分析 0 问题及 SmartFit 最终真实六条通过：计划均 1 步、28.6–36.3 秒，要领问答 1 步、25.4 秒，无回落、编造 id 为 0、记忆隔离通过。Agent 内联作用域内的紧凑索引和三条技能快路径，常规计划直接提交门禁；见[基线拆解](docs/coach-033-baseline-analysis-2026-10-21.md)、[前后对比与验收状态](docs/coach-033-speed-2026-10-21.md)及[项目维护台账](docs/project-ledger.md)。这些数据保留为 0.3.3 的历史结果。
 
 ## 维护与事实来源
 
-[项目维护台账](docs/project-ledger.md)是维护状态、PR 合并、验证证据和未决事项的记录入口。三个包独立管理版本：根包 `ugk_coach` 以 [pubspec.yaml](pubspec.yaml) 为准，trainer 和 UI 分别以[训练包清单](packages/ugk_trainer/pubspec.yaml)和[UI 包清单](packages/ugk_coach_ui/pubspec.yaml)为准。清单版本可以先存在于待审分支，正式发布以已推送的固定 tag 为准。版本历史见[根 CHANGELOG](CHANGELOG.md)、[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)和[UI CHANGELOG](packages/ugk_coach_ui/CHANGELOG.md)；三个包均为 `publish_to: none`，不表示已发布到 pub.dev。当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)，问答 Agent 见 [docs/coach-qa-agent-v3.md](docs/coach-qa-agent-v3.md)；0.1 `CoachAssistant` 与 0.2 `CoachSession` 已于 2026-11-04 删除（无 App 使用）；[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
+[项目维护台账](docs/project-ledger.md)是维护状态、PR 合并、验证证据和未决事项的记录入口。各包独立管理版本：根包 `ugk_coach` 以 [pubspec.yaml](pubspec.yaml) 为准，trainer 和 UI 分别以[训练包清单](packages/ugk_trainer/pubspec.yaml)和[UI 包清单](packages/ugk_coach_ui/pubspec.yaml)为准。清单版本可以先存在于待审分支，正式发布以已推送的固定 tag 为准。版本历史见[根 CHANGELOG](CHANGELOG.md)、[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)和[UI CHANGELOG](packages/ugk_coach_ui/CHANGELOG.md)；上述清单均为 `publish_to: none`，不表示已发布到 pub.dev。当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)，问答 Agent 见 [docs/coach-qa-agent-v3.md](docs/coach-qa-agent-v3.md)；0.1 `CoachAssistant` 与 0.2 `CoachSession` 已于 2026-11-04 删除（无 App 使用）；[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
 
 ## 0.5 对话控制器接入
 
@@ -161,8 +168,8 @@ repo.updates.listen((c) => revalidateSavedPlans(c));
 ```
 
 - **远端更新**：先拉小清单 `manifest.json`（`schema/catalog-manifest.schema.json`），版本比当前新才下载目录；**大小、sha256、目录内版本号、能否解析** 全部通过才写缓存并切换，否则 `rejected` 并保持原目录。清单用 `dart run tool/make_manifest.dart catalog.json > manifest.json` 生成。
-- **随目录版本走**：助理每次 `ask` 读 `repo.current`，提示词里的目录表、校验器、调用记录的 `catalogVersion` / `promptHash` 都跟着变。已存计划在目录更新后可用 `assistant.validate(plan)` 复核（动作被下架会报 `unknown_exercise`）。
-- **素材解析**：`assistant.resolve('glute-max-A', variant: 'dark')` → `ResolvedDrill { cover, video, spec, voice{lineId → 路径+时长}, voiceKeys, missing }`。按 profile 的 `assetApps`（缺省 `[profileId, 'pose-hub']`）挑来源；`baseByApp: {'pose-hub': 'https://cdn/…/'}` 给远端素材加前缀。`AssetResolver(...).missingReport(drills)` 列缺素材。
+- **随目录版本走**：目录表、校验器和调用记录应使用同一份 Catalog。目录更新后，已存计划可用 `PlanValidator(catalog: catalog, profile: profile).validate(plan, context)` 复核（动作被下架会报 `unknown_exercise`）；实际开练仍走对应 Agent 的训练准入。
+- **素材解析**：从 Catalog 取 Drill 后，`AssetResolver(appOrder: ['smartfit', 'pose-hub'], variant: 'dark').resolve(drill)` → `ResolvedDrill { cover, video, spec, voice{lineId → 路径+时长}, voiceKeys, missing }`；`baseByApp: {'pose-hub': 'https://cdn/…/'}` 给远端素材加前缀。`AssetResolver(...).missingReport(drills)` 列缺素材。
 - 统一目录之外，`DrillPackAdapter` / `tool/packs_to_catalog.dart` 可直接把 SmartFit 的 `assets/packs` 转成同格式目录。
 
 ## 输出规范与校验（0.1 JSON 信封接口）

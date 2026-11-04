@@ -1,6 +1,8 @@
 # 0.4 Agent 版：先问再排、紧凑索引与按需详情
 
-入口 `CoachAgent`（`lib/src/agent/`）。0.4.0 新增终止本轮的 `ask_user`：先补会改变方案的关键缺口，用户下一条消息继续同一任务。0.2 的 `CoachSession` 保留作降级，不提供此工具；原计划门禁、回落和逐次模型调用记账继续生效。App 字段、事件顺序、计数与 Dart 接入代码见 [ask-user.md](ask-user.md)。
+入口 `CoachAgent`（`lib/src/agent/`）。0.4.0 新增终止本轮的 `ask_user`：先补会改变方案的关键缺口，用户下一条消息继续同一任务。0.1 `CoachAssistant` 与 0.2 `CoachSession` 已于 2026-11-04 删除，仅保留结果/回落协议类型；不能再把它们作为可切换入口。原计划门禁、回落和逐次模型调用记账继续生效。App 字段、事件顺序、计数与 Dart 接入代码见 [ask-user.md](ask-user.md)。
+
+本文保留 `CoachAgent` 路径的设计及版本化默认值；SDK 聊天页可选的问答 v3 是另一条路径，见 [QA v3](coach-qa-agent-v3.md)，兼容配置名仍为 `qaV2`。
 
 ## 三层披露
 
@@ -97,11 +99,11 @@ user-memory/SKILL.md                       仅记忆开关开时存在
 ## 降级
 
 - 单轮失败 → App 模板（`fallback`）。
-- 整体降级：App 把 `CoachAgent` 换回 `CoachSession`（构造参数基本相同，结果类型相同）。
+- 不再提供切回 `CoachSession` 的整体降级入口；宿主可配置 `fallback` 提供经准入的模板，`SessionFallback` 结果协议仍保留。
 
 ## App 接入改动点
 
-1. `CoachSession(...)` → `CoachAgent(...)`，参数相同，另可传 `maxSteps`、`enableUserMemory`、`memoryStore`。
+1. 历史工具版调用方迁移到 `CoachAgent(...)`；当前已无 `CoachSession(...)`。可传 `maxSteps`、`enableUserMemory`、`memoryStore` 等现有参数。
 2. 实现 `UserMemoryStore`（本地持久化），设置页加「AI 记忆」开关（`enableUserMemory`）和「清除」（`clearMemory()`）。
 3. 订阅 `agent.events` 显示进度（如 reading → 「正在查动作库」，checking → 「正在核对计划」，retrying → 「网络不稳，正在重试（2/4）…」，slow → 「还在想…」）。
 4. 优先处理 `r.question`，把 text / choice 问题交给 App UI；以 `turnId` 对事件/结果去重，回答用下一次普通 `send(answer, context: currentContext)`，保留原筛查条件和同一个 Agent，不 reset。其余结果继续使用 `r.plan` / `r.actions` / `r.text` / `r.status`。完整 Dart 代码见 [ask-user.md](ask-user.md)。
@@ -109,7 +111,7 @@ user-memory/SKILL.md                       仅记忆开关开时存在
 
 ### 思考模型的工具协议
 
-`CoachAgent` / `CoachSession` 将响应的 `reasoning_content` 保存在 `LlmMessage.reasoning`，用于中间工具、重交和最终历史的后续模型请求。该字段是传输协议数据，不是可渲染正文；App 只使用 `CoachTurnResult.question`、`text` 和门禁卡片。记忆关闭时推理字段同步脱敏，避免记忆摘要经推理回传。
+`CoachAgent` 将响应的 `reasoning_content` 保存在 `LlmMessage.reasoning`，用于中间工具、重交和最终历史的后续模型请求。该字段是传输协议数据，不是可渲染正文；App 只使用 `CoachTurnResult.question`、`text` 和门禁卡片。记忆关闭时推理字段同步脱敏，避免记忆摘要经推理回传。
 
 每条 assistant 消息在 wire 序列化时都带 `reasoning_content`：已有推理按协议回传，Worker 上游不返回、返回 null，或手写 `LlmMessage.assistant(...)` 未指定 `reasoning` 时使用空字符串；预设回落历史也相同。system / user / tool 消息不增加此字段，不生成或补造推理正文。隐私过滤将记忆相关推理替换为空串，仍保留协议字段；单步重试同样执行过滤。
 

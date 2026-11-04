@@ -4,7 +4,7 @@
 基于 SDK main `67c9747b8e29955d2be21c020c5ef3881b4966e6`。本批只交 SDK 包，App/pin 不变。
 完整例子见[新包 README](../packages/ugk_coach_chat/README.md)。
 
-聊天页已支持可选的 [QA v2 Agent](coach-chat-qa-v2.md)：App 在 profile 中设置
+聊天页已支持可选的 [QA 问答 Agent](coach-qa-agent-v3.md)（当前为 v3，兼容配置名保留）：App 在 profile 中设置
 `agentMode: CoachChatAgentMode.qaV2` 并提供 `aiTags` 即可启用；默认旧版保持兼容。
 
 ## 所有权与公开入口
@@ -75,7 +75,9 @@ CustomPainter。剪影 renderer 继续处在现有任务卡 RepaintBoundary 中�
 真实计划按原 request/context 重新准入（包括已有瑜伽垫等条件），不丢失条件后误拒绝。
 Chat envelope 与 Core snapshot 独立版本化，恢复/关闭不删除宿主数据。
 旧非 AI 模板只读恢复保留 target/dose/context，显示不套当前训练门禁；训练和保存仍
-重新准入。恢复未成功前不持久化空 envelope，close 仍正常清理网关 lease。
+重新准入。启动恢复失败时，SDK 先调用 `history.preserveUnreadable`（默认空实现）及已配置的
+`beforeNewConversation` 归档钩子，再降级为可发送的新对话并显示提示；宿主要实现备份端口
+才会保留副本，不能把“提供了钩子”当作“备份已成功”。close 仍正常清理网关 lease。
 80ms 合并写入按快照捕获顺序串行 flush，取消/新对话后的迟到回复和保存不覆盖新会话。
 owned gateway 通过具体 lease release 关闭一次，shared client 由宿主释放。
 

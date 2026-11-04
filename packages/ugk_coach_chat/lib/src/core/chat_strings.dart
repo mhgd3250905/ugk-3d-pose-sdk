@@ -61,6 +61,7 @@ class CoachChatStrings {
     this.serviceFailure = '教练服务暂时未能完成回复，请稍后重试。',
     this.generationFailure = '这次未能完成回复，请重试。',
     this.planFromActionsRequest = '请把刚才推荐的动作排成计划。',
+    this.historyUnreadable = '之前的对话记录无法读取，已开始新的对话。',
   });
 
   final String invitation, returningInvitation, inputHint;
@@ -80,6 +81,10 @@ class CoachChatStrings {
       timeoutFailure,
       serviceFailure,
       generationFailure;
+
+  /// Shown once when the stored conversation cannot be restored and the chat
+  /// falls back to a fresh conversation instead of going silent.
+  final String historyUnreadable;
 
   String get safetyDisclaimer => '开始之前，先花 10 秒确认安全。\n\n$disclaimer';
 

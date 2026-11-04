@@ -89,12 +89,24 @@ Map<String, Object?> _answer({List<String> ids = const ['one', 'two']}) => {
   'chips': ['换场地'],
 };
 
+class _BackupHistory extends ChatHistory {
+  final preserved = <CoachChatSnapshot>[];
+  @override
+  Future<void> preserveUnreadable(
+    String namespace,
+    CoachChatSnapshot snapshot,
+    Object? error,
+  ) async => preserved.add(snapshot);
+}
+
 class _Harness {
   _Harness(
     _Handler handler, {
     ChatHistory? history,
     Map<String, Map<String, Object?>> tags = const {},
     coach.UsageSink? usageSink,
+    CoachChatObserver? observer,
+    Future<void> Function(CoachChatSnapshot)? archive,
   }) : model = _Model(handler),
        history = history ?? ChatHistory() {
     final catalog = chatCatalog();
@@ -132,6 +144,8 @@ class _Harness {
         plans: plans,
         history: this.history,
         preferences: preferences,
+        observer: observer,
+        beforeNewConversation: archive,
         actions: CoachChatHostActions(
           onStartTraining: (_, _) async => null,
           onOpenAction: (_, _) async {},
@@ -154,6 +168,13 @@ class _Harness {
     await plans.updates.close();
     await preferences.updates.close();
   }
+}
+
+Future<CoachChatSnapshot> roundtrip(CoachChatController c) async {
+  await c.flushPersistence();
+  return CoachChatSnapshot.fromJson(
+    jsonDecode(jsonEncode(c.exportSnapshot().toJson())) as Map<String, Object?>,
+  );
 }
 
 void main() {
@@ -480,5 +501,205 @@ void main() {
     );
     expect(next.controller.qaAgent.state.focus!.muscles, {'adductors'});
     expect(next.controller.canAnswerQuestion(question), isFalse);
+  });
+
+  for (final mains in [
+    ['one', 'two'],
+    <String>[],
+  ]) {
+    test(
+      'QA respond + build_plan snapshot survives JSON roundtrip ($mains)',
+      () async {
+        final first = _Harness((tool, context, count) {
+          if (tool == 'fill_form') {
+            return count == 1 ? _form() : _form(intent: 'plan');
+          }
+          if (tool == 'build_plan') {
+            return {
+              'title': '拉伸计划',
+              'text': '排好了',
+              'minutes': 10,
+              'main_ids': mains,
+              'chips': ['开始'],
+            };
+          }
+          return _answer();
+        });
+        addTearDown(first.close);
+        await first.controller.send('在家徒手拉伸');
+        final r = await first.controller.send('请把刚才推荐的动作排成计划。');
+        expect(r, isNotNull);
+        final snapshot = await roundtrip(first.controller);
+        final next = _Harness(
+          (tool, _, _) => tool == 'fill_form' ? _form() : _answer(),
+          history: ChatHistory()..snapshot = snapshot,
+        );
+        addTearDown(next.close);
+        final started = await next.controller.start();
+        expect(
+          started.ok,
+          isTrue,
+          reason: '${started.error} ${started.issues.map((i) => i.message)}',
+        );
+        final sent = await next.controller.send('再来一组');
+        expect(sent, isNotNull);
+        expect(
+          next.controller.messages.where((m) => m.isUser).last.text,
+          '再来一组',
+        );
+      },
+    );
+  }
+
+  test(
+    'QA ask_user + respond + failed build_plan + respond roundtrip',
+    () async {
+      final first = _Harness((tool, context, count) {
+        if (tool == 'fill_form') {
+          return switch (count) {
+            1 => _form(
+              place: 'unknown',
+              equipmentKnown: false,
+              next: 'ask_place',
+            ),
+            2 => _form(intent: 'answer_pending', status: 'answered'),
+            3 => _form(intent: 'plan'),
+            _ => _form(),
+          };
+        }
+        if (tool == 'ask_user') {
+          return {
+            'question': '在哪儿练？',
+            'options': ['居家', '健身房', '直接推荐'],
+          };
+        }
+        if (tool == 'build_plan') throw StateError('boom');
+        return _answer();
+      });
+      addTearDown(first.close);
+      await first.controller.send('想拉伸');
+      await first.controller.answerChoices(first.controller.messages.last, [
+        '居家',
+      ]);
+      await first.controller.send('请把刚才推荐的动作排成计划。');
+      await first.controller.send('换个动作');
+      final json =
+          jsonDecode(jsonEncode(first.controller.exportSnapshot().toJson()))
+              as Map<String, Object?>;
+      final snapshot = CoachChatSnapshot.fromJson(json);
+      for (final row in snapshot.messages) {
+        ChatMessage.fromJson(row);
+      }
+      final next = _Harness(
+        (tool, _, _) => tool == 'fill_form' ? _form() : _answer(),
+        history: ChatHistory()..snapshot = snapshot,
+      );
+      addTearDown(next.close);
+      final started = await next.controller.start();
+      expect(started.ok, isTrue, reason: '${started.error}');
+    },
+  );
+
+  group('unreadable history degrades to a fresh conversation', () {
+    Future<CoachChatSnapshot> goodSnapshot() async {
+      final first = _Harness(
+        (tool, _, _) => tool == 'fill_form' ? _form() : _answer(),
+      );
+      await first.controller.send('在家徒手拉伸');
+      final value = await roundtrip(first.controller);
+      await first.close();
+      return value;
+    }
+
+    Future<void> expectCanSend(_Harness h) async {
+      final started = await h.controller.start();
+      expect(started.ok, isTrue);
+      expect(
+        h.controller.messages.map((m) => m.text),
+        contains(const CoachChatStrings().historyUnreadable),
+      );
+      final sent = await h.controller.send('想拉伸');
+      expect(sent?.status, coach.TurnStatus.ok);
+      expect(h.controller.messages.where((m) => m.isUser).single.text, '想拉伸');
+    }
+
+    test('FormatException in a stored message', () async {
+      final good = await goodSnapshot();
+      final json = good.toJson();
+      final rows = [
+        for (final row in good.messages) Map<String, Object?>.from(row),
+      ];
+      rows.last['plan'] = {'blocks': 'broken'};
+      final bad = CoachChatSnapshot.fromJson({...json, 'messages': rows});
+      final events = <String, Object?>{};
+      final archived = <CoachChatSnapshot>[];
+      final history = _BackupHistory()..snapshot = bad;
+      final h = _Harness(
+        (tool, _, _) => tool == 'fill_form' ? _form() : _answer(),
+        history: history,
+        observer: (event, data) => events[event] = data,
+        archive: (s) async => archived.add(s),
+      );
+      addTearDown(h.close);
+      await expectCanSend(h);
+      expect(events['chat.restore.error'], isA<FormatException>());
+      final recovered = events['chat.restore.recovered']! as Map;
+      expect(recovered['stage'], startsWith('messages['));
+      expect(recovered['errorType'], 'FormatException');
+      expect(history.preserved.single, same(bad));
+      expect(archived.single, same(bad));
+      await h.controller.flushPersistence();
+      expect(history.snapshot, isNot(same(bad)));
+    });
+
+    test('broken QA state', () async {
+      final good = await goodSnapshot();
+      final bad = CoachChatSnapshot.fromJson({
+        ...good.toJson(),
+        'qaState': {
+          ...good.qaState!,
+          'lastShown': ['outside-scope'],
+        },
+      });
+      final h = _Harness(
+        (tool, _, _) => tool == 'fill_form' ? _form() : _answer(),
+        history: ChatHistory()..snapshot = bad,
+      );
+      addTearDown(h.close);
+      await expectCanSend(h);
+      expect(h.controller.qaAgent.state.lastShown, ['one', 'two']);
+    });
+
+    test('snapshot_not_admitted (other namespace)', () async {
+      final good = await goodSnapshot();
+      final bad = CoachChatSnapshot.fromJson({
+        ...good.toJson(),
+        'storageNamespace': 'other',
+      });
+      final h = _Harness(
+        (tool, _, _) => tool == 'fill_form' ? _form() : _answer(),
+        history: ChatHistory()..snapshot = bad,
+      );
+      addTearDown(h.close);
+      await expectCanSend(h);
+    });
+
+    test('legacy import failure', () async {
+      final h = _Harness(
+        (tool, _, _) => tool == 'fill_form' ? _form() : _answer(),
+        history: ChatHistory()
+          ..legacy = const CoachChatLegacyData(
+            chat: [
+              {
+                'id': 'x',
+                'role': 'assistant',
+                'plan': {'blocks': 1},
+              },
+            ],
+          ),
+      );
+      addTearDown(h.close);
+      await expectCanSend(h);
+    });
   });
 }

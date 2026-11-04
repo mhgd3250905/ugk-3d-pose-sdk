@@ -176,6 +176,15 @@ abstract class CoachChatHistoryStore {
   Future<CoachChatSnapshot?> load(String namespace);
   Future<void> write(String namespace, CoachChatSnapshot snapshot);
   Future<CoachChatLegacyData?> loadLegacy(String namespace) async => null;
+
+  /// Called once when [load] returned a snapshot the controller cannot
+  /// restore, before the fresh conversation may overwrite it. Hosts can copy
+  /// the raw stored value aside for diagnosis. Default: no backup.
+  Future<void> preserveUnreadable(
+    String namespace,
+    CoachChatSnapshot snapshot,
+    Object? error,
+  ) async {}
   Future<CoachChatHistoryContext> readTrainingContext() async =>
       const CoachChatHistoryContext();
   Future<void> rememberStartedPlan(

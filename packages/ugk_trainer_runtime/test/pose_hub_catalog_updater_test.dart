@@ -285,13 +285,54 @@ void main() {
     expect(await loadedPack(), 'r1-v3');
   });
 
-  test('catalogue missing an existing action ID is rejected', () async {
-    final small = _smallCatalog('r2-v1', 3);
-    publish('r2-v1', small);
+  test('from r2-v1 on, a catalogue missing an action ID is rejected', () async {
+    publish('r2-v1', repack('r2-v1'));
+    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.updated);
+    events.clear();
+    publish('r2-v2', _smallCatalog('r2-v2', 3));
     expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.failed);
     expect(events.single.reason, startsWith('missing_action_ids: '));
     expect(events.single.reason, contains(bundled.allActions.first.id));
-    expect(await store.read('current.json'), isNull);
+    expect(await loadedPack(), 'r2-v1');
+  });
+
+  test('legacy r1-v3 is not a baseline for the add-only rule', () async {
+    publish('r2-v1', _smallCatalog('r2-v1', 3));
+    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.failed);
+    // Passes the ID rule; this fixture then fails on its semantic file.
+    expect(events.single.reason, startsWith('semantic_'));
+  });
+
+  test('action status is three-state and defaults to active', () {
+    final raw =
+        jsonDecode(utf8.decode(_smallCatalog('r2-v1', 4)))
+            as Map<String, Object?>;
+    final actions = raw['actions']! as List<Object?>;
+    (actions[1]! as Map<String, Object?>)['status'] = 'active';
+    (actions[2]! as Map<String, Object?>)
+      ..['status'] = 'not_recommended'
+      ..['status_since'] = 'r2-v2';
+    (actions[3]! as Map<String, Object?>)['status'] = 'retired';
+    final catalog = coach.PoseHubAppTestCatalog.fromJson(raw);
+    expect(catalog.allActions.map((a) => a.status), [
+      coach.PoseHubActionStatus.active, // fixture review label
+      coach.PoseHubActionStatus.active,
+      coach.PoseHubActionStatus.notRecommended,
+      coach.PoseHubActionStatus.retired,
+    ]);
+    expect(catalog.allActions[2].statusSince, 'r2-v2');
+    expect(catalog.allActions[0].statusSince, isNull);
+    expect(
+      bundled.allActions.every(
+        (a) => a.status == coach.PoseHubActionStatus.active,
+      ),
+      isTrue,
+    );
+    (actions[3]! as Map<String, Object?>)['status'] = 'deleted';
+    expect(
+      () => coach.PoseHubAppTestCatalog.fromJson(raw),
+      throwsFormatException,
+    );
   });
 
   test('success applies on next load; an interrupted later download keeps '

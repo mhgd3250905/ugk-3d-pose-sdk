@@ -73,6 +73,31 @@ final class PoseHubPackFile {
 }
 
 /// All source semantics, including null/unknown values, are preserved in [raw].
+/// Action lifecycle (`status` in the catalogue). IDs are never removed:
+/// `not_recommended` stays browsable but is not suggested by the coach;
+/// `retired` is hidden but saved plans and history still play it.
+enum PoseHubActionStatus {
+  active('active'),
+  notRecommended('not_recommended'),
+  retired('retired');
+
+  const PoseHubActionStatus(this.wireName);
+  final String wireName;
+
+  /// Missing means active. Older test packs used `status` for their review
+  /// label (e.g. `test-unreviewed`); such labels are read as active.
+  static PoseHubActionStatus parse(Object? value) {
+    if (value == null) return active;
+    if (value is String) {
+      for (final status in values) {
+        if (status.wireName == value) return status;
+      }
+      if (value.contains('reviewed')) return active;
+    }
+    throw FormatException('Unknown action status: $value');
+  }
+}
+
 final class PoseHubPackAction {
   PoseHubPackAction._(this.raw)
     : id = _id(raw['id'], 'action.id'),
@@ -88,7 +113,9 @@ final class PoseHubPackAction {
       availableForApp = _boolean(
         raw['availableForApp'],
         'action.availableForApp',
-      ) {
+      ),
+      status = PoseHubActionStatus.parse(raw['status']),
+      statusSince = _optionalText(raw['status_since'], 'action.status_since') {
     final sourceFiles = _map(raw['files'], '$id.files');
     if (sourceFiles.keys.toSet().difference(_mediaKinds).isNotEmpty ||
         _mediaKinds.difference(sourceFiles.keys.toSet()).isNotEmpty) {
@@ -153,6 +180,13 @@ final class PoseHubPackAction {
   final String id;
   final String nameZh;
   final bool trainingDefinitionComplete;
+
+  /// Lifecycle status; absent means [PoseHubActionStatus.active].
+  /// Filtering by status is applied by callers (batch B), not here.
+  final PoseHubActionStatus status;
+
+  /// Optional pack version since which [status] holds, e.g. `r2-v2`.
+  final String? statusSince;
 
   /// Original source flag; semantic completeness does not rewrite approval.
   final bool availableForTraining;
@@ -658,10 +692,19 @@ bool _boolean(Object? value, String field) {
   return value;
 }
 
+String? _optionalText(Object? value, String field) {
+  if (value == null) return null;
+  if (value is! String || value.trim().isEmpty) {
+    throw FormatException('$field must be a non-empty string');
+  }
+  return value;
+}
+
 void _reviewFlags(Map<String, Object?> raw, String field) {
   final reviewed = _boolean(raw['reviewed'], '$field.reviewed');
   final eligible = _boolean(raw['releaseEligible'], '$field.releaseEligible');
-  final status = raw['status'] ?? raw['state'];
+  // An action's lifecycle `status` (active/…) is not a review label.
+  final status = raw['state'] ?? raw['status'];
   if ((eligible && !reviewed) ||
       (reviewed && status is String && status.contains('unreviewed'))) {
     throw FormatException('$field has contradictory review/release flags');

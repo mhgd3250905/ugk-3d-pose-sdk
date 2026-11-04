@@ -126,10 +126,7 @@ class Rhythm {
     return Rhythm(
       kind: ActionKind.byId(j['kind'] as String? ?? 'hold'),
       lead: (j['leadSeconds'] as num? ?? 1).toDouble(),
-      phases: [
-        for (final p in (j['phases'] as List?) ?? const [])
-          KitPhase.fromJson(Map<String, dynamic>.from(p as Map)),
-      ],
+      phases: _phasesFromJson(j['phases']),
       holdSeconds: (j['holdSeconds'] as num?)?.toInt(),
       defaultReps: (j['reps'] as num?)?.toInt(),
       source: switch (j['source']) {
@@ -139,6 +136,37 @@ class Rhythm {
       },
     );
   }
+
+  /// `phases` is a list of `{"id", "seconds", "cue"}` maps, or the compact
+  /// text the Pose-Hub r2 catalog delivers in `rhythm.execution.phases`:
+  /// `"go=0.8s@phase.start; hold=1.2s@phase.peak; back=0.8s@phase.end; rest=1.2s"`
+  /// (`""` = no phases). The `@phase.*` tags are timeline markers, not voice
+  /// clip ids, so text phases carry id and seconds only. Malformed text
+  /// throws a [FormatException] instead of silently dropping a phase.
+  static List<KitPhase> _phasesFromJson(Object? raw) {
+    if (raw == null) return const [];
+    if (raw is List) {
+      return [
+        for (final p in raw) KitPhase.fromJson(Map<String, dynamic>.from(p as Map)),
+      ];
+    }
+    if (raw is String) {
+      final out = <KitPhase>[];
+      for (final part in raw.split(';')) {
+        final text = part.trim();
+        if (text.isEmpty) continue;
+        final m = _textPhase.firstMatch(text);
+        if (m == null) throw FormatException('rhythm phase "$text"');
+        out.add(KitPhase(m.group(1)!, double.parse(m.group(2)!), const []));
+      }
+      return out;
+    }
+    throw FormatException('rhythm phases ${raw.runtimeType}');
+  }
+
+  static final _textPhase = RegExp(
+    r'^([A-Za-z][\w-]*)\s*=\s*(\d+(?:\.\d+)?|\.\d+)s(?:\s*@\s*[\w.-]+)?$',
+  );
 
   /// HipLab action kit (`action-kit@1`, `assets/action_kits/<id>.json`).
   factory Rhythm.fromActionKitJson(Map<String, dynamic> kit) {

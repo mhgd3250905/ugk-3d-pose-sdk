@@ -42,6 +42,8 @@ flutter:
       android:
         package: com.ugk.trainer
         pluginClass: UgkTrainerPlugin
+      ios:
+        pluginClass: UgkTrainerPlugin
   assets:
     - assets/silence.m4a
     - assets/media_player/

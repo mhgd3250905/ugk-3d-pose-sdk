@@ -70,7 +70,7 @@ void main() {
     }
   });
 
-  test('only runtime owns the Android plugin and foreground service', () {
+  test('only runtime registers the native plugins and Android service', () {
     final runtimePubspec = File('pubspec.yaml').readAsStringSync();
     final legacyPubspec = File(
       '../ugk_trainer/pubspec.yaml',
@@ -80,7 +80,12 @@ void main() {
     expect(pluginDeclaration.allMatches(legacyPubspec), isEmpty);
     expect(runtimePubspec, contains('pluginClass: UgkTrainerPlugin'));
     expect(runtimePubspec, contains('package: com.ugk.trainer'));
+    expect(
+      RegExp(r'ios:\s+pluginClass: UgkTrainerPlugin').hasMatch(runtimePubspec),
+      isTrue,
+    );
     expect(Directory('../ugk_trainer/android').existsSync(), isFalse);
+    expect(Directory('../ugk_trainer/ios').existsSync(), isFalse);
 
     final kotlin = Directory('android')
         .listSync(recursive: true)

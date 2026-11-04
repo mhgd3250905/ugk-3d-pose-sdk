@@ -1,4 +1,4 @@
-/// build_plan：模型只给主训练动作和时长，热身/主训/收操、组数、时长由代码确定性排出。
+/// build_plan 的配时：动作（含热身、收操、分段）全部由模型给定，代码只确定性配组数与时长，并报告偏差。
 library;
 
 import '../agent/plan_builder.dart';
@@ -121,94 +121,39 @@ final class QaPlanBuilder {
     for (final id in actionIds) ...?finder.index[id]?.requiredEquipment,
   }.toList()..sort());
 
+  /// 按给定动作配组数与时长：主训练、热身、收操、分段都原样用 [mainIds] / [warmIds] / [coolIds] /
+  /// [segmentNames]，顺序不变；不补、不删、不换、不挑动作，也不检查范围（准入由调用方验收）。
+  /// 只调主训练的组数，尽量落进目标 ±12%；落不进时 [QaPlanResult.seconds] 如实反映偏差，由调用方决定退回。
   QaPlanResult build({
     required List<String> mainIds,
     required int minutes,
     required QaQuery base,
     String? title,
     Map<String, String> blockNames = const {},
-    List<String>? warmIds,
-    List<String>? coolIds,
+    List<String> warmIds = const [],
+    List<String> coolIds = const [],
     List<String> segmentNames = const [],
     Map<String, int> segmentOf = const {},
-    bool autoWarmup = true,
-    bool autoCooldown = true,
   }) {
     final notes = <String>[];
-    final target = minutes.clamp(3, 60) * 60;
-    final main = <QaAction>[];
-    for (final id in mainIds) {
-      final a = finder.index[id];
-      if (a == null) {
-        notes.add('unknown:$id');
-        continue;
+    List<QaAction> resolve(List<String> ids) {
+      final out = <QaAction>[];
+      for (final id in ids) {
+        final a = finder.index[id];
+        if (a == null) {
+          notes.add('unknown:$id');
+        } else {
+          out.add(a);
+        }
       }
-      if (!finder.passes(a, base.withExclude(const {}))) {
-        // 圈定过范围（或有伤痛禁忌）时绝不越界：直接去掉，后面按同条件补。
-        notes.add('out_of_scope:$id');
-        continue;
-      }
-      if (!main.any((m) => m.id == a.id)) main.add(a);
+      return out;
     }
+
+    final main = resolve(mainIds);
+    final warm = resolve(warmIds);
+    final cool = resolve(coolIds);
     final pureStretch = main.isNotEmpty && main.every((a) => a.isStretchOnly);
-    final used = {for (final a in main) a.id};
-
-    // 主训练不足 2 个时，用同条件补。
-    if (main.length < 2) {
-      for (final h in finder.find(base.withExclude(used))) {
-        if (main.length >= 3) break;
-        main.add(h.action);
-        used.add(h.action.id);
-        notes.add('padded:${h.action.id}');
-      }
-    }
-
-    // 改时长时沿用原来的热身/收操（含用户换过的），不重新挑。
-    final warm = <QaAction>[
-      for (final id in warmIds ?? const <String>[])
-        if (finder.index[id] != null && !used.contains(id)) finder.index[id]!,
-    ];
-    final cool = <QaAction>[
-      for (final id in coolIds ?? const <String>[])
-        if (finder.index[id] != null && !used.contains(id)) finder.index[id]!,
-    ];
-    used.addAll([...warm.map((a) => a.id), ...cool.map((a) => a.id)]);
-    if (warmIds == null && autoWarmup && !pureStretch && minutes >= warmupFromMinutes) {
-      final region = {for (final a in main) ...a.primaryMuscles};
-      warm.addAll(
-        finder
-            .find(
-              // 范围条件（含小空间、难度上限）整体沿用主训的确认条件。
-              base.scopeOnly.copyWith(
-                muscles: region,
-                types: const {'mobility', 'dynamic-stretch'},
-                roles: const {'warmup'},
-                exclude: used,
-                limit: 2,
-              ),
-            )
-            .map((h) => h.action),
-      );
-      used.addAll(warm.map((a) => a.id));
-    }
-    if (coolIds == null && autoCooldown && !pureStretch && minutes >= cooldownFromMinutes) {
-      final region = {for (final a in main) ...a.primaryMuscles};
-      cool.addAll(
-        finder
-            .find(
-              base.scopeOnly.copyWith(
-                stretchMuscles: region,
-                types: const {'static-stretch'},
-                roles: const {'cooldown'},
-                exclude: used,
-                limit: 2,
-              ),
-            )
-            .map((h) => h.action),
-      );
-      used.addAll(cool.map((a) => a.id));
-    }
-
+    final target = minutes * 60;
     final mainSets = <String, int>{
       for (final a in main) a.id: _defaultSets(a, pureStretch),
     };
@@ -228,53 +173,18 @@ final class QaPlanBuilder {
 
     var plan = make();
     var secs = _duration.estimateSeconds(plan, _catalog).round();
-    // 先调组数，再增删动作，直到落在 ±12% 内。
-    for (var guard = 0; guard < 40; guard++) {
+    final maxSets = pureStretch ? 2 : 4;
+    for (var guard = 0; guard < 60; guard++) {
       if (secs < target * 0.88) {
-        final grow =
-            main.where((a) => mainSets[a.id]! < (pureStretch ? 2 : 4)).toList()
-              ..sort((x, y) => mainSets[x.id]!.compareTo(mainSets[y.id]!));
-        if (grow.isNotEmpty &&
-            (main.length >= 4 || pureStretch || mainSets[grow.first.id]! < 3)) {
-          mainSets[grow.first.id] = mainSets[grow.first.id]! + 1;
-        } else if (main.length + warm.length + cool.length < maxItems) {
-          final extra = finder.find(base.withExclude(used)).firstOrNull;
-          if (extra == null) {
-            if (grow.isEmpty) break;
-            mainSets[grow.first.id] = mainSets[grow.first.id]! + 1;
-          } else {
-            main.add(extra.action);
-            used.add(extra.action.id);
-            notes.add('padded:${extra.action.id}');
-            mainSets[extra.action.id] = _defaultSets(extra.action, pureStretch);
-          }
-        } else if (grow.isNotEmpty) {
-          mainSets[grow.first.id] = mainSets[grow.first.id]! + 1;
-        } else {
-          break;
-        }
+        final grow = main.where((a) => mainSets[a.id]! < maxSets).toList()
+          ..sort((x, y) => mainSets[x.id]!.compareTo(mainSets[y.id]!));
+        if (grow.isEmpty) break;
+        mainSets[grow.first.id] = mainSets[grow.first.id]! + 1;
       } else if (secs > target * 1.12) {
         final shrink = main.where((a) => mainSets[a.id]! > 1).toList()
           ..sort((x, y) => mainSets[y.id]!.compareTo(mainSets[x.id]!));
-        if (shrink.isNotEmpty) {
-          mainSets[shrink.first.id] = mainSets[shrink.first.id]! - 1;
-        } else if (main.length > 2) {
-          final drop = main.removeLast();
-          used.remove(drop.id);
-          notes.add('trimmed:${drop.id}');
-          mainSets.remove(drop.id);
-        } else if (warm.isNotEmpty || cool.isNotEmpty) {
-          if (warm.length > 1) {
-            warm.removeLast();
-          } else if (cool.length > 1) {
-            cool.removeLast();
-          } else {
-            warm.clear();
-            cool.clear();
-          }
-        } else {
-          break;
-        }
+        if (shrink.isEmpty) break;
+        mainSets[shrink.first.id] = mainSets[shrink.first.id]! - 1;
       } else {
         break;
       }
@@ -282,6 +192,12 @@ final class QaPlanBuilder {
       secs = _duration.estimateSeconds(plan, _catalog).round();
     }
     return QaPlanResult(plan, secs, notes);
+  }
+
+  /// 配时后与目标的偏差（比例，正 = 偏长）。
+  static double deviation(QaPlanResult r) {
+    final target = r.plan.targetMinutes * 60;
+    return target <= 0 ? 0 : (r.seconds - target) / target;
   }
 
   int _defaultSets(QaAction a, bool pureStretch) {
@@ -333,8 +249,7 @@ final class QaPlanBuilder {
     List<String> segmentNames = const [],
     Map<String, int> segmentOf = const {},
   }) {
-    // 分段：模型按用户要求把主训练分成几段（如「坐姿」「站姿」），顺序原样保留；
-    // 代码补进来的动作归到最后一段。
+    // 分段：模型按用户要求把主训练分成几段（如「坐姿」「站姿」），顺序原样保留。
     final segs = segmentNames.length > 1 ? segmentNames : const <String>[];
     final mainBlocks = <PlanBlock>[
       if (segs.isEmpty)

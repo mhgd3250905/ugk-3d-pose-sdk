@@ -9,6 +9,7 @@ import '../rhythm/rhythm.dart';
 import '../ui/trainer_player.dart';
 import '../ui/trainer_strings.dart';
 import '../ui/trainer_theme.dart';
+import 'pose_hub_action_library.dart';
 import 'pose_hub_media_preparation.dart';
 import 'pose_hub_pack_image.dart';
 
@@ -298,7 +299,7 @@ class PoseHubSinglePracticePage extends StatelessWidget {
               targetMuscles: action.raw['muscleGroupsZh'] as String?,
               equipment: _actionEquipment(action),
               thumbnailAsset:
-                  'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v1/standing/$id.webp',
+                  '${PoseHubActionLibrary.standingAssetRoot}$id.webp',
             )
           : null,
       poseHubActionOf: (id) => id == action.id ? action : null,

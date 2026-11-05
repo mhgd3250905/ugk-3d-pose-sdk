@@ -37,13 +37,13 @@ Map<String, Object?> _futureRelease() {
   final data =
       jsonDecode(
             File(
-              'assets/pose_hub/app-pack-r2-v1/catalog.json',
+              'assets/pose_hub/app-pack-r2-v2/catalog.json',
             ).readAsStringSync(),
           )
           as Map<String, Object?>;
-  const version = 'app-pack-r2-v2';
-  const prefix = 'pack/r2-v2/';
-  data['pack'] = 'r2-v2';
+  const version = 'app-pack-r2-v3';
+  const prefix = 'pack/r2-v3/';
+  data['pack'] = 'r2-v3';
   const base = 'https://media.uuugk.win/$prefix';
   var files = 0;
   var bytes = 0;
@@ -77,14 +77,19 @@ void main() {
     catalog = await PoseHubActionLibrary.load(bundle: _PackBundle());
   });
 
-  test('r2-v1 locations come from the pack', () {
+  test('bundled r2-v2 metadata, media still under r2-v1', () {
+    expect(PoseHubActionLibrary.packVersion, 'r2-v2');
     expect(
       PoseHubActionLibrary.mediaReleaseBaseUri,
       'https://media.uuugk.win/pack/r2-v1/',
     );
     expect(
+      PoseHubActionLibrary.mediaBaseUriFor(catalog).toString(),
+      PoseHubActionLibrary.mediaReleaseBaseUri,
+    );
+    expect(
       PoseHubActionLibrary.catalogDownloadUri,
-      'https://media.uuugk.win/pack/r2-v1/catalog.json',
+      'https://media.uuugk.win/pack/r2-v2/catalog.json',
     );
   });
 
@@ -92,7 +97,7 @@ void main() {
     'bundled audit digest records this release without gating future data',
     () async {
       final source = await File(
-        'assets/pose_hub/app-pack-r2-v1/catalog.json',
+        'assets/pose_hub/app-pack-r2-v2/catalog.json',
       ).readAsBytes();
       expect(
         sha256.convert(source).toString(),
@@ -101,26 +106,23 @@ void main() {
     },
   );
 
-  test(
-    'bundled r2-v1 metadata loads all 249 media identities unchanged',
-    () {
-      expect(catalog.allActions, hasLength(249));
-      expect(catalog.semanticCompleteActions, hasLength(249));
-      expect(catalog.pendingActions, isEmpty);
-      expect(catalog.allActions.map((a) => a.id).toSet(), hasLength(249));
-      for (final action in catalog.allActions) {
-        expect(catalog.tryGet(action.id), same(action));
-        for (final file in [action.video, action.cover, action.thumbnail]) {
-          expect(
-            file.resolve(Uri.parse('https://example.test/pack/')).path,
-            '/pack/${file.path}',
-          );
-          expect(file.bytes, greaterThan(0));
-        }
+  test('bundled r2-v2 metadata loads all 249 media identities unchanged', () {
+    expect(catalog.allActions, hasLength(249));
+    expect(catalog.semanticCompleteActions, hasLength(249));
+    expect(catalog.pendingActions, isEmpty);
+    expect(catalog.allActions.map((a) => a.id).toSet(), hasLength(249));
+    for (final action in catalog.allActions) {
+      expect(catalog.tryGet(action.id), same(action));
+      for (final file in [action.video, action.cover, action.thumbnail]) {
+        expect(
+          file.resolve(Uri.parse('https://example.test/pack/')).path,
+          '/pack/${file.path}',
+        );
+        expect(file.bytes, greaterThan(0));
       }
-      expect(catalog.toAiCatalog().drills, hasLength(249));
-    },
-  );
+    }
+    expect(catalog.toAiCatalog().drills, hasLength(249));
+  });
 
   test('malformed source JSON is rejected', () async {
     await expectLater(
@@ -142,7 +144,7 @@ void main() {
       expect(loaded.toAiCatalog().length, 249);
       expect(
         (loaded.raw['mediaDistribution']! as Map<String, Object?>)['version'],
-        'app-pack-r2-v2',
+        'app-pack-r2-v3',
       );
     },
   );
@@ -165,7 +167,7 @@ void main() {
       const path = 'catalog/revisions/v4.json';
       (future['semanticCatalog']! as Map<String, Object?>)['path'] = path;
       final canonicalBytes = await File(
-        'assets/pose_hub/app-pack-r2-v1/catalog/catalog.json',
+        'assets/pose_hub/app-pack-r2-v2/catalog/catalog.json',
       ).readAsBytes();
       final loaded = await PoseHubActionLibrary.load(
         bundle: _PackBundle(

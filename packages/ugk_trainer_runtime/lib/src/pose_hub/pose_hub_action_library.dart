@@ -5,29 +5,37 @@ import 'pose_hub_catalog_channel.dart';
 import 'pose_hub_catalog_io_types.dart';
 import 'pose_hub_catalog_updater.dart' show readVerifiedPoseHubCatalog;
 
-/// The r2-v1 baseline catalogue (249 actions, first action-library version)
-/// ships with the SDK. Hosts download and verify
-/// individual media objects separately; no video or image is embedded in Git.
+/// The bundled baseline catalogue (r2-v2: the r2-v1 action set of 249 plus
+/// left/right alternating-pair counting on 23 actions) ships with the SDK.
+/// Hosts download and verify individual media objects separately; no video
+/// or image is embedded in Git apart from the standing frame-zero images.
 abstract final class PoseHubActionLibrary {
   static const assetRoot =
-      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v1/';
+      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v2/';
+
+  /// Standing frame-zero images. r2-v2 reuses r2-v1 media unchanged, so these
+  /// stay under the r2-v1 directory hosts already reference.
+  static const standingAssetRoot =
+      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v1/standing/';
 
   /// Audit digest of this SDK's bundled catalogue, not an acceptance gate for
   /// other internally consistent catalogue versions.
   static const catalogSha256 =
-      '02721e4c24a0445f2a05ef185b2569dc105566d630c5b8f901da059c0945117b';
+      '6dee16969ccaa0f238cb64527148bcc3af7637b3326cced2d38765feca728829';
 
   /// Bundled pack version (`pack` in the bundled catalogue).
-  static const packVersion = 'r2-v1';
+  static const packVersion = 'r2-v2';
 
-  /// Public r2-v1 metadata. Media download URLs are declared on each file.
+  /// Public metadata of the bundled pack.
   static const catalogDownloadUri =
-      'https://media.uuugk.win/pack/r2-v1/catalog.json';
+      'https://media.uuugk.win/pack/r2-v2/catalog.json';
+
+  /// Media root of the bundled pack (its `mediaDistribution`): r2-v1.
   static const mediaReleaseBaseUri = 'https://media.uuugk.win/pack/r2-v1/';
 
   /// Media root of [catalog]'s pack.
   static Uri mediaBaseUriFor(PoseHubAppTestCatalog catalog) =>
-      poseHubMediaBaseUriForPack(poseHubPackVersionOf(catalog));
+      poseHubMediaBaseUriForPack(poseHubMediaPackOf(catalog));
 
   static Future<PoseHubAppTestCatalog>? _bundled;
   static PoseHubCatalogStore? _verifiedCache;
@@ -65,7 +73,16 @@ abstract final class PoseHubActionLibrary {
   ) async {
     if (store != null) {
       final cached = await readVerifiedPoseHubCatalog(store);
-      if (cached != null) return cached;
+      if (cached != null) {
+        final bundled = await _load(bundle);
+        // A cache older than the bundled baseline (downloaded before this
+        // SDK shipped a newer pack) never shadows it.
+        final order = comparePoseHubPacks(
+          poseHubPackVersionOf(cached),
+          poseHubPackVersionOf(bundled),
+        );
+        return order != null && order < 0 ? bundled : cached;
+      }
     }
     return _load(bundle);
   }

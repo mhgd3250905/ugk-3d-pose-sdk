@@ -299,6 +299,13 @@ class Rhythm {
   double cycleFor({int? hold}) =>
       phasesFor(hold: hold).fold(0.0, (s, p) => s + p.seconds);
 
+  /// Seconds one count costs per side, the unit plan estimates multiply by
+  /// reps and by two sides for a unilateral (`perSide`) dose
+  /// (`PlanDuration`). An [alternatePair] count holds both sides, so a set of
+  /// N pairs — 每侧 N 次 — costs N × [cycleFor] = 2 × N × this.
+  double planRepSecondsFor({int? hold}) =>
+      alternatePair ? cycleFor(hold: hold) / 2 : cycleFor(hold: hold);
+
   /// Whole seconds of one side (or of the unsided set; an [alternatePair]'s
   /// set holds both sides). Counted rhythms
   /// keep [budget] when every rep fits in it at the rhythm's pace (the reps

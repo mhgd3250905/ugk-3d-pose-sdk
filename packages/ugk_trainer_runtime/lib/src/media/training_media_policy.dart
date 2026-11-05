@@ -16,8 +16,8 @@ class TrainingMediaPolicy {
     this.prefetchBeforeTraining = true,
   });
 
-  /// The bundled r2-v1 media root; other packs use
-  /// [poseHubMediaBaseUriForPack].
+  /// The bundled catalogue's media root (r2-v2 reuses r2-v1 media); other
+  /// packs use [poseHubMediaBaseUriForPack] with [poseHubMediaPackOf].
   static const publicBaseUrl = 'https://media.uuugk.win/pack/r2-v1/';
   final CatalogMediaRepository repository;
   final String posterAssetRoot;
@@ -45,7 +45,7 @@ class TrainingMediaPolicy {
       catalogRevision: sha256.convert(bytes).toString(),
       mediaBaseUrls:
           mediaBaseUrls ??
-          [poseHubMediaBaseUriForPack(poseHubPackVersionOf(catalog))],
+          [poseHubMediaBaseUriForPack(poseHubMediaPackOf(catalog))],
       rootDirectory: rootDirectory,
       maxVideoCacheBytes: maxVideoCacheBytes,
     );

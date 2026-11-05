@@ -10,7 +10,7 @@ import 'fixtures/legacy_sf_template_plans.dart';
 
 coach.Catalog _currentCatalog() => coach.PoseHubAppTestCatalog.fromBytes(
   File(
-    '../ugk_trainer/assets/pose_hub/app-pack-r2-v1/catalog.json',
+    '../ugk_trainer/assets/pose_hub/app-pack-r2-v2/catalog.json',
   ).readAsBytesSync(),
 ).toAiCatalog();
 

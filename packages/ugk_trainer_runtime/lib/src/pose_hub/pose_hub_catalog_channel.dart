@@ -28,6 +28,39 @@ String poseHubPackVersionOf(coach.PoseHubAppTestCatalog catalog) {
   return pack;
 }
 
+/// The pack whose public directory holds [catalog]'s media files.
+///
+/// A catalogue that only changes metadata (r2-v2 over r2-v1) keeps pointing
+/// at the earlier pack's media through `mediaDistribution.objectKeyPrefix`
+/// (`pack/<pack>/`, already checked against every file's `downloadUrl` when
+/// the catalogue was parsed). Without a `pack/<pack>/` declaration the media
+/// lives under the catalogue's own pack.
+String poseHubMediaPackOf(coach.PoseHubAppTestCatalog catalog) {
+  final distribution = catalog.raw['mediaDistribution'];
+  if (distribution is Map && distribution['kind'] == 'r2-objects@1') {
+    final prefix = distribution['objectKeyPrefix'];
+    final match = prefix is String
+        ? RegExp(r'^pack/([a-z0-9]+(?:-[a-z0-9]+)*)/$').firstMatch(prefix)
+        : null;
+    final pack = match?.group(1);
+    if (pack != null && pack.length <= 64) return pack;
+  }
+  return poseHubPackVersionOf(catalog);
+}
+
+final _packOrderPattern = RegExp(r'^r(\d+)-v(\d+)$');
+
+/// Orders two `r<series>-v<version>` packs (negative when [a] is older).
+/// Null when either name is outside that scheme: no order is assumed.
+int? comparePoseHubPacks(String a, String b) {
+  final x = _packOrderPattern.firstMatch(a);
+  final y = _packOrderPattern.firstMatch(b);
+  if (x == null || y == null) return null;
+  final series = int.parse(x.group(1)!).compareTo(int.parse(y.group(1)!));
+  if (series != 0) return series;
+  return int.parse(x.group(2)!).compareTo(int.parse(y.group(2)!));
+}
+
 final _packPattern = RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$');
 final _shaPattern = RegExp(r'^[a-f0-9]{64}$');
 final _semverPattern = RegExp(r'^(\d+)\.(\d+)\.(\d+)$');

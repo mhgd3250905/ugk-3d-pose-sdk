@@ -81,7 +81,7 @@ enum PoseHubCatalogUpdateOutcome {
   /// The pointer answered 304 for the stored ETag.
   notModified,
 
-  /// The pointer names the pack already in use.
+  /// The pointer names the pack already in use, or an older one.
   unchanged,
 
   /// The pointer needs a newer SDK (`min_sdk`).
@@ -193,7 +193,10 @@ class PoseHubCatalogUpdater {
     }
     final pack = pointer.pack;
     final local = await _local();
-    if (poseHubPackVersionOf(local) == pack) {
+    final localPack = poseHubPackVersionOf(local);
+    // Packs only move forward: a pointer naming an older pack than the one in
+    // use (e.g. stable still on r2-v1 while the SDK bundles r2-v2) is a no-op.
+    if (localPack == pack || (comparePoseHubPacks(pack, localPack) ?? 0) < 0) {
       keepEtag(pointerResponse.etag);
       return PoseHubCatalogUpdateOutcome.unchanged;
     }

@@ -61,4 +61,32 @@ void main() {
     }
     expect(parsed, rows.length);
   });
+
+  test('r2-v2 execution with repUnit left+right is an alternating pair', () {
+    // r2-v2 puts perSide / repUnit / startingSide into rhythm.execution for
+    // actions that really alternate, so Rhythm.fromJson(execution) is enough.
+    final r = Rhythm.fromJson({
+      'kind': 'rep_alternate',
+      'leadSeconds': 1,
+      'phases':
+          'go=0.8s@phase.start; hold=1.1s@phase.peak; back=0.8s@phase.end; rest=1.3s',
+      'reps': 8,
+      'perSide': 'alternate',
+      'repUnit': 'left+right',
+      'startingSide': 'right',
+    });
+    expect(r.alternatePair, isTrue);
+    expect(r.pairFirstSide, 'right');
+    expect(r.cycleFor(), closeTo(8.0, 1e-9));
+    expect(r.withHold(2).alternatePair, isTrue);
+  });
+
+  test('r2-v1 execution without repUnit keeps one side per count', () {
+    final r = Rhythm.fromJson({
+      'kind': 'rep_alternate',
+      'leadSeconds': 1,
+      'phases': 'go=0.8s; rest=1.2s',
+    });
+    expect(r.alternatePair, isFalse);
+  });
 }

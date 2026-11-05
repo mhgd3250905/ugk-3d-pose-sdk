@@ -9,6 +9,7 @@ import '../rhythm/rhythm.dart';
 import '../ui/trainer_player.dart';
 import '../ui/trainer_strings.dart';
 import '../ui/trainer_theme.dart';
+import 'pose_hub_action_library.dart';
 import 'pose_hub_media_preparation.dart';
 import 'pose_hub_pack_image.dart';
 
@@ -233,12 +234,24 @@ class PoseHubSinglePracticePage extends StatelessWidget {
       perSide: action.raw['unilateral'] == true,
       restSeconds: dose['restSeconds']! as int,
     );
+    // Alternating pair (v3 `training.repUnit: left+right`): the authored
+    // one-side phases, played right+left inside every count. perSide stays
+    // true for the 每侧 N 次 dose text; the engine does not split the set.
+    final training = action.raw['training'];
+    final pair = training is Map
+        ? Rhythm.fromJson(
+            Map<String, dynamic>.from(training),
+            startingSide: action.raw['startingSide'] as String?,
+          )
+        : null;
     final rhythms = {
-      action.id: Rhythm.forDose(
-        item.mode,
-        category: action.raw['category'] as String?,
-        holdSeconds: (dose['holdSeconds'] as num?)?.toDouble(),
-      ),
+      action.id: pair != null && pair.alternatePair && pair.counted
+          ? pair
+          : Rhythm.forDose(
+              item.mode,
+              category: action.raw['category'] as String?,
+              holdSeconds: (dose['holdSeconds'] as num?)?.toDouble(),
+            ),
     };
     final scenes = (action.raw['scenes'] as List).whereType<String>();
     var plan = TrainingPlan(
@@ -286,7 +299,7 @@ class PoseHubSinglePracticePage extends StatelessWidget {
               targetMuscles: action.raw['muscleGroupsZh'] as String?,
               equipment: _actionEquipment(action),
               thumbnailAsset:
-                  'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v1/standing/$id.webp',
+                  '${PoseHubActionLibrary.standingAssetRoot}$id.webp',
             )
           : null,
       poseHubActionOf: (id) => id == action.id ? action : null,

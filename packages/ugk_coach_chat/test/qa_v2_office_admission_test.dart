@@ -24,7 +24,7 @@ const _floor = {'supine', 'prone', 'quadruped', 'kneeling', 'side_lying'};
 /// assembled under tags and rejected by the core gate.
 void main() {
   final meta = File(
-    '../ugk_trainer/assets/pose_hub/app-pack-r2-v1/catalog.json',
+    '../ugk_trainer/assets/pose_hub/app-pack-r2-v2/catalog.json',
   );
   final descriptor = coach.PoseHubAppTestCatalog.fromBytes(
     meta.readAsBytesSync(),

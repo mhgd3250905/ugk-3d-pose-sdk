@@ -515,6 +515,12 @@ class SessionScript {
       final last = k == plan.reps && plan.reps >= 3 && lastRep != null;
       for (final (i, ph) in plan.phases.indexed) {
         final word = ph.cueFor(k);
+        // Alternating pair: the side word (右 → 左) as each side starts,
+        // inside the one count.
+        final sideStart =
+            ph.side != null && (i == 0 || plan.phases[i - 1].side != ph.side);
+        final sw = sideStart ? source.sideWord(ph.side!) : null;
+        final side = sw != null && _has(sw) ? sw : null;
         if (i == 0) {
           raw.add(
             VoiceCue(t, [
@@ -523,11 +529,15 @@ class SessionScript {
               if (k == 1) ?startClip,
               ?(last ? lastRep : count(k)),
               if ((last ? lastRep : count(k)) == null &&
+                  side == null &&
                   (word == null || !_has(word)))
                 'chime.tick',
+              ?side,
               ?word,
             ], CuePriority.count),
           );
+        } else if (side != null) {
+          raw.add(VoiceCue(t, [side, ?word], CuePriority.count));
         } else if (word != null) {
           raw.add(VoiceCue(t + ph.cueAt, [word], CuePriority.count));
         }

@@ -7,14 +7,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_coach/ugk_coach.dart' as coach;
 import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart';
 
-const _assetDir = '../ugk_trainer/assets/pose_hub/app-pack-r2-v1/';
+const _assetDir = 'test/fixtures/pose_hub/r2-v1/';
+const _bundledDir = '../ugk_trainer/assets/pose_hub/app-pack-r2-v2/';
 
-/// Reads the SDK's real bundled r2-v1 catalogue from the sibling package.
+/// Serves the real r2-v1 catalogue (test fixture) as a host's bundled
+/// baseline: the updater logic below is pack-agnostic.
 class _PackBundle extends CachingAssetBundle {
   @override
   Future<ByteData> load(String key) async {
     final path = key.replaceFirst(
-      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v1/',
+      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v2/',
       _assetDir,
     );
     return ByteData.sublistView(await File(path).readAsBytes());
@@ -193,12 +195,40 @@ void main() {
     now = DateTime.utc(2026, 11, 4, 10);
   });
 
-  test('bundled r2-v1 declares pack r2-v1, schema 1 and its media root', () {
+  test('the SDK bundles r2-v2, whose media stays under r2-v1', () async {
+    final bytes = await File('${_bundledDir}catalog.json').readAsBytes();
+    expect(
+      sha256.convert(bytes).toString(),
+      PoseHubActionLibrary.catalogSha256,
+    );
+    final real = coach.PoseHubAppTestCatalog.fromBytes(
+      bytes,
+      semanticCatalogBytes: await File(
+        '${_bundledDir}catalog/catalog.json',
+      ).readAsBytes(),
+    );
+    expect(poseHubPackVersionOf(real), 'r2-v2');
+    expect(PoseHubActionLibrary.packVersion, 'r2-v2');
+    expect(real.raw['previousPack'], 'r2-v1');
+    expect(poseHubMediaPackOf(real), 'r2-v1');
+    expect(
+      PoseHubActionLibrary.mediaBaseUriFor(real).toString(),
+      PoseHubActionLibrary.mediaReleaseBaseUri,
+    );
+    expect(
+      {for (final a in real.allActions) a.id},
+      {for (final a in bundled.allActions) a.id},
+    );
+  });
+
+  test('r2-v1 fixture declares pack r2-v1, schema 1 and its media root', () {
     expect(bundled.raw['pack'], 'r2-v1');
     expect(bundled.raw['schema'], 1);
     expect(poseHubPackVersionOf(bundled), 'r2-v1');
-    expect(PoseHubActionLibrary.packVersion, 'r2-v1');
-    expect(sha256.convert(r1Bytes).toString(), PoseHubActionLibrary.catalogSha256);
+    expect(
+      sha256.convert(r1Bytes).toString(),
+      '02721e4c24a0445f2a05ef185b2569dc105566d630c5b8f901da059c0945117b',
+    );
     expect(bundled.allActions, hasLength(249));
     expect(bundled.raw['readyCount'], 249);
     expect(
@@ -218,37 +248,40 @@ void main() {
     expect(_config.pointerUri.toString(), _pointerUrl);
   });
 
-  test('the generated channel pointer and r2-v1 catalogue are accepted', () async {
-    final pointer = await File(
-      'test/fixtures/pose_hub/channels/dev.json',
-    ).readAsBytes();
-    final parsed = PoseHubCatalogPointer.fromBytes(pointer);
-    expect(parsed.pack, 'r2-v1');
-    expect(parsed.minSdk, '0.8.0');
-    expect(parsed.catalogBytes, r1Bytes.length);
-    expect(parsed.catalogSha256, PoseHubActionLibrary.catalogSha256);
-    http.serve(_pointerUrl, pointer);
-    http.serve('https://media.uuugk.win/pack/r2-v1/catalog.json', r1Bytes);
-    http.serve(
-      'https://media.uuugk.win/pack/r2-v1/catalog/catalog.json',
-      semanticBytes,
-    );
-    // A host still on a pre-pack catalogue switches to r2-v1.
-    final legacy = jsonDecode(utf8.decode(r1Bytes)) as Map<String, Object?>
-      ..remove('pack');
-    final u = PoseHubCatalogUpdater(
-      config: _config,
-      store: store,
-      http: http,
-      now: () => now,
-      loadLocal: () async => coach.PoseHubAppTestCatalog.fromJson(legacy),
-      onEvent: events.add,
-    );
-    expect(await u.checkNow(), PoseHubCatalogUpdateOutcome.updated);
-    expect(await loadedPack(), 'r2-v1');
-    // With r2-v1 bundled, the same pointer is a no-op.
-    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.unchanged);
-  });
+  test(
+    'the generated channel pointer and r2-v1 catalogue are accepted',
+    () async {
+      final pointer = await File(
+        'test/fixtures/pose_hub/channels/dev.json',
+      ).readAsBytes();
+      final parsed = PoseHubCatalogPointer.fromBytes(pointer);
+      expect(parsed.pack, 'r2-v1');
+      expect(parsed.minSdk, '0.8.0');
+      expect(parsed.catalogBytes, r1Bytes.length);
+      expect(parsed.catalogSha256, sha256.convert(r1Bytes).toString());
+      http.serve(_pointerUrl, pointer);
+      http.serve('https://media.uuugk.win/pack/r2-v1/catalog.json', r1Bytes);
+      http.serve(
+        'https://media.uuugk.win/pack/r2-v1/catalog/catalog.json',
+        semanticBytes,
+      );
+      // A host still on a pre-pack catalogue switches to r2-v1.
+      final legacy = jsonDecode(utf8.decode(r1Bytes)) as Map<String, Object?>
+        ..remove('pack');
+      final u = PoseHubCatalogUpdater(
+        config: _config,
+        store: store,
+        http: http,
+        now: () => now,
+        loadLocal: () async => coach.PoseHubAppTestCatalog.fromJson(legacy),
+        onEvent: events.add,
+      );
+      expect(await u.checkNow(), PoseHubCatalogUpdateOutcome.updated);
+      expect(await loadedPack(), 'r2-v1');
+      // With r2-v1 bundled, the same pointer is a no-op.
+      expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.unchanged);
+    },
+  );
 
   test('pointer parsing rejects bad fields', () {
     final good = _pointer('r2-v2', [1, 2, 3]);
@@ -339,22 +372,25 @@ void main() {
     expect(await loadedPack(), 'r2-v2');
   });
 
-  test('a pre-pack catalogue is not a baseline for the add-only rule', () async {
-    final legacy = jsonDecode(utf8.decode(r1Bytes)) as Map<String, Object?>
-      ..remove('pack');
-    publish('r2-v2', _smallCatalog('r2-v2', 3));
-    final u = PoseHubCatalogUpdater(
-      config: _config,
-      store: store,
-      http: http,
-      now: () => now,
-      loadLocal: () async => coach.PoseHubAppTestCatalog.fromJson(legacy),
-      onEvent: events.add,
-    );
-    expect(await u.checkNow(), PoseHubCatalogUpdateOutcome.failed);
-    // Passes the ID rule; this fixture then fails on its semantic file.
-    expect(events.single.reason, startsWith('semantic_'));
-  });
+  test(
+    'a pre-pack catalogue is not a baseline for the add-only rule',
+    () async {
+      final legacy = jsonDecode(utf8.decode(r1Bytes)) as Map<String, Object?>
+        ..remove('pack');
+      publish('r2-v2', _smallCatalog('r2-v2', 3));
+      final u = PoseHubCatalogUpdater(
+        config: _config,
+        store: store,
+        http: http,
+        now: () => now,
+        loadLocal: () async => coach.PoseHubAppTestCatalog.fromJson(legacy),
+        onEvent: events.add,
+      );
+      expect(await u.checkNow(), PoseHubCatalogUpdateOutcome.failed);
+      // Passes the ID rule; this fixture then fails on its semantic file.
+      expect(events.single.reason, startsWith('semantic_'));
+    },
+  );
 
   test('action status is three-state and defaults to active', () {
     final raw =
@@ -409,9 +445,10 @@ void main() {
     );
     expect(poseHubPackVersionOf(next), 'r2-v2');
     expect(next.allActions, hasLength(249));
+    // Metadata-only repack: media stays where its distribution says.
     expect(
       PoseHubActionLibrary.mediaBaseUriFor(next).toString(),
-      'https://media.uuugk.win/pack/r2-v2/',
+      'https://media.uuugk.win/pack/r2-v1/',
     );
 
     // r2-v3 is announced but its catalogue download breaks off.
@@ -423,6 +460,42 @@ void main() {
     expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.failed);
     expect(events.single.reason, startsWith('catalog_download_failed'));
     expect(await loadedPack(), 'r2-v2');
+  });
+
+  test(
+    'a pointer naming an older pack than the one in use is a no-op',
+    () async {
+      publish('r2-v2', repack('r2-v2'));
+      expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.updated);
+      events.clear();
+      publish('r2-v1', r1Bytes);
+      expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.unchanged);
+      expect(events, isEmpty);
+      expect(await loadedPack(), 'r2-v2');
+      expect(comparePoseHubPacks('r2-v1', 'r2-v2'), lessThan(0));
+      expect(comparePoseHubPacks('r2-v10', 'r2-v9'), greaterThan(0));
+      expect(comparePoseHubPacks('r1-v3', 'r2-v1'), lessThan(0));
+      expect(comparePoseHubPacks('beta', 'r2-v1'), isNull);
+    },
+  );
+
+  test('a cached pack older than the bundled one never shadows it', () async {
+    publish('r1-v9', repack('r1-v9'));
+    final legacy = jsonDecode(utf8.decode(r1Bytes)) as Map<String, Object?>
+      ..remove('pack');
+    final u = PoseHubCatalogUpdater(
+      config: _config,
+      store: store,
+      http: http,
+      now: () => now,
+      loadLocal: () async => coach.PoseHubAppTestCatalog.fromJson(legacy),
+    );
+    expect(await u.checkNow(), PoseHubCatalogUpdateOutcome.updated);
+    expect(
+      poseHubPackVersionOf((await readVerifiedPoseHubCatalog(store))!),
+      'r1-v9',
+    );
+    expect(await loadedPack(), 'r2-v1');
   });
 
   test('a tampered cache falls back to the bundled baseline', () async {
@@ -450,25 +523,28 @@ void main() {
     expect(http.requests, hasLength(3));
   });
 
-  test('after a switch only the current and previous packs stay cached', () async {
-    for (final pack in ['r2-v2', 'r2-v3']) {
-      publish(pack, repack(pack));
+  test(
+    'after a switch only the current and previous packs stay cached',
+    () async {
+      for (final pack in ['r2-v2', 'r2-v3']) {
+        publish(pack, repack(pack));
+        expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.updated);
+      }
+      Set<String> cachedPacks() => {
+        for (final key in store.values.keys)
+          if (key.startsWith('packs/')) key.split('/')[1],
+      };
+      expect(cachedPacks(), {'r2-v2', 'r2-v3'});
+      publish('r2-v4', repack('r2-v4'));
       expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.updated);
-    }
-    Set<String> cachedPacks() => {
-      for (final key in store.values.keys)
-        if (key.startsWith('packs/')) key.split('/')[1],
-    };
-    expect(cachedPacks(), {'r2-v2', 'r2-v3'});
-    publish('r2-v4', repack('r2-v4'));
-    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.updated);
-    expect(cachedPacks(), {'r2-v3', 'r2-v4'});
-    expect(await loadedPack(), 'r2-v4');
-    // A failed update deletes nothing.
-    http.serve(_pointerUrl, _json(_pointer('r2-v5', repack('r2-v5'))));
-    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.failed);
-    expect(cachedPacks(), {'r2-v3', 'r2-v4'});
-  });
+      expect(cachedPacks(), {'r2-v3', 'r2-v4'});
+      expect(await loadedPack(), 'r2-v4');
+      // A failed update deletes nothing.
+      http.serve(_pointerUrl, _json(_pointer('r2-v5', repack('r2-v5'))));
+      expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.failed);
+      expect(cachedPacks(), {'r2-v3', 'r2-v4'});
+    },
+  );
 
   test('the SDK compares min_sdk against 0.8.0', () {
     expect(poseHubCatalogSdkVersion, '0.8.0');

@@ -370,9 +370,22 @@ void main() {
           .cast<Map<String, Object?>>();
       final baseIds = base.map((d) => d['id']).toSet();
       expect(base, hasLength(142));
+      // Canonical definitions stay exact. One that authors no rhythm only
+      // gains the pack's execution pace as `rhythm` (absent when none).
+      var paced = 0;
       for (final drill in base) {
-        expect(ai[drill['id']! as String]!.raw, drill);
+        final id = drill['id']! as String;
+        final delivered = ai[id]!.raw;
+        if (drill.containsKey('rhythm')) {
+          expect(delivered, drill, reason: id);
+          continue;
+        }
+        expect({...delivered}..remove('rhythm'), drill, reason: id);
+        final execution = pack.tryGet(id)!.executionRhythm;
+        expect(delivered['rhythm'], execution, reason: id);
+        if (execution != null) paced++;
       }
+      expect(paced, greaterThan(0));
       final additions = pack.semanticCompleteActions.where(
         (action) => !baseIds.contains(action.id),
       );
@@ -384,7 +397,11 @@ void main() {
         expect(drill.defaultDose.toJson(), action.raw['defaultDose']);
         expect(drill.doseRange.toJson(), action.raw['doseRange']);
         expect(drill.cues, action.raw['cues']);
+        // Media rhythm (fps, frames) is not a pace: only its execution
+        // travels as `rhythm`. Every other source field is retained.
+        expect(drill.raw['rhythm'], action.executionRhythm);
         for (final field in action.raw.entries) {
+          if (field.key == 'rhythm') continue;
           expect(
             drill.raw[field.key],
             field.value,

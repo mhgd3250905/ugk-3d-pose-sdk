@@ -104,8 +104,9 @@ class DrillMediaController extends ChangeNotifier {
         playing = value['playing'] == true;
         // Optional fast-forward/first-frame preparation is temporary, not a new
         // host playback intention. Native restores that intention on failure.
-        if (_returnPending == null && _primePending == null)
+        if (_returnPending == null && _primePending == null) {
           _wantsPlay = playing;
+        }
       case 'primed-first-frame':
         if (value['requestId'] != _primeId) return;
         final pending = _primePending;

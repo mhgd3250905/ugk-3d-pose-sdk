@@ -257,8 +257,9 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
         controller == null ||
         !controller.ready ||
         controller.hasFrame ||
-        controller.failed)
+        controller.failed) {
       return;
+    }
     _primeAttempted = true;
     unawaited(controller.prepareFirstFrame());
   }

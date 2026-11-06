@@ -324,7 +324,10 @@ void main() {
       expect(find.text('Bodyweight squat'), findsOneWidget);
       expect(find.text('Strength · Beginner · Bodyweight'), findsOneWidget);
       expect(find.text('Glutes and quads'), findsOneWidget);
-      expect(find.textContaining('Keep your feet planted.'), findsOneWidget);
+      expect(
+        find.text('Keep your feet planted.\nMove within a comfortable range.'),
+        findsOneWidget,
+      );
       expect(find.textContaining('Stop if your knees hurt'), findsOneWidget);
       expect(find.text(originalName), findsNothing);
       expect(jsonEncode(action.raw), originalDefinition);

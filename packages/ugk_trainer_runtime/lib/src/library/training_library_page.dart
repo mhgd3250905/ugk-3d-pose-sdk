@@ -296,7 +296,7 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
               theme,
               TrainingLibraryGlyph.subtitles,
               strings.cues,
-              cues.whereType<String>().join(display?.cues == null ? '；' : '; '),
+              cues.whereType<String>().join(display?.cues == null ? '；' : '\n'),
               labelWidth: display == null ? 36 : 60,
             ),
             if (cautions.isNotEmpty) ...[
@@ -305,7 +305,15 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
                 theme,
                 TrainingLibraryGlyph.bandage,
                 strings.cautions,
-                '${cautions.join(display?.cautions == null ? '、' : ', ')}${strings.cautionSuffix}',
+                display?.cautions == null
+                    ? '${cautions.join('、')}${strings.cautionSuffix}'
+                    : [
+                        ...cautions,
+                        strings.cautionSuffix.replaceFirst(
+                          RegExp(r'^[.。]\s*'),
+                          '',
+                        ),
+                      ].join('\n'),
                 color: theme.caution,
                 labelWidth: display == null ? 36 : 60,
               ),

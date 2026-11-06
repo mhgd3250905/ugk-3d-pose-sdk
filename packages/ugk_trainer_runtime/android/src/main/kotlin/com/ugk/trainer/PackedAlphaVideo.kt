@@ -201,7 +201,7 @@ internal class PackedAlphaVideoHost(
                 true
             }
             if (nativeAlpha) {
-                glRenderer = PackedAlphaGlRenderer(
+                val renderer = PackedAlphaGlRenderer(
                     handler,
                     onInputReady = { input ->
                         if (!disposed) {
@@ -221,7 +221,11 @@ internal class PackedAlphaVideoHost(
                             emit("error", mapOf("code" to "native_alpha_composition"))
                         }
                     },
-                ).also { it.start(producer.surface) }
+                )
+                // Register ownership before asking SurfaceProducer for a
+                // window; a synchronous getter failure must still retire GL.
+                glRenderer = renderer
+                renderer.start(producer.surface)
             } else {
                 media.setSurface(producer.surface)
                 openSource(asset, sourceUri)

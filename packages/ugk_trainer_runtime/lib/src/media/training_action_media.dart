@@ -31,6 +31,8 @@ class TrainingActionMedia extends StatefulWidget {
     this.prepareFirstFrame = false,
     this.showLoadingIndicator = true,
     this.nativeAlpha = false,
+    this.onFrameReadyChanged,
+    this.revealPausedFrame = true,
   });
   final String actionId;
   final TrainingMediaPolicy? policy;
@@ -65,6 +67,17 @@ class TrainingActionMedia extends StatefulWidget {
   /// default preserves the packed-shader path and other hosts' behavior.
   final bool nativeAlpha;
 
+  /// Reports genuine decoded-frame readiness after the frame, never during a
+  /// child's build. Pending reports are coalesced to the current source/state.
+  /// Releasing a ready surface reports false, including final disposal; owners
+  /// must ignore that final report after their own disposal. Defaults to null.
+  final ValueChanged<bool>? onFrameReadyChanged;
+
+  /// Keep the poster over a prepared paused surface until the host reveals it.
+  /// This does not stop preparation, replace the decoder or change playback.
+  /// Playing video reveals normally. The default preserves existing behavior.
+  final bool revealPausedFrame;
+
   @override
   State<TrainingActionMedia> createState() => _TrainingActionMediaState();
 }
@@ -97,6 +110,9 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   bool _retainingCovered = false;
   Animation<double>? _exitAnimation;
   bool _primeAttempted = false;
+  bool _frameReady = false;
+  bool _deliveredFrameReady = false;
+  int _frameReadyReport = 0;
 
   bool get _canPlay => widget.playing && _foreground && _visible;
   bool get _effectiveVisible =>
@@ -157,6 +173,34 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
       _sync();
     }
     _bindHandle();
+    if (oldWidget.onFrameReadyChanged != widget.onFrameReadyChanged) {
+      _deliveredFrameReady = false;
+      _scheduleFrameReadiness(force: true);
+    }
+  }
+
+  void _scheduleFrameReadiness({
+    bool force = false,
+    bool afterDisposal = false,
+  }) {
+    final ready = _controller?.hasFrame == true && _controller?.failed != true;
+    if (!force && ready == _frameReady) return;
+    _frameReady = ready;
+    final report = ++_frameReadyReport;
+    final callback = widget.onFrameReadyChanged;
+    if (callback == null) return;
+    final request = _request;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (report != _frameReadyReport ||
+          request != _request ||
+          (!mounted && !afterDisposal) ||
+          callback != widget.onFrameReadyChanged) {
+        return;
+      }
+      _deliveredFrameReady = ready;
+      callback(ready);
+    });
+    WidgetsBinding.instance.scheduleFrame();
   }
 
   void _updateCoveredRetention() {
@@ -215,7 +259,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     widget.playbackControl?.bind(owner: this, controller: _controller);
   }
 
-  void _stop() {
+  void _stop({bool afterDisposal = false}) {
     _retainingExit = false;
     _retainingCovered = false;
     _primeAttempted = false;
@@ -226,6 +270,10 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     _controller?.dispose();
     _controller = null;
     _source = null;
+    _scheduleFrameReadiness(
+      force: _deliveredFrameReady,
+      afterDisposal: afterDisposal,
+    );
     final pin = _pin;
     _pin = null;
     // An attached native decoder releases its pin after asynchronous disposal.
@@ -315,6 +363,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
 
   void _decoderChanged() {
     if (!mounted) return;
+    _scheduleFrameReadiness();
     if (_controller?.failed == true) {
       // Retire the exact failed surface, preserving the bundled still.
       scheduleMicrotask(() {
@@ -344,7 +393,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _exitAnimation?.removeStatusListener(_exitStatusChanged);
-    _stop();
+    _stop(afterDisposal: true);
     widget.playbackHandle?.unbind(this);
     widget.playbackControl?.unbind(this);
     super.dispose();
@@ -356,7 +405,10 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     final experience = TrainerExperienceScope.maybeOf(context);
     final stage = widget.stage ?? Theme.of(context).colorScheme.surface;
     final controller = _controller;
-    final revealed = controller?.hasFrame == true && controller?.failed != true;
+    final revealed =
+        controller?.hasFrame == true &&
+        controller?.failed != true &&
+        (!widget.paused || widget.revealPausedFrame);
     final progress = _download?.value.progress;
     final supported = UgkPackedAlphaVideo.isSupportedFor(
       nativeAlpha: widget.nativeAlpha,
@@ -366,7 +418,9 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
         _canPlay &&
         supported &&
         !revealed &&
-        (_failed || widget.showLoadingIndicator);
+        (_failed ||
+            (widget.showLoadingIndicator &&
+                !(widget.paused && !widget.revealPausedFrame)));
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: ColoredBox(

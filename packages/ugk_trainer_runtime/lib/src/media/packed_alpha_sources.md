@@ -112,6 +112,25 @@ An unrelated disabled `TickerMode` on the current route is not treated as a
 covering route. This opt-in does not change ordinary hosts or the separate
 route-exit option above.
 
+### Optional paused-frame handoff controls
+
+`TrainingActionMedia.onFrameReadyChanged` defaults to null. It reports only a
+genuine composed controller frame, not metadata readiness, a successful prime
+RPC or elapsed time. Reports run after the frame and coalesce to the latest
+current source/state; replacing a listener publishes its current state and
+invalidates queued reports for its predecessor. Reload, background and disposal
+clear readiness. A final false report can arrive after the child is disposed;
+owners must check their own mounted state and ignore obsolete card identities.
+
+`revealPausedFrame` defaults to true. Setting it false while paused keeps the
+existing poster visible even when a late native first frame becomes ready. The
+same video subtree remains mounted and may finish preparation; changing this
+presentation flag does not recreate, seek, re-prime or play the decoder. Waiting
+progress is suppressed for this concealed paused preview, but a real failure
+still offers retry. Playing video reveals normally regardless of this flag.
+These opt-ins let a host preserve a cold incoming card's printed pose until the
+user explicitly opens it while promoting already-warm cards on the same surface.
+
 ### Optional Android native RGBA output
 
 `TrainingActionMedia.nativeAlpha` / `UgkPackedAlphaVideo.nativeAlpha` default to

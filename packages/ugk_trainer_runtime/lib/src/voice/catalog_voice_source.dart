@@ -444,7 +444,9 @@ class LayeredVoiceSource extends VoiceSource implements PreparableVoiceSource {
   @override
   List<String> repsPhrase(int n) => primary.repsPhrase(n);
   @override
-  List<String> ordinalSet(int n) => primary.ordinalSet(n);
+  List<String> ordinalSet(int n, {String lang = 'zh'}) =>
+      primary.ordinalSet(n, lang: lang);
   @override
-  List<String> ordinalRound(int n) => primary.ordinalRound(n);
+  List<String> ordinalRound(int n, {String lang = 'zh'}) =>
+      primary.ordinalRound(n, lang: lang);
 }

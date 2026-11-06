@@ -164,11 +164,11 @@ abstract class VoiceSource {
   /// "12 次".
   List<String> repsPhrase(int n) => const [];
 
-  /// "第 2 组".
-  List<String> ordinalSet(int n) => const [];
+  /// "第 2 组" / "Set two" in [lang]: the word order follows the language.
+  List<String> ordinalSet(int n, {String lang = 'zh'}) => const [];
 
-  /// "第 2 轮".
-  List<String> ordinalRound(int n) => const [];
+  /// "第 2 轮" / "Round two" in [lang].
+  List<String> ordinalRound(int n, {String lang = 'zh'}) => const [];
 }
 
 /// Shared length rule of both sources.

@@ -427,7 +427,7 @@ class SessionScript {
     );
     var introduced = true;
     if (p.kind == PhaseKind.roundRest && p.round > 0) {
-      t.place([_phrase(source.ordinalRound(p.round))], CuePriority.info);
+      t.place([_phrase(source.ordinalRound(p.round, lang: lang))], CuePriority.info);
     }
     final id = p.exerciseId;
     final next = p.nextExerciseId != null && id != null && p.item != null;
@@ -455,7 +455,7 @@ class SessionScript {
           [last],
         ], CuePriority.info);
       } else if (p.sets > 1) {
-        t.place([_phrase(source.ordinalSet(p.set))], CuePriority.info);
+        t.place([_phrase(source.ordinalSet(p.set, lang: lang))], CuePriority.info);
       }
       final tip = own(id, DrillLine.rest);
       final cues = cueKeys(id);

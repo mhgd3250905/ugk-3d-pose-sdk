@@ -154,6 +154,7 @@ class _Platform extends PackedAlphaPlatform implements PackedAlphaUriPlatform {
       return Future.value(true);
     }
     if (type == 'position') return Future.value(1.25);
+    if (type == 'prime-first-frame') return Future.value(true);
     return Future.value(null);
   }
 }
@@ -465,6 +466,163 @@ void main() {
       expect(find.byType(TrainerPoster), findsOneWidget);
     });
   });
+
+  testWidgets(
+    'opt-in paused media primes once and preserves its native surface across play and pause',
+    (tester) async {
+      repository.ready = true;
+      Widget media({bool paused = true}) => TrainingActionMedia(
+        key: const ValueKey('primed-public-action'),
+        actionId: _actionId,
+        policy: policy,
+        paused: paused,
+        prepareFirstFrame: true,
+      );
+      await _mount(tester, bundle, child: media());
+      await tester.pump();
+      await tester.pump();
+      platform.emit(1, 'ready');
+      await tester.pump();
+      await tester.pump();
+      final surface = find.byType(UgkPackedAlphaVideo);
+      final surfaceElement = tester.element(surface);
+      final controller = tester.widget<UgkPackedAlphaVideo>(surface).controller;
+      expect(platform.commands.where((c) => c.$2 == 'prime-first-frame'), [
+        (1, 'prime-first-frame', null),
+      ]);
+      expect(platform.commands.where((c) => c.$2 == 'play'), isEmpty);
+      expect(
+        controller.hasFrame,
+        isFalse,
+        reason: 'A successful prime RPC cannot invent a composed first frame',
+      );
+      await _mount(tester, bundle, child: media());
+      platform.emit(1, 'ready');
+      await tester.pump();
+      await tester.pump();
+      expect(
+        platform.commands.where((c) => c.$2 == 'prime-first-frame'),
+        hasLength(1),
+      );
+
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      expect(controller.hasFrame, isTrue);
+      expect(controller.wantsPlay, isFalse);
+      expect(
+        tester
+            .widget<TrainingActionMedia>(find.byType(TrainingActionMedia))
+            .paused,
+        isTrue,
+      );
+      expect(tester.widget<Texture>(find.byType(Texture)).textureId, 101);
+      await _mount(tester, bundle, child: media(paused: false));
+      await tester.pump();
+      expect(platform.commands, contains((1, 'play', null)));
+      expect(tester.element(surface), same(surfaceElement));
+      expect(
+        tester.widget<UgkPackedAlphaVideo>(surface).controller,
+        same(controller),
+      );
+      await _mount(tester, bundle, child: media());
+      await tester.pump();
+      expect(platform.commands.last, (1, 'pause', null));
+      expect(tester.element(surface), same(surfaceElement));
+      expect(
+        tester.widget<UgkPackedAlphaVideo>(surface).controller,
+        same(controller),
+      );
+      expect(tester.widget<Texture>(find.byType(Texture)).textureId, 101);
+      expect(platform.sources, hasLength(1));
+      expect(
+        platform.commands.where((c) => c.$2 == 'prime-first-frame'),
+        hasLength(1),
+      );
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(platform.commands.where((c) => c.$2 == 'dispose').single.$1, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('ordinary paused hosts do not prime a frame without opting in', (
+    tester,
+  ) async {
+    repository.ready = true;
+    await _mount(
+      tester,
+      bundle,
+      child: TrainingActionMedia(
+        actionId: _actionId,
+        policy: policy,
+        paused: true,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    platform.emit(1, 'ready');
+    await tester.pump();
+    await tester.pump();
+    final controller = tester
+        .widget<UgkPackedAlphaVideo>(find.byType(UgkPackedAlphaVideo))
+        .controller;
+    expect(
+      platform.commands.where((c) => c.$2 == 'prime-first-frame'),
+      isEmpty,
+    );
+    expect(platform.commands.where((c) => c.$2 == 'play'), isEmpty);
+    expect(controller.hasFrame, isFalse);
+    expect(controller.wantsPlay, isFalse);
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(platform.commands.where((c) => c.$2 == 'dispose').single.$1, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'a primed paused surface is still released when the app backgrounds',
+    (tester) async {
+      repository.ready = true;
+      addTearDown(
+        () => tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        ),
+      );
+      await _mount(
+        tester,
+        bundle,
+        child: TrainingActionMedia(
+          actionId: _actionId,
+          policy: policy,
+          paused: true,
+          prepareFirstFrame: true,
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      platform.emit(1, 'ready');
+      await tester.pump();
+      await tester.pump();
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      expect(
+        platform.commands.where((c) => c.$2 == 'prime-first-frame'),
+        hasLength(1),
+      );
+      expect(find.byType(UgkPackedAlphaVideo), findsOneWidget);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(UgkPackedAlphaVideo), findsNothing);
+      expect(platform.commands.where((c) => c.$2 == 'dispose').single.$1, 1);
+      expect(platform.sources, hasLength(1));
+      await tester.pumpWidget(const SizedBox.shrink());
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'optional playback control binds and releases without changing the read-only default handle',

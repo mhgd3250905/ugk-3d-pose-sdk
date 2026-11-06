@@ -29,6 +29,9 @@ internal class PackedAlphaVideoHost(
         var timeout: Runnable? = null
         var seeking = false
     }
+    private class PrimeRequest(val result: MethodChannel.Result) {
+        var timeout: Runnable? = null
+    }
     // Creation and EventChannel.listen use different channels. Retain at most
     // one ready/state/first-frame/error event per player until listen arrives.
     private val pendingEvents = mutableMapOf<Long, LinkedHashMap<String, Map<String, Any?>>>()
@@ -89,6 +92,8 @@ internal class PackedAlphaVideoHost(
                 "active" -> player.setActive(call.argument<Boolean>("value") == true)
                 "visible" -> player.setVisible(call.argument<Boolean>("value") == true)
                 "position" -> { result.success(player.position()); return }
+                "prime-first-frame" -> { player.prepareFirstFrame(result); return }
+                "cancel-prime-first-frame" -> player.cancelPrepareFirstFrame()
                 "return-to-start" -> {
                     player.returnToStart(
                         (call.argument<Number>("value") ?: 400).toLong(), result)
@@ -143,6 +148,7 @@ internal class PackedAlphaVideoHost(
         private var surfaceAvailable = true
         private var firstFrame = false
         private var returnRequest: ReturnRequest? = null
+        private var primeRequest: PrimeRequest? = null
 
         private fun emit(type: String, fields: Map<String, Any?> = emptyMap()) {
             if (!disposed) publish(id, type, fields)
@@ -172,10 +178,12 @@ internal class PackedAlphaVideoHost(
                 if (!disposed && what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START && !firstFrame) {
                     firstFrame = true
                     emit("first-frame")
+                    finishPrime(true)
                 }
                 true
             }
             media.setOnErrorListener { _, what, extra ->
+                finishPrime(false, resume = false)
                 finishReturn(false, resume = false)
                 if (!disposed) emit("error", mapOf("what" to what, "extra" to extra))
                 true
@@ -193,31 +201,89 @@ internal class PackedAlphaVideoHost(
         fun play() {
             wantsPlay = true
             cancelReturnToStart()
+            cancelPrepareFirstFrame()
             syncPlayback()
         }
         fun pause() {
             wantsPlay = false
             cancelReturnToStart()
+            cancelPrepareFirstFrame()
             syncPlayback()
         }
         fun setActive(value: Boolean) {
             active = value
-            if (!value) { wantsPlay = false; cancelReturnToStart() }
+            if (!value) {
+                wantsPlay = false
+                cancelReturnToStart()
+                cancelPrepareFirstFrame()
+            }
             syncPlayback()
         }
         fun setVisible(value: Boolean) {
             visible = value
-            if (!value) cancelReturnToStart()
+            if (!value) {
+                cancelReturnToStart()
+                cancelPrepareFirstFrame()
+            }
             syncPlayback()
         }
         fun position(): Double? = if (prepared && !disposed) media.currentPosition / 1000.0 else null
+
+        /** Start only long enough for the first decoded texture frame, then hold
+         * it in the same player. This is opt-in; ordinary paused video is idle.
+         */
+        fun prepareFirstFrame(result: MethodChannel.Result) {
+            if (primeRequest != null || returnRequest != null || !prepared ||
+                disposed || !active || !visible || !surfaceAvailable) {
+                result.success(false)
+                return
+            }
+            if (firstFrame) {
+                wantsPlay = false
+                syncPlayback()
+                result.success(true)
+                return
+            }
+            val request = PrimeRequest(result)
+            primeRequest = request
+            request.timeout = Runnable {
+                if (primeRequest === request) finishPrime(false)
+            }
+            handler.postDelayed(requireNotNull(request.timeout), 900L)
+            try {
+                syncPlayback()
+            } catch (_: Exception) {
+                finishPrime(false)
+            }
+        }
+
+        fun cancelPrepareFirstFrame() = finishPrime(false)
+
+        private fun finishPrime(success: Boolean, resume: Boolean = true) {
+            val request = primeRequest ?: return
+            primeRequest = null
+            request.timeout?.let { handler.removeCallbacks(it) }
+            request.timeout = null
+            var completed = success
+            try {
+                if (completed) wantsPlay = false
+                if (prepared && !disposed) {
+                    if (resume) syncPlayback()
+                    else if (media.isPlaying) media.pause()
+                }
+            } catch (_: Exception) {
+                completed = false
+                try { if (media.isPlaying) media.pause() } catch (_: Exception) {}
+            }
+            request.result.success(completed)
+        }
 
         /** Optional, bounded preparation while the demonstration route is current.
          * Run forward through the remaining poses; never jump straight from an
          * arbitrary middle pose to zero. A paused preview may play temporarily.
          */
         fun returnToStart(durationMs: Long, result: MethodChannel.Result) {
-            if (returnRequest != null || !prepared || !firstFrame || disposed ||
+            if (returnRequest != null || primeRequest != null || !prepared || !firstFrame || disposed ||
                 !active || !visible || !surfaceAvailable ||
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
                 result.success(false)
@@ -315,7 +381,8 @@ internal class PackedAlphaVideoHost(
 
         private fun syncPlayback() {
             if (!prepared || disposed) return
-            val play = (wantsPlay || returnRequest != null) && active && visible && surfaceAvailable
+            val play = (wantsPlay || returnRequest != null || primeRequest != null) &&
+                active && visible && surfaceAvailable
             if (play && !media.isPlaying) media.start()
             else if (!play && media.isPlaying) media.pause()
             emit("state", mapOf("playing" to media.isPlaying))
@@ -332,12 +399,14 @@ internal class PackedAlphaVideoHost(
             if (disposed) return
             surfaceAvailable = false
             cancelReturnToStart()
+            cancelPrepareFirstFrame()
             syncPlayback()
             media.setSurface(null)
         }
 
         fun dispose() {
             if (disposed) return
+            finishPrime(false, resume = false)
             finishReturn(false, resume = false)
             disposed = true
             prepared = false

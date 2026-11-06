@@ -243,6 +243,22 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
             'frame': frame,
           });
         }
+      } else if (type == 'prime-first-frame') {
+        final success = await platform.command(id, 'prime-first-frame');
+        if (success == true && _current(generation, owner)) {
+          WidgetsBinding.instance.scheduleFrame();
+          await WidgetsBinding.instance.endOfFrame;
+        }
+        if (_current(generation, owner)) {
+          owner.receive({
+            'source': 'drill-media',
+            'type': 'primed-first-frame',
+            'requestId': command['requestId'],
+            'success': success == true,
+          });
+        }
+      } else if (type == 'cancel-prime-first-frame') {
+        await platform.command(id, 'cancel-prime-first-frame');
       } else if (type == 'return-to-start') {
         final success = await platform.command(
           id,
@@ -281,7 +297,16 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
       }
     } catch (_) {
       if (_current(generation, owner)) {
-        if (type == 'return-to-start') {
+        if (type == 'prime-first-frame') {
+          owner.receive({
+            'source': 'drill-media',
+            'type': 'primed-first-frame',
+            'requestId': command['requestId'],
+            'success': false,
+          });
+        } else if (type == 'cancel-prime-first-frame') {
+          // Optional preparation must not fail ordinary playback.
+        } else if (type == 'return-to-start') {
           owner.receive({
             'source': 'drill-media',
             'type': 'returned-to-start',

@@ -31,7 +31,33 @@ No per-frame Dart image readback, position polling, canvas capture or timers
 are used. A single bounded PNG snapshot may be requested explicitly by the
 existing missing-poster handoff. Position is read only on an explicit command.
 
-## Optional return-to-start handoff
+## Opt-in prepared, paused first frame
+
+`TrainingActionMedia(playing: true, paused: true, prepareFirstFrame: true)`
+downloads/prepares one demonstration as usual, then asks its existing native
+player to decode the first frame and pause. This option defaults to false;
+ordinary paused/poster-only hosts keep the old behavior. It does not reuse or
+invoke return-to-start.
+
+The `prime-first-frame` command temporarily starts normal-speed playback until
+the existing `MEDIA_INFO_VIDEO_RENDERING_START` event, then pauses and replies.
+Its native request is capped at 900ms and the Dart request at 1200ms. Only the
+ordinary real first-frame event followed by Flutter composition sets
+`hasFrame`; a successful command reply alone never fabricates visual readiness.
+Unavailable/unsupported preparation returns false without failing healthy
+playback. Timers and pending native results are cancelled on explicit playback,
+pause, deactivation, surface loss or disposal.
+
+After the first frame is ready, changing `paused` to false plays the same
+controller/texture and changing it back to true holds the current pose. It does
+not rewind or swap back to a poster. The host must keep this one media widget
+mounted with the same action/policy to preserve that surface across a card
+expansion. Action changes, covering routes, backgrounding and disposal still
+follow the existing resource release rules. A fresh controller can prime again
+when that demonstration becomes visible. A user resume/pause during initial
+decode may retry preparation, but routine event/build notifications do not.
+
+## Optional return-to-start handoff (compatible API)
 
 `TrainingActionMedia.playbackControl` accepts a `DrillMediaPlaybackControl`.
 This is deliberately separate from the existing read-only

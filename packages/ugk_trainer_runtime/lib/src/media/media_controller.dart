@@ -1,6 +1,6 @@
 // Ported from SmartFit@e8981ee lib/core/media/media_controller.dart (3D-Body
 // DrillMediaController / DrillPlaybackCoordinator). SDK additions: bounded
-// return-to-start control for a demonstration's closing handoff.
+// return-to-start and opt-in first-frame preparation for demonstration cards.
 import 'dart:async';
 import 'dart:convert';
 
@@ -26,6 +26,9 @@ class DrillMediaController extends ChangeNotifier {
   Completer<bool>? _returnPending;
   Timer? _returnTimer;
   int _returnId = 0;
+  Completer<bool>? _primePending;
+  Timer? _primeTimer;
+  int _primeId = 0;
 
   /// A bounded static capture from a decoded video frame, never a live player.
   Uint8List? get frameBytes => _frameBytes;
@@ -33,13 +36,17 @@ class DrillMediaController extends ChangeNotifier {
   bool get wantsPlay => _wantsPlay;
 
   void attach(MediaCommandSink sink) {
-    if (!identical(_sink, sink)) cancelReturnToStart();
+    if (!identical(_sink, sink)) {
+      cancelReturnToStart();
+      cancelPrepareFirstFrame();
+    }
     _sink = sink;
   }
 
   void detach(MediaCommandSink sink) {
     if (_sink == sink) {
       cancelReturnToStart();
+      cancelPrepareFirstFrame();
       _sink = null;
     }
   }
@@ -50,18 +57,21 @@ class DrillMediaController extends ChangeNotifier {
     if (!value) {
       _wantsPlay = false;
       cancelReturnToStart();
+      cancelPrepareFirstFrame();
     }
     _sink?.call({'type': 'active', 'value': value});
   }
 
   void pause() {
     cancelReturnToStart();
+    cancelPrepareFirstFrame();
     _wantsPlay = false;
     _sink?.call({'type': 'pause'});
   }
 
   void toggle() {
     if (!_active || _disposed) return;
+    cancelPrepareFirstFrame();
     _wantsPlay = !_wantsPlay;
     if (ready) _sink?.call({'type': _wantsPlay ? 'play' : 'pause'});
     notifyListeners();
@@ -76,6 +86,7 @@ class DrillMediaController extends ChangeNotifier {
         if (_active && _wantsPlay) _sink?.call({'type': 'play'});
       case 'error':
         cancelReturnToStart();
+        cancelPrepareFirstFrame();
         failed = true;
         hasFrame = false;
         playing = false;
@@ -91,9 +102,24 @@ class DrillMediaController extends ChangeNotifier {
         pending.complete(bytes);
       case 'state':
         playing = value['playing'] == true;
-        // Fast-forwarding a paused demonstration is temporary, not a new host
-        // playback intention. Native restores that intention when it fails.
-        if (_returnPending == null) _wantsPlay = playing;
+        // Optional fast-forward/first-frame preparation is temporary, not a new
+        // host playback intention. Native restores that intention on failure.
+        if (_returnPending == null && _primePending == null)
+          _wantsPlay = playing;
+      case 'primed-first-frame':
+        if (value['requestId'] != _primeId) return;
+        final pending = _primePending;
+        if (pending == null || pending.isCompleted) return;
+        _primePending = null;
+        _primeTimer?.cancel();
+        _primeTimer = null;
+        final success = value['success'] == true;
+        if (success) {
+          _wantsPlay = false;
+          playing = false;
+        }
+        // Only the real composed first-frame event may set hasFrame.
+        pending.complete(success);
       case 'returned-to-start':
         if (value['requestId'] != _returnId) return;
         final pending = _returnPending;
@@ -125,6 +151,44 @@ class DrillMediaController extends ChangeNotifier {
 
   void reportError() => receive({'source': 'drill-media', 'type': 'error'});
 
+  /// Decode and hold the first native frame without replacing the surface.
+  /// A real first-frame/composition event still owns visual readiness.
+  Future<bool> prepareFirstFrame() {
+    final existing = _primePending;
+    if (existing != null) return existing.future;
+    if (_disposed || !_active || !ready || failed || _sink == null) {
+      return Future.value(false);
+    }
+    if (hasFrame) return Future.value(true);
+    if (_returnPending != null) return Future.value(false);
+    final pending = Completer<bool>();
+    _primePending = pending;
+    final request = ++_primeId;
+    _primeTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (identical(_primePending, pending)) cancelPrepareFirstFrame();
+    });
+    try {
+      _sink!.call({'type': 'prime-first-frame', 'requestId': request});
+    } on Object {
+      cancelPrepareFirstFrame();
+    }
+    return pending.future;
+  }
+
+  void cancelPrepareFirstFrame() {
+    final pending = _primePending;
+    _primePending = null;
+    _primeTimer?.cancel();
+    _primeTimer = null;
+    if (pending == null) return;
+    if (!pending.isCompleted) pending.complete(false);
+    try {
+      _sink?.call({'type': 'cancel-prime-first-frame'});
+    } on Object {
+      // The native prime also has a deadline when a backend cannot reply.
+    }
+  }
+
   /// A bounded close preparation. It changes only this demonstration, and
   /// unsupported backends cannot turn healthy playback into a media error.
   Future<bool> returnToStart({
@@ -134,6 +198,7 @@ class DrillMediaController extends ChangeNotifier {
     if (existing != null) return existing.future;
     if (_disposed ||
         !_active ||
+        _primePending != null ||
         !ready ||
         !hasFrame ||
         failed ||

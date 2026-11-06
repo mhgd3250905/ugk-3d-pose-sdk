@@ -27,6 +27,7 @@ class TrainingActionMedia extends StatefulWidget {
     this.playbackHandle,
     this.playbackControl,
     this.retainSurfaceDuringRouteExit = false,
+    this.prepareFirstFrame = false,
   });
   final String actionId;
   final TrainingMediaPolicy? policy;
@@ -40,6 +41,11 @@ class TrainingActionMedia extends StatefulWidget {
   /// Covered routes, backgrounding and disposal still release their surfaces.
   /// Hosts opting in must pause before popping; ordinary hosts are unchanged.
   final bool retainSurfaceDuringRouteExit;
+
+  /// With [playing] true and [paused] true, decode and hold the first frame.
+  /// Expanding/resuming can then use the very same controller and texture.
+  /// Ordinary paused and poster-only hosts keep their existing behavior.
+  final bool prepareFirstFrame;
 
   @override
   State<TrainingActionMedia> createState() => _TrainingActionMediaState();
@@ -71,6 +77,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   bool _routeCurrent = true;
   bool _retainingExit = false;
   Animation<double>? _exitAnimation;
+  bool _primeAttempted = false;
 
   bool get _canPlay => widget.playing && _foreground && _visible;
   bool get _effectiveVisible =>
@@ -118,7 +125,12 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
         wasVisible != _visible) {
       _policy = widget.policy ?? TrainingMediaPolicyScope.read(context);
       _reload();
-    } else if (oldWidget.paused != widget.paused) {
+    } else if (oldWidget.paused != widget.paused ||
+        oldWidget.prepareFirstFrame != widget.prepareFirstFrame) {
+      if (widget.paused && _controller?.hasFrame != true) {
+        // A user can resume and pause before the initial decode finishes.
+        _primeAttempted = false;
+      }
       _sync();
     }
     _bindHandle();
@@ -163,6 +175,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
 
   void _stop() {
     _retainingExit = false;
+    _primeAttempted = false;
     ++_request;
     _download?.removeListener(_changed);
     _download = null;
@@ -221,11 +234,33 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   void _sync() {
     final controller = _controller;
     if (controller == null) return;
-    if (!_canPlay || widget.paused) {
+    if (!_canPlay) {
       controller.pause();
+    } else if (widget.paused) {
+      if (widget.prepareFirstFrame && !controller.hasFrame) {
+        if (!controller.ready) controller.pause();
+        _primeIfNeeded();
+      } else {
+        controller.pause();
+      }
     } else if (!controller.wantsPlay) {
       controller.toggle();
     }
+  }
+
+  void _primeIfNeeded() {
+    final controller = _controller;
+    if (_primeAttempted ||
+        !_canPlay ||
+        !widget.paused ||
+        !widget.prepareFirstFrame ||
+        controller == null ||
+        !controller.ready ||
+        controller.hasFrame ||
+        controller.failed)
+      return;
+    _primeAttempted = true;
+    unawaited(controller.prepareFirstFrame());
   }
 
   void _changed() {
@@ -244,6 +279,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
         });
       });
     } else {
+      _primeIfNeeded();
       setState(() {});
     }
   }

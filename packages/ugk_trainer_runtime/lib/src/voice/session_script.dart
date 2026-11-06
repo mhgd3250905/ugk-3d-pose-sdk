@@ -556,7 +556,55 @@ class SessionScript {
         if (_strip(c.clips).isNotEmpty)
           VoiceCue(c.at, _strip(c.clips), c.priority),
     ]..sort((a, b) => a.at.compareTo(b.at));
-    return out;
+    // Key points in the gaps between the counts, as a timed hold gets them:
+    // a counted move is coached too, not only counted. The counts stay
+    // fixed; a line that does not fit whole between two counts is skipped.
+    // An alternating pair is one work phase, so this never repeats per side;
+    // a per-side set's second side gets the side_switch line (_sideLines).
+    final id = p.exerciseId;
+    final lines = v != null
+        ? [
+            ...?(_coach(v).isEmpty ? null : [_coach(v).first]),
+            if (p.seconds >= 40 && _coach(v).length > 1) _coach(v)[1],
+          ]
+        : id == null
+        ? const <String>[]
+        : _sideLines(p, id);
+    if (lines.isEmpty) return out;
+    final t = _Timeline(this, limit: p.seconds)..fixAll(out);
+    final first = out.isEmpty ? 0.0 : out.first.at + len(out.first.clips);
+    final span = (p.seconds - first).clamp(0, 1e9);
+    var placed = false;
+    for (var k = 0; k < lines.length; k++) {
+      placed |= t.place(
+        [
+          [lines[k]],
+        ],
+        CuePriority.coach,
+        from: first + span * k / lines.length,
+        gapAfter: repGapAfter,
+      );
+    }
+    if (placed) return t.cues;
+    // A kit already speaks its go/back words on every rep (HipLab): keep
+    // its counts. Otherwise fast reps (≈2 s) leave no gap a key point fits in: say the first one
+    // right after the first count and let the counts it covers keep their
+    // beat as a tick (the chime has its own channel), so the move is still
+    // coached and no count is moved.
+    if (v != null) return t.cues;
+    final line = lines.first;
+    final at = first + lineGap;
+    final end = at + len([line]);
+    if (end > p.seconds) return out;
+    return [
+      for (final c in out)
+        if (c.at < end + repGapAfter && c.at + len(c.clips) > at - lineGap) ...[
+          if (_strip(['chime.tick']).isNotEmpty)
+            VoiceCue(c.at, _strip(['chime.tick']), c.priority),
+        ] else
+          c,
+      VoiceCue(at, [line], CuePriority.coach, subtitle: _subtitle([line])),
+    ]..sort((a, b) => a.at.compareTo(b.at));
   }
 
   /// Timed hold: start, halfway, ten seconds left, the countdown (5-4-3-2-1

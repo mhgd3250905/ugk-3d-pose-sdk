@@ -99,6 +99,51 @@ A newly covering route, backgrounding, a different action/policy, and actual
 disposal retain the ordinary release behavior. A video that had not loaded
 before exit is not created for the sake of retaining it.
 
+A persistent paused-card host may separately opt into
+`TrainingActionMedia.retainPausedSurfaceWhileCovered` (default false). It keeps
+only an existing genuinely decoded, paused frame across a covering route and
+its return, including the interval between `isCurrent` and `TickerMode`
+notifications. The same controller/Texture and cache pin remain; the hidden
+video does not play, seek, re-prime or create another decoder. A pending download
+or surface without a real first-frame event is not retained or started while
+covered. Turning the option off, resuming a covered video, `playing: false`,
+action/policy changes, backgrounding and actual disposal still release it.
+An unrelated disabled `TickerMode` on the current route is not treated as a
+covering route. This opt-in does not change ordinary hosts or the separate
+route-exit option above.
+
+### Optional Android native RGBA output
+
+`TrainingActionMedia.nativeAlpha` / `UgkPackedAlphaVideo.nativeAlpha` default to
+false. A `PackedAlphaRgbaPlatform` may accept the opt-in and compose the original
+packed upper RGB/lower alpha planes into one premultiplied square RGBA texture
+before Flutter sees it. Android keeps one MediaPlayer and one SurfaceProducer;
+an OES SurfaceTexture feeds an event-driven EGL/GLES pass (no frame timer, CPU
+readback, screenshot, second decoder or extra dependency). Flutter paints that
+RGBA texture directly, keeping the same element/controller while the host moves.
+Legacy/custom platforms without the capability keep their existing packed path.
+
+This avoids the known runtime ImageFilter shader coverage problem when content
+crosses a viewport edge. Local clipping/layer/opacity wrappers did not resolve
+it on pinned Flutter 3.44.7; no engine fork or framework upgrade is included:
+https://github.com/flutter/flutter/issues/185175
+https://github.com/flutter/flutter/pull/193275
+
+The original compositor follows Android SurfaceTexture/EGL contracts and the
+established packed-video design described by Tencent VAP (MIT) and AndroidX
+Media3 (Apache-2.0); no third-party implementation is copied or added:
+https://developer.android.com/reference/android/graphics/SurfaceTexture
+https://github.com/Tencent/vap/blob/master/Introduction.md
+https://github.com/androidx/media
+
+The native first-frame event follows a successful GL draw/swap; MediaPlayer's
+input rendering-start alone is insufficient. Surface recreation redraws the
+retained OES image, and asynchronous disposal completes before releasing the
+producer/file pin. GL/transport failure uses the existing media failure/poster
+contract. Desktop ANGLE verification of the actual fragment math and Flutter
+RGBA-consumer pixels does not establish Android OES/SurfaceProducer delivery,
+driver alpha support or device performance; those remain device acceptance.
+
 Official state-machine references:
 
 - Android `setPlaybackParams` and non-negative `PlaybackParams.setSpeed`:

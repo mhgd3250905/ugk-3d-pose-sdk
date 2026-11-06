@@ -17,8 +17,22 @@ abstract interface class PackedAlphaUriPlatform {
   Future<({int playerId, int textureId})> createUri(Uri sourceUri);
 }
 
+/// Optional Android GPU conversion. The same decoder produces premultiplied
+/// square RGBA, so Flutter can crop a Texture without a non-local image filter.
+/// Legacy/custom backends keep their packed interface unchanged.
+abstract interface class PackedAlphaRgbaPlatform {
+  bool get isRgbaSupported;
+  Future<({int playerId, int textureId})> createRgba({
+    String? asset,
+    Uri? sourceUri,
+  });
+}
+
 class MethodChannelPackedAlphaPlatform
-    implements PackedAlphaPlatform, PackedAlphaUriPlatform {
+    implements
+        PackedAlphaPlatform,
+        PackedAlphaUriPlatform,
+        PackedAlphaRgbaPlatform {
   static const _methods = MethodChannel('ugk_trainer/packed_alpha');
   static const _events = EventChannel('ugk_trainer/packed_alpha/events');
   late final _stream = _events
@@ -31,6 +45,10 @@ class MethodChannelPackedAlphaPlatform
       !kIsWeb &&
       defaultTargetPlatform == TargetPlatform.android &&
       ui.ImageFilter.isShaderFilterSupported;
+
+  @override
+  bool get isRgbaSupported =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   @override
   Stream<Map<Object?, Object?>> get events => _stream;
@@ -51,6 +69,28 @@ class MethodChannelPackedAlphaPlatform
     validatePackedAlphaSourceUri(sourceUri);
     final result = await _methods.invokeMapMethod<String, Object?>('create', {
       'sourceUri': sourceUri.toString(),
+    });
+    return (
+      playerId: (result!['playerId'] as num).toInt(),
+      textureId: (result['textureId'] as num).toInt(),
+    );
+  }
+
+  @override
+  Future<({int playerId, int textureId})> createRgba({
+    String? asset,
+    Uri? sourceUri,
+  }) async {
+    if ((asset == null) == (sourceUri == null)) {
+      throw ArgumentError('One packed source is required');
+    }
+    if (sourceUri != null) validatePackedAlphaSourceUri(sourceUri);
+    final result = await _methods.invokeMapMethod<String, Object?>('create', {
+      if (sourceUri != null)
+        'sourceUri': sourceUri.toString()
+      else
+        'asset': asset,
+      'nativeAlpha': true,
     });
     return (
       playerId: (result!['playerId'] as num).toInt(),

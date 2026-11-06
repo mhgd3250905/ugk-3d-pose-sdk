@@ -301,6 +301,332 @@ void main() {
     await platform.eventsController.close();
   });
 
+  Future<void> finishTransition(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 432));
+    await tester.pump();
+    await tester.pump();
+  }
+
+  TrainingActionMedia pausedMedia({bool retain = true}) => TrainingActionMedia(
+    key: const ValueKey('covered-paused-media'),
+    actionId: _actionId,
+    policy: policy,
+    paused: true,
+    prepareFirstFrame: true,
+    retainPausedSurfaceWhileCovered: retain,
+  );
+
+  Future<BuildContext> readyPaused(
+    WidgetTester tester, {
+    Widget? child,
+    bool frame = true,
+  }) async {
+    repository.ready = true;
+    final context = await _mount(tester, bundle, child: child ?? pausedMedia());
+    await tester.pump();
+    await tester.pump();
+    platform.emit(1, 'ready');
+    await tester.pump();
+    await tester.pump();
+    if (frame) {
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 140));
+    }
+    return context;
+  }
+
+  void cover(BuildContext context) => unawaited(
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        transitionDuration: const Duration(milliseconds: 400),
+        reverseTransitionDuration: const Duration(milliseconds: 400),
+        pageBuilder: (_, animation, secondaryAnimation) =>
+            const Scaffold(body: Text('covering page')),
+      ),
+    ),
+  );
+
+  testWidgets(
+    'opt-in paused frame survives cover and return on the same native surface',
+    (tester) async {
+      final context = await readyPaused(tester);
+      final surface = find.byType(UgkPackedAlphaVideo, skipOffstage: false);
+      final element = tester.element(surface);
+      final controller = tester.widget<UgkPackedAlphaVideo>(surface).controller;
+      void expectSameFrame() {
+        expect(tester.element(surface), same(element));
+        expect(
+          tester.widget<UgkPackedAlphaVideo>(surface).controller,
+          same(controller),
+        );
+        expect(
+          tester
+              .widget<Texture>(find.byType(Texture, skipOffstage: false))
+              .textureId,
+          101,
+        );
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find.byKey(
+                  const ValueKey('public-action-poster'),
+                  skipOffstage: false,
+                ),
+              )
+              .opacity,
+          0,
+        );
+        expect(controller.hasFrame, isTrue);
+        expect(controller.wantsPlay, isFalse);
+        expect(platform.sources, hasLength(1));
+        expect(
+          platform.commands.where((c) => c.$2 == 'prime-first-frame'),
+          hasLength(1),
+        );
+        expect(
+          platform.commands.where(
+            (c) =>
+                c.$2 == 'dispose' ||
+                c.$2 == 'play' ||
+                c.$2.contains('seek') ||
+                c.$2.contains('return-to-start'),
+          ),
+          isEmpty,
+        );
+      }
+
+      cover(context);
+      await tester.pump();
+      for (var elapsed = 0; elapsed < 432; elapsed += 16) {
+        await tester.pump(const Duration(milliseconds: 16));
+        expectSameFrame();
+      }
+      // Completed cover disables the underlying route's ticker mode.
+      await tester.pump(const Duration(seconds: 2));
+      expectSameFrame();
+      Navigator.of(context).pop();
+      await tester.pump();
+      for (var elapsed = 0; elapsed < 432; elapsed += 16) {
+        await tester.pump(const Duration(milliseconds: 16));
+        expectSameFrame();
+      }
+      await finishTransition(tester);
+      expectSameFrame();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'a retained covered frame still releases on background and waits for return',
+    (tester) async {
+      addTearDown(
+        () => tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        ),
+      );
+      final context = await readyPaused(tester);
+      cover(context);
+      await finishTransition(tester);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      await tester.pump();
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), [
+        (1, 'dispose', null),
+      ]);
+      expect(
+        find.byType(UgkPackedAlphaVideo, skipOffstage: false),
+        findsNothing,
+      );
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      await tester.pump();
+      expect(platform.sources, hasLength(1));
+      Navigator.of(context).pop();
+      await finishTransition(tester);
+      expect(platform.sources, hasLength(2));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('a covered media without a genuine first frame is not retained', (
+    tester,
+  ) async {
+    final context = await readyPaused(tester, frame: false);
+    expect(find.byType(UgkPackedAlphaVideo), findsOneWidget);
+    cover(context);
+    await finishTransition(tester);
+    expect(platform.sources, hasLength(1));
+    expect(platform.commands.where((c) => c.$2 == 'dispose'), [
+      (1, 'dispose', null),
+    ]);
+    expect(find.byType(UgkPackedAlphaVideo, skipOffstage: false), findsNothing);
+    // A late event from that retired decoder cannot synthesize retained media.
+    platform.emit(1, 'first-frame');
+    await tester.pump();
+    expect(find.byType(UgkPackedAlphaVideo, skipOffstage: false), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'pending download is not started as hidden video by covered retention',
+    (tester) async {
+      final context = await _mount(tester, bundle, child: pausedMedia());
+      expect(repository.calls, hasLength(1));
+      cover(context);
+      await finishTransition(tester);
+      repository.complete(catalog.tryGet(_actionId)!.video);
+      await tester.pump();
+      await tester.pump();
+      expect(platform.sources, isEmpty);
+      expect(
+        find.byType(UgkPackedAlphaVideo, skipOffstage: false),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'default paused hosts still retire the native surface when covered',
+    (tester) async {
+      final context = await readyPaused(
+        tester,
+        child: pausedMedia(retain: false),
+      );
+      cover(context);
+      await tester.pump();
+      expect(
+        find.byType(UgkPackedAlphaVideo, skipOffstage: false),
+        findsNothing,
+      );
+      await finishTransition(tester);
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), [
+        (1, 'dispose', null),
+      ]);
+      Navigator.of(context).pop();
+      await finishTransition(tester);
+      expect(platform.sources, hasLength(2));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'turning covered retention off releases and turning it on does not revive hidden media',
+    (tester) async {
+      final retain = ValueNotifier(true);
+      addTearDown(retain.dispose);
+      final context = await readyPaused(
+        tester,
+        child: ValueListenableBuilder<bool>(
+          valueListenable: retain,
+          builder: (_, value, _) => pausedMedia(retain: value),
+        ),
+      );
+      cover(context);
+      await finishTransition(tester);
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+      retain.value = false;
+      await tester.pump();
+      await tester.pump();
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), [
+        (1, 'dispose', null),
+      ]);
+      retain.value = true;
+      await tester.pump();
+      await tester.pump();
+      expect(platform.sources, hasLength(1));
+      expect(
+        find.byType(UgkPackedAlphaVideo, skipOffstage: false),
+        findsNothing,
+      );
+      Navigator.of(context).pop();
+      await finishTransition(tester);
+      expect(platform.sources, hasLength(2));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final change in ['playing', 'paused', 'action', 'policy']) {
+    testWidgets(
+      'changing $change retires a retained covered surface without loading hidden media',
+      (tester) async {
+        final changed = ValueNotifier(false);
+        addTearDown(changed.dispose);
+        final alternative = catalog.allActions
+            .firstWhere((action) => action.id != _actionId)
+            .id;
+        final alternatePolicy = TrainingMediaPolicy(
+          repository: repository,
+          posterAssetRoot: _posterRoot,
+        );
+        final context = await readyPaused(
+          tester,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: changed,
+            builder: (_, value, _) => TrainingActionMedia(
+              key: const ValueKey('covered-paused-media'),
+              actionId: value && change == 'action' ? alternative : _actionId,
+              policy: value && change == 'policy' ? alternatePolicy : policy,
+              playing: !(value && change == 'playing'),
+              paused: !(value && change == 'paused'),
+              prepareFirstFrame: true,
+              retainPausedSurfaceWhileCovered: true,
+            ),
+          ),
+        );
+        cover(context);
+        await finishTransition(tester);
+        expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+        changed.value = true;
+        await tester.pump();
+        await tester.pump();
+        expect(platform.commands.where((c) => c.$2 == 'dispose'), [
+          (1, 'dispose', null),
+        ]);
+        expect(platform.sources, hasLength(1));
+        expect(
+          find.byType(UgkPackedAlphaVideo, skipOffstage: false),
+          findsNothing,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'an unrelated disabled TickerMode releases after a retained route returns',
+    (tester) async {
+      final enabled = ValueNotifier(true);
+      addTearDown(enabled.dispose);
+      final context = await readyPaused(
+        tester,
+        child: ValueListenableBuilder<bool>(
+          valueListenable: enabled,
+          builder: (_, value, _) =>
+              TickerMode(enabled: value, child: pausedMedia()),
+        ),
+      );
+      cover(context);
+      await finishTransition(tester);
+      Navigator.of(context).pop();
+      await finishTransition(tester);
+      expect(platform.sources, hasLength(1));
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+      enabled.value = false;
+      await tester.pump();
+      await tester.pump();
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), [
+        (1, 'dispose', null),
+      ]);
+      expect(find.byType(UgkPackedAlphaVideo), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('both themes retain one poster key until a real first frame', (
     tester,
   ) async {

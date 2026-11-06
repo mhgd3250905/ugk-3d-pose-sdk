@@ -68,7 +68,9 @@ internal class PackedAlphaVideoHost(
                 val external = sourceUri?.let { validateSourceUri(it) }
                 val id = nextId++
                 val producer = binding.textureRegistry.createSurfaceProducer()
-                val player = try { Player(id, producer) } catch (error: Exception) {
+                val player = try {
+                    Player(id, producer, call.argument<Boolean>("nativeAlpha") == true)
+                } catch (error: Exception) {
                     producer.release()
                     throw error
                 }
@@ -78,8 +80,7 @@ internal class PackedAlphaVideoHost(
                     result.success(mapOf("playerId" to id, "textureId" to producer.id()))
                 } catch (error: Exception) {
                     players.remove(id)
-                    player.dispose()
-                    throw error
+                    player.dispose { _ -> result.error("packed_alpha", error.javaClass.simpleName, null) }
                 }
                 return
             }
@@ -100,7 +101,14 @@ internal class PackedAlphaVideoHost(
                     return
                 }
                 "cancel-return-to-start" -> player.cancelReturnToStart()
-                "dispose" -> { players.remove(id); player.dispose() }
+                "dispose" -> {
+                    players.remove(id)
+                    player.dispose { success ->
+                        if (success) result.success(null)
+                        else result.error("packed_alpha", "dispose_failed", null)
+                    }
+                    return
+                }
                 else -> { result.notImplemented(); return }
             }
             result.success(null)
@@ -138,6 +146,7 @@ internal class PackedAlphaVideoHost(
     private inner class Player(
         private val id: Long,
         private val producer: TextureRegistry.SurfaceProducer,
+        private val nativeAlpha: Boolean,
     ) : TextureRegistry.SurfaceProducer.Callback {
         private val media = MediaPlayer()
         private var prepared = false
@@ -147,6 +156,10 @@ internal class PackedAlphaVideoHost(
         private var visible = true
         private var surfaceAvailable = true
         private var firstFrame = false
+        private var glRenderer: PackedAlphaGlRenderer? = null
+        private var outputWidth = 720
+        private val disposeCallbacks = mutableListOf<(Boolean) -> Unit>()
+        private var releaseResult: Boolean? = null
         private var returnRequest: ReturnRequest? = null
         private var primeRequest: PrimeRequest? = null
 
@@ -155,9 +168,8 @@ internal class PackedAlphaVideoHost(
         }
 
         fun prepare(asset: String?, sourceUri: Uri?) {
-            producer.setSize(720, 1440)
+            producer.setSize(720, if (nativeAlpha) 720 else 1440)
             producer.setCallback(this)
-            media.setSurface(producer.surface)
             media.setOnPreparedListener {
                 if (disposed) return@setOnPreparedListener
                 val width = media.videoWidth
@@ -166,7 +178,9 @@ internal class PackedAlphaVideoHost(
                     emit("error", mapOf("code" to "invalid_packed_dimensions"))
                     return@setOnPreparedListener
                 }
-                producer.setSize(width, height)
+                outputWidth = width
+                producer.setSize(width, if (nativeAlpha) width else height)
+                if (nativeAlpha && surfaceAvailable) glRenderer?.attachOutput(producer.surface, width)
                 prepared = true
                 media.isLooping = true
                 media.setVolume(0f, 0f)
@@ -175,10 +189,8 @@ internal class PackedAlphaVideoHost(
                 syncPlayback()
             }
             media.setOnInfoListener { _, what, _ ->
-                if (!disposed && what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START && !firstFrame) {
-                    firstFrame = true
-                    emit("first-frame")
-                    finishPrime(true)
+                if (!nativeAlpha && !disposed && what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
+                    announceFrame()
                 }
                 true
             }
@@ -188,6 +200,42 @@ internal class PackedAlphaVideoHost(
                 if (!disposed) emit("error", mapOf("what" to what, "extra" to extra))
                 true
             }
+            if (nativeAlpha) {
+                glRenderer = PackedAlphaGlRenderer(
+                    handler,
+                    onInputReady = { input ->
+                        if (!disposed) {
+                            try {
+                                media.setSurface(input)
+                                openSource(asset, sourceUri)
+                            } catch (_: Exception) {
+                                emit("error", mapOf("code" to "native_alpha_prepare"))
+                            }
+                        }
+                    },
+                    onFrameComposed = { if (!disposed && surfaceAvailable) announceFrame() },
+                    onError = {
+                        if (!disposed) {
+                            finishPrime(false, resume = false)
+                            finishReturn(false, resume = false)
+                            emit("error", mapOf("code" to "native_alpha_composition"))
+                        }
+                    },
+                ).also { it.start(producer.surface) }
+            } else {
+                media.setSurface(producer.surface)
+                openSource(asset, sourceUri)
+            }
+        }
+
+        private fun announceFrame() {
+            if (firstFrame) return
+            firstFrame = true
+            emit("first-frame")
+            finishPrime(true)
+        }
+
+        private fun openSource(asset: String?, sourceUri: Uri?) {
             if (sourceUri != null) media.setDataSource(binding.applicationContext, sourceUri)
             else {
                 val key = binding.flutterAssets.getAssetFilePathByName(requireNotNull(asset))
@@ -391,7 +439,8 @@ internal class PackedAlphaVideoHost(
         override fun onSurfaceAvailable() {
             if (disposed) return
             surfaceAvailable = true
-            media.setSurface(producer.surface)
+            if (nativeAlpha) glRenderer?.attachOutput(producer.surface, outputWidth)
+            else media.setSurface(producer.surface)
             syncPlayback()
         }
 
@@ -401,21 +450,41 @@ internal class PackedAlphaVideoHost(
             cancelReturnToStart()
             cancelPrepareFirstFrame()
             syncPlayback()
-            media.setSurface(null)
+            if (nativeAlpha) glRenderer?.detachOutput()
+            else media.setSurface(null)
         }
 
-        fun dispose() {
+        fun dispose(onDisposed: (Boolean) -> Unit = {}) {
+            releaseResult?.let { onDisposed(it); return }
+            disposeCallbacks.add(onDisposed)
             if (disposed) return
             finishPrime(false, resume = false)
             finishReturn(false, resume = false)
             disposed = true
             prepared = false
             pendingEvents.remove(id)
-            media.setOnInfoListener(null)
-            media.setOnErrorListener(null)
-            media.setOnPreparedListener(null)
-            media.release()
-            producer.release()
+            var mediaReleased = true
+            fun release(action: () -> Unit) {
+                try { action() } catch (_: Exception) { mediaReleased = false }
+            }
+            release { media.setOnInfoListener(null) }
+            release { media.setOnErrorListener(null) }
+            release { media.setOnPreparedListener(null) }
+            release { media.release() }
+            release { producer.setCallback(null) }
+            fun finishRelease(glReleased: Boolean) {
+                release { producer.release() }
+                val success = mediaReleased && glReleased
+                releaseResult = success
+                val callbacks = disposeCallbacks.toList()
+                disposeCallbacks.clear()
+                callbacks.forEach { it(success) }
+            }
+            val renderer = glRenderer
+            glRenderer = null
+            if (renderer == null) {
+                finishRelease(true)
+            } else renderer.dispose(::finishRelease)
         }
     }
 }

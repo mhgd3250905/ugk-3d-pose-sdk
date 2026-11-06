@@ -27,8 +27,10 @@ class TrainingActionMedia extends StatefulWidget {
     this.playbackHandle,
     this.playbackControl,
     this.retainSurfaceDuringRouteExit = false,
+    this.retainPausedSurfaceWhileCovered = false,
     this.prepareFirstFrame = false,
     this.showLoadingIndicator = true,
+    this.nativeAlpha = false,
   });
   final String actionId;
   final TrainingMediaPolicy? policy;
@@ -43,6 +45,12 @@ class TrainingActionMedia extends StatefulWidget {
   /// Hosts opting in must pause before popping; ordinary hosts are unchanged.
   final bool retainSurfaceDuringRouteExit;
 
+  /// Keep an existing, genuinely decoded paused frame while another route covers
+  /// this one. This never starts pending media or plays hidden video. Background,
+  /// action/policy changes, [playing] false and disposal still release it.
+  /// Ordinary hosts keep their existing route-visibility behavior by default.
+  final bool retainPausedSurfaceWhileCovered;
+
   /// With [playing] true and [paused] true, decode and hold the first frame.
   /// Expanding/resuming can then use the very same controller and texture.
   /// Ordinary paused and poster-only hosts keep their existing behavior.
@@ -52,6 +60,10 @@ class TrainingActionMedia extends StatefulWidget {
   /// poster without a spinner/live announcement; real failure/retry UI remains.
   /// This affects presentation only; changing it never reloads the decoder.
   final bool showLoadingIndicator;
+
+  /// Optional native RGBA output for a backend with that capability. The
+  /// default preserves the packed-shader path and other hosts' behavior.
+  final bool nativeAlpha;
 
   @override
   State<TrainingActionMedia> createState() => _TrainingActionMediaState();
@@ -82,12 +94,13 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   bool _tickersEnabled = true;
   bool _routeCurrent = true;
   bool _retainingExit = false;
+  bool _retainingCovered = false;
   Animation<double>? _exitAnimation;
   bool _primeAttempted = false;
 
   bool get _canPlay => widget.playing && _foreground && _visible;
   bool get _effectiveVisible =>
-      (_tickersEnabled && _routeCurrent) || _retainingExit;
+      (_tickersEnabled && _routeCurrent) || _retainingExit || _retainingCovered;
 
   @override
   void initState() {
@@ -101,6 +114,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     final policy = widget.policy ?? TrainingMediaPolicyScope.maybeOf(context);
     _tickersEnabled = TickerMode.valuesOf(context).enabled;
     _routeCurrent = ModalRoute.isCurrentOf(context) ?? true;
+    _updateCoveredRetention();
     _bindExitAnimation();
     final visible = _effectiveVisible;
     if (!identical(policy, _policy) || visible != _visible) {
@@ -120,6 +134,8 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
       oldWidget.playbackControl?.unbind(this);
     }
     final wasVisible = _visible;
+    _updateCoveredRetention();
+    _visible = _effectiveVisible;
     if (oldWidget.retainSurfaceDuringRouteExit !=
         widget.retainSurfaceDuringRouteExit) {
       _bindExitAnimation();
@@ -128,6 +144,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     if (oldWidget.actionId != widget.actionId ||
         oldWidget.policy != widget.policy ||
         oldWidget.playing != widget.playing ||
+        oldWidget.nativeAlpha != widget.nativeAlpha ||
         wasVisible != _visible) {
       _policy = widget.policy ?? TrainingMediaPolicyScope.read(context);
       _reload();
@@ -140,6 +157,25 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
       _sync();
     }
     _bindHandle();
+  }
+
+  void _updateCoveredRetention() {
+    if (!widget.retainPausedSurfaceWhileCovered ||
+        !widget.playing ||
+        !widget.paused ||
+        !_foreground ||
+        _controller?.hasFrame != true ||
+        _controller?.failed == true ||
+        ModalRoute.of(context)?.animation?.status == AnimationStatus.reverse) {
+      _retainingCovered = false;
+    } else if (!_routeCurrent) {
+      _retainingCovered = true;
+    } else if (_tickersEnabled) {
+      _retainingCovered = false;
+    }
+    // During pop, isCurrent can become true before TickerMode is re-enabled.
+    // Keep only a previously retained frame across that ordering; a current
+    // route with an unrelated disabled TickerMode never starts retaining.
   }
 
   void _bindExitAnimation() {
@@ -181,6 +217,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
 
   void _stop() {
     _retainingExit = false;
+    _retainingCovered = false;
     _primeAttempted = false;
     ++_request;
     _download?.removeListener(_changed);
@@ -203,7 +240,9 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     final policy = _policy;
     final action = policy?.actionFor(widget.actionId);
     if (!_canPlay || policy == null || action == null) return;
-    if (!UgkPackedAlphaVideo.isSupported) return;
+    if (!UgkPackedAlphaVideo.isSupportedFor(nativeAlpha: widget.nativeAlpha)) {
+      return;
+    }
     final pin = _pin = _VideoPin(policy.repository.retainVideo(action.id));
     _download = policy.repository.watchFile(action.video)
       ..addListener(_changed);
@@ -319,7 +358,9 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     final controller = _controller;
     final revealed = controller?.hasFrame == true && controller?.failed != true;
     final progress = _download?.value.progress;
-    final supported = UgkPackedAlphaVideo.isSupported;
+    final supported = UgkPackedAlphaVideo.isSupportedFor(
+      nativeAlpha: widget.nativeAlpha,
+    );
     final showStatus =
         poster != null &&
         _canPlay &&
@@ -364,6 +405,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
                       source: _source!,
                       controller: controller,
                       pin: _pin!,
+                      nativeAlpha: widget.nativeAlpha,
                     ),
                   ),
                 if (showStatus)
@@ -407,10 +449,12 @@ class _PinnedPackedVideo extends StatefulWidget {
     required this.source,
     required this.controller,
     required this.pin,
+    required this.nativeAlpha,
   });
   final Uri source;
   final DrillMediaController controller;
   final _VideoPin pin;
+  final bool nativeAlpha;
   @override
   State<_PinnedPackedVideo> createState() => _PinnedPackedVideoState();
 }
@@ -427,5 +471,6 @@ class _PinnedPackedVideoState extends State<_PinnedPackedVideo> {
     sourceUri: widget.source,
     controller: widget.controller,
     onDisposed: widget.pin.release,
+    nativeAlpha: widget.nativeAlpha,
   );
 }

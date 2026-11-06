@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ugk_coach/ugk_coach.dart' as coach;
 
 import 'plan_card.dart';
+import 'chat_localization.dart';
 
 /// The AI boundary accepts a gate result, then adapts it for the App's trainer.
 class ValidatedPlanCard extends StatelessWidget {
@@ -44,8 +45,12 @@ class ValidatedPlanCard extends StatelessWidget {
       saved: savedOverride ?? isSaved(plan),
       landing: landing,
       showNumbers: showNumbers,
-      saveLabel: updatingSavedPlan ? '更新到我的计划' : null,
-      savedLabel: updatingSavedPlan ? '已更新' : null,
+      saveLabel: updatingSavedPlan
+          ? chatCopy(context, '更新到我的计划', 'Update my plan')
+          : null,
+      savedLabel: updatingSavedPlan
+          ? chatCopy(context, '已更新', 'Updated')
+          : null,
       onStart: () => onStart(plan),
       onSave: () => onSave(plan),
       onSaveCopy: onSaveCopy == null ? null : () => onSaveCopy!(plan),

@@ -9,6 +9,25 @@ import '../theme/chat_surface.dart';
 import '../theme/chat_theme.dart';
 import '../theme/chat_tokens.dart';
 import 'training_visible_poster_preload.dart';
+import 'chat_localization.dart';
+
+String _englishFocusTitle(String title) => 'Discussing: $title';
+const _englishUiStrings = CoachUiStrings(
+  timeLabel: chatEnglishTime,
+  taskThinkingTitle: 'Planning your training',
+  taskReadingStatus: 'Understanding your request',
+  taskCancel: 'Cancel',
+  planFocusTitle: _englishFocusTitle,
+  clearPlanFocus: 'Stop discussing this plan',
+);
+
+CoachUiStrings _effectiveUiStrings(BuildContext context) {
+  final supplied = ChatTheme.of(context).visual.uiStrings;
+  return chatIsEnglish(context) &&
+          identical(supplied, (const CoachChatVisuals()).uiStrings)
+      ? _englishUiStrings
+      : supplied;
+}
 
 Widget withCoachChatUi(BuildContext context, Widget child) =>
     CoachUiTheme.contains(context)
@@ -38,7 +57,7 @@ CoachTaskCutoutBuilder? chatTaskCutouts(
                 image: provider,
                 fit: BoxFit.contain,
                 alignment: Alignment.center,
-                semanticLabel: catalog[id]?.name.of('zh'),
+                semanticLabel: catalog[id]?.name.of(chatLanguage(context)),
               ),
             ),
           );
@@ -112,13 +131,13 @@ Widget withCoachChatPlanSaveUi(
               const SizedBox(width: 12),
               ChatPressable(
                 key: ValueKey('plan-save-copy-$planId'),
-                semanticLabel: '另存一份',
+                semanticLabel: chatCopy(context, '另存一份', 'Save a copy'),
                 onTap: onSaveCopy,
                 child: SizedBox(
                   height: 44,
                   child: Center(
                     child: Text(
-                      '另存一份',
+                      chatCopy(context, '另存一份', 'Save a copy'),
                       style: ChatType.of(context).callout.copyWith(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -298,7 +317,7 @@ CoachUiStyle coachChatUiStyle(
       caption: ChatType.of(context).caption,
       greeting: ChatType.of(context).greeting,
     ),
-    strings: ChatTheme.of(context).visual.uiStrings,
+    strings: _effectiveUiStrings(context),
     builders: CoachUiBuilders(
       media: (context, request) =>
           ChatTheme.of(context).visual.mediaBuilder?.call(context, request),
@@ -351,8 +370,8 @@ CoachUiStyle coachChatUiStyle(
         strokeWidth: c.strokeWidth,
       ),
       startButton: (_, c) => ChatPressable(
-        semanticLabel: '开始训练',
-        tooltip: '开始训练',
+        semanticLabel: chatCopy(context, '开始训练', 'Start training'),
+        tooltip: chatCopy(context, '开始训练', 'Start training'),
         onTap: c.onTap,
         haptic: ChatHaptic.medium,
         child: Container(
@@ -402,25 +421,42 @@ CoachExercise toCoachExercise(BuildContext context, coach.Drill drill) {
   final gear = drill.equipment
       .where((id) => id != 'none' && id.isNotEmpty)
       .toSet();
+  final localized = chatActionText(context, drill.id);
   return CoachExercise(
     id: drill.id,
-    name: drill.name.of('zh'),
+    name: localized?.name ?? drill.name.of(chatLanguage(context)),
     poster: cover ?? '',
     stage: coachMediaPalette(theme.colors),
-    categoryLabel:
-        const {
-          'strength': '力量',
-          'core': '核心',
-          'cardio': '心肺',
-          'mobility': '灵活',
-          'stretch': '拉伸',
-        }[drill.category] ??
-        drill.category,
-    levelLabel: coach.levelZh(drill.level),
+    categoryLabel: chatIsEnglish(context)
+        ? const {
+                'strength': 'Strength',
+                'core': 'Core',
+                'cardio': 'Cardio',
+                'mobility': 'Mobility',
+                'stretch': 'Stretch',
+              }[drill.category] ??
+              drill.category
+        : const {
+                'strength': '力量',
+                'core': '核心',
+                'cardio': '心肺',
+                'mobility': '灵活',
+                'stretch': '拉伸',
+              }[drill.category] ??
+              drill.category,
+    levelLabel: chatLevelLabel(drill.level, language: chatLanguage(context)),
     equipmentLabel: gear.isEmpty
-        ? '徒手'
-        : gear.map(chatEquipmentLabel).join('、'),
-    cues: drill.cues['zh'] ?? const [],
+        ? chatCopy(context, '徒手', 'Bodyweight')
+        : gear
+              .map(
+                (id) => chatEquipmentLabel(id, language: chatLanguage(context)),
+              )
+              .join(chatIsEnglish(context) ? ', ' : '、'),
+    cues:
+        localized?.cues ??
+        drill.cues[chatLanguage(context)] ??
+        drill.cues['zh'] ??
+        const [],
   );
 }
 
@@ -429,89 +465,149 @@ CoachExercise toCoachRecommendationExercise(
   coach.Drill drill,
 ) => toCoachExercise(context, drill);
 
-String chatEquipmentLabel(String id) =>
-    const {
-      'none': '徒手',
-      'mat': '瑜伽垫',
-      'chair': '椅子',
-      'wall': '墙',
-      'band': '弹力带',
-      'dumbbell': '哑铃',
-      'block': '瑜伽砖',
-      'slider': '滑垫',
-      'cable': '绳索器械',
-      'dip-bars': '双杠',
-      'foam-roller': '泡沫轴',
-      'ghd': 'GHD训练器',
-      'hip-abductor-machine': '髋外展训练器',
-      'kettlebell': '壶铃',
-      'landmine': '地雷架',
-      'leg-extension-machine': '腿屈伸训练器',
-      'parallettes': '小双杠',
-      'pullup-bar': '单杠',
-      'reverse-hyper': '反向挺身器',
-      'rings': '吊环',
-      'roman-chair': '罗马椅',
-      'swiss-ball': '健身球',
-    }[id] ??
-    id;
+String chatEquipmentLabel(String id, {String language = 'zh'}) =>
+    language.toLowerCase().startsWith('en')
+    ? const {
+            'none': 'Bodyweight',
+            'mat': 'Mat',
+            'chair': 'Chair',
+            'wall': 'Wall',
+            'band': 'Resistance band',
+            'dumbbell': 'Dumbbell',
+            'block': 'Yoga block',
+            'slider': 'Slider',
+            'cable': 'Cable machine',
+            'dip-bars': 'Dip bars',
+            'foam-roller': 'Foam roller',
+            'ghd': 'GHD',
+            'hip-abductor-machine': 'Hip abductor machine',
+            'kettlebell': 'Kettlebell',
+            'landmine': 'Landmine',
+            'leg-extension-machine': 'Leg extension machine',
+            'parallettes': 'Parallettes',
+            'pullup-bar': 'Pull-up bar',
+            'reverse-hyper': 'Reverse hyper',
+            'rings': 'Rings',
+            'roman-chair': 'Roman chair',
+            'swiss-ball': 'Exercise ball',
+          }[id] ??
+          id.replaceAll('-', ' ')
+    : const {
+            'none': '徒手',
+            'mat': '瑜伽垫',
+            'chair': '椅子',
+            'wall': '墙',
+            'band': '弹力带',
+            'dumbbell': '哑铃',
+            'block': '瑜伽砖',
+            'slider': '滑垫',
+            'cable': '绳索器械',
+            'dip-bars': '双杠',
+            'foam-roller': '泡沫轴',
+            'ghd': 'GHD训练器',
+            'hip-abductor-machine': '髋外展训练器',
+            'kettlebell': '壶铃',
+            'landmine': '地雷架',
+            'leg-extension-machine': '腿屈伸训练器',
+            'parallettes': '小双杠',
+            'pullup-bar': '单杠',
+            'reverse-hyper': '反向挺身器',
+            'rings': '吊环',
+            'roman-chair': '罗马椅',
+            'swiss-ball': '健身球',
+          }[id] ??
+          id;
 
 String chatDoseText(
   coach.PlanItem item, {
   String? unitLabel,
   Map<String, String> unitLabels = const {},
+  String language = 'zh',
 }) {
+  final en = language.toLowerCase().startsWith('en');
   unitLabel = unitLabels[item.exerciseId] ?? unitLabel;
-  final per = item.perSide ? '每侧 ' : '';
+  String unit(String? label, bool reps) => en
+      ? switch (label) {
+          '次' => 'reps',
+          '秒' => 'sec',
+          '圈' => 'circles',
+          '呼吸' => 'breaths',
+          _ => label ?? (reps ? 'reps' : 'sec'),
+        }
+      : label ?? (reps ? '次' : '秒');
+  final per = item.perSide ? (en ? 'Each side ' : '每侧 ') : '';
   if (item.segments.isNotEmpty) {
     final parts = [
       for (final segment in item.segments)
-        '${segment.label == null ? '' : '${segment.label} '}$per${segment.mode == coach.DoseMode.reps ? '${segment.reps} ${unitLabels[segment.exerciseId] ?? unitLabel ?? '次'}' : '${segment.workSeconds} ${unitLabels[segment.exerciseId] ?? unitLabel ?? '秒'}'}',
+        '${segment.label == null ? '' : '${segment.label} '}$per${segment.mode == coach.DoseMode.reps ? '${segment.reps} ${unit(unitLabels[segment.exerciseId] ?? unitLabel, true)}' : '${segment.workSeconds} ${unit(unitLabels[segment.exerciseId] ?? unitLabel, false)}'}',
     ].join(' + ');
-    return item.sets > 1 ? '${item.sets} 组 × ($parts)' : parts;
+    return item.sets > 1
+        ? '${item.sets} ${en ? 'sets' : '组'} × ($parts)'
+        : parts;
   }
   final amount = item.mode == coach.DoseMode.reps
-      ? '$per${item.reps ?? 10} ${unitLabel ?? '次'}'
-      : '$per${item.workSeconds ?? 30} ${unitLabel ?? '秒'}';
-  return item.sets > 1 ? '${item.sets} 组 × $amount' : amount;
+      ? '$per${item.reps ?? 10} ${unit(unitLabel, true)}'
+      : '$per${item.workSeconds ?? 30} ${unit(unitLabel, false)}';
+  return item.sets > 1 ? '${item.sets} ${en ? 'sets' : '组'} × $amount' : amount;
 }
 
-String chatDurationLabel(double seconds) {
+String chatDurationLabel(double seconds, {String language = 'zh'}) {
   final minutes = (seconds / 60).round();
+  if (language.toLowerCase().startsWith('en')) {
+    return minutes < 1 ? 'Under 1 min' : 'About $minutes min';
+  }
   return minutes < 1 ? '不到 1 分钟' : '约 $minutes 分钟';
 }
+
+String chatLevelLabel(int level, {String language = 'zh'}) =>
+    language.toLowerCase().startsWith('en')
+    ? switch (level) {
+        1 => 'Beginner',
+        2 => 'Intermediate',
+        _ => 'Advanced',
+      }
+    : coach.levelZh(level);
 
 CoachRoutine toCoachRoutine(
   coach.TrainingPlan plan,
   coach.Catalog catalog, {
   coach.PlanExecutionTimingCallback? executionTiming,
   Map<String, String> doseUnitLabels = const {},
+  String language = 'zh',
 }) {
+  final en = language.toLowerCase().startsWith('en');
   final gear = plan.equipment
       .where((id) => id != 'none' && id.isNotEmpty)
       .toSet();
   final gearText = gear.isEmpty
-      ? '徒手'
+      ? (en ? 'Bodyweight' : '徒手')
       : gear
             .map(
-              (id) => catalog.taxonomy.equipment[id] ?? chatEquipmentLabel(id),
+              (id) => en
+                  ? chatEquipmentLabel(id, language: language)
+                  : catalog.taxonomy.equipment[id] ?? chatEquipmentLabel(id),
             )
-            .join('、');
+            .join(en ? ', ' : '、');
   final seconds = executionTiming == null
       ? const coach.PlanDuration().estimateSeconds(plan, catalog)
       : coach.evaluatePlanExecutionTiming(plan, executionTiming).totalSeconds;
-  final duration = chatDurationLabel(seconds);
+  final duration = chatDurationLabel(seconds, language: language);
   final items = [
     for (final block in plan.blocks)
       for (final item in block.items)
         CoachRoutineItem(
           exerciseId: item.exerciseId,
-          dose: chatDoseText(item, unitLabels: doseUnitLabels),
+          dose: chatDoseText(
+            item,
+            unitLabels: doseUnitLabels,
+            language: language,
+          ),
           detailDose: chatDoseText(
             block.type == coach.BlockType.circuit
                 ? item.copyWith(sets: 1)
                 : item,
             unitLabels: doseUnitLabels,
+            language: language,
           ),
         ),
   ];
@@ -521,10 +617,18 @@ CoachRoutine toCoachRoutine(
     items: items,
     durationLabel: duration,
     gearLabel: gearText,
-    levelLabel: coach.levelZh(plan.level),
-    metaLabel: [duration, '${items.length} 个动作', gearText].join(' · '),
+    levelLabel: chatLevelLabel(plan.level, language: language),
+    metaLabel: [
+      duration,
+      en
+          ? '${items.length} ${items.length == 1 ? 'move' : 'moves'}'
+          : '${items.length} 个动作',
+      gearText,
+    ].join(' · '),
     adjustmentsLabel: plan.notes.isEmpty
         ? null
+        : en
+        ? '${plan.notes.length} adjustments for you'
         : '已按你的情况调整 ${plan.notes.length} 处',
   );
 }

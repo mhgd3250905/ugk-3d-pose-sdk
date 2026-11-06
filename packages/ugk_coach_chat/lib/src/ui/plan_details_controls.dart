@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/chat_controls.dart';
 import '../theme/chat_theme.dart';
 import '../theme/chat_tokens.dart';
+import 'chat_localization.dart';
 
 class ChatDetailsTopBar extends StatelessWidget implements PreferredSizeWidget {
   const ChatDetailsTopBar({
@@ -45,7 +46,7 @@ class ChatDetailsTopBar extends StatelessWidget implements PreferredSizeWidget {
                     key: const ValueKey('back'),
                     icon: ChatGlyph.back,
                     size: 40,
-                    tooltip: '返回',
+                    tooltip: chatCopy(context, '返回', 'Back'),
                     fill: Colors.transparent,
                     onPressed: onBack ?? () => Navigator.of(context).maybePop(),
                   ),

@@ -11,6 +11,7 @@ class TrainingLibraryConfig {
     this.strings = const TrainingLibraryStrings(),
     this.showStartAction = false,
     this.searchNames,
+    this.displayText,
   });
 
   final CoachActionScopeManifest scopeManifest;
@@ -26,6 +27,11 @@ class TrainingLibraryConfig {
   /// host's localized or English names). The catalogue's Chinese name,
   /// aliases, any English name fields and the action id always match.
   final Iterable<String> Function(String actionId)? searchNames;
+
+  /// Optional host-authored display copy. Null retains the catalogue's current
+  /// presentation, including Chinese defaults. It never changes action IDs,
+  /// catalogue semantics, filtering, media integrity or training execution.
+  final TrainingLibraryActionText? Function(String actionId)? displayText;
   Set<String> get allowedActionIds => scopeManifest.allowedActionIds;
 
   /// The library is a catalogue exposure boundary, like Coach tool exposure.
@@ -34,6 +40,25 @@ class TrainingLibraryConfig {
         (action) =>
             allowedActionIds.contains(action.id) && action.availableForApp,
       );
+}
+
+/// A presentation-only localized view of one catalogue action. Each null field
+/// retains the corresponding catalogue text; an empty list intentionally
+/// supplies no rows. Hosts remain responsible for the accuracy of translated
+/// instructions and safety copy.
+class TrainingLibraryActionText {
+  const TrainingLibraryActionText({
+    this.name,
+    this.metadata,
+    this.muscles,
+    this.cues,
+    this.cautions,
+  });
+  final String? name;
+  final String? metadata;
+  final String? muscles;
+  final List<String>? cues;
+  final List<String>? cautions;
 }
 
 class TrainingLibraryStrings {

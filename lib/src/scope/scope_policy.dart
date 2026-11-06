@@ -7,6 +7,7 @@ final class CoachScopeConversationPolicy {
     List<String> suggestions = const [],
     this.outOfScopeGuidance,
     this.safetyMessage = '先暂停这次训练安排，按安全提示处理。',
+    this.languageTag = 'zh',
   }) : specialty = _scopeText(specialty, 'scopePolicy.specialty'),
        suggestions = List.unmodifiable(suggestions) {
     if (suggestions.any((text) => text.trim().isEmpty)) {
@@ -21,6 +22,13 @@ final class CoachScopeConversationPolicy {
   final List<String> suggestions;
   final String? outOfScopeGuidance;
   final String safetyMessage;
+  final String languageTag;
+  bool get isEnglish => languageTag.toLowerCase().startsWith('en');
+  String pick(String chinese, String english) => isEnglish ? english : chinese;
+  String get localizedSafetyMessage =>
+      isEnglish && safetyMessage == '先暂停这次训练安排，按安全提示处理。'
+      ? 'Pause this training plan and follow the safety guidance first.'
+      : safetyMessage;
   bool get guidanceEnabled => outOfScopeGuidance != null;
 }
 
@@ -222,8 +230,8 @@ extension CoachActionScopePolicy on CoachActionScope {
         fact?.names.firstOrNull ??
         request.sourceActionName?.replaceAll(RegExp(r'[\r\n]+'), ' ') ??
         request.sourceActionId ??
-        '请求的内容';
-    final unavailable = _scopeUnavailable(this, sourceId, label);
+        policy.pick('请求的内容', 'the requested content');
+    final unavailable = _scopeUnavailable(this, sourceId, label, policy);
     CoachScopeDecisionRecord decision(
       CoachScopeDecisionKind kind,
       String message, {
@@ -245,13 +253,16 @@ extension CoachActionScopePolicy on CoachActionScope {
     if (request.safetyBlocked) {
       return decision(
         CoachScopeDecisionKind.safetyBlocked,
-        '${request.safetyReason ?? policy.safetyMessage} ${policy.specialty}',
+        '${request.safetyReason ?? policy.localizedSafetyMessage} ${policy.specialty}',
       );
     }
     if (request.outsideSpecialty && (sourceId == null || !contains(sourceId))) {
       return decision(
         CoachScopeDecisionKind.outOfScope,
-        '这次需求超出本 App 的训练范围。${policy.specialty}',
+        policy.pick(
+          '这次需求超出本 App 的训练范围。${policy.specialty}',
+          'This request is outside this app’s training scope. ${policy.specialty}',
+        ),
       );
     }
     if (sourceId == null &&
@@ -259,25 +270,37 @@ extension CoachActionScopePolicy on CoachActionScope {
         request.targetBodyCodes.isEmpty) {
       return decision(
         CoachScopeDecisionKind.inScope,
-        '按本 App 可用范围继续收集条件和安排训练。',
+        policy.pick(
+          '按本 App 可用范围继续收集条件和安排训练。',
+          'Continue gathering conditions and planning within this app’s available actions.',
+        ),
       );
     }
     if (sourceId != null && contains(sourceId)) {
       return decision(
         CoachScopeDecisionKind.inScope,
-        '该动作在本 App 可用范围内，仍需通过当前安全和训练门禁。',
+        policy.pick(
+          '该动作在本 App 可用范围内，仍需通过当前安全和训练门禁。',
+          'This action is available in the app and must still pass the current safety and training checks.',
+        ),
       );
     }
     if (request.insists) {
       return decision(
         CoachScopeDecisionKind.insistedUnavailable,
-        '$unavailable，不能把它安排进计划。${policy.specialty}',
+        policy.pick(
+          '$unavailable，不能把它安排进计划。${policy.specialty}',
+          '$unavailable and cannot be included in the plan. ${policy.specialty}',
+        ),
       );
     }
     if (request.locked) {
       return decision(
         CoachScopeDecisionKind.lockedConflict,
-        '$unavailable；你已锁定的动作或剂量不能被暗中替换，请先选择是否调整。${policy.specialty}',
+        policy.pick(
+          '$unavailable；你已锁定的动作或剂量不能被暗中替换，请先选择是否调整。${policy.specialty}',
+          '$unavailable. Your locked actions or doses cannot be changed silently; choose whether to adjust them first. ${policy.specialty}',
+        ),
       );
     }
 
@@ -286,7 +309,10 @@ extension CoachActionScopePolicy on CoachActionScope {
       final adopted = candidates.first;
       return decision(
         CoachScopeDecisionKind.substituted,
-        '$unavailable，用${adopted.name.of()}练同一部位。',
+        policy.pick(
+          '$unavailable，用${adopted.name.of()}练同一部位。',
+          '$unavailable. Use ${adopted.name.of(policy.languageTag)} to train the same area.',
+        ),
         adopted: adopted.id,
         candidates: candidates.map((drill) => drill.id).toList(),
       );
@@ -294,7 +320,10 @@ extension CoachActionScopePolicy on CoachActionScope {
     if (request.hasInScopeContent) {
       return decision(
         CoachScopeDecisionKind.removed,
-        '$unavailable，也没有同部位、场景和器械都合适的替代，本次去掉它，未覆盖这部分目标。',
+        policy.pick(
+          '$unavailable，也没有同部位、场景和器械都合适的替代，本次去掉它，未覆盖这部分目标。',
+          '$unavailable. No alternative matches the area, setting and equipment, so it is omitted and this part of your goal is not covered.',
+        ),
       );
     }
 
@@ -304,13 +333,19 @@ extension CoachActionScopePolicy on CoachActionScope {
         candidates.isNotEmpty) {
       return decision(
         CoachScopeDecisionKind.inScope,
-        '这些目标可从本 App 范围内动作安排，仍需通过安全和训练门禁。',
+        policy.pick(
+          '这些目标可从本 App 范围内动作安排，仍需通过安全和训练门禁。',
+          'These goals can use actions within this app’s scope, subject to safety and training checks.',
+        ),
         candidates: candidates.map((drill) => drill.id).toList(),
       );
     }
     return decision(
       CoachScopeDecisionKind.outOfScope,
-      '${sourceId == null ? '这次需求超出本 App 的训练范围。' : '$unavailable。'}${policy.specialty}',
+      policy.pick(
+        '${sourceId == null ? '这次需求超出本 App 的训练范围。' : '$unavailable。'}${policy.specialty}',
+        '${sourceId == null ? 'This request is outside this app’s training scope. ' : '$unavailable. '}${policy.specialty}',
+      ),
     );
   }
 
@@ -348,7 +383,11 @@ extension CoachActionScopePolicy on CoachActionScope {
       for (final record in active)
         if (record.kind != CoachScopeDecisionKind.inScope)
           _scopeDisclosure(this, record, copy, delivered: finalPlan != null),
-      if (refusal) '可以选择：${_scopeSuggestions(this, copy).join('；')}。',
+      if (refusal)
+        copy.pick(
+          '可以选择：${_scopeSuggestions(this, copy).join('；')}。',
+          'You can choose: ${_scopeSuggestions(this, copy).join('; ')}.',
+        ),
       if (active.any(
             (record) => record.kind != CoachScopeDecisionKind.inScope,
           ) &&
@@ -381,17 +420,28 @@ List<String> _scopeSuggestions(
     ? policy.suggestions
     : List.unmodifiable([
         for (final drill in scope.catalog.drills.take(3))
-          '选择${drill.name.of()}等本 App 范围内动作',
-        if (scope.catalog.drills.isEmpty) '调整条件后再选择本 App 支持的训练',
+          policy.pick(
+            '选择${drill.name.of()}等本 App 范围内动作',
+            'Choose an action supported by this app, such as ${drill.name.of(policy.languageTag)}',
+          ),
+        if (scope.catalog.drills.isEmpty)
+          policy.pick(
+            '调整条件后再选择本 App 支持的训练',
+            'Adjust your conditions, then choose training supported by this app',
+          ),
       ]);
 
 String _scopeUnavailable(
   CoachActionScope scope,
   String? sourceId,
   String label,
+  CoachScopeConversationPolicy policy,
 ) => sourceId != null && scope.allowedActionIds.contains(sourceId)
-    ? '本 App 暂不能将$label用于训练（训练说明不完整或不符合当前范围）'
-    : '本 App 没有$label';
+    ? policy.pick(
+        '本 App 暂不能将$label用于训练（训练说明不完整或不符合当前范围）',
+        'This app cannot currently use $label for training (its instructions are incomplete or it does not meet the current scope)',
+      )
+    : policy.pick('本 App 没有$label', 'This app does not include $label');
 
 String _scopeDisclosure(
   CoachActionScope scope,
@@ -404,24 +454,41 @@ String _scopeDisclosure(
       source?.names.firstOrNull ??
       record.sourceName ??
       record.sourceId ??
-      '请求的内容';
-  final unavailable = _scopeUnavailable(scope, record.sourceId, label);
+      policy.pick('请求的内容', 'the requested content');
+  final unavailable = _scopeUnavailable(scope, record.sourceId, label, policy);
   return switch (record.kind) {
-    CoachScopeDecisionKind.inScope => '该动作在本 App 可用范围内，仍需通过当前安全和训练门禁。',
+    CoachScopeDecisionKind.inScope => policy.pick(
+      '该动作在本 App 可用范围内，仍需通过当前安全和训练门禁。',
+      'This action is available in the app and must still pass safety and training checks.',
+    ),
     CoachScopeDecisionKind.substituted =>
       delivered
-          ? '$unavailable，用${scope.catalog[record.adoptedActionId!]!.name.of()}练同一部位。'
-          : '$unavailable，可以用${scope.catalog[record.adoptedActionId!]!.name.of()}练同一部位；尚未生成训练计划。',
-    CoachScopeDecisionKind.removed =>
+          ? policy.pick(
+              '$unavailable，用${scope.catalog[record.adoptedActionId!]!.name.of()}练同一部位。',
+              '$unavailable. Use ${scope.catalog[record.adoptedActionId!]!.name.of(policy.languageTag)} to train the same area.',
+            )
+          : policy.pick(
+              '$unavailable，可以用${scope.catalog[record.adoptedActionId!]!.name.of()}练同一部位；尚未生成训练计划。',
+              '$unavailable. You can use ${scope.catalog[record.adoptedActionId!]!.name.of(policy.languageTag)} to train the same area; no training plan has been generated yet.',
+            ),
+    CoachScopeDecisionKind.removed => policy.pick(
       '$unavailable，也没有同部位、场景和器械都合适的替代，本次去掉它，未覆盖这部分目标。',
-    CoachScopeDecisionKind.outOfScope =>
+      '$unavailable. No alternative matches the area, setting and equipment, so it is omitted and this part of your goal is not covered.',
+    ),
+    CoachScopeDecisionKind.outOfScope => policy.pick(
       '${record.sourceId == null ? '这次需求超出本 App 的训练范围。' : '$unavailable。'}${policy.specialty}',
-    CoachScopeDecisionKind.insistedUnavailable =>
+      '${record.sourceId == null ? 'This request is outside this app’s training scope. ' : '$unavailable. '}${policy.specialty}',
+    ),
+    CoachScopeDecisionKind.insistedUnavailable => policy.pick(
       '$unavailable，不能把它安排进计划。${policy.specialty}',
+      '$unavailable and cannot be included in the plan. ${policy.specialty}',
+    ),
     CoachScopeDecisionKind.safetyBlocked =>
-      '${policy.safetyMessage} ${policy.specialty}',
-    CoachScopeDecisionKind.lockedConflict =>
+      '${policy.localizedSafetyMessage} ${policy.specialty}',
+    CoachScopeDecisionKind.lockedConflict => policy.pick(
       '$unavailable；你已锁定的动作或剂量不能被暗中替换，请先选择是否调整。${policy.specialty}',
+      '$unavailable. Your locked actions or doses cannot be changed silently; choose whether to adjust them first. ${policy.specialty}',
+    ),
   };
 }
 

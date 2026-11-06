@@ -5,6 +5,8 @@ import 'package:flutter/widgets.dart';
 import 'package:ugk_coach/ugk_coach.dart' as coach;
 import 'package:ugk_coach/ugk_coach_qa_v2.dart' as qa;
 import 'package:ugk_trainer_runtime/engine.dart' show SessionResult;
+import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart'
+    show TrainingLibraryConfig;
 
 import 'app_profile.dart';
 import 'chat_bindings.dart';
@@ -13,27 +15,65 @@ import 'chat_models.dart';
 import 'chat_snapshot.dart';
 import 'qa_state.dart';
 import 'transition_activity.dart';
+import 'chat_strings.dart';
 
 /// The SF conversation lifecycle and display controller, with host services
 /// injected. The legacy core retains admission and host-plan operations;
 /// opt-in QA v2 handles model turns through the same client lease and page.
 class CoachChatController extends ChangeNotifier {
   CoachChatController({
-    required this.profile,
+    required CoachAppProfile profile,
     required coach.Catalog catalog,
     required this.bindings,
-    this.context = const coach.CoachContext(),
+    coach.CoachContext context = const coach.CoachContext(),
     this.replyDelay = const Duration(milliseconds: 450),
     this.prepareReply,
     this.turnTimeout = const Duration(seconds: 390),
     DateTime Function()? clock,
     this.usageSink,
-  }) : _sourceCatalog = catalog,
+    // Keep the existing public named parameters while allowing opt-in
+    // presentation updates through the compatible read-only getters.
+    // ignore: prefer_initializing_formals
+  }) : _profile = profile,
+       // ignore: prefer_initializing_formals
+       _context = context,
+       _sourceCatalog = catalog,
        _clock = clock ?? DateTime.now;
 
-  final CoachAppProfile profile;
+  CoachAppProfile _profile;
+  CoachAppProfile get profile => _profile;
   final CoachChatBindings bindings;
-  final coach.CoachContext context;
+  coach.CoachContext _context;
+  coach.CoachContext get context => _context;
+  String _copy(String chinese, String english) =>
+      context.language.toLowerCase().startsWith('en') ? english : chinese;
+
+  /// Change future request language and display strings without dropping the
+  /// current conversation, saved plan focus, safety state or training session.
+  void updateLocalization({
+    required CoachChatStrings strings,
+    required String language,
+    TrainingLibraryConfig? library,
+    coach.CoachScopeConversationPolicy? conversationPolicy,
+  }) {
+    if (_closed) return;
+    _profile = profile.withLocalization(
+      strings: strings,
+      library: library,
+      conversationPolicy: conversationPolicy,
+    );
+    _context = context.copyWith(language: language);
+    if (conversationPolicy != null) {
+      _agent?.updateScopePolicy(conversationPolicy);
+    }
+    if (_suggestions.isNotEmpty && !_typing) {
+      _suggestions = _currentPlan == null
+          ? _defaults()
+          : profile.strings.planSuggestions;
+    }
+    _notify();
+  }
+
   final coach.Catalog _sourceCatalog;
   final DateTime Function() _clock;
   final Duration replyDelay, turnTimeout;
@@ -691,7 +731,12 @@ class CoachChatController extends ChangeNotifier {
         }
         if (result.plan != null) _currentPlan = result.plan!.plan;
       } else if (result?.status == coach.TurnStatus.inputTooLong) {
-        _addBot('请把这一条缩短到 ${agent.maxInputChars} 字以内再发送。');
+        _addBot(
+          _copy(
+            '请把这一条缩短到 ${agent.maxInputChars} 字以内再发送。',
+            'Please shorten this message to ${agent.maxInputChars} characters before sending.',
+          ),
+        );
       } else if (result != null &&
           result.status != coach.TurnStatus.cancelled &&
           result.status != coach.TurnStatus.busy) {
@@ -964,7 +1009,12 @@ class CoachChatController extends ChangeNotifier {
       _addUser(option.label);
       if (plan != null) {
         final saved = await save(plan);
-        _addBot('存好了，叫「${saved.name}」。下次说「上次那个」或者从左下角的计划里一键开始。');
+        _addBot(
+          _copy(
+            '存好了，叫「${saved.name}」。下次说「上次那个」或者从左下角的计划里一键开始。',
+            'Saved as “${saved.name}”. You can open it again from My plans.',
+          ),
+        );
       }
       _notify();
       _persistInBackground();
@@ -1016,12 +1066,15 @@ class CoachChatController extends ChangeNotifier {
         _addBot(
           last == null
               ? profile.strings.noHistory
-              : '上次训练「${last.title}」，完成 ${last.completed}/${last.total} 个动作。',
+              : _copy(
+                  '上次训练「${last.title}」，完成 ${last.completed}/${last.total} 个动作。',
+                  'Last session: “${last.title}”, ${last.completed}/${last.total} moves completed.',
+                ),
           options:
               last != null &&
                   _trainingContext.lastPlan != null &&
                   _preferences.trainingAllowed
-              ? const [ChatOption('再来一次', '@last')]
+              ? [ChatOption(_copy('再来一次', 'Train again'), '@last')]
               : const [],
         );
       case CoachChatCommandKind.showLastPlan:
@@ -1038,13 +1091,23 @@ class CoachChatController extends ChangeNotifier {
               profile.strings.focusUnavailable,
             );
           }
-          _addUser('上次那个');
-          _addBot('这是你上次的「${plan.title}」。', plan: plan, admitted: admitted);
+          _addUser(_copy('上次那个', 'My last plan'));
+          _addBot(
+            _copy(
+              '这是你上次的「${plan.title}」。',
+              'Here is your last plan, “${plan.title}”.',
+            ),
+            plan: plan,
+            admitted: admitted,
+          );
           _currentPlan = plan;
         }
       case CoachChatCommandKind.appearance:
         if (!{'light', 'dark', 'system'}.contains(command.value)) {
-          return _problem('invalid_setting', '无效外观');
+          return _problem(
+            'invalid_setting',
+            _copy('无效外观', 'Invalid appearance'),
+          );
         }
         await _updatePreferences(
           _preferences.copyWith(appearance: command.value),
@@ -1282,7 +1345,15 @@ class CoachChatController extends ChangeNotifier {
     final preview = _scopePreview(selection);
     return CoachChatPlanDetailsPreparation(
       scopePreview: preview,
-      issues: [const coach.PlanIssue('plan_not_admitted', '计划不符合当前动作范围或训练条件。')],
+      issues: [
+        coach.PlanIssue(
+          'plan_not_admitted',
+          _copy(
+            '计划不符合当前动作范围或训练条件。',
+            'This plan does not meet the current action scope or training conditions.',
+          ),
+        ),
+      ],
     );
   }
 
@@ -1291,7 +1362,13 @@ class CoachChatController extends ChangeNotifier {
   ) async {
     await start();
     if (_closed || _typing) {
-      return _focusFailure(_closed ? 'disposed' : 'busy', '请在当前请求结束后选择计划。');
+      return _focusFailure(
+        _closed ? 'disposed' : 'busy',
+        _copy(
+          '请在当前请求结束后选择计划。',
+          'Wait until the current request finishes before choosing a plan.',
+        ),
+      );
     }
     final prepared = prepareSavedPlanDetails(selection);
     if (!prepared.ok) {
@@ -1314,7 +1391,7 @@ class CoachChatController extends ChangeNotifier {
         id: _id(),
         role: ChatRole.assistant,
         at: _clock(),
-        text: '「${selection.title}」来了。',
+        text: _copy('「${selection.title}」来了。', 'Here is “${selection.title}”.'),
         plan: selection.plan,
         validatedPlan: prepared.reference!.admittedPlan,
         sdkVersion: selection.sdkVersion,
@@ -1448,14 +1525,30 @@ class CoachChatController extends ChangeNotifier {
   }) {
     if (_closed || total <= 0) return;
     final text = completed >= total
-        ? '练完「${plan.title}」了，辛苦！记得喝点水。'
+        ? _copy(
+            '练完「${plan.title}」了，辛苦！记得喝点水。',
+            'You finished “${plan.title}”. Well done! Remember to drink some water.',
+          )
         : completed == 0
-        ? '这次先到这儿。想换个更轻松的，跟我说「简单点」。'
-        : '完成了 $completed/$total 个动作，已经不错了。';
+        ? _copy(
+            '这次先到这儿。想换个更轻松的，跟我说「简单点」。',
+            'Let’s stop here for now. Ask for an easier plan whenever you like.',
+          )
+        : _copy(
+            '完成了 $completed/$total 个动作，已经不错了。',
+            'You completed $completed/$total moves. Good work.',
+          );
     final offer = completed > 0 && !isSaved(plan);
     _addBot(
-      offer ? '$text\n要把这套存下来，下次直接用吗？' : text,
-      options: offer ? [ChatOption('保存这套', '@save:${plan.id}')] : const [],
+      offer
+          ? _copy(
+              '$text\n要把这套存下来，下次直接用吗？',
+              '$text\nSave this plan to use again next time?',
+            )
+          : text,
+      options: offer
+          ? [ChatOption(_copy('保存这套', 'Save this plan'), '@save:${plan.id}')]
+          : const [],
       receiptSessionId: receiptSessionId,
     );
     _suggestions = _defaults();
@@ -1488,7 +1581,7 @@ class CoachChatController extends ChangeNotifier {
     }
     _safetyMessageId = _addBot(
       profile.strings.safetyDisclaimer,
-      options: const [ChatOption('我已了解', '@safety:ack')],
+      options: [ChatOption(_copy('我已了解', 'I understand'), '@safety:ack')],
     ).id;
     _safetyStep = -1;
     _suggestions = const [];
@@ -1519,9 +1612,11 @@ class CoachChatController extends ChangeNotifier {
         blocked
             ? profile.strings.safetyBlockedText(step)
             : profile.strings.safetyAllClear,
-        options: blocked ? const [ChatOption('浏览动作库', '@library')] : const [],
+        options: blocked
+            ? [ChatOption(_copy('浏览动作库', 'Browse moves'), '@library')]
+            : const [],
       );
-      _suggestions = blocked ? const ['浏览动作库'] : _defaults();
+      _suggestions = blocked ? [_copy('浏览动作库', 'Browse moves')] : _defaults();
     }
     _notify();
     await _persist();
@@ -1531,9 +1626,9 @@ class CoachChatController extends ChangeNotifier {
     _safetyStep = index;
     _safetyMessageId = _addBot(
       profile.strings.safetyQuestionText(index),
-      options: const [
-        ChatOption('否', '@safety:no'),
-        ChatOption('是', '@safety:yes'),
+      options: [
+        ChatOption(_copy('否', 'No'), '@safety:no'),
+        ChatOption(_copy('是', 'Yes'), '@safety:yes'),
       ],
     ).id;
   }
@@ -1548,9 +1643,9 @@ class CoachChatController extends ChangeNotifier {
 
   void _blocked() => _addBot(
     profile.strings.safetyBlocked,
-    options: const [
-      ChatOption('动作库', '@library'),
-      ChatOption('重新确认', '@safety'),
+    options: [
+      ChatOption(_copy('动作库', 'Moves'), '@library'),
+      ChatOption(_copy('重新确认', 'Check again'), '@safety'),
     ],
   );
 
@@ -2097,7 +2192,12 @@ class CoachChatController extends ChangeNotifier {
     String previewId,
   ) async {
     final preview = _previews[previewId];
-    if (preview == null) return _problem('preview_missing', '请重新选择计划。');
+    if (preview == null) {
+      return _problem(
+        'preview_missing',
+        _copy('请重新选择计划。', 'Please choose the plan again.'),
+      );
+    }
     final current = await bindings.plans.read(preview.selection.externalId);
     if (current == null) {
       return _problem('saved_plan_deleted', profile.strings.noSavedPlan);
@@ -2121,7 +2221,12 @@ class CoachChatController extends ChangeNotifier {
     String previewId,
   ) async {
     final preview = _previews[previewId];
-    if (preview == null) return _focusFailure('preview_missing', '请重新选择计划。');
+    if (preview == null) {
+      return _focusFailure(
+        'preview_missing',
+        _copy('请重新选择计划。', 'Please choose the plan again.'),
+      );
+    }
     final current = await bindings.plans.read(preview.selection.externalId);
     if (current == null) {
       return _focusFailure('saved_plan_deleted', profile.strings.noSavedPlan);
@@ -2150,7 +2255,13 @@ class CoachChatController extends ChangeNotifier {
         if (item.segments.any(
           (segment) => replacements.containsKey(segment.exerciseId),
         )) {
-          return _focusFailure('needs_generation', '这套计划需要按范围内方案重新生成。');
+          return _focusFailure(
+            'needs_generation',
+            _copy(
+              '这套计划需要按范围内方案重新生成。',
+              'Regenerate this plan using actions within the current scope.',
+            ),
+          );
         }
         items.add({
           ...item.toJson(),
@@ -2171,16 +2282,30 @@ class CoachChatController extends ChangeNotifier {
           )
         : null;
     if (admitted == null) {
-      return _focusFailure('needs_generation', '候选还不能通过训练门禁，请按范围内方案重新生成。');
+      return _focusFailure(
+        'needs_generation',
+        _copy(
+          '候选还不能通过训练门禁，请按范围内方案重新生成。',
+          'This draft is not ready for training. Regenerate it within the current scope.',
+        ),
+      );
     }
     final result = await bindings.plans.save(
       CoachPlanWriteRequest(
         admittedPlan: admitted,
         mode: CoachPlanWriteMode.copy,
-        name: '${preview.selection.title} 新版',
+        name: _copy(
+          '${preview.selection.title} 新版',
+          '${preview.selection.title} · Updated',
+        ),
       ),
     );
-    if (!result.ok) return _focusFailure('save_failed', '新计划保存失败，请重试。');
+    if (!result.ok) {
+      return _focusFailure(
+        'save_failed',
+        _copy('新计划保存失败，请重试。', 'Could not save the new plan. Please retry.'),
+      );
+    }
     _saved = [result.saved!, ..._saved];
     bindings.actions.onSaved?.call(result.saved!);
     return sendPlanToConversation(result.saved!);

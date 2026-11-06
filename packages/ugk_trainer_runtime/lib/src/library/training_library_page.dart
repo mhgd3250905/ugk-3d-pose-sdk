@@ -215,14 +215,22 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
     final action = widget.action;
     final theme = _themeOf(context, widget.theme);
     final strings = widget.config.strings;
+    final display = widget.config.displayText?.call(action.id);
+    final name = display?.name ?? action.nameZh;
     final equipment = PoseHubActionFacets.equipment(action);
-    final cues = (action.raw['cues'] as Map?)?['zh'] as List? ?? const [];
-    final cautions = [
-      ...(action.raw['cautions'] as List?)?.whereType<String>() ?? const [],
-      ...(action.raw['contraindications'] as List?)?.whereType<String>() ??
-          const [],
-    ];
+    final cues =
+        display?.cues ??
+        (action.raw['cues'] as Map?)?['zh'] as List? ??
+        const [];
+    final cautions =
+        display?.cautions ??
+        [
+          ...(action.raw['cautions'] as List?)?.whereType<String>() ?? const [],
+          ...(action.raw['contraindications'] as List?)?.whereType<String>() ??
+              const [],
+        ];
     final muscles =
+        display?.muscles ??
         action.raw['muscleGroupsZh'] as String? ??
         ((action.raw['muscleGroups'] as List?)
                 ?.whereType<String>()
@@ -244,7 +252,7 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
               child: Semantics(
                 button: true,
                 label:
-                    '${_playing ? strings.pause : strings.play}${action.nameZh}',
+                    '${_playing ? strings.pause : strings.play}${display?.name == null ? '' : ' '}$name',
                 child: TrainingLibraryActionArt(
                   actionId: action.id,
                   config: widget.config,
@@ -255,33 +263,41 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
               ),
             ),
             const SizedBox(height: 16),
-            Text(action.nameZh, style: TrainingLibraryStyle.detailTitle(theme)),
+            Text(name, style: TrainingLibraryStyle.detailTitle(theme)),
             const SizedBox(height: 4),
             Text(
-              [
-                _categoryLabel(action.raw['category'] as String?),
-                switch (action.raw['level']) {
-                  1 => '入门',
-                  2 => '基础',
-                  _ => '进阶',
-                },
-                equipment.isEmpty
-                    ? '徒手'
-                    : equipment
-                          .map((id) => poseHubEquipmentLabels[id] ?? '其他器械')
-                          .join('/'),
-                if (action.raw['unilateral'] == true) '左右各做',
-              ].join(' · '),
+              display?.metadata ??
+                  [
+                    _categoryLabel(action.raw['category'] as String?),
+                    switch (action.raw['level']) {
+                      1 => '入门',
+                      2 => '基础',
+                      _ => '进阶',
+                    },
+                    equipment.isEmpty
+                        ? '徒手'
+                        : equipment
+                              .map((id) => poseHubEquipmentLabels[id] ?? '其他器械')
+                              .join('/'),
+                    if (action.raw['unilateral'] == true) '左右各做',
+                  ].join(' · '),
               style: theme.label,
             ),
             const SizedBox(height: 16),
-            _line(theme, TrainingLibraryGlyph.figure, strings.muscles, muscles),
+            _line(
+              theme,
+              TrainingLibraryGlyph.figure,
+              strings.muscles,
+              muscles,
+              labelWidth: display == null ? 36 : 60,
+            ),
             const SizedBox(height: 12),
             _line(
               theme,
               TrainingLibraryGlyph.subtitles,
               strings.cues,
-              cues.whereType<String>().join('；'),
+              cues.whereType<String>().join(display?.cues == null ? '；' : '; '),
+              labelWidth: display == null ? 36 : 60,
             ),
             if (cautions.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -289,8 +305,9 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
                 theme,
                 TrainingLibraryGlyph.bandage,
                 strings.cautions,
-                '${cautions.join('、')}${strings.cautionSuffix}',
+                '${cautions.join(display?.cautions == null ? '、' : ', ')}${strings.cautionSuffix}',
                 color: theme.caution,
+                labelWidth: display == null ? 36 : 60,
               ),
             ],
             if (widget.config.showStartAction) ...[
@@ -322,6 +339,7 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
     String label,
     String text, {
     Color? color,
+    double labelWidth = 36,
   }) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -331,7 +349,7 @@ class _TrainingLibraryDetailState extends State<TrainingLibraryDetail> {
       ),
       const SizedBox(width: 8),
       SizedBox(
-        width: 36,
+        width: labelWidth,
         child: Text(
           label,
           style: theme.label.copyWith(color: color ?? theme.muted, height: 1.6),

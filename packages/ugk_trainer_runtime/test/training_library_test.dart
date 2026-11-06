@@ -289,6 +289,112 @@ void main() {
     expect(repository.requested, isEmpty);
   });
 
+  testWidgets(
+    'host display copy localizes detail without changing action data',
+    (tester) async {
+      final action = catalog.tryGet('h-squat')!;
+      final originalName = action.nameZh;
+      final originalDefinition = jsonEncode(action.raw);
+      config = TrainingLibraryConfig(
+        scopeManifest: scope,
+        strings: TrainingLibraryStrings.forLanguage('en'),
+        displayText: (id) => id == 'h-squat'
+            ? const TrainingLibraryActionText(
+                name: 'Bodyweight squat',
+                metadata: 'Strength · Beginner · Bodyweight',
+                muscles: 'Glutes and quads',
+                cues: [
+                  'Keep your feet planted.',
+                  'Move within a comfortable range.',
+                ],
+                cautions: ['Stop if your knees hurt'],
+              )
+            : null,
+      );
+      await mount(
+        tester,
+        Scaffold(
+          body: TrainingLibraryDetail(
+            action: action,
+            config: config,
+            mediaPolicy: policy,
+          ),
+        ),
+      );
+      expect(find.text('Bodyweight squat'), findsOneWidget);
+      expect(find.text('Strength · Beginner · Bodyweight'), findsOneWidget);
+      expect(find.text('Glutes and quads'), findsOneWidget);
+      expect(find.textContaining('Keep your feet planted.'), findsOneWidget);
+      expect(find.textContaining('Stop if your knees hurt'), findsOneWidget);
+      expect(find.text(originalName), findsNothing);
+      expect(jsonEncode(action.raw), originalDefinition);
+      expect(repository.requested, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'partial display copy preserves catalogue fallback and scoped cards',
+    (tester) async {
+      config = TrainingLibraryConfig(
+        scopeManifest: scope,
+        displayText: (id) =>
+            const TrainingLibraryActionText(name: 'Localized movement'),
+      );
+      await mount(
+        tester,
+        TrainingLibraryPage(config: config, mediaPolicy: policy),
+      );
+      expect(find.text('Localized movement'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('posehub-action-h-squat')),
+        findsOneWidget,
+      );
+      expect(repository.requested, isEmpty);
+      await tester.enterText(
+        find.byKey(const ValueKey('posehub-search')),
+        'localized',
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('posehub-action-h-squat')),
+        findsOneWidget,
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('posehub-search')),
+        'unmatched localized name',
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('posehub-action-h-squat')),
+        findsNothing,
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('posehub-search')),
+        catalog.tryGet('h-squat')!.nameZh,
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('posehub-action-h-squat')),
+        findsOneWidget,
+      );
+      await mount(
+        tester,
+        Scaffold(
+          body: TrainingLibraryDetail(
+            action: catalog.tryGet('h-squat')!,
+            config: config,
+            mediaPolicy: policy,
+          ),
+        ),
+      );
+      expect(find.text('Localized movement'), findsOneWidget);
+      expect(find.text('力量 · 入门 · 徒手'), findsOneWidget);
+      expect(repository.requested, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('detail start delegates to host after closing its sheet', (
     tester,
   ) async {

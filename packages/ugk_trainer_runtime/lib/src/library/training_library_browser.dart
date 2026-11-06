@@ -294,7 +294,12 @@ class _TrainingLibraryBrowserState extends State<TrainingLibraryBrowser> {
           (action) => PoseHubActionFacets.matchesFilter(
             action,
             filter,
-            extraNames: names?.call(action.id) ?? const [],
+            extraNames: [
+              ...names?.call(action.id) ?? const [],
+              if (widget.config?.displayText?.call(action.id)?.name
+                  case final String name)
+                name,
+            ],
           ),
         )
         .toList(growable: false);
@@ -421,7 +426,7 @@ class _TrainingLibraryBrowserState extends State<TrainingLibraryBrowser> {
     double tagHeight,
   ) => Semantics(
     button: true,
-    label: action.nameZh,
+    label: widget.config?.displayText?.call(action.id)?.name ?? action.nameZh,
     child: GestureDetector(
       key: ValueKey('posehub-action-${action.id}'),
       onTap: () => widget.onOpenAction(action),
@@ -449,7 +454,8 @@ class _TrainingLibraryBrowserState extends State<TrainingLibraryBrowser> {
                 SizedBox(
                   height: nameHeight,
                   child: Text(
-                    action.nameZh,
+                    widget.config?.displayText?.call(action.id)?.name ??
+                        action.nameZh,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: theme.callout.copyWith(
@@ -464,7 +470,8 @@ class _TrainingLibraryBrowserState extends State<TrainingLibraryBrowser> {
                   key: ValueKey('posehub-card-tags-${action.id}'),
                   height: tagHeight,
                   child: Text(
-                    '${PoseHubActionFacets.type(action)} · ${PoseHubActionFacets.equipmentText(action)}',
+                    widget.config?.displayText?.call(action.id)?.metadata ??
+                        '${PoseHubActionFacets.type(action)} · ${PoseHubActionFacets.equipmentText(action)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.label.copyWith(fontSize: 12, height: 1.35),

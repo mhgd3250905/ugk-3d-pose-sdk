@@ -28,6 +28,7 @@ class TrainingActionMedia extends StatefulWidget {
     this.playbackControl,
     this.retainSurfaceDuringRouteExit = false,
     this.prepareFirstFrame = false,
+    this.showLoadingIndicator = true,
   });
   final String actionId;
   final TrainingMediaPolicy? policy;
@@ -46,6 +47,11 @@ class TrainingActionMedia extends StatefulWidget {
   /// Expanding/resuming can then use the very same controller and texture.
   /// Ordinary paused and poster-only hosts keep their existing behavior.
   final bool prepareFirstFrame;
+
+  /// Whether to show downloading/first-frame progress. When false, keep the
+  /// poster without a spinner/live announcement; real failure/retry UI remains.
+  /// This affects presentation only; changing it never reloads the decoder.
+  final bool showLoadingIndicator;
 
   @override
   State<TrainingActionMedia> createState() => _TrainingActionMediaState();
@@ -314,7 +320,12 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     final revealed = controller?.hasFrame == true && controller?.failed != true;
     final progress = _download?.value.progress;
     final supported = UgkPackedAlphaVideo.isSupported;
-    final showStatus = poster != null && _canPlay && supported && !revealed;
+    final showStatus =
+        poster != null &&
+        _canPlay &&
+        supported &&
+        !revealed &&
+        (_failed || widget.showLoadingIndicator);
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: ColoredBox(

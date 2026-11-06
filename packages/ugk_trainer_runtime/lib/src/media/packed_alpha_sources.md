@@ -33,6 +33,12 @@ existing missing-poster handoff. Position is read only on an explicit command.
 
 ## Opt-in prepared, paused first frame
 
+`TrainingActionMedia.showLoadingIndicator` defaults to true. A host may set it
+to false to keep the bundled poster visible without a loading spinner or live
+announcement while downloading/decoding. The real first-frame reveal and
+failure/retry button are unchanged. Toggling this presentation option does not
+restart downloads, replace the decoder or alter playback.
+
 `TrainingActionMedia(playing: true, paused: true, prepareFirstFrame: true)`
 downloads/prepares one demonstration as usual, then asks its existing native
 player to decode the first frame and pause. This option defaults to false;

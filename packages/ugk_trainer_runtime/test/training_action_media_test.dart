@@ -343,6 +343,150 @@ void main() {
     expect(tester.widget<AnimatedOpacity>(videoFade).opacity, 1);
   });
 
+  testWidgets(
+    'silent preparation keeps its poster without loading semantics until a real first frame',
+    (tester) async {
+      final context = await _mount(
+        tester,
+        bundle,
+        child: SizedBox.square(
+          dimension: 200,
+          child: TrainingActionMedia(
+            actionId: _actionId,
+            policy: policy,
+            showLoadingIndicator: false,
+          ),
+        ),
+      );
+      await _warm(tester, context, policy.posterAssetFor(_actionId)!);
+      final poster = find.byKey(const ValueKey('public-action-poster'));
+      final posterElement = tester.element(poster);
+      final loadingSemantics = find.descendant(
+        of: find.byType(TrainingActionMedia),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics && widget.properties.liveRegion == true,
+        ),
+      );
+      expect(repository.pending, isNotEmpty);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(loadingSemantics, findsNothing);
+      expect(tester.widget<AnimatedOpacity>(poster).opacity, 1);
+      expect(tester.widget<RawImage>(find.byType(RawImage)).image, isNotNull);
+      repository.complete(catalog.tryGet(_actionId)!.video);
+      await tester.pump();
+      await tester.pump();
+      platform.emit(1, 'ready');
+      await tester.pump();
+      final surface = find.byType(UgkPackedAlphaVideo);
+      final surfaceElement = tester.element(surface);
+      expect(platform.sources, hasLength(1));
+      expect(tester.element(poster), same(posterElement));
+      expect(tester.widget<AnimatedOpacity>(poster).opacity, 1);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(loadingSemantics, findsNothing);
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      expect(tester.element(surface), same(surfaceElement));
+      expect(tester.widget<AnimatedOpacity>(poster).opacity, 0);
+      final videoOpacity = find.ancestor(
+        of: surface,
+        matching: find.byType(AnimatedOpacity),
+      );
+      expect(tester.widget<AnimatedOpacity>(videoOpacity).opacity, 1);
+      expect(platform.sources, hasLength(1));
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(loadingSemantics, findsNothing);
+    },
+  );
+
+  testWidgets(
+    'loading visibility keeps the default spinner and existing decoder while silent errors remain retryable',
+    (tester) async {
+      const mediaKey = ValueKey('same-loading-action');
+      Widget media(bool show) => SizedBox.square(
+        dimension: 200,
+        child: TrainingActionMedia(
+          key: mediaKey,
+          actionId: _actionId,
+          policy: policy,
+          showLoadingIndicator: show,
+        ),
+      );
+      final context = await _mount(
+        tester,
+        bundle,
+        child: SizedBox.square(
+          dimension: 200,
+          child: TrainingActionMedia(
+            key: mediaKey,
+            actionId: _actionId,
+            policy: policy,
+          ),
+        ),
+      );
+      await _warm(tester, context, policy.posterAssetFor(_actionId)!);
+      final state = tester.state(find.byType(TrainingActionMedia));
+      expect(
+        tester
+            .widget<TrainingActionMedia>(find.byType(TrainingActionMedia))
+            .showLoadingIndicator,
+        isTrue,
+      );
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      await _mount(tester, bundle, child: media(false));
+      await tester.pump();
+      expect(tester.state(find.byType(TrainingActionMedia)), same(state));
+      expect(repository.calls, hasLength(1));
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      repository.complete(catalog.tryGet(_actionId)!.video);
+      await tester.pump();
+      await tester.pump();
+      platform.emit(1, 'ready');
+      await tester.pump();
+      final surface = find.byType(UgkPackedAlphaVideo);
+      final surfaceElement = tester.element(surface);
+      await _mount(tester, bundle, child: media(true));
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(tester.element(surface), same(surfaceElement));
+      await _mount(tester, bundle, child: media(false));
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(tester.element(surface), same(surfaceElement));
+      expect(repository.calls, hasLength(1));
+      expect(platform.sources, hasLength(1));
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+
+      platform.emit(1, 'error');
+      await tester.pump();
+      await tester.pump();
+      final retry = find.byKey(const ValueKey('public-action-retry'));
+      expect(retry, findsOneWidget);
+      expect(tester.widget<TextButton>(retry).onPressed, isNotNull);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(
+        tester
+            .widget<AnimatedOpacity>(
+              find.byKey(const ValueKey('public-action-poster')),
+            )
+            .opacity,
+        1,
+      );
+      repository.ready = true;
+      await tester.tap(retry);
+      await tester.pump();
+      await tester.pump();
+      expect(repository.calls, hasLength(2));
+      expect(platform.sources, hasLength(2));
+      expect(retry, findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('offline failure retains poster and retries only on one tap', (
     tester,
   ) async {

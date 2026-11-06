@@ -54,10 +54,6 @@ class SessionScript {
   /// 2026-10-19).
   static const switchMargin = 0.4;
 
-  /// Count clips exist for 1…10 in HipLab; a higher count says only its
-  /// phase word.
-  static const maxCountClip = 10;
-
   /// The source has voice in [lang]; otherwise only chimes are played.
   bool get voiced => source.supports(lang);
 
@@ -628,8 +624,9 @@ class SessionScript {
     final lastRep = v != null && _has(v.lastRep)
         ? v.lastRep
         : call(VoiceCall.lastRep);
+    // Any count the source has recorded is said (a custom 15 says 11…15
+    // too); a count the source lacks falls back to the tick chime.
     String? count(int k) {
-      if (k > maxCountClip) return null;
       final c = v?.countClip(k);
       if (c != null && _has(c)) return c;
       final n = source.number(k);

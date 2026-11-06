@@ -102,6 +102,17 @@ abstract class VoiceSource {
   /// The clip exists. `chime.*` keys ignore [lang].
   bool has(String key, {required String lang});
 
+  /// The clip exists or will once the source is prepared (a listed
+  /// catalogue clip not downloaded yet). Used only to size phases.
+  bool expected(String key, {required String lang}) => has(key, lang: lang);
+
+  /// Written text of a move's line when there is no recorded clip (the
+  /// fallback intro shown with the generic calls), null when none.
+  String? drillText(String exerciseId, DrillLine line, {required String lang}) {
+    final k = drill(exerciseId, line);
+    return k == null ? null : this.line(k, lang: lang);
+  }
+
   /// Clip length in seconds; an estimate when unknown (counts .4 s, other
   /// lines 1.2 s), 0 for chimes.
   double seconds(String key, {required String lang});

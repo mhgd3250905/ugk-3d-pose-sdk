@@ -116,6 +116,18 @@ class SessionRunner {
     _load();
   }
 
+  /// The voice source gained clips (a catalogue prefetch finished): rebuild
+  /// the current phase's cues; those already due by [t] stay spent, so
+  /// nothing past is read out late.
+  void refreshVoice(double t) {
+    if (engine.done) return;
+    _load();
+    final local = t - engine.phaseStart;
+    for (var i = 0; i < _cues.length; i++) {
+      if (_cues[i].at <= local + 1e-9) _fired.add(i);
+    }
+  }
+
   /// 完成本组; returns the cues of the phase it leads into.
   List<FiredCue> completeSet(double t) {
     if (!engine.completeSet(t)) return const [];

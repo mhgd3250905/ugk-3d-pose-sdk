@@ -7,6 +7,7 @@ import '../ui/trainer_experience.dart';
 import '../ui/trainer_poster.dart';
 import 'catalog_media_repository.dart';
 import 'media_controller.dart';
+import 'media_playback_control.dart';
 import 'media_playback_handle.dart';
 import 'packed_alpha_video.dart';
 import 'training_media_policy.dart';
@@ -24,6 +25,8 @@ class TrainingActionMedia extends StatefulWidget {
     this.radius = 16,
     this.stage,
     this.playbackHandle,
+    this.playbackControl,
+    this.retainSurfaceDuringRouteExit = false,
   });
   final String actionId;
   final TrainingMediaPolicy? policy;
@@ -31,6 +34,12 @@ class TrainingActionMedia extends StatefulWidget {
   final double radius;
   final Color? stage;
   final DrillMediaPlaybackHandle? playbackHandle;
+  final DrillMediaPlaybackControl? playbackControl;
+
+  /// Retain an existing paused frame while this route itself reverses out.
+  /// Covered routes, backgrounding and disposal still release their surfaces.
+  /// Hosts opting in must pause before popping; ordinary hosts are unchanged.
+  final bool retainSurfaceDuringRouteExit;
 
   @override
   State<TrainingActionMedia> createState() => _TrainingActionMediaState();
@@ -58,8 +67,14 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   bool _foreground = true;
   bool _visible = true;
   bool _failed = false;
+  bool _tickersEnabled = true;
+  bool _routeCurrent = true;
+  bool _retainingExit = false;
+  Animation<double>? _exitAnimation;
 
   bool get _canPlay => widget.playing && _foreground && _visible;
+  bool get _effectiveVisible =>
+      (_tickersEnabled && _routeCurrent) || _retainingExit;
 
   @override
   void initState() {
@@ -71,9 +86,10 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final policy = widget.policy ?? TrainingMediaPolicyScope.maybeOf(context);
-    final visible =
-        TickerMode.valuesOf(context).enabled &&
-        (ModalRoute.isCurrentOf(context) ?? true);
+    _tickersEnabled = TickerMode.valuesOf(context).enabled;
+    _routeCurrent = ModalRoute.isCurrentOf(context) ?? true;
+    _bindExitAnimation();
+    final visible = _effectiveVisible;
     if (!identical(policy, _policy) || visible != _visible) {
       _policy = policy;
       _visible = visible;
@@ -87,9 +103,19 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     if (oldWidget.playbackHandle != widget.playbackHandle) {
       oldWidget.playbackHandle?.unbind(this);
     }
+    if (oldWidget.playbackControl != widget.playbackControl) {
+      oldWidget.playbackControl?.unbind(this);
+    }
+    final wasVisible = _visible;
+    if (oldWidget.retainSurfaceDuringRouteExit !=
+        widget.retainSurfaceDuringRouteExit) {
+      _bindExitAnimation();
+      _visible = _effectiveVisible;
+    }
     if (oldWidget.actionId != widget.actionId ||
         oldWidget.policy != widget.policy ||
-        oldWidget.playing != widget.playing) {
+        oldWidget.playing != widget.playing ||
+        wasVisible != _visible) {
       _policy = widget.policy ?? TrainingMediaPolicyScope.read(context);
       _reload();
     } else if (oldWidget.paused != widget.paused) {
@@ -98,13 +124,45 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     _bindHandle();
   }
 
-  void _bindHandle() => widget.playbackHandle?.bind(
-    owner: this,
-    mediaId: widget.actionId,
-    controller: _controller,
-  );
+  void _bindExitAnimation() {
+    final animation = widget.retainSurfaceDuringRouteExit
+        ? ModalRoute.of(context)?.animation
+        : null;
+    if (identical(animation, _exitAnimation)) return;
+    _exitAnimation?.removeStatusListener(_exitStatusChanged);
+    _exitAnimation = animation;
+    _retainingExit =
+        animation?.status == AnimationStatus.reverse && _controller != null;
+    animation?.addStatusListener(_exitStatusChanged);
+  }
+
+  void _exitStatusChanged(AnimationStatus status) {
+    // Flutter starts the route's reverse animation before notifying its subtree
+    // of isCurrent/TickerMode changes. Keep only the surface that already exists;
+    // never start a waiting video merely because its route is leaving.
+    _retainingExit =
+        widget.retainSurfaceDuringRouteExit &&
+        status == AnimationStatus.reverse &&
+        _controller != null;
+    final visible = _effectiveVisible;
+    if (!mounted || visible == _visible) return;
+    setState(() {
+      _visible = visible;
+      _reload();
+    });
+  }
+
+  void _bindHandle() {
+    widget.playbackHandle?.bind(
+      owner: this,
+      mediaId: widget.actionId,
+      controller: _controller,
+    );
+    widget.playbackControl?.bind(owner: this, controller: _controller);
+  }
 
   void _stop() {
+    _retainingExit = false;
     ++_request;
     _download?.removeListener(_changed);
     _download = null;
@@ -121,6 +179,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
 
   void _reload() {
     _stop();
+    _visible = _effectiveVisible;
     _failed = false;
     final policy = _policy;
     final action = policy?.actionFor(widget.actionId);
@@ -202,8 +261,10 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _exitAnimation?.removeStatusListener(_exitStatusChanged);
     _stop();
     widget.playbackHandle?.unbind(this);
+    widget.playbackControl?.unbind(this);
     super.dispose();
   }
 

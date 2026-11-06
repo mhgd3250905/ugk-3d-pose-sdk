@@ -1,5 +1,6 @@
 // Ported from SmartFit@e8981ee lib/core/media/media_controller.dart (3D-Body
-// DrillMediaController / DrillPlaybackCoordinator). Unchanged.
+// DrillMediaController / DrillPlaybackCoordinator). SDK additions: bounded
+// return-to-start control for a demonstration's closing handoff.
 import 'dart:async';
 import 'dart:convert';
 
@@ -22,25 +23,39 @@ class DrillMediaController extends ChangeNotifier {
   int _captureId = 0;
   Completer<double?>? _positionPending;
   int _positionId = 0;
+  Completer<bool>? _returnPending;
+  Timer? _returnTimer;
+  int _returnId = 0;
 
   /// A bounded static capture from a decoded video frame, never a live player.
   Uint8List? get frameBytes => _frameBytes;
   bool get active => _active;
   bool get wantsPlay => _wantsPlay;
 
-  void attach(MediaCommandSink sink) => _sink = sink;
+  void attach(MediaCommandSink sink) {
+    if (!identical(_sink, sink)) cancelReturnToStart();
+    _sink = sink;
+  }
+
   void detach(MediaCommandSink sink) {
-    if (_sink == sink) _sink = null;
+    if (_sink == sink) {
+      cancelReturnToStart();
+      _sink = null;
+    }
   }
 
   void setActive(bool value) {
     if (_active == value) return;
     _active = value;
-    if (!value) _wantsPlay = false;
+    if (!value) {
+      _wantsPlay = false;
+      cancelReturnToStart();
+    }
     _sink?.call({'type': 'active', 'value': value});
   }
 
   void pause() {
+    cancelReturnToStart();
     _wantsPlay = false;
     _sink?.call({'type': 'pause'});
   }
@@ -60,6 +75,7 @@ class DrillMediaController extends ChangeNotifier {
         _sink?.call({'type': 'active', 'value': _active});
         if (_active && _wantsPlay) _sink?.call({'type': 'play'});
       case 'error':
+        cancelReturnToStart();
         failed = true;
         hasFrame = false;
         playing = false;
@@ -75,7 +91,22 @@ class DrillMediaController extends ChangeNotifier {
         pending.complete(bytes);
       case 'state':
         playing = value['playing'] == true;
-        _wantsPlay = playing;
+        // Fast-forwarding a paused demonstration is temporary, not a new host
+        // playback intention. Native restores that intention when it fails.
+        if (_returnPending == null) _wantsPlay = playing;
+      case 'returned-to-start':
+        if (value['requestId'] != _returnId) return;
+        final pending = _returnPending;
+        if (pending == null || pending.isCompleted) return;
+        _returnPending = null;
+        _returnTimer?.cancel();
+        _returnTimer = null;
+        final success = value['success'] == true;
+        if (success) {
+          _wantsPlay = false;
+          playing = false;
+        }
+        pending.complete(success);
       case 'position':
         if (value['requestId'] != _positionId) return;
         final pending = _positionPending;
@@ -93,6 +124,54 @@ class DrillMediaController extends ChangeNotifier {
   }
 
   void reportError() => receive({'source': 'drill-media', 'type': 'error'});
+
+  /// A bounded close preparation. It changes only this demonstration, and
+  /// unsupported backends cannot turn healthy playback into a media error.
+  Future<bool> returnToStart({
+    Duration duration = const Duration(milliseconds: 400),
+  }) {
+    final existing = _returnPending;
+    if (existing != null) return existing.future;
+    if (_disposed ||
+        !_active ||
+        !ready ||
+        !hasFrame ||
+        failed ||
+        _sink == null) {
+      return Future.value(false);
+    }
+    final pending = Completer<bool>();
+    _returnPending = pending;
+    final request = ++_returnId;
+    _returnTimer = Timer(const Duration(milliseconds: 1400), () {
+      if (identical(_returnPending, pending)) cancelReturnToStart();
+    });
+    try {
+      _sink!.call({
+        'type': 'return-to-start',
+        'requestId': request,
+        'durationMs': duration.inMilliseconds.clamp(80, 800),
+      });
+    } on Object {
+      cancelReturnToStart();
+    }
+    return pending.future;
+  }
+
+  /// Abandons this optional handoff without failing or disposing the decoder.
+  void cancelReturnToStart() {
+    final pending = _returnPending;
+    _returnPending = null;
+    _returnTimer?.cancel();
+    _returnTimer = null;
+    if (pending == null) return;
+    if (!pending.isCompleted) pending.complete(false);
+    try {
+      _sink?.call({'type': 'cancel-return-to-start'});
+    } on Object {
+      // Cancellation is best effort; the native request also has its own cap.
+    }
+  }
 
   /// Query the decoder's current time only on demand, never on a frame timer.
   /// An unavailable/stale backend reports null rather than a guessed zero.

@@ -30,3 +30,55 @@ necessary; widget tests alone do not prove the hardware filter output.
 No per-frame Dart image readback, position polling, canvas capture or timers
 are used. A single bounded PNG snapshot may be requested explicitly by the
 existing missing-poster handoff. Position is read only on an explicit command.
+
+## Optional return-to-start handoff
+
+`TrainingActionMedia.playbackControl` accepts a `DrillMediaPlaybackControl`.
+This is deliberately separate from the existing read-only
+`DrillMediaPlaybackHandle`; neither a training clock nor decoder ownership is
+exposed. `returnToStart(duration: Duration(milliseconds: 400))` merges an
+in-flight request and returns whether the first video frame was reached and
+paused. It must run while the demonstration route is still current, before
+popping that route. A paused preview can play temporarily for this operation.
+
+The Android adapter temporarily disables looping, plays the remaining loop
+forward at 1–12x, then handles completion by seeking to zero, waiting for
+`OnSeekComplete`, restoring 1x/looping and pausing. Dart waits for a Flutter
+composition before acknowledging success. This is forward playback through
+the remaining poses, not a seek directly from an arbitrary current pose to
+the first. The requested duration is a soft target (clamped to 80–800ms);
+native work is capped at 1100ms and the Dart request at 1400ms. Long future
+clips that cannot fit the bounded run at 12x return false before starting.
+
+Unsupported speed/seek, timeout, explicit pause, unbinding, deactivation,
+surface loss and disposal cancel the optional request with false. Native
+clears the timer/listeners/result and restores normal speed/looping; this
+optional failure does not report a healthy video as a decoder error. The
+ordinary playback path is unchanged. Unsupported backends return false;
+this does not add an iOS packed-video implementation.
+
+An expanded-card host may opt into
+`TrainingActionMedia.retainSurfaceDuringRouteExit` (default false). After
+return-to-start succeeds, the host pauses and then pops. An already-created
+surface remains present while that route's own primary animation reverses,
+instead of being replaced by a fading-in poster when `isCurrent` changes.
+Only animation status changes are observed; there is no per-frame rebuild.
+A newly covering route, backgrounding, a different action/policy, and actual
+disposal retain the ordinary release behavior. A video that had not loaded
+before exit is not created for the sake of retaining it.
+
+Official state-machine references:
+
+- Android `setPlaybackParams` and non-negative `PlaybackParams.setSpeed`:
+  https://developer.android.com/reference/android/media/MediaPlayer#setPlaybackParams(android.media.PlaybackParams)
+  https://developer.android.com/reference/android/media/PlaybackParams#setSpeed(float)
+- Temporarily disabling `setLooping` permits `OnCompletionListener` delivery:
+  https://developer.android.com/reference/android/media/MediaPlayer#setOnCompletionListener(android.media.MediaPlayer.OnCompletionListener)
+- Seeking while paused displays the requested valid video frame; completion
+  is asynchronous:
+  https://developer.android.com/reference/android/media/MediaPlayer#seekTo(long,int)
+  https://developer.android.com/reference/android/media/MediaPlayer#setOnSeekCompleteListener(android.media.MediaPlayer.OnSeekCompleteListener)
+
+Unit/fake-platform tests cover the contract and cancellation, not native frame
+delivery. Real Android validation must still observe the fast-forwarded poses,
+zero-position hold and the card's final handoff.

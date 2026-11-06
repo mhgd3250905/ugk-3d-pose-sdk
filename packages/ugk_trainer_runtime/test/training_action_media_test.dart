@@ -104,10 +104,13 @@ class _Platform extends PackedAlphaPlatform implements PackedAlphaUriPlatform {
     sync: true,
   );
   final sources = <Uri>[];
+  final commands = <(int, String, Object?)>[];
+  final returns = <Completer<Object?>>[];
   final creates = <Completer<({int playerId, int textureId})>>[];
   final disposals = <Completer<Object?>>[];
   bool delayCreate = false;
   bool delayDispose = false;
+  bool delayReturn = false;
 
   @override
   bool get isSupported => true;
@@ -133,6 +136,7 @@ class _Platform extends PackedAlphaPlatform implements PackedAlphaUriPlatform {
 
   @override
   Future<Object?> command(int playerId, String type, [Object? value]) {
+    commands.add((playerId, type, value));
     if (type == 'dispose') {
       order.add('dispose:$playerId');
       if (delayDispose) {
@@ -141,6 +145,15 @@ class _Platform extends PackedAlphaPlatform implements PackedAlphaUriPlatform {
         return result.future;
       }
     }
+    if (type == 'return-to-start') {
+      if (delayReturn) {
+        final pending = Completer<Object?>();
+        returns.add(pending);
+        return pending.future;
+      }
+      return Future.value(true);
+    }
+    if (type == 'position') return Future.value(1.25);
     return Future.value(null);
   }
 }
@@ -452,6 +465,168 @@ void main() {
       expect(find.byType(TrainerPoster), findsOneWidget);
     });
   });
+
+  testWidgets(
+    'optional playback control binds and releases without changing the read-only default handle',
+    (tester) async {
+      repository.ready = true;
+      final handle = DrillMediaPlaybackHandle();
+      final control = DrillMediaPlaybackControl();
+      Widget media({bool controlled = false}) => TrainingActionMedia(
+        key: const ValueKey('same-public-action'),
+        actionId: _actionId,
+        policy: policy,
+        playbackHandle: handle,
+        playbackControl: controlled ? control : null,
+      );
+      await _mount(tester, bundle, child: media());
+      await tester.pump();
+      await tester.pump();
+      platform.emit(1, 'ready');
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      final state = tester.state(find.byType(TrainingActionMedia));
+      final before = await handle.capture();
+      expect(before!.mediaId, _actionId);
+      expect(before.ready, isTrue);
+      expect(before.videoSeconds, 1.25);
+      expect(
+        platform.commands.where((c) => c.$2 == 'return-to-start'),
+        isEmpty,
+      );
+
+      await _mount(tester, bundle, child: media(controlled: true));
+      await tester.pump();
+      expect(tester.state(find.byType(TrainingActionMedia)), same(state));
+      expect(platform.sources, hasLength(1));
+      final returned = control.returnToStart();
+      await tester.pump();
+      await tester.pump();
+      expect(await returned, isTrue);
+      expect(platform.commands.where((c) => c.$2 == 'return-to-start').single, (
+        1,
+        'return-to-start',
+        400,
+      ));
+      expect((await handle.capture())!.mediaId, _actionId);
+
+      await _mount(tester, bundle, child: media());
+      await tester.pump();
+      expect(await control.returnToStart(), isFalse);
+      expect((await handle.capture())!.videoSeconds, 1.25);
+      expect(platform.sources, hasLength(1));
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(await handle.capture(), isNull);
+      expect(await control.returnToStart(), isFalse);
+      handle.dispose();
+      control.dispose();
+    },
+  );
+
+  testWidgets(
+    'replacing a media control cancels its pending return without replacing the decoder',
+    (tester) async {
+      repository.ready = true;
+      platform.delayReturn = true;
+      final first = DrillMediaPlaybackControl();
+      final second = DrillMediaPlaybackControl();
+      Widget media(DrillMediaPlaybackControl control) => TrainingActionMedia(
+        key: const ValueKey('same-public-action'),
+        actionId: _actionId,
+        policy: policy,
+        playbackControl: control,
+      );
+      await _mount(tester, bundle, child: media(first));
+      await tester.pump();
+      await tester.pump();
+      platform.emit(1, 'ready');
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      final state = tester.state(find.byType(TrainingActionMedia));
+      final retired = first.returnToStart();
+      expect(platform.returns, hasLength(1));
+      await _mount(tester, bundle, child: media(second));
+      await tester.pump();
+      expect(await retired, isFalse);
+      expect(await first.returnToStart(), isFalse);
+      expect(tester.state(find.byType(TrainingActionMedia)), same(state));
+      expect(platform.sources, hasLength(1));
+      final current = second.returnToStart();
+      expect(platform.returns, hasLength(2));
+      var currentCompleted = false;
+      unawaited(current.then((_) => currentCompleted = true));
+      platform.returns.first.complete(true);
+      await tester.pump();
+      expect(currentCompleted, isFalse);
+      platform.returns.last.complete(true);
+      await tester.pump();
+      await tester.pump();
+      expect(await current, isTrue);
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(await second.returnToStart(), isFalse);
+      first.dispose();
+      second.dispose();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'opt-in route exit retains its paused native surface until the reverse transition unmounts it',
+    (tester) async {
+      repository.ready = true;
+      final context = await _mount(tester, bundle);
+      final paused = ValueNotifier(false);
+      final route = RawDialogRoute<void>(
+        barrierDismissible: false,
+        transitionDuration: const Duration(milliseconds: 400),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            DefaultAssetBundle(
+              bundle: bundle,
+              child: Scaffold(
+                body: ValueListenableBuilder<bool>(
+                  valueListenable: paused,
+                  builder: (context, value, child) => TrainingActionMedia(
+                    key: const ValueKey('retained-exit-media'),
+                    actionId: _actionId,
+                    policy: policy,
+                    paused: value,
+                    retainSurfaceDuringRouteExit: true,
+                  ),
+                ),
+              ),
+            ),
+      );
+      unawaited(Navigator.of(context).push(route));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
+      platform.emit(1, 'ready');
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      paused.value = true;
+      await tester.pump();
+      final surface = find.byType(UgkPackedAlphaVideo);
+      final element = tester.element(surface);
+      expect(tester.widget<Texture>(find.byType(Texture)).textureId, 101);
+      expect(platform.sources, hasLength(1));
+
+      Navigator.of(context).pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 180));
+      expect(route.animation!.status, AnimationStatus.reverse);
+      expect(tester.element(surface), same(element));
+      expect(tester.widget<Texture>(find.byType(Texture)).textureId, 101);
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+      await tester.pumpAndSettle();
+      expect(surface, findsNothing);
+      expect(platform.commands.where((c) => c.$2 == 'dispose').single.$1, 1);
+      paused.dispose();
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('native dispose acknowledgement precedes playback pin release', (
     tester,

@@ -3,7 +3,11 @@
 package com.ugk.trainer
 
 import android.media.MediaPlayer
+import android.media.PlaybackParams
 import android.net.Uri
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import java.io.File
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
@@ -19,6 +23,12 @@ internal class PackedAlphaVideoHost(
     private val events = EventChannel(binding.binaryMessenger, "ugk_trainer/packed_alpha/events")
     private var sink: EventChannel.EventSink? = null
     private val players = mutableMapOf<Long, Player>()
+    private val handler = Handler(Looper.getMainLooper())
+
+    private class ReturnRequest(val result: MethodChannel.Result) {
+        var timeout: Runnable? = null
+        var seeking = false
+    }
     // Creation and EventChannel.listen use different channels. Retain at most
     // one ready/state/first-frame/error event per player until listen arrives.
     private val pendingEvents = mutableMapOf<Long, LinkedHashMap<String, Map<String, Any?>>>()
@@ -79,6 +89,12 @@ internal class PackedAlphaVideoHost(
                 "active" -> player.setActive(call.argument<Boolean>("value") == true)
                 "visible" -> player.setVisible(call.argument<Boolean>("value") == true)
                 "position" -> { result.success(player.position()); return }
+                "return-to-start" -> {
+                    player.returnToStart(
+                        (call.argument<Number>("value") ?: 400).toLong(), result)
+                    return
+                }
+                "cancel-return-to-start" -> player.cancelReturnToStart()
                 "dispose" -> { players.remove(id); player.dispose() }
                 else -> { result.notImplemented(); return }
             }
@@ -126,6 +142,7 @@ internal class PackedAlphaVideoHost(
         private var visible = true
         private var surfaceAvailable = true
         private var firstFrame = false
+        private var returnRequest: ReturnRequest? = null
 
         private fun emit(type: String, fields: Map<String, Any?> = emptyMap()) {
             if (!disposed) publish(id, type, fields)
@@ -159,6 +176,7 @@ internal class PackedAlphaVideoHost(
                 true
             }
             media.setOnErrorListener { _, what, extra ->
+                finishReturn(false, resume = false)
                 if (!disposed) emit("error", mapOf("what" to what, "extra" to extra))
                 true
             }
@@ -172,15 +190,132 @@ internal class PackedAlphaVideoHost(
             media.prepareAsync()
         }
 
-        fun play() { wantsPlay = true; syncPlayback() }
-        fun pause() { wantsPlay = false; syncPlayback() }
-        fun setActive(value: Boolean) { active = value; if (!value) wantsPlay = false; syncPlayback() }
-        fun setVisible(value: Boolean) { visible = value; syncPlayback() }
+        fun play() {
+            wantsPlay = true
+            cancelReturnToStart()
+            syncPlayback()
+        }
+        fun pause() {
+            wantsPlay = false
+            cancelReturnToStart()
+            syncPlayback()
+        }
+        fun setActive(value: Boolean) {
+            active = value
+            if (!value) { wantsPlay = false; cancelReturnToStart() }
+            syncPlayback()
+        }
+        fun setVisible(value: Boolean) {
+            visible = value
+            if (!value) cancelReturnToStart()
+            syncPlayback()
+        }
         fun position(): Double? = if (prepared && !disposed) media.currentPosition / 1000.0 else null
+
+        /** Optional, bounded preparation while the demonstration route is current.
+         * Run forward through the remaining poses; never jump straight from an
+         * arbitrary middle pose to zero. A paused preview may play temporarily.
+         */
+        fun returnToStart(durationMs: Long, result: MethodChannel.Result) {
+            if (returnRequest != null || !prepared || !firstFrame || disposed ||
+                !active || !visible || !surfaceAvailable ||
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                result.success(false)
+                return
+            }
+            try {
+                val duration = media.duration.toLong()
+                val position = media.currentPosition.toLong().coerceAtLeast(0L)
+                if (duration <= 0L) { result.success(false); return }
+                val remaining = (duration - position).coerceAtLeast(0L)
+                // Long future clips cannot be squeezed indefinitely. Leave
+                // healthy playback alone instead of starting an unfinishable run.
+                if (remaining > 12L * 950L) { result.success(false); return }
+                val request = ReturnRequest(result)
+                returnRequest = request
+                request.timeout = Runnable {
+                    if (returnRequest === request) finishReturn(false)
+                }
+                handler.postDelayed(requireNotNull(request.timeout), 1100L)
+                media.setOnCompletionListener {
+                    if (returnRequest === request) seekStart(request)
+                }
+                media.setOnSeekCompleteListener {
+                    if (returnRequest === request && request.seeking) {
+                        // MediaPlayer displays the requested video frame while
+                        // paused; the Dart side waits for Flutter composition.
+                        finishReturn(media.currentPosition <= 80)
+                    }
+                }
+                if (position <= 35L) {
+                    seekStart(request)
+                    return
+                }
+                val target = durationMs.coerceIn(80L, 800L)
+                val speed = (remaining.toFloat() / target).coerceIn(1f, 12f)
+                media.isLooping = false
+                media.playbackParams = PlaybackParams().allowDefaults()
+                    .setSpeed(speed).setPitch(1f)
+                    .setAudioFallbackMode(PlaybackParams.AUDIO_FALLBACK_MODE_MUTE)
+                syncPlayback()
+            } catch (_: Exception) {
+                // Unsupported speed/seek is a failed optional handoff, not a
+                // decoder error that should replace a healthy demonstration.
+                if (returnRequest != null) finishReturn(false)
+                else result.success(false)
+            }
+        }
+
+        private fun seekStart(request: ReturnRequest) {
+            if (returnRequest !== request || request.seeking) return
+            request.seeking = true
+            try {
+                if (media.isPlaying) media.pause()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    media.seekTo(0L, MediaPlayer.SEEK_CLOSEST)
+                } else {
+                    @Suppress("DEPRECATION")
+                    media.seekTo(0)
+                }
+            } catch (_: Exception) {
+                finishReturn(false)
+            }
+        }
+
+        fun cancelReturnToStart() = finishReturn(false)
+
+        private fun finishReturn(success: Boolean, resume: Boolean = true) {
+            val request = returnRequest ?: return
+            returnRequest = null
+            request.timeout?.let { handler.removeCallbacks(it) }
+            request.timeout = null
+            var completed = success
+            try {
+                media.setOnCompletionListener(null)
+                media.setOnSeekCompleteListener(null)
+                if (prepared && !disposed) {
+                    media.isLooping = true
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        // Setting a nonzero playback speed can start MediaPlayer,
+                        // so sync/pause again before acknowledging this request.
+                        media.playbackParams = PlaybackParams().allowDefaults()
+                            .setSpeed(1f).setPitch(1f)
+                    }
+                    if (completed) wantsPlay = false
+                    if (resume) syncPlayback()
+                    else if (media.isPlaying) media.pause()
+                }
+            } catch (_: Exception) {
+                completed = false
+                // Still try to stop an accelerated player before reporting false.
+                try { if (media.isPlaying) media.pause() } catch (_: Exception) {}
+            }
+            request.result.success(completed)
+        }
 
         private fun syncPlayback() {
             if (!prepared || disposed) return
-            val play = wantsPlay && active && visible && surfaceAvailable
+            val play = (wantsPlay || returnRequest != null) && active && visible && surfaceAvailable
             if (play && !media.isPlaying) media.start()
             else if (!play && media.isPlaying) media.pause()
             emit("state", mapOf("playing" to media.isPlaying))
@@ -196,12 +331,14 @@ internal class PackedAlphaVideoHost(
         override fun onSurfaceCleanup() {
             if (disposed) return
             surfaceAvailable = false
+            cancelReturnToStart()
             syncPlayback()
             media.setSurface(null)
         }
 
         fun dispose() {
             if (disposed) return
+            finishReturn(false, resume = false)
             disposed = true
             prepared = false
             pendingEvents.remove(id)

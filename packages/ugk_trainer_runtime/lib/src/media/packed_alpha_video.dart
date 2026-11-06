@@ -243,6 +243,28 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
             'frame': frame,
           });
         }
+      } else if (type == 'return-to-start') {
+        final success = await platform.command(
+          id,
+          'return-to-start',
+          command['durationMs'],
+        );
+        if (success == true && _current(generation, owner)) {
+          // A seek-complete reply precedes Flutter composition of the texture.
+          // Keep the view alive for the first-frame handoff before the host pops.
+          WidgetsBinding.instance.scheduleFrame();
+          await WidgetsBinding.instance.endOfFrame;
+        }
+        if (_current(generation, owner)) {
+          owner.receive({
+            'source': 'drill-media',
+            'type': 'returned-to-start',
+            'requestId': command['requestId'],
+            'success': success == true,
+          });
+        }
+      } else if (type == 'cancel-return-to-start') {
+        await platform.command(id, 'cancel-return-to-start');
       } else if (type == 'position') {
         final time = await platform.command(id, 'position');
         if (_current(generation, owner)) {
@@ -259,7 +281,16 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
       }
     } catch (_) {
       if (_current(generation, owner)) {
-        if (type == 'position') {
+        if (type == 'return-to-start') {
+          owner.receive({
+            'source': 'drill-media',
+            'type': 'returned-to-start',
+            'requestId': command['requestId'],
+            'success': false,
+          });
+        } else if (type == 'cancel-return-to-start') {
+          // An old backend can reject this optional command harmlessly.
+        } else if (type == 'position') {
           // Inspection is read-only: an unavailable native time must not
           // fail/replace otherwise healthy demonstration playback.
           owner.receive({

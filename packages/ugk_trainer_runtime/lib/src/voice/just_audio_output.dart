@@ -432,9 +432,7 @@ class JustAudioVoiceOutput
     if (_voice.playing) await _voice.pause();
     await _voicePlayback;
     final watch = Stopwatch()..start();
-    await _voice.setAudioSources([
-      for (final a in assets) AudioSource.asset(a),
-    ]);
+    await _voice.setAudioSources([for (final a in assets) voiceAudioSource(a)]);
     // Device evidence for the background-playback check (logcat tag
     // "flutter"): a slow prepare is what delays and used to drop lines.
     if (watch.elapsedMilliseconds > slowLoadMs) {
@@ -544,3 +542,22 @@ class JustAudioVoiceOutput
     await _keepAlive.dispose();
   }
 }
+
+/// Player source of a voice clip: a bundled asset (`packages/…`,
+/// `assets/…`), or a downloaded file – an absolute path (`/data/…`,
+/// `C:\…`) or a `file:` URI – from [CatalogVoiceCache].
+@visibleForTesting
+AudioSource voiceAudioSource(String clip) {
+  if (isVoiceFilePath(clip)) {
+    return clip.startsWith('file:')
+        ? AudioSource.uri(Uri.parse(clip))
+        : AudioSource.file(clip);
+  }
+  return AudioSource.asset(clip);
+}
+
+/// [clip] names a file on the device rather than a bundled asset.
+bool isVoiceFilePath(String clip) =>
+    clip.startsWith('/') ||
+    clip.startsWith('file:') ||
+    RegExp(r'^[A-Za-z]:[\\/]').hasMatch(clip);

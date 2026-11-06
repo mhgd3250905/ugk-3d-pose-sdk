@@ -40,6 +40,7 @@ import '../pose_hub/pose_hub_media_preparation.dart';
 import '../pose_hub/pose_hub_pack_media.dart';
 import '../result/session_result.dart';
 import '../rhythm/rhythm.dart';
+import '../voice/catalog_voice_source.dart';
 import '../voice/session_runner.dart';
 import '../voice/session_script.dart';
 import '../voice/voice_cue.dart';
@@ -605,9 +606,11 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
           prepSeconds: widget.prepSeconds,
           transitionSeconds: widget.transitionSeconds,
           switchSecondsFor: _script.switchSecondsFor,
+          prepSecondsFor: _voice.settings.voice ? _script.prepSecondsFor : null,
         );
     _occurrences = _builder.occurrenceCount(_plan);
     _runner = SessionRunner(SessionEngine(_builder.phases(_plan)), _script);
+    _prepareVoice();
     if (_engine.done) _preview = false;
     _waitingForStart =
         widget.startMode == TrainerStartMode.training && _startGate != null;
@@ -644,7 +647,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     }
     if (!_preview && !_waitingForStart && widget.keepAlive) {
       _hold = TrainingHold.begin(
-        Duration(seconds: (_runner.planSeconds + widget.prepSeconds).round()),
+        Duration(seconds: (_runner.planSeconds + _prepPhaseSeconds).round()),
         mediaPlayback: _voice.settings.voice || _voice.settings.chimes,
         notice: TrainingNotice(
           channelName: _s.notificationChannel,
@@ -699,7 +702,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _screenAwakeHeld = true;
     if (widget.keepAlive) {
       _hold = TrainingHold.begin(
-        Duration(seconds: (_runner.planSeconds + widget.prepSeconds).round()),
+        Duration(seconds: (_runner.planSeconds + _prepPhaseSeconds).round()),
         mediaPlayback: _voice.settings.voice || _voice.settings.chimes,
         notice: TrainingNotice(
           channelName: _s.notificationChannel,
@@ -716,6 +719,37 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) => _tick());
   }
+
+  /// Seconds of the lead-in actually played (the voice script may lengthen
+  /// it so the first move's intro fits).
+  double get _prepPhaseSeconds {
+    final first = _engine.phases.firstOrNull;
+    return first != null && first.kind == PhaseKind.prep
+        ? first.seconds
+        : widget.prepSeconds.toDouble();
+  }
+
+  /// Warm a preparable voice source (catalogue clips) for this plan; the
+  /// session never waits on it. When it finishes the current phase's cues
+  /// are rebuilt so the downloaded lines are used from now on.
+  void _prepareVoice() {
+    final source = _voice.source;
+    if (source is! PreparableVoiceSource) return;
+    if (!_voice.settings.voice) return;
+    final ids = <String>{for (final p in _engine.phases) ?p.exerciseId};
+    final gen = ++_voicePrepareGeneration;
+    unawaited(
+      (source as PreparableVoiceSource)
+          .prepare(ids, lang: _voice.settings.language)
+          .then((_) {
+            if (!mounted || gen != _voicePrepareGeneration) return;
+            _runner.refreshVoice(_t);
+          })
+          .catchError((Object _) {}),
+    );
+  }
+
+  int _voicePrepareGeneration = 0;
 
   @override
   void dispose() {
@@ -777,7 +811,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         if (widget.keepAlive) {
           _hold = TrainingHold.begin(
             Duration(
-              seconds: (_runner.planSeconds + widget.prepSeconds).round(),
+              seconds: (_runner.planSeconds + _prepPhaseSeconds).round(),
             ),
             mediaPlayback: _voice.settings.voice || _voice.settings.chimes,
             notice: TrainingNotice(
@@ -1096,7 +1130,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     }
     if (widget.keepAlive) {
       _hold = TrainingHold.begin(
-        Duration(seconds: (_runner.planSeconds + widget.prepSeconds).round()),
+        Duration(seconds: (_runner.planSeconds + _prepPhaseSeconds).round()),
         mediaPlayback: _voice.settings.voice || _voice.settings.chimes,
         notice: TrainingNotice(
           channelName: _s.notificationChannel,

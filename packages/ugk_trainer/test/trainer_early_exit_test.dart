@@ -490,7 +490,9 @@ void main() {
         save: (_) => save.future,
         output: output,
       );
-      await _advance(tester, 6000);
+      // A voiced session lengthens the 2 s lead-in so the first move's
+      // intro fits (2026-11-06), so the plan ends later than 2 s + 1 s.
+      await _advance(tester, 20000);
       expect(find.byType(TrainerCompletion), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(fixture.popped, isEmpty);

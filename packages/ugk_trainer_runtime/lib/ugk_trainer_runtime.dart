@@ -27,6 +27,7 @@ export 'src/pose_hub/pose_hub_action_browser.dart';
 export 'src/pose_hub/pose_hub_action_library.dart';
 export 'src/pose_hub/pose_hub_catalog_channel.dart';
 export 'src/pose_hub/pose_hub_catalog_updater.dart';
+export 'src/pose_hub/pose_hub_catalog_voice.dart';
 export 'src/pose_hub/pose_hub_media_prefetcher.dart';
 export 'src/pose_hub/pose_hub_media_preparation.dart';
 export 'src/pose_hub/pose_hub_pack_image.dart';

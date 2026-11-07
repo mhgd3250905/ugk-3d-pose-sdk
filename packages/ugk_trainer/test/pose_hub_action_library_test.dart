@@ -38,7 +38,7 @@ Map<String, Object?> _futureRelease() {
   final data =
       jsonDecode(
             File(
-              'assets/pose_hub/app-pack-r2-v7/catalog.json',
+              'assets/pose_hub/app-pack-r2-v10/catalog.json',
             ).readAsStringSync(),
           )
           as Map<String, Object?>;
@@ -78,8 +78,8 @@ void main() {
     catalog = await PoseHubActionLibrary.load(bundle: _PackBundle());
   });
 
-  test('bundled r2-v7 metadata keeps the declared shared media root', () {
-    expect(PoseHubActionLibrary.packVersion, 'r2-v7');
+  test('bundled r2-v10 metadata keeps the declared shared media root', () {
+    expect(PoseHubActionLibrary.packVersion, 'r2-v10');
     expect(
       PoseHubActionLibrary.mediaReleaseBaseUri,
       'https://media.uuugk.win/pack/r2-v1/',
@@ -90,7 +90,7 @@ void main() {
     );
     expect(
       PoseHubActionLibrary.catalogDownloadUri,
-      'https://media.uuugk.win/pack/r2-v7/catalog.json',
+      'https://media.uuugk.win/pack/r2-v10/catalog.json',
     );
   });
 
@@ -98,7 +98,7 @@ void main() {
     'bundled audit digest records this release without gating future data',
     () async {
       final source = await File(
-        'assets/pose_hub/app-pack-r2-v7/catalog.json',
+        'assets/pose_hub/app-pack-r2-v10/catalog.json',
       ).readAsBytes();
       expect(
         sha256.convert(source).toString(),
@@ -156,7 +156,7 @@ void main() {
     final source =
         jsonDecode(
               File(
-                'assets/pose_hub/app-pack-r2-v7/catalog.json',
+                'assets/pose_hub/app-pack-r2-v10/catalog.json',
               ).readAsStringSync(),
             )
             as Map<String, Object?>;
@@ -215,7 +215,7 @@ void main() {
       const path = 'catalog/revisions/v4.json';
       (future['semanticCatalog']! as Map<String, Object?>)['path'] = path;
       final canonicalBytes = await File(
-        'assets/pose_hub/app-pack-r2-v7/catalog/catalog.json',
+        'assets/pose_hub/app-pack-r2-v10/catalog/catalog.json',
       ).readAsBytes();
       final loaded = await PoseHubActionLibrary.load(
         bundle: _PackBundle(

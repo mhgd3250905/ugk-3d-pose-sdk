@@ -8,7 +8,7 @@ import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart';
 void main() {
   final catalog = PoseHubAppTestCatalog.fromBytes(
     File(
-      '../ugk_trainer/assets/pose_hub/app-pack-r2-v7/catalog.json',
+      '../ugk_trainer/assets/pose_hub/app-pack-r2-v10/catalog.json',
     ).readAsBytesSync(),
   );
   final actions = catalog.semanticCompleteActions
@@ -86,7 +86,7 @@ void main() {
           scopeManifest: CoachActionScopeManifest.fromCatalogBytes(
             appId: 'test',
             catalogBytes: File(
-              '../ugk_trainer/assets/pose_hub/app-pack-r2-v7/catalog.json',
+              '../ugk_trainer/assets/pose_hub/app-pack-r2-v10/catalog.json',
             ).readAsBytesSync(),
             allowedActionIds: [for (final a in actions) a.id],
           ),

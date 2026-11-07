@@ -1,10 +1,10 @@
 {
  "format": "pose-hub-app-test-catalog@1",
- "id": "app-pack-r2-v7",
+ "id": "app-pack-r2-v10",
  "status": "test-unreviewed",
  "reviewed": false,
  "releaseEligible": false,
- "sourceCommit": "de1ae4f582030b1f4c3de142b0194f205ed8be54",
+ "sourceCommit": "483a51e60791f63ce778e0b9bb26c53e00ed2b23",
  "snapshotSha256": "ade115b51dfc00c0165054cee35bb5a368f407818719e2ea18ebf0616b8c3543",
  "releaseManifestSha256": null,
  "scope": {
@@ -126,7 +126,7 @@
   "quadriceps-A": "quadriceps-A-et1",
   "rotator-cuff-A": "rotator-cuff-A-r2-ht1",
   "s-9090": "s-9090-r4-sc1-et1",
-  "s-figure4": "s-figure4-r2-et1-sc2-fa1",
+  "s-figure4": "s-figure4-r2-et1-sc2-fa1-ak6",
   "serratus-B": "serratus-B-r2-et1",
   "t-flare-side-hold": "t-flare-side-hold-r4-et1",
   "t-lsit-tuck": "t-lsit-tuck-r5-sc1",
@@ -407,7 +407,7 @@
     "source": "real-practice r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/abs-A.json",
@@ -903,7 +903,7 @@
     "source": "timer"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/abs-B.json",
@@ -1424,7 +1424,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/abs-C.json",
@@ -1965,7 +1965,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/adductors-A.json",
@@ -2497,7 +2497,7 @@
     "source": "real-practice r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/adductors-B.json",
@@ -3072,7 +3072,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/adductors-C.json",
@@ -3613,7 +3613,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/chest-A.json",
@@ -4227,7 +4227,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/chest-B.json",
@@ -4771,7 +4771,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/chest-C.json",
@@ -5325,7 +5325,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/deltoids-A.json",
@@ -5873,7 +5873,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/deltoids-B.json",
@@ -6422,7 +6422,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/deltoids-C.json",
@@ -6966,7 +6966,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/erectors-A.json",
@@ -7570,7 +7570,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/erectors-B.json",
@@ -8107,7 +8107,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/erectors-C.json",
@@ -8641,7 +8641,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/forearms-A.json",
@@ -9175,7 +9175,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/forearms-B.json",
@@ -9689,7 +9689,7 @@
     "source": "timer"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/forearms-C.json",
@@ -10276,7 +10276,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/g-cable-hip-abduction.json",
@@ -10817,7 +10817,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/g-cable-hip-extension.json",
@@ -11354,7 +11354,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/glute-max-A.json",
@@ -11901,7 +11901,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/glute-max-B.json",
@@ -12438,7 +12438,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/glute-max-C.json",
@@ -12975,7 +12975,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-9090-liftoff.json",
@@ -13511,7 +13511,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-adductor-rock.json",
@@ -14029,7 +14029,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-banana.json",
@@ -14539,7 +14539,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/gap/h-band-biceps-curl.json",
@@ -15138,7 +15138,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-band-chest-fly.json",
@@ -15736,7 +15736,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-band-face-pull.json",
@@ -16338,7 +16338,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-band-hip-extension.json",
@@ -16883,7 +16883,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-band-hip-ir.json",
@@ -17412,7 +17412,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-band-leg-out.json",
@@ -17943,7 +17943,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-band-pallof.json",
@@ -18488,7 +18488,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-band-pull-apart.json",
@@ -19027,7 +19027,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-band-row.json",
@@ -19630,7 +19630,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-band-shoulder-ir.json",
@@ -20241,7 +20241,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-band-standing-abduction.json",
@@ -20845,7 +20845,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-band-standing-adduction.json",
@@ -21392,7 +21392,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-band-stepout.json",
@@ -22004,7 +22004,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-band-straight-leg-raise.json",
@@ -22550,7 +22550,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-band-triceps-pressdown.json",
@@ -23057,7 +23057,7 @@
     "source": "real-practice r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/home/h-bear-plank.json",
@@ -23601,7 +23601,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-bent-knee-calf-raise.json",
@@ -24116,7 +24116,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/home/h-biceps-self.json",
@@ -24656,7 +24656,7 @@
     "source": "timer"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-bilateral-farmer-hold-native.json",
@@ -25193,7 +25193,7 @@
     "source": "timer"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-bilateral-upper-back-hug.json",
@@ -25711,7 +25711,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-bridge-march.json",
@@ -26247,7 +26247,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/home/h-bridge-overhead.json",
@@ -26785,7 +26785,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-bulgarian.json",
@@ -27322,7 +27322,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-butterfly-active.json",
@@ -27849,7 +27849,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-calf-raise.json",
@@ -28386,7 +28386,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-catcow-quad.json",
@@ -28939,7 +28939,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-chair-dip.json",
@@ -29456,7 +29456,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/gap/h-chair-elbow-triceps-stretch.json",
@@ -30049,7 +30049,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-chair-kickback.json",
@@ -30575,7 +30575,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-chair-lat.json",
@@ -31204,7 +31204,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-chair-progressive-front-split-native.json",
@@ -31773,7 +31773,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-chair-single-leg-hip-thrust.json",
@@ -32392,7 +32392,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-chair-sit-to-stand.json",
@@ -32944,7 +32944,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-chair-step-up.json",
@@ -33502,7 +33502,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-chair-tspine.json",
@@ -34071,7 +34071,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-close-stance-forward-fold-native.json",
@@ -34595,7 +34595,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-cobra.json",
@@ -35119,7 +35119,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-couch-stretch.json",
@@ -35623,7 +35623,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/home/h-crossbody.json",
@@ -36145,7 +36145,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-crunch.json",
@@ -36742,7 +36742,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-calf-raise.json",
@@ -37280,7 +37280,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-curl.json",
@@ -37877,7 +37877,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-floor-fly.json",
@@ -38414,7 +38414,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-floor-press.json",
@@ -39016,7 +39016,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-front-raise.json",
@@ -39615,7 +39615,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-hammer-curl.json",
@@ -40209,7 +40209,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-kickback.json",
@@ -40750,7 +40750,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-lateral.json",
@@ -41275,7 +41275,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/gap/h-db-overhead-shrug.json",
@@ -41915,7 +41915,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-overhead-triceps-extension.json",
@@ -42463,7 +42463,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-press.json",
@@ -43004,7 +43004,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-rdl.json",
@@ -43527,7 +43527,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/gap/h-db-reverse-curl.json",
@@ -44060,7 +44060,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-reverse-fly.json",
@@ -44661,7 +44661,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-row.json",
@@ -45210,7 +45210,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-shrug.json",
@@ -45755,7 +45755,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-split-squat.json",
@@ -46365,7 +46365,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-db-supported-calf-raise.json",
@@ -46884,7 +46884,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/gap/h-db-zottman-curl.json",
@@ -47404,7 +47404,7 @@
     "source": "real-practice r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-dd-shoulder.json",
@@ -48005,7 +48005,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-donkey-kick.json",
@@ -48626,7 +48626,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-doorframe-forearms-pec-native-r3.json",
@@ -49192,7 +49192,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-fixed-bar-vertical-pull.json",
@@ -49833,7 +49833,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-floor-nordic-hand-reset.json",
@@ -50353,7 +50353,7 @@
     "source": "timer"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-forearm-plank.json",
@@ -50965,7 +50965,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-forward-lunge.json",
@@ -51610,7 +51610,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-goblet-squat.json",
@@ -52147,7 +52147,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-good-morning.json",
@@ -52650,7 +52650,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/gap/h-half-kneeling-quad-stretch.json",
@@ -53176,7 +53176,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-hip-gate.json",
@@ -53718,7 +53718,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-incline-pushup.json",
@@ -54242,7 +54242,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/home/h-inner-thigh.json",
@@ -54772,7 +54772,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/home/h-kb-swing.json",
@@ -55299,7 +55299,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-knee-hug.json",
@@ -55873,7 +55873,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-knee-wall-dorsiflexion-native.json",
@@ -56426,7 +56426,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-kneeling-instep-stretch.json",
@@ -56974,7 +56974,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-kneeling-pushup.json",
@@ -57588,7 +57588,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-kneeling-thread-needle.json",
@@ -58169,7 +58169,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-lateral-step-lunge.json",
@@ -58712,7 +58712,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/home/h-mountain-climber.json",
@@ -59246,7 +59246,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/home/h-open-book.json",
@@ -59844,7 +59844,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-overhead-triceps-stretch.json",
@@ -60362,7 +60362,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/home/h-pike-pushup.json",
@@ -60911,7 +60911,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-pike-scapular-elevation.json",
@@ -61471,7 +61471,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-plank-side-step.json",
@@ -62030,7 +62030,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-quad-cars.json",
@@ -62674,7 +62674,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-quadruped-open.json",
@@ -63299,7 +63299,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-quadruped-rockback.json",
@@ -63836,7 +63836,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-reverse-clam.json",
@@ -64369,7 +64369,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-reverse-crunch.json",
@@ -64897,7 +64897,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/home/h-reverse-lunge.json",
@@ -65453,7 +65453,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-russian-twist.json",
@@ -65985,7 +65985,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-seated-reachback.json",
@@ -66514,7 +66514,7 @@
     "source": "timer"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-short-side-plank.json",
@@ -67033,7 +67033,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-side-er.json",
@@ -67571,7 +67571,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-side-leg-raise.json",
@@ -68127,7 +68127,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-slider-body-saw.json",
@@ -68670,7 +68670,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-squat.json",
@@ -69190,7 +69190,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/gap/h-standing-arm-extension-stretch.json",
@@ -69785,7 +69785,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-standing-forearm-rotation.json",
@@ -70378,7 +70378,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-standing-wrist-deviation.json",
@@ -70969,7 +70969,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-standing-wrist-extensor-stretch.json",
@@ -71505,7 +71505,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-step-jack.json",
@@ -72069,7 +72069,7 @@
     "source": "timer"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-straight-arm-hang-native.json",
@@ -72635,7 +72635,7 @@
     "source": "timer"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-suitcase-hold.json",
@@ -73170,7 +73170,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-suitcase-march.json",
@@ -73715,7 +73715,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-sumo-pry.json",
@@ -74250,7 +74250,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-superman.json",
@@ -74824,7 +74824,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-supine-bilateral-leg-raise.json",
@@ -75346,7 +75346,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/gap/h-supine-cactus-chest.json",
@@ -75905,7 +75905,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-supine-heel-slide.json",
@@ -76425,7 +76425,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-supine-twist.json",
@@ -76960,7 +76960,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-supported-single-leg-calf.json",
@@ -77499,7 +77499,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-tabletop.json",
@@ -78032,7 +78032,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-tib-raise.json",
@@ -78554,7 +78554,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/home/h-towel-behind.json",
@@ -79077,7 +79077,7 @@
     "source": "timer"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-towel-isometric-curl.json",
@@ -79579,7 +79579,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/home/h-towel-pass.json",
@@ -80103,7 +80103,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/home/h-towel-pulldown.json",
@@ -80679,7 +80679,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-unsupported-star-reach-native.json",
@@ -81220,7 +81220,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-wall-angel.json",
@@ -81737,7 +81737,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-wall-calf.json",
@@ -82310,7 +82310,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-wall-calf-bent-knee.json",
@@ -82927,7 +82927,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-wall-palm-lift.json",
@@ -83435,7 +83435,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/home/h-wall-pec.json",
@@ -83947,7 +83947,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-wall-straddle.json",
@@ -84520,7 +84520,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/h-wall-wrist-flexor-stretch.json",
@@ -85045,7 +85045,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/hamstrings-A.json",
@@ -85577,7 +85577,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/hamstrings-B.json",
@@ -86104,7 +86104,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/hamstrings-C.json",
@@ -86646,7 +86646,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/hip-abductors-A.json",
@@ -87192,7 +87192,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/hip-abductors-B.json",
@@ -87724,7 +87724,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/hip-abductors-C.json",
@@ -88257,7 +88257,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/hip-flexors-A.json",
@@ -88856,7 +88856,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/hip-flexors-B.json",
@@ -89391,7 +89391,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/hip-flexors-C.json",
@@ -89919,7 +89919,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/lats-A.json",
@@ -90512,7 +90512,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/lats-B.json",
@@ -91039,7 +91039,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/lats-C.json",
@@ -91580,7 +91580,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-chair-wiper.json",
@@ -92113,7 +92113,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-half-split.json",
@@ -92647,7 +92647,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-leg-circles.json",
@@ -93169,7 +93169,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-pelvis-circle.json",
@@ -93690,7 +93690,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-prone-hip-ext.json",
@@ -94228,7 +94228,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-prone-ir.json",
@@ -94770,7 +94770,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-seated-ir-drop.json",
@@ -95320,7 +95320,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-seated-knee-lift.json",
@@ -95858,7 +95858,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-seated-squeeze.json",
@@ -96388,7 +96388,7 @@
     "source": "spec-pulse-track r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-slider-lateral.json",
@@ -96931,7 +96931,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-squat-shift.json",
@@ -97461,7 +97461,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-straddle-fold.json",
@@ -97972,7 +97972,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-thomas-test.json",
@@ -98486,7 +98486,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-wide-fold.json",
@@ -99085,7 +99085,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/n-windshield.json",
@@ -99655,7 +99655,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-chair-knee-extension.json",
@@ -100270,7 +100270,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-seated-calf-raise.json",
@@ -100795,7 +100795,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-seated-catcow.json",
@@ -101309,7 +101309,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-seated-fig4.json",
@@ -101814,7 +101814,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-seated-ham.json",
@@ -102346,7 +102346,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-seated-hip-er.json",
@@ -102892,7 +102892,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-seated-sidebend.json",
@@ -103405,7 +103405,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-seated-twist.json",
@@ -103920,7 +103920,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-stand-crossreach.json",
@@ -104495,7 +104495,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-stand-ham.json",
@@ -105009,7 +105009,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-stand-lunge.json",
@@ -105523,7 +105523,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-stand-quad.json",
@@ -106093,7 +106093,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-stand-sidebend.json",
@@ -106616,7 +106616,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-supported-ankle-eversion.json",
@@ -107149,7 +107149,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-supported-ankle-inversion.json",
@@ -107681,7 +107681,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-supported-ankle-pump.json",
@@ -108282,7 +108282,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-supported-hip-airplane.json",
@@ -108830,7 +108830,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-supported-hip-hitch.json",
@@ -109377,7 +109377,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-supported-hip-ir.json",
@@ -109975,7 +109975,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-supported-knee-curl.json",
@@ -110575,7 +110575,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-supported-march.json",
@@ -111190,7 +111190,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-supported-mini-squat.json",
@@ -111736,7 +111736,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-supported-single-leg-rdl.json",
@@ -112287,7 +112287,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-supported-star-reach.json",
@@ -112882,7 +112882,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/o-wall-hip-hinge-stretch.json",
@@ -113416,7 +113416,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/obliques-A.json",
@@ -113971,7 +113971,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/obliques-B.json",
@@ -114516,7 +114516,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/obliques-C.json",
@@ -115056,7 +115056,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/quadriceps-A.json",
@@ -115587,7 +115587,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/quadriceps-B.json",
@@ -116110,7 +116110,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/quadriceps-C.json",
@@ -116653,7 +116653,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/rotator-cuff-A.json",
@@ -117205,7 +117205,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/rotator-cuff-B.json",
@@ -117742,7 +117742,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/rotator-cuff-C.json",
@@ -118266,7 +118266,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/s-9090.json",
@@ -118776,7 +118776,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/s-butterfly.json",
@@ -119081,14 +119081,14 @@
     "videoLoopIsTrainingDose": false
    },
    "source": {
-    "branch": "codex/foot-angle-r1",
-    "commit": "109aba401fea38dd82db1c8069a5135283f2eee1",
-    "renderCommit": "109aba401fea38dd82db1c8069a5135283f2eee1",
+    "branch": "codex/fig4-ankle-r1",
+    "commit": "483a51e60791f63ce778e0b9bb26c53e00ed2b23",
+    "renderCommit": "483a51e60791f63ce778e0b9bb26c53e00ed2b23",
     "spec": {
-     "path": "drill-anim/specs/s-figure4-r2-et1-sc2-fa1.js",
-     "sha256": "72b11276b7215be197c678b51d04bbb8cfc4915b0e4ffa366e859ea9d3dcfedb"
+     "path": "drill-anim/specs/s-figure4-r2-et1-sc2-fa1-ak6.js",
+     "sha256": "b7c2f4be84fd3934b632a368a408e6b76380180d135e28e39985536d7a2d2483"
     },
-    "mediaSet": "foot-angle-r1-109aba4",
+    "mediaSet": "fig4-ankle-r1-483a51e6",
     "model": {
      "format": "pose-hub-production-model",
      "formatVersion": 1,
@@ -119098,7 +119098,7 @@
      "version": "0.1.0-r2"
     }
    },
-   "revision": "s-figure4-r2-v6",
+   "revision": "s-figure4-r2-v10",
    "state": "ready-test-unreviewed",
    "reviewed": false,
    "releaseEligible": false,
@@ -119121,7 +119121,7 @@
      },
      {
       "path": "catalog/production/remaining219-r1/recipes/s-figure4.json",
-      "sha256": "50b19d6670acb457d985025b591ebf3712427b33bd0557dfcb58c1b6fc997073"
+      "sha256": "7e429fd03ae6e2cee43fe13c29132a7ed6d9037cb9a8ab5ff39038badd5748fa"
      },
      {
       "path": "catalog/catalog.json",
@@ -119179,43 +119179,43 @@
    "alternative": null,
    "files": {
     "video": {
-     "path": "media/s-figure4/r2-v6/s-figure4.rgb-alpha.mp4",
-     "bytes": 66622,
-     "sha256": "72fa21e752d421e722303dc99ee25a71d04cdee57b3916947cc182bf975c73de",
+     "path": "media/s-figure4/r2-v10/s-figure4.rgb-alpha.mp4",
+     "bytes": 211565,
+     "sha256": "636d5b3947678e1899deef9afef68d3762573b6c1fa5a37b081f2e4e4baa553f",
      "width": 720,
      "height": 1440,
      "codec": "h264",
      "pixelFormat": "yuv420p",
      "assetName": "s-figure4.rgb-alpha.mp4",
-     "downloadUrl": "https://media.uuugk.win/pack/r2-v1/media/s-figure4/r2-v6/s-figure4.rgb-alpha.mp4",
+     "downloadUrl": "https://media.uuugk.win/pack/r2-v1/media/s-figure4/r2-v10/s-figure4.rgb-alpha.mp4",
      "status": "ready"
     },
     "cover": {
-     "path": "media/s-figure4/r2-v6/s-figure4.cover.alpha.webp",
-     "bytes": 14896,
-     "sha256": "decaae85d6c8f3a7b82baea3700f005390da7258f5333b9005f680994e0858a7",
+     "path": "media/s-figure4/r2-v10/s-figure4.cover.alpha.webp",
+     "bytes": 11806,
+     "sha256": "f6c03bb3e49e560894c6575d65cb04163f2c530f5970cd4ce8512d38c1811f94",
      "width": 640,
      "height": 640,
      "alpha": true,
      "assetName": "s-figure4.cover.alpha.webp",
-     "downloadUrl": "https://media.uuugk.win/pack/r2-v1/media/s-figure4/r2-v6/s-figure4.cover.alpha.webp",
+     "downloadUrl": "https://media.uuugk.win/pack/r2-v1/media/s-figure4/r2-v10/s-figure4.cover.alpha.webp",
      "status": "ready"
     },
     "thumbnail": {
-     "path": "media/s-figure4/r2-v6/s-figure4.thumbnail.alpha.webp",
-     "bytes": 3560,
-     "sha256": "2088c0a09854873ef8132c65699e35275a1906012d7ec84b2954879fd0d6fe2c",
+     "path": "media/s-figure4/r2-v10/s-figure4.thumbnail.alpha.webp",
+     "bytes": 3094,
+     "sha256": "29ac65f5be8d4c9f5045c95ec8af640c591f231a6e998e08a6095dc7ccba88f3",
      "width": 192,
      "height": 192,
      "alpha": true,
      "assetName": "s-figure4.thumbnail.alpha.webp",
-     "downloadUrl": "https://media.uuugk.win/pack/r2-v1/media/s-figure4/r2-v6/s-figure4.thumbnail.alpha.webp",
+     "downloadUrl": "https://media.uuugk.win/pack/r2-v1/media/s-figure4/r2-v10/s-figure4.thumbnail.alpha.webp",
      "status": "ready"
     }
    },
    "qa": {
     "report": {
-     "path": "qa/s-figure4/r2-v6/export-check.json",
+     "path": "qa/s-figure4/r2-v10/export-check.json",
      "bytes": null,
      "sha256": null
     },
@@ -119225,9 +119225,9 @@
    },
    "availableForApp": true,
    "availableForTraining": true,
-   "sourceRevision": "s-figure4-r2-et1-sc2-fa1",
-   "mediaRevision": "r2-v6",
-   "repairReason": "foot-angle r1：交叉腿右脚随小腿，勾脚脚尖朝上（原为固定世界朝向、跖屈 ~90°）",
+   "sourceRevision": "s-figure4-r2-et1-sc2-fa1-ak6",
+   "mediaRevision": "r2-v10",
+   "repairReason": "ankle r1 ak6：仰卧段小臂扭绞修正（静止 -20° 混合到抓握 95°），双臂近乎伸直平放垫上、肘不拱起无折痕；抱腿拉段与 ak4 相同",
    "nameEn": "Lying Figure-4 Stretch",
    "purposeEn": "Stretch deep in your glutes and ease tight hips.",
    "activeMuscles": [
@@ -119283,12 +119283,12 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/s-figure4.json",
-    "sha256": "50b19d6670acb457d985025b591ebf3712427b33bd0557dfcb58c1b6fc997073",
-    "fingerprint": "sha256:50b19d6670acb457d985025b591ebf3712427b33bd0557dfcb58c1b6fc997073"
+    "sha256": "7e429fd03ae6e2cee43fe13c29132a7ed6d9037cb9a8ab5ff39038badd5748fa",
+    "fingerprint": "sha256:7e429fd03ae6e2cee43fe13c29132a7ed6d9037cb9a8ab5ff39038badd5748fa"
    },
    "doseRangeSource": "r1-catalog-preserved",
    "scenesSource": "r1-catalog-preserved",
@@ -119792,7 +119792,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/s-frog.json",
@@ -120304,7 +120304,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/s-kneel-hipflex.json",
@@ -120826,7 +120826,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/s-lizard.json",
@@ -121348,7 +121348,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/s-pigeon.json",
@@ -121853,7 +121853,7 @@
     "source": "user-decision static-hold r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/s-seated-fold.json",
@@ -122378,7 +122378,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/scapular-A.json",
@@ -122924,7 +122924,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/scapular-B.json",
@@ -123518,7 +123518,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/serratus-A.json",
@@ -124064,7 +124064,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/serratus-B.json",
@@ -124664,7 +124664,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/serratus-C.json",
@@ -125178,7 +125178,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/thomas/t-flare-side-hold.json",
@@ -125690,7 +125690,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/thomas/t-lsit-open-close.json",
@@ -126223,7 +126223,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/thomas/t-lsit-tuck.json",
@@ -126752,7 +126752,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/thomas/t-lsit-vsit-circles.json",
@@ -127259,7 +127259,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/thomas/t-lsit-wide.json",
@@ -127764,7 +127764,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/thomas/t-seated-straddle-ext.json",
@@ -128302,7 +128302,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/t-seated-straddle-lift-1leg.json",
@@ -128837,7 +128837,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/thomas/t-seated-straddle-lifts.json",
@@ -129343,7 +129343,7 @@
     "source": "real-practice r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/thomas/t-straddle-hold.json",
@@ -129832,7 +129832,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/thomas/t-tuck-planche.json",
@@ -130319,7 +130319,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining32-r4/groups/thomas/t-vsit.json",
@@ -130833,7 +130833,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/triceps-A.json",
@@ -131353,7 +131353,7 @@
     "source": "real-practice r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/triceps-B.json",
@@ -131871,7 +131871,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/triceps-C.json",
@@ -132407,7 +132407,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/w-bird-dog.json",
@@ -132947,7 +132947,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/w-chair-hip-thrust.json",
@@ -133485,7 +133485,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/w-clamshell.json",
@@ -134027,7 +134027,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/w-dead-bug.json",
@@ -134582,7 +134582,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/w-feet-on-chair-bridge.json",
@@ -135119,7 +135119,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/w-fire-hydrant.json",
@@ -135655,7 +135655,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/w-prone-swimmer.json",
@@ -136167,7 +136167,7 @@
     "source": "spec-timeline manual r2"
    },
    "reviewStatus": "ai-reviewed-r2-needs-user-review",
-   "packRevision": "r2-v7",
+   "packRevision": "r2-v10",
    "assetStatus": "pending-export",
    "recipe": {
     "path": "catalog/production/remaining219-r1/recipes/w-wall-sit.json",
@@ -136436,8 +136436,8 @@
  "semanticCatalog": {
   "path": "catalog/catalog.json",
   "version": "2.1.0",
-  "bytes": 312887,
-  "sha256": "3673f56f84f9a9c0d4d53c11a93547c6c05041fe4ea71a3030792c3178a41c4a"
+  "bytes": 312874,
+  "sha256": "4958eb7d3679365739747947df1d3a2eea02165db7704451fa6f2dc2c5fdee81"
  },
  "trainingSemantics": {
   "format": "pose-hub-test-semantics-summary@1",
@@ -136980,14 +136980,14 @@
  "totalCount": 249,
  "pendingIds": [],
  "mediaDistribution": {
-  "version": "posehub-app-pack-r2-v7",
+  "version": "posehub-app-pack-r2-v10",
   "kind": "r2-objects@1",
   "baseUrl": "https://media.uuugk.win/pack/r2-v1/",
   "pathRule": "relative-path",
   "objectKeyPrefix": "pack/r2-v1/",
   "sourceCatalogSha256": "22b2a391e327bc9eee775988315cd96651e0f623c76dae10c00284686dfe804e",
   "mediaFiles": 747,
-  "mediaBytes": 60056684,
+  "mediaBytes": 60198071,
   "voiceFiles": 2490,
   "voiceBytes": 31103788,
   "pendingVoiceIds": [],
@@ -137004,7 +137004,7 @@
    "posterQuality": 80,
    "voicePathRule": "voice/<id>/<language>/<clip>.m4a"
   },
-  "note": "r2-v7：媒体仍在 pack/r2-v1/ 前缀；3 个弹力带穿模修复动作用 media/<id>/r2-v7/，其余（含文案、语音）沿用 r2-v6 引用；只追加"
+  "note": "r2-v10：媒体仍在 pack/r2-v1/ 前缀；1 个踝抱腿修复动作用 media/<id>/r2-v10/，其余（含文案、语音）沿用 r2-v9 引用；只追加"
  },
  "buildStatus": "media-verified",
  "sourceRuns": [
@@ -137109,6 +137109,24 @@
    "commit": "de1ae4f582030b1f4c3de142b0194f205ed8be54",
    "selectedActions": 3,
    "replaces": "r2-v6 media (band fix r1)"
+  },
+  {
+   "batch": "fig4-ankle-r1-6a0bebd",
+   "commit": "6a0bebde4f3e3435340eb5c4ed92704e9ccb5edd",
+   "selectedActions": 1,
+   "replaces": "r2-v7 media (ankle fix r1)"
+  },
+  {
+   "batch": "fig4-ankle-r1-71721b8",
+   "commit": "71721b865c4c082b54c179e12ac6fe998f1d9ebd",
+   "selectedActions": 1,
+   "replaces": "r2-v8 media (ankle fix r1)"
+  },
+  {
+   "batch": "fig4-ankle-r1-483a51e6",
+   "commit": "483a51e60791f63ce778e0b9bb26c53e00ed2b23",
+   "selectedActions": 1,
+   "replaces": "r2-v9 media (ankle fix r1)"
   }
  ],
  "pathPlan": {
@@ -137116,7 +137134,7 @@
   "actionsWithRevisionDirectory": 68,
   "actionsWithoutRevisionDirectory": 181
  },
- "pack": "r2-v7",
+ "pack": "r2-v10",
  "schema": 1,
- "previousPack": "r2-v6"
+ "previousPack": "r2-v9"
 }

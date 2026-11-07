@@ -26,7 +26,7 @@ void main() {
   late coach.PoseHubPackAction action;
   late coach.Drill drill;
   setUpAll(() async {
-    const root = '../ugk_trainer/assets/pose_hub/app-pack-r2-v7/';
+    const root = '../ugk_trainer/assets/pose_hub/app-pack-r2-v10/';
     final catalog = coach.PoseHubAppTestCatalog.fromBytes(
       await File('${root}catalog.json').readAsBytes(),
       semanticCatalogBytes: await File(
@@ -143,7 +143,7 @@ void main() {
     for (final poster in [
       '',
       'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v1/standing/${drill.id}.webp',
-      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v7/standing/${drill.id}.webp',
+      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v10/standing/${drill.id}.webp',
     ]) {
       await tester.pumpWidget(
         MaterialApp(

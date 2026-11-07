@@ -11,24 +11,24 @@ import 'pose_hub_catalog_updater.dart' show readVerifiedPoseHubCatalog;
 /// or image is embedded in Git apart from the standing frame-zero images.
 abstract final class PoseHubActionLibrary {
   static const assetRoot =
-      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v7/';
+      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v10/';
 
   /// Frame-zero images and their video identity index for the bundled pack.
   /// Other catalogue media revisions use verified cover/thumbnail caches.
   static const standingAssetRoot =
-      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v7/standing/';
+      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v10/standing/';
 
   /// Audit digest of this SDK's bundled catalogue, not an acceptance gate for
   /// other internally consistent catalogue versions.
   static const catalogSha256 =
-      '92cff0a0eb31f8d51122d838842c27080a39e26619879978ff95c65ac69569f9';
+      'bd1963f3e139d2e0c0ed50ee763452841c91dcdffbd7663c4e9190597c8e0b0b';
 
   /// Bundled pack version (`pack` in the bundled catalogue).
-  static const packVersion = 'r2-v7';
+  static const packVersion = 'r2-v10';
 
   /// Public metadata of the bundled pack.
   static const catalogDownloadUri =
-      'https://media.uuugk.win/pack/r2-v7/catalog.json';
+      'https://media.uuugk.win/pack/r2-v10/catalog.json';
 
   /// Media root of the bundled pack (its `mediaDistribution`).
   static const mediaReleaseBaseUri = 'https://media.uuugk.win/pack/r2-v1/';

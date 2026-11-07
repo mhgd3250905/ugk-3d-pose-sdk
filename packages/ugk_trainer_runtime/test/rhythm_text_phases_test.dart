@@ -55,7 +55,7 @@ void main() {
 
   test('every bundled execution parses', () {
     final file = File(
-      '../ugk_trainer/assets/pose_hub/app-pack-r2-v7/catalog.json',
+      '../ugk_trainer/assets/pose_hub/app-pack-r2-v10/catalog.json',
     );
     final rows =
         (jsonDecode(file.readAsStringSync()) as Map)['actions'] as List;
@@ -99,7 +99,7 @@ void main() {
     expect(r.alternatePair, isFalse);
   });
 
-  test('bundled r2-v7: 23 alternating pairs, every other rhythm as r2-v1', () {
+  test('bundled r2-v10: 23 alternating pairs, every other rhythm as r2-v1', () {
     List<Object?> rows(String p) =>
         (jsonDecode(File(p).readAsStringSync()) as Map)['actions']
             as List<Object?>;
@@ -109,7 +109,7 @@ void main() {
       ),
     );
     final bundled = rows(
-      '../ugk_trainer/assets/pose_hub/app-pack-r2-v7/catalog.json',
+      '../ugk_trainer/assets/pose_hub/app-pack-r2-v10/catalog.json',
     );
     final v1 = {
       for (final r in rows('test/fixtures/pose_hub/r2-v1/catalog.json'))

@@ -12,7 +12,7 @@ import 'package:ugk_trainer/engine.dart';
 
 import 'support.dart';
 
-const _catalog = 'assets/pose_hub/app-pack-r2-v7/catalog.json';
+const _catalog = 'assets/pose_hub/app-pack-r2-v10/catalog.json';
 
 /// The r2 execution of 坐姿猫牛式 / 坐椅雨刷 (built-in catalog values).
 const catCow = {

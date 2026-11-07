@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "pack": "r2-v7",
+  "pack": "r2-v10",
   "frame": 0,
   "width": 640,
   "height": 640,
@@ -1302,10 +1302,10 @@
       "imageBytes": 18952
     },
     "s-figure4": {
-      "videoPath": "media/s-figure4/r2-v6/s-figure4.rgb-alpha.mp4",
-      "videoSha256": "72fa21e752d421e722303dc99ee25a71d04cdee57b3916947cc182bf975c73de",
-      "imageSha256": "0fceec17717d7c74ceb4df9afc240907081a0ddd9bf433f76cf6898900115a13",
-      "imageBytes": 17106
+      "videoPath": "media/s-figure4/r2-v10/s-figure4.rgb-alpha.mp4",
+      "videoSha256": "636d5b3947678e1899deef9afef68d3762573b6c1fa5a37b081f2e4e4baa553f",
+      "imageSha256": "d4637670fa0845da0d8ea0ef834db8ae0ce3b5d00c8308728e933534cb0e10f5",
+      "imageBytes": 13334
     },
     "s-frog": {
       "videoPath": "media/s-frog/s-frog.rgb-alpha.mp4",

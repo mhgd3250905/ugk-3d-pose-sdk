@@ -390,9 +390,12 @@ final class PoseHubAppTestCatalog {
     }
     final drills = [
       for (final action in semanticCompleteActions)
-        _withStatus(
-          _canonicalWithRhythm(canonical?[action.id], action) ??
-              _withRhythm(_definition(action), action),
+        _withMedia(
+          _withStatus(
+            _canonicalWithRhythm(canonical?[action.id], action) ??
+                _withRhythm(_definition(action), action),
+            action,
+          ),
           action,
         ),
     ];
@@ -527,6 +530,17 @@ final class PoseHubAppTestCatalog {
       );
     }
   }
+
+  /// Keeps presentation tied to the selected pack even when its training
+  /// definition came from the separate canonical catalogue.
+  Drill _withMedia(Drill drill, PoseHubPackAction action) => Drill.tryParse({
+    ...drill.raw,
+    'poseHubMedia': Map<String, Object?>.unmodifiable({
+      for (final entry in action.files.entries) entry.key: entry.value.raw,
+      if (raw['mediaDistribution'] case final Map<String, Object?> distribution)
+        if (distribution['baseUrl'] case final String base) 'baseUri': base,
+    }),
+  }, <String>[])!;
 
   /// Carries the catalogue's lifecycle status onto the coach definition, so
   /// selection can skip it while validation of saved plans still finds it.

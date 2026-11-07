@@ -2,3 +2,6 @@
 packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog.json -text
 packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/manifest.json -text
 packages/ugk_trainer/assets/pose_hub/app-test-pack-r1/catalog/catalog.json -text
+packages/ugk_trainer/assets/pose_hub/app-pack-*/catalog.json -text
+packages/ugk_trainer/assets/pose_hub/app-pack-*/catalog/catalog.json -text
+packages/ugk_trainer/assets/pose_hub/app-pack-*/standing/index.json -text

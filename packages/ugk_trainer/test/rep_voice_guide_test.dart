@@ -8,12 +8,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ugk_coach/ugk_coach.dart';
 import 'package:ugk_trainer/engine.dart';
 
 import 'support.dart';
 
-const _catalog = 'assets/pose_hub/app-pack-r2-v2/catalog.json';
+const _catalog = 'assets/pose_hub/app-pack-r2-v10/catalog.json';
 
 /// The r2 execution of 坐姿猫牛式 / 坐椅雨刷 (built-in catalog values).
 const catCow = {
@@ -164,7 +163,9 @@ void main() {
     expect(actions, hasLength(249));
     final source = DrillPackVoiceSource.fromPacks(
       common: common,
-      packs: {for (final a in actions) a['id'] as String: _packFor(a['id'])},
+      packs: {
+        for (final a in actions) a['id'] as String: _packFor(a['id'] as String),
+      },
     );
     final script = SessionScript(source: source);
     final kinds = <String, int>{};

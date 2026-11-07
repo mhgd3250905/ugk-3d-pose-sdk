@@ -229,6 +229,9 @@ class _Thumbnail extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = CoachUiTheme.of(context);
     final e = exercise;
+    if (e?.artworkBuilder case final build?) {
+      return build(context, thumbnail: true);
+    }
     final asset = e?.stillCutout ?? e?.poster;
     final cutout = e?.stillCutout != null;
     Widget placeholder() => Center(

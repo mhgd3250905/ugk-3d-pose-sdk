@@ -9,6 +9,9 @@ import 'package:ugk_trainer/ugk_trainer.dart';
 
 import 'support.dart';
 
+const _catalogAsset =
+    'assets/pose_hub/app-pack-${PoseHubActionLibrary.packVersion}/catalog.json';
+
 Future<Uint8List> _paintFloor(
   WidgetTester tester,
   TrainerTheme theme, {
@@ -79,9 +82,7 @@ void main() {
       'real PoseHub still reveals floor in ${theme.brightness.name}',
       (tester) async {
         final catalog = PoseHubAppTestCatalog.fromBytes(
-          File(
-            'assets/pose_hub/app-test-pack-r1/catalog.json',
-          ).readAsBytesSync(),
+          File(_catalogAsset).readAsBytesSync(),
         );
         final action = catalog.allActions.first;
         await tester.pumpWidget(

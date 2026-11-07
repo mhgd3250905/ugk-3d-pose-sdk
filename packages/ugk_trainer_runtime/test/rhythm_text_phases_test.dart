@@ -53,9 +53,9 @@ void main() {
     );
   });
 
-  test('every bundled (r2-v2) execution parses', () {
+  test('every bundled execution parses', () {
     final file = File(
-      '../ugk_trainer/assets/pose_hub/app-pack-r2-v2/catalog.json',
+      '../ugk_trainer/assets/pose_hub/app-pack-r2-v10/catalog.json',
     );
     final rows =
         (jsonDecode(file.readAsStringSync()) as Map)['actions'] as List;
@@ -99,7 +99,7 @@ void main() {
     expect(r.alternatePair, isFalse);
   });
 
-  test('bundled r2-v2: 23 alternating pairs, every other rhythm as r2-v1', () {
+  test('bundled r2-v10: 23 alternating pairs, every other rhythm as r2-v1', () {
     List<Object?> rows(String p) =>
         (jsonDecode(File(p).readAsStringSync()) as Map)['actions']
             as List<Object?>;
@@ -108,16 +108,16 @@ void main() {
         ((row as Map)['rhythm'] as Map)['execution'] as Map,
       ),
     );
-    final v2 = rows(
-      '../ugk_trainer/assets/pose_hub/app-pack-r2-v2/catalog.json',
+    final bundled = rows(
+      '../ugk_trainer/assets/pose_hub/app-pack-r2-v10/catalog.json',
     );
     final v1 = {
       for (final r in rows('test/fixtures/pose_hub/r2-v1/catalog.json'))
         (r as Map)['id']: r,
     };
-    expect(v2.map((r) => (r as Map)['id']).toSet(), v1.keys.toSet());
+    expect(bundled.map((r) => (r as Map)['id']).toSet(), v1.keys.toSet());
     final pairs = <String>[];
-    for (final row in v2) {
+    for (final row in bundled) {
       final id = (row as Map)['id'] as String;
       final r = rhythmOf(row);
       final old = rhythmOf(v1[id]);
@@ -126,7 +126,11 @@ void main() {
         pairs.add(id);
         // One count = left + right: twice the r2-v1 single-side cycle.
         expect(r.cycleFor(), closeTo(2 * old.cycleFor(), 1e-9), reason: id);
-        expect(r.planRepSecondsFor(), closeTo(old.cycleFor(), 1e-9), reason: id);
+        expect(
+          r.planRepSecondsFor(),
+          closeTo(old.cycleFor(), 1e-9),
+          reason: id,
+        );
       } else {
         expect(r.cycleFor(), old.cycleFor(), reason: id);
         expect(r.planRepSecondsFor(), r.cycleFor(), reason: id);

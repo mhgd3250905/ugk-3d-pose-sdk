@@ -790,12 +790,16 @@ void main() {
           fixture.extraVideo;
       fixture.remote['/v0.3.0/realistic/light/extra.mp4'] = light;
       fixture.refreshMain();
-      final responseGate = Completer<void>();
+      late Completer<void> responseGate;
+      late Completer<void> requestStarted;
       final requested = <String>[];
       late TrainingMediaRepository repository;
       await tester.runAsync(() async {
+        responseGate = Completer<void>();
+        requestStarted = Completer<void>();
         final server = await serve((request) async {
           requested.add(request.uri.path);
+          if (!requestStarted.isCompleted) requestStarted.complete();
           await responseGate.future;
           await respond(request, fixture);
         });
@@ -827,33 +831,25 @@ void main() {
       await tester.pump();
       // The target poster stays underneath the first-frame-gated surface.
       expect(find.byType(Image), findsOneWidget);
-      await pump('light');
-      expect(dark.controller.wantsPlay, isFalse);
-      expect(find.byType(DrillMediaPlatformView), findsNothing);
-      expect(find.byType(Image), findsOneWidget);
-      expect(
-        (tester.widget<Image>(find.byType(Image)).image as AssetImage)
-            .assetName,
-        'light.webp',
-      );
-      for (var attempt = 0; attempt < 20 && requested.isEmpty; attempt++) {
-        await tester.runAsync(() async {
-          await Future<void>.delayed(const Duration(milliseconds: 5));
-        });
-        await tester.pump();
-      }
-      expect(requested, ['/v0.3.0/realistic/light/extra.mp4']);
-      responseGate.complete();
-      for (
-        var attempt = 0;
-        attempt < 20 && find.byType(DrillMediaPlatformView).evaluate().isEmpty;
-        attempt++
-      ) {
-        await tester.runAsync(() async {
-          await Future<void>.delayed(const Duration(milliseconds: 5));
-        });
-        await tester.pump();
-      }
+      await tester.runAsync(() async {
+        // Start the real download in the zone in which its future is awaited.
+        await pump('light');
+        expect(dark.controller.wantsPlay, isFalse);
+        expect(find.byType(DrillMediaPlatformView), findsNothing);
+        expect(find.byType(Image), findsOneWidget);
+        expect(
+          (tester.widget<Image>(find.byType(Image)).image as AssetImage)
+              .assetName,
+          'light.webp',
+        );
+        await requestStarted.future.timeout(const Duration(seconds: 10));
+        expect(requested, ['/v0.3.0/realistic/light/extra.mp4']);
+        final cached = repository.ensureVideo('extra', theme: 'light');
+        responseGate.complete();
+        await cached.timeout(const Duration(seconds: 10));
+      });
+      await tester.pump();
+      await tester.pump();
       final current = tester.widget<DrillMediaPlatformView>(
         find.byType(DrillMediaPlatformView),
       );

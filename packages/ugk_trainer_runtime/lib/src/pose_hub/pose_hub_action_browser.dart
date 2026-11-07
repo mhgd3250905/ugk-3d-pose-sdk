@@ -76,8 +76,12 @@ class PoseHubActionBrowser extends StatelessWidget {
       embedded: embedded,
       actionArtwork:
           actionArtwork ??
-          (_, action, theme) =>
-              PoseHubStandingImage(action: action, theme: theme),
+          (_, action, theme) => PoseHubStandingImage(
+            action: action,
+            theme: theme,
+            thumbnail: true,
+            mediaBaseUri: mediaBaseUri,
+          ),
       onOpenAction: (action) {
         if (onOpenAction case final open?) {
           open(action);

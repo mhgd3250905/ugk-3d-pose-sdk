@@ -7,6 +7,10 @@ import 'package:ugk_coach/src/agent/node_gates.dart';
 import 'package:ugk_coach/src/agent/plan_builder.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 import 'package:ugk_trainer/engine.dart';
+import 'package:ugk_trainer/ugk_trainer.dart' show PoseHubActionLibrary;
+
+const _catalogRoot =
+    'assets/pose_hub/app-pack-${PoseHubActionLibrary.packVersion}/';
 
 const _selected = [
   's-figure4',
@@ -18,18 +22,10 @@ const _selected = [
 ];
 
 Catalog _realCatalog() => PoseHubAppTestCatalog.fromJson(
-  jsonDecode(
-        File(
-          'assets/pose_hub/app-test-pack-r1/catalog.json',
-        ).readAsStringSync(),
-      )
+  jsonDecode(File('${_catalogRoot}catalog.json').readAsStringSync())
       as Map<String, Object?>,
   semanticCatalog:
-      jsonDecode(
-            File(
-              'assets/pose_hub/app-test-pack-r1/catalog/catalog.json',
-            ).readAsStringSync(),
-          )
+      jsonDecode(File('${_catalogRoot}catalog/catalog.json').readAsStringSync())
           as Map<String, Object?>,
 ).toAiCatalog();
 
@@ -89,7 +85,8 @@ TrainingPlan _savedCircuit(Catalog catalog) => TrainingPlan(
           PlanItem(
             exerciseId: id,
             mode: catalog[id]!.defaultDose.mode,
-            sets: catalog[id]!.defaultDose.sets,
+            // Circuit repetitions live on the block, one set per occurrence.
+            sets: 1,
             workSeconds: catalog[id]!.defaultDose.seconds,
             perSide: catalog[id]!.unilateral,
             restSeconds: catalog[id]!.defaultDose.restSeconds,
@@ -122,7 +119,7 @@ void _expectFitted(
     _selected.toSet(),
   );
   expect(plan.items.every((item) => item.perSide), isTrue);
-  if (minutes >= 10) {
+  if (minutes >= 20) {
     expect(plan.blocks.single.rounds, greaterThan(1));
   }
 

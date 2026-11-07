@@ -63,7 +63,7 @@ void main() {
   late TrainingMediaPolicy policy;
   setUpAll(() {
     final bytes = File(
-      '../ugk_trainer/assets/pose_hub/app-pack-r2-v2/catalog.json',
+      '../ugk_trainer/assets/pose_hub/app-pack-r2-v10/catalog.json',
     ).readAsBytesSync();
     catalog = coach.PoseHubAppTestCatalog.fromBytes(bytes);
     scope = coach.CoachActionScopeManifest.fromCatalogBytes(

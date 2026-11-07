@@ -9,7 +9,7 @@ import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart';
 void main() {
   final catalog = PoseHubAppTestCatalog.fromBytes(
     File(
-      '../ugk_trainer/assets/pose_hub/app-pack-r2-v2/catalog.json',
+      '../ugk_trainer/assets/pose_hub/app-pack-r2-v10/catalog.json',
     ).readAsBytesSync(),
   );
   final actions = catalog.semanticCompleteActions.take(2).toList();
@@ -76,7 +76,7 @@ void main() {
     final json =
         jsonDecode(
               File(
-                '../ugk_trainer/assets/pose_hub/app-pack-r2-v2/catalog.json',
+                '../ugk_trainer/assets/pose_hub/app-pack-r2-v10/catalog.json',
               ).readAsStringSync(),
             )
             as Map<String, Object?>;

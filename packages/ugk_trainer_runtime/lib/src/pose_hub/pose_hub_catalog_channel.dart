@@ -106,7 +106,8 @@ class PoseHubCatalogPointer {
     required this.catalogSha256,
     required this.catalogBytes,
     required this.minSdk,
-    required this.publishedAt,
+    this.publishedAt,
+    this.publishedAtUnparsed = false,
   });
 
   static const supportedSchema = 1;
@@ -117,7 +118,12 @@ class PoseHubCatalogPointer {
   final String catalogSha256;
   final int catalogBytes;
   final String minSdk;
-  final DateTime publishedAt;
+
+  /// Optional display metadata; it never controls catalogue admission.
+  final DateTime? publishedAt;
+
+  /// A `published_at` value was supplied but could not be parsed.
+  final bool publishedAtUnparsed;
 
   factory PoseHubCatalogPointer.fromBytes(List<int> bytes) =>
       PoseHubCatalogPointer.fromJson(jsonDecode(utf8.decode(bytes)));
@@ -155,9 +161,6 @@ class PoseHubCatalogPointer {
     final publishedAt = published is String
         ? DateTime.tryParse(published)
         : null;
-    if (publishedAt == null) {
-      throw const FormatException('pointer.published_at invalid');
-    }
     return PoseHubCatalogPointer(
       schema: schema as int,
       pack: pack,
@@ -166,6 +169,8 @@ class PoseHubCatalogPointer {
       catalogBytes: size,
       minSdk: minSdk,
       publishedAt: publishedAt,
+      publishedAtUnparsed:
+          json.containsKey('published_at') && publishedAt == null,
     );
   }
 }

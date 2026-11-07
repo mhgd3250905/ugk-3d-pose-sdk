@@ -44,6 +44,21 @@ void main() {
 
   Map<String, Object?> fresh() => _read('$_pack/catalog.json');
 
+  test(
+    'canonical and inline views carry the selected pack image descriptors',
+    () {
+      for (final source in [pack, PoseHubAppTestCatalog.fromJson(original)]) {
+        final action = source.semanticCompleteActions.first;
+        final drill = source.toAiCatalog()[action.id]!;
+        final media = drill.raw['poseHubMedia']! as Map<String, Object?>;
+        expect(media['video'], action.video.raw);
+        expect(media['cover'], action.cover.raw);
+        expect(media['thumbnail'], action.thumbnail.raw);
+        expect(jsonDecode(jsonEncode(drill.raw)), isA<Map<String, dynamic>>());
+      }
+    },
+  );
+
   Map<String, Object?> downloadFile([Object? url]) => {
     'path': 'media/demo-A/demo-A.rgb-alpha.mp4',
     'bytes': 123,
@@ -372,10 +387,11 @@ void main() {
       expect(base, hasLength(142));
       // Canonical definitions stay exact. One that authors no rhythm only
       // gains the pack's execution pace as `rhythm` (absent when none).
+      // Presentation descriptors are checked separately from training fields.
       var paced = 0;
       for (final drill in base) {
         final id = drill['id']! as String;
-        final delivered = ai[id]!.raw;
+        final delivered = {...ai[id]!.raw}..remove('poseHubMedia');
         if (drill.containsKey('rhythm')) {
           expect(delivered, drill, reason: id);
           continue;

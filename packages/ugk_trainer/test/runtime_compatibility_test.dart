@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -265,15 +266,24 @@ void main() {
     'legacy bundled catalogue and default standing poster still render',
     (tester) async {
       final catalog = await legacy.PoseHubActionLibrary.load();
-      expect(catalog.allActions, hasLength(219));
+      expect(catalog.allActions, hasLength(249));
       final action = catalog.tryGet('s-butterfly')!;
       final key =
-          '${legacy.PoseHubActionLibrary.assetRoot}standing/${action.id}.webp';
+          '${legacy.PoseHubActionLibrary.standingAssetRoot}${action.id}.webp';
       final image = _bytes(await rootBundle.load(key));
-      expect(
-        sha256.convert(image).toString(),
-        '837b5a745e7205cecc6c16e17dde6471d3cffe4639c908e5dd9d643db5e87a1e',
+      final standingIndex = await tester.runAsync(
+        () async =>
+            jsonDecode(
+                  await rootBundle.loadString(
+                    '${legacy.PoseHubActionLibrary.standingAssetRoot}index.json',
+                  ),
+                )
+                as Map<String, dynamic>,
       );
+      final record =
+          (standingIndex!['actions'] as Map<String, dynamic>)[action.id]
+              as Map<String, dynamic>;
+      expect(sha256.convert(image).toString(), record['imageSha256']);
       await tester.pumpWidget(
         MaterialApp(
           home: SizedBox(
@@ -290,7 +300,7 @@ void main() {
       expect(provider.package, 'ugk_trainer');
       expect(
         provider.assetName,
-        'assets/pose_hub/app-test-pack-r1/standing/s-butterfly.webp',
+        'assets/pose_hub/app-pack-r2-v10/standing/s-butterfly.webp',
       );
     },
   );

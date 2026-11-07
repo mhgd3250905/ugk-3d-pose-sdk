@@ -430,6 +430,17 @@ CoachExercise toCoachExercise(BuildContext context, coach.Drill drill) {
 }
 
 CoachExercise _withCatalogArtwork(CoachExercise exercise, coach.Drill drill) {
+  const sdkArtworkRoot = 'packages/ugk_trainer/assets/pose_hub/';
+  bool isHostArtwork(String? asset) =>
+      asset != null && asset.isNotEmpty && !asset.startsWith(sdkArtworkRoot);
+
+  // Host theme covers, cutouts and explicit renderers retain precedence.
+  if (isHostArtwork(exercise.poster) ||
+      isHostArtwork(exercise.cutout) ||
+      isHostArtwork(exercise.stillCutout) ||
+      exercise.artworkBuilder != null) {
+    return exercise;
+  }
   final media = drill.raw['poseHubMedia'];
   if (media is! Map<String, Object?>) return exercise;
   final video = coach.PoseHubPackFile.fromJson(media['video']);

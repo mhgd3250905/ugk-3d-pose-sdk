@@ -901,19 +901,40 @@ void main() {
     testWidgets(
       'iOS ${failCreate ? 'create' : 'ready'} failure shows explicit retry status',
       (tester) async {
+        final handle = DrillMediaPlaybackHandle();
+        addTearDown(handle.dispose);
         repository.ready = true;
         platform.failCreate = failCreate;
         await _mount(
           tester,
           bundle,
-          child: TrainingActionMedia(actionId: _actionId, policy: policy),
+          child: Stack(
+            children: [
+              TrainingActionMedia(
+                actionId: _actionId,
+                policy: policy,
+                playbackHandle: handle,
+              ),
+              TrainerMediaDownloadIndicator(
+                state: repository.watchFile(catalog.tryGet(_actionId)!.video),
+                actionId: _actionId,
+                theme: TrainerTheme.light,
+                strings: TrainerStrings.zh(),
+                playbackHandle: handle,
+                onRetry: handle.retry,
+              ),
+            ],
+          ),
         );
         await tester.pump();
         await tester.pump();
         if (!failCreate) platform.emit(1, 'error');
         await tester.pump();
         await tester.pump();
-        expect(find.text('视频暂不可用，训练继续 · 重试'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('media-download-retry')),
+          findsOneWidget,
+        );
         expect(find.byType(TrainerPoster), findsOneWidget);
         expect(find.byType(UgkPackedAlphaVideo), findsNothing);
         expect(order, contains('release:$_actionId'));

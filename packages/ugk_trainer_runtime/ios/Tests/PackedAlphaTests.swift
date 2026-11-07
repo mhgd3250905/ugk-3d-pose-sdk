@@ -25,35 +25,50 @@ final class PackedAlphaTests: XCTestCase {
     writer.add(input)
     XCTAssertTrue(writer.startWriting())
     writer.startSession(atSourceTime: .zero)
-    for index in 0..<30 {
-      let deadline = Date().addingTimeInterval(5)
-      while !input.isReadyForMoreMediaData && Date() < deadline { Thread.sleep(forTimeInterval: 0.001) }
-      XCTAssertTrue(input.isReadyForMoreMediaData)
-      var buffer: CVPixelBuffer?
-      XCTAssertEqual(CVPixelBufferCreate(kCFAllocatorDefault, width, height,
-        kCVPixelFormatType_32BGRA, nil, &buffer), kCVReturnSuccess)
-      let frame = try XCTUnwrap(buffer)
-      CVPixelBufferLockBaseAddress(frame, [])
-      let base = try XCTUnwrap(CVPixelBufferGetBaseAddress(frame)).assumingMemoryBound(to: UInt8.self)
-      let stride = CVPixelBufferGetBytesPerRow(frame)
-      for y in 0..<height {
-        for x in 0..<width {
-          let pixel = base + y * stride + x * 4
-          // Upper half: red. Lower half: alpha 0 (left) and 1 (right).
-          let alpha: UInt8 = x < width / 2 ? 0 : 255
-          pixel[0] = y < height / 2 ? 0 : alpha
-          pixel[1] = y < height / 2 ? 0 : alpha
-          pixel[2] = y < height / 2 ? 255 : alpha
-          pixel[3] = 255
-        }
+    var buffer: CVPixelBuffer?
+    XCTAssertEqual(CVPixelBufferCreate(kCFAllocatorDefault, width, height,
+      kCVPixelFormatType_32BGRA, nil, &buffer), kCVReturnSuccess)
+    let frame = try XCTUnwrap(buffer)
+    CVPixelBufferLockBaseAddress(frame, [])
+    let base = try XCTUnwrap(CVPixelBufferGetBaseAddress(frame)).assumingMemoryBound(to: UInt8.self)
+    let stride = CVPixelBufferGetBytesPerRow(frame)
+    for y in 0..<height {
+      for x in 0..<width {
+        let pixel = base + y * stride + x * 4
+        // Upper half: red. Lower half: alpha 0 (left) and 1 (right).
+        let alpha: UInt8 = x < width / 2 ? 0 : 255
+        pixel[0] = y < height / 2 ? 0 : alpha
+        pixel[1] = y < height / 2 ? 0 : alpha
+        pixel[2] = y < height / 2 ? 255 : alpha
+        pixel[3] = 255
       }
-      CVPixelBufferUnlockBaseAddress(frame, [])
-      XCTAssertTrue(adaptor.append(frame, withPresentationTime: CMTime(value: Int64(index), timescale: 30)))
     }
-    input.markAsFinished()
+    CVPixelBufferUnlockBaseAddress(frame, [])
     let done = expectation(description: "H264 fixture")
-    writer.finishWriting { done.fulfill() }
-    wait(for: [done], timeout: 10)
+    let encoding = DispatchQueue(label: "ugk.packed-alpha.fixture")
+    // Let AVFoundation signal capacity on a serial queue. Polling on the test
+    // thread can starve encoding; never append after a readiness timeout.
+    var index = 0
+    input.requestMediaDataWhenReady(on: encoding) {
+      guard index < 30 else { return }
+      while input.isReadyForMoreMediaData && index < 30 {
+        let appended = adaptor.append(frame,
+          withPresentationTime: CMTime(value: Int64(index), timescale: 30))
+        XCTAssertTrue(appended)
+        guard appended else {
+          index = 30
+          writer.cancelWriting()
+          done.fulfill()
+          return
+        }
+        index += 1
+      }
+      if index == 30 {
+        input.markAsFinished()
+        writer.finishWriting { done.fulfill() }
+      }
+    }
+    wait(for: [done], timeout: 30)
     XCTAssertEqual(writer.status, .completed)
     return url
   }

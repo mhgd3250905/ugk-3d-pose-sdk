@@ -15,6 +15,12 @@ main 块现按 rounds 整块重复，保留每轮分组、双侧与分段；轮�
 动作库与单练可选的宿主导航、延迟开始、退出钩子及预加载媒体接入见
 [动作库与单练入口](docs/single-practice-entry.md)。省略新参数时保留既有行为。
 
+`TrainerPlayer` 的示范视频下载 HUD 默认开启，可用 `showMediaDownloadIndicator: false` 隐藏；
+宿主自行下载时传 `mediaDownloadState` 和 `onMediaDownloadRetry`，并绑定播放句柄供 HUD 确认首帧。
+`TrainingActionMedia.prefetchWhenIdle` 默认 `false`，仅当前训练动作由播放器开启，列表与详情仍等待明确播放。
+目录仓库的 `onTiming` 日志、优先级队列及 ready 加首帧的完成条件见
+[下载进度与提速接入说明](../../docs/media-progress-r1.md)。SF 的仓库、状态和日志桥接另单接入。
+
 ## 训练体验修复（待验收分支）
 
 新增可选视频展示阶段 `TrainerStartMode.preview`、共享要点轮播及半屏完整步骤、真实训练数据完成页和可选感受完成事件。默认仍直接训练；旧 `onFinished` 自动保存保留，新增 `onCompleted` 可用同一 session ID 更新感受。[接入与兼容说明](docs/training-ux.md)，[浅深前后截图](../../docs/visuals/training-ux-1/README.md)。本轮不修改视频素材、取景或裁切。
@@ -261,6 +267,9 @@ await media.downloadPackage();
 final usedBytes = await media.cacheBytes();
 await media.clearCache();
 ```
+
+上例为旧版 manifest 仓库的预取 API。目录逐文件仓库 `TrainingMediaPolicy` 的当前动作与下一动作调度，
+见[下载进度与提速接入说明](../../docs/media-progress-r1.md)，不套用到上例。
 
 主清单打进 assets；只带 `packages/builtin.json`、`packages/realistic-dark.json` 两份子清单，`common-lossy/covers/` 和缩略图，以及 builtin 所列 32 段 realistic/dark 视频。保持 `v0.3.0-app/` 与 `v0.3.0/` 相邻，仓库按清单相对路径解析。主清单可信于 APK，子清单按主清单的 SHA-256 和长度验证；额外皮肤的子清单随包从相同镜像下载。`skin` / `theme` 是预留接口，宿主无需提供额外皮肤界面。
 

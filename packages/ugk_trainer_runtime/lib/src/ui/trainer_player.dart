@@ -23,13 +23,16 @@ import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import '../engine/session.dart';
+import '../media/catalog_media_repository.dart';
 import '../media/drill_media.dart';
 import '../media/drill_media_view.dart';
+import '../media/media_playback_handle.dart';
 import '../media/packed_alpha_video.dart';
 import '../media/training_action_media.dart';
 import '../media/training_media_policy.dart';
@@ -50,6 +53,7 @@ import 'countdown_ring.dart';
 import 'trainer_completion.dart';
 import 'trainer_cue_carousel.dart';
 import 'trainer_experience.dart';
+import 'trainer_media_download_indicator.dart';
 import 'trainer_poster.dart';
 import 'trainer_stage.dart';
 import 'trainer_strings.dart';
@@ -211,6 +215,7 @@ class TrainerMediaRequest {
     required this.strings,
     this.mediaPreparer,
     this.canPlay = true,
+    this.playbackHandle,
   });
   final TrainerDrill drill;
   final bool paused;
@@ -226,6 +231,10 @@ class TrainerMediaRequest {
 
   /// Shared session queue for custom PoseHub media builders.
   final PoseHubMediaPreparer? mediaPreparer;
+
+  /// Bind a custom demonstration view to this handle to synchronize its first
+  /// frame and decoder failure with the shared download indicator.
+  final DrillMediaPlaybackHandle? playbackHandle;
 }
 
 typedef TrainerMediaBuilder =
@@ -292,6 +301,9 @@ class TrainerPlayer extends StatefulWidget {
     this.doseLabel,
     this.announceDiscomfortPause = true,
     this.mediaBuilder,
+    this.showMediaDownloadIndicator = true,
+    this.mediaDownloadState,
+    this.onMediaDownloadRetry,
     this.poseHubCatalog,
     this.poseHubActionOf,
     this.poseHubMediaBaseUri,
@@ -399,6 +411,18 @@ class TrainerPlayer extends StatefulWidget {
 
   /// Null: [DrillMediaView] of [TrainerDrill.media].
   final TrainerMediaBuilder? mediaBuilder;
+
+  /// Show the shared HUD download/retry control. Does not change downloading.
+  final bool showMediaDownloadIndicator;
+
+  /// Host-owned status for the currently displayed action. When omitted, the
+  /// shared TrainingMediaPolicy repository supplies its video's status.
+  /// Hosts must update this listenable when their displayed action changes.
+  final ValueListenable<CatalogMediaDownloadState>? mediaDownloadState;
+
+  /// Retries a host-owned download/decoder. Without a host state override the
+  /// SDK retries its own current video and bound decoder.
+  final VoidCallback? onMediaDownloadRetry;
 
   /// Optional PoseHub rendering and ordered prefetch for the shared player.
   /// A custom [mediaBuilder] can use [TrainerMediaRequest.mediaPreparer] to
@@ -509,6 +533,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   int _mediaGeneration = -1;
   TrainingMediaPolicy? _publicMediaPolicy;
   String? _publicPrefetchIds;
+  final _mediaPlaybackHandle = DrillMediaPlaybackHandle();
   int _interruptionRevision = 0;
 
   String _shownKey = '';
@@ -767,6 +792,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _startTimer?.cancel();
     _navigationVoice?.cancel();
     _progress.dispose();
+    _mediaPlaybackHandle.dispose();
     unawaited(_interruptions?.cancel());
     if (_screenAwakeHeld) ScreenAwake.release();
     if (!_waitingForStart) {
@@ -915,13 +941,20 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   void _configureMedia() {
     final preparer = widget.poseHubMediaPreparer;
-    if (_mediaPrefetcher?.host != preparer) {
+    // Legacy host preparers keep their existing queue until the host opts
+    // into download-state integration. The policy repository has its own
+    // current-video/next-video scheduling independently of this bridge.
+    final nextOnly = widget.mediaDownloadState != null;
+    final scheduler = _mediaPrefetcher;
+    if (scheduler?.host != preparer ||
+        (scheduler != null && scheduler.prefetchNextOnly != nextOnly)) {
       _retireMedia();
       _mediaPrefetcher = preparer == null
           ? null
           : PoseHubMediaPrefetcher(
               preparer,
               afterCancellation: _mediaRetirement,
+              prefetchNextOnly: nextOnly,
             );
     }
     _mediaGeneration = -1;
@@ -937,18 +970,36 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   void _prioritizeMedia() {
     final policy = TrainingMediaPolicyScope.read(context);
-    if (policy != null) {
+    if (policy != null &&
+        !_exitingEarly &&
+        !_engine.done &&
+        UgkPackedAlphaVideo.isSupported) {
       final ids = [
-        for (final id in _plan.exerciseIds)
+        for (final id in {
+          for (final phase in _engine.phases.skip(_engine.index))
+            ?phase.exerciseId,
+        })
           if (widget.drillOf(id) case final drill?)
             if (drill.media?.videoAvailable != false)
               drill.media?.actionId ?? drill.id,
       ];
-      final key = ids.join('|');
+      final upcoming = ids.take(2).toList();
+      final key = upcoming.join('|');
       if (!identical(policy, _publicMediaPolicy) || key != _publicPrefetchIds) {
         _publicMediaPolicy = policy;
         _publicPrefetchIds = key;
-        unawaited(policy.prefetchActions(ids));
+        unawaited(
+          policy.prefetchActions(
+            upcoming,
+            isCurrent: () =>
+                mounted &&
+                !_disposed &&
+                !_exitingEarly &&
+                !_engine.done &&
+                identical(policy, _publicMediaPolicy) &&
+                key == _publicPrefetchIds,
+          ),
+        );
       }
     }
     if (_exitingEarly) return;
@@ -986,7 +1037,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (oldWidget.poseHubCatalog != widget.poseHubCatalog ||
         oldWidget.poseHubActionOf != widget.poseHubActionOf ||
         oldWidget.poseHubMediaPreparer != widget.poseHubMediaPreparer ||
-        oldWidget.poseHubMediaBaseUri != widget.poseHubMediaBaseUri) {
+        oldWidget.poseHubMediaBaseUri != widget.poseHubMediaBaseUri ||
+        (oldWidget.mediaDownloadState == null) !=
+            (widget.mediaDownloadState == null)) {
       _configureMedia();
     }
   }
@@ -1874,12 +1927,15 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   /// A small solid HUD chip on the stage (32 px, on the fixed media body,
   /// so it reads at arm's length without covering the figure).
+  static const _tagHeight = 32.0;
+  static const _discomfortVerticalPadding = 6.0;
+
   Widget _tag(String label, {IconData? icon, Color? color, Key? key}) =>
       TrainerSurface(
         key: key,
         theme: _th,
 
-        height: 32,
+        height: _tagHeight,
         padding: const EdgeInsets.symmetric(horizontal: TrainerSpace.x3),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1939,6 +1995,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       theme: theme,
       strings: _s,
       mediaPreparer: _mediaPrefetcher,
+      playbackHandle: _mediaPlaybackHandle,
       canPlay:
           experience == null ||
           (experience.control.canPlay &&
@@ -1948,18 +2005,30 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (widget.mediaBuilder != null) return widget.mediaBuilder!(context, req);
     final policy = TrainingMediaPolicyScope.maybeOf(context);
     if (policy != null) {
+      if (d.media?.videoAvailable == false) {
+        final poster = policy.posterAssetFor(d.media?.actionId ?? d.id);
+        return poster == null
+            ? ColoredBox(color: theme.mediaStage)
+            : TrainerPoster(
+                asset: poster,
+                bundle: experience?.bundle,
+                decodeWidth: experience?.decodeWidth,
+                mirrored: req.mirrored,
+                radius: 0,
+                stageColor: theme.mediaStage,
+              );
+      }
       return TrainingActionMedia(
         key: const ValueKey('player-public-media'),
         actionId: d.media?.actionId ?? d.id,
         policy: policy,
-        playing:
-            req.canPlay &&
-            d.media?.videoAvailable != false &&
-            (_preview || _exitingEarly || !_engine.done),
+        prefetchWhenIdle: true,
+        playing: req.canPlay && (_preview || _exitingEarly || !_engine.done),
         paused: req.paused,
         mirrored: req.mirrored,
         radius: 0,
         stage: theme.mediaStage,
+        playbackHandle: _mediaPlaybackHandle,
       );
     }
     if (experience != null && !req.canPlay) {
@@ -2006,6 +2075,48 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       stage: _th.mediaStage,
       errorLabel: _s.mediaUnavailable,
       errorColor: _th.muted,
+      playbackHandle: _mediaPlaybackHandle,
+    );
+  }
+
+  Widget _mediaDownloadHud(TrainerDrill drill) {
+    if (!widget.showMediaDownloadIndicator ||
+        drill.media?.videoAvailable == false ||
+        !UgkPackedAlphaVideo.isSupported) {
+      return const SizedBox.shrink();
+    }
+    final id = drill.media?.actionId ?? drill.id;
+    final policy = TrainingMediaPolicyScope.maybeOf(context);
+    // DrillMediaView keeps the host media id in its existing inspection API.
+    final playbackMediaId = drill.media?.id ?? drill.id;
+    final video = policy?.actionFor(id)?.video;
+    final state =
+        widget.mediaDownloadState ??
+        (video == null ? null : policy!.repository.watchFile(video));
+    if (state == null) return const SizedBox.shrink();
+    return TrainerMediaDownloadIndicator(
+      key: ValueKey('media-download-$id'),
+      state: state,
+      actionId: id,
+      playbackMediaId: playbackMediaId,
+      theme: _th,
+      strings: _s,
+      playbackHandle: _mediaPlaybackHandle,
+      onRetry: () {
+        if (widget.onMediaDownloadRetry case final retry?) {
+          retry();
+        } else if ((_mediaPlaybackHandle.mediaId == id ||
+                _mediaPlaybackHandle.mediaId == playbackMediaId) &&
+            _mediaPlaybackHandle.isBound) {
+          _mediaPlaybackHandle.retry();
+        } else if (policy != null && video != null) {
+          unawaited(
+            policy.repository
+                .ensureFileWithPriority(video)
+                .then<void>((_) {}, onError: (Object _, StackTrace _) {}),
+          );
+        }
+      },
     );
   }
 
@@ -2075,6 +2186,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         // pendants hang.
         final top = midTop + math.max(0.0, room - v) * .35;
         final tagTop = midTop + TrainerSpace.x1;
+        final discomfortBottom =
+            tagTop + _discomfortVerticalPadding + _tagHeight;
         final mediaRadius = _th.copyWith(radius: 0);
         final bottomPendant = _restFeedback(p);
         final topPendant = p.kind == PhaseKind.switchSide
@@ -2279,7 +2392,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                                   child: Padding(
                                     // 32 px chip, 44 px touch target.
                                     padding: const EdgeInsets.symmetric(
-                                      vertical: 6,
+                                      vertical: _discomfortVerticalPadding,
                                     ),
                                     child: _tag(
                                       _s.discomfort,
@@ -2296,6 +2409,21 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                       ),
                     ),
                   ),
+                ),
+              ),
+            if (d != null)
+              Positioned(
+                right: TrainerSpace.x3,
+                // Position the visual below the actual tag extent; compensate
+                // for the indicator's larger touch target using its own inset.
+                top:
+                    discomfortBottom +
+                    TrainerSpace.x2 -
+                    TrainerMediaDownloadIndicator.visualInset,
+                child: _chromeLayer(
+                  _mediaDownloadHud(d),
+                  _TrainerChromeLayer.hud,
+                  identity: 'media-download',
                 ),
               ),
             Positioned(

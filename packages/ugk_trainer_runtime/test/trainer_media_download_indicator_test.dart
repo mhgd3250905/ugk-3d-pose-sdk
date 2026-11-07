@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ugk_trainer_runtime/src/ui/trainer_media_download_indicator.dart';
 import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart';
 
 const _id = 'h-squat';

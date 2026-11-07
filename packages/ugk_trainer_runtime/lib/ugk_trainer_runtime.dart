@@ -35,6 +35,7 @@ export 'src/pose_hub/pose_hub_pack_media.dart';
 export 'src/ui/countdown_ring.dart';
 export 'src/ui/trainer_cue_carousel.dart';
 export 'src/ui/trainer_experience.dart';
+export 'src/ui/trainer_media_download_indicator.dart';
 export 'src/ui/trainer_player.dart';
 export 'src/ui/trainer_poster.dart';
 export 'src/ui/trainer_slide_route.dart';

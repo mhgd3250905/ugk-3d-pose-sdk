@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -270,10 +271,19 @@ void main() {
       final key =
           '${legacy.PoseHubActionLibrary.standingAssetRoot}${action.id}.webp';
       final image = _bytes(await rootBundle.load(key));
-      expect(
-        sha256.convert(image).toString(),
-        '128acef030bc394582250bec376965d438b32fbb023a112428e72a29e204c13f',
+      final standingIndex = await tester.runAsync(
+        () async =>
+            jsonDecode(
+                  await rootBundle.loadString(
+                    '${legacy.PoseHubActionLibrary.standingAssetRoot}index.json',
+                  ),
+                )
+                as Map<String, dynamic>,
       );
+      final record =
+          (standingIndex!['actions'] as Map<String, dynamic>)[action.id]
+              as Map<String, dynamic>;
+      expect(sha256.convert(image).toString(), record['imageSha256']);
       await tester.pumpWidget(
         MaterialApp(
           home: SizedBox(
@@ -290,7 +300,7 @@ void main() {
       expect(provider.package, 'ugk_trainer');
       expect(
         provider.assetName,
-        'assets/pose_hub/app-pack-r2-v1/standing/s-butterfly.webp',
+        'assets/pose_hub/app-pack-r2-v7/standing/s-butterfly.webp',
       );
     },
   );

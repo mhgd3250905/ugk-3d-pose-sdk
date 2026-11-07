@@ -574,7 +574,7 @@ class _PlanCardState extends State<CoachPlanCard>
     // unfold never decodes an image mid-flight.
     for (final i in widget.plan.items) {
       final e = widget.library.tryGet(i.exerciseId);
-      if (e == null) continue;
+      if (e == null || e.artworkBuilder != null) continue;
       final paths = [
         e.poster,
         if ((e.cutout != null)) e.stillCutout ?? e.cutout!,
@@ -602,7 +602,7 @@ class _PlanCardState extends State<CoachPlanCard>
         }
       }
     }
-    final asset = cover?.cutout == null
+    final asset = cover?.cutout == null || cover?.artworkBuilder != null
         ? null
         : cover!.stillCutout ?? cover.cutout!;
     final configuration = createLocalImageConfiguration(context);
@@ -2026,6 +2026,7 @@ class _Media extends StatelessWidget {
                     ? Alignment.center
                     : const Alignment(0, -.15),
               ),
+              thumbnail: thumbnail,
             ),
           ),
       ],
@@ -2033,7 +2034,12 @@ class _Media extends StatelessWidget {
   }
 }
 
-Widget _mediaImage(BuildContext context, CoachMediaRequest request) =>
+Widget _mediaImage(
+  BuildContext context,
+  CoachMediaRequest request, {
+  bool thumbnail = false,
+}) =>
+    request.exercise.artworkBuilder?.call(context, thumbnail: thumbnail) ??
     CoachUiTheme.of(context).builders.media?.call(context, request) ??
     Image.asset(
       request.asset,

@@ -2,7 +2,8 @@
 """Align the bundled Pose-Hub catalogues with a published release channel.
 
 Only reads public HTTPS objects. --check does not write any local files.
-Uses Python's standard library; run from any working directory.
+Uses Python's standard library and FFmpeg when new standing frames are needed.
+Run from any working directory.
 """
 from __future__ import annotations
 
@@ -14,6 +15,10 @@ import re
 import sys
 from urllib.parse import urljoin, urlsplit
 from urllib.request import Request, urlopen
+
+# A first --check on a clean checkout must not create helper bytecode either.
+sys.dont_write_bytecode = True
+from bundled_standing import build_standing, check_standing, decode_frame_zero
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -108,7 +113,31 @@ def pack_path(root: Path, pack: str) -> Path:
     return target
 
 
-def sync(root: Path, channel: str, check: bool = False, fetch=download) -> int:
+def standing_path(root: Path, asset_root: str) -> Path:
+    path = (root / asset_root).resolve()
+    assets = (root / ASSETS).resolve()
+    if (path.name != "standing" or path.parent.parent != assets
+            or not path.parent.name.startswith("app-pack-")):
+        raise SyncError("Standing directory escapes the pack asset directory")
+    return path
+
+
+def remove_standing(root: Path, directory: Path) -> None:
+    # Delete only the replaced bundle's explicit image/index files. No recursive
+    # delete; unrelated files and other asset directories are preserved.
+    checked = standing_path(root, directory.relative_to(root).as_posix())
+    if not checked.is_dir():
+        return
+    for path in [*checked.glob("*.webp"), checked / "index.json"]:
+        if path.is_file():
+            path.unlink()
+    if not any(checked.iterdir()):
+        checked.rmdir()
+
+
+def sync(root: Path, channel: str, check: bool = False, fetch=download,
+         media_roots=(), ffmpeg: str = "ffmpeg", render=decode_frame_zero) -> int:
+    root = root.resolve()
     pointer, catalog, semantic, media_base = read_release(channel, fetch)
     pack = pointer["pack"]
     library_path = root / LIBRARY
@@ -117,8 +146,13 @@ def sync(root: Path, channel: str, check: bool = False, fetch=download) -> int:
     if old_root is None or not PACK_PATTERN.fullmatch(old_root[1]):
         raise SyncError("Cannot identify the existing bundled pack directory")
     old_pack = old_root[1]
+    old_standing_match = re.search(r"static const standingAssetRoot\s*=\s*'([^']+)'", source)
+    if old_standing_match is None:
+        raise SyncError("Cannot identify the existing standing image directory")
+    previous_standing = standing_path(root, old_standing_match[1])
     constants = {
         "assetRoot": f"packages/ugk_trainer/assets/pose_hub/app-pack-{pack}/",
+        "standingAssetRoot": f"packages/ugk_trainer/assets/pose_hub/app-pack-{pack}/standing/",
         "catalogSha256": pointer["catalog_sha256"],
         "packVersion": pack,
         "catalogDownloadUri": pointer["catalog"],
@@ -134,13 +168,35 @@ def sync(root: Path, channel: str, check: bool = False, fetch=download) -> int:
     )
     if count != 2:
         raise SyncError("Expected two bundled catalogue assets in ugk_trainer/pubspec.yaml")
+    pubspec, count = re.subn(
+        r"(?m)^(    - assets/pose_hub/)app-pack-[a-z0-9-]+/standing/$",
+        lambda match: f"{match[1]}app-pack-{pack}/standing/",
+        pubspec,
+    )
+    if count != 1:
+        raise SyncError("Expected one standing image directory in ugk_trainer/pubspec.yaml")
     target = pack_path(root, pack)
+    standing = target / "standing"
     expected = {
         target / "catalog.json": catalog,
         target / "catalog/catalog.json": semantic,
         library_path: source.encode("utf-8"),
         pubspec_path: pubspec.encode("utf-8"),
     }
+    parsed_catalog = json.loads(catalog)
+    if not check:
+        # Complete every download, SHA check and frame extraction before any
+        # live catalogue, constant or asset file is changed.
+        try:
+            posters = build_standing(
+                previous_standing, parsed_catalog, pack, media_base,
+                [Path(path).resolve() for path in media_roots],
+                root / "build/bundled-pack-sync/videos", fetch,
+                render=render, ffmpeg=ffmpeg,
+            )
+        except ValueError as error:
+            raise SyncError(str(error)) from error
+        expected.update({standing / name: data for name, data in posters.items()})
     differences = []
     for path, data in expected.items():
         actual = path.read_bytes() if path.is_file() else None
@@ -150,17 +206,19 @@ def sync(root: Path, channel: str, check: bool = False, fetch=download) -> int:
         if actual != data:
             differences.append(path)
     if check:
+        differences.extend(check_standing(standing, parsed_catalog, pack))
         for path in differences:
             print(f"Mismatch: {path.relative_to(root)}", file=sys.stderr)
         if differences:
             return 1
     else:
         # All downloads, hashes, paths and source replacements were checked
-        # before writing. Remove only the previous catalogue files; preserve
-        # standing images and any unrelated files under an older pack.
+        # before writing. Remove the replaced catalogue/standing files only.
         for path, data in expected.items():
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
+        if previous_standing != standing:
+            remove_standing(root, previous_standing)
         if old_pack != pack:
             previous = pack_path(root, old_pack)
             for relative in ("catalog.json", "catalog/catalog.json"):
@@ -179,9 +237,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--channel", choices=("beta", "stable"), required=True)
     parser.add_argument("--check", action="store_true", help="Compare only; exit 1 if the bundle differs")
+    parser.add_argument("--media-root", type=Path, action="append", default=[],
+                        help="Optional local pack directory (repeatable); video SHA must match")
+    parser.add_argument("--ffmpeg", default="ffmpeg", help="FFmpeg executable for new frame extraction")
     args = parser.parse_args()
     try:
-        return sync(ROOT, args.channel, args.check)
+        return sync(ROOT, args.channel, args.check, media_roots=args.media_root, ffmpeg=args.ffmpeg)
     except (SyncError, OSError, ValueError) as error:
         print(f"Bundle sync failed: {error}", file=sys.stderr)
         return 1

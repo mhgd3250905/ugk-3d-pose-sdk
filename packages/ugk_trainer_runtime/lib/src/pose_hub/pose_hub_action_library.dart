@@ -13,10 +13,10 @@ abstract final class PoseHubActionLibrary {
   static const assetRoot =
       'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v7/';
 
-  /// Existing standing frame-zero images stay under the r2-v1 directory
-  /// hosts already reference. Per-action media URLs come from the catalogue.
+  /// Frame-zero images and their video identity index for the bundled pack.
+  /// Other catalogue media revisions use verified cover/thumbnail caches.
   static const standingAssetRoot =
-      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v1/standing/';
+      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v7/standing/';
 
   /// Audit digest of this SDK's bundled catalogue, not an acceptance gate for
   /// other internally consistent catalogue versions.

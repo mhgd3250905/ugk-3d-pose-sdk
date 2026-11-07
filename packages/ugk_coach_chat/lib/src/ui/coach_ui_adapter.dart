@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:ugk_coach/ugk_coach.dart' as coach;
 import 'package:ugk_coach_ui/ugk_coach_ui.dart';
+import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart'
+    show PoseHubCatalogImage, TrainerTheme;
 
 import '../core/chat_models.dart' show ChatMessage;
 import '../theme/chat_controls.dart';
@@ -393,7 +395,7 @@ CoachExercise toCoachExercise(BuildContext context, coach.Drill drill) {
     drill.id,
     theme.colors.brightness,
   );
-  if (resolved != null) return resolved;
+  if (resolved != null) return _withCatalogArtwork(resolved, drill);
   final cover = theme.visual.assetResolverFor
       ?.call(theme.colors.brightness)
       .resolve(drill)
@@ -402,25 +404,61 @@ CoachExercise toCoachExercise(BuildContext context, coach.Drill drill) {
   final gear = drill.equipment
       .where((id) => id != 'none' && id.isNotEmpty)
       .toSet();
+  return _withCatalogArtwork(
+    CoachExercise(
+      id: drill.id,
+      name: drill.name.of('zh'),
+      poster: cover ?? '',
+      stage: coachMediaPalette(theme.colors),
+      categoryLabel:
+          const {
+            'strength': '力量',
+            'core': '核心',
+            'cardio': '心肺',
+            'mobility': '灵活',
+            'stretch': '拉伸',
+          }[drill.category] ??
+          drill.category,
+      levelLabel: coach.levelZh(drill.level),
+      equipmentLabel: gear.isEmpty
+          ? '徒手'
+          : gear.map(chatEquipmentLabel).join('、'),
+      cues: drill.cues['zh'] ?? const [],
+    ),
+    drill,
+  );
+}
+
+CoachExercise _withCatalogArtwork(CoachExercise exercise, coach.Drill drill) {
+  final media = drill.raw['poseHubMedia'];
+  if (media is! Map<String, Object?>) return exercise;
+  final video = coach.PoseHubPackFile.fromJson(media['video']);
+  final cover = coach.PoseHubPackFile.fromJson(media['cover']);
+  final thumbnailFile = coach.PoseHubPackFile.fromJson(media['thumbnail']);
+  final base = media['baseUri'];
   return CoachExercise(
-    id: drill.id,
-    name: drill.name.of('zh'),
-    poster: cover ?? '',
-    stage: coachMediaPalette(theme.colors),
-    categoryLabel:
-        const {
-          'strength': '力量',
-          'core': '核心',
-          'cardio': '心肺',
-          'mobility': '灵活',
-          'stretch': '拉伸',
-        }[drill.category] ??
-        drill.category,
-    levelLabel: coach.levelZh(drill.level),
-    equipmentLabel: gear.isEmpty
-        ? '徒手'
-        : gear.map(chatEquipmentLabel).join('、'),
-    cues: drill.cues['zh'] ?? const [],
+    id: exercise.id,
+    name: exercise.name,
+    poster: exercise.poster,
+    stage: exercise.stage,
+    categoryLabel: exercise.categoryLabel,
+    cues: exercise.cues,
+    cutout: exercise.cutout,
+    stillCutout: exercise.stillCutout,
+    levelLabel: exercise.levelLabel,
+    equipmentLabel: exercise.equipmentLabel,
+    artworkBuilder: (context, {required bool thumbnail}) => PoseHubCatalogImage(
+      id: drill.id,
+      name: exercise.name,
+      video: video,
+      cover: cover,
+      thumbnailFile: thumbnailFile,
+      thumbnail: thumbnail,
+      theme: Theme.of(context).brightness == Brightness.dark
+          ? TrainerTheme.dark
+          : TrainerTheme.light,
+      mediaBaseUri: base is String ? Uri.tryParse(base) : null,
+    ),
   );
 }
 

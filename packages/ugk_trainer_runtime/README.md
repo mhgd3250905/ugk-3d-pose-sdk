@@ -32,6 +32,14 @@ SDK 内部使用相对路径指向同一 Git 树的兄弟包；宿主仍固定�
 `chromeAnimation`、`beforeExitPop`、`onExitStarted` 无需重新实现。
 入口详见[旧训练器接入文档](../ugk_trainer/README.md)。
 
+示范视频的 HUD、宿主下载状态、`onTiming` 运行日志及当前动作优先队列见
+[下载进度与提速接入说明](../../docs/media-progress-r1.md)。
+`TrainerPlayer.showMediaDownloadIndicator` 默认 `true`；宿主自行下载时可提供
+`mediaDownloadState`（`ValueListenable<CatalogMediaDownloadState>`）和 `onMediaDownloadRetry`，
+自定义媒体视图还须绑定 `request.playbackHandle`：下载 ready 和当前视频首帧均到达后 HUD 才完成。
+`TrainingActionMedia.prefetchWhenIdle` 默认 `false`，SDK 仅为播放器当前动作开启；
+列表、详情和其它未播放预览不提前下载。`onTiming` 由宿主接入既有日志存储，SF 接入另单处理。
+
 ## 动作资源由宿主明确提供
 
 用[白名单闭包生成工具](../../docs/trainer-assets-closure.md)把获批 manifest 生成到

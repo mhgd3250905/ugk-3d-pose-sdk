@@ -155,6 +155,7 @@ void main() {
 
   Future<CatalogMediaRepository> create({
     CatalogBundledFileLoader? bundled,
+    CatalogMediaTimingCallback? onTiming,
     List<Uri>? mediaBases,
     bool offline = false,
     Duration timeout = const Duration(seconds: 3),
@@ -172,6 +173,7 @@ void main() {
       packVersion: packVersion,
       rootDirectory: support.path,
       bundledFileLoader: bundled,
+      onTiming: onTiming,
       allowInsecureLocalhost: true,
       timeout: timeout,
       progressInterval: progressInterval,
@@ -232,6 +234,44 @@ void main() {
         CatalogMediaDownloadPhase.ready,
       );
       await noParts(repo);
+    },
+  );
+
+  test(
+    'media.timing records verified file stages once for a shared file job',
+    () async {
+      final timings = <CatalogMediaTiming>[];
+      final repo = await create(onTiming: timings.add);
+      final file = fixture.first.video;
+      final job = repo.ensureFile(file);
+      expect(repo.ensureFile(file), same(job));
+      await job;
+      expect(timings, hasLength(1));
+      final timing = timings.single;
+      expect(timing.actionId, fixture.first.id);
+      expect(timing.kind, 'video');
+      expect(timing.bytes, file.bytes);
+      expect(timing.result, 'ready');
+      expect(timing.source, 'network');
+      expect(timing.baseIndex, 1);
+      expect(timing.retries, 0);
+      expect(timing.code, isNull);
+      final stages = [
+        timing.enqueuedAt,
+        timing.acquiredAt!,
+        timing.requestStartedAt!,
+        timing.firstByteAt!,
+        timing.downloadCompletedAt!,
+        timing.verifiedAt!,
+        timing.completedAt,
+      ];
+      for (var i = 1; i < stages.length; i++) {
+        expect(stages[i].isBefore(stages[i - 1]), isFalse);
+      }
+      expect(timing.toFields()['ttfbMs'], isNonNegative);
+      expect(timing.toLogLine(), startsWith('media.timing {'));
+      expect(timing.toLogLine(), isNot(contains(base.host)));
+      expect(requested, ['/${file.path}']);
     },
   );
 
@@ -428,6 +468,148 @@ void main() {
   );
 
   test(
+    'current file passes queued prefetch without interrupting active files',
+    () async {
+      fixture = _Fixture(actions: 5);
+      final actions = fixture.catalog.allActions;
+      final timings = <CatalogMediaTiming>[];
+      final gates = [Completer<void>(), Completer<void>()];
+      handler = (request) async {
+        final path = request.uri.path.substring(1);
+        final active = actions
+            .take(2)
+            .toList()
+            .indexWhere((action) => action.video.path == path);
+        if (active >= 0) await gates[active].future;
+        final bytes = fixture.bodies[path]!;
+        request.response.contentLength = bytes.length;
+        request.response.add(bytes);
+        await request.response.close();
+      };
+      final repo = await create(onTiming: timings.add);
+      Future<Uri> prefetch(int index) => repo.ensureFileWithPriority(
+        actions[index].video,
+        priority: CatalogMediaPriority.prefetch,
+      );
+      final running = [prefetch(0), prefetch(1)];
+      await _until(() => requested.length == 2);
+      final waiting = [prefetch(2), prefetch(3)];
+      await _until(
+        () =>
+            waiting.length == 2 &&
+            actions
+                .skip(2)
+                .take(2)
+                .every(
+                  (action) =>
+                      repo.watchFile(action.video).value.phase ==
+                      CatalogMediaDownloadPhase.queued,
+                ),
+      );
+      final current = repo.ensureFile(actions[4].video);
+      await _until(
+        () =>
+            repo.watchFile(actions[4].video).value.phase ==
+            CatalogMediaDownloadPhase.queued,
+      );
+      expect(requested, hasLength(2));
+      final firstSlotReleasedAt = DateTime.now().toUtc();
+      gates[0].complete();
+      await _until(() => requested.length >= 3);
+      expect(requested[2], '/${actions[4].video.path}');
+      gates[1].complete();
+      await Future.wait([...running, ...waiting, current]);
+      expect(requested, hasLength(5));
+      expect(timings, hasLength(5));
+      final currentTiming = timings.singleWhere(
+        (timing) => timing.actionId == actions[4].id,
+      );
+      expect(currentTiming.acquiredAt!.isBefore(firstSlotReleasedAt), isFalse);
+      for (final action in actions.skip(2).take(2)) {
+        final timing = timings.singleWhere(
+          (timing) => timing.actionId == action.id,
+        );
+        expect(timing.acquiredAt!.isBefore(currentTiming.acquiredAt!), isFalse);
+      }
+      final trace = File('build/media-progress/queue-timing.json');
+      await trace.parent.create(recursive: true);
+      await trace.writeAsString(
+        const JsonEncoder.withIndent('  ').convert({
+          'scenario': 'two_active_prefetch_then_current',
+          'activeAtCurrentRequest': actions.take(2).map((a) => a.id).toList(),
+          'queuedBeforeCurrent': actions
+              .skip(2)
+              .take(2)
+              .map((a) => a.id)
+              .toList(),
+          'currentActionId': actions[4].id,
+          'firstSlotReleasedAt': firstSlotReleasedAt.toIso8601String(),
+          'requestOrder': [
+            for (final path in requested)
+              actions.singleWhere((a) => '/${a.video.path}' == path).id,
+          ],
+          'records': timings.map((timing) => timing.toFields()).toList(),
+        }),
+      );
+      for (final action in actions) {
+        expect(
+          repo.watchFile(action.video).value.phase,
+          CatalogMediaDownloadPhase.ready,
+        );
+      }
+    },
+  );
+
+  test(
+    'current promotes the same queued file and keeps its existing Future',
+    () async {
+      fixture = _Fixture(actions: 4);
+      final actions = fixture.catalog.allActions;
+      final gates = [Completer<void>(), Completer<void>()];
+      handler = (request) async {
+        final path = request.uri.path.substring(1);
+        final active = actions
+            .take(2)
+            .toList()
+            .indexWhere((action) => action.video.path == path);
+        if (active >= 0) await gates[active].future;
+        final bytes = fixture.bodies[path]!;
+        request.response.contentLength = bytes.length;
+        request.response.add(bytes);
+        await request.response.close();
+      };
+      final repo = await create();
+      Future<Uri> prefetch(int index) => repo.ensureFileWithPriority(
+        actions[index].video,
+        priority: CatalogMediaPriority.prefetch,
+      );
+      final running = [prefetch(0), prefetch(1)];
+      await _until(() => requested.length == 2);
+      final waiting = [prefetch(2), prefetch(3)];
+      await _until(
+        () => actions
+            .skip(2)
+            .every(
+              (action) =>
+                  repo.watchFile(action.video).value.phase ==
+                  CatalogMediaDownloadPhase.queued,
+            ),
+      );
+      expect(repo.ensureFile(actions[3].video), same(waiting[1]));
+      gates[0].complete();
+      await _until(() => requested.length >= 3);
+      expect(requested[2], '/${actions[3].video.path}');
+      gates[1].complete();
+      await Future.wait([...running, ...waiting]);
+      expect(requested, hasLength(4));
+      expect(
+        requested.where((path) => path == '/${actions[3].video.path}'),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
     'a failed primary connection automatically tries the next base',
     () async {
       final unavailable = await HttpServer.bind(
@@ -444,6 +626,36 @@ void main() {
       await noParts(repo);
     },
   );
+
+  test('HTTP failure immediately tries the next base once', () async {
+    handler = (request) async {
+      if (request.uri.path.startsWith('/primary/')) {
+        request.response.statusCode = 503;
+      } else {
+        final path = request.uri.path.substring('/secondary/'.length);
+        final bytes = fixture.bodies[path]!;
+        request.response.contentLength = bytes.length;
+        request.response.add(bytes);
+      }
+      await request.response.close();
+    };
+    final timings = <CatalogMediaTiming>[];
+    final repo = await create(
+      mediaBases: [base.resolve('primary/'), base.resolve('secondary/')],
+      onTiming: timings.add,
+      timeout: const Duration(seconds: 3),
+    );
+    final elapsed = Stopwatch()..start();
+    await repo.ensureFile(fixture.first.video);
+    expect(elapsed.elapsed, lessThan(const Duration(seconds: 2)));
+    expect(requested, [
+      '/primary/${fixture.first.video.path}',
+      '/secondary/${fixture.first.video.path}',
+    ]);
+    expect(timings.single.baseIndex, 2);
+    expect(timings.single.retries, 1);
+    expect(timings.single.result, 'ready');
+  });
 
   test(
     'clear cancels in-flight video and prevents late publish before redownload',

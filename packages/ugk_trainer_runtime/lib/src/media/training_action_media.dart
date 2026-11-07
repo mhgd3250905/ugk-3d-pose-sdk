@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/trainer_experience.dart';
@@ -19,6 +18,7 @@ class TrainingActionMedia extends StatefulWidget {
     required this.actionId,
     this.policy,
     this.playing = true,
+    this.prefetchWhenIdle = false,
     this.paused = false,
     this.mirrored = false,
     this.radius = 16,
@@ -28,6 +28,10 @@ class TrainingActionMedia extends StatefulWidget {
   final String actionId;
   final TrainingMediaPolicy? policy;
   final bool playing, paused, mirrored;
+
+  /// Prepare the current training demonstration while playback is gated.
+  /// Off by default so list/detail previews wait for explicit playback.
+  final bool prefetchWhenIdle;
   final double radius;
   final Color? stage;
   final DrillMediaPlaybackHandle? playbackHandle;
@@ -50,7 +54,6 @@ class _VideoPin {
 class _TrainingActionMediaState extends State<TrainingActionMedia>
     with WidgetsBindingObserver {
   TrainingMediaPolicy? _policy;
-  ValueListenable<CatalogMediaDownloadState>? _download;
   DrillMediaController? _controller;
   _VideoPin? _pin;
   Uri? _source;
@@ -60,6 +63,8 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   bool _failed = false;
 
   bool get _canPlay => widget.playing && _foreground && _visible;
+  bool get _canPrepare =>
+      (widget.playing || widget.prefetchWhenIdle) && _foreground && _visible;
 
   @override
   void initState() {
@@ -89,10 +94,12 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     }
     if (oldWidget.actionId != widget.actionId ||
         oldWidget.policy != widget.policy ||
-        oldWidget.playing != widget.playing) {
+        (oldWidget.playing || oldWidget.prefetchWhenIdle) !=
+            (widget.playing || widget.prefetchWhenIdle)) {
       _policy = widget.policy ?? TrainingMediaPolicyScope.read(context);
       _reload();
-    } else if (oldWidget.paused != widget.paused) {
+    } else if (oldWidget.paused != widget.paused ||
+        oldWidget.playing != widget.playing) {
       _sync();
     }
     _bindHandle();
@@ -102,12 +109,14 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     owner: this,
     mediaId: widget.actionId,
     controller: _controller,
+    failed: _failed,
+    onRetry: () {
+      if (mounted) setState(_reload);
+    },
   );
 
   void _stop() {
     ++_request;
-    _download?.removeListener(_changed);
-    _download = null;
     _controller?.removeListener(_decoderChanged);
     _controller?.dispose();
     _controller = null;
@@ -124,11 +133,15 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     _failed = false;
     final policy = _policy;
     final action = policy?.actionFor(widget.actionId);
-    if (!_canPlay || policy == null || action == null) return;
+    // Only the current training action opts into preparation before playback.
+    // Other idle previews and covered/background routes retain their policy.
+    if (!_canPrepare || policy == null || action == null) {
+      _bindHandle();
+      return;
+    }
     if (!UgkPackedAlphaVideo.isSupported) return;
     final pin = _pin = _VideoPin(policy.repository.retainVideo(action.id));
-    _download = policy.repository.watchFile(action.video)
-      ..addListener(_changed);
+    _bindHandle();
     unawaited(_resolve(_request, policy, pin));
   }
 
@@ -138,7 +151,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     _VideoPin pin,
   ) async {
     try {
-      final uri = await policy.repository.ensureFile(
+      final uri = await policy.repository.ensureFileWithPriority(
         policy.actionFor(widget.actionId)!.video,
       );
       if (!mounted || request != _request) return;
@@ -153,6 +166,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
         setState(() {
           _failed = true;
           _pin = null;
+          _bindHandle();
         });
       }
       pin.release();
@@ -169,10 +183,6 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     }
   }
 
-  void _changed() {
-    if (mounted) setState(() {});
-  }
-
   void _decoderChanged() {
     if (!mounted) return;
     if (_controller?.failed == true) {
@@ -182,6 +192,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
         setState(() {
           _stop();
           _failed = true;
+          _bindHandle();
         });
       });
     } else {
@@ -213,10 +224,8 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     final experience = TrainerExperienceScope.maybeOf(context);
     final stage = widget.stage ?? Theme.of(context).colorScheme.surface;
     final controller = _controller;
-    final revealed = controller?.hasFrame == true && controller?.failed != true;
-    final progress = _download?.value.progress;
-    final supported = UgkPackedAlphaVideo.isSupported;
-    final showStatus = poster != null && _canPlay && supported && !revealed;
+    final revealed =
+        _canPlay && controller?.hasFrame == true && controller?.failed != true;
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: ColoredBox(
@@ -255,32 +264,6 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
                       source: _source!,
                       controller: controller,
                       pin: _pin!,
-                    ),
-                  ),
-                if (showStatus)
-                  Positioned(
-                    left: 8,
-                    right: 8,
-                    bottom: 8,
-                    child: Center(
-                      child: _failed
-                          ? TextButton(
-                              key: const ValueKey('public-action-retry'),
-                              onPressed: () => setState(_reload),
-                              child: const Text('视频暂不可用，训练继续 · 重试'),
-                            )
-                          : Semantics(
-                              liveRegion: true,
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  key: const ValueKey('public-action-progress'),
-                                  value: progress,
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
                     ),
                   ),
               ],

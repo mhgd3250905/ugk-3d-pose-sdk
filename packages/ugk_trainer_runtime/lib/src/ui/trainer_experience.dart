@@ -85,7 +85,10 @@ abstract final class TrainerLauncher {
         return null;
       }
       _prepareSideIcons();
-      if (policy != null) unawaited(policy.prefetchActions(planActionIds));
+      if (policy != null) {
+        // The mounted player owns the single next-action lookahead.
+        unawaited(policy.prefetchActions(planActionIds.take(1)));
+      }
       for (final next in posterAssets.toSet()) {
         if (next.isEmpty || next == asset) continue;
         unawaited(

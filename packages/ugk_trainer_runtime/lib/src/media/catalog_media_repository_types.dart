@@ -94,8 +94,9 @@ abstract interface class CatalogMediaFileStore {
     coach.PoseHubPackFile file,
     Uri url,
     void Function(int) onProgress,
-    void Function() onVerifying,
-  );
+    void Function() onVerifying, {
+    void Function()? onFirstByte,
+  });
   Future<Uri> materialize(coach.PoseHubPackFile file, Uri source);
   void cancelVideoDownloads();
   Future<int> videoCacheBytes();

@@ -11,6 +11,7 @@ import 'catalog_media_repository_stub.dart'
     if (dart.library.io) 'catalog_media_repository_io.dart'
     as platform;
 import 'catalog_media_repository_types.dart';
+import 'catalog_media_timing.dart';
 
 export 'catalog_media_repository_types.dart'
     show
@@ -22,6 +23,7 @@ export 'catalog_media_repository_types.dart'
         CatalogVideoCache,
         CatalogVideoCacheAccess,
         catalogVideoCacheLimitBytes;
+export 'catalog_media_timing.dart';
 
 abstract interface class CatalogMediaRepository
     implements CatalogVideoCache, CatalogVideoCacheAccess {
@@ -37,6 +39,9 @@ abstract interface class CatalogMediaRepository
     String? packVersion,
     String? rootDirectory,
     CatalogBundledFileLoader? bundledFileLoader,
+
+    /// Optional sanitized terminal records for the host's runtime-log sink.
+    CatalogMediaTimingCallback? onTiming,
     int maxVideoCacheBytes = catalogVideoCacheLimitBytes,
     String? legacyCacheDirectory,
     List<CatalogLegacyVideoFile> legacyVideos = const [],
@@ -49,6 +54,7 @@ abstract interface class CatalogMediaRepository
     packVersion: packVersion,
     rootDirectory: rootDirectory,
     bundledFileLoader: bundledFileLoader,
+    onTiming: onTiming,
     maxVideoCacheBytes: maxVideoCacheBytes,
     legacyCacheDirectory: legacyCacheDirectory,
     legacyVideos: legacyVideos,
@@ -66,6 +72,7 @@ abstract interface class CatalogMediaRepository
     String? packVersion,
     required String rootDirectory,
     CatalogBundledFileLoader? bundledFileLoader,
+    CatalogMediaTimingCallback? onTiming,
     bool allowInsecureLocalhost = false,
     Duration timeout = const Duration(seconds: 15),
     Duration progressInterval = const Duration(milliseconds: 100),
@@ -84,6 +91,7 @@ abstract interface class CatalogMediaRepository
     packVersion: packVersion,
     rootDirectory: rootDirectory,
     bundledFileLoader: bundledFileLoader,
+    onTiming: onTiming,
     allowInsecureLocalhost: allowInsecureLocalhost,
     timeout: timeout,
     progressInterval: progressInterval,
@@ -109,6 +117,31 @@ abstract interface class CatalogMediaRepository
   void dispose();
 }
 
+enum CatalogMediaPriority { current, prefetch }
+
+/// Optional scheduling capability. Existing host repository implementations
+/// continue to work through [CatalogMediaPriorityAccess].
+abstract interface class CatalogMediaPriorityRepository {
+  Future<Uri> ensureFileWithPriority(
+    coach.PoseHubPackFile file, {
+    required CatalogMediaPriority priority,
+  });
+}
+
+extension CatalogMediaPriorityAccess on CatalogMediaRepository {
+  Future<Uri> ensureFileWithPriority(
+    coach.PoseHubPackFile file, {
+    CatalogMediaPriority priority = CatalogMediaPriority.current,
+  }) {
+    final repository = this;
+    if (repository is CatalogMediaPriorityRepository) {
+      final prioritized = repository as CatalogMediaPriorityRepository;
+      return prioritized.ensureFileWithPriority(file, priority: priority);
+    }
+    return ensureFile(file);
+  }
+}
+
 Future<CatalogMediaRepository> _create({
   required coach.PoseHubAppTestCatalog catalog,
   required String catalogRevision,
@@ -116,6 +149,7 @@ Future<CatalogMediaRepository> _create({
   required String? packVersion,
   String? rootDirectory,
   CatalogBundledFileLoader? bundledFileLoader,
+  CatalogMediaTimingCallback? onTiming,
   bool allowInsecureLocalhost = false,
   Duration timeout = const Duration(seconds: 15),
   Duration progressInterval = const Duration(milliseconds: 100),
@@ -183,10 +217,12 @@ Future<CatalogMediaRepository> _create({
     timeout,
     progressInterval,
     maxConcurrent,
+    onTiming,
   );
 }
 
-class _Repository implements CatalogMediaRepository {
+class _Repository
+    implements CatalogMediaRepository, CatalogMediaPriorityRepository {
   _Repository(
     this.catalog,
     this.files,
@@ -196,6 +232,7 @@ class _Repository implements CatalogMediaRepository {
     this.timeout,
     this.progressInterval,
     this.maxConcurrent,
+    this.onTiming,
   ) {
     for (final action in catalog.allActions) {
       for (final role in action.files.entries) {
@@ -216,10 +253,13 @@ class _Repository implements CatalogMediaRepository {
   final CatalogBundledFileLoader? loadBundle;
   final Duration timeout, progressInterval;
   final int maxConcurrent;
+  final CatalogMediaTimingCallback? onTiming;
   final _fileJobs = <String, Future<Uri>>{};
   final _contentJobs = <String, Future<Uri>>{};
+  final _contentTimings = <String, _ContentTiming>{};
   final _actionJobs = <String, Future<Uri>>{};
   final _afterClearFiles = <String, Future<Uri>>{};
+  final _afterClearPriorities = <String, CatalogMediaPriority>{};
   final _afterClearActions = <String, Future<Uri>>{};
   final _fileStates = <String, ValueNotifier<CatalogMediaDownloadState>>{};
   final _actionStates = <String, ValueNotifier<CatalogMediaDownloadState>>{};
@@ -228,7 +268,8 @@ class _Repository implements CatalogMediaRepository {
   final _images = <String>{};
   final _videos = <String>{};
   final _lastProgress = <String, DateTime>{};
-  final _queue = <({Completer<void> ready, int? generation})>[];
+  final _queue = <({Completer<void> ready, int? generation, String sha256})>[];
+  final _priorities = <String, CatalogMediaPriority>{};
   int _active = 0;
   int _generation = 0;
   Future<void>? _clearing;
@@ -379,36 +420,85 @@ class _Repository implements CatalogMediaRepository {
   }
 
   @override
-  Future<Uri> ensureFile(coach.PoseHubPackFile file) {
+  Future<Uri> ensureFile(coach.PoseHubPackFile file) =>
+      ensureFileWithPriority(file, priority: CatalogMediaPriority.current);
+
+  @override
+  Future<Uri> ensureFileWithPriority(
+    coach.PoseHubPackFile file, {
+    required CatalogMediaPriority priority,
+  }) {
     try {
       file = _known(file);
     } catch (error, stack) {
       return Future.error(error, stack);
     }
     if (_clearing case final barrier?) {
+      if (!_afterClearPriorities.containsKey(file.path) ||
+          priority == CatalogMediaPriority.current) {
+        _afterClearPriorities[file.path] = priority;
+      }
       return _afterClear(
         _afterClearFiles,
         file.path,
         barrier,
-        () => ensureFile(file),
+        () => ensureFileWithPriority(
+          file,
+          priority: _afterClearPriorities.remove(file.path) ?? priority,
+        ),
       );
     }
+    _prioritize(file, priority);
     if (_fileJobs[file.path] case final job?) return job;
     final generation = _images.contains(file.path) ? null : _generation;
-    final job = Future<Uri>.microtask(() => _ensureFile(file, generation));
+    final timing = onTiming == null
+        ? null
+        : _FileTiming(
+            actionId: _actionsForFile[file.path]!.first,
+            kind: _kindOf(file),
+            bytes: file.bytes,
+          );
+    final job = Future<Uri>.microtask(
+      () => _ensureFile(file, generation, timing),
+    );
     _fileJobs[file.path] = job;
     job.then<void>(
       (_) {
         _fileJobs.remove(file.path);
+        _forgetPriority(file);
       },
       onError: (Object _, StackTrace _) {
         _fileJobs.remove(file.path);
+        _forgetPriority(file);
       },
     );
     return job;
   }
 
-  Future<Uri> _ensureFile(coach.PoseHubPackFile file, int? generation) async {
+  void _prioritize(coach.PoseHubPackFile file, CatalogMediaPriority priority) {
+    if (_priorities[file.sha256] == CatalogMediaPriority.current &&
+        priority == CatalogMediaPriority.prefetch) {
+      return;
+    }
+    _priorities[file.sha256] = priority;
+    if (priority != CatalogMediaPriority.current) return;
+    final queued = _queue.indexWhere((entry) => entry.sha256 == file.sha256);
+    if (queued > 0) _queue.insert(0, _queue.removeAt(queued));
+  }
+
+  void _forgetPriority(coach.PoseHubPackFile file) {
+    if (!_filesForHash[file.sha256]!.any(
+      (alias) => _fileJobs.containsKey(alias.path),
+    )) {
+      _priorities.remove(file.sha256);
+    }
+  }
+
+  Future<Uri> _ensureFile(
+    coach.PoseHubPackFile file,
+    int? generation,
+    _FileTiming? timing,
+  ) async {
     // Content aliases may be the source of materialize(), so keep them alive
     // until this request has finished copying and publishing its own path.
     final releases = [
@@ -421,47 +511,81 @@ class _Repository implements CatalogMediaRepository {
       final cached = await store.cached(file);
       _check(generation);
       if (cached != null) {
+        timing?.source = 'cache';
+        timing?.verifiedAt = DateTime.now().toUtc();
         _set(file, CatalogMediaDownloadPhase.ready, received: file.bytes);
         return cached;
       }
-      final content = await _content(file, generation);
+      final content = await _content(file, generation, timing);
       _check(generation);
       _set(file, CatalogMediaDownloadPhase.verifying, received: file.bytes);
       final uri = await store.materialize(file, content);
       _check(generation);
+      timing?.verifiedAt = DateTime.now().toUtc();
       _set(file, CatalogMediaDownloadPhase.ready, received: file.bytes);
       return uri;
     } catch (error) {
       final safe = _safeError(error);
+      timing?.code = safe.code;
       _set(file, CatalogMediaDownloadPhase.failed, error: safe);
       throw safe;
     } finally {
       for (final release in releases) {
         release();
       }
+      if (timing != null) {
+        try {
+          onTiming?.call(timing.finish());
+        } on Object {
+          // Host diagnostics must not change file delivery.
+        }
+      }
     }
   }
 
-  Future<Uri> _content(coach.PoseHubPackFile file, int? generation) {
-    if (_contentJobs[file.sha256] case final job?) return job;
-    final job = Future<Uri>.microtask(() => _prepareContent(file, generation));
+  Future<Uri> _content(
+    coach.PoseHubPackFile file,
+    int? generation,
+    _FileTiming? timing,
+  ) {
+    if (_contentJobs[file.sha256] case final job?) {
+      timing?.content = _contentTimings[file.sha256];
+      return job;
+    }
+    final contentTiming = timing == null ? null : _ContentTiming();
+    timing?.content = contentTiming;
+    if (contentTiming != null) _contentTimings[file.sha256] = contentTiming;
+    final job = Future<Uri>.microtask(
+      () => _prepareContent(file, generation, contentTiming),
+    );
     _contentJobs[file.sha256] = job;
     job.then<void>(
       (_) {
         _contentJobs.remove(file.sha256);
+        _contentTimings.remove(file.sha256);
       },
       onError: (Object _, StackTrace _) {
         _contentJobs.remove(file.sha256);
+        _contentTimings.remove(file.sha256);
       },
     );
     return job;
   }
 
-  Future<void> _acquire(int? generation) async {
+  Future<void> _acquire(coach.PoseHubPackFile file, int? generation) async {
     _check(generation);
     if (_active >= maxConcurrent) {
       final waiter = Completer<void>();
-      _queue.add((ready: waiter, generation: generation));
+      final entry = (
+        ready: waiter,
+        generation: generation,
+        sha256: file.sha256,
+      );
+      if (_priorities[file.sha256] == CatalogMediaPriority.current) {
+        _queue.insert(0, entry);
+      } else {
+        _queue.add(entry);
+      }
       await waiter.future;
     } else {
       _active++;
@@ -479,29 +603,39 @@ class _Repository implements CatalogMediaRepository {
   Future<Uri> _prepareContent(
     coach.PoseHubPackFile file,
     int? generation,
+    _ContentTiming? timing,
   ) async {
     _contentState(file, CatalogMediaDownloadPhase.queued);
-    await _acquire(generation);
+    await _acquire(file, generation);
+    timing?.acquiredAt = DateTime.now().toUtc();
     try {
       _check(generation);
       _contentState(file, CatalogMediaDownloadPhase.checking);
       final reusable = await store.reusable(file);
       _check(generation);
-      if (reusable != null) return reusable;
+      if (reusable != null) {
+        timing?.source = 'reused';
+        return reusable;
+      }
       void progress(int n) => _contentState(
         file,
         CatalogMediaDownloadPhase.downloading,
         received: n,
       );
-      void verifying() => _contentState(
-        file,
-        CatalogMediaDownloadPhase.verifying,
-        received: file.bytes,
-      );
+      void verifying() {
+        timing?.downloadCompletedAt = DateTime.now().toUtc();
+        _contentState(
+          file,
+          CatalogMediaDownloadPhase.verifying,
+          received: file.bytes,
+        );
+      }
+
       if (_images.contains(file.path) && loadBundle != null) {
         final bytes = await loadBundle!(file).timeout(timeout);
         _check(generation);
         if (bytes != null) {
+          timing?.source = 'bundled';
           return await store.bundled(file, bytes, progress, verifying);
         }
       }
@@ -512,8 +646,14 @@ class _Repository implements CatalogMediaRepository {
         );
       }
       Object? failure;
-      for (final base in bases) {
+      for (final (index, base) in bases.indexed) {
         _check(generation);
+        timing?.baseIndex = index + 1;
+        timing?.retries = index;
+        timing?.source = 'network';
+        timing?.requestStartedAt = DateTime.now().toUtc();
+        timing?.firstByteAt = null;
+        timing?.downloadCompletedAt = null;
         _contentState(file, CatalogMediaDownloadPhase.downloading);
         try {
           return await store.download(
@@ -521,6 +661,9 @@ class _Repository implements CatalogMediaRepository {
             base.resolve(file.path),
             progress,
             verifying,
+            onFirstByte: timing == null
+                ? null
+                : () => timing.firstByteAt ??= DateTime.now().toUtc(),
           );
         } catch (error) {
           // A disposed consumer does not start a new mirror request. Each
@@ -536,6 +679,15 @@ class _Repository implements CatalogMediaRepository {
     } finally {
       _release();
     }
+  }
+
+  String _kindOf(coach.PoseHubPackFile file) {
+    for (final id in _actionsForFile[file.path]!) {
+      for (final entry in _action(id).files.entries) {
+        if (entry.value.path == file.path) return entry.key;
+      }
+    }
+    return 'unknown';
   }
 
   @override
@@ -696,6 +848,51 @@ class _Repository implements CatalogMediaRepository {
       state.dispose();
     }
   }
+}
+
+class _ContentTiming {
+  DateTime? acquiredAt;
+  DateTime? requestStartedAt;
+  DateTime? firstByteAt;
+  DateTime? downloadCompletedAt;
+  int? baseIndex;
+  int retries = 0;
+  String source = 'none';
+}
+
+class _FileTiming {
+  _FileTiming({
+    required this.actionId,
+    required this.kind,
+    required this.bytes,
+  });
+
+  final String actionId;
+  final String kind;
+  final int bytes;
+  final enqueuedAt = DateTime.now().toUtc();
+  _ContentTiming? content;
+  DateTime? verifiedAt;
+  String source = 'none';
+  String? code;
+
+  CatalogMediaTiming finish() => CatalogMediaTiming(
+    actionId: actionId,
+    kind: kind,
+    bytes: bytes,
+    enqueuedAt: enqueuedAt,
+    acquiredAt: content?.acquiredAt,
+    requestStartedAt: content?.requestStartedAt,
+    firstByteAt: content?.firstByteAt,
+    downloadCompletedAt: content?.downloadCompletedAt,
+    verifiedAt: verifiedAt,
+    completedAt: DateTime.now().toUtc(),
+    baseIndex: content?.baseIndex,
+    retries: content?.retries ?? 0,
+    result: code == null ? 'ready' : 'failed',
+    source: content?.source ?? source,
+    code: code,
+  );
 }
 
 CatalogMediaException _safeError(Object error) {

@@ -50,7 +50,7 @@ RGB 位于视频上半、alpha 位于下半；视频尺寸必须是 `width × 2*
 随包资源、已校验缓存文件和 HTTPS MP4 不需要新增 Info.plist 权限。HTTP 仍受宿主
 现有 ATS 策略约束；插件不自动放宽网络限制。播放器静音、不设置 AVAudioSession、
 不自行常亮；iOS 不注册 Android 的 `training_session` 服务，也不启用后台训练模式。
-解码失败沿用页面的“视频暂不可用，训练继续 · 重试”，不影响训练计时。
+解码失败由训练页下载 HUD 的重试状态承接，不影响训练计时。
 
 原生测试在 Flutter 宿主完成 `flutter pub get` 后运行（需要 Ruby `xcodeproj`，
 CocoaPods 已包含此 gem）：
@@ -62,7 +62,9 @@ ruby tool/run_ios_packed_alpha_tests.rb /absolute/path/to/Flare/app <simulator-U
 测试临时把原生源文件加入宿主 `RunnerTests`，结束后恢复原 Xcode 工程文件；
 测试生成自己的 H.264 视频，不打包动作素材。真机 Metal 方向、边缘、主题、语音及
 前后台验收须另做，不能由模拟器或 widget 测试替代。见
-[本轮验证记录](../../docs/ios-packed-alpha-20261104/verification.md)。
+[首次验证记录](../../docs/ios-packed-alpha-20261104/verification.md)；
+新基线迁移、测试期望变更、App 接入及后台差距见
+[r2 迁移记录](../../docs/ios-packed-alpha-r2-20261107/verification.md)。
 
 ## 动作资源由宿主明确提供
 

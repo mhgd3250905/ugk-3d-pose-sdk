@@ -18,6 +18,9 @@ import 'trainer_theme.dart';
 /// decoded frame. Custom renderers bind the handle supplied by the player.
 /// Download scheduling, playback, and retention remain owned by the player.
 class TrainerMediaDownloadIndicator extends StatefulWidget {
+  static const visualSize = 36.0;
+  static const hitTargetSize = 44.0;
+  static const visualInset = (hitTargetSize - visualSize) / 2;
   const TrainerMediaDownloadIndicator({
     super.key,
     required this.state,
@@ -161,7 +164,8 @@ class _TrainerMediaDownloadIndicatorState
       _completion = null;
       _complete = false;
       _show();
-      _animateProgress(1);
+      _progress.stop();
+      _progress.value = 0;
       if (!_failureExplained) {
         _failureExplained = true;
         _showChip(
@@ -313,8 +317,10 @@ class _TrainerMediaDownloadIndicatorState
     final theme = widget.theme;
     final color = _failed ? theme.caution : theme.accent;
     final ring = SizedBox.square(
-      dimension: 26,
-      child: _indeterminate
+      dimension: 22,
+      child: _failed
+          ? _ring(color.withValues(alpha: 0), 0)
+          : _indeterminate
           ? RotationTransition(
               key: const ValueKey('media-download-indeterminate'),
               turns: _rotation,
@@ -338,7 +344,7 @@ class _TrainerMediaDownloadIndicatorState
             ? 'media-download-ready'
             : 'media-download-arrow',
       ),
-      size: 14,
+      size: 12,
       color: color,
     );
     return FadeTransition(
@@ -356,7 +362,7 @@ class _TrainerMediaDownloadIndicatorState
           behavior: HitTestBehavior.opaque,
           onTap: _activate,
           child: SizedBox.square(
-            dimension: 44,
+            dimension: TrainerMediaDownloadIndicator.hitTargetSize,
             child: Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.centerRight,
@@ -364,8 +370,8 @@ class _TrainerMediaDownloadIndicatorState
                 TrainerSurface(
                   key: const ValueKey('media-download-surface'),
                   theme: theme,
-                  width: 36,
-                  height: 36,
+                  width: TrainerMediaDownloadIndicator.visualSize,
+                  height: TrainerMediaDownloadIndicator.visualSize,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
@@ -424,10 +430,10 @@ class _TrainerMediaDownloadIndicatorState
     value: value,
     color: color,
     backgroundColor: widget.theme.text.withValues(alpha: .12),
-    strokeWidth: 2.5,
+    strokeWidth: 2,
     strokeCap: StrokeCap.round,
     trackGap: 0,
-    constraints: const BoxConstraints.tightFor(width: 26, height: 26),
+    constraints: const BoxConstraints.tightFor(width: 22, height: 22),
   );
 
   @override

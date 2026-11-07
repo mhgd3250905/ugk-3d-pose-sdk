@@ -603,68 +603,75 @@ void main() {
     );
   });
 
-  testWidgets(
-    'host download HUD is outside mirrored media and below discomfort',
-    (tester) async {
-      final state = ValueNotifier(
-        const CatalogMediaDownloadState(
-          phase: CatalogMediaDownloadPhase.downloading,
-          receivedBytes: 42,
-          totalBytes: 100,
-        ),
-      );
-      addTearDown(state.dispose);
-      TrainerMediaRequest? request;
-      await _mount(
-        tester,
-        bundle,
-        child: _player(
-          _actionId,
-          theme: TrainerTheme.light,
-          downloadState: state,
-          chromeAnimation: const AlwaysStoppedAnimation<double>(1),
-          mediaBuilder: (_, value) {
-            request = value;
-            return Transform.flip(
-              flipX: true,
-              child: const ColoredBox(color: Colors.transparent),
-            );
-          },
-        ),
-      );
-      await _advance(tester, 650);
-      final indicator = find.byKey(const ValueKey('media-download-indicator'));
-      expect(indicator, findsOneWidget);
-      expect(request?.playbackHandle, isNotNull);
-      expect(find.byKey(const ValueKey('trainer-chrome-hud')), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('trainer-chrome-media-download')),
-        findsOneWidget,
-      );
-      final transforms = tester.widgetList<Transform>(
-        find.ancestor(of: indicator, matching: find.byType(Transform)),
-      );
-      expect(transforms.where((t) => t.transform.storage[0] < 0), isEmpty);
-      final indicatorVisual = find.descendant(
-        of: indicator,
-        matching: find.byType(TrainerSurface),
-      );
-      final discomfortVisual = find.descendant(
-        of: find.byKey(const ValueKey('discomfort')),
-        matching: find.byType(TrainerSurface),
-      );
-      expect(
-        tester.getRect(indicatorVisual).right,
-        tester.getRect(discomfortVisual).right,
-      );
-      expect(
-        tester.getRect(indicatorVisual).top -
-            tester.getRect(discomfortVisual).bottom,
-        TrainerSpace.x2,
-      );
-      expect(tester.getSize(indicator), const Size(44, 44));
-    },
-  );
+  for (final hudTheme in [TrainerTheme.light, TrainerTheme.dark]) {
+    testWidgets(
+      'host download HUD aligns below discomfort with ${hudTheme.brightness}',
+      (tester) async {
+        final state = ValueNotifier(
+          const CatalogMediaDownloadState(
+            phase: CatalogMediaDownloadPhase.downloading,
+            receivedBytes: 42,
+            totalBytes: 100,
+          ),
+        );
+        addTearDown(state.dispose);
+        TrainerMediaRequest? request;
+        await _mount(
+          tester,
+          bundle,
+          child: _player(
+            _actionId,
+            theme: hudTheme,
+            downloadState: state,
+            chromeAnimation: const AlwaysStoppedAnimation<double>(1),
+            mediaBuilder: (_, value) {
+              request = value;
+              return Transform.flip(
+                flipX: true,
+                child: const ColoredBox(color: Colors.transparent),
+              );
+            },
+          ),
+        );
+        await _advance(tester, 650);
+        final indicator = find.byKey(
+          const ValueKey('media-download-indicator'),
+        );
+        expect(indicator, findsOneWidget);
+        expect(request?.playbackHandle, isNotNull);
+        expect(
+          find.byKey(const ValueKey('trainer-chrome-hud')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('trainer-chrome-media-download')),
+          findsOneWidget,
+        );
+        final transforms = tester.widgetList<Transform>(
+          find.ancestor(of: indicator, matching: find.byType(Transform)),
+        );
+        expect(transforms.where((t) => t.transform.storage[0] < 0), isEmpty);
+        final indicatorVisual = find.descendant(
+          of: indicator,
+          matching: find.byType(TrainerSurface),
+        );
+        final discomfortVisual = find.descendant(
+          of: find.byKey(const ValueKey('discomfort')),
+          matching: find.byType(TrainerSurface),
+        );
+        expect(
+          tester.getRect(indicatorVisual).right,
+          closeTo(tester.getRect(discomfortVisual).right, .5),
+        );
+        expect(
+          tester.getRect(indicatorVisual).top -
+              tester.getRect(discomfortVisual).bottom,
+          TrainerSpace.x2,
+        );
+        expect(tester.getSize(indicator), const Size(44, 44));
+      },
+    );
+  }
 
   testWidgets(
     'player host state takes precedence over a policy with custom media',

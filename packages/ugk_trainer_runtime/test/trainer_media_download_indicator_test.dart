@@ -222,14 +222,20 @@ void main() {
         _ring(tester).backgroundColor,
         TrainerTheme.dark.text.withValues(alpha: .12),
       );
-      expect(_ring(tester).strokeWidth, 2.5);
+      expect(_ring(tester).strokeWidth, 2);
       expect(_ring(tester).strokeCap, StrokeCap.round);
       expect(tester.getSize(find.byKey(_indicatorKey)), const Size(44, 44));
-      expect(tester.getSize(find.byKey(_progressKey)), const Size(26, 26));
+      expect(tester.getSize(find.byKey(_progressKey)), const Size(22, 22));
       expect(
         tester.getSize(find.byKey(const ValueKey('media-download-surface'))),
         const Size(36, 36),
       );
+      final arrow = tester.widget<Icon>(
+        find.byKey(const ValueKey('media-download-arrow')),
+      );
+      expect(arrow.icon, CupertinoIcons.arrow_down);
+      expect(arrow.size, 12);
+      expect(arrow.color, TrainerTheme.dark.accent);
       state.value = _state(
         CatalogMediaDownloadPhase.downloading,
         bytes: 30,
@@ -440,7 +446,18 @@ void main() {
         },
       );
       await _advance(tester, 150);
-      expect(_ring(tester).color, TrainerTheme.dark.caution);
+      expect(_ring(tester).value, 0);
+      expect(_ring(tester).color?.a, 0);
+      expect(
+        _ring(tester).backgroundColor,
+        TrainerTheme.dark.text.withValues(alpha: .12),
+      );
+      final retry = tester.widget<Icon>(
+        find.byKey(const ValueKey('media-download-retry')),
+      );
+      expect(retry.icon, CupertinoIcons.arrow_clockwise);
+      expect(retry.size, 12);
+      expect(retry.color, TrainerTheme.dark.caution);
       expect(find.text('视频暂不可用，训练继续 · 点击重试'), findsOneWidget);
       await tester.tap(find.byKey(_indicatorKey));
       await tester.pump();
@@ -470,7 +487,18 @@ void main() {
     decoder.receive({'source': 'drill-media', 'type': 'error'});
     await _advance(tester, 200);
     expect(find.byKey(const ValueKey('media-download-retry')), findsOneWidget);
-    expect(_ring(tester).color, TrainerTheme.dark.caution);
+    expect(_ring(tester).value, 0);
+    expect(_ring(tester).color?.a, 0);
+    expect(
+      _ring(tester).backgroundColor,
+      TrainerTheme.dark.text.withValues(alpha: .12),
+    );
+    final retry = tester.widget<Icon>(
+      find.byKey(const ValueKey('media-download-retry')),
+    );
+    expect(retry.icon, CupertinoIcons.arrow_clockwise);
+    expect(retry.size, 12);
+    expect(retry.color, TrainerTheme.dark.caution);
   });
 
   testWidgets('switching action resets its delay, hint and progress', (
@@ -620,7 +648,7 @@ void main() {
       final boundary =
           capture.currentContext!.findRenderObject()! as RenderRepaintBoundary;
       await tester.runAsync(() async {
-        final image = await boundary.toImage(pixelRatio: 2);
+        final image = await boundary.toImage(pixelRatio: 3);
         try {
           final png = await image.toByteData(format: ui.ImageByteFormat.png);
           final directory = Directory(

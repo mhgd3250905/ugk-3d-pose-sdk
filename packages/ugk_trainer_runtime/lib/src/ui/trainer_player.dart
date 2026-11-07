@@ -1927,12 +1927,15 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   /// A small solid HUD chip on the stage (32 px, on the fixed media body,
   /// so it reads at arm's length without covering the figure).
+  static const _tagHeight = 32.0;
+  static const _discomfortVerticalPadding = 6.0;
+
   Widget _tag(String label, {IconData? icon, Color? color, Key? key}) =>
       TrainerSurface(
         key: key,
         theme: _th,
 
-        height: 32,
+        height: _tagHeight,
         padding: const EdgeInsets.symmetric(horizontal: TrainerSpace.x3),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -2183,6 +2186,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         // pendants hang.
         final top = midTop + math.max(0.0, room - v) * .35;
         final tagTop = midTop + TrainerSpace.x1;
+        final discomfortBottom =
+            tagTop + _discomfortVerticalPadding + _tagHeight;
         final mediaRadius = _th.copyWith(radius: 0);
         final bottomPendant = _restFeedback(p);
         final topPendant = p.kind == PhaseKind.switchSide
@@ -2387,7 +2392,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                                   child: Padding(
                                     // 32 px chip, 44 px touch target.
                                     padding: const EdgeInsets.symmetric(
-                                      vertical: 6,
+                                      vertical: _discomfortVerticalPadding,
                                     ),
                                     child: _tag(
                                       _s.discomfort,
@@ -2409,9 +2414,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
             if (d != null)
               Positioned(
                 right: TrainerSpace.x3,
-                // The discomfort visual is 32 dp, inset 6 dp. The indicator
-                // visual is inset 4 dp, leaving exactly x2 between visuals.
-                top: tagTop + 6 + 32 + TrainerSpace.x2 - 4,
+                // Position the visual below the actual tag extent; compensate
+                // for the indicator's larger touch target using its own inset.
+                top:
+                    discomfortBottom +
+                    TrainerSpace.x2 -
+                    TrainerMediaDownloadIndicator.visualInset,
                 child: _chromeLayer(
                   _mediaDownloadHud(d),
                   _TrainerChromeLayer.hud,

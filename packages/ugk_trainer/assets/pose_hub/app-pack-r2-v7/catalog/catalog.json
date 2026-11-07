@@ -2,13 +2,13 @@
  "format": "pose-hub-catalog",
  "formatVersion": 1,
  "version": "2.1.0",
- "generatedAt": "2026-11-05T00:00:00Z",
+ "generatedAt": "Sat 2026-11-07 10:31 AM CST (UTC+08:00)",
  "source": {
-  "pack": "r2-v2",
+  "pack": "r2-v7",
   "catalogSha256": "22b2a391e327bc9eee775988315cd96651e0f623c76dae10c00284686dfe804e",
   "text": "catalog/production/v3-text",
   "commit": "ed49ffb85c1df256ceaa779408aab77a0f417b7f",
-  "previousPack": "r2-v1"
+  "previousPack": "r2-v6"
  },
  "taxonomy": {
   "categories": {
@@ -2720,7 +2720,7 @@
    "cues": {
     "zh": [
      "双手往前推直，身体别被拉转",
-     "侧对固定点站直，膝盖微弯。",
+     "侧对固定点站直，膝盖放松别锁死。",
      "推直后停两秒，再收回胸前。"
     ]
    },
@@ -2930,7 +2930,7 @@
    "cues": {
     "zh": [
      "手肘贴身弯成直角，小臂往肚子转",
-     "侧对固定点站直，膝盖微弯。",
+     "侧对固定点站直，膝盖放松别锁死。",
      "停一下，再慢慢转回去。"
     ]
    },
@@ -3194,7 +3194,7 @@
    },
    "cues": {
     "zh": [
-     "膝盖微弯不动，腿往前抬",
+     "膝盖伸直不动，腿往前抬",
      "上身别往后仰，椅子只用来扶稳。",
      "慢慢放回，膝盖别绷死。"
     ]

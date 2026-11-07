@@ -5,32 +5,32 @@ import 'pose_hub_catalog_channel.dart';
 import 'pose_hub_catalog_io_types.dart';
 import 'pose_hub_catalog_updater.dart' show readVerifiedPoseHubCatalog;
 
-/// The bundled baseline catalogue (r2-v2: the r2-v1 action set of 249 plus
-/// left/right alternating-pair counting on 23 actions) ships with the SDK.
+/// The bundled baseline catalogue ships with the SDK. Synchronize it with
+/// the published channel using `tool/sync_bundled_pack.py` before packaging.
 /// Hosts download and verify individual media objects separately; no video
 /// or image is embedded in Git apart from the standing frame-zero images.
 abstract final class PoseHubActionLibrary {
   static const assetRoot =
-      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v2/';
+      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v7/';
 
-  /// Standing frame-zero images. r2-v2 reuses r2-v1 media unchanged, so these
-  /// stay under the r2-v1 directory hosts already reference.
+  /// Existing standing frame-zero images stay under the r2-v1 directory
+  /// hosts already reference. Per-action media URLs come from the catalogue.
   static const standingAssetRoot =
       'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v1/standing/';
 
   /// Audit digest of this SDK's bundled catalogue, not an acceptance gate for
   /// other internally consistent catalogue versions.
   static const catalogSha256 =
-      '6dee16969ccaa0f238cb64527148bcc3af7637b3326cced2d38765feca728829';
+      '92cff0a0eb31f8d51122d838842c27080a39e26619879978ff95c65ac69569f9';
 
   /// Bundled pack version (`pack` in the bundled catalogue).
-  static const packVersion = 'r2-v2';
+  static const packVersion = 'r2-v7';
 
   /// Public metadata of the bundled pack.
   static const catalogDownloadUri =
-      'https://media.uuugk.win/pack/r2-v2/catalog.json';
+      'https://media.uuugk.win/pack/r2-v7/catalog.json';
 
-  /// Media root of the bundled pack (its `mediaDistribution`): r2-v1.
+  /// Media root of the bundled pack (its `mediaDistribution`).
   static const mediaReleaseBaseUri = 'https://media.uuugk.win/pack/r2-v1/';
 
   /// Media root of [catalog]'s pack.

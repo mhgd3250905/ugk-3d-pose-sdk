@@ -8,17 +8,17 @@ import 'package:ugk_coach/ugk_coach.dart' as coach;
 import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart';
 
 const _assetDir = 'test/fixtures/pose_hub/r2-v1/';
-const _bundledDir = '../ugk_trainer/assets/pose_hub/app-pack-r2-v2/';
+final _bundledDir = PoseHubActionLibrary.assetRoot.replaceFirst(
+  'packages/ugk_trainer/',
+  '../ugk_trainer/',
+);
 
 /// Serves the real r2-v1 catalogue (test fixture) as a host's bundled
 /// baseline: the updater logic below is pack-agnostic.
 class _PackBundle extends CachingAssetBundle {
   @override
   Future<ByteData> load(String key) async {
-    final path = key.replaceFirst(
-      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v2/',
-      _assetDir,
-    );
+    final path = key.replaceFirst(PoseHubActionLibrary.assetRoot, _assetDir);
     return ByteData.sublistView(await File(path).readAsBytes());
   }
 }
@@ -195,31 +195,31 @@ void main() {
     now = DateTime.utc(2026, 11, 4, 10);
   });
 
-  test('the SDK bundles r2-v2, whose media stays under r2-v1', () async {
-    final bytes = await File('${_bundledDir}catalog.json').readAsBytes();
-    expect(
-      sha256.convert(bytes).toString(),
-      PoseHubActionLibrary.catalogSha256,
-    );
-    final real = coach.PoseHubAppTestCatalog.fromBytes(
-      bytes,
-      semanticCatalogBytes: await File(
-        '${_bundledDir}catalog/catalog.json',
-      ).readAsBytes(),
-    );
-    expect(poseHubPackVersionOf(real), 'r2-v2');
-    expect(PoseHubActionLibrary.packVersion, 'r2-v2');
-    expect(real.raw['previousPack'], 'r2-v1');
-    expect(poseHubMediaPackOf(real), 'r2-v1');
-    expect(
-      PoseHubActionLibrary.mediaBaseUriFor(real).toString(),
-      PoseHubActionLibrary.mediaReleaseBaseUri,
-    );
-    expect(
-      {for (final a in real.allActions) a.id},
-      {for (final a in bundled.allActions) a.id},
-    );
-  });
+  test(
+    'the SDK bundle metadata and asset digests match its catalogue',
+    () async {
+      final bytes = await File('${_bundledDir}catalog.json').readAsBytes();
+      expect(
+        sha256.convert(bytes).toString(),
+        PoseHubActionLibrary.catalogSha256,
+      );
+      final real = coach.PoseHubAppTestCatalog.fromBytes(
+        bytes,
+        semanticCatalogBytes: await File(
+          '${_bundledDir}catalog/catalog.json',
+        ).readAsBytes(),
+      );
+      expect(poseHubPackVersionOf(real), PoseHubActionLibrary.packVersion);
+      expect(
+        PoseHubActionLibrary.mediaBaseUriFor(real).toString(),
+        PoseHubActionLibrary.mediaReleaseBaseUri,
+      );
+      expect(
+        {for (final a in real.allActions) a.id},
+        {for (final a in bundled.allActions) a.id},
+      );
+    },
+  );
 
   test('r2-v1 fixture declares pack r2-v1, schema 1 and its media root', () {
     expect(bundled.raw['pack'], 'r2-v1');
@@ -295,11 +295,67 @@ void main() {
       {...good, 'catalog_sha256': 'abc'},
       {...good, 'catalog_bytes': 0},
       {...good, 'min_sdk': '1.0'},
-      {...good, 'published_at': 'soon'},
     ]) {
       expect(() => PoseHubCatalogPointer.fromJson(bad), throwsFormatException);
     }
     expect(comparePoseHubSdkVersions('0.10.0', '0.9.9'), greaterThan(0));
+  });
+
+  test(
+    'a non-ISO published_at warns and still updates the verified cache',
+    () async {
+      final next = repack('r2-v2');
+      final pointer = _pointer('r2-v2', next)
+        ..['published_at'] = 'Sat 2026-11-07 12:45 AM CST (UTC+08:00)';
+      final parsed = PoseHubCatalogPointer.fromBytes(_json(pointer));
+      expect(parsed.publishedAt, isNull);
+      expect(parsed.publishedAtUnparsed, isTrue);
+      publish('r2-v2', next, pointer: pointer);
+
+      expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.updated);
+      expect(events.map((event) => event.name), [
+        PoseHubCatalogUpdateEvent.publishedAtUnparsed,
+        PoseHubCatalogUpdateEvent.updated,
+      ]);
+      expect(events.first.pack, 'r2-v2');
+      expect(await loadedPack(), 'r2-v2');
+      final current =
+          jsonDecode(utf8.decode((await store.read('current.json'))!))
+              as Map<String, Object?>;
+      expect(current.containsKey('published_at'), isFalse);
+    },
+  );
+
+  test('an ISO published_at updates and preserves its timestamp', () async {
+    final next = repack('r2-v2');
+    final pointer = _pointer('r2-v2', next)
+      ..['published_at'] = '2026-11-07T00:45:00+08:00';
+    final expected = DateTime.utc(2026, 11, 6, 16, 45);
+    final parsed = PoseHubCatalogPointer.fromBytes(_json(pointer));
+    expect(parsed.publishedAt, expected);
+    expect(parsed.publishedAtUnparsed, isFalse);
+    publish('r2-v2', next, pointer: pointer);
+
+    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.updated);
+    expect(events.single.name, PoseHubCatalogUpdateEvent.updated);
+    final current =
+        jsonDecode(utf8.decode((await store.read('current.json'))!))
+            as Map<String, Object?>;
+    expect(current['published_at'], expected.toIso8601String());
+    expect(await loadedPack(), 'r2-v2');
+  });
+
+  test('a missing published_at updates without a warning', () async {
+    final next = repack('r2-v2');
+    final pointer = _pointer('r2-v2', next)..remove('published_at');
+    final parsed = PoseHubCatalogPointer.fromBytes(_json(pointer));
+    expect(parsed.publishedAt, isNull);
+    expect(parsed.publishedAtUnparsed, isFalse);
+    publish('r2-v2', next, pointer: pointer);
+
+    expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.updated);
+    expect(events.single.name, PoseHubCatalogUpdateEvent.updated);
+    expect(await loadedPack(), 'r2-v2');
   });
 
   test('offline first launch uses the bundled baseline', () async {

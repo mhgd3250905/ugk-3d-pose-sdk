@@ -64,6 +64,8 @@ HipLab / Flare 可按 UI 包 README 的固定 tag 接入，并各自验收真机
 
 [项目维护台账](docs/project-ledger.md)是维护状态、PR 合并、验证证据和未决事项的记录入口。各包独立管理版本：根包 `ugk_coach` 以 [pubspec.yaml](pubspec.yaml) 为准，trainer 和 UI 分别以[训练包清单](packages/ugk_trainer/pubspec.yaml)和[UI 包清单](packages/ugk_coach_ui/pubspec.yaml)为准。清单版本可以先存在于待审分支，正式发布以已推送的固定 tag 为准。版本历史见[根 CHANGELOG](CHANGELOG.md)、[训练包 CHANGELOG](packages/ugk_trainer/CHANGELOG.md)和[UI CHANGELOG](packages/ugk_coach_ui/CHANGELOG.md)；上述清单均为 `publish_to: none`，不表示已发布到 pub.dev。当前 Agent 设计见 [docs/agent-plan.md](docs/agent-plan.md)，问答 Agent 见 [docs/coach-qa-agent-v3.md](docs/coach-qa-agent-v3.md)；0.1 `CoachAssistant` 与 0.2 `CoachSession` 已于 2026-11-04 删除（无 App 使用）；[docs/design.md](docs/design.md) 记录 0.1.2 的历史设计取舍。
 
+每次 SDK 出版本、或任何 App 出包前，SDK 内置动作目录必须等于当时 `beta` 指针指向的最新 pack；出 `stable` 包时改为对齐 `stable`。在 SDK 仓库运行 `python tool/sync_bundled_pack.py --channel beta` 同步，并运行同命令加 `--check` 做只读检查；不一致会以非 0 退出。脚本只读取已发布对象，不上传或切换线上指针。资源校验、测试及出包步骤见 [RELEASING.md](RELEASING.md)。
+
 ## 0.5 对话控制器接入
 
 需要多轮询问、消息列表和取消/新对话的 App，使用 `CoachConversationController` 统一管理同一个 agent。App 构造 agent 并注入 client、catalog 和 profile；controller 接手 send/reset/dispose，App 仍负责存储、导航、训练启动与计划到 UI 的映射。

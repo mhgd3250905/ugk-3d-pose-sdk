@@ -265,14 +265,14 @@ void main() {
     'legacy bundled catalogue and default standing poster still render',
     (tester) async {
       final catalog = await legacy.PoseHubActionLibrary.load();
-      expect(catalog.allActions, hasLength(219));
+      expect(catalog.allActions, hasLength(249));
       final action = catalog.tryGet('s-butterfly')!;
       final key =
-          '${legacy.PoseHubActionLibrary.assetRoot}standing/${action.id}.webp';
+          '${legacy.PoseHubActionLibrary.standingAssetRoot}${action.id}.webp';
       final image = _bytes(await rootBundle.load(key));
       expect(
         sha256.convert(image).toString(),
-        '837b5a745e7205cecc6c16e17dde6471d3cffe4639c908e5dd9d643db5e87a1e',
+        '128acef030bc394582250bec376965d438b32fbb023a112428e72a29e204c13f',
       );
       await tester.pumpWidget(
         MaterialApp(
@@ -290,7 +290,7 @@ void main() {
       expect(provider.package, 'ugk_trainer');
       expect(
         provider.assetName,
-        'assets/pose_hub/app-test-pack-r1/standing/s-butterfly.webp',
+        'assets/pose_hub/app-pack-r2-v1/standing/s-butterfly.webp',
       );
     },
   );

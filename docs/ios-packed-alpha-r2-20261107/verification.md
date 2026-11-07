@@ -4,7 +4,28 @@
 cherry-pick PR #13 的 `b6c7689` 后，仅 README 冲突；保留下载 HUD/onTiming 说明和 iOS 说明。
 `training_action_media_test.dart` 自动合并后已复测。动作/目录/视频包不修改，保持基线 r2-v10。
 
-## 验证与边界
+## 后续复核（本轮，已完成）
+
+Flare 使用本地覆盖，SPM 和 CocoaPods 均完成 clean + pub get + iOS debug 无签名构建并通过。
+iOS XCTest 四项全过（iOS 26.5 模拟器），先前失败的来源边界用例也通过。
+播放器生产代码未改；未跑 Android、未实施保活方案、未做真机验收。
+原始日志、成功摘要和 xcresult 保存在 `build/ios-packed-alpha-r2/followup/`。
+
+按用户确认临时修 Flare 的 `app/lib/trainer/trainer_voice.dart`：ordinalSet/ordinalRound
+补 `{String lang = 'zh'}`，`lang == 'en'` 使用宿主已有的 Set/Round + 数字音频键，
+其它语言向底层 source 传递 lang。仅本地覆盖验证，验完恢复；不提交 App、不改正式 ref。
+
+原生测试夹具改用 `requestMediaDataWhenReady` 在串行队列供给 30 帧，
+只在 input ready 时 append，复用同一不可变测试画面。取消“最多轮询 5 秒后仍 append”的路径，
+完成等待由 10 秒改为 30 秒，以容纳异步编码；保留 append 成功、writer completed、
+全部来源/像素/播放/销毁断言，不改播放器生产源码。
+
+只读检索范围：`3D-HipLab/` 下的本地副本及 `ugk-hiplab/`，未发现 ordinalSet/ordinalRound
+的 override；托马斯即本次 Flare，需正式适配的文件只有上述 trainer_voice.dart 两个方法。
+`app/test/trainer/trainer_voice_test.dart` 现有英文 ordinal 调用未传 lang，正式接入时须同步检查，
+本轮未修改这些测试或期望。保活两条方案不实施；本轮未做 Android 步骤。
+
+## 迁移首轮验证与边界（67683cc，历史记录）
 
 - runtime 全量 162 通过、4 个需显式截图配置的用例跳过；analyze 0。
 - 根包全量 1,528 通过、analyze 0。

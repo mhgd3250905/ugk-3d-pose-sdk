@@ -103,4 +103,44 @@ void main() {
     // Saved plans and history still resolve the retired action.
     expect(flagged.tryGet(ids[1])!.browsable, isFalse);
   });
+
+  test('search finds actions by catalogue muscle group names', () {
+    final all = catalog.semanticCompleteActions;
+    List<String> hits(String query) => [
+      for (final action in all)
+        if (PoseHubActionFacets.matches(action, query: query)) action.id,
+    ];
+    final deltoids = [
+      for (final action in all)
+        if (PoseHubActionFacets.muscles(action).contains('deltoids'))
+          if (PoseHubActionFacets.matches(action)) action.id,
+    ];
+    expect(deltoids, isNotEmpty);
+    expect(hits('三角肌'), containsAll(deltoids));
+    expect(hits('肩膀'), containsAll(deltoids));
+    final hamstrings = [
+      for (final action in all)
+        if (PoseHubActionFacets.muscles(action).contains('hamstrings'))
+          if (PoseHubActionFacets.matches(action)) action.id,
+    ];
+    expect(hits('大腿后侧'), containsAll(hamstrings));
+    expect(hits('腘绳肌'), containsAll(hamstrings));
+    expect(hits('三角肌').every(deltoids.contains), isTrue);
+  });
+
+  test('every catalogue muscle group has a label and search terms', () {
+    final ids = catalog.semanticCompleteActions
+        .expand(PoseHubActionFacets.muscles)
+        .toSet();
+    for (final id in ids) {
+      expect(poseHubMuscleLabels[id], isNotNull, reason: id);
+      expect(poseHubMuscleSearchTerms[id], isNotNull, reason: id);
+    }
+    for (final terms in poseHubMuscleSearchTerms.values) {
+      for (final term in terms) {
+        expect(term.length, greaterThanOrEqualTo(2), reason: term);
+      }
+    }
+  });
 }
+

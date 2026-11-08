@@ -171,6 +171,11 @@ abstract final class PoseHubActionFacets {
       yield* _texts(action.raw[key]);
     }
     yield action.id.replaceAll(RegExp(r'[-_]+'), ' ');
+    yield* _texts(action.raw['muscles']);
+    for (final muscle in muscles(action)) {
+      if (poseHubMuscleLabels[muscle] case final label?) yield label;
+      yield* poseHubMuscleSearchTerms[muscle] ?? const <String>[];
+    }
     yield* extraNames;
   }
 
@@ -217,6 +222,34 @@ const poseHubMuscleLabels = <String, String>{
   'adductors': '内收肌',
   'calves': '小腿',
   'tibialis': '胫骨前肌',
+  'neck': '颈部',
+};
+
+/// Everyday and anatomical names that find actions by catalogue muscle group.
+///
+/// Search matches by substring, so each term is at least two characters.
+const poseHubMuscleSearchTerms = <String, List<String>>{
+  'chest': ['胸大肌', '胸肌'],
+  'lats': ['背部', '背肌'],
+  'erectors': ['下背', '腰背', '背部'],
+  'scapular': ['斜方肌', '菱形肌', '上背', '背部'],
+  'deltoids': ['肩膀', '肩部'],
+  'rotator-cuff': ['肩袖肌群', '肩膀', '肩部'],
+  'serratus': ['肩胛'],
+  'biceps': ['二头肌', '手臂', '臂部', '大臂'],
+  'triceps': ['三头肌', '手臂', '臂部', '大臂', '拜拜肉'],
+  'forearms': ['小臂', '手腕', '手臂', '臂部', '腕屈伸肌'],
+  'abs': ['腹直肌', '腹横肌', '腹部', '核心'],
+  'obliques': ['侧腹', '腹部', '核心'],
+  'glute-max': ['臀部', '屁股', '臀肌'],
+  'hip-abductors': ['臀中肌', '臀部', '臀肌', '髋外侧'],
+  'hamstrings': ['大腿后侧', '腿后侧'],
+  'quadriceps': ['大腿前侧', '腿前侧'],
+  'hip-flexors': ['髂腰肌', '髋前侧', '屈髋'],
+  'adductors': ['大腿内侧', '内收肌群'],
+  'calves': ['小腿三头肌', '腓肠肌', '比目鱼肌'],
+  'tibialis': ['小腿前侧'],
+  'neck': ['脖子'],
 };
 
 /// Public action search, facets and cards shared by product libraries.
@@ -766,21 +799,33 @@ class _FilterSheetState extends State<_FilterSheet> {
           ..sort();
     final hasUnilateral = actions.any((a) => a.raw['unilateral'] == true);
     final hasBilateral = actions.any((a) => a.raw['unilateral'] != true);
-    final muscle = _draft.muscle ?? widget.initial.muscle;
+    final present = actions.expand(PoseHubActionFacets.muscles).toSet();
+    final muscleIds = [
+      for (final id in poseHubMuscleLabels.keys)
+        if (present.contains(id) || id == _draft.muscle) id,
+    ];
     final sections = <Widget>[
-      if (muscle != null)
+      if (muscleIds.isNotEmpty)
         _section(strings.muscleGroup, 'muscle', [
           _chip(
             'muscle',
-            muscle,
-            poseHubMuscleLabels[muscle] ?? muscle,
-            _draft.muscle == muscle,
-            () => setState(
-              () => _draft = _draft.muscle == muscle
-                  ? _draft.copyWith(clearMuscle: true)
-                  : _draft.copyWith(muscle: muscle),
-            ),
+            _all,
+            strings.all,
+            _draft.muscle == null,
+            () => setState(() => _draft = _draft.copyWith(clearMuscle: true)),
           ),
+          for (final id in muscleIds)
+            _chip(
+              'muscle',
+              id,
+              poseHubMuscleLabels[id] ?? id,
+              _draft.muscle == id,
+              () => setState(
+                () => _draft = _draft.muscle == id
+                    ? _draft.copyWith(clearMuscle: true)
+                    : _draft.copyWith(muscle: id),
+              ),
+            ),
         ]),
       _section(strings.bodyPart, strings.bodyPart, [
         for (final part in [

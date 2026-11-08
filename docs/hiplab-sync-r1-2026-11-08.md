@@ -27,9 +27,15 @@ Final validation, Flutter 3.44.7 / Dart 3.12.2:
 | Package | Analyze issues | Passed | Skipped | Failed |
 |---|---:|---:|---:|---:|
 | ugk_coach (root) | 0 | 1529 | 0 | 0 |
-| ugk_trainer_runtime | 0 | 204 | 4 | 0 |
+| ugk_trainer_runtime | 0 | 207 | 4 | 0 |
 | ugk_coach_chat | 0 | 93 | 0 | 0 |
 | ugk_trainer | 0 | 614 | 0 | 0 |
 
-Local logs: `build/verification/final-*.log`. No device, listening, live-model,
+HipLab integration exposed an immediate voice-preparation boundary: a refresh
+before the first tick consumed the pending welcome at time zero. The follow-up
+preserves that pending cue while retaining the no-replay/no-backfill behavior.
+Three new runner regressions cover initial, already-fired and late refreshes.
+All four packages were rerun on this final runtime source.
+
+Local logs: `build/verification/revised-*.log`. No device, listening, live-model,
 iOS or store acceptance is implied. Submit as Draft PR only; do not merge.

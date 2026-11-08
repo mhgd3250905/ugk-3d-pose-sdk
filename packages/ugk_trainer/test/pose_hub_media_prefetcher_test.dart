@@ -8,6 +8,9 @@ import 'package:ugk_trainer/ugk_trainer.dart';
 
 import 'support.dart';
 
+const _catalogAsset =
+    'assets/pose_hub/app-pack-${PoseHubActionLibrary.packVersion}/catalog.json';
+
 class _Host implements PoseHubMediaPreparer {
   final actions = <PoseHubPackAction>[];
   final streams = <StreamController<PoseHubMediaPreparationEvent>>[];
@@ -55,7 +58,7 @@ class _Host implements PoseHubMediaPreparer {
 
 void main() {
   final catalog = PoseHubAppTestCatalog.fromBytes(
-    File('assets/pose_hub/app-test-pack-r1/catalog.json').readAsBytesSync(),
+    File(_catalogAsset).readAsBytesSync(),
   );
   final actions = catalog.semanticCompleteActions.take(5).toList();
   late _Host host;

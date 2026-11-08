@@ -102,6 +102,17 @@ abstract class VoiceSource {
   /// The clip exists. `chime.*` keys ignore [lang].
   bool has(String key, {required String lang});
 
+  /// The clip exists or will once the source is prepared (a listed
+  /// catalogue clip not downloaded yet). Used only to size phases.
+  bool expected(String key, {required String lang}) => has(key, lang: lang);
+
+  /// Written text of a move's line when there is no recorded clip (the
+  /// fallback intro shown with the generic calls), null when none.
+  String? drillText(String exerciseId, DrillLine line, {required String lang}) {
+    final k = drill(exerciseId, line);
+    return k == null ? null : this.line(k, lang: lang);
+  }
+
   /// Clip length in seconds; an estimate when unknown (counts .4 s, other
   /// lines 1.2 s), 0 for chimes.
   double seconds(String key, {required String lang});
@@ -127,6 +138,11 @@ abstract class VoiceSource {
   /// Key of a call, null when this source has none.
   String? call(VoiceCall c);
 
+  /// Key of the bare side word (右 / 左) said inside an alternating pair
+  /// as each side starts to move; [side] is `right` / `left`. A source
+  /// without the clip stays silent there (the count still plays).
+  String? sideWord(String side) => side == 'left' ? 'p.left' : 'p.right';
+
   /// Key of a move's own line, null when it has none.
   String? drill(String exerciseId, DrillLine line);
 
@@ -148,11 +164,11 @@ abstract class VoiceSource {
   /// "12 次".
   List<String> repsPhrase(int n) => const [];
 
-  /// "第 2 组".
-  List<String> ordinalSet(int n) => const [];
+  /// "第 2 组" / "Set two" in [lang]: the word order follows the language.
+  List<String> ordinalSet(int n, {String lang = 'zh'}) => const [];
 
-  /// "第 2 轮".
-  List<String> ordinalRound(int n) => const [];
+  /// "第 2 轮" / "Round two" in [lang].
+  List<String> ordinalRound(int n, {String lang = 'zh'}) => const [];
 }
 
 /// Shared length rule of both sources.

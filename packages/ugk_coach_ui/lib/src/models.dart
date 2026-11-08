@@ -26,6 +26,7 @@ class CoachExercise {
     this.stillCutout,
     this.levelLabel = '',
     this.equipmentLabel = '',
+    this.artworkBuilder,
   });
   final String id;
   final String name;
@@ -36,11 +37,18 @@ class CoachExercise {
   final String? cutout;
   final String? stillCutout;
 
+  /// Optional catalogue artwork. Its owner resolves verified, current media;
+  /// null preserves the host's asset renderer.
+  final CoachExerciseArtworkBuilder? artworkBuilder;
+
   /// Localized catalogue facts; the recommendation never infers these from
   /// the model's explanation. Existing routine adapters may leave them empty.
   final String levelLabel;
   final String equipmentLabel;
 }
+
+typedef CoachExerciseArtworkBuilder =
+    Widget Function(BuildContext context, {required bool thumbnail});
 
 /// Trusted host media selected by the card, including its still during flight.
 /// Returning null from the host builder keeps the SDK's existing asset image.

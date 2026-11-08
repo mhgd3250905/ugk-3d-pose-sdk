@@ -8,6 +8,7 @@ export 'src/engine/session.dart';
 export 'src/result/session_result.dart';
 export 'src/rhythm/action_kind.dart';
 export 'src/rhythm/rhythm.dart';
+export 'src/voice/catalog_voice_source.dart';
 export 'src/voice/drill_pack_voice_source.dart';
 export 'src/voice/manifest_voice_source.dart';
 export 'src/voice/session_runner.dart';

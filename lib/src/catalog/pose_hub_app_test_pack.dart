@@ -201,6 +201,33 @@ final class PoseHubPackAction {
   final Map<String, Object?> raw;
   late final Map<String, PoseHubPackFile> files;
   late final Map<String, Object?> rawTrainingDefinition;
+
+  /// Training pace authored in the pack (`rhythm.execution`, e.g. kind,
+  /// leadSeconds, phases, reps, perSide, repUnit, startingSide), as the pack
+  /// wrote it. Media metadata beside it (fps, frames, loop length) is not a
+  /// training pace and is not part of this. An execution declared but not a
+  /// map (pace unknown) is self-paced for a reps dose and absent for a time
+  /// dose. Null when the pack declares no execution.
+  late final Map<String, Object?>? executionRhythm = () {
+    final rhythm = raw['rhythm'];
+    if (rhythm is! Map<String, Object?> || !rhythm.containsKey('execution')) {
+      return null;
+    }
+    final execution = rhythm['execution'];
+    if (execution is Map<String, Object?>) {
+      final side = raw['startingSide'];
+      return Map<String, Object?>.unmodifiable({
+        if (side is String && !execution.containsKey('startingSide'))
+          'startingSide': side,
+        ...execution,
+      });
+    }
+    final dose = raw['defaultDose'];
+    return dose is Map && dose['mode'] == 'reps'
+        ? const <String, Object?>{'kind': 'self_paced'}
+        : null;
+  }();
+
   Map<String, Object?> get rawTrainingSemantics =>
       _map(raw['trainingSemantics'], '$id.trainingSemantics');
   String get trainingStatusLabel =>
@@ -363,7 +390,14 @@ final class PoseHubAppTestCatalog {
     }
     final drills = [
       for (final action in semanticCompleteActions)
-        _withStatus(canonical?[action.id] ?? _definition(action), action),
+        _withMedia(
+          _withStatus(
+            _canonicalWithRhythm(canonical?[action.id], action) ??
+                _withRhythm(_definition(action), action),
+            action,
+          ),
+          action,
+        ),
     ];
     final version = canonical?.version ?? semanticCatalogVersion;
     final formatVersion =
@@ -497,6 +531,17 @@ final class PoseHubAppTestCatalog {
     }
   }
 
+  /// Keeps presentation tied to the selected pack even when its training
+  /// definition came from the separate canonical catalogue.
+  Drill _withMedia(Drill drill, PoseHubPackAction action) => Drill.tryParse({
+    ...drill.raw,
+    'poseHubMedia': Map<String, Object?>.unmodifiable({
+      for (final entry in action.files.entries) entry.key: entry.value.raw,
+      if (raw['mediaDistribution'] case final Map<String, Object?> distribution)
+        if (distribution['baseUrl'] case final String base) 'baseUri': base,
+    }),
+  }, <String>[])!;
+
   /// Carries the catalogue's lifecycle status onto the coach definition, so
   /// selection can skip it while validation of saved plans still finds it.
   static Drill _withStatus(Drill drill, PoseHubPackAction action) {
@@ -505,6 +550,25 @@ final class PoseHubAppTestCatalog {
       ...drill.toJson(),
       'status': action.status.wireName,
     }, <String>[])!;
+  }
+
+  /// A canonical definition that authors its own `rhythm` keeps it exactly;
+  /// one without gets the pack's execution pace (see [_withRhythm]).
+  static Drill? _canonicalWithRhythm(Drill? drill, PoseHubPackAction action) {
+    if (drill == null || drill.raw.containsKey('rhythm')) return drill;
+    return _withRhythm(drill, action);
+  }
+
+  /// Delivers the pack's [PoseHubPackAction.executionRhythm] as the
+  /// definition's `rhythm`, the field `rhythmsFromCatalog` and plan timing
+  /// read, so every app paces, counts and plans an action the same way.
+  /// The pack's media `rhythm` (fps, frames) never stands in for it.
+  static Drill _withRhythm(Drill drill, PoseHubPackAction action) {
+    final execution = action.executionRhythm;
+    if (execution == null && !drill.raw.containsKey('rhythm')) return drill;
+    final json = <String, Object?>{...drill.raw}..remove('rhythm');
+    if (execution != null) json['rhythm'] = execution;
+    return Drill.tryParse(Map<String, Object?>.unmodifiable(json), <String>[])!;
   }
 
   Drill _definition(PoseHubPackAction action) {

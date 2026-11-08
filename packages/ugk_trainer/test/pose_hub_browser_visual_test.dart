@@ -8,9 +8,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 import 'package:ugk_trainer/ugk_trainer.dart';
 
+const _catalogAsset =
+    'assets/pose_hub/app-pack-${PoseHubActionLibrary.packVersion}/catalog.json';
+
 void main() {
   final catalog = PoseHubAppTestCatalog.fromBytes(
-    File('assets/pose_hub/app-test-pack-r1/catalog.json').readAsBytesSync(),
+    File(_catalogAsset).readAsBytesSync(),
   );
 
   testWidgets('export the action library when requested', (tester) async {

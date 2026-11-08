@@ -61,12 +61,13 @@ Future<coach.PoseHubAppTestCatalog?> readVerifiedPoseHubCatalog(
   }
 }
 
-/// Event names: `pack.updated`, `pack.update_blocked`, `pack.update_failed`.
+/// Update results and nonfatal pointer metadata warnings.
 class PoseHubCatalogUpdateEvent {
   const PoseHubCatalogUpdateEvent(this.name, {this.pack, this.reason});
   static const updated = 'pack.updated';
   static const blocked = 'pack.update_blocked';
   static const failed = 'pack.update_failed';
+  static const publishedAtUnparsed = 'pointer.published_at_unparsed';
   final String name;
   final String? pack;
   final String? reason;
@@ -81,7 +82,7 @@ enum PoseHubCatalogUpdateOutcome {
   /// The pointer answered 304 for the stored ETag.
   notModified,
 
-  /// The pointer names the pack already in use.
+  /// The pointer names the pack already in use, or an older one.
   unchanged,
 
   /// The pointer needs a newer SDK (`min_sdk`).
@@ -192,8 +193,20 @@ class PoseHubCatalogUpdater {
       throw _Failure('pointer_invalid: $error');
     }
     final pack = pointer.pack;
+    if (pointer.publishedAtUnparsed) {
+      final warning = PoseHubCatalogUpdateEvent(
+        PoseHubCatalogUpdateEvent.publishedAtUnparsed,
+        pack: pack,
+        reason: 'published_at could not be parsed; ignored',
+      );
+      debugPrint(warning.toString());
+      onEvent?.call(warning);
+    }
     final local = await _local();
-    if (poseHubPackVersionOf(local) == pack) {
+    final localPack = poseHubPackVersionOf(local);
+    // Packs only move forward: a pointer naming an older pack than the one in
+    // use (e.g. stable still on r2-v1 while the SDK bundles r2-v2) is a no-op.
+    if (localPack == pack || (comparePoseHubPacks(pack, localPack) ?? 0) < 0) {
       keepEtag(pointerResponse.etag);
       return PoseHubCatalogUpdateOutcome.unchanged;
     }
@@ -283,7 +296,7 @@ class PoseHubCatalogUpdater {
             'pack': pack,
             'catalog_sha256': pointer.catalogSha256,
             'catalog_bytes': pointer.catalogBytes,
-            'published_at': pointer.publishedAt.toIso8601String(),
+            'published_at': ?pointer.publishedAt?.toIso8601String(),
           }),
         ),
       );

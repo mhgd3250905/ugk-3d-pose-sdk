@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — PR #18 alternating pairs + bundled r2-v2 (2026-11-05, draft)
+
+- Count `repUnit: left+right` actions as one rep = one left + one right (no side split, no switch). `Rhythm.planRepSecondsFor()` gives plan estimates the per-side cost (half a pair) so `每侧 N 次 × 2` equals the played time; hosts that project `repSeconds` for planning should use it instead of `cycleFor()`.
+- Bundle Pose-Hub r2-v2 (`catalog.json` 6dee1696…8829, semantic 696b6d9d…3c67): r2-v1's 249 actions, 23 of them alternating pairs; text, voice and media unchanged. r2-v1 catalogue moves to `ugk_trainer_runtime/test/fixtures/pose_hub/r2-v1/`; standing images stay under `app-pack-r2-v1/standing/` (`PoseHubActionLibrary.standingAssetRoot`).
+- Media root follows the catalogue's `mediaDistribution.objectKeyPrefix` (`poseHubMediaPackOf`): r2-v2 media downloads from `pack/r2-v1/`. Hosts building mirror lists per pack should pass `poseHubMediaPackOf(catalog)`.
+- `PoseHubAppTestCatalog.toAiCatalog()` now delivers each action's authored pace (`rhythm.execution`, incl. `perSide`/`repUnit`/`startingSide`) as the definition's `rhythm`, so `rhythmsFromCatalog` paces, counts and plans with it instead of a dose default. A canonical definition that authors its own `rhythm` keeps it; media metadata (fps, frames) is never delivered as a pace; a declared-but-unknown execution is `self_paced` for reps. New `PoseHubPackAction.executionRhythm`. Hosts that read `action.raw['rhythm']['execution']` themselves (HipLab/Flare) can drop that.
+- Packs only move forward: a channel pointer naming an older `r<N>-v<M>` pack than the one in use is `unchanged`, and an older verified cache never shadows a newer bundled baseline. Add-only ID rule unchanged (r2-v2 keeps all 249 IDs).
+
 ## SDK tag ugk_trainer-v0.7.2 — 2026-11-04（已发布固定 tag）
 
 - PR #12 merged at `c1a51a09cdc3add3696cad159ca6044ccf5af6c8`; the tag remains fixed there. This is a repository integration tag, not a package-manifest bump: coach remains 0.8.0, trainer 0.6.0 and coach_ui 0.4.0; `publish_to: none` is unchanged.

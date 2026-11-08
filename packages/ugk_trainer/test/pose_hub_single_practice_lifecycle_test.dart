@@ -11,6 +11,9 @@ import 'package:ugk_trainer/ugk_trainer.dart';
 
 import 'support.dart';
 
+const _catalogAsset =
+    'assets/pose_hub/app-pack-${PoseHubActionLibrary.packVersion}/catalog.json';
+
 class _PracticeVoiceSource extends VoiceSource {
   const _PracticeVoiceSource();
 
@@ -84,11 +87,7 @@ class _PracticeFixture {
 
 PoseHubPackAction _timedAction(int seconds) {
   final raw =
-      jsonDecode(
-            File(
-              'assets/pose_hub/app-test-pack-r1/catalog.json',
-            ).readAsStringSync(),
-          )
+      jsonDecode(File(_catalogAsset).readAsStringSync())
           as Map<String, Object?>;
   final action = (raw['actions']! as List<Object?>)
       .cast<Map<String, Object?>>()

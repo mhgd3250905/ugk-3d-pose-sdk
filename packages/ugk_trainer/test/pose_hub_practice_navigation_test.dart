@@ -5,6 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 import 'package:ugk_trainer/ugk_trainer.dart';
 
+const _catalogAsset =
+    'assets/pose_hub/app-pack-${PoseHubActionLibrary.packVersion}/catalog.json';
+
 class _Routes extends NavigatorObserver {
   final pushed = <Route<dynamic>>[];
 
@@ -23,7 +26,7 @@ class _Preparer implements PoseHubMediaPreparer {
 
 void main() {
   final catalog = PoseHubAppTestCatalog.fromBytes(
-    File('assets/pose_hub/app-test-pack-r1/catalog.json').readAsBytesSync(),
+    File(_catalogAsset).readAsBytesSync(),
   );
   final action = catalog.semanticCompleteActions.first;
   final mediaBaseUri = Uri.parse('file:///host-prepared/');

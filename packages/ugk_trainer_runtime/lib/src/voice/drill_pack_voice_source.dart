@@ -203,11 +203,22 @@ class DrillPackVoiceSource extends VoiceSource {
   @override
   List<String> repsPhrase(int n) => _unit(n, 'u.reps');
 
+  /// Chinese says 第 + number + 组 (`p.di n.2 u.sets`). Other languages
+  /// put the noun first and no "number" word: English "Set two"
+  /// (`p.set n.2`). Saying the Chinese order in English came out as
+  /// "Number two sets", so those languages need their own `p.set` /
+  /// `p.round` clip; without it the phrase stays silent.
   @override
-  List<String> ordinalSet(int n) =>
-      number(n).isEmpty ? const [] : ['p.di', ...number(n), 'u.sets'];
+  List<String> ordinalSet(int n, {String lang = 'zh'}) =>
+      _ordinal(n, lang, 'u.sets', 'p.set');
 
   @override
-  List<String> ordinalRound(int n) =>
-      number(n).isEmpty ? const [] : ['p.di', ...number(n), 'u.rounds'];
+  List<String> ordinalRound(int n, {String lang = 'zh'}) =>
+      _ordinal(n, lang, 'u.rounds', 'p.round');
+
+  List<String> _ordinal(int n, String lang, String unit, String noun) {
+    final k = number(n);
+    if (k.isEmpty) return const [];
+    return lang == 'zh' ? ['p.di', ...k, unit] : [noun, ...k];
+  }
 }

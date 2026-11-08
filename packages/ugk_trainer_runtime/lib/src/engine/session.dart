@@ -178,6 +178,17 @@ class _Occurrence {
 typedef SwitchSeconds =
     double Function(PlanItem item, Rhythm rhythm, Side side);
 
+/// Lengthens the prep phase before the first move [item] ([exerciseId]) so
+/// its intro fits (the voice script measures its lines); [minimum] is
+/// [SessionBuilder.prepSeconds], [planSeconds] the played plan length.
+typedef PrepSeconds =
+    double Function(
+      PlanItem item,
+      String exerciseId, {
+      required double minimum,
+      required double planSeconds,
+    });
+
 class SessionBuilder {
   SessionBuilder({
     this.rhythms = const {},
@@ -187,6 +198,7 @@ class SessionBuilder {
     this.transitionSeconds = 15,
     this.selfPacedRepEstimate = 3.0,
     this.switchSecondsFor,
+    this.prepSecondsFor,
     this.rhythmDefaults = const RhythmDefaults(),
     this.sideSwitchMarginSeconds = 0,
   });
@@ -209,6 +221,7 @@ class SessionBuilder {
   final int transitionSeconds;
   final double selfPacedRepEstimate;
   final SwitchSeconds? switchSecondsFor;
+  final PrepSeconds? prepSecondsFor;
   final RhythmDefaults rhythmDefaults;
 
   /// Extra seconds [planSeconds] adds for every side switch of a unilateral
@@ -246,7 +259,8 @@ class SessionBuilder {
     return rhythm.effectiveFor(dose, defaults: rhythmDefaults);
   }
 
-  /// Seconds of one side of one set of [item].
+  /// Seconds of one side of one set of [item] (both sides of an
+  /// alternating pair).
   double workSeconds(PlanItem item, [Rhythm? rhythm]) {
     final r = rhythm ?? rhythmOf(item);
     if (r.selfPaced) return (item.reps ?? 10) * selfPacedRepEstimate;
@@ -302,17 +316,30 @@ class SessionBuilder {
     return out;
   }
 
-  List<SessionPhase> phases(TrainingPlan plan) {
+  List<SessionPhase> phases(TrainingPlan plan) => _phases(plan, sizePrep: true);
+
+  List<SessionPhase> _phases(TrainingPlan plan, {required bool sizePrep}) {
     final occ = _occurrences(plan);
     final out = <SessionPhase>[];
     if (occ.isEmpty) {
       return [const SessionPhase(kind: PhaseKind.done, seconds: 0)];
     }
     final f = occ.first;
+    final firstId =
+        f.item.segments.firstOrNull?.exerciseId ?? f.item.exerciseId;
+    final firstDose = f.item.segments.firstOrNull?.toPlanItem(f.item) ?? f.item;
+    final prep = !sizePrep || prepSeconds <= 0 || prepSecondsFor == null
+        ? prepSeconds.toDouble()
+        : prepSecondsFor!(
+            firstDose,
+            firstId,
+            minimum: prepSeconds.toDouble(),
+            planSeconds: planSeconds(plan),
+          );
     out.add(
       SessionPhase(
         kind: PhaseKind.prep,
-        seconds: prepSeconds.toDouble(),
+        seconds: prep,
         exerciseId:
             f.item.segments.firstOrNull?.exerciseId ?? f.item.exerciseId,
         segment: f.item.segments.firstOrNull,
@@ -374,7 +401,11 @@ class SessionBuilder {
                 selfPaced: kind == PhaseKind.work && rhythm.selfPaced,
                 holdSeconds: kind == PhaseKind.work ? rhythm.holdSeconds : null,
               );
-          final sides = item.perSide ? [Side.right, Side.left] : [null];
+          // An alternating pair (one count = one left + one right) moves
+          // both sides inside every count: one work phase, no side switch.
+          final sides = item.perSide && !rhythm.alternatePair
+              ? [Side.right, Side.left]
+              : [null];
           for (var k = 0; k < sides.length; k++) {
             if (k > 0) {
               final side = sides[k]!;
@@ -455,7 +486,7 @@ class SessionBuilder {
   /// [sideSwitchMargin] when given for this call).
   double planSeconds(TrainingPlan plan, {double? sideSwitchMargin}) {
     var total = 0.0, switches = 0;
-    for (final p in phases(plan)) {
+    for (final p in _phases(plan, sizePrep: false)) {
       if (p.kind == PhaseKind.prep) continue;
       total += p.seconds;
       if (p.kind == PhaseKind.switchSide) switches++;

@@ -8,7 +8,7 @@ import 'package:ugk_coach/src/profile/coach_profile.dart';
 /// 规格第 7 节：没标 apps/tags 的动作由 App profile 规则（部位、类型、器械）放行。
 Catalog _bundled() => Catalog.fromJson(
   jsonDecode(
-    File('packages/ugk_trainer/assets/pose_hub/app-pack-r2-v1/catalog/catalog.json').readAsStringSync(),
+    File('packages/ugk_trainer/assets/pose_hub/app-pack-r2-v10/catalog/catalog.json').readAsStringSync(),
   ),
 );
 
@@ -59,7 +59,7 @@ void main() {
     expect(DrillSelector.fromJson(s.toJson()).rules.toJson(), s.rules.toJson());
   });
 
-  test('bundled r2-v1: HipLab profile rules pick up untagged hip actions, keep upper-body out', () {
+  test('bundled catalogue: HipLab profile rules pick up untagged hip actions, keep upper-body out', () {
     final hiplab = CoachProfile.fromJson(_profile('hiplab'));
     final scope = {for (final d in hiplab.scope(catalog)) d.id};
     final untaggedIn = [

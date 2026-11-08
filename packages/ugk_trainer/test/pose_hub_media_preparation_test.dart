@@ -10,6 +10,9 @@ import 'package:ugk_trainer/ugk_trainer.dart';
 
 import 'support.dart';
 
+const _catalogAsset =
+    'assets/pose_hub/app-pack-${PoseHubActionLibrary.packVersion}/catalog.json';
+
 /// Deliberately permits callbacks after cancellation to verify generation
 /// guards in addition to ordinary StreamSubscription cancellation.
 class _ManualStream extends Stream<PoseHubMediaPreparationEvent> {
@@ -133,11 +136,7 @@ void main() {
 
   setUpAll(() async {
     final raw =
-        jsonDecode(
-              await File(
-                'assets/pose_hub/app-test-pack-r1/catalog.json',
-              ).readAsString(),
-            )
+        jsonDecode(await File(_catalogAsset).readAsString())
             as Map<String, Object?>;
     final source = (raw['actions']! as List<Object?>)
         .cast<Map<String, Object?>>()

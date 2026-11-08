@@ -54,10 +54,6 @@ class SessionScript {
   /// 2026-10-19).
   static const switchMargin = 0.4;
 
-  /// Count clips exist for 1…10 in HipLab; a higher count says only its
-  /// phase word.
-  static const maxCountClip = 10;
-
   /// The source has voice in [lang]; otherwise only chimes are played.
   bool get voiced => source.supports(lang);
 
@@ -159,6 +155,110 @@ class SessionScript {
     ];
   }
 
+  /// Written intro of a move ("名字：要点") for the fallback when it has no
+  /// recorded name / key point; null when the source has no text either.
+  String? introText(String id) {
+    final name = source.drillText(id, DrillLine.name, lang: lang);
+    final cue =
+        source.drillText(id, DrillLine.cue1, lang: lang) ??
+        source.drillText(id, DrillLine.intro, lang: lang);
+    if (name == null && cue == null) return null;
+    if (name == null || cue == null) return name ?? cue;
+    return lang == 'zh' ? '$name：$cue' : '$name: $cue';
+  }
+
+  /// Before a move: its preview ("第一个 / 下一个动作，名字，剂量") then its
+  /// first key point (name + primaryCue = the intro). A move without a
+  /// recorded name still gets the lead call and dose, carrying its written
+  /// intro as the subtitle; a recorded name without a recorded key point
+  /// carries the key point's text.
+  bool _placeIntro(
+    _Timeline t,
+    VoiceCall lead,
+    String id,
+    PlanItem item, {
+    bool withSets = true,
+  }) {
+    final previews = _preview(lead, id, item, withSets: withSets);
+    final cues = cueKeys(id);
+    final text = introText(id);
+    if (previews.isEmpty) {
+      final l = call(lead);
+      final d = dose(item, withSets: withSets);
+      return t.place(
+        [
+          if (l != null && d.isNotEmpty) [l, ...d],
+          ?(l == null ? null : [l]),
+        ],
+        CuePriority.info,
+        subtitle: text,
+      );
+    }
+    final cueText = cues.isEmpty
+        ? source.drillText(id, DrillLine.cue1, lang: lang)
+        : null;
+    // The dose matters more than the point: never drop it to make room.
+    final withDose = previews.where((pv) => pv.length > 2).toList();
+    final placed =
+        cues.isNotEmpty &&
+        t.placeGroup([
+          for (final pv in withDose.isEmpty ? previews : withDose)
+            [
+              (pv, CuePriority.info),
+              ([cues.first], CuePriority.coach),
+            ],
+        ]);
+    if (!placed) t.place(previews, CuePriority.info, subtitle: cueText);
+    return placed;
+  }
+
+  /// Seconds the prep phase before [item] ([id]) needs so the welcome, the
+  /// intro (name + primary key point) and 准备 all fit before the 3-2-1;
+  /// never less than [minimum]. Lines a prepared source will have count.
+  double prepSecondsFor(
+    PlanItem item,
+    String id, {
+    required double minimum,
+    required double planSeconds,
+  }) {
+    double l(List<String> k) =>
+        k.every((c) => source.expected(c, lang: lang)) ? len(k) + lineGap : 0;
+    String? key(VoiceCall c) {
+      final k = source.call(c);
+      return k != null && source.expected(k, lang: lang) ? k : null;
+    }
+
+    String? line(DrillLine d) {
+      final k = source.drill(id, d);
+      return k != null && source.expected(k, lang: lang) ? k : null;
+    }
+
+    final welcome = key(VoiceCall.welcome);
+    final total = key(VoiceCall.total);
+    final m = source.minutesPhrase((planSeconds / 60).round().clamp(1, 600));
+    final w = welcome == null
+        ? 0.0
+        : total != null && m.isNotEmpty && l([welcome, total, ...m]) > 0
+        ? l([welcome, total, ...m])
+        : l([welcome]);
+    final lead = key(VoiceCall.first);
+    final name = line(DrillLine.intro) ?? line(DrillLine.name);
+    final d = dose(item);
+    final pv = lead == null
+        ? 0.0
+        : name == null
+        ? l([lead, ...d])
+        : l([lead, name, ...d]);
+    final cue = line(DrillLine.cue1);
+    final c = cue == null ? 0.0 : l([cue]);
+    final ready = key(VoiceCall.ready);
+    final r = ready == null ? 0.0 : l([ready]) + .2;
+    final spoken = w + pv + c + r;
+    if (spoken <= 0) return minimum;
+    final need = spoken + 3 + countdownMargin + .4;
+    return need > minimum ? need.ceilToDouble() : minimum;
+  }
+
   // ── side switch ───────────────────────────────────────────────────────
 
   /// What is said when the side switches: 慢慢还原 after a hold (kit), then
@@ -255,25 +355,40 @@ class SessionScript {
     ], CuePriority.info);
     final id = p.exerciseId;
     if (id != null && p.item != null) {
-      t.place(
-        _preview(
-          VoiceCall.first,
-          id,
-          p.segment?.toPlanItem(p.item!) ?? p.item!,
-        ),
-        CuePriority.info,
+      _placeIntro(
+        t,
+        VoiceCall.first,
+        id,
+        p.segment?.toPlanItem(p.item!) ?? p.item!,
       );
-      final c = cueKeys(id);
-      if (c.isNotEmpty) {
-        t.place([
-          [c.first],
-        ], CuePriority.coach);
-      }
     }
     return t.cues;
   }
 
   List<VoiceCue> _rest(SessionPhase p, bool bySkip) {
+    final id = p.exerciseId;
+    final next = p.nextExerciseId != null && id != null && p.item != null;
+    if (!next) return _restWith(p, bySkip, 0).$1;
+    // Before a new move its intro (name + primary key point) comes first:
+    // when it does not fit after the full "做得好，休息 15 秒", say a
+    // shorter opener (the screen still shows the rest time).
+    final first = _restWith(p, bySkip, 0);
+    if (first.$2) return first.$1;
+    for (var skip = 1; skip < first.$3; skip++) {
+      final r = _restWith(p, bySkip, skip);
+      if (r.$2) return r.$1;
+    }
+    return first.$1;
+  }
+
+  /// Rest cues with the first [skipOpeners] opener alternatives left out;
+  /// also whether the next move's intro was placed whole, and how many
+  /// opener alternatives there are.
+  (List<VoiceCue>, bool, int) _restWith(
+    SessionPhase p,
+    bool bySkip,
+    int skipOpeners,
+  ) {
     final rest = p.seconds.round();
     final t = _timeline(p.seconds)..fixAll(_countdown(p.seconds));
     final r = call(VoiceCall.rest);
@@ -301,37 +416,32 @@ class SessionScript {
       ],
       ['chime.end'],
     ];
-    t.place([
+    final openers = [
       for (final h in heads)
         for (final tail in tails) [...h, ...tail],
       ['chime.end'],
-    ], CuePriority.call);
+    ];
+    t.place(
+      openers.sublist(skipOpeners.clamp(0, openers.length - 1)),
+      CuePriority.call,
+    );
+    var introduced = true;
     if (p.kind == PhaseKind.roundRest && p.round > 0) {
-      t.place([_phrase(source.ordinalRound(p.round))], CuePriority.info);
+      t.place([_phrase(source.ordinalRound(p.round, lang: lang))], CuePriority.info);
     }
     final id = p.exerciseId;
     final next = p.nextExerciseId != null && id != null && p.item != null;
     if (next) {
       // Before a new move: what it is, how much, then its first key point.
-      final previews = _preview(
+      final placed = _placeIntro(
+        t,
         VoiceCall.next,
         id,
         p.segment?.toPlanItem(p.item!) ?? p.item!,
         withSets: p.rounds == 0 || p.sets > 1,
       );
+      introduced = placed;
       final cues = cueKeys(id);
-      // The dose matters more than the point: never drop it to make room.
-      final withDose = previews.where((pv) => pv.length > 2).toList();
-      final placed =
-          cues.isNotEmpty &&
-          t.placeGroup([
-            for (final pv in withDose.isEmpty ? previews : withDose)
-              [
-                (pv, CuePriority.info),
-                ([cues.first], CuePriority.coach),
-              ],
-          ]);
-      if (!placed) t.place(previews, CuePriority.info);
       if (placed && cues.length > 1) {
         t.place([
           [cues[1]],
@@ -345,7 +455,7 @@ class SessionScript {
           [last],
         ], CuePriority.info);
       } else if (p.sets > 1) {
-        t.place([_phrase(source.ordinalSet(p.set))], CuePriority.info);
+        t.place([_phrase(source.ordinalSet(p.set, lang: lang))], CuePriority.info);
       }
       final tip = own(id, DrillLine.rest);
       final cues = cueKeys(id);
@@ -362,7 +472,7 @@ class SessionScript {
         }
       }
     }
-    return t.cues;
+    return (t.cues, introduced, openers.length);
   }
 
   /// Key points for this side: on the second side the move's own
@@ -375,6 +485,24 @@ class SessionScript {
   }
 
   List<VoiceCue> _work(SessionPhase p) {
+    final out = _workCues(p);
+    final id = p.exerciseId;
+    // No recorded key point anywhere: the start call carries the written one
+    // so the move is still coached on screen while the counts play.
+    if (id == null || out.isEmpty || kit(id) != null) return out;
+    if (cueKeys(id).isNotEmpty || out.any((c) => c.subtitle != null)) {
+      return out;
+    }
+    final text = source.drillText(id, DrillLine.cue1, lang: lang);
+    if (text == null) return out;
+    final first = out.first;
+    return [
+      VoiceCue(first.at, first.clips, first.priority, subtitle: text),
+      ...out.skip(1),
+    ];
+  }
+
+  List<VoiceCue> _workCues(SessionPhase p) {
     final id = p.exerciseId;
     final rhythm = p.rhythm ?? Rhythm.timedHold;
     final v = kit(id);
@@ -496,8 +624,9 @@ class SessionScript {
     final lastRep = v != null && _has(v.lastRep)
         ? v.lastRep
         : call(VoiceCall.lastRep);
+    // Any count the source has recorded is said (a custom 15 says 11…15
+    // too); a count the source lacks falls back to the tick chime.
     String? count(int k) {
-      if (k > maxCountClip) return null;
       final c = v?.countClip(k);
       if (c != null && _has(c)) return c;
       final n = source.number(k);
@@ -515,6 +644,12 @@ class SessionScript {
       final last = k == plan.reps && plan.reps >= 3 && lastRep != null;
       for (final (i, ph) in plan.phases.indexed) {
         final word = ph.cueFor(k);
+        // Alternating pair: the side word (右 → 左) as each side starts,
+        // inside the one count.
+        final sideStart =
+            ph.side != null && (i == 0 || plan.phases[i - 1].side != ph.side);
+        final sw = sideStart ? source.sideWord(ph.side!) : null;
+        final side = sw != null && _has(sw) ? sw : null;
         if (i == 0) {
           raw.add(
             VoiceCue(t, [
@@ -523,11 +658,15 @@ class SessionScript {
               if (k == 1) ?startClip,
               ?(last ? lastRep : count(k)),
               if ((last ? lastRep : count(k)) == null &&
+                  side == null &&
                   (word == null || !_has(word)))
                 'chime.tick',
+              ?side,
               ?word,
             ], CuePriority.count),
           );
+        } else if (side != null) {
+          raw.add(VoiceCue(t, [side, ?word], CuePriority.count));
         } else if (word != null) {
           raw.add(VoiceCue(t + ph.cueAt, [word], CuePriority.count));
         }
@@ -546,7 +685,55 @@ class SessionScript {
         if (_strip(c.clips).isNotEmpty)
           VoiceCue(c.at, _strip(c.clips), c.priority),
     ]..sort((a, b) => a.at.compareTo(b.at));
-    return out;
+    // Key points in the gaps between the counts, as a timed hold gets them:
+    // a counted move is coached too, not only counted. The counts stay
+    // fixed; a line that does not fit whole between two counts is skipped.
+    // An alternating pair is one work phase, so this never repeats per side;
+    // a per-side set's second side gets the side_switch line (_sideLines).
+    final id = p.exerciseId;
+    final lines = v != null
+        ? [
+            ...?(_coach(v).isEmpty ? null : [_coach(v).first]),
+            if (p.seconds >= 40 && _coach(v).length > 1) _coach(v)[1],
+          ]
+        : id == null
+        ? const <String>[]
+        : _sideLines(p, id);
+    if (lines.isEmpty) return out;
+    final t = _Timeline(this, limit: p.seconds)..fixAll(out);
+    final first = out.isEmpty ? 0.0 : out.first.at + len(out.first.clips);
+    final span = (p.seconds - first).clamp(0, 1e9);
+    var placed = false;
+    for (var k = 0; k < lines.length; k++) {
+      placed |= t.place(
+        [
+          [lines[k]],
+        ],
+        CuePriority.coach,
+        from: first + span * k / lines.length,
+        gapAfter: repGapAfter,
+      );
+    }
+    if (placed) return t.cues;
+    // A kit already speaks its go/back words on every rep (HipLab): keep
+    // its counts. Otherwise fast reps (≈2 s) leave no gap a key point fits in: say the first one
+    // right after the first count and let the counts it covers keep their
+    // beat as a tick (the chime has its own channel), so the move is still
+    // coached and no count is moved.
+    if (v != null) return t.cues;
+    final line = lines.first;
+    final at = first + lineGap;
+    final end = at + len([line]);
+    if (end > p.seconds) return out;
+    return [
+      for (final c in out)
+        if (c.at < end + repGapAfter && c.at + len(c.clips) > at - lineGap) ...[
+          if (_strip(['chime.tick']).isNotEmpty)
+            VoiceCue(c.at, _strip(['chime.tick']), c.priority),
+        ] else
+          c,
+      VoiceCue(at, [line], CuePriority.coach, subtitle: _subtitle([line])),
+    ]..sort((a, b) => a.at.compareTo(b.at));
   }
 
   /// Timed hold: start, halfway, ten seconds left, the countdown (5-4-3-2-1
@@ -642,6 +829,7 @@ class _Timeline {
     double from = 0,
     double gap = lineGap,
     double? gapAfter,
+    String? subtitle,
   }) {
     final after = gapAfter ?? gap;
     for (final clips in alternatives) {
@@ -657,7 +845,12 @@ class _Timeline {
         if (s + l > limit) break;
         if (_free(s, s + l, gap, after)) {
           _cues.add(
-            VoiceCue(s, clips, priority, subtitle: script._subtitle(clips)),
+            VoiceCue(
+              s,
+              clips,
+              priority,
+              subtitle: subtitle ?? script._subtitle(clips),
+            ),
           );
           _taken.add((s, s + l));
           _cursor = s + l + lineGap;

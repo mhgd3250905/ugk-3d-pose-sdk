@@ -232,6 +232,7 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
                       : PoseHubStandingImage(
                           action: widget.action,
                           theme: widget.theme,
+                          mediaBaseUri: _mediaBase,
                         ),
                 ),
               ),

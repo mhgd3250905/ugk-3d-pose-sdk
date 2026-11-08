@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_coach/ugk_coach.dart';
+import 'package:ugk_trainer/engine.dart' as engine;
 import 'package:ugk_trainer/ugk_trainer.dart';
 
 class _PackBundle extends CachingAssetBundle {
@@ -37,13 +38,13 @@ Map<String, Object?> _futureRelease() {
   final data =
       jsonDecode(
             File(
-              'assets/pose_hub/app-pack-r2-v1/catalog.json',
+              'assets/pose_hub/app-pack-r2-v10/catalog.json',
             ).readAsStringSync(),
           )
           as Map<String, Object?>;
-  const version = 'app-pack-r2-v2';
-  const prefix = 'pack/r2-v2/';
-  data['pack'] = 'r2-v2';
+  const version = 'app-pack-r2-v8';
+  const prefix = 'pack/r2-v8/';
+  data['pack'] = 'r2-v8';
   const base = 'https://media.uuugk.win/$prefix';
   var files = 0;
   var bytes = 0;
@@ -77,14 +78,19 @@ void main() {
     catalog = await PoseHubActionLibrary.load(bundle: _PackBundle());
   });
 
-  test('r2-v1 locations come from the pack', () {
+  test('bundled r2-v10 metadata keeps the declared shared media root', () {
+    expect(PoseHubActionLibrary.packVersion, 'r2-v10');
     expect(
       PoseHubActionLibrary.mediaReleaseBaseUri,
       'https://media.uuugk.win/pack/r2-v1/',
     );
     expect(
+      PoseHubActionLibrary.mediaBaseUriFor(catalog).toString(),
+      PoseHubActionLibrary.mediaReleaseBaseUri,
+    );
+    expect(
       PoseHubActionLibrary.catalogDownloadUri,
-      'https://media.uuugk.win/pack/r2-v1/catalog.json',
+      'https://media.uuugk.win/pack/r2-v10/catalog.json',
     );
   });
 
@@ -92,7 +98,7 @@ void main() {
     'bundled audit digest records this release without gating future data',
     () async {
       final source = await File(
-        'assets/pose_hub/app-pack-r2-v1/catalog.json',
+        'assets/pose_hub/app-pack-r2-v10/catalog.json',
       ).readAsBytes();
       expect(
         sha256.convert(source).toString(),
@@ -101,26 +107,70 @@ void main() {
     },
   );
 
-  test(
-    'bundled r2-v1 metadata loads all 249 media identities unchanged',
-    () {
-      expect(catalog.allActions, hasLength(249));
-      expect(catalog.semanticCompleteActions, hasLength(249));
-      expect(catalog.pendingActions, isEmpty);
-      expect(catalog.allActions.map((a) => a.id).toSet(), hasLength(249));
-      for (final action in catalog.allActions) {
-        expect(catalog.tryGet(action.id), same(action));
-        for (final file in [action.video, action.cover, action.thumbnail]) {
-          expect(
-            file.resolve(Uri.parse('https://example.test/pack/')).path,
-            '/pack/${file.path}',
-          );
-          expect(file.bytes, greaterThan(0));
-        }
+  test('bundled catalogue loads all 249 training actions', () {
+    expect(catalog.allActions, hasLength(249));
+    expect(catalog.semanticCompleteActions, hasLength(249));
+    expect(catalog.pendingActions, isEmpty);
+    expect(catalog.allActions.map((a) => a.id).toSet(), hasLength(249));
+    for (final action in catalog.allActions) {
+      expect(catalog.tryGet(action.id), same(action));
+      for (final file in [action.video, action.cover, action.thumbnail]) {
+        expect(
+          file.resolve(Uri.parse('https://example.test/pack/')).path,
+          '/pack/${file.path}',
+        );
+        expect(file.bytes, greaterThan(0));
       }
-      expect(catalog.toAiCatalog().drills, hasLength(249));
-    },
-  );
+    }
+    expect(catalog.toAiCatalog().drills, hasLength(249));
+  });
+
+  test('AI catalog delivers each action pack execution rhythm', () {
+    final ai = catalog.toAiCatalog();
+    final rhythms = engine.rhythmsFromCatalog(ai);
+    expect(rhythms, hasLength(249));
+    var pairs = 0;
+    for (final action in catalog.allActions) {
+      final execution =
+          (action.raw['rhythm']! as Map<String, Object?>)['execution']!
+              as Map<String, Object?>;
+      // Only the training pace travels; media fps/frames never do.
+      expect(ai[action.id]!.raw['rhythm'], execution, reason: action.id);
+      expect(action.executionRhythm, execution, reason: action.id);
+      final rhythm = rhythms[action.id]!;
+      expect(rhythm.source, engine.RhythmSource.catalog, reason: action.id);
+      final expected = engine.Rhythm.fromJson(
+        Map<String, dynamic>.from(execution),
+      );
+      expect(rhythm.toJson(), expected.toJson(), reason: action.id);
+      if (rhythm.alternatePair) {
+        pairs++;
+        expect(execution['repUnit'], 'left+right', reason: action.id);
+        expect(rhythm.pairFirstSide, execution['startingSide'] ?? 'right');
+      }
+    }
+    expect(pairs, 23);
+  });
+
+  test('media rhythm is not delivered as a pace', () {
+    final source =
+        jsonDecode(
+              File(
+                'assets/pose_hub/app-pack-r2-v10/catalog.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, Object?>;
+    final first = (source['actions']! as List).first as Map<String, Object?>;
+    final rhythm = Map<String, Object?>.from(first['rhythm']! as Map)
+      ..remove('execution');
+    first['rhythm'] = rhythm;
+    final loaded = PoseHubAppTestCatalog.fromJson(source);
+    final id = first['id']! as String;
+    expect(loaded.tryGet(id)!.executionRhythm, isNull);
+    expect(loaded.toAiCatalog()[id]!.raw.containsKey('rhythm'), isFalse);
+    final paced = engine.rhythmsFromCatalog(loaded.toAiCatalog())[id]!;
+    expect(paced.source, isNot(engine.RhythmSource.catalog));
+  });
 
   test('malformed source JSON is rejected', () async {
     await expectLater(
@@ -142,7 +192,7 @@ void main() {
       expect(loaded.toAiCatalog().length, 249);
       expect(
         (loaded.raw['mediaDistribution']! as Map<String, Object?>)['version'],
-        'app-pack-r2-v2',
+        'app-pack-r2-v8',
       );
     },
   );
@@ -165,7 +215,7 @@ void main() {
       const path = 'catalog/revisions/v4.json';
       (future['semanticCatalog']! as Map<String, Object?>)['path'] = path;
       final canonicalBytes = await File(
-        'assets/pose_hub/app-pack-r2-v1/catalog/catalog.json',
+        'assets/pose_hub/app-pack-r2-v10/catalog/catalog.json',
       ).readAsBytes();
       final loaded = await PoseHubActionLibrary.load(
         bundle: _PackBundle(

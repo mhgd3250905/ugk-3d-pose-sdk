@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_coach/ugk_coach.dart' as coach;
@@ -104,10 +105,13 @@ class _Platform extends PackedAlphaPlatform implements PackedAlphaUriPlatform {
     sync: true,
   );
   final sources = <Uri>[];
+  final commands = <(int, String, Object?)>[];
+  final returns = <Completer<Object?>>[];
   final creates = <Completer<({int playerId, int textureId})>>[];
   final disposals = <Completer<Object?>>[];
   bool delayCreate = false;
   bool delayDispose = false;
+  bool delayReturn = false;
 
   @override
   bool get isSupported => true;
@@ -133,6 +137,7 @@ class _Platform extends PackedAlphaPlatform implements PackedAlphaUriPlatform {
 
   @override
   Future<Object?> command(int playerId, String type, [Object? value]) {
+    commands.add((playerId, type, value));
     if (type == 'dispose') {
       order.add('dispose:$playerId');
       if (delayDispose) {
@@ -141,6 +146,16 @@ class _Platform extends PackedAlphaPlatform implements PackedAlphaUriPlatform {
         return result.future;
       }
     }
+    if (type == 'return-to-start') {
+      if (delayReturn) {
+        final pending = Completer<Object?>();
+        returns.add(pending);
+        return pending.future;
+      }
+      return Future.value(true);
+    }
+    if (type == 'position') return Future.value(1.25);
+    if (type == 'prime-first-frame') return Future.value(true);
     return Future.value(null);
   }
 }
@@ -150,6 +165,12 @@ class _HostAssetPlatform extends _Platform {
   @override
   Future<({int playerId, int textureId})> create(String asset) =>
       createUri(Uri(path: asset));
+}
+
+class _UnsupportedPlatform extends _Platform {
+  _UnsupportedPlatform(super.order);
+  @override
+  bool get isSupported => false;
 }
 
 coach.TrainingPlan _plan(String id) => coach.TrainingPlan(
@@ -308,6 +329,332 @@ void main() {
     await platform.eventsController.close();
   });
 
+  Future<void> finishTransition(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 432));
+    await tester.pump();
+    await tester.pump();
+  }
+
+  TrainingActionMedia pausedMedia({bool retain = true}) => TrainingActionMedia(
+    key: const ValueKey('covered-paused-media'),
+    actionId: _actionId,
+    policy: policy,
+    paused: true,
+    prepareFirstFrame: true,
+    retainPausedSurfaceWhileCovered: retain,
+  );
+
+  Future<BuildContext> readyPaused(
+    WidgetTester tester, {
+    Widget? child,
+    bool frame = true,
+  }) async {
+    repository.ready = true;
+    final context = await _mount(tester, bundle, child: child ?? pausedMedia());
+    await tester.pump();
+    await tester.pump();
+    platform.emit(1, 'ready');
+    await tester.pump();
+    await tester.pump();
+    if (frame) {
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 140));
+    }
+    return context;
+  }
+
+  void cover(BuildContext context) => unawaited(
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        transitionDuration: const Duration(milliseconds: 400),
+        reverseTransitionDuration: const Duration(milliseconds: 400),
+        pageBuilder: (_, animation, secondaryAnimation) =>
+            const Scaffold(body: Text('covering page')),
+      ),
+    ),
+  );
+
+  testWidgets(
+    'opt-in paused frame survives cover and return on the same native surface',
+    (tester) async {
+      final context = await readyPaused(tester);
+      final surface = find.byType(UgkPackedAlphaVideo, skipOffstage: false);
+      final element = tester.element(surface);
+      final controller = tester.widget<UgkPackedAlphaVideo>(surface).controller;
+      void expectSameFrame() {
+        expect(tester.element(surface), same(element));
+        expect(
+          tester.widget<UgkPackedAlphaVideo>(surface).controller,
+          same(controller),
+        );
+        expect(
+          tester
+              .widget<Texture>(find.byType(Texture, skipOffstage: false))
+              .textureId,
+          101,
+        );
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find.byKey(
+                  const ValueKey('public-action-poster'),
+                  skipOffstage: false,
+                ),
+              )
+              .opacity,
+          0,
+        );
+        expect(controller.hasFrame, isTrue);
+        expect(controller.wantsPlay, isFalse);
+        expect(platform.sources, hasLength(1));
+        expect(
+          platform.commands.where((c) => c.$2 == 'prime-first-frame'),
+          hasLength(1),
+        );
+        expect(
+          platform.commands.where(
+            (c) =>
+                c.$2 == 'dispose' ||
+                c.$2 == 'play' ||
+                c.$2.contains('seek') ||
+                c.$2.contains('return-to-start'),
+          ),
+          isEmpty,
+        );
+      }
+
+      cover(context);
+      await tester.pump();
+      for (var elapsed = 0; elapsed < 432; elapsed += 16) {
+        await tester.pump(const Duration(milliseconds: 16));
+        expectSameFrame();
+      }
+      // Completed cover disables the underlying route's ticker mode.
+      await tester.pump(const Duration(seconds: 2));
+      expectSameFrame();
+      Navigator.of(context).pop();
+      await tester.pump();
+      for (var elapsed = 0; elapsed < 432; elapsed += 16) {
+        await tester.pump(const Duration(milliseconds: 16));
+        expectSameFrame();
+      }
+      await finishTransition(tester);
+      expectSameFrame();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'a retained covered frame still releases on background and waits for return',
+    (tester) async {
+      addTearDown(
+        () => tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        ),
+      );
+      final context = await readyPaused(tester);
+      cover(context);
+      await finishTransition(tester);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      await tester.pump();
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), [
+        (1, 'dispose', null),
+      ]);
+      expect(
+        find.byType(UgkPackedAlphaVideo, skipOffstage: false),
+        findsNothing,
+      );
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      await tester.pump();
+      expect(platform.sources, hasLength(1));
+      Navigator.of(context).pop();
+      await finishTransition(tester);
+      expect(platform.sources, hasLength(2));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('a covered media without a genuine first frame is not retained', (
+    tester,
+  ) async {
+    final context = await readyPaused(tester, frame: false);
+    expect(find.byType(UgkPackedAlphaVideo), findsOneWidget);
+    cover(context);
+    await finishTransition(tester);
+    expect(platform.sources, hasLength(1));
+    expect(platform.commands.where((c) => c.$2 == 'dispose'), [
+      (1, 'dispose', null),
+    ]);
+    expect(find.byType(UgkPackedAlphaVideo, skipOffstage: false), findsNothing);
+    // A late event from that retired decoder cannot synthesize retained media.
+    platform.emit(1, 'first-frame');
+    await tester.pump();
+    expect(find.byType(UgkPackedAlphaVideo, skipOffstage: false), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'pending download is not started as hidden video by covered retention',
+    (tester) async {
+      final context = await _mount(tester, bundle, child: pausedMedia());
+      expect(repository.calls, hasLength(1));
+      cover(context);
+      await finishTransition(tester);
+      repository.complete(catalog.tryGet(_actionId)!.video);
+      await tester.pump();
+      await tester.pump();
+      expect(platform.sources, isEmpty);
+      expect(
+        find.byType(UgkPackedAlphaVideo, skipOffstage: false),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'default paused hosts still retire the native surface when covered',
+    (tester) async {
+      final context = await readyPaused(
+        tester,
+        child: pausedMedia(retain: false),
+      );
+      cover(context);
+      await tester.pump();
+      expect(
+        find.byType(UgkPackedAlphaVideo, skipOffstage: false),
+        findsNothing,
+      );
+      await finishTransition(tester);
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), [
+        (1, 'dispose', null),
+      ]);
+      Navigator.of(context).pop();
+      await finishTransition(tester);
+      expect(platform.sources, hasLength(2));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'turning covered retention off releases and turning it on does not revive hidden media',
+    (tester) async {
+      final retain = ValueNotifier(true);
+      addTearDown(retain.dispose);
+      final context = await readyPaused(
+        tester,
+        child: ValueListenableBuilder<bool>(
+          valueListenable: retain,
+          builder: (_, value, _) => pausedMedia(retain: value),
+        ),
+      );
+      cover(context);
+      await finishTransition(tester);
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+      retain.value = false;
+      await tester.pump();
+      await tester.pump();
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), [
+        (1, 'dispose', null),
+      ]);
+      retain.value = true;
+      await tester.pump();
+      await tester.pump();
+      expect(platform.sources, hasLength(1));
+      expect(
+        find.byType(UgkPackedAlphaVideo, skipOffstage: false),
+        findsNothing,
+      );
+      Navigator.of(context).pop();
+      await finishTransition(tester);
+      expect(platform.sources, hasLength(2));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final change in ['playing', 'paused', 'action', 'policy']) {
+    testWidgets(
+      'changing $change retires a retained covered surface without loading hidden media',
+      (tester) async {
+        final changed = ValueNotifier(false);
+        addTearDown(changed.dispose);
+        final alternative = catalog.allActions
+            .firstWhere((action) => action.id != _actionId)
+            .id;
+        final alternatePolicy = TrainingMediaPolicy(
+          repository: repository,
+          posterAssetRoot: _posterRoot,
+        );
+        final context = await readyPaused(
+          tester,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: changed,
+            builder: (_, value, _) => TrainingActionMedia(
+              key: const ValueKey('covered-paused-media'),
+              actionId: value && change == 'action' ? alternative : _actionId,
+              policy: value && change == 'policy' ? alternatePolicy : policy,
+              playing: !(value && change == 'playing'),
+              paused: !(value && change == 'paused'),
+              prepareFirstFrame: true,
+              retainPausedSurfaceWhileCovered: true,
+            ),
+          ),
+        );
+        cover(context);
+        await finishTransition(tester);
+        expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+        changed.value = true;
+        await tester.pump();
+        await tester.pump();
+        expect(platform.commands.where((c) => c.$2 == 'dispose'), [
+          (1, 'dispose', null),
+        ]);
+        expect(platform.sources, hasLength(1));
+        expect(
+          find.byType(UgkPackedAlphaVideo, skipOffstage: false),
+          findsNothing,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'an unrelated disabled TickerMode releases after a retained route returns',
+    (tester) async {
+      final enabled = ValueNotifier(true);
+      addTearDown(enabled.dispose);
+      final context = await readyPaused(
+        tester,
+        child: ValueListenableBuilder<bool>(
+          valueListenable: enabled,
+          builder: (_, value, _) =>
+              TickerMode(enabled: value, child: pausedMedia()),
+        ),
+      );
+      cover(context);
+      await finishTransition(tester);
+      Navigator.of(context).pop();
+      await finishTransition(tester);
+      expect(platform.sources, hasLength(1));
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+      enabled.value = false;
+      await tester.pump();
+      await tester.pump();
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), [
+        (1, 'dispose', null),
+      ]);
+      expect(find.byType(UgkPackedAlphaVideo), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('both themes retain one poster key until a real first frame', (
     tester,
   ) async {
@@ -349,6 +696,150 @@ void main() {
     expect(tester.widget<AnimatedOpacity>(posterFade).opacity, 0);
     expect(tester.widget<AnimatedOpacity>(videoFade).opacity, 1);
   });
+
+  testWidgets(
+    'silent preparation keeps its poster without loading semantics until a real first frame',
+    (tester) async {
+      final context = await _mount(
+        tester,
+        bundle,
+        child: SizedBox.square(
+          dimension: 200,
+          child: TrainingActionMedia(
+            actionId: _actionId,
+            policy: policy,
+            showLoadingIndicator: false,
+          ),
+        ),
+      );
+      await _warm(tester, context, policy.posterAssetFor(_actionId)!);
+      final poster = find.byKey(const ValueKey('public-action-poster'));
+      final posterElement = tester.element(poster);
+      final loadingSemantics = find.descendant(
+        of: find.byType(TrainingActionMedia),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics && widget.properties.liveRegion == true,
+        ),
+      );
+      expect(repository.pending, isNotEmpty);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(loadingSemantics, findsNothing);
+      expect(tester.widget<AnimatedOpacity>(poster).opacity, 1);
+      expect(tester.widget<RawImage>(find.byType(RawImage)).image, isNotNull);
+      repository.complete(catalog.tryGet(_actionId)!.video);
+      await tester.pump();
+      await tester.pump();
+      platform.emit(1, 'ready');
+      await tester.pump();
+      final surface = find.byType(UgkPackedAlphaVideo);
+      final surfaceElement = tester.element(surface);
+      expect(platform.sources, hasLength(1));
+      expect(tester.element(poster), same(posterElement));
+      expect(tester.widget<AnimatedOpacity>(poster).opacity, 1);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(loadingSemantics, findsNothing);
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      expect(tester.element(surface), same(surfaceElement));
+      expect(tester.widget<AnimatedOpacity>(poster).opacity, 0);
+      final videoOpacity = find.ancestor(
+        of: surface,
+        matching: find.byType(AnimatedOpacity),
+      );
+      expect(tester.widget<AnimatedOpacity>(videoOpacity).opacity, 1);
+      expect(platform.sources, hasLength(1));
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(loadingSemantics, findsNothing);
+    },
+  );
+
+  testWidgets(
+    'loading visibility keeps the default spinner and existing decoder while silent errors remain retryable',
+    (tester) async {
+      const mediaKey = ValueKey('same-loading-action');
+      Widget media(bool show) => SizedBox.square(
+        dimension: 200,
+        child: TrainingActionMedia(
+          key: mediaKey,
+          actionId: _actionId,
+          policy: policy,
+          showLoadingIndicator: show,
+        ),
+      );
+      final context = await _mount(
+        tester,
+        bundle,
+        child: SizedBox.square(
+          dimension: 200,
+          child: TrainingActionMedia(
+            key: mediaKey,
+            actionId: _actionId,
+            policy: policy,
+          ),
+        ),
+      );
+      await _warm(tester, context, policy.posterAssetFor(_actionId)!);
+      final state = tester.state(find.byType(TrainingActionMedia));
+      expect(
+        tester
+            .widget<TrainingActionMedia>(find.byType(TrainingActionMedia))
+            .showLoadingIndicator,
+        isTrue,
+      );
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      await _mount(tester, bundle, child: media(false));
+      await tester.pump();
+      expect(tester.state(find.byType(TrainingActionMedia)), same(state));
+      expect(repository.calls, hasLength(1));
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      repository.complete(catalog.tryGet(_actionId)!.video);
+      await tester.pump();
+      await tester.pump();
+      platform.emit(1, 'ready');
+      await tester.pump();
+      final surface = find.byType(UgkPackedAlphaVideo);
+      final surfaceElement = tester.element(surface);
+      await _mount(tester, bundle, child: media(true));
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(tester.element(surface), same(surfaceElement));
+      await _mount(tester, bundle, child: media(false));
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(tester.element(surface), same(surfaceElement));
+      expect(repository.calls, hasLength(1));
+      expect(platform.sources, hasLength(1));
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+
+      platform.emit(1, 'error');
+      await tester.pump();
+      await tester.pump();
+      final retry = find.byKey(const ValueKey('public-action-retry'));
+      expect(retry, findsOneWidget);
+      expect(tester.widget<TextButton>(retry).onPressed, isNotNull);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(
+        tester
+            .widget<AnimatedOpacity>(
+              find.byKey(const ValueKey('public-action-poster')),
+            )
+            .opacity,
+        1,
+      );
+      repository.ready = true;
+      await tester.tap(retry);
+      await tester.pump();
+      await tester.pump();
+      expect(repository.calls, hasLength(2));
+      expect(platform.sources, hasLength(2));
+      expect(retry, findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('offline failure retains poster and retries only on one tap', (
     tester,
@@ -499,6 +990,564 @@ void main() {
       expect(find.byType(TrainerPoster), findsOneWidget);
     });
   });
+
+  testWidgets(
+    'frame readiness reports a composed frame and releases only after the frame boundary',
+    (tester) async {
+      repository.ready = true;
+      final reports = <bool>[];
+      final phases = <SchedulerPhase>[];
+      void changed(bool ready) {
+        reports.add(ready);
+        phases.add(SchedulerBinding.instance.schedulerPhase);
+      }
+
+      await _mount(
+        tester,
+        bundle,
+        child: TrainingActionMedia(
+          actionId: _actionId,
+          policy: policy,
+          paused: true,
+          prepareFirstFrame: true,
+          onFrameReadyChanged: changed,
+        ),
+      );
+      await tester.pump();
+      platform.emit(1, 'ready');
+      await tester.pump();
+      await tester.pump();
+      expect(
+        reports,
+        isEmpty,
+        reason: 'Metadata and prime acknowledgement are not a composed frame',
+      );
+      platform.emit(1, 'first-frame');
+      expect(reports, isEmpty);
+      await tester.pump();
+      await tester.pump();
+      expect(reports, [true]);
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      expect(reports, [true]);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      expect(reports, [true]);
+      await tester.pump();
+      expect(reports, [true, false]);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      await tester.pump();
+      platform.emit(2, 'ready');
+      platform.emit(2, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      expect(reports, [true, false, true]);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      expect(reports, [true, false, true, false]);
+      expect(phases, everyElement(SchedulerPhase.postFrameCallbacks));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'a queued old-source readiness report cannot mark a replacement source ready',
+    (tester) async {
+      repository.ready = true;
+      final reports = <bool>[];
+      final callback = reports.add;
+      Widget media(String id) => TrainingActionMedia(
+        key: const ValueKey('readiness-source'),
+        actionId: id,
+        policy: policy,
+        paused: true,
+        prepareFirstFrame: true,
+        onFrameReadyChanged: callback,
+      );
+      await _mount(tester, bundle, child: media(_actionId));
+      await tester.pump();
+      platform.emit(1, 'ready');
+      await tester.pump();
+      platform.emit(1, 'first-frame');
+      // This frame composes the native frame and queues the parent's report.
+      await tester.pump();
+      expect(reports, isEmpty);
+      final alternative = catalog.allActions
+          .firstWhere((a) => a.id != _actionId)
+          .id;
+      await _mount(tester, bundle, child: media(alternative));
+      await tester.pump();
+      expect(reports, [false]);
+      expect(platform.sources, hasLength(2));
+      platform.emit(1, 'first-frame');
+      platform.emit(2, 'ready');
+      await tester.pump();
+      expect(reports, [false]);
+      platform.emit(2, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      expect(reports, [false, true]);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'replacing a readiness listener invalidates its queued predecessor without replacing media',
+    (tester) async {
+      repository.ready = true;
+      final oldReports = <bool>[];
+      final newReports = <bool>[];
+      Widget media(ValueChanged<bool> changed) => TrainingActionMedia(
+        key: const ValueKey('readiness-listener'),
+        actionId: _actionId,
+        policy: policy,
+        paused: true,
+        prepareFirstFrame: true,
+        onFrameReadyChanged: changed,
+      );
+      await _mount(tester, bundle, child: media(oldReports.add));
+      await tester.pump();
+      platform.emit(1, 'ready');
+      await tester.pump();
+      final surface = find.byType(UgkPackedAlphaVideo);
+      final element = tester.element(surface);
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      expect(oldReports, isEmpty);
+      await _mount(tester, bundle, child: media(newReports.add));
+      await tester.pump();
+      expect(oldReports, isEmpty);
+      expect(newReports, [true]);
+      expect(tester.element(surface), same(element));
+      expect(platform.sources, hasLength(1));
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'a concealed paused frame stays prepared and can reveal without a decoder or playback change',
+    (tester) async {
+      repository.ready = true;
+      final reports = <bool>[];
+      final callback = reports.add;
+      Widget media({bool reveal = false, bool paused = true}) =>
+          TrainingActionMedia(
+            key: const ValueKey('concealed-paused-media'),
+            actionId: _actionId,
+            policy: policy,
+            paused: paused,
+            prepareFirstFrame: true,
+            revealPausedFrame: reveal,
+            onFrameReadyChanged: callback,
+          );
+      await _mount(tester, bundle, child: media());
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      platform.emit(1, 'ready');
+      await tester.pump();
+      await tester.pump();
+      final surface = find.byType(UgkPackedAlphaVideo);
+      final element = tester.element(surface);
+      final controller = tester.widget<UgkPackedAlphaVideo>(surface).controller;
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      expect(reports, [true]);
+      expect(controller.hasFrame, isTrue);
+      final poster = find.byKey(const ValueKey('public-action-poster'));
+      final video = find.ancestor(
+        of: surface,
+        matching: find.byType(AnimatedOpacity),
+      );
+      expect(tester.widget<AnimatedOpacity>(poster).opacity, 1);
+      expect(tester.widget<AnimatedOpacity>(video).opacity, 1 / 255);
+      expect(
+        platform.commands.where((c) => c.$2 == 'prime-first-frame'),
+        hasLength(1),
+      );
+      expect(platform.commands.where((c) => c.$2 == 'play'), isEmpty);
+      final before = List<(int, String, Object?)>.of(platform.commands);
+
+      await _mount(tester, bundle, child: media(reveal: true));
+      await tester.pump();
+      expect(tester.widget<AnimatedOpacity>(poster).opacity, 0);
+      expect(tester.widget<AnimatedOpacity>(video).opacity, 1);
+      expect(tester.element(surface), same(element));
+      expect(
+        tester.widget<UgkPackedAlphaVideo>(surface).controller,
+        same(controller),
+      );
+      expect(platform.commands, before);
+
+      await _mount(tester, bundle, child: media());
+      await tester.pump();
+      expect(tester.widget<AnimatedOpacity>(poster).opacity, 1);
+      expect(platform.commands, before);
+      // Suppression is for paused previews only; playing still reveals normally.
+      await _mount(tester, bundle, child: media(paused: false));
+      await tester.pump();
+      expect(tester.widget<AnimatedOpacity>(poster).opacity, 0);
+      expect(platform.commands.where((c) => c.$2 == 'play'), hasLength(1));
+      expect(platform.sources, hasLength(1));
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+      expect(tester.element(surface), same(element));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'concealing a paused frame suppresses progress but keeps a real download failure retryable',
+    (tester) async {
+      await _mount(
+        tester,
+        bundle,
+        child: TrainingActionMedia(
+          actionId: _actionId,
+          policy: policy,
+          paused: true,
+          prepareFirstFrame: true,
+          revealPausedFrame: false,
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      repository.fail(catalog.tryGet(_actionId)!.video);
+      await tester.pump();
+      await tester.pump();
+      expect(find.byKey(const ValueKey('public-action-retry')), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(
+        tester
+            .widget<AnimatedOpacity>(
+              find.byKey(const ValueKey('public-action-poster')),
+            )
+            .opacity,
+        1,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'opt-in paused media primes once and preserves its native surface across play and pause',
+    (tester) async {
+      repository.ready = true;
+      Widget media({bool paused = true}) => TrainingActionMedia(
+        key: const ValueKey('primed-public-action'),
+        actionId: _actionId,
+        policy: policy,
+        paused: paused,
+        prepareFirstFrame: true,
+      );
+      await _mount(tester, bundle, child: media());
+      await tester.pump();
+      await tester.pump();
+      platform.emit(1, 'ready');
+      await tester.pump();
+      await tester.pump();
+      final surface = find.byType(UgkPackedAlphaVideo);
+      final surfaceElement = tester.element(surface);
+      final controller = tester.widget<UgkPackedAlphaVideo>(surface).controller;
+      expect(platform.commands.where((c) => c.$2 == 'prime-first-frame'), [
+        (1, 'prime-first-frame', null),
+      ]);
+      expect(platform.commands.where((c) => c.$2 == 'play'), isEmpty);
+      expect(
+        controller.hasFrame,
+        isFalse,
+        reason: 'A successful prime RPC cannot invent a composed first frame',
+      );
+      await _mount(tester, bundle, child: media());
+      platform.emit(1, 'ready');
+      await tester.pump();
+      await tester.pump();
+      expect(
+        platform.commands.where((c) => c.$2 == 'prime-first-frame'),
+        hasLength(1),
+      );
+
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      expect(controller.hasFrame, isTrue);
+      expect(controller.wantsPlay, isFalse);
+      expect(
+        tester
+            .widget<TrainingActionMedia>(find.byType(TrainingActionMedia))
+            .paused,
+        isTrue,
+      );
+      expect(tester.widget<Texture>(find.byType(Texture)).textureId, 101);
+      await _mount(tester, bundle, child: media(paused: false));
+      await tester.pump();
+      expect(platform.commands, contains((1, 'play', null)));
+      expect(tester.element(surface), same(surfaceElement));
+      expect(
+        tester.widget<UgkPackedAlphaVideo>(surface).controller,
+        same(controller),
+      );
+      await _mount(tester, bundle, child: media());
+      await tester.pump();
+      expect(platform.commands.last, (1, 'pause', null));
+      expect(tester.element(surface), same(surfaceElement));
+      expect(
+        tester.widget<UgkPackedAlphaVideo>(surface).controller,
+        same(controller),
+      );
+      expect(tester.widget<Texture>(find.byType(Texture)).textureId, 101);
+      expect(platform.sources, hasLength(1));
+      expect(
+        platform.commands.where((c) => c.$2 == 'prime-first-frame'),
+        hasLength(1),
+      );
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(platform.commands.where((c) => c.$2 == 'dispose').single.$1, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('ordinary paused hosts do not prime a frame without opting in', (
+    tester,
+  ) async {
+    repository.ready = true;
+    await _mount(
+      tester,
+      bundle,
+      child: TrainingActionMedia(
+        actionId: _actionId,
+        policy: policy,
+        paused: true,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    platform.emit(1, 'ready');
+    await tester.pump();
+    await tester.pump();
+    final controller = tester
+        .widget<UgkPackedAlphaVideo>(find.byType(UgkPackedAlphaVideo))
+        .controller;
+    expect(
+      platform.commands.where((c) => c.$2 == 'prime-first-frame'),
+      isEmpty,
+    );
+    expect(platform.commands.where((c) => c.$2 == 'play'), isEmpty);
+    expect(controller.hasFrame, isFalse);
+    expect(controller.wantsPlay, isFalse);
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(platform.commands.where((c) => c.$2 == 'dispose').single.$1, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'a primed paused surface is still released when the app backgrounds',
+    (tester) async {
+      repository.ready = true;
+      addTearDown(
+        () => tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        ),
+      );
+      await _mount(
+        tester,
+        bundle,
+        child: TrainingActionMedia(
+          actionId: _actionId,
+          policy: policy,
+          paused: true,
+          prepareFirstFrame: true,
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      platform.emit(1, 'ready');
+      await tester.pump();
+      await tester.pump();
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      expect(
+        platform.commands.where((c) => c.$2 == 'prime-first-frame'),
+        hasLength(1),
+      );
+      expect(find.byType(UgkPackedAlphaVideo), findsOneWidget);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(UgkPackedAlphaVideo), findsNothing);
+      expect(platform.commands.where((c) => c.$2 == 'dispose').single.$1, 1);
+      expect(platform.sources, hasLength(1));
+      await tester.pumpWidget(const SizedBox.shrink());
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'optional playback control binds and releases without changing the read-only default handle',
+    (tester) async {
+      repository.ready = true;
+      final handle = DrillMediaPlaybackHandle();
+      final control = DrillMediaPlaybackControl();
+      Widget media({bool controlled = false}) => TrainingActionMedia(
+        key: const ValueKey('same-public-action'),
+        actionId: _actionId,
+        policy: policy,
+        playbackHandle: handle,
+        playbackControl: controlled ? control : null,
+      );
+      await _mount(tester, bundle, child: media());
+      await tester.pump();
+      await tester.pump();
+      platform.emit(1, 'ready');
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      final state = tester.state(find.byType(TrainingActionMedia));
+      final before = await handle.capture();
+      expect(before!.mediaId, _actionId);
+      expect(before.ready, isTrue);
+      expect(before.videoSeconds, 1.25);
+      expect(
+        platform.commands.where((c) => c.$2 == 'return-to-start'),
+        isEmpty,
+      );
+
+      await _mount(tester, bundle, child: media(controlled: true));
+      await tester.pump();
+      expect(tester.state(find.byType(TrainingActionMedia)), same(state));
+      expect(platform.sources, hasLength(1));
+      final returned = control.returnToStart();
+      await tester.pump();
+      await tester.pump();
+      expect(await returned, isTrue);
+      expect(platform.commands.where((c) => c.$2 == 'return-to-start').single, (
+        1,
+        'return-to-start',
+        400,
+      ));
+      expect((await handle.capture())!.mediaId, _actionId);
+
+      await _mount(tester, bundle, child: media());
+      await tester.pump();
+      expect(await control.returnToStart(), isFalse);
+      expect((await handle.capture())!.videoSeconds, 1.25);
+      expect(platform.sources, hasLength(1));
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(await handle.capture(), isNull);
+      expect(await control.returnToStart(), isFalse);
+      handle.dispose();
+      control.dispose();
+    },
+  );
+
+  testWidgets(
+    'replacing a media control cancels its pending return without replacing the decoder',
+    (tester) async {
+      repository.ready = true;
+      platform.delayReturn = true;
+      final first = DrillMediaPlaybackControl();
+      final second = DrillMediaPlaybackControl();
+      Widget media(DrillMediaPlaybackControl control) => TrainingActionMedia(
+        key: const ValueKey('same-public-action'),
+        actionId: _actionId,
+        policy: policy,
+        playbackControl: control,
+      );
+      await _mount(tester, bundle, child: media(first));
+      await tester.pump();
+      await tester.pump();
+      platform.emit(1, 'ready');
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      final state = tester.state(find.byType(TrainingActionMedia));
+      final retired = first.returnToStart();
+      expect(platform.returns, hasLength(1));
+      await _mount(tester, bundle, child: media(second));
+      await tester.pump();
+      expect(await retired, isFalse);
+      expect(await first.returnToStart(), isFalse);
+      expect(tester.state(find.byType(TrainingActionMedia)), same(state));
+      expect(platform.sources, hasLength(1));
+      final current = second.returnToStart();
+      expect(platform.returns, hasLength(2));
+      var currentCompleted = false;
+      unawaited(current.then((_) => currentCompleted = true));
+      platform.returns.first.complete(true);
+      await tester.pump();
+      expect(currentCompleted, isFalse);
+      platform.returns.last.complete(true);
+      await tester.pump();
+      await tester.pump();
+      expect(await current, isTrue);
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(await second.returnToStart(), isFalse);
+      first.dispose();
+      second.dispose();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'opt-in route exit retains its paused native surface until the reverse transition unmounts it',
+    (tester) async {
+      repository.ready = true;
+      final context = await _mount(tester, bundle);
+      final paused = ValueNotifier(false);
+      final route = RawDialogRoute<void>(
+        barrierDismissible: false,
+        transitionDuration: const Duration(milliseconds: 400),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            DefaultAssetBundle(
+              bundle: bundle,
+              child: Scaffold(
+                body: ValueListenableBuilder<bool>(
+                  valueListenable: paused,
+                  builder: (context, value, child) => TrainingActionMedia(
+                    key: const ValueKey('retained-exit-media'),
+                    actionId: _actionId,
+                    policy: policy,
+                    paused: value,
+                    retainSurfaceDuringRouteExit: true,
+                  ),
+                ),
+              ),
+            ),
+      );
+      unawaited(Navigator.of(context).push(route));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
+      platform.emit(1, 'ready');
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      paused.value = true;
+      await tester.pump();
+      final surface = find.byType(UgkPackedAlphaVideo);
+      final element = tester.element(surface);
+      expect(tester.widget<Texture>(find.byType(Texture)).textureId, 101);
+      expect(platform.sources, hasLength(1));
+
+      Navigator.of(context).pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 180));
+      expect(route.animation!.status, AnimationStatus.reverse);
+      expect(tester.element(surface), same(element));
+      expect(tester.widget<Texture>(find.byType(Texture)).textureId, 101);
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+      await tester.pumpAndSettle();
+      expect(surface, findsNothing);
+      expect(platform.commands.where((c) => c.$2 == 'dispose').single.$1, 1);
+      paused.dispose();
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('native dispose acknowledgement precedes playback pin release', (
     tester,
@@ -1009,6 +2058,131 @@ void main() {
           actions[1].video.path,
         });
       });
+    },
+  );
+
+  testWidgets(
+    'idle prefetch reuses its decoder when paused first-frame preparation opens',
+    (tester) async {
+      final reports = <bool>[];
+      final callback = reports.add;
+      Widget media({required bool playing}) => TrainingActionMedia(
+        key: const ValueKey('prefetched-first-frame'),
+        actionId: _actionId,
+        policy: policy,
+        playing: playing,
+        prefetchWhenIdle: true,
+        paused: true,
+        prepareFirstFrame: true,
+        revealPausedFrame: false,
+        onFrameReadyChanged: callback,
+      );
+      final context = await _mount(
+        tester,
+        bundle,
+        child: media(playing: false),
+      );
+      await _warm(tester, context, policy.posterAssetFor(_actionId)!);
+      final video = catalog.tryGet(_actionId)!.video;
+      expect(repository.calls, [video]);
+      repository.complete(video);
+      await tester.pump();
+      await tester.pump();
+      final surface = find.byType(UgkPackedAlphaVideo);
+      final element = tester.element(surface);
+      final controller = tester.widget<UgkPackedAlphaVideo>(surface).controller;
+      platform.emit(1, 'ready');
+      await tester.pump();
+      await tester.pump();
+      expect(
+        platform.commands.where((c) => c.$2 == 'prime-first-frame'),
+        isEmpty,
+      );
+      expect(reports, isEmpty);
+
+      await _mount(tester, bundle, child: media(playing: true));
+      await tester.pump();
+      await tester.pump();
+      expect(tester.element(surface), same(element));
+      expect(
+        tester.widget<UgkPackedAlphaVideo>(surface).controller,
+        same(controller),
+      );
+      expect(repository.calls, [video]);
+      expect(platform.sources, hasLength(1));
+      expect(order.where((event) => event == 'pin:$_actionId'), hasLength(1));
+      expect(platform.commands.where((c) => c.$2 == 'prime-first-frame'), [
+        (1, 'prime-first-frame', null),
+      ]);
+      expect(controller.hasFrame, isFalse);
+      expect(reports, isEmpty);
+      expect(platform.commands.where((c) => c.$2 == 'play'), isEmpty);
+
+      platform.emit(1, 'first-frame');
+      await tester.pump();
+      await tester.pump();
+      expect(controller.hasFrame, isTrue);
+      expect(reports, [true]);
+      expect(
+        tester
+            .widget<AnimatedOpacity>(
+              find.byKey(const ValueKey('public-action-poster')),
+            )
+            .opacity,
+        1,
+      );
+      expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'unsupported native alpha rebinds the current handle without a stale failure or download',
+    (tester) async {
+      final handle = DrillMediaPlaybackHandle();
+      addTearDown(handle.dispose);
+      Widget media(String id, {bool nativeAlpha = false}) =>
+          TrainingActionMedia(
+            key: const ValueKey('unsupported-current-action'),
+            actionId: id,
+            policy: policy,
+            nativeAlpha: nativeAlpha,
+            playbackHandle: handle,
+          );
+      final context = await _mount(tester, bundle, child: media(_actionId));
+      await _warm(tester, context, policy.posterAssetFor(_actionId)!);
+      final video = catalog.tryGet(_actionId)!.video;
+      repository.fail(video);
+      await tester.pump();
+      await tester.pump();
+      expect(handle.failed, isTrue);
+      expect(repository.calls, [video]);
+
+      final unsupported = _UnsupportedPlatform(order);
+      addTearDown(unsupported.eventsController.close);
+      UgkPackedAlphaVideo.debugPlatform = unsupported;
+      final replacement = catalog.allActions.firstWhere(
+        (a) => a.id != _actionId,
+      );
+      await _mount(
+        tester,
+        bundle,
+        child: media(replacement.id, nativeAlpha: true),
+      );
+      await tester.pump();
+      expect(handle.isBound, isTrue);
+      expect(handle.mediaId, replacement.id);
+      expect(handle.failed, isFalse);
+      expect(handle.hasFrame, isFalse);
+      final snapshot = await handle.capture();
+      expect(snapshot!.mediaId, replacement.id);
+      expect(snapshot.ready, isFalse);
+      expect(repository.calls, [video]);
+      expect(repository.pending, isEmpty);
+      expect(order.where((event) => event == 'pin:${replacement.id}'), isEmpty);
+      expect(unsupported.sources, isEmpty);
+      expect(find.byType(UgkPackedAlphaVideo), findsNothing);
+      expect(tester.takeException(), isNull);
     },
   );
 }

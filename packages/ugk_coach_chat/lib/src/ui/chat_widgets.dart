@@ -10,6 +10,14 @@ export 'chat_bubble_adapter.dart';
 /// The chips that open a feature (not plan requests) and their glyphs:
 /// the shape says what tapping does (§4.3).
 const chipGlyphs = <String, ChatGlyph>{
+  'Browse moves': ChatGlyph.grid,
+  'Moves': ChatGlyph.grid,
+  'My last session': ChatGlyph.clock,
+  'My plans': ChatGlyph.bookmark,
+  'Light mode': ChatGlyph.contrast,
+  'Dark mode': ChatGlyph.contrast,
+  'What can you do?': ChatGlyph.sparkle,
+  'Choose my conditions': ChatGlyph.sliders,
   '看看动作库': ChatGlyph.grid,
   '浏览动作库': ChatGlyph.grid,
   '动作库': ChatGlyph.grid,

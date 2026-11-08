@@ -3,6 +3,7 @@ import 'package:ugk_coach_ui/ugk_coach_ui.dart';
 
 import '../core/chat_models.dart';
 import 'coach_ui_adapter.dart';
+import 'chat_localization.dart';
 
 typedef Appear = CoachAppear;
 
@@ -31,7 +32,13 @@ class MessageBubble extends StatelessWidget {
           id: message.id,
           isUser: message.isUser,
           text: step?.group(2) ?? message.text,
-          caption: step == null ? null : '安全确认 ${step.group(1)}',
+          caption: step == null
+              ? null
+              : chatCopy(
+                  context,
+                  '安全确认 ${step.group(1)}',
+                  'Safety check ${step.group(1)}',
+                ),
           options: message.options.map((o) => o.label).toList(),
           chosen: message.chosen,
         ),

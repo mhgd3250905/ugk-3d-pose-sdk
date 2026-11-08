@@ -2020,6 +2020,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       }
       return TrainingActionMedia(
         key: const ValueKey('player-public-media'),
+        showInlineStatus: false,
         actionId: d.media?.actionId ?? d.id,
         policy: policy,
         prefetchWhenIdle: true,

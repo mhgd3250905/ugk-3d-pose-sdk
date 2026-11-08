@@ -3,6 +3,7 @@ library;
 
 class CoachChatStrings {
   const CoachChatStrings({
+    this.languageTag = 'zh',
     this.invitation = '说说今天想怎么练？',
     this.returningInvitation = '欢迎回来，今天想怎么练？',
     this.inputHint = '说说想怎么练…',
@@ -64,6 +65,97 @@ class CoachChatStrings {
     this.historyUnreadable = '之前的对话记录无法读取，已开始新的对话。',
   });
 
+  const CoachChatStrings.english()
+    : this(
+        languageTag: 'en',
+        invitation: 'How would you like to train today?',
+        returningInvitation: 'Welcome back. How would you like to train today?',
+        inputHint: 'Tell me how you want to train…',
+        sendLabel: 'Send',
+        openPanelLabel: 'Open menu',
+        closePanelLabel: 'Close menu',
+        myPlansLabel: 'My plans',
+        newConversationLabel: 'New chat',
+        libraryLabel: 'Moves',
+        settingsLabel: 'Settings',
+        defaultSuggestions: const [
+          '10-minute desk stretch',
+          '20-minute core workout at home',
+          '10-minute bedtime stretch',
+          'Warm up before a run',
+        ],
+        discoverySuggestion: 'What can you do?',
+        planSuggestions: const [
+          'Make it shorter',
+          'Make it harder',
+          'Replace move 2',
+          'Try another plan',
+        ],
+        safetyIntro:
+            'Hi, I’m your training assistant.\nTell me your goal, where you are and how much time you have. I’ll put together a plan you can follow.',
+        disclaimer:
+            'This assistant provides general fitness and stretching suggestions, not medical diagnosis or a rehabilitation prescription. '
+            'Stop immediately and seek medical help if you experience pain, numbness, dizziness, chest tightness or difficulty breathing. '
+            'Consult a doctor first if you have a chronic condition, an injury or are recovering. Muscle highlights in demonstrations are illustrative.',
+        safetyQuestions: const [
+          'Pregnant or within 6 months after giving birth',
+          'Recent surgery, or a doctor has restricted your exercise',
+          'A recent fall or sprain, or pain and swelling in a joint or your back',
+          'Heart disease, uncontrolled high blood pressure, or chest pain or fainting during exercise',
+        ],
+        safetyAdvice: const [
+          'Training during pregnancy or postpartum recovery needs assessment by a doctor or qualified professional first.',
+          'After surgery or while exercise is restricted, follow your doctor’s rehabilitation advice.',
+          'Rest if you have acute pain or swelling, seek medical help if needed, and return after recovery.',
+          'Cardiovascular conditions need assessment by a doctor first. Seek urgent medical help if you currently have chest pain or fainting.',
+        ],
+        safetyLead: 'Please check these 4 things. Choose “Yes” if they apply.',
+        safetyAllClear:
+            'All clear.\nWhat would you like to train, where are you, and how much time do you have?',
+        recheckSafety: 'Let’s check safety again.',
+        finishSafetyFirst:
+            'Complete the safety check above before we make a plan.',
+        safetyBlocked:
+            'Based on your safety answers, I won’t generate a plan for now. You can browse moves or check your answers again.',
+        unavailable:
+            'The AI coach is unavailable. You can browse moves or open a saved plan.',
+        noSavedPlan: 'This plan has been deleted.',
+        noLastPlan: 'You have not trained with a plan yet.',
+        noHistory: 'No training records yet.',
+        focusUnavailable: 'This plan cannot currently be edited in chat.',
+        persistenceFailed: 'Could not save this conversation. Please retry.',
+        saveConflict:
+            'This plan was updated elsewhere. Refresh and retry, or save a copy.',
+        saveFailed: 'Could not save the plan. Please retry.',
+        retryRequest: 'Retry',
+        networkFailure:
+            'The connection failed after several attempts. Check your network and retry.',
+        authenticationFailure:
+            'Authentication failed. Sign in again or check the service configuration, then retry.',
+        contextFailure:
+            'This conversation does not currently fit the context limit. Please retry; your conversation is retained.',
+        conversationLimitReached:
+            'This conversation has reached its length limit. Start a new chat to continue.',
+        planGateFailure:
+            'The plan did not pass validation and has not been delivered. Please retry.',
+        timeoutFailure: 'This request took too long. Please retry.',
+        serviceFailure:
+            'The coach service could not finish this reply. Please retry later.',
+        generationFailure: 'Could not finish this reply. Please retry.',
+        planFromActionsRequest:
+            'Please turn those recommended moves into a plan.',
+        historyUnreadable:
+            'The previous conversation could not be read. A new chat has been started.',
+      );
+
+  static CoachChatStrings forLanguage(String language) =>
+      language.toLowerCase().startsWith('en')
+      ? const CoachChatStrings.english()
+      : const CoachChatStrings();
+  final String languageTag;
+  bool get isEn => languageTag.toLowerCase().startsWith('en');
+  String pick(String chinese, String english) => isEn ? english : chinese;
+
   final String invitation, returningInvitation, inputHint;
   final String sendLabel, openPanelLabel, closePanelLabel;
   final String myPlansLabel, newConversationLabel, libraryLabel, settingsLabel;
@@ -86,27 +178,30 @@ class CoachChatStrings {
   /// falls back to a fresh conversation instead of going silent.
   final String historyUnreadable;
 
-  String get safetyDisclaimer => '开始之前，先花 10 秒确认安全。\n\n$disclaimer';
+  String get safetyDisclaimer => pick(
+    '开始之前，先花 10 秒确认安全。\n\n$disclaimer',
+    'Before we start, take 10 seconds to check safety.\n\n$disclaimer',
+  );
 
   String safetyQuestionText(int index) =>
-      '${index + 1}/${safetyQuestions.length}　${safetyQuestions[index]}？';
+      '${index + 1}/${safetyQuestions.length}　${safetyQuestions[index]}${isEn ? '?' : '？'}';
 
   String safetyBlockedText(int index) =>
       '${safetyAdvice[index]}\n'
-      '为了安全，我先不为你生成训练计划，建议先咨询医生。你仍可以浏览动作库里的示范；'
-      '情况变化后，可以在菜单的「关于与设置」里重新确认。';
+      '${pick('为了安全，我先不为你生成训练计划，建议先咨询医生。你仍可以浏览动作库里的示范；情况变化后，可以在菜单的「关于与设置」里重新确认。', 'For safety, I won’t generate a training plan for now. Please consult a doctor first. You can still browse exercise demonstrations. If your circumstances change, you can repeat the check in Settings.')}';
 
   List<String> suggestions({bool blocked = false}) =>
       blocked ? const [] : [...defaultSuggestions, discoverySuggestion];
 
   String greetingFor(DateTime value) => switch (value.hour) {
-    >= 5 && < 11 => '早上好',
-    >= 11 && < 13 => '中午好',
-    >= 13 && < 18 => '下午好',
-    >= 18 && < 23 => '晚上好',
-    _ => '夜深了',
+    >= 5 && < 11 => pick('早上好', 'Good morning'),
+    >= 11 && < 13 => pick('中午好', 'Hello'),
+    >= 13 && < 18 => pick('下午好', 'Good afternoon'),
+    >= 18 && < 23 => pick('晚上好', 'Good evening'),
+    _ => pick('夜深了', 'It’s getting late'),
   };
 
-  String saveSuccess(String title, {bool updating = false}) =>
-      updating ? '已更新「$title」' : '已保存为「$title」';
+  String saveSuccess(String title, {bool updating = false}) => updating
+      ? pick('已更新「$title」', 'Updated “$title”')
+      : pick('已保存为「$title」', 'Saved as “$title”');
 }

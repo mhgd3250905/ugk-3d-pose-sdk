@@ -12,6 +12,7 @@ import '../theme/chat_theme.dart';
 import '../theme/chat_tokens.dart';
 import 'coach_ui_adapter.dart';
 import 'guide_preview.dart';
+import 'chat_localization.dart';
 import 'plan_details_controls.dart';
 
 /// Opens the same article for a currently admitted conversation card.
@@ -31,7 +32,11 @@ Future<void> openCoachChatPlanDetails(
   if (admitted == null) {
     showChatSolidToast(
       context,
-      '计划包含尚未可用的动作。已保存计划仍保留。',
+      chatCopy(
+        context,
+        '计划包含尚未可用的动作。已保存计划仍保留。',
+        'This plan includes unavailable moves. Your saved plan is retained.',
+      ),
       icon: ChatIcon(
         ChatGlyph.info,
         size: 18,
@@ -65,14 +70,17 @@ class CoachChatPlanDetailsPage extends StatelessWidget {
   final CoachChatPlanReference plan;
 
   @override
-  Widget build(BuildContext context) => CoachChatTheme(
-    visual: controller.profile.visual,
-    executionTiming: controller.profile.executionTiming,
-    doseUnitLabels: {
-      for (final entry in controller.profile.doseOverrides.entries)
-        if (entry.value.unitLabel != null) entry.key: entry.value.unitLabel!,
-    },
-    child: _CoachChatPlanDetailsBody(controller: controller, reference: plan),
+  Widget build(BuildContext context) => ChatLocalization(
+    controller: controller,
+    child: CoachChatTheme(
+      visual: controller.profile.visual,
+      executionTiming: controller.profile.executionTiming,
+      doseUnitLabels: {
+        for (final entry in controller.profile.doseOverrides.entries)
+          if (entry.value.unitLabel != null) entry.key: entry.value.unitLabel!,
+      },
+      child: _CoachChatPlanDetailsBody(controller: controller, reference: plan),
+    ),
   );
 }
 
@@ -89,6 +97,9 @@ class _CoachChatPlanDetailsBody extends StatefulWidget {
 
 class _PlanPageState extends State<_CoachChatPlanDetailsBody>
     with WidgetsBindingObserver {
+  String get _language => chatLanguage(context);
+  String _copy(String chinese, String english) =>
+      chatCopy(context, chinese, english);
   late coach.TrainingPlan _plan = widget.reference.plan;
   CoachChatController get _controller => widget.controller;
   ChatMessage? get _sourceMessage => _controller.messages
@@ -230,7 +241,10 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
       blocks: blocks,
       notes: [
         ..._plan.notes,
-        '手动把「${exercise.name.of(_request.language)}」换成「${alt.name.of(_request.language)}」',
+        _copy(
+          '手动把「${exercise.name.of(_request.language)}」换成「${alt.name.of(_request.language)}」',
+          'Manually replaced “${exercise.name.of(_language)}” with “${alt.name.of(_language)}”',
+        ),
       ],
     );
     final report = coach.PlanValidator(
@@ -243,13 +257,25 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
       context: _request,
     );
     final problem =
-        report.errors.firstOrNull?.message ??
-        (alt.level > (_request.level ?? _plan.level) + 1 ? '替代动作难度偏高' : null) ??
-        (admitted == null ? '这次替换不适合当前计划，请换其他动作' : null);
+        (report.errors.isEmpty
+            ? null
+            : _copy(
+                report.errors.first.message,
+                'The alternative does not meet this plan’s requirements',
+              )) ??
+        (alt.level > (_request.level ?? _plan.level) + 1
+            ? _copy('替代动作难度偏高', 'The alternative is too difficult')
+            : null) ??
+        (admitted == null
+            ? _copy(
+                '这次替换不适合当前计划，请换其他动作',
+                'This alternative does not fit the current plan. Choose another move.',
+              )
+            : null);
     if (problem != null) {
       showChatSolidToast(
         context,
-        '暂不能替换：$problem',
+        _copy('暂不能替换：$problem', 'Cannot replace this move: $problem'),
         icon: ChatIcon(
           ChatGlyph.info,
           size: 18,
@@ -316,9 +342,16 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
     final library = _controller.catalog;
     if (_plan.items.isEmpty ||
         _plan.items.any((item) => !library.contains(item.exerciseId))) {
-      return const Scaffold(
-        appBar: ChatDetailsTopBar(title: '训练图文'),
-        body: Center(child: Text('计划包含尚未可用的动作。已保存计划仍保留。')),
+      return Scaffold(
+        appBar: ChatDetailsTopBar(title: _copy('训练图文', 'Training guide')),
+        body: Center(
+          child: Text(
+            _copy(
+              '计划包含尚未可用的动作。已保存计划仍保留。',
+              'This plan includes unavailable moves. Your saved plan is retained.',
+            ),
+          ),
+        ),
       );
     }
     final rows = _articleRows();
@@ -328,7 +361,7 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
     };
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     return Scaffold(
-      appBar: const ChatDetailsTopBar(title: '训练图文'),
+      appBar: ChatDetailsTopBar(title: _copy('训练图文', 'Training guide')),
       body: Stack(
         children: [
           SizedBox.expand(
@@ -364,7 +397,9 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
                       row.ordinal,
                       library,
                     ),
-                    _GuideRowKind.safetyTitle => _sectionLabel('训练提醒'),
+                    _GuideRowKind.safetyTitle => _sectionLabel(
+                      _copy('训练提醒', 'Training reminders'),
+                    ),
                     _GuideRowKind.safetyNote => Padding(
                       padding: EdgeInsets.only(
                         bottom: row.item < _plan.safetyNotes.length - 1 ? 8 : 0,
@@ -458,7 +493,7 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
           ),
           child: ChatPressable(
             key: const ValueKey('start'),
-            semanticLabel: '前往训练',
+            semanticLabel: _copy('前往训练', 'Start training'),
             haptic: ChatHaptic.light,
             onTap: () => unawaited(_startTraining()),
             child: Container(
@@ -480,7 +515,10 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
                     color: ChatTheme.of(context).colors.onAccent,
                   ),
                   const SizedBox(width: 8),
-                  Text('前往训练', style: ChatGuideTokens.button(context)),
+                  Text(
+                    _copy('前往训练', 'Start training'),
+                    style: ChatGuideTokens.button(context),
+                  ),
                 ],
               ),
             ),
@@ -512,18 +550,33 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
                     _controller.profile.executionTiming,
                   )
                   .totalSeconds,
+              language: _language,
             ),
             0,
           ),
-          _tag('${_plan.items.length} 个动作', 1),
-          _tag(coach.levelZh(_plan.level), 2),
-          _tag(_plan.scene == 'office' ? '办公室' : '居家', 3),
+          _tag(
+            _copy(
+              '${_plan.items.length} 个动作',
+              '${_plan.items.length} ${_plan.items.length == 1 ? 'move' : 'moves'}',
+            ),
+            1,
+          ),
+          _tag(chatLevelLabel(_plan.level, language: _language), 2),
+          _tag(
+            _plan.scene == 'office'
+                ? _copy('办公室', 'Office')
+                : _copy('居家', _plan.scene == 'gym' ? 'Gym' : 'Home'),
+            3,
+          ),
         ],
       ),
       if (_plan.summary.trim().isNotEmpty &&
           _plan.summary.trim() != _plan.title.trim()) ...[
         const SizedBox(height: 12),
-        Text('安排说明', style: ChatGuideTokens.caption(context)),
+        Text(
+          _copy('安排说明', 'Plan notes'),
+          style: ChatGuideTokens.caption(context),
+        ),
         const SizedBox(height: 4),
         Text(
           _plan.summary,
@@ -573,9 +626,14 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
           'workout',
         }.contains(protocolName) ||
         (protocolName.isEmpty && block.type == coach.BlockType.main);
-    final title = mainName ? '主训' : planSectionLabel(block);
+    final title = mainName
+        ? _copy('主训', 'Main training')
+        : planSectionLabel(block, language: _language);
     final extra = block.type == coach.BlockType.circuit && block.rounds > 1
-        ? ' · 循环 ${block.rounds} 轮，轮间休息 ${block.restBetweenRoundsSeconds} 秒'
+        ? _copy(
+            ' · 循环 ${block.rounds} 轮，轮间休息 ${block.restBetweenRoundsSeconds} 秒',
+            ' · ${block.rounds} rounds, ${block.restBetweenRoundsSeconds} sec rest between rounds',
+          )
         : '';
     return _sectionLabel(
       '$title$extra',
@@ -587,11 +645,16 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
     final block = _plan.blocks[bi];
     final item = block.items[ii];
     final exercise = library[item.exerciseId]!;
+    final localized = chatActionText(context, exercise.id);
+    final cautions = localized?.cautions ?? exercise.cautions;
     final cues =
-        exercise.cues[_request.language] ??
+        localized?.cues ??
+        exercise.cues[_language] ??
         exercise.cues['zh'] ??
         const <String>[];
-    final muscles = exercise.muscles.isNotEmpty
+    final muscles = localized?.muscles != null
+        ? [localized!.muscles!]
+        : exercise.muscles.isNotEmpty
         ? exercise.muscles
         : exercise.muscleGroups;
     final slot = '$bi:$ii';
@@ -600,8 +663,13 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
         ? chatDoseText(
             item.copyWith(sets: 1),
             unitLabels: ChatTheme.of(context).doseUnitLabels,
+            language: _language,
           )
-        : chatDoseText(item, unitLabels: ChatTheme.of(context).doseUnitLabels);
+        : chatDoseText(
+            item,
+            unitLabels: ChatTheme.of(context).doseUnitLabels,
+            language: _language,
+          );
     return Padding(
       key: ValueKey('plan-move-$slot'),
       padding: EdgeInsets.only(
@@ -668,9 +736,8 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
                                         children: [
                                           Expanded(
                                             child: Text(
-                                              exercise.name.of(
-                                                _request.language,
-                                              ),
+                                              localized?.name ??
+                                                  exercise.name.of(_language),
                                               key: ValueKey('guide-name-$slot'),
                                               maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
@@ -694,13 +761,17 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
                                       height: ChatGuideTokens.muscleGap,
                                     ),
                                     Text(
-                                      muscles.join('、'),
+                                      muscles.join(
+                                        chatIsEnglish(context) ? ', ' : '、',
+                                      ),
                                       key: ValueKey('guide-muscles-$slot'),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: ChatGuideTokens.muscles(context),
-                                      semanticsLabel:
-                                          '目标肌群：${muscles.join('、')}',
+                                      semanticsLabel: _copy(
+                                        '目标肌群：${muscles.join('、')}',
+                                        'Target muscles: ${muscles.join(', ')}',
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -720,7 +791,10 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
                           const SizedBox(
                             height: ChatGuideTokens.instructionGap,
                           ),
-                          Text('怎么做', style: ChatGuideTokens.caption(context)),
+                          Text(
+                            _copy('怎么做', 'How to do it'),
+                            style: ChatGuideTokens.caption(context),
+                          ),
                           const SizedBox(
                             height: ChatGuideTokens.instructionGap,
                           ),
@@ -729,7 +803,7 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
                               const SizedBox(height: ChatGuideTokens.stepGap),
                             _step(cues[index], index + 1, slot),
                           ],
-                          if (exercise.cautions.isNotEmpty ||
+                          if (cautions.isNotEmpty ||
                               item.note != null ||
                               exercise.alternative != null) ...[
                             const SizedBox(height: 12),
@@ -737,14 +811,14 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
                               children: [
                                 Expanded(
                                   child: Text(
-                                    '注意要点',
+                                    _copy('注意要点', 'Key points'),
                                     style: ChatGuideTokens.caption(context),
                                   ),
                                 ),
                                 if (exercise.alternative != null)
                                   ChatDetailsCircleButton(
                                     key: ValueKey('swap-${exercise.id}'),
-                                    tooltip: '换一个',
+                                    tooltip: _copy('换一个', 'Choose another'),
                                     icon: ChatGlyph.swap,
                                     size: 40,
                                     filled: false,
@@ -757,10 +831,13 @@ class _PlanPageState extends State<_CoachChatPlanDetailsBody>
                                   ),
                               ],
                             ),
-                            if (exercise.cautions.isNotEmpty) ...[
+                            if (cautions.isNotEmpty) ...[
                               const SizedBox(height: 4),
                               Text(
-                                '留意部位：${exercise.cautions.join('、')}',
+                                _copy(
+                                  '留意部位：${cautions.join('、')}',
+                                  'Take care: ${cautions.join('; ')}',
+                                ),
                                 style: ChatGuideTokens.step(context),
                               ),
                             ],
@@ -861,8 +938,43 @@ class _GuideRow {
   final String note;
 }
 
-String planSectionLabel(coach.PlanBlock block) {
+String planSectionLabel(coach.PlanBlock block, {String language = 'zh'}) {
   final name = block.name.trim();
+  if (language.toLowerCase().startsWith('en')) {
+    return switch (name.toLowerCase()) {
+      'warmup' || 'warm_up' || 'warm-up' || 'warm up' || '热身' => 'Warm-up',
+      'main' ||
+      'main_set' ||
+      'main-set' ||
+      'workout' ||
+      '主练' ||
+      '主训' || '主训练' => 'Main training',
+      'cooldown' ||
+      'cool_down' ||
+      'cool-down' ||
+      'cool down' ||
+      '放松' => 'Cool-down',
+      'circuit' || '循环' => 'Circuit',
+      'preparation' || 'prepare' || '准备' => 'Preparation',
+      'stretch' || 'stretching' || '拉伸' => 'Stretch',
+      'rest' || 'recovery' || '休息' => 'Rest',
+      'mobility' || '活动' => 'Mobility',
+      'balance' || '平衡' => 'Balance',
+      'cardio' || 'aerobic' || '有氧' => 'Cardio',
+      'interval' || 'intervals' || '间歇' => 'Intervals',
+      'core' || '核心' => 'Core',
+      'activation' || '激活' => 'Activation',
+      _ =>
+        name.isNotEmpty
+            ? name
+            : switch (block.type) {
+                coach.BlockType.warmup => 'Warm-up',
+                coach.BlockType.main => 'Main training',
+                coach.BlockType.circuit => 'Circuit',
+                coach.BlockType.cooldown => 'Cool-down',
+              },
+    };
+  }
   final translated = switch (name.toLowerCase()) {
     'warmup' || 'warm_up' || 'warm-up' || 'warm up' => '热身',
     'main' || 'main_set' || 'main-set' || 'workout' => '主练',

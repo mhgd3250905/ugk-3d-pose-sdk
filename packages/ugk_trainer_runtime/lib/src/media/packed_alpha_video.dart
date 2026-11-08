@@ -20,6 +20,7 @@ class UgkPackedAlphaVideo extends StatefulWidget {
     required this.asset,
     required this.controller,
     this.onDisposed,
+    this.nativeAlpha = false,
   }) : sourceUri = null;
 
   /// A complete installed pack keeps its original media outside the bundle.
@@ -29,10 +30,15 @@ class UgkPackedAlphaVideo extends StatefulWidget {
     required Uri this.sourceUri,
     required this.controller,
     this.onDisposed,
+    this.nativeAlpha = false,
   }) : asset = '';
   final String asset;
   final Uri? sourceUri;
   final DrillMediaController controller;
+
+  /// Opt in to native GPU unpacking when the backend advertises that capability.
+  /// Defaults to the existing packed shader, including custom/legacy platforms.
+  final bool nativeAlpha;
 
   /// Called after native disposal completes, including an in-flight create
   /// retired before it returned. Optional cache owners can release their pin.
@@ -47,8 +53,19 @@ class UgkPackedAlphaVideo extends StatefulWidget {
   @visibleForTesting
   static Widget Function(Widget packedInput)? debugFilterBuilder;
 
+  @visibleForTesting
+  static Widget Function(int textureId)? debugRgbaTextureBuilder;
+
   static bool get isSupported =>
       (debugPlatform ?? _defaultPlatform).isSupported;
+
+  static bool isSupportedFor({required bool nativeAlpha}) {
+    final platform = debugPlatform ?? _defaultPlatform;
+    return (nativeAlpha &&
+            platform is PackedAlphaRgbaPlatform &&
+            (platform as PackedAlphaRgbaPlatform).isRgbaSupported) ||
+        platform.isSupported;
+  }
 
   @override
   State<UgkPackedAlphaVideo> createState() => _UgkPackedAlphaVideoState();
@@ -68,6 +85,7 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
   int? _textureId;
   int _generation = 0;
   bool _nativeFrame = false;
+  bool _nativeAlpha = false;
   bool _frameAnnounced = false;
   final _nativeJobs = <Future<void>>{};
   bool _nativeDisposeFailed = false;
@@ -99,6 +117,7 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.asset != widget.asset ||
         oldWidget.sourceUri != widget.sourceUri ||
+        oldWidget.nativeAlpha != widget.nativeAlpha ||
         oldWidget.controller != widget.controller) {
       _retire();
       _bind();
@@ -135,8 +154,14 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
     Uri? sourceUri,
   ) async {
     try {
-      if (!platform.isSupported) throw UnsupportedError('Packed alpha backend');
-      if (UgkPackedAlphaVideo.debugFilterBuilder == null) {
+      final nativeAlpha =
+          widget.nativeAlpha &&
+          platform is PackedAlphaRgbaPlatform &&
+          (platform as PackedAlphaRgbaPlatform).isRgbaSupported;
+      if (!nativeAlpha && !platform.isSupported) {
+        throw UnsupportedError('Packed alpha backend');
+      }
+      if (!nativeAlpha && UgkPackedAlphaVideo.debugFilterBuilder == null) {
         final program = await (UgkPackedAlphaVideo._program ??=
             TrainerRuntimeAssets.resolveAsset(
               UgkPackedAlphaVideo.shaderAsset,
@@ -168,10 +193,17 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
           if (_current(generation, owner)) owner.reportError();
         },
       );
-      if (sourceUri != null && platform is! PackedAlphaUriPlatform) {
+      if (!nativeAlpha &&
+          sourceUri != null &&
+          platform is! PackedAlphaUriPlatform) {
         throw UnsupportedError('External packed source');
       }
-      final created = sourceUri == null
+      final created = nativeAlpha
+          ? await (platform as PackedAlphaRgbaPlatform).createRgba(
+              asset: sourceUri == null ? asset : null,
+              sourceUri: sourceUri,
+            )
+          : sourceUri == null
           ? await platform.create(asset)
           : await (platform as PackedAlphaUriPlatform).createUri(sourceUri);
       if (!_current(generation, owner)) {
@@ -181,6 +213,7 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
       setState(() {
         _playerId = created.playerId;
         _textureId = created.textureId;
+        _nativeAlpha = nativeAlpha;
       });
       final pending = List.of(_pendingEvents);
       _pendingEvents.clear();
@@ -243,6 +276,44 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
             'frame': frame,
           });
         }
+      } else if (type == 'prime-first-frame') {
+        final success = await platform.command(id, 'prime-first-frame');
+        if (success == true && _current(generation, owner)) {
+          WidgetsBinding.instance.scheduleFrame();
+          await WidgetsBinding.instance.endOfFrame;
+        }
+        if (_current(generation, owner)) {
+          owner.receive({
+            'source': 'drill-media',
+            'type': 'primed-first-frame',
+            'requestId': command['requestId'],
+            'success': success == true,
+          });
+        }
+      } else if (type == 'cancel-prime-first-frame') {
+        await platform.command(id, 'cancel-prime-first-frame');
+      } else if (type == 'return-to-start') {
+        final success = await platform.command(
+          id,
+          'return-to-start',
+          command['durationMs'],
+        );
+        if (success == true && _current(generation, owner)) {
+          // A seek-complete reply precedes Flutter composition of the texture.
+          // Keep the view alive for the first-frame handoff before the host pops.
+          WidgetsBinding.instance.scheduleFrame();
+          await WidgetsBinding.instance.endOfFrame;
+        }
+        if (_current(generation, owner)) {
+          owner.receive({
+            'source': 'drill-media',
+            'type': 'returned-to-start',
+            'requestId': command['requestId'],
+            'success': success == true,
+          });
+        }
+      } else if (type == 'cancel-return-to-start') {
+        await platform.command(id, 'cancel-return-to-start');
       } else if (type == 'position') {
         final time = await platform.command(id, 'position');
         if (_current(generation, owner)) {
@@ -259,7 +330,25 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
       }
     } catch (_) {
       if (_current(generation, owner)) {
-        if (type == 'position') {
+        if (type == 'prime-first-frame') {
+          owner.receive({
+            'source': 'drill-media',
+            'type': 'primed-first-frame',
+            'requestId': command['requestId'],
+            'success': false,
+          });
+        } else if (type == 'cancel-prime-first-frame') {
+          // Optional preparation must not fail ordinary playback.
+        } else if (type == 'return-to-start') {
+          owner.receive({
+            'source': 'drill-media',
+            'type': 'returned-to-start',
+            'requestId': command['requestId'],
+            'success': false,
+          });
+        } else if (type == 'cancel-return-to-start') {
+          // An old backend can reject this optional command harmlessly.
+        } else if (type == 'position') {
           // Inspection is read-only: an unavailable native time must not
           // fail/replace otherwise healthy demonstration playback.
           owner.receive({
@@ -333,6 +422,7 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
     _shader = null;
     _filter = null;
     _nativeFrame = false;
+    _nativeAlpha = false;
     _frameAnnounced = false;
   }
 
@@ -359,6 +449,22 @@ class _UgkPackedAlphaVideoState extends State<UgkPackedAlphaVideo>
         final id = _textureId;
         if (id == null) return const SizedBox.expand();
         final width = constraints.maxWidth;
+        if (_nativeAlpha) {
+          return RepaintBoundary(
+            key: _captureKey,
+            child: ClipRect(
+              child: SizedBox.expand(
+                child:
+                    UgkPackedAlphaVideo.debugRgbaTextureBuilder?.call(id) ??
+                    Texture(
+                      key: const ValueKey('packed-alpha-native-rgba'),
+                      textureId: id,
+                      filterQuality: FilterQuality.low,
+                    ),
+              ),
+            ),
+          );
+        }
         final input = SizedBox(
           key: const ValueKey('packed-alpha-full-input'),
           width: width,

@@ -14,6 +14,67 @@ import 'action_scope_manifest_test.dart'
         actionScopeProfile;
 
 void main() {
+  test(
+    'English scope wording preserves substitution and refusal decisions',
+    () {
+      final catalog = actionScopeCatalog(
+        rows: [
+          actionScopeDrill('hip-a', name: 'Gentle inner-thigh stretch'),
+          actionScopeDrill(
+            'outside-a',
+            name: 'Unavailable inner-thigh stretch',
+          ),
+        ],
+      );
+      final scope = actionScopeManifest(
+        catalog,
+        ids: ['hip-a'],
+      ).restrict(catalog: catalog, profile: actionScopeProfile());
+      final english = CoachScopeConversationPolicy(
+        languageTag: 'en',
+        specialty: 'This app focuses on gentle hip mobility.',
+        suggestions: ['Gentle hip stretch', 'Glute activation'],
+      );
+      final chinese = CoachScopeConversationPolicy(specialty: '本 App 专注髋部训练。');
+      final request = CoachScopeRequest(
+        originalText: 'Try outside-a',
+        sourceActionId: 'outside-a',
+        scene: 'home',
+        equipment: {'mat'},
+      );
+      final before = scope.evaluateRequest(request, chinese);
+      final after = scope.evaluateRequest(request, english);
+      expect(after.kind, before.kind);
+      expect(after.adoptedActionId, before.adoptedActionId);
+      expect(after.allowPlan, before.allowPlan);
+      final refusal = scope.evaluateRequest(
+      CoachScopeRequest(
+          originalText: 'Something unrelated',
+          outsideSpecialty: true,
+        ),
+        english,
+      );
+      final disclosure = scope.disclosureFor(
+        [refusal],
+        null,
+        '',
+        policy: english,
+      );
+      expect(disclosure, contains('outside this app’s training scope'));
+      expect(
+        disclosure,
+        contains('You can choose: Gentle hip stretch; Glute activation.'),
+      );
+      expect(RegExp(r'[\u3400-\u9fff]').hasMatch(disclosure), isFalse);
+      final safety = scope.evaluateRequest(
+      CoachScopeRequest(originalText: 'Stop', safetyBlocked: true),
+        english,
+      );
+      expect(safety.message, startsWith('Pause this training plan'));
+      expect(safety.allowPlan, isFalse);
+    },
+  );
+
   late CoachActionScope scope;
   final policy = CoachScopeConversationPolicy(
     specialty: '本 App 专注髋部、臀部和温和拉伸。',

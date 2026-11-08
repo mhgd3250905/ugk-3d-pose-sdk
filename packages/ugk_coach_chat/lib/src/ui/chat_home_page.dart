@@ -23,6 +23,7 @@ import 'chat_timeline.dart';
 import 'training_card_media.dart';
 import 'training_transition_freeze.dart';
 import 'training_transition_activity.dart';
+import 'chat_localization.dart';
 
 /// The home screen: one conversation floating in an endless sky. No app
 /// bar, no borders; the input's left icon opens the feature panel.
@@ -57,23 +58,26 @@ class CoachChatPage extends StatelessWidget {
   final String? backLabel;
 
   @override
-  Widget build(BuildContext context) => CoachChatTheme(
-    visual: controller.profile.visual,
-    executionTiming: controller.profile.executionTiming,
-    doseUnitLabels: {
-      for (final entry in controller.profile.doseOverrides.entries)
-        if (entry.value.unitLabel != null) entry.key: entry.value.unitLabel!,
-    },
-    child: TrainingTransitionScope(
-      activity: controller.transitionActivity,
-      child: _CoachChatBody(
-        key: ObjectKey(controller),
-        controller: controller,
-        scrollController: scrollController,
-        clock: clock,
-        showBackButton: showBackButton,
-        onBack: onBack,
-        backLabel: backLabel,
+  Widget build(BuildContext context) => ChatLocalization(
+    controller: controller,
+    child: CoachChatTheme(
+      visual: controller.profile.visual,
+      executionTiming: controller.profile.executionTiming,
+      doseUnitLabels: {
+        for (final entry in controller.profile.doseOverrides.entries)
+          if (entry.value.unitLabel != null) entry.key: entry.value.unitLabel!,
+      },
+      child: TrainingTransitionScope(
+        activity: controller.transitionActivity,
+        child: _CoachChatBody(
+          key: ObjectKey(controller),
+          controller: controller,
+          scrollController: scrollController,
+          clock: clock,
+          showBackButton: showBackButton,
+          onBack: onBack,
+          backLabel: backLabel,
+        ),
       ),
     ),
   );

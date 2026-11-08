@@ -274,7 +274,8 @@ class TrainingSessionService : Service() {
     private fun buildNotification(): Notification {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (manager.getNotificationChannel(CHANNEL_ID) == null) {
+            val existingChannel = manager.getNotificationChannel(CHANNEL_ID)
+            if (existingChannel == null) {
                 val channel = NotificationChannel(
                     CHANNEL_ID,
                     notice.channelName ?: "Training",
@@ -284,6 +285,12 @@ class TrainingSessionService : Service() {
                     setShowBadge(false)
                 }
                 manager.createNotificationChannel(channel)
+            } else {
+                // Refresh App-localized display text on the existing channel.
+                // Keep its importance, sound and all other user settings.
+                notice.channelName?.let { existingChannel.name = it }
+                notice.channelDescription?.let { existingChannel.description = it }
+                manager.createNotificationChannel(existingChannel)
             }
         }
         val open = packageManager.getLaunchIntentForPackage(packageName)?.apply {

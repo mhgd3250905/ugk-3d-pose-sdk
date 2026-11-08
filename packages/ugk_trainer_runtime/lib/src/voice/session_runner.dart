@@ -118,11 +118,15 @@ class SessionRunner {
 
   /// The voice source gained clips (a catalogue prefetch finished): rebuild
   /// the current phase's cues; those already due by [t] stay spent, so
-  /// nothing past is read out late.
+  /// nothing past is read out late. A source ready before the first tick must
+  /// leave this generation's unconsumed zero-second introduction pending.
   void refreshVoice(double t) {
     if (engine.done) return;
-    _load();
     final local = t - engine.phaseStart;
+    final pendingStart =
+        engine.generation == _gen && _fired.isEmpty && local.abs() <= 1e-9;
+    _load();
+    if (pendingStart) return;
     for (var i = 0; i < _cues.length; i++) {
       if (_cues[i].at <= local + 1e-9) _fired.add(i);
     }

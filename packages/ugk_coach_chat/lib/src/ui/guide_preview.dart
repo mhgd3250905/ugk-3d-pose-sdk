@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../theme/chat_guide_tokens.dart';
 import '../theme/chat_theme.dart';
 import '../theme/chat_tokens.dart';
+import 'chat_localization.dart';
 
 /// Serial ownership of the host's existing preview surfaces.
 class GuidePreviewCoordinator extends ChangeNotifier {
@@ -190,7 +191,11 @@ class _GuideMediaState extends State<GuideMedia> with WidgetsBindingObserver {
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(
           content: Text(
-            '连上网络后可以播放视频',
+            chatCopy(
+              context,
+              '连上网络后可以播放视频',
+              'Connect to the internet to play this video',
+            ),
             style: ChatType.of(
               context,
             ).label.copyWith(fontSize: 13, fontWeight: FontWeight.w500),
@@ -229,10 +234,10 @@ class _GuideMediaState extends State<GuideMedia> with WidgetsBindingObserver {
     }
     final stage = Theme.of(context).colorScheme.surfaceContainerHighest;
     final label = _failed
-        ? '重试动作示范'
+        ? chatCopy(context, '重试动作示范', 'Retry exercise demo')
         : _requestedPlay
-        ? '暂停动作示范'
-        : '播放动作示范';
+        ? chatCopy(context, '暂停动作示范', 'Pause exercise demo')
+        : chatCopy(context, '播放动作示范', 'Play exercise demo');
     final brightness = Theme.of(context).brightness;
     final exercise = visual.exerciseFor?.call(widget.actionId, brightness);
     final asset = exercise?.stillCutout ?? exercise?.poster;
@@ -342,11 +347,17 @@ class _GuideMediaState extends State<GuideMedia> with WidgetsBindingObserver {
               ),
             )
           else
-            const Align(
+            Align(
               alignment: Alignment.bottomCenter,
               child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Text('此动作暂无视频示范'),
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  chatCopy(
+                    context,
+                    '此动作暂无视频示范',
+                    'No video demo is available for this move',
+                  ),
+                ),
               ),
             ),
         ],

@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/trainer_experience.dart';
 import '../ui/trainer_poster.dart';
 import 'catalog_media_repository.dart';
 import 'media_controller.dart';
+import 'media_playback_control.dart';
 import 'media_playback_handle.dart';
 import 'packed_alpha_video.dart';
 import 'training_media_policy.dart';
@@ -24,6 +26,15 @@ class TrainingActionMedia extends StatefulWidget {
     this.radius = 16,
     this.stage,
     this.playbackHandle,
+    this.playbackControl,
+    this.retainSurfaceDuringRouteExit = false,
+    this.retainPausedSurfaceWhileCovered = false,
+    this.prepareFirstFrame = false,
+    this.showLoadingIndicator = true,
+    this.showInlineStatus = true,
+    this.nativeAlpha = false,
+    this.onFrameReadyChanged,
+    this.revealPausedFrame = true,
   });
   final String actionId;
   final TrainingMediaPolicy? policy;
@@ -35,6 +46,48 @@ class TrainingActionMedia extends StatefulWidget {
   final double radius;
   final Color? stage;
   final DrillMediaPlaybackHandle? playbackHandle;
+  final DrillMediaPlaybackControl? playbackControl;
+
+  /// Retain an existing paused frame while this route itself reverses out.
+  /// Covered routes, backgrounding and disposal still release their surfaces.
+  /// Hosts opting in must pause before popping; ordinary hosts are unchanged.
+  final bool retainSurfaceDuringRouteExit;
+
+  /// Keep an existing, genuinely decoded paused frame while another route covers
+  /// this one. This never starts pending media or plays hidden video. Background,
+  /// action/policy changes, [playing] false and disposal still release it.
+  /// Ordinary hosts keep their existing route-visibility behavior by default.
+  final bool retainPausedSurfaceWhileCovered;
+
+  /// With [playing] true and [paused] true, decode and hold the first frame.
+  /// Expanding/resuming can then use the very same controller and texture.
+  /// Ordinary paused and poster-only hosts keep their existing behavior.
+  final bool prepareFirstFrame;
+
+  /// Whether to show downloading/first-frame progress. When false, keep the
+  /// poster without a spinner/live announcement; real failure/retry UI remains.
+  /// This affects presentation only; changing it never reloads the decoder.
+  final bool showLoadingIndicator;
+
+  /// Standalone previews retain inline loading/failure feedback. A host that
+  /// provides its own download HUD opts out explicitly; a playback handle alone
+  /// may be used for inspection and never implies that another HUD exists.
+  final bool showInlineStatus;
+
+  /// Optional native RGBA output for a backend with that capability. The
+  /// default preserves the packed-shader path and other hosts' behavior.
+  final bool nativeAlpha;
+
+  /// Reports genuine decoded-frame readiness after the frame, never during a
+  /// child's build. Pending reports are coalesced to the current source/state.
+  /// Releasing a ready surface reports false, including final disposal; owners
+  /// must ignore that final report after their own disposal. Defaults to null.
+  final ValueChanged<bool>? onFrameReadyChanged;
+
+  /// Keep the poster over a prepared paused surface until the host reveals it.
+  /// This does not stop preparation, replace the decoder or change playback.
+  /// Playing video reveals normally. The default preserves existing behavior.
+  final bool revealPausedFrame;
 
   @override
   State<TrainingActionMedia> createState() => _TrainingActionMediaState();
@@ -54,6 +107,7 @@ class _VideoPin {
 class _TrainingActionMediaState extends State<TrainingActionMedia>
     with WidgetsBindingObserver {
   TrainingMediaPolicy? _policy;
+  ValueListenable<CatalogMediaDownloadState>? _download;
   DrillMediaController? _controller;
   _VideoPin? _pin;
   Uri? _source;
@@ -61,10 +115,21 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   bool _foreground = true;
   bool _visible = true;
   bool _failed = false;
+  bool _tickersEnabled = true;
+  bool _routeCurrent = true;
+  bool _retainingExit = false;
+  bool _retainingCovered = false;
+  Animation<double>? _exitAnimation;
+  bool _primeAttempted = false;
+  bool _frameReady = false;
+  bool _deliveredFrameReady = false;
+  int _frameReadyReport = 0;
 
   bool get _canPlay => widget.playing && _foreground && _visible;
   bool get _canPrepare =>
       (widget.playing || widget.prefetchWhenIdle) && _foreground && _visible;
+  bool get _effectiveVisible =>
+      (_tickersEnabled && _routeCurrent) || _retainingExit || _retainingCovered;
 
   @override
   void initState() {
@@ -76,9 +141,11 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final policy = widget.policy ?? TrainingMediaPolicyScope.maybeOf(context);
-    final visible =
-        TickerMode.valuesOf(context).enabled &&
-        (ModalRoute.isCurrentOf(context) ?? true);
+    _tickersEnabled = TickerMode.valuesOf(context).enabled;
+    _routeCurrent = ModalRoute.isCurrentOf(context) ?? true;
+    _updateCoveredRetention();
+    _bindExitAnimation();
+    final visible = _effectiveVisible;
     if (!identical(policy, _policy) || visible != _visible) {
       _policy = policy;
       _visible = visible;
@@ -92,35 +159,139 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     if (oldWidget.playbackHandle != widget.playbackHandle) {
       oldWidget.playbackHandle?.unbind(this);
     }
+    if (oldWidget.playbackControl != widget.playbackControl) {
+      oldWidget.playbackControl?.unbind(this);
+    }
+    final wasVisible = _visible;
+    _updateCoveredRetention();
+    _visible = _effectiveVisible;
+    if (oldWidget.retainSurfaceDuringRouteExit !=
+        widget.retainSurfaceDuringRouteExit) {
+      _bindExitAnimation();
+      _visible = _effectiveVisible;
+    }
     if (oldWidget.actionId != widget.actionId ||
         oldWidget.policy != widget.policy ||
         (oldWidget.playing || oldWidget.prefetchWhenIdle) !=
-            (widget.playing || widget.prefetchWhenIdle)) {
+            (widget.playing || widget.prefetchWhenIdle) ||
+        oldWidget.nativeAlpha != widget.nativeAlpha ||
+        wasVisible != _visible) {
       _policy = widget.policy ?? TrainingMediaPolicyScope.read(context);
       _reload();
     } else if (oldWidget.paused != widget.paused ||
-        oldWidget.playing != widget.playing) {
+        oldWidget.playing != widget.playing ||
+        oldWidget.prepareFirstFrame != widget.prepareFirstFrame) {
+      if (widget.paused && _controller?.hasFrame != true) {
+        _primeAttempted = false;
+      }
       _sync();
     }
     _bindHandle();
+    if (oldWidget.onFrameReadyChanged != widget.onFrameReadyChanged) {
+      _deliveredFrameReady = false;
+      _scheduleFrameReadiness(force: true);
+    }
   }
 
-  void _bindHandle() => widget.playbackHandle?.bind(
-    owner: this,
-    mediaId: widget.actionId,
-    controller: _controller,
-    failed: _failed,
-    onRetry: () {
-      if (mounted) setState(_reload);
-    },
-  );
+  void _scheduleFrameReadiness({
+    bool force = false,
+    bool afterDisposal = false,
+  }) {
+    final ready = _controller?.hasFrame == true && _controller?.failed != true;
+    if (!force && ready == _frameReady) return;
+    _frameReady = ready;
+    final report = ++_frameReadyReport;
+    final callback = widget.onFrameReadyChanged;
+    if (callback == null) return;
+    final request = _request;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (report != _frameReadyReport ||
+          request != _request ||
+          (!mounted && !afterDisposal) ||
+          callback != widget.onFrameReadyChanged) {
+        return;
+      }
+      _deliveredFrameReady = ready;
+      callback(ready);
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
 
-  void _stop() {
+  void _updateCoveredRetention() {
+    if (!widget.retainPausedSurfaceWhileCovered ||
+        !widget.playing ||
+        !widget.paused ||
+        !_foreground ||
+        _controller?.hasFrame != true ||
+        _controller?.failed == true ||
+        ModalRoute.of(context)?.animation?.status == AnimationStatus.reverse) {
+      _retainingCovered = false;
+    } else if (!_routeCurrent) {
+      _retainingCovered = true;
+    } else if (_tickersEnabled) {
+      _retainingCovered = false;
+    }
+    // During pop, isCurrent can become true before TickerMode is re-enabled.
+    // Keep only a previously retained frame across that ordering; a current
+    // route with an unrelated disabled TickerMode never starts retaining.
+  }
+
+  void _bindExitAnimation() {
+    final animation = widget.retainSurfaceDuringRouteExit
+        ? ModalRoute.of(context)?.animation
+        : null;
+    if (identical(animation, _exitAnimation)) return;
+    _exitAnimation?.removeStatusListener(_exitStatusChanged);
+    _exitAnimation = animation;
+    _retainingExit =
+        animation?.status == AnimationStatus.reverse && _controller != null;
+    animation?.addStatusListener(_exitStatusChanged);
+  }
+
+  void _exitStatusChanged(AnimationStatus status) {
+    // Flutter starts the route's reverse animation before notifying its subtree
+    // of isCurrent/TickerMode changes. Keep only the surface that already exists;
+    // never start a waiting video merely because its route is leaving.
+    _retainingExit =
+        widget.retainSurfaceDuringRouteExit &&
+        status == AnimationStatus.reverse &&
+        _controller != null;
+    final visible = _effectiveVisible;
+    if (!mounted || visible == _visible) return;
+    setState(() {
+      _visible = visible;
+      _reload();
+    });
+  }
+
+  void _bindHandle() {
+    widget.playbackHandle?.bind(
+      owner: this,
+      mediaId: widget.actionId,
+      controller: _controller,
+      failed: _failed,
+      onRetry: () {
+        if (mounted) setState(_reload);
+      },
+    );
+    widget.playbackControl?.bind(owner: this, controller: _controller);
+  }
+
+  void _stop({bool afterDisposal = false}) {
+    _retainingExit = false;
+    _retainingCovered = false;
+    _primeAttempted = false;
     ++_request;
+    _download?.removeListener(_changed);
+    _download = null;
     _controller?.removeListener(_decoderChanged);
     _controller?.dispose();
     _controller = null;
     _source = null;
+    _scheduleFrameReadiness(
+      force: _deliveredFrameReady,
+      afterDisposal: afterDisposal,
+    );
     final pin = _pin;
     _pin = null;
     // An attached native decoder releases its pin after asynchronous disposal.
@@ -130,17 +301,21 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
 
   void _reload() {
     _stop();
+    _visible = _effectiveVisible;
     _failed = false;
     final policy = _policy;
     final action = policy?.actionFor(widget.actionId);
-    // Only the current training action opts into preparation before playback.
-    // Other idle previews and covered/background routes retain their policy.
-    if (!_canPrepare || policy == null || action == null) {
+    // Prepare only the active action and respect retained-route visibility.
+    if (!_canPrepare ||
+        policy == null ||
+        action == null ||
+        !UgkPackedAlphaVideo.isSupportedFor(nativeAlpha: widget.nativeAlpha)) {
       _bindHandle();
       return;
     }
-    if (!UgkPackedAlphaVideo.isSupported) return;
     final pin = _pin = _VideoPin(policy.repository.retainVideo(action.id));
+    _download = policy.repository.watchFile(action.video)
+      ..addListener(_changed);
     _bindHandle();
     unawaited(_resolve(_request, policy, pin));
   }
@@ -176,15 +351,43 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   void _sync() {
     final controller = _controller;
     if (controller == null) return;
-    if (!_canPlay || widget.paused) {
+    if (!_canPlay) {
       controller.pause();
+    } else if (widget.paused) {
+      if (widget.prepareFirstFrame && !controller.hasFrame) {
+        if (!controller.ready) controller.pause();
+        _primeIfNeeded();
+      } else {
+        controller.pause();
+      }
     } else if (!controller.wantsPlay) {
       controller.toggle();
     }
   }
 
+  void _primeIfNeeded() {
+    final controller = _controller;
+    if (_primeAttempted ||
+        !_canPlay ||
+        !widget.paused ||
+        !widget.prepareFirstFrame ||
+        controller == null ||
+        !controller.ready ||
+        controller.hasFrame ||
+        controller.failed) {
+      return;
+    }
+    _primeAttempted = true;
+    unawaited(controller.prepareFirstFrame());
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
   void _decoderChanged() {
     if (!mounted) return;
+    _scheduleFrameReadiness();
     if (_controller?.failed == true) {
       // Retire the exact failed surface, preserving the bundled still.
       scheduleMicrotask(() {
@@ -196,6 +399,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
         });
       });
     } else {
+      _primeIfNeeded();
       setState(() {});
     }
   }
@@ -213,8 +417,10 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _stop();
+    _exitAnimation?.removeStatusListener(_exitStatusChanged);
+    _stop(afterDisposal: true);
     widget.playbackHandle?.unbind(this);
+    widget.playbackControl?.unbind(this);
     super.dispose();
   }
 
@@ -225,7 +431,24 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     final stage = widget.stage ?? Theme.of(context).colorScheme.surface;
     final controller = _controller;
     final revealed =
-        _canPlay && controller?.hasFrame == true && controller?.failed != true;
+        controller?.hasFrame == true &&
+        controller?.failed != true &&
+        (!widget.paused || widget.revealPausedFrame);
+    final progress = _download?.value.progress;
+    final supported = UgkPackedAlphaVideo.isSupportedFor(
+      nativeAlpha: widget.nativeAlpha,
+    );
+    // Preserve standalone silent preparation and failure/retry feedback while
+    // allowing the player's separate download HUD to own presentation.
+    final showStatus =
+        widget.showInlineStatus &&
+        poster != null &&
+        _canPlay &&
+        supported &&
+        !revealed &&
+        (_failed ||
+            (widget.showLoadingIndicator &&
+                !(widget.paused && !widget.revealPausedFrame)));
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: ColoredBox(
@@ -264,6 +487,33 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
                       source: _source!,
                       controller: controller,
                       pin: _pin!,
+                      nativeAlpha: widget.nativeAlpha,
+                    ),
+                  ),
+                if (showStatus)
+                  Positioned(
+                    left: 8,
+                    right: 8,
+                    bottom: 8,
+                    child: Center(
+                      child: _failed
+                          ? TextButton(
+                              key: const ValueKey('public-action-retry'),
+                              onPressed: () => setState(_reload),
+                              child: const Text('视频暂不可用，训练继续 · 重试'),
+                            )
+                          : Semantics(
+                              liveRegion: true,
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  key: const ValueKey('public-action-progress'),
+                                  value: progress,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
                     ),
                   ),
               ],
@@ -281,10 +531,12 @@ class _PinnedPackedVideo extends StatefulWidget {
     required this.source,
     required this.controller,
     required this.pin,
+    required this.nativeAlpha,
   });
   final Uri source;
   final DrillMediaController controller;
   final _VideoPin pin;
+  final bool nativeAlpha;
   @override
   State<_PinnedPackedVideo> createState() => _PinnedPackedVideoState();
 }
@@ -301,5 +553,6 @@ class _PinnedPackedVideoState extends State<_PinnedPackedVideo> {
     sourceUri: widget.source,
     controller: widget.controller,
     onDisposed: widget.pin.release,
+    nativeAlpha: widget.nativeAlpha,
   );
 }

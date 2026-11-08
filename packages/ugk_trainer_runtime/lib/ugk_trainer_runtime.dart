@@ -14,6 +14,7 @@ export 'src/media/catalog_media_repository.dart';
 export 'src/media/drill_media.dart';
 export 'src/media/drill_media_view.dart';
 export 'src/media/media_controller.dart';
+export 'src/media/media_playback_control.dart';
 export 'src/media/media_playback_handle.dart';
 export 'src/media/packed_alpha_video.dart';
 export 'src/media/runtime_assets.dart';

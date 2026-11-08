@@ -4,6 +4,7 @@ import 'package:ugk_coach_ui/ugk_coach_ui.dart';
 import '../theme/chat_polish_tokens.dart';
 import '../theme/chat_theme.dart';
 import 'coach_ui_adapter.dart';
+import 'chat_localization.dart';
 
 /// App adapter: domain snapshots and navigation; card rendering lives in SDK.
 class PlanCard extends StatelessWidget {
@@ -54,6 +55,7 @@ class PlanCard extends StatelessWidget {
               library,
               executionTiming: executionTiming,
               doseUnitLabels: ChatTheme.of(context).doseUnitLabels,
+              language: chatLanguage(context),
             ),
             library: CoachExerciseLibrary([
               for (final id in plan.exerciseIds)

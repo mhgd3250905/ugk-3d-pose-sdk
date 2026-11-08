@@ -204,7 +204,7 @@ void main() {
     final animation = _controller(tester);
     await _mount(tester, animation: animation);
     for (final value in [.5, .25, 0.0]) {
-      animation.reverse(from: 1);
+      unawaited(animation.reverse(from: 1));
       await tester.pump();
       await tester.pump(Duration(microseconds: ((1 - value) * 280000).round()));
       expect(animation.value, closeTo(value, .00001));
@@ -219,7 +219,7 @@ void main() {
       final animation = _controller(tester, value: .5);
       await _mount(tester, animation: animation, reduced: true);
       _expectLayers(.5, reduced: true);
-      animation.reverse(from: 1);
+      unawaited(animation.reverse(from: 1));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 140));
       _expectLayers(.5, reverse: true, reduced: true);
@@ -344,7 +344,7 @@ void main() {
       );
       await _advance(tester, 1600);
       expect(find.byType(TrainerCompletion), findsOneWidget);
-      animation.reverse();
+      unawaited(animation.reverse());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 140));
       final progress = Curves.easeInCubic.transform(.5);

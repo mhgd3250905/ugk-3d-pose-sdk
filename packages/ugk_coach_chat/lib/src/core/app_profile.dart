@@ -84,6 +84,30 @@ class CoachAppProfile {
   final PoseHubCatalogUpdateConfig? catalogUpdate;
   Set<String> get allowedActionIds => scopeManifest.allowedActionIds;
 
+  /// Presentation-only update. Action scope, execution and host bindings stay
+  /// identical; this does not create a new conversation or agent.
+  CoachAppProfile withLocalization({
+    required CoachChatStrings strings,
+    TrainingLibraryConfig? library,
+    coach.CoachScopeConversationPolicy? conversationPolicy,
+  }) => CoachAppProfile(
+    appId: appId,
+    scopeManifest: _scopeManifest,
+    coachProfile: coachProfile,
+    conversationPolicy: conversationPolicy ?? this.conversationPolicy,
+    executionTiming: executionTiming,
+    revision: revision,
+    strings: strings,
+    visual: visual,
+    doseOverrides: doseOverrides,
+    trainingExperience: trainingExperience,
+    mediaPolicy: mediaPolicy,
+    library: library ?? this.library,
+    agentMode: agentMode,
+    aiTags: aiTags,
+    catalogUpdate: catalogUpdate,
+  );
+
   coach.Catalog planningCatalog(coach.Catalog source) {
     if (appId.trim().isEmpty ||
         revision.trim().isEmpty ||

@@ -1,5 +1,6 @@
 // Ported from SmartFit@e8981ee lib/core/media/media_controller.dart (3D-Body
-// DrillMediaController / DrillPlaybackCoordinator). Unchanged.
+// DrillMediaController / DrillPlaybackCoordinator). SDK additions: bounded
+// return-to-start and opt-in first-frame preparation for demonstration cards.
 import 'dart:async';
 import 'dart:convert';
 
@@ -22,31 +23,55 @@ class DrillMediaController extends ChangeNotifier {
   int _captureId = 0;
   Completer<double?>? _positionPending;
   int _positionId = 0;
+  Completer<bool>? _returnPending;
+  Timer? _returnTimer;
+  int _returnId = 0;
+  Completer<bool>? _primePending;
+  Timer? _primeTimer;
+  int _primeId = 0;
 
   /// A bounded static capture from a decoded video frame, never a live player.
   Uint8List? get frameBytes => _frameBytes;
   bool get active => _active;
   bool get wantsPlay => _wantsPlay;
 
-  void attach(MediaCommandSink sink) => _sink = sink;
+  void attach(MediaCommandSink sink) {
+    if (!identical(_sink, sink)) {
+      cancelReturnToStart();
+      cancelPrepareFirstFrame();
+    }
+    _sink = sink;
+  }
+
   void detach(MediaCommandSink sink) {
-    if (_sink == sink) _sink = null;
+    if (_sink == sink) {
+      cancelReturnToStart();
+      cancelPrepareFirstFrame();
+      _sink = null;
+    }
   }
 
   void setActive(bool value) {
     if (_active == value) return;
     _active = value;
-    if (!value) _wantsPlay = false;
+    if (!value) {
+      _wantsPlay = false;
+      cancelReturnToStart();
+      cancelPrepareFirstFrame();
+    }
     _sink?.call({'type': 'active', 'value': value});
   }
 
   void pause() {
+    cancelReturnToStart();
+    cancelPrepareFirstFrame();
     _wantsPlay = false;
     _sink?.call({'type': 'pause'});
   }
 
   void toggle() {
     if (!_active || _disposed) return;
+    cancelPrepareFirstFrame();
     _wantsPlay = !_wantsPlay;
     if (ready) _sink?.call({'type': _wantsPlay ? 'play' : 'pause'});
     notifyListeners();
@@ -60,6 +85,8 @@ class DrillMediaController extends ChangeNotifier {
         _sink?.call({'type': 'active', 'value': _active});
         if (_active && _wantsPlay) _sink?.call({'type': 'play'});
       case 'error':
+        cancelReturnToStart();
+        cancelPrepareFirstFrame();
         failed = true;
         hasFrame = false;
         playing = false;
@@ -75,7 +102,38 @@ class DrillMediaController extends ChangeNotifier {
         pending.complete(bytes);
       case 'state':
         playing = value['playing'] == true;
-        _wantsPlay = playing;
+        // Optional fast-forward/first-frame preparation is temporary, not a new
+        // host playback intention. Native restores that intention on failure.
+        if (_returnPending == null && _primePending == null) {
+          _wantsPlay = playing;
+        }
+      case 'primed-first-frame':
+        if (value['requestId'] != _primeId) return;
+        final pending = _primePending;
+        if (pending == null || pending.isCompleted) return;
+        _primePending = null;
+        _primeTimer?.cancel();
+        _primeTimer = null;
+        final success = value['success'] == true;
+        if (success) {
+          _wantsPlay = false;
+          playing = false;
+        }
+        // Only the real composed first-frame event may set hasFrame.
+        pending.complete(success);
+      case 'returned-to-start':
+        if (value['requestId'] != _returnId) return;
+        final pending = _returnPending;
+        if (pending == null || pending.isCompleted) return;
+        _returnPending = null;
+        _returnTimer?.cancel();
+        _returnTimer = null;
+        final success = value['success'] == true;
+        if (success) {
+          _wantsPlay = false;
+          playing = false;
+        }
+        pending.complete(success);
       case 'position':
         if (value['requestId'] != _positionId) return;
         final pending = _positionPending;
@@ -93,6 +151,93 @@ class DrillMediaController extends ChangeNotifier {
   }
 
   void reportError() => receive({'source': 'drill-media', 'type': 'error'});
+
+  /// Decode and hold the first native frame without replacing the surface.
+  /// A real first-frame/composition event still owns visual readiness.
+  Future<bool> prepareFirstFrame() {
+    final existing = _primePending;
+    if (existing != null) return existing.future;
+    if (_disposed || !_active || !ready || failed || _sink == null) {
+      return Future.value(false);
+    }
+    if (hasFrame) return Future.value(true);
+    if (_returnPending != null) return Future.value(false);
+    final pending = Completer<bool>();
+    _primePending = pending;
+    final request = ++_primeId;
+    _primeTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (identical(_primePending, pending)) cancelPrepareFirstFrame();
+    });
+    try {
+      _sink!.call({'type': 'prime-first-frame', 'requestId': request});
+    } on Object {
+      cancelPrepareFirstFrame();
+    }
+    return pending.future;
+  }
+
+  void cancelPrepareFirstFrame() {
+    final pending = _primePending;
+    _primePending = null;
+    _primeTimer?.cancel();
+    _primeTimer = null;
+    if (pending == null) return;
+    if (!pending.isCompleted) pending.complete(false);
+    try {
+      _sink?.call({'type': 'cancel-prime-first-frame'});
+    } on Object {
+      // The native prime also has a deadline when a backend cannot reply.
+    }
+  }
+
+  /// A bounded close preparation. It changes only this demonstration, and
+  /// unsupported backends cannot turn healthy playback into a media error.
+  Future<bool> returnToStart({
+    Duration duration = const Duration(milliseconds: 400),
+  }) {
+    final existing = _returnPending;
+    if (existing != null) return existing.future;
+    if (_disposed ||
+        !_active ||
+        _primePending != null ||
+        !ready ||
+        !hasFrame ||
+        failed ||
+        _sink == null) {
+      return Future.value(false);
+    }
+    final pending = Completer<bool>();
+    _returnPending = pending;
+    final request = ++_returnId;
+    _returnTimer = Timer(const Duration(milliseconds: 1400), () {
+      if (identical(_returnPending, pending)) cancelReturnToStart();
+    });
+    try {
+      _sink!.call({
+        'type': 'return-to-start',
+        'requestId': request,
+        'durationMs': duration.inMilliseconds.clamp(80, 800),
+      });
+    } on Object {
+      cancelReturnToStart();
+    }
+    return pending.future;
+  }
+
+  /// Abandons this optional handoff without failing or disposing the decoder.
+  void cancelReturnToStart() {
+    final pending = _returnPending;
+    _returnPending = null;
+    _returnTimer?.cancel();
+    _returnTimer = null;
+    if (pending == null) return;
+    if (!pending.isCompleted) pending.complete(false);
+    try {
+      _sink?.call({'type': 'cancel-return-to-start'});
+    } on Object {
+      // Cancellation is best effort; the native request also has its own cap.
+    }
+  }
 
   /// Query the decoder's current time only on demand, never on a frame timer.
   /// An unavailable/stale backend reports null rather than a guessed zero.

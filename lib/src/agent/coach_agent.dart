@@ -259,14 +259,17 @@ class CoachAgent {
     this.executionTiming,
     CoachAgentSpanObserver? onSpan,
     this.scopeManifest,
-    this.scopePolicy,
+    CoachScopeConversationPolicy? scopePolicy,
     this.enableUserMemory = true,
     UserMemoryStore? memoryStore,
     this.memoryLimits = const MemoryLimits(),
     String? appId,
     Clock clock = systemClock,
     IdGenerator? ids,
-  }) : _catalogSource = catalog,
+    // Preserve the public name while allowing display-only locale changes.
+    // ignore: prefer_initializing_formals
+  }) : _scopePolicy = scopePolicy,
+       _catalogSource = catalog,
        _sourceProfile = profile,
        usage = usage ?? MemoryUsageSink(),
        prompts = prompts ?? AgentPromptBuilder(),
@@ -292,7 +295,16 @@ class CoachAgent {
   late final CoachProfile profile;
   final CoachProfile _sourceProfile;
   final CoachActionScopeManifest? scopeManifest;
-  final CoachScopeConversationPolicy? scopePolicy;
+  CoachScopeConversationPolicy? _scopePolicy;
+  CoachScopeConversationPolicy? get scopePolicy => _scopePolicy;
+
+  /// Updates host-owned scope wording without changing the action whitelist,
+  /// clinical rules, current plan, history or execution constraints.
+  void updateScopePolicy(CoachScopeConversationPolicy policy) {
+    _scopePolicy = policy;
+    _actionScope = null;
+  }
+
   CoachActionScope? _actionScope;
   final SessionFallback? fallback;
   final UsageSink usage;

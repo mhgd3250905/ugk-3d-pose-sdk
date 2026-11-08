@@ -183,11 +183,95 @@ void main() {
     },
   );
 
+  group('current and next training mode', () {
+    setUp(() {
+      queue.dispose();
+      queue = PoseHubMediaPrefetcher(host, prefetchNextOnly: true);
+    });
+
+    test('only next action starts after current verified readiness', () async {
+      queue.prioritize(actions);
+      expect(host.actions, [actions[0]]);
+      host.ready(0);
+      await Future<void>.delayed(Duration.zero);
+      expect(host.actions, actions.take(2));
+      host.ready(1);
+      await Future<void>.delayed(Duration.zero);
+      expect(host.actions, actions.take(2));
+      expect(host.maximum, lessThanOrEqualTo(2));
+    });
+
+    test('a jump retains running prefetch and defers its new next', () async {
+      queue.prioritize(actions);
+      host.ready(0);
+      await Future<void>.delayed(Duration.zero);
+      expect(host.actions, actions.take(2));
+      queue.prioritize([actions[3], actions[4]]);
+      await Future<void>.delayed(Duration.zero);
+      expect(host.actions, [actions[0], actions[1], actions[3]]);
+      expect(host.active, 2);
+      // The already-running old prefetch finishes normally; it neither starts
+      // the stale third action nor unlocks the new current action's successor.
+      host.ready(1);
+      await Future<void>.delayed(Duration.zero);
+      expect(host.actions, [actions[0], actions[1], actions[3]]);
+      expect(host.active, 1);
+      host.ready(2);
+      await Future<void>.delayed(Duration.zero);
+      expect(host.actions, [actions[0], actions[1], actions[3], actions[4]]);
+      expect(host.maximum, 2);
+    });
+
+    test('queued next is promoted once without duplicate host work', () async {
+      queue.prioritize(actions);
+      queue.prioritize([actions[1], actions[2]]);
+      queue.prioritize([actions[1], actions[2]]);
+      final subscription = queue.prepareAction(actions[1]).listen((_) {});
+      await Future<void>.delayed(Duration.zero);
+      expect(host.actions, actions.take(2));
+      expect(host.active, 2);
+      host.ready(0);
+      await Future<void>.delayed(Duration.zero);
+      expect(host.actions, actions.take(2));
+      host.ready(1);
+      await Future<void>.delayed(Duration.zero);
+      expect(host.actions, actions.take(3));
+      expect(
+        host.actions.where((action) => action == actions[1]),
+        hasLength(1),
+      );
+      await subscription.cancel();
+    });
+
+    test(
+      'jump discards stale queued prefetch without stopping old current',
+      () async {
+        queue.prioritize(actions);
+        queue.prioritize([actions[3], actions[4]]);
+        expect(host.actions, [actions[0], actions[3]]);
+        expect(host.active, 2);
+        host.ready(0);
+        await Future<void>.delayed(Duration.zero);
+        expect(host.actions, [actions[0], actions[3]]);
+        host.ready(1);
+        await Future<void>.delayed(Duration.zero);
+        expect(host.actions, [actions[0], actions[3], actions[4]]);
+        expect(host.maximum, 2);
+      },
+    );
+  });
+
   testWidgets(
     'player reuses same-host queue across callback rebuilds and waits when provider changes',
     (tester) async {
       final replacement = _Host();
       final blocker = Completer<void>();
+      final downloadState = ValueNotifier(
+        const CatalogMediaDownloadState(
+          phase: CatalogMediaDownloadPhase.queued,
+        ),
+      );
+      addTearDown(downloadState.dispose);
       final plan = planOf([timed(actions[0].id, 30), timed(actions[1].id, 30)]);
       Widget player(PoseHubMediaPreparer provider) => MaterialApp(
         home: TrainerPlayer(
@@ -199,15 +283,19 @@ void main() {
           keepAlive: false,
           poseHubActionOf: catalog.tryGet,
           poseHubMediaPreparer: provider,
+          mediaDownloadState: downloadState,
           poseHubMediaBaseUri: Uri.parse('file:///cache/'),
         ),
       );
       await tester.pumpWidget(player(host));
       await tester.pump();
-      expect(host.actions, actions.take(2));
+      expect(host.actions, actions.take(1));
       await tester.pumpWidget(player(host));
       await tester.pump();
-      expect(host.actions, hasLength(2));
+      expect(host.actions, hasLength(1));
+      host.ready(0);
+      await tester.pump();
+      expect(host.actions, actions.take(2));
       host.cancellationBlocker = blocker;
       await tester.pumpWidget(player(replacement));
       await tester.pump();
@@ -217,8 +305,11 @@ void main() {
         await Future<void>.delayed(Duration.zero);
       });
       await tester.pump();
+      expect(replacement.actions, actions.take(1));
+      expect(host.active + replacement.active, 1);
+      replacement.ready(0);
+      await tester.pump();
       expect(replacement.actions, actions.take(2));
-      expect(host.active + replacement.active, 2);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       replacement.close();

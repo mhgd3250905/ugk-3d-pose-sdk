@@ -23,7 +23,11 @@ extension _TrainerChrome on _TrainerPlayerState {
   Widget _chromeDone(Widget child) =>
       _exitSaveFailed ? child : _chromeLayer(child, _TrainerChromeLayer.done);
 
-  Widget _chromeLayer(Widget child, _TrainerChromeLayer layer) {
+  Widget _chromeLayer(
+    Widget child,
+    _TrainerChromeLayer layer, {
+    String? identity,
+  }) {
     final animation = widget.chromeAnimation;
     // Keep the original tree for existing callers and for demonstration mode.
     if (animation == null || _preview) return child;
@@ -55,7 +59,7 @@ extension _TrainerChrome on _TrainerPlayerState {
           }
         }
         return IgnorePointer(
-          key: ValueKey('trainer-chrome-${layer.id}'),
+          key: ValueKey('trainer-chrome-${identity ?? layer.id}'),
           ignoring: value < 1,
           child: ExcludeSemantics(
             excluding: value < 1,

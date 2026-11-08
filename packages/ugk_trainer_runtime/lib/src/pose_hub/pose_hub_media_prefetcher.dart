@@ -8,9 +8,12 @@ import 'pose_hub_media_preparation.dart';
 /// At most two actions prepare at once. Failed attempts retry quietly with
 /// bounded exponential backoff; training clocks never depend on this queue.
 final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
-  PoseHubMediaPrefetcher(this.host, {Future<void>? afterCancellation})
-    : _startBarrier = afterCancellation ?? Future<void>.value(),
-      _canStart = afterCancellation == null {
+  PoseHubMediaPrefetcher(
+    this.host, {
+    Future<void>? afterCancellation,
+    this.prefetchNextOnly = false,
+  }) : _startBarrier = afterCancellation ?? Future<void>.value(),
+       _canStart = afterCancellation == null {
     if (!_canStart) {
       unawaited(
         _startBarrier.then((_) {
@@ -22,8 +25,13 @@ final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
   }
 
   final PoseHubMediaPreparer host;
+
+  /// The training player prepares its current action, then only the next one.
+  /// Existing hosts retain the original queue unless they select this mode.
+  final bool prefetchNextOnly;
   final _entries = <String, _Entry>{};
   final _queue = <_Entry>[];
+  _Entry? _current, _next;
   final Future<void> _startBarrier;
   final _pendingStops = <Future<void>>{};
   Future<void> _cancellation = Future<void>.value();
@@ -48,6 +56,18 @@ final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
     for (final action in actions) {
       final entry = _entry(action);
       if (!ordered.contains(entry)) ordered.add(entry);
+      if (prefetchNextOnly && ordered.length == 2) break;
+    }
+    if (prefetchNextOnly) {
+      _current = ordered.firstOrNull;
+      _next = ordered.length > 1 ? ordered[1] : null;
+      _queue.removeWhere((entry) => !_wanted(entry));
+      for (final entry in _entries.values) {
+        if (!_wanted(entry)) {
+          entry.retry?.cancel();
+          entry.retry = null;
+        }
+      }
     }
     for (final entry in _entries.values) {
       entry.rank = (1 << 20) + entry.rank;
@@ -62,6 +82,9 @@ final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
   }
 
   void _makeRoomFor(_Entry current) {
+    // A visible action moves ahead of queued work, but never cancels a
+    // verified host download which already owns a slot.
+    if (prefetchNextOnly) return;
     if (_canQueue(current) && current.rank == 0 && _active == 2) {
       final running = _entries.values.where((e) => e.running).toList()
         ..sort((a, b) => b.rank.compareTo(a.rank));
@@ -77,6 +100,16 @@ final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
       !entry.retiring &&
       entry.ready == null &&
       entry.retry == null;
+
+  bool _wanted(_Entry entry) =>
+      !prefetchNextOnly ||
+      identical(entry, _current) ||
+      identical(entry, _next);
+
+  bool _mayStart(_Entry entry) =>
+      !prefetchNextOnly ||
+      identical(entry, _current) ||
+      (identical(entry, _next) && _current?.ready != null);
 
   @override
   Stream<PoseHubMediaPreparationEvent> prepareAction(PoseHubPackAction action) {
@@ -99,6 +132,11 @@ final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
           output.add(event);
           if (event is PoseHubMediaReady) unawaited(output.close());
         }, onDone: () => unawaited(output.close()));
+        if (prefetchNextOnly && !identical(entry, _current)) {
+          // An explicit consumer is the current action; a preceding plan-order
+          // prioritize() normally establishes the same identity already.
+          prioritize([action]);
+        }
         // Install the consumer before starting a possibly synchronous host.
         _queue.remove(entry);
         if (_canQueue(entry)) _queue.add(entry);
@@ -124,7 +162,9 @@ final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
       entry.retiring = false;
       _active--;
       if (_disposed) return;
-      if (_canQueue(entry) && !_queue.contains(entry)) _queue.add(entry);
+      if (_wanted(entry) && _canQueue(entry) && !_queue.contains(entry)) {
+        _queue.add(entry);
+      }
       _sortQueue();
       _pump();
     });
@@ -137,7 +177,9 @@ final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
     _pumping = true;
     try {
       while (_active < 2 && _queue.isNotEmpty && !_disposed) {
-        final entry = _queue.removeAt(0);
+        final index = _queue.indexWhere(_mayStart);
+        if (index < 0) break;
+        final entry = _queue.removeAt(index);
         if (!_canQueue(entry)) continue;
         entry.running = true;
         _active++;
@@ -168,12 +210,12 @@ final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
       final ready = PoseHubMediaReady(mediaBaseUri: base);
       entry.ready = ready;
       entry.events.add(ready);
-    } else {
+    } else if (_wanted(entry)) {
       entry.failures++;
       final seconds = (1 << entry.failures.clamp(1, 5)).clamp(2, 30);
       entry.retry = Timer(Duration(seconds: seconds), () {
         entry.retry = null;
-        if (_disposed) return;
+        if (_disposed || !_wanted(entry)) return;
         if (!_queue.contains(entry)) _queue.add(entry);
         _makeRoomFor(entry);
         _sortQueue();

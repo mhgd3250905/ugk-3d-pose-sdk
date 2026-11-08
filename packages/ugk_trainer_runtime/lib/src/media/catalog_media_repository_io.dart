@@ -378,8 +378,9 @@ class _FileStore implements CatalogMediaFileStore {
     coach.PoseHubPackFile file,
     Uri url,
     void Function(int) onProgress,
-    void Function() onVerifying,
-  ) async {
+    void Function() onVerifying, {
+    void Function()? onFirstByte,
+  }) async {
     _checkUrl(url, allowLocal);
     _check();
     final client = HttpClient()
@@ -443,6 +444,7 @@ class _FileStore implements CatalogMediaFileStore {
           response.timeout(timeout),
           onProgress,
           onVerifying,
+          onFirstByte: onFirstByte,
         );
       }
     } finally {
@@ -456,8 +458,9 @@ class _FileStore implements CatalogMediaFileStore {
     File target,
     Stream<List<int>> input,
     void Function(int) onProgress,
-    void Function() onVerifying,
-  ) async {
+    void Function() onVerifying, {
+    void Function()? onFirstByte,
+  }) async {
     _check();
     final temp = File(
       '${target.path}.${pid}_${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(1 << 32)}.part',
@@ -470,6 +473,7 @@ class _FileStore implements CatalogMediaFileStore {
       await temp.create(exclusive: true);
       output = await temp.open(mode: FileMode.write);
       await for (final chunk in input) {
+        if (received == 0 && chunk.isNotEmpty) onFirstByte?.call();
         _check();
         received += chunk.length;
         if (received > file.bytes) {

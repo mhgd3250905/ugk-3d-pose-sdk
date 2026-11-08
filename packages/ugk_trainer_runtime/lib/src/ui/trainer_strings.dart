@@ -74,6 +74,14 @@ class TrainerStrings {
     this.skipped = 'Skipped',
     this.replay = 'Train again',
     this.durationLabel = _enDuration,
+    this.mediaDownloading = _enMediaDownloading,
+    this.mediaDownloadingSemantics = _enMediaDownloading,
+    this.mediaDownloadFailed =
+        'Video unavailable, training continues · Tap to retry',
+    this.mediaDownloadFailedSemantics =
+        'Demo video download failed, tap to retry',
+    this.mediaDownloadVerifying = 'Verifying demo video…',
+    this.mediaDownloadReady = 'Demo video ready',
   });
 
   /// Top label during prep ("准备 · 第一个动作").
@@ -156,6 +164,15 @@ class TrainerStrings {
   final String skipped, replay;
   final List<String> feelingLabels;
   final String Function(int seconds) durationLabel;
+  final String Function(int? percentage) mediaDownloading;
+  final String Function(int? percentage) mediaDownloadingSemantics;
+  final String mediaDownloadFailed;
+  final String mediaDownloadFailedSemantics;
+  final String mediaDownloadVerifying;
+  final String mediaDownloadReady;
+  static String _enMediaDownloading(int? percentage) => percentage == null
+      ? 'Downloading demo…'
+      : 'Downloading demo $percentage%';
   static String _enDuration(int seconds) => '${seconds ~/ 60}m${seconds % 60}s';
   static String _zhDuration(int seconds) => '${seconds ~/ 60}分${seconds % 60}秒';
 
@@ -172,6 +189,14 @@ class TrainerStrings {
   }) => '$amount ${reps ? 'reps' : 's'}${perSide ? ' each side' : ''}';
 
   factory TrainerStrings.zh() => TrainerStrings(
+    mediaDownloading: (percentage) =>
+        percentage == null ? '正在下载示范…' : '正在下载示范 $percentage%',
+    mediaDownloadingSemantics: (percentage) =>
+        percentage == null ? '示范视频下载中…' : '示范视频下载中 $percentage%',
+    mediaDownloadFailed: '视频暂不可用，训练继续 · 点击重试',
+    mediaDownloadFailedSemantics: '示范视频下载失败，点击重试',
+    mediaDownloadVerifying: '正在校验示范视频…',
+    mediaDownloadReady: '示范视频已就绪',
     demonstration: '动作演示',
     startTraining: '开始训练',
     howTo: '怎么做',

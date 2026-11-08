@@ -21,6 +21,9 @@ class TrainingMediaPolicy {
   static const publicBaseUrl = 'https://media.uuugk.win/pack/r2-v1/';
   final CatalogMediaRepository repository;
   final String posterAssetRoot;
+
+  /// Enables the single next-action lookahead. Preparing the current action
+  /// does not depend on this speculative-prefetch switch.
   final bool prefetchBeforeTraining;
   PoseHubAppTestCatalog get catalog => repository.catalog;
 
@@ -33,6 +36,7 @@ class TrainingMediaPolicy {
     String? rootDirectory,
     int maxVideoCacheBytes = 300000000,
     bool prefetchBeforeTraining = true,
+    CatalogMediaTimingCallback? onTiming,
   }) async {
     final data = await (bundle ?? rootBundle).load(manifestAsset);
     final bytes = data.buffer.asUint8List(
@@ -48,6 +52,7 @@ class TrainingMediaPolicy {
           [poseHubMediaBaseUriForPack(poseHubMediaPackOf(catalog))],
       rootDirectory: rootDirectory,
       maxVideoCacheBytes: maxVideoCacheBytes,
+      onTiming: onTiming,
     );
     return TrainingMediaPolicy(
       repository: repository,
@@ -68,17 +73,32 @@ class TrainingMediaPolicy {
     return '$root$id.webp';
   }
 
-  /// Start before training, without gating its clock, voice or route.
-  /// Individual failures remain visible through repository.watchFile(video).
-  Future<void> prefetchActions(Iterable<String> ids) async {
-    if (!prefetchBeforeTraining) return;
-    await Future.wait([
-      for (final id in ids.toSet())
-        if (actionFor(id) case final action?)
-          repository
-              .ensureFile(action.video)
-              .then<void>((_) {}, onError: (Object _, StackTrace _) {}),
-    ]);
+  /// Prepare the current video immediately, then at most the next video.
+  /// Lookahead never competes with the current video's download. The optional
+  /// guard drops stale lookahead after a session jumps to another action.
+  /// No download failure gates training's clock, voice or route.
+  Future<void> prefetchActions(
+    Iterable<String> ids, {
+    bool Function()? isCurrent,
+  }) async {
+    final actions = [
+      for (final id in ids.toSet()) ?actionFor(id),
+    ].take(2).toList();
+    if (actions.isEmpty) return;
+    try {
+      await repository.ensureFileWithPriority(actions.first.video);
+      if (!prefetchBeforeTraining ||
+          actions.length < 2 ||
+          isCurrent?.call() == false) {
+        return;
+      }
+      await repository.ensureFileWithPriority(
+        actions[1].video,
+        priority: CatalogMediaPriority.prefetch,
+      );
+    } catch (_) {
+      // File state exposes a retryable failure; the training clock continues.
+    }
   }
 }
 

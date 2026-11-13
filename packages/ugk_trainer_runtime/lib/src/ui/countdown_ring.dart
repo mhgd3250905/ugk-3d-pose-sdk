@@ -421,8 +421,8 @@ class TrainerCountdownDigits extends StatelessWidget {
 }
 
 /// The V1 clock keeps its numeric center fixed as the unit or digit count
-/// changes. The unit switches only with the phase; clock ticks share the
-/// same number slot and never draw two numbers at once.
+/// changes. Units fade sequentially while numeric ticks roll through the
+/// same fixed center.
 class TrainerV1PhaseCountdown extends StatelessWidget {
   const TrainerV1PhaseCountdown({
     super.key,
@@ -475,11 +475,11 @@ class TrainerV1PhaseCountdown extends StatelessWidget {
 
     final digits = measure('88', numberStyle);
     final suffix = measure(unit, unitStyle);
-    final number = TrainerPhaseSwitcher.sequential(
+    final number = TrainerPhaseSwitcher(
       key: const ValueKey('player-v1-countdown-number'),
-      identity: (phase, value),
-      enterDuration: _half,
-      exitDuration: _half,
+      identity: value,
+      enterDuration: PlayerMotion.medium,
+      exitDuration: PlayerMotion.medium,
       enterOffset: PlayerMotion.normal,
       exitOffset: PlayerMotion.normal,
       child: SizedBox(

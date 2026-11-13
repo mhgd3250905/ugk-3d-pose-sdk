@@ -510,6 +510,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   int _v1NavigationDirection = 0;
   SessionPhase? _v1FinalPhase;
   bool _v1CompletionVisible = false;
+  bool _v1FinalMediaRetired = false;
   double? _v1CompletionDockTop;
   Timer? _v1CompletionFade;
   bool _v1Started = false;
@@ -1212,6 +1213,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _v1CompletionFade?.cancel();
     _v1FinalPhase = null;
     _v1CompletionVisible = false;
+    _v1FinalMediaRetired = false;
     _v1CompletionDockTop = null;
     _v1Started = false;
     _v1HapticAction = null;
@@ -1308,17 +1310,18 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       _v1CompletionDockTop = dock.localToGlobal(Offset.zero, ancestor: root).dy;
     }
     _v1FinalPhase = visit?.phase;
+    _v1CompletionVisible = true;
     if (visit == null ||
         visit.exit != PhaseExit.natural ||
         TrainerMotion.reduced(context)) {
       _retireMedia();
-      _v1CompletionVisible = true;
+      _v1FinalMediaRetired = true;
       return;
     }
     _v1CompletionFade = Timer(PlayerMotion.actionOut, () {
       if (!mounted) return;
       _retireMedia();
-      setState(() => _v1CompletionVisible = true);
+      setState(() => _v1FinalMediaRetired = true);
     });
   }
 
@@ -1993,13 +1996,13 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         IgnorePointer(
           ignoring: _exitingEarly || _v1FinalPhase != null,
           child: TickerMode(
-            enabled: !_exitingEarly && !_v1CompletionVisible,
+            enabled: !_exitingEarly && !_v1FinalMediaRetired,
             child: ExcludeSemantics(
               excluding: _v1CompletionVisible,
               child: Opacity(
-                opacity: _v1CompletionVisible ? 0 : 1,
+                opacity: _v1FinalMediaRetired ? 0 : 1,
                 child: _th.usePlayerV1 && !_preview
-                    ? _sessionViewV1(phase, _v1CompletionVisible ? null : drill)
+                    ? _sessionViewV1(phase, _v1FinalMediaRetired ? null : drill)
                     : _sessionView(phase, drill),
               ),
             ),

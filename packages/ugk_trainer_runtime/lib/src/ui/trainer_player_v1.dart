@@ -543,6 +543,7 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
         key: _v1Dock,
         child: TrainerPlayerV1Dock(
           key: const ValueKey('player-v1-dock'),
+          completionFading: _v1FinalPhase != null,
           theme: _th,
           minHeight: rest ? 300 : _v1WorkDockHeight,
           bottomInset: safe.bottom,
@@ -580,7 +581,7 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
               accent: _th.accent,
               child: UgkPlayPauseButton(
                 key: const ValueKey('pause'),
-                isPlaying: !_paused,
+                isPlaying: _v1FinalPhase != null || !_paused,
                 progress: _progress,
                 onTap: _togglePause,
                 theme: controls,
@@ -903,11 +904,12 @@ extension _TrainerPlayerV1Stage on _TrainerPlayerState {
                     mirror: phase.side == Side.left,
                     child: media,
                   ),
-                if (starting || phase.kind == PhaseKind.prep && seconds <= 3)
+                if (starting)
+                  _V1StartLabel(theme: _th, label: _s.playerStart)
+                else if (phase.kind == PhaseKind.prep && seconds <= 3)
                   _V1PrepMark(
                     key: const ValueKey('player-v1-prep-mark'),
-                    label: starting ? _s.playerStart : '$seconds',
-                    starting: starting,
+                    label: '$seconds',
                     theme: _th,
                   ),
                 if (phase.kind == PhaseKind.switchSide)
@@ -1143,8 +1145,6 @@ class _V1MediaMotionState extends State<_V1MediaMotion>
     _oldMirror = oldWidget.mirror;
     _action.duration = _reduced
         ? PlayerMotion.reducedFade
-        : widget.manual != 0
-        ? PlayerMotion.medium
         : PlayerMotion.dockDelay + PlayerMotion.actionIn;
     _action.forward(from: 0);
   }
@@ -1168,7 +1168,7 @@ class _V1MediaMotionState extends State<_V1MediaMotion>
       final elapsed = motion * (_action.duration?.inMicroseconds ?? 0);
       final changed = motion < 1;
       final old = changed
-          ? _reduced || widget.manual != 0
+          ? _reduced
                 ? motion
                 : (elapsed / PlayerMotion.actionOut.inMicroseconds).clamp(
                     0.0,
@@ -1177,7 +1177,7 @@ class _V1MediaMotionState extends State<_V1MediaMotion>
           : 1.0;
       final incoming = !changed
           ? 1.0
-          : _reduced || widget.manual != 0
+          : _reduced
           ? motion
           : ((elapsed - PlayerMotion.dockDelay.inMicroseconds) /
                     PlayerMotion.actionIn.inMicroseconds)
@@ -1193,9 +1193,7 @@ class _V1MediaMotionState extends State<_V1MediaMotion>
       final enter = _reduced
           ? incoming
           : PlayerMotion.enter.transform(incoming);
-      final dx = widget.manual == 0
-          ? PlayerMotion.large
-          : widget.manual * PlayerMotion.manualSlide;
+      final dx = widget.manual < 0 ? -PlayerMotion.large : PlayerMotion.large;
       Widget frame(double opacity, double offset, Widget child) => Opacity(
         opacity: opacity,
         child: _reduced
@@ -1213,7 +1211,7 @@ class _V1MediaMotionState extends State<_V1MediaMotion>
           if (_cover && entry < 1)
             IgnorePointer(
               child: Opacity(
-                opacity: 1 - entry,
+                opacity: 1 - PlayerMotion.enter.transform(entry),
                 child: Hero(
                   tag: widget.initialCoverTag!,
                   child: _poster(widget.initialCoverAsset!, false),
@@ -1227,21 +1225,15 @@ class _V1MediaMotionState extends State<_V1MediaMotion>
 }
 
 class _V1PrepMark extends StatelessWidget {
-  const _V1PrepMark({
-    super.key,
-    required this.label,
-    required this.starting,
-    required this.theme,
-  });
+  const _V1PrepMark({super.key, required this.label, required this.theme});
 
   final String label;
-  final bool starting;
   final TrainerTheme theme;
 
   @override
   Widget build(BuildContext context) {
     final reduced = TrainerMotion.reduced(context);
-    final hold = starting ? PlayerMotion.medium : PlayerMotion.prepHold;
+    const hold = PlayerMotion.prepHold;
     return IgnorePointer(
       child: Center(
         child: TweenAnimationBuilder<double>(
@@ -1274,6 +1266,70 @@ class _V1PrepMark extends StatelessWidget {
               child: reduced
                   ? child
                   : Transform.scale(scale: 1.3 - .3 * inAmount, child: child),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _V1StartLabel extends StatelessWidget {
+  const _V1StartLabel({required this.theme, required this.label});
+
+  final TrainerTheme theme;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = TrainerMotion.reduced(context);
+    final fade = reduced ? PlayerMotion.reducedFade : PlayerMotion.fast;
+    final total = fade * 2 + PlayerMotion.medium;
+    return IgnorePointer(
+      child: Center(
+        child: TweenAnimationBuilder<double>(
+          duration: total,
+          tween: Tween(begin: 0, end: 1),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .92),
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .1),
+                  offset: const Offset(0, 4),
+                  blurRadius: 16,
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              child: Text(
+                label,
+                key: const ValueKey('player-v1-start-label'),
+                style: theme
+                    .numeral(28, color: theme.accent)
+                    .copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          builder: (_, value, child) {
+            final elapsed = value * total.inMicroseconds;
+            final entered = PlayerMotion.enter.transform(
+              (elapsed / fade.inMicroseconds).clamp(0.0, 1.0),
+            );
+            final exited = PlayerMotion.exit.transform(
+              ((elapsed -
+                          fade.inMicroseconds -
+                          PlayerMotion.medium.inMicroseconds) /
+                      fade.inMicroseconds)
+                  .clamp(0.0, 1.0),
+            );
+            return Opacity(
+              opacity: entered * (1 - exited),
+              child: reduced
+                  ? child
+                  : Transform.scale(scale: .9 + .1 * entered, child: child),
             );
           },
         ),

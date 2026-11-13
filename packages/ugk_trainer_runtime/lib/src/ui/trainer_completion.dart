@@ -7,7 +7,6 @@ import '../result/session_result.dart';
 import 'trainer_player.dart' show TrainerDrill;
 import 'trainer_player_motion.dart';
 import 'trainer_player_v1_dock.dart' show TrainerV1FeedbackButton;
-import 'trainer_stage.dart' show TrainerResultStage;
 import 'trainer_strings.dart';
 import 'trainer_theme.dart';
 
@@ -58,6 +57,7 @@ class _TrainerCompletionState extends State<TrainerCompletion>
   static const _checkDelay = 120;
   static const _titleDelay = 200;
   static const _statsDelay = 260;
+  static const _finishDelay = 580;
 
   late final AnimationController _animation = AnimationController(
     vsync: this,
@@ -71,11 +71,10 @@ class _TrainerCompletionState extends State<TrainerCompletion>
   TrainerTheme get _theme => widget.theme;
   TrainerStrings get _strings => widget.strings;
 
-  int get _finishDelay => _statsDelay + PlayerMotion.count.inMilliseconds;
   Duration get _durationV1 => _reduced
       ? PlayerMotion.reducedFade
       : PlayerMotion.emphasis +
-            Duration(milliseconds: _finishDelay) +
+            const Duration(milliseconds: _finishDelay) +
             PlayerMotion.finishGlow;
   double get _entryMs =>
       (_animation.value * _durationV1.inMicroseconds).round() / 1000;
@@ -809,24 +808,33 @@ class _TrainerCompletionState extends State<TrainerCompletion>
   }
 
   Widget _v1(BuildContext context, String title, String subtitle) =>
-      TrainerResultStage(
-        theme: _theme,
+      ScrollConfiguration(
+        behavior: const MaterialScrollBehavior().copyWith(overscroll: false),
         child: AnimatedBuilder(
           animation: _animation,
           builder: (context, _) {
             final content = _v1Content(context, title, subtitle);
+            final background = _theme.background.withValues(alpha: 1);
             if (_reduced) {
               final visible = _animation.value > 0;
               return IgnorePointer(
                 ignoring: !visible,
                 child: ExcludeSemantics(
                   excluding: !visible,
-                  child: Opacity(opacity: _animation.value, child: content),
+                  child: Opacity(
+                    opacity: _animation.value,
+                    child: ColoredBox(color: background, child: content),
+                  ),
                 ),
               );
             }
             final expansion = PlayerMotion.morph.transform(
               _portion(_entryMs, 0, PlayerMotion.emphasis.inMilliseconds),
+            );
+            final backdropOpacity = _portion(
+              _entryMs,
+              0,
+              PlayerMotion.controlsFade.inMilliseconds,
             );
             return LayoutBuilder(
               builder: (context, box) {
@@ -835,6 +843,12 @@ class _TrainerCompletionState extends State<TrainerCompletion>
                 return Stack(
                   fit: StackFit.expand,
                   children: [
+                    IgnorePointer(
+                      child: ColoredBox(
+                        key: const ValueKey('completion-entry-backdrop'),
+                        color: background.withValues(alpha: backdropOpacity),
+                      ),
+                    ),
                     IgnorePointer(
                       ignoring: expansion < 1,
                       child: ExcludeSemantics(
@@ -850,11 +864,11 @@ class _TrainerCompletionState extends State<TrainerCompletion>
                         top: dockTop * (1 - expansion),
                         left: 0,
                         right: 0,
-                        height: _heroHeight * expansion,
+                        bottom: (box.maxHeight - _heroHeight) * expansion,
                         child: IgnorePointer(
                           child: DecoratedBox(
                             key: const ValueKey('completion-hero-entry'),
-                            decoration: _heroDecoration,
+                            decoration: _entryHeroDecoration(expansion),
                           ),
                         ),
                       ),
@@ -865,6 +879,24 @@ class _TrainerCompletionState extends State<TrainerCompletion>
           },
         ),
       );
+
+  BoxDecoration _entryHeroDecoration(double expansion) {
+    final card = _theme.card.withValues(alpha: 1);
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Color.lerp(card, _theme.heroTop, expansion)!,
+          Color.lerp(card, _theme.heroBottom, expansion)!,
+        ],
+      ),
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(28 * (1 - expansion)),
+        bottom: Radius.circular(32 * expansion),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

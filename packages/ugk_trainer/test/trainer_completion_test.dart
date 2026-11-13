@@ -493,56 +493,81 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('player V1 expands from the dock before counting and finishing', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    await mount(
-      tester,
-      theme: TrainerTheme.playerV1,
-      session: result(single: true),
-      entryDockTop: 620,
-      streakDays: 12,
-      onFinish: () {},
-    );
-    final heroEntry = find.byKey(const ValueKey('completion-hero-entry'));
-    final finish = find.byKey(const ValueKey('finish'));
-    expect(tester.getTopLeft(heroEntry).dy, 620);
-    expect(tester.getSize(heroEntry).height, 0);
-    expect(finish.hitTestable(), findsNothing);
-    await tester.pump(const Duration(milliseconds: 240));
-    final halfway = Curves.easeInOutCubic.transform(.5);
-    expect(tester.getTopLeft(heroEntry).dy, closeTo(620 * (1 - halfway), .01));
-    expect(tester.getSize(heroEntry).height, closeTo(300 * halfway, .01));
-    await tester.pump(const Duration(milliseconds: 240));
-    expect(heroEntry, findsNothing);
-    expect(value(tester, 'duration'), '0:00');
-    expect(value(tester, 'exercises'), '0/1');
-    expect(value(tester, 'streak'), '0');
+  testWidgets(
+    'player V1 morphs the dock into the hero and reveals finish by 1300 ms',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await mount(
+        tester,
+        theme: TrainerTheme.playerV1,
+        session: result(single: true),
+        entryDockTop: 620,
+        streakDays: 12,
+        onFinish: () {},
+      );
+      final heroEntry = find.byKey(const ValueKey('completion-hero-entry'));
+      final finish = find.byKey(const ValueKey('finish'));
+      final backdrop = find.byKey(const ValueKey('completion-entry-backdrop'));
+      expect(tester.getTopLeft(heroEntry).dy, 620);
+      expect(tester.getBottomLeft(heroEntry).dy, 844);
+      final initial =
+          tester.widget<DecoratedBox>(heroEntry).decoration as BoxDecoration;
+      expect((initial.gradient! as LinearGradient).colors, [
+        TrainerTheme.playerV1.card,
+        TrainerTheme.playerV1.card,
+      ]);
+      expect(tester.widget<ColoredBox>(backdrop).color.a, 0);
+      expect(finish.hitTestable(), findsNothing);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.widget<ColoredBox>(backdrop).color.a, closeTo(.5, .01));
+      await tester.pump(const Duration(milliseconds: 140));
+      final halfway = Curves.easeInOutCubic.transform(.5);
+      expect(
+        tester.getTopLeft(heroEntry).dy,
+        closeTo(620 * (1 - halfway), .01),
+      );
+      expect(
+        tester.getBottomLeft(heroEntry).dy,
+        closeTo(844 - 544 * halfway, .01),
+      );
+      expect(tester.widget<ColoredBox>(backdrop).color.a, 1);
+      await tester.pump(const Duration(milliseconds: 240));
+      expect(heroEntry, findsNothing);
+      expect(value(tester, 'duration'), '0:00');
+      expect(value(tester, 'exercises'), '0/1');
+      expect(value(tester, 'streak'), '0');
 
-    await tester.pump(const Duration(milliseconds: 560));
-    expect(value(tester, 'duration'), isNot(anyOf('0:00', '2:05')));
-    expect(int.parse(value(tester, 'streak')), inExclusiveRange(0, 12));
-    expect(finish.hitTestable(), findsNothing);
-    await tester.pump(const Duration(milliseconds: 700));
-    expect(value(tester, 'duration'), '2:05');
-    expect(value(tester, 'exercises'), '1/1');
-    expect(value(tester, 'streak'), '12');
-    expect(finish.hitTestable(), findsOneWidget);
-    BoxDecoration finishDecoration() =>
-        tester
-                .widget<DecoratedBox>(
-                  find.byKey(const ValueKey('completion-finish-glow')),
-                )
-                .decoration
-            as BoxDecoration;
-    expect(finishDecoration().boxShadow!.single.color.a, closeTo(.35, .001));
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(finishDecoration().boxShadow, isEmpty);
-    expect(tester.takeException(), isNull);
-  });
+      await tester.pump(const Duration(milliseconds: 560));
+      expect(value(tester, 'duration'), isNot(anyOf('0:00', '2:05')));
+      expect(int.parse(value(tester, 'streak')), inExclusiveRange(0, 12));
+      expect(finish.hitTestable(), findsNothing);
+      await tester.pump(const Duration(milliseconds: 260));
+      final finishFades = tester.widgetList<Opacity>(
+        find.ancestor(of: finish, matching: find.byType(Opacity)),
+      );
+      expect(finishFades, isNotEmpty);
+      expect(finishFades.map((fade) => fade.opacity), everyElement(1));
+      expect(finish.hitTestable(), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 160));
+      expect(value(tester, 'duration'), '2:05');
+      expect(value(tester, 'exercises'), '1/1');
+      expect(value(tester, 'streak'), '12');
+      expect(finish.hitTestable(), findsOneWidget);
+      BoxDecoration finishDecoration() =>
+          tester
+                  .widget<DecoratedBox>(
+                    find.byKey(const ValueKey('completion-finish-glow')),
+                  )
+                  .decoration
+              as BoxDecoration;
+      expect(finishDecoration().boxShadow!.single.color.a, closeTo(.35, .001));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(finishDecoration().boxShadow, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('reduced player V1 completion only fades for 150 ms', (
     tester,

@@ -92,13 +92,13 @@ Future<T?> _showPlayerSheet<T>({
   required List<Widget> Function(BuildContext) actions,
 }) {
   final reduced = TrainerMotion.reduced(context);
-  final height = MediaQuery.sizeOf(context).height / 2;
   const shape = RoundedRectangleBorder(
     borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
   );
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     enableDrag: !reduced,
     showDragHandle: false,
     barrierColor: Colors.black.withValues(alpha: .30),
@@ -122,7 +122,6 @@ Future<T?> _showPlayerSheet<T>({
       final sheet = SizedBox(
         key: const ValueKey('player-v1-sheet'),
         width: double.infinity,
-        height: height,
         child: Material(
           color: theme.card.withValues(alpha: 1),
           shape: shape,
@@ -130,7 +129,7 @@ Future<T?> _showPlayerSheet<T>({
           child: SafeArea(
             top: false,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -14,12 +14,14 @@ const _captureKey = ValueKey('player-v1-phase-animation-capture');
 const _scaffoldKey = ValueKey('player-v1-scaffold');
 const _viewportKey = ValueKey('player-v1-media-viewport');
 const _openPlayerKey = ValueKey('open-player-v1');
+const _activePosterKey = ValueKey('showcase-active-poster');
 const _coverHeroTag = 'ugk-player-cover-lunge';
 const _phaseHeaderKey = ValueKey('player-v1-phase-header');
 const _phaseCapsulesKey = ValueKey('player-v1-phase-capsules');
 const _numberKey = ValueKey('player-v1-countdown-number');
 const _unitKey = ValueKey('player-v1-countdown-unit');
 const _feedbackSlotKey = ValueKey('player-v1-rest-feedback-slot');
+const _sheetKey = ValueKey('player-v1-sheet');
 
 double _paintOpacity(Element element) {
   var opacity = 1.0;
@@ -55,9 +57,24 @@ void _expectNoRestOverlap() {
     _phaseCapsulesKey,
     find.textContaining(strings.upcomingLabel),
   );
-  final numberCount = _painted(number).length;
+  final digits = _painted(number).toList();
   final unitCount = _painted(unit).length;
-  expect(numberCount, lessThanOrEqualTo(1), reason: 'countdown number');
+  expect(digits.length, inInclusiveRange(1, 2), reason: 'countdown number');
+  if (digits.length == 2) {
+    Offset center(Element element) {
+      final box = element.renderObject! as RenderBox;
+      return box.localToGlobal(box.size.center(Offset.zero));
+    }
+
+    final first = center(digits.first);
+    final last = center(digits.last);
+    expect(first.dx, closeTo(last.dx, .01), reason: 'countdown numeric center');
+    expect(
+      first.dy,
+      isNot(closeTo(last.dy, .01)),
+      reason: 'vertical number roll',
+    );
+  }
   expect(unitCount, lessThanOrEqualTo(1), reason: 'countdown unit');
   expect(_painted(title).length, lessThanOrEqualTo(2), reason: 'phase header');
   expect(
@@ -161,6 +178,9 @@ void main() {
   final fullFlowOutput = fullFlowPath == null || fullFlowPath.isEmpty
       ? null
       : Directory(fullFlowPath);
+  final fullFlowClips = Platform.environment['SHOWCASE_FULL_FLOW_CLIPS']
+      ?.split(',')
+      .toSet();
   final sheets =
       output != null && Platform.environment['SHOWCASE_PHASE_SHEETS'] == '1';
   final fps = sheets ? 25 : 30;
@@ -221,7 +241,7 @@ void main() {
     });
     final theme = (dark ? TrainerTheme.playerV1Dark : TrainerTheme.playerV1)
         .copyWith(fontFamily: fontFamily);
-    final coverAsset = playerV1PosterAssets['reach']!;
+    final coverAsset = _drill('lunge')!.media!.posterAsset;
     Widget player({Future<void>? startGate}) => TrainerPlayer(
       plan: demoPlan,
       drillOf: _drill,
@@ -235,6 +255,7 @@ void main() {
       coverHeroTag: withCoverRoute ? _coverHeroTag : null,
       coverHeroAsset: withCoverRoute ? coverAsset : null,
       mediaBuilder: (_, request) => TrainerPoster(
+        key: _activePosterKey,
         asset: playerV1PosterAssets[request.drill.id]!,
         mirrored: request.mirrored,
       ),
@@ -313,6 +334,11 @@ void main() {
     Directory? frameOutput,
   ) async {
     if (frameOutput == null) return;
+    if (fullFlowClips != null &&
+        output?.path != frameOutput.path &&
+        !fullFlowClips.any((clip) => name.startsWith('$clip-'))) {
+      return;
+    }
     final boundary = tester.renderObject<RenderRepaintBoundary>(
       find.byKey(_captureKey),
     );
@@ -574,7 +600,7 @@ void main() {
           await advance(200);
           expect(find.textContaining(strings.prepFirst), findsWidgets);
           await landmark('01-prep');
-          await clip('prep-to-right', 3000, 480);
+          await clip('prep-to-right', 3000, 560);
           await advance(3600);
           expect(
             find.textContaining(strings.sideName(Side.right)),
@@ -631,6 +657,10 @@ void main() {
           await tester.pump();
           await clip('discomfort-open', elapsed, 480);
           expect(continueAction.hitTestable(), findsOneWidget);
+          expect(
+            tester.getSize(find.byKey(_sheetKey)).height,
+            lessThan(tester.view.physicalSize.height / 2),
+          );
           expectPlaying(false);
           await landmark('09-discomfort');
           await tester.tap(continueAction);
@@ -774,15 +804,16 @@ void main() {
           sessionBuilder: _FullFlowSession(),
         ))!;
         final viewport = find.byKey(_viewportKey);
-        final cover = find.byWidgetPredicate(
-          (widget) =>
-              widget is TrainerPoster &&
-              widget.asset == playerV1PosterAssets['reach'],
+        final coverAsset = _drill('lunge')!.media!.posterAsset;
+        final media = find.byKey(_activePosterKey);
+        final coverPoster = find.byWidgetPredicate(
+          (widget) => widget is TrainerPoster && widget.asset == coverAsset,
         );
-        final media = find.byWidgetPredicate(
-          (widget) =>
-              widget is TrainerPoster &&
-              widget.asset == playerV1PosterAssets['lunge'],
+        final target = find.descendant(
+          of: viewport,
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Hero && widget.tag == _coverHeroTag,
+          ),
         );
         final player = tester.state(find.byType(TrainerPlayer));
         final rect = tester.getRect(viewport);
@@ -802,18 +833,35 @@ void main() {
           expect(tester.getRect(viewport), rect);
           if (time == 200) {
             expect(route.control.entered, isFalse);
-            expect(cover, findsOneWidget);
-            final flight = tester.getRect(cover);
+            final staged = find
+                .descendant(of: viewport, matching: coverPoster)
+                .evaluate()
+                .toSet();
+            final flightFinder = find.byElementPredicate(
+              (element) =>
+                  element.widget is TrainerPoster &&
+                  (element.widget as TrainerPoster).asset == coverAsset &&
+                  !staged.contains(element),
+            );
+            expect(flightFinder, findsOneWidget);
+            final flight = tester.getRect(flightFinder);
             expect(flight.width, greaterThan(144));
             expect(flight.width, lessThan(rect.width));
             expect(flight.center.dy, inExclusiveRange(rect.center.dy, 400.0));
           } else if (time == 440) {
             expect(route.control.entered, isTrue);
-            expect(cover, findsOneWidget);
-            expect(tester.getRect(cover), landing);
+            expect(target, findsOneWidget);
+            final landedCover = find.descendant(
+              of: target,
+              matching: coverPoster,
+            );
+            expect(landedCover, findsOneWidget);
+            expect(tester.getRect(landedCover), landing);
           } else if (time == 680) {
-            expect(cover, findsNothing);
+            expect(target, findsNothing);
+            expect(coverPoster, findsOneWidget);
             expect(media, findsOneWidget);
+            expect(tester.widget<TrainerPoster>(media).asset, coverAsset);
             expect(tester.getRect(media), landing);
             expect(media.hitTestable(), findsOneWidget);
           }
@@ -882,6 +930,10 @@ void main() {
         expect(find.byKey(const ValueKey('media-lunge')), findsOneWidget);
         await tapAndCapture(find.byKey(const ValueKey('close')), 'exit-open');
         expect(keepTraining.hitTestable(), findsOneWidget);
+        expect(
+          tester.getSize(find.byKey(_sheetKey)).height,
+          lessThan(tester.view.physicalSize.height / 2),
+        );
         expect(tester.widget<UgkPlayPauseButton>(pause).isPlaying, isFalse);
         await tapAndCapture(keepTraining, 'exit-dismiss');
         expect(keepTraining, findsNothing);

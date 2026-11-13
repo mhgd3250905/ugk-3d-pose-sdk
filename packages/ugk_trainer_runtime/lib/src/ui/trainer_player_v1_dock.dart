@@ -26,6 +26,7 @@ class TrainerPlayerV1Dock extends StatefulWidget {
     required this.next,
     this.optionalControls,
     this.restFeedback,
+    this.completionFading = false,
   });
 
   final TrainerTheme theme;
@@ -37,6 +38,9 @@ class TrainerPlayerV1Dock extends StatefulWidget {
   final Widget next;
   final Widget? optionalControls;
   final Widget? restFeedback;
+
+  /// Fade the controls and handle out while retaining the dock's layout.
+  final bool completionFading;
 
   @override
   State<TrainerPlayerV1Dock> createState() => _TrainerPlayerV1DockState();
@@ -232,6 +236,19 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
           child: child,
         );
 
+  Widget _fadeForCompletion(Widget child, {Key? key}) => IgnorePointer(
+    ignoring: widget.completionFading,
+    child: ExcludeSemantics(
+      excluding: widget.completionFading,
+      child: AnimatedOpacity(
+        key: key,
+        opacity: widget.completionFading ? 0 : 1,
+        duration: _reduced ? _reducedFade : PlayerMotion.actionOut,
+        child: child,
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
@@ -263,41 +280,44 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
                   heightFactor: 1,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 520),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(
-                          key: const ValueKey('player-v1-rest-feedback-slot'),
-                          child: feedback == null
-                              ? null
-                              : _feedbackSlot(feedback),
-                        ),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 52),
-                          child: Align(
-                            alignment: Alignment.center,
-                            heightFactor: 1,
-                            child: widget.countdown,
+                    child: _fadeForCompletion(
+                      key: const ValueKey('player-v1-dock-content-opacity'),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(
+                            key: const ValueKey('player-v1-rest-feedback-slot'),
+                            child: feedback == null
+                                ? null
+                                : _feedbackSlot(feedback),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Center(
-                          child: SizedBox(
-                            width: 240,
-                            child: OverflowBar(
-                              alignment: MainAxisAlignment.spaceBetween,
-                              overflowSpacing: 8,
-                              children: [
-                                widget.previous,
-                                widget.primary,
-                                widget.next,
-                              ],
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(minHeight: 52),
+                            child: Align(
+                              alignment: Alignment.center,
+                              heightFactor: 1,
+                              child: widget.countdown,
                             ),
                           ),
-                        ),
-                        ?widget.optionalControls,
-                      ],
+                          const SizedBox(height: 4),
+                          Center(
+                            child: SizedBox(
+                              width: 240,
+                              child: OverflowBar(
+                                alignment: MainAxisAlignment.spaceBetween,
+                                overflowSpacing: 8,
+                                children: [
+                                  widget.previous,
+                                  widget.primary,
+                                  widget.next,
+                                ],
+                              ),
+                            ),
+                          ),
+                          ?widget.optionalControls,
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -311,14 +331,16 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
             child: IgnorePointer(
               child: ExcludeSemantics(
                 child: Center(
-                  child: SizedBox(
-                    key: const ValueKey('player-v1-dock-handle'),
-                    width: 40,
-                    height: 4,
-                    child: DecoratedBox(
-                      decoration: ShapeDecoration(
-                        color: theme.border,
-                        shape: const StadiumBorder(),
+                  child: _fadeForCompletion(
+                    SizedBox(
+                      key: const ValueKey('player-v1-dock-handle'),
+                      width: 40,
+                      height: 4,
+                      child: DecoratedBox(
+                        decoration: ShapeDecoration(
+                          color: theme.border,
+                          shape: const StadiumBorder(),
+                        ),
                       ),
                     ),
                   ),

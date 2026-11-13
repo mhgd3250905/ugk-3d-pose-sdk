@@ -108,6 +108,11 @@ class _TrainerCompletionState extends State<TrainerCompletion>
     child: Padding(padding: const EdgeInsets.all(16), child: child),
   );
 
+  String _duration(int seconds) {
+    if (!_theme.usePlayerV1) return _strings.durationLabel(seconds);
+    return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
+  }
+
   Widget _statistics() => _card(
     key: const ValueKey('completion-stats'),
     child: AnimatedBuilder(
@@ -126,7 +131,7 @@ class _TrainerCompletionState extends State<TrainerCompletion>
             children: [
               _metric(
                 'duration',
-                _strings.durationLabel(roll(result.activeSeconds)),
+                _duration(roll(result.activeSeconds)),
                 _strings.actualDuration,
               ),
               VerticalDivider(width: 1, thickness: 1, color: dividerColor),
@@ -173,15 +178,21 @@ class _TrainerCompletionState extends State<TrainerCompletion>
             ).copyWith(fontFeatures: TrainerTheme.tabular),
           ),
           const SizedBox(height: 4),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: _text(
-              12,
-              FontWeight.w400,
-              color: _theme.usePlayerV1 ? _theme.sub : _theme.muted,
+          if (_theme.usePlayerV1)
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: _text(12, FontWeight.w400, color: _theme.sub),
+              ),
+            )
+          else
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: _text(12, FontWeight.w400, color: _theme.muted),
             ),
-          ),
         ],
       ),
     ),
@@ -193,25 +204,68 @@ class _TrainerCompletionState extends State<TrainerCompletion>
     Widget fallback() => Center(
       child: Icon(Icons.accessibility_new, size: 24, color: _theme.muted),
     );
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: SizedBox.square(
-        dimension: 40,
-        child: asset == null || asset.isEmpty
-            ? fallback()
-            : Image.asset(
-                asset,
-                fit: BoxFit.contain,
-                excludeFromSemantics: true,
-                errorBuilder: (_, _, _) => fallback(),
-              ),
-      ),
+    final thumbnail = SizedBox.square(
+      dimension: 40,
+      child: asset == null || asset.isEmpty
+          ? fallback()
+          : Image.asset(
+              asset,
+              fit: BoxFit.contain,
+              excludeFromSemantics: true,
+              errorBuilder: (_, _, _) => fallback(),
+            ),
     );
+    if (_theme.usePlayerV1) {
+      return ClipOval(
+        child: ColoredBox(color: _theme.ctrl, child: thumbnail),
+      );
+    }
+    return ClipRRect(borderRadius: BorderRadius.circular(10), child: thumbnail);
   }
 
   Widget _item(ItemResult item, int index) {
     final drill = widget.drillOf(item.exerciseId);
     final skipped = item.status == ItemStatus.skipped;
+    if (_theme.usePlayerV1) {
+      return Opacity(
+        key: ValueKey('completion-item-$index'),
+        opacity: skipped ? .5 : 1,
+        child: SizedBox(
+          height: 56,
+          child: Row(
+            children: [
+              _thumbnail(drill),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  drill?.name ?? item.exerciseId,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _text(15, FontWeight.w600),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                skipped
+                    ? _strings.skipped
+                    : _duration(item.activeSeconds.round()),
+                textAlign: TextAlign.end,
+                style: _text(13, FontWeight.w400, color: _theme.sub),
+              ),
+              if (item.status == ItemStatus.completed) ...[
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.check_rounded,
+                  key: ValueKey('completion-item-check-$index'),
+                  size: 20,
+                  color: _theme.good,
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
     final amount = item.completedReps == null
         ? _strings.durationLabel(item.activeSeconds.round())
         : _strings.dose(
@@ -259,31 +313,44 @@ class _TrainerCompletionState extends State<TrainerCompletion>
     child: Column(
       children: [
         for (final (index, item) in widget.result.items.indexed) ...[
-          if (index > 0) const SizedBox(height: 12),
+          if (index > 0 && !_theme.usePlayerV1) const SizedBox(height: 12),
           _item(item, index),
         ],
       ],
     ),
   );
 
-  Widget _feelings() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(_strings.feelingPrompt, style: _text(14, FontWeight.w400)),
-      const SizedBox(height: 12),
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (final (index, feeling) in TrainingFeeling.values.indexed) ...[
-              if (index > 0) const SizedBox(width: 8),
-              _feeling(feeling, index),
-            ],
-          ],
+  Widget _feelings() {
+    final v1 = _theme.usePlayerV1;
+    final buttons = Row(
+      children: [
+        for (final (index, feeling) in TrainingFeeling.values.indexed) ...[
+          if (index > 0) const SizedBox(width: 8),
+          if (v1)
+            Expanded(child: _feeling(feeling, index))
+          else
+            _feeling(feeling, index),
+        ],
+      ],
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _strings.feelingPrompt,
+          style: v1 ? _text(16, FontWeight.w700) : _text(14, FontWeight.w400),
         ),
-      ),
-    ],
-  );
+        SizedBox(height: v1 ? 14 : 12),
+        if (v1)
+          buttons
+        else
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: buttons,
+          ),
+      ],
+    );
+  }
 
   Widget _feeling(TrainingFeeling feeling, int index) {
     final selected = widget.feeling == feeling;
@@ -301,6 +368,7 @@ class _TrainerCompletionState extends State<TrainerCompletion>
       };
       return TrainerV1FeedbackButton(
         key: key,
+        height: 44,
         theme: _theme,
         label: label,
         color: color,
@@ -368,11 +436,7 @@ class _TrainerCompletionState extends State<TrainerCompletion>
                 shape: BoxShape.circle,
                 color: Colors.white,
               ),
-              child: Icon(
-                Icons.check_rounded,
-                size: 42,
-                color: _theme.accentDeep,
-              ),
+              child: Icon(Icons.check_rounded, size: 42, color: _theme.accent),
             ),
           ),
           const SizedBox(height: TrainerSpace.x4),
@@ -417,7 +481,7 @@ class _TrainerCompletionState extends State<TrainerCompletion>
       children: [
         _feelings(),
         if (widget.feedback case final feedback?) ...[
-          const SizedBox(height: TrainerSpace.x4),
+          const SizedBox(height: TrainerSpace.x3),
           feedback,
         ],
       ],

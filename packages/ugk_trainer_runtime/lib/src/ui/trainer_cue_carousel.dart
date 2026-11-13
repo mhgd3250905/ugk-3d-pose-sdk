@@ -64,6 +64,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
   static const _automaticDelay = Duration(milliseconds: 4500);
   static const _manualDelay = Duration(seconds: 8);
   static const _transition = Duration(milliseconds: 220);
+  static const _playerV1CueSize = 17.0;
 
   Timer? _timer;
   int _index = 0;
@@ -148,7 +149,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
   ) {
     final pages = <_CuePage>[];
     final playerV1 = widget.theme.usePlayerV1;
-    final size = playerV1 ? 17.0 : 16.0;
+    final size = playerV1 ? _playerV1CueSize : 16.0;
     final splitSize = playerV1 ? size : 14.0;
     void add(String text) {
       if (text.isEmpty) return;
@@ -253,8 +254,6 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
     final textScaler = MediaQuery.textScalerOf(context);
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Reserve the actual count width, including large accessibility text.
-        // A second pass accommodates extra pages introduced by text splitting.
         final direction = Directionality.of(context);
         final locale = Localizations.maybeLocaleOf(context);
         final stepGap = playerV1 ? 10.0 : 12.0;
@@ -265,27 +264,37 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
             _layoutFont != theme.fontFamily ||
             _layoutPlayerV1 != playerV1 ||
             !listEquals(_layoutCues, cues)) {
-          var total = math.max(1, cues.length);
-          for (var pass = 0; pass < 4; pass++) {
-            final counter = TextPainter(
-              text: TextSpan(
-                text: '$total/$total',
-                style: _counterStyle(theme),
-              ),
-              textDirection: direction,
-              textScaler: textScaler,
-            )..layout();
-            _countWidth = playerV1
-                ? math.max(34, counter.width + 16)
-                : counter.width;
-            counter.dispose();
-            _pages = _fitPages(
-              cues,
-              math.max(1, constraints.maxWidth - 32 - _countWidth - stepGap),
-              context,
-            );
-            if (_pages.length == total) break;
-            total = _pages.length;
+          final bodyWidth = math.max(1.0, constraints.maxWidth - 32);
+          if (playerV1 &&
+              cues.length == 1 &&
+              _fits(cues.single, _playerV1CueSize, bodyWidth, context)) {
+            _countWidth = 0;
+            _pages = [_CuePage(cues.single, _playerV1CueSize)];
+          } else {
+            // Reserve the count's measured width. Another pass accounts for
+            // extra digits introduced when text splits into more pages.
+            var total = cues.length;
+            for (var pass = 0; pass < 4; pass++) {
+              final counter = TextPainter(
+                text: TextSpan(
+                  text: '$total/$total',
+                  style: _counterStyle(theme),
+                ),
+                textDirection: direction,
+                textScaler: textScaler,
+              )..layout();
+              _countWidth = playerV1
+                  ? math.max(34, counter.width + 16)
+                  : counter.width;
+              counter.dispose();
+              _pages = _fitPages(
+                cues,
+                math.max(1, bodyWidth - _countWidth - stepGap),
+                context,
+              );
+              if (_pages.length == total) break;
+              total = _pages.length;
+            }
           }
           _layoutWidth = constraints.maxWidth;
           _layoutScaler = textScaler;
@@ -318,32 +327,34 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
               ? CrossAxisAlignment.center
               : CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: _countWidth,
-              child: playerV1
-                  ? SizedBox(
-                      key: const ValueKey('trainer-cue-step-pill'),
-                      height: 22,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(11),
-                          color: theme.tint,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: counter,
+            if (!playerV1 || _pages.length > 1) ...[
+              SizedBox(
+                width: _countWidth,
+                child: playerV1
+                    ? SizedBox(
+                        key: const ValueKey('trainer-cue-step-pill'),
+                        height: 22,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(11),
+                            color: theme.tint,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: counter,
+                            ),
                           ),
                         ),
+                      )
+                    : Padding(
+                        padding: EdgeInsets.only(top: textScaler.scale(3)),
+                        child: counter,
                       ),
-                    )
-                  : Padding(
-                      padding: EdgeInsets.only(top: textScaler.scale(3)),
-                      child: counter,
-                    ),
-            ),
-            SizedBox(width: stepGap),
+              ),
+              SizedBox(width: stepGap),
+            ],
             Flexible(
               fit: playerV1 ? FlexFit.loose : FlexFit.tight,
               child: cueText,

@@ -235,6 +235,8 @@ class TrainerTheme {
     cautionBg: Color(0xFF443D34),
     dangerBg: Color(0xFF443339),
     ctrl: Color(0xFF30333A),
+    heroTop: Color(0xFF2A1810),
+    heroBottom: Color(0xFF7A2C0E),
     background: Color(0xFF1C1E24),
     surface: Color(0xFF26282E),
     surfaceHigh: Color(0xFF30333A),

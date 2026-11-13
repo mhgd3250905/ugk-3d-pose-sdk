@@ -283,11 +283,37 @@ void main() {
       tester.getSize(find.byKey(const ValueKey('completion-badge'))),
       const Size(72, 72),
     );
-    expect(value(tester, 'duration'), '2m5s');
+    final badge = find.byKey(const ValueKey('completion-badge'));
+    expect(
+      tester
+          .widget<Icon>(
+            find.descendant(
+              of: badge,
+              matching: find.byIcon(Icons.check_rounded),
+            ),
+          )
+          .color,
+      TrainerTheme.playerV1Dark.accent,
+    );
+    expect(value(tester, 'duration'), '2:05');
     expect(value(tester, 'exercises'), '1/1');
     expect(value(tester, 'streak'), '4');
     final feedback = find.byKey(const ValueKey('completion-feedback'));
     final areas = find.byKey(const ValueKey('completion-trained-areas'));
+    final prompt = find.text('How did that feel?');
+    final firstChoice = find.byKey(const ValueKey('completion-feeling-easy'));
+    final hostExplanation = find.text('Host feedback');
+    expect(tester.widget<Text>(prompt).style?.fontSize, 16);
+    expect(tester.widget<Text>(prompt).style?.fontWeight, FontWeight.w700);
+    expect(
+      tester.getTopLeft(firstChoice).dy - tester.getBottomLeft(prompt).dy,
+      14,
+    );
+    expect(
+      tester.getTopLeft(hostExplanation).dy -
+          tester.getBottomLeft(firstChoice).dy,
+      12,
+    );
     expect(tester.getTopLeft(areas).dy - tester.getBottomLeft(feedback).dy, 16);
     expect(
       find.descendant(of: feedback, matching: find.text('Host feedback')),
@@ -309,6 +335,45 @@ void main() {
     await tester.tap(finish);
     await tester.tap(find.byKey(const ValueKey('completion-replay')));
     expect(events, [TrainingFeeling.easy, 'finish', 'replay']);
+  });
+
+  testWidgets('player V1 lists recorded exercise time in compact rows', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const theme = TrainerTheme.playerV1Dark;
+    await mount(tester, reduced: true, theme: theme);
+    final item = find.byKey(const ValueKey('completion-item-0'));
+    final thumbnail = find.descendant(
+      of: item,
+      matching: find.byType(ClipOval),
+    );
+    final name = find.descendant(of: item, matching: find.text('Move squat'));
+    final time = find.descendant(of: item, matching: find.text('1:23'));
+    final check = find.byKey(const ValueKey('completion-item-check-0'));
+    expect(tester.getSize(item).height, 56);
+    expect(tester.getSize(thumbnail), const Size(40, 40));
+    expect(
+      tester
+          .widget<ColoredBox>(
+            find.descendant(of: thumbnail, matching: find.byType(ColoredBox)),
+          )
+          .color,
+      theme.ctrl,
+    );
+    expect(tester.getTopLeft(name).dx - tester.getTopRight(thumbnail).dx, 12);
+    expect(tester.widget<Text>(name).maxLines, 1);
+    expect(tester.widget<Text>(name).overflow, TextOverflow.ellipsis);
+    expect(tester.widget<Text>(name).style?.fontSize, 15);
+    expect(tester.widget<Text>(name).style?.fontWeight, FontWeight.w600);
+    expect(tester.widget<Text>(time).style?.fontSize, 13);
+    expect(tester.widget<Text>(time).style?.color, theme.sub);
+    expect(tester.getTopLeft(check).dx - tester.getTopRight(time).dx, 8);
+    expect(tester.widget<Icon>(check).color, theme.good);
+    expect(find.text('Skipped'), findsOneWidget);
+    expect(find.byKey(const ValueKey('completion-item-check-1')), findsNothing);
   });
 
   testWidgets('player V1 keeps absent host data empty on a compact display', (
@@ -368,9 +433,17 @@ void main() {
         (theme.caution, theme.cautionBg),
         (theme.danger, theme.dangerBg),
       ];
+      Rect? previous;
       for (final (index, feeling) in TrainingFeeling.values.indexed) {
         final (color, fill) = roles[index];
-        expect(tester.getSize(option(feeling)).height, 46);
+        final rect = tester.getRect(option(feeling));
+        expect(rect.height, 44);
+        if (previous case final last?) {
+          expect(rect.top, last.top);
+          expect(rect.width, closeTo(last.width, .01));
+          expect(rect.left - last.right, 8);
+        }
+        previous = rect;
         final inactive = style(feeling);
         expect(inactive.foregroundColor!.resolve({}), color);
         expect(inactive.backgroundColor!.resolve({}), fill);
@@ -381,7 +454,7 @@ void main() {
         expect(
           inactive.shape!.resolve({}),
           const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(23)),
+            borderRadius: BorderRadius.all(Radius.circular(22)),
           ),
         );
         final label = inactive.textStyle!.resolve({})!;

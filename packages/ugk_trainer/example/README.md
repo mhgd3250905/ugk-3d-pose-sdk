@@ -80,3 +80,6 @@ $env:SHOWCASE_FONT = 'C:\Windows\Fonts\msyh.ttc'
 $env:NO_PROXY = '127.0.0.1,localhost'
 flutter test test/player_v1_capture_test.dart
 ```
+
+只重采指定页面时可设置 `SHOWCASE_CAPTURE_FILES`，例如
+`hip-done,flare-done,training-single-cue`。

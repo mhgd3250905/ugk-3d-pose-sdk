@@ -12,6 +12,10 @@ import 'package:ugk_trainer_showcase/main.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final output = Platform.environment['SHOWCASE_CAPTURE_DIR'];
+  final captureFiles = Platform.environment['SHOWCASE_CAPTURE_FILES']
+      ?.split(',')
+      .map((name) => name.trim())
+      .toSet();
   String? fontFamily;
   setUpAll(() async {
     if (output == null || output.isEmpty) return;
@@ -33,7 +37,11 @@ void main() {
   });
 
   Future<void> capture(WidgetTester tester, String name) async {
-    if (output == null || output.isEmpty) return;
+    if (output == null ||
+        output.isEmpty ||
+        (captureFiles != null && !captureFiles.contains(name))) {
+      return;
+    }
     final boundary = tester.renderObject<RenderRepaintBoundary>(
       find.byKey(const ValueKey('showcase-player-capture')),
     );
@@ -59,12 +67,17 @@ void main() {
     final firstDot = find.byKey(const ValueKey('trainer-cue-dot-0'));
     final secondDot = find.byKey(const ValueKey('trainer-cue-dot-1'));
     expect(tester.getSize(cue).height, greaterThanOrEqualTo(64));
-    expect(tester.getSize(pill).height, 22);
-    expect(tester.widget<Text>(label).data, '1/$count');
     if (count == 1) {
+      final text = find.byKey(const ValueKey('trainer-cue-text'));
+      expect(pill, findsNothing);
+      expect(label, findsNothing);
       expect(firstDot, findsNothing);
       expect(secondDot, findsNothing);
+      expect(tester.getCenter(text).dx, closeTo(tester.getCenter(cue).dx, .01));
+      expect(tester.getCenter(text).dy, closeTo(tester.getCenter(cue).dy, .01));
     } else {
+      expect(tester.getSize(pill).height, 22);
+      expect(tester.widget<Text>(label).data, '1/$count');
       expect(tester.getSize(firstDot), const Size(14, 6));
       expect(tester.getSize(secondDot), const Size(6, 6));
       expect(
@@ -142,6 +155,36 @@ void main() {
             );
             expect(results.single.full, isTrue);
             expect(find.text('本次展示记录已保存'), findsOneWidget);
+            final hero = tester.widget<DecoratedBox>(
+              find.byKey(const ValueKey('completion-hero')),
+            );
+            final gradient = (hero.decoration as BoxDecoration).gradient!;
+            final dark = mode == ThemeMode.dark;
+            expect(
+              gradient.colors,
+              dark
+                  ? [const Color(0xFF2A1810), const Color(0xFF7A2C0E)]
+                  : [const Color(0xFF0A5341), const Color(0xFF0E6F56)],
+            );
+            final feeling = find.byKey(
+              const ValueKey('completion-feeling-justRight'),
+            );
+            final check = find.descendant(
+              of: feeling,
+              matching: find.byIcon(Icons.check_rounded),
+            );
+            expect(check, findsNothing);
+            await tester.tap(feeling);
+            await tester.pump();
+            await tester.pump(const Duration(milliseconds: 250));
+            expect(tester.getSize(check), const Size(14, 14));
+            final button = tester.widget<TextButton>(
+              find.descendant(of: feeling, matching: find.byType(TextButton)),
+            );
+            expect(
+              button.style!.foregroundColor!.resolve({}),
+              dark ? const Color(0xFF111214) : Colors.white,
+            );
           } else {
             final close = find.byKey(const ValueKey('close'));
             final track = find.byKey(const ValueKey('progress'));

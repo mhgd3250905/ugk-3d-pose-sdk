@@ -100,8 +100,7 @@ class TrainerPlayerV1Dock extends StatelessWidget {
   );
 }
 
-/// Standard rest feedback content for [TrainerPlayerV1Dock]. A host supplies
-/// labels and actions through its existing rest feedback builder.
+/// The host's selected response in the standard rest feedback panel.
 enum TrainerRestFeedbackChoice { comfortable, tight, pain }
 
 /// A host supplies option labels, callbacks and the current selection.
@@ -183,7 +182,7 @@ class TrainerRestFeedbackPanel extends StatelessWidget {
           ),
         ),
         if (options.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           Row(
             children: [
               for (var i = 0; i < options.length; i++) ...[
@@ -224,6 +223,7 @@ class TrainerV1FeedbackButton extends StatelessWidget {
     required this.background,
     required this.onPressed,
     this.selected = false,
+    this.height = 46,
   });
 
   final TrainerTheme theme;
@@ -232,6 +232,7 @@ class TrainerV1FeedbackButton extends StatelessWidget {
   final Color background;
   final VoidCallback? onPressed;
   final bool selected;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -248,10 +249,10 @@ class TrainerV1FeedbackButton extends StatelessWidget {
       child: TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(
-          minimumSize: const Size(0, 46),
+          minimumSize: Size(0, height),
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(23)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(height / 2),
           ),
           side: BorderSide(
             color: color.withValues(alpha: theme.isDark ? .3 : .2),
@@ -282,7 +283,12 @@ class TrainerV1FeedbackButton extends StatelessWidget {
                     )
                   : const SizedBox.shrink(),
             ),
-            Flexible(child: Text(label, textAlign: TextAlign.center)),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(label, maxLines: 1, textAlign: TextAlign.center),
+              ),
+            ),
           ],
         ),
       ),

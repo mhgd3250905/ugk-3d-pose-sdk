@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'trainer_player_motion.dart';
 import 'trainer_theme.dart';
 
 /// The opaque training route shared by hosts, ported from SmartFit 13c0bb4.
@@ -27,8 +28,12 @@ class TrainerSlideRoute<T> extends PageRouteBuilder<T> {
          opaque: true,
          allowSnapshotting: false,
          transitionDuration: MediaQuery.disableAnimationsOf(context)
-             ? Duration.zero
-             : const Duration(milliseconds: 300),
+             ? (trainerTheme?.usePlayerV1 == true
+                   ? PlayerMotion.reducedFade
+                   : Duration.zero)
+             : (trainerTheme?.usePlayerV1 == true
+                   ? PlayerMotion.heroFlight
+                   : const Duration(milliseconds: 300)),
          reverseTransitionDuration: MediaQuery.disableAnimationsOf(context)
              ? Duration.zero
              : const Duration(milliseconds: 280),
@@ -45,12 +50,18 @@ class TrainerSlideRoute<T> extends PageRouteBuilder<T> {
                key: ValueKey('training-navigation-lock'),
                child: SizedBox.expand(),
              ),
-             SlideTransition(
-               key: const ValueKey('training-slide'),
-               position:
-                   (ModalRoute.of(context)! as TrainerSlideRoute)._position,
-               child: child,
-             ),
+             if ((ModalRoute.of(context)! as TrainerSlideRoute)
+                     .trainerTheme
+                     ?.usePlayerV1 ==
+                 true)
+               FadeTransition(opacity: animation, child: child)
+             else
+               SlideTransition(
+                 key: const ValueKey('training-slide'),
+                 position:
+                     (ModalRoute.of(context)! as TrainerSlideRoute)._position,
+                 child: child,
+               ),
            ],
          ),
        );
@@ -75,7 +86,9 @@ class TrainerSlideRoute<T> extends PageRouteBuilder<T> {
     super.install();
     _curve = CurvedAnimation(
       parent: animation!,
-      curve: Curves.easeOutCubic,
+      curve: trainerTheme?.usePlayerV1 == true
+          ? PlayerMotion.morph
+          : Curves.easeOutCubic,
       // Reverse runs 1 -> 0. Flipping makes the actual rightward displacement
       // easeInCubic(elapsed), rather than its complement.
       reverseCurve: Curves.easeInCubic.flipped,

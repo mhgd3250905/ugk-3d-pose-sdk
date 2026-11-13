@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 
 import '../result/session_result.dart';
 import 'trainer_player.dart' show TrainerDrill;
+import 'trainer_player_motion.dart';
 import 'trainer_player_v1_dock.dart' show TrainerV1FeedbackButton;
 import 'trainer_stage.dart' show TrainerResultStage;
 import 'trainer_strings.dart';
@@ -26,6 +28,7 @@ class TrainerCompletion extends StatefulWidget {
     this.error,
     this.streakDays,
     this.trainedAreas = const [],
+    this.entryDockTop,
   });
 
   final TrainerTheme theme;
@@ -41,46 +44,75 @@ class TrainerCompletion extends StatefulWidget {
   final int? streakDays;
   final List<String> trainedAreas;
 
+  /// Position of the previous dock top in the completion page's coordinates.
+  final double? entryDockTop;
+
   @override
   State<TrainerCompletion> createState() => _TrainerCompletionState();
 }
 
 class _TrainerCompletionState extends State<TrainerCompletion>
     with SingleTickerProviderStateMixin {
+  static const _legacyDuration = Duration(milliseconds: 1700);
+  static const _heroHeight = 300.0;
+  static const _checkDelay = 120;
+  static const _titleDelay = 200;
+  static const _statsDelay = 260;
+
   late final AnimationController _animation = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1700),
+    duration: _legacyDuration,
+    animationBehavior: AnimationBehavior.preserve,
   );
+  late final _badgeSpring = SpringSimulation(PlayerMotion.spring, .6, 1, 0);
   bool _started = false;
   bool _reduced = false;
 
   TrainerTheme get _theme => widget.theme;
   TrainerStrings get _strings => widget.strings;
 
+  int get _finishDelay => _statsDelay + PlayerMotion.count.inMilliseconds;
+  Duration get _durationV1 => _reduced
+      ? PlayerMotion.reducedFade
+      : PlayerMotion.emphasis +
+            Duration(milliseconds: _finishDelay) +
+            PlayerMotion.finishGlow;
+  double get _entryMs =>
+      (_animation.value * _durationV1.inMicroseconds).round() / 1000;
+  double get _contentMs => _entryMs - PlayerMotion.emphasis.inMilliseconds;
+
+  double _portion(double elapsed, int delay, int duration) =>
+      ((elapsed - delay) / duration).clamp(0.0, 1.0);
+
+  void _beginEntry() {
+    _animation.duration = _theme.usePlayerV1 ? _durationV1 : _legacyDuration;
+    if (_reduced && !_theme.usePlayerV1) {
+      _animation.value = 1;
+    } else {
+      _animation.forward(from: 0);
+    }
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final reduced = TrainerMotion.reduced(context);
-    if (!_started || reduced != _reduced) {
+    if (!_started) {
       _reduced = reduced;
-      if (reduced) {
-        _animation.value = 1;
-      } else if (!_started) {
-        _animation.forward();
-      }
+      _beginEntry();
       _started = true;
+    } else if (reduced != _reduced) {
+      _reduced = reduced;
+      if (reduced || _theme.usePlayerV1) _animation.value = 1;
     }
   }
 
   @override
   void didUpdateWidget(TrainerCompletion oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.result.sessionId != widget.result.sessionId) {
-      if (_reduced) {
-        _animation.value = 1;
-      } else {
-        _animation.forward(from: 0);
-      }
+    if (oldWidget.result.sessionId != widget.result.sessionId ||
+        oldWidget.theme.usePlayerV1 != _theme.usePlayerV1) {
+      _beginEntry();
     }
   }
 
@@ -118,7 +150,17 @@ class _TrainerCompletionState extends State<TrainerCompletion>
     child: AnimatedBuilder(
       animation: _animation,
       builder: (context, _) {
-        final progress = (_animation.value * 1700 / 600).clamp(0.0, 1.0);
+        final progress = !_theme.usePlayerV1
+            ? (_animation.value * 1700 / 600).clamp(0.0, 1.0)
+            : _reduced
+            ? 1.0
+            : PlayerMotion.enter.transform(
+                _portion(
+                  _contentMs,
+                  _statsDelay,
+                  PlayerMotion.count.inMilliseconds,
+                ),
+              );
         int roll(num value) => (value * progress).round();
         final result = widget.result;
         final reps = result.completedReps;
@@ -144,7 +186,9 @@ class _TrainerCompletionState extends State<TrainerCompletion>
               if (_theme.usePlayerV1)
                 _metric(
                   'streak',
-                  widget.streakDays?.toString() ?? '—',
+                  widget.streakDays == null
+                      ? '—'
+                      : '${roll(widget.streakDays!)}',
                   _strings.streak,
                 )
               else
@@ -441,14 +485,7 @@ class _TrainerCompletionState extends State<TrainerCompletion>
     String subtitle,
   ) => DecoratedBox(
     key: const ValueKey('completion-hero'),
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [_theme.heroTop, _theme.heroBottom],
-      ),
-      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
-    ),
+    decoration: _heroDecoration,
     child: Padding(
       padding: EdgeInsets.fromLTRB(
         TrainerSpace.gutter,
@@ -459,51 +496,119 @@ class _TrainerCompletionState extends State<TrainerCompletion>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox.square(
-            key: const ValueKey('completion-badge'),
-            dimension: 72,
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
+          Transform.scale(
+            scale: _badgeScale,
+            child: SizedBox.square(
+              key: const ValueKey('completion-badge'),
+              dimension: 72,
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                ),
+                child: Center(
+                  child: _reduced
+                      ? Icon(
+                          Icons.check_rounded,
+                          size: 42,
+                          color: _theme.accent,
+                        )
+                      : CustomPaint(
+                          key: const ValueKey('completion-check-draw'),
+                          size: const Size.square(42),
+                          painter: _CompletionCheck(
+                            PlayerMotion.enter.transform(
+                              _portion(
+                                _contentMs,
+                                _checkDelay,
+                                PlayerMotion.checkDraw.inMilliseconds,
+                              ),
+                            ),
+                            _theme.accent,
+                          ),
+                        ),
+                ),
               ),
-              child: Icon(Icons.check_rounded, size: 42, color: _theme.accent),
             ),
           ),
           const SizedBox(height: TrainerSpace.x4),
           Flexible(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  flex: 2,
-                  child: Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: _text(26, FontWeight.w700, color: Colors.white),
-                  ),
-                ),
-                if (subtitle.isNotEmpty) ...[
-                  const SizedBox(height: TrainerSpace.x1),
+            child: _enterContent(
+              delay: _titleDelay,
+              offset: PlayerMotion.normal,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Flexible(
+                    flex: 2,
                     child: Text(
-                      subtitle,
+                      title,
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: _text(13, FontWeight.w400, color: Colors.white),
+                      style: _text(26, FontWeight.w700, color: Colors.white),
                     ),
                   ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: TrainerSpace.x1),
+                    Flexible(
+                      child: Text(
+                        subtitle,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: _text(13, FontWeight.w400, color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ],
       ),
     ),
   );
+
+  BoxDecoration get _heroDecoration => BoxDecoration(
+    gradient: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [_theme.heroTop, _theme.heroBottom],
+    ),
+    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+  );
+
+  double get _badgeScale {
+    if (_reduced) return 1;
+    final elapsed = math.max(0.0, _contentMs / 1000);
+    return _badgeSpring.isDone(elapsed) ? 1 : _badgeSpring.x(elapsed);
+  }
+
+  Widget _enterContent({
+    required Widget child,
+    required int delay,
+    Duration duration = PlayerMotion.medium,
+    double offset = 0,
+  }) {
+    if (_reduced) return child;
+    final progress = PlayerMotion.enter.transform(
+      _portion(_contentMs, delay, duration.inMilliseconds),
+    );
+    return IgnorePointer(
+      ignoring: progress == 0,
+      child: ExcludeSemantics(
+        excluding: progress == 0,
+        child: Opacity(
+          opacity: progress,
+          child: Transform.translate(
+            offset: Offset(0, offset * (1 - progress)),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _feedbackCard() => _card(
     key: const ValueKey('completion-feedback'),
@@ -555,6 +660,12 @@ class _TrainerCompletionState extends State<TrainerCompletion>
 
   Widget _v1Footer() {
     const radius = BorderRadius.all(Radius.circular(26));
+    final pulse = _portion(
+      _contentMs,
+      _finishDelay,
+      PlayerMotion.finishGlow.inMilliseconds,
+    );
+    final glow = _reduced || pulse == 1 ? 0.0 : .35 * math.sin(math.pi * pulse);
     return SafeArea(
       key: const ValueKey('completion-footer'),
       top: false,
@@ -566,12 +677,13 @@ class _TrainerCompletionState extends State<TrainerCompletion>
             width: double.infinity,
             height: 52,
             child: DecoratedBox(
+              key: const ValueKey('completion-finish-glow'),
               decoration: BoxDecoration(
                 borderRadius: radius,
                 boxShadow: [
-                  if (widget.onFinish != null)
+                  if (widget.onFinish != null && glow > 0)
                     BoxShadow(
-                      color: _theme.glow.withValues(alpha: .28),
+                      color: _theme.glow.withValues(alpha: glow),
                       offset: const Offset(0, 6),
                       blurRadius: 16,
                     ),
@@ -607,90 +719,152 @@ class _TrainerCompletionState extends State<TrainerCompletion>
     );
   }
 
-  Widget _v1(BuildContext context, String title, String subtitle) {
+  Widget _v1Content(BuildContext context, String title, String subtitle) {
     const fadeHeight = 24.0;
     final background = _theme.background.withValues(alpha: 1);
-    return TrainerResultStage(
-      theme: _theme,
-      child: Column(
-        children: [
-          Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                SingleChildScrollView(
-                  key: const ValueKey('completion-scroll'),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 300),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          height: 300,
-                          child: _hero(context, title, subtitle),
+    final cards = [
+      _feedbackCard(),
+      if (widget.trainedAreas.isNotEmpty) _trainedAreas(),
+      if (widget.result.items.length > 1) _items(),
+      ?widget.error,
+    ];
+    return Column(
+      children: [
+        Expanded(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              SingleChildScrollView(
+                key: const ValueKey('completion-scroll'),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: _heroHeight),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: _heroHeight,
+                        child: _hero(context, title, subtitle),
+                      ),
+                      Padding(
+                        // The footer occupies its own measured height. At
+                        // the end of the scroll, this gap clears the fade.
+                        padding: const EdgeInsets.fromLTRB(
+                          20,
+                          244,
+                          20,
+                          fadeHeight,
                         ),
-                        Padding(
-                          // The footer occupies its own measured height. At
-                          // the end of the scroll, this gap clears the fade.
-                          padding: const EdgeInsets.fromLTRB(
-                            20,
-                            244,
-                            20,
-                            fadeHeight,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _statistics(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _enterContent(
+                              delay: _statsDelay,
+                              duration: PlayerMotion.slow,
+                              offset: PlayerMotion.large,
+                              child: _statistics(),
+                            ),
+                            for (final (index, card) in cards.indexed) ...[
                               const SizedBox(height: TrainerSpace.x4),
-                              _feedbackCard(),
-                              if (widget.trainedAreas.isNotEmpty) ...[
-                                const SizedBox(height: TrainerSpace.x4),
-                                _trainedAreas(),
-                              ],
-                              if (widget.result.items.length > 1) ...[
-                                const SizedBox(height: TrainerSpace.x4),
-                                _items(),
-                              ],
-                              if (widget.error case final error?) ...[
-                                const SizedBox(height: TrainerSpace.x4),
-                                error,
-                              ],
+                              _enterContent(
+                                delay:
+                                    _statsDelay +
+                                    (index + 1) *
+                                        PlayerMotion.stagger.inMilliseconds,
+                                child: card,
+                              ),
                             ],
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: fadeHeight,
-                  child: IgnorePointer(
-                    child: DecoratedBox(
-                      key: const ValueKey('completion-footer-fade'),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [background.withValues(alpha: 0), background],
-                        ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: fadeHeight,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    key: const ValueKey('completion-footer-fade'),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [background.withValues(alpha: 0), background],
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          _v1Footer(),
-        ],
-      ),
+        ),
+        _enterContent(delay: _finishDelay, child: _v1Footer()),
+      ],
     );
   }
+
+  Widget _v1(BuildContext context, String title, String subtitle) =>
+      TrainerResultStage(
+        theme: _theme,
+        child: AnimatedBuilder(
+          animation: _animation,
+          builder: (context, _) {
+            final content = _v1Content(context, title, subtitle);
+            if (_reduced) {
+              final visible = _animation.value > 0;
+              return IgnorePointer(
+                ignoring: !visible,
+                child: ExcludeSemantics(
+                  excluding: !visible,
+                  child: Opacity(opacity: _animation.value, child: content),
+                ),
+              );
+            }
+            final expansion = PlayerMotion.morph.transform(
+              _portion(_entryMs, 0, PlayerMotion.emphasis.inMilliseconds),
+            );
+            return LayoutBuilder(
+              builder: (context, box) {
+                final dockTop = (widget.entryDockTop ?? box.maxHeight - 172)
+                    .clamp(0.0, box.maxHeight);
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    IgnorePointer(
+                      ignoring: expansion < 1,
+                      child: ExcludeSemantics(
+                        excluding: expansion < 1,
+                        child: Opacity(
+                          opacity: expansion < 1 ? 0 : 1,
+                          child: content,
+                        ),
+                      ),
+                    ),
+                    if (expansion < 1)
+                      Positioned(
+                        top: dockTop * (1 - expansion),
+                        left: 0,
+                        right: 0,
+                        height: _heroHeight * expansion,
+                        child: IgnorePointer(
+                          child: DecoratedBox(
+                            key: const ValueKey('completion-hero-entry'),
+                            decoration: _heroDecoration,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            );
+          },
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -795,6 +969,36 @@ class _TrainerCompletionState extends State<TrainerCompletion>
       ),
     );
   }
+}
+
+class _CompletionCheck extends CustomPainter {
+  const _CompletionCheck(this.progress, this.color);
+
+  final double progress;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress == 0) return;
+    final path = Path()
+      ..moveTo(size.width * .21, size.height * .52)
+      ..lineTo(size.width * .41, size.height * .7)
+      ..lineTo(size.width * .79, size.height * .3);
+    final metric = path.computeMetrics().single;
+    canvas.drawPath(
+      metric.extractPath(0, metric.length * progress),
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = size.width / 10
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_CompletionCheck oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.color != color;
 }
 
 /// A bounded, deterministic burst: 24 particles, no emitter and no repeat.

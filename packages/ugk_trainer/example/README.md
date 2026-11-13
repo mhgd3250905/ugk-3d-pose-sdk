@@ -92,5 +92,9 @@ ffmpeg -framerate 30 -i (Join-Path $env:SHOWCASE_PHASE_FRAMES 'frame-%03d.png') 
 
 录制使用同一 360×800 dp 视口和随包站位图。测试在每帧核对训练页和媒体视口的身份与位置，视频输出为 720×1600。
 
+完整流程的浅深对照可设置 `SHOWCASE_FULL_FLOW_FRAMES`，再运行
+`flutter test test/player_v1_phase_animation_test.dart --plain-name 'full Player V1 phase sequence'`。
+流程以 40 ms 记录转场帧，使用随包站位图验证 UI 动画。
+
 只重采指定页面时可设置 `SHOWCASE_CAPTURE_FILES`，例如
 `hip-done,flare-done,training-single-cue`。

@@ -7,6 +7,7 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 
 import 'countdown_ring.dart';
+import 'trainer_player_motion.dart';
 import 'trainer_strings.dart';
 import 'trainer_theme.dart';
 
@@ -65,10 +66,10 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
   static const _colorDuration = Duration(milliseconds: 280);
   static const _reducedDuration = Duration(milliseconds: 150);
   static const _confirmationWindow = Duration(milliseconds: 320);
-  static const _ringFillDuration = 80;
-  static const _ringExitDuration = 120;
-  static const _ringEnterDuration = 240;
-  static const _ringDuration =
+  static final _ringFillDuration = PlayerMotion.ringFill.inMilliseconds;
+  static final _ringExitDuration = PlayerMotion.ringFade.inMilliseconds;
+  static final _ringEnterDuration = PlayerMotion.medium.inMilliseconds;
+  static final _ringDuration =
       _ringFillDuration + _ringExitDuration + _ringEnterDuration;
 
   late bool _playing = widget.isPlaying;
@@ -175,7 +176,7 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
       _outgoingSweep = _paintedSweep;
       _ringMotion.duration = _reduced
           ? _reducedDuration
-          : const Duration(milliseconds: _ringDuration);
+          : Duration(milliseconds: _ringDuration);
       _ringMotion.forward(from: 0);
     }
     if (_optimistic || oldWidget.isPlaying != widget.isPlaying) {
@@ -290,7 +291,7 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
   void _release({bool activate = false}) {
     _pressed = false;
     if (_reduced) return;
-    if (activate) {
+    if (activate && !widget.theme.usePlayerV1) {
       _press.animateWith(
         SpringSimulation(
           const SpringDescription(mass: 1, stiffness: 350, damping: 10),
@@ -302,7 +303,9 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
     } else {
       _press.animateTo(
         1,
-        duration: const Duration(milliseconds: 150),
+        duration: widget.theme.usePlayerV1
+            ? PlayerMotion.fast
+            : const Duration(milliseconds: 150),
         curve: Curves.easeOutCubic,
       );
     }

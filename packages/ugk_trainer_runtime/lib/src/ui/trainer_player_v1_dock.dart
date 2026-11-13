@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show OverflowBoxFit;
 
+import 'trainer_player_motion.dart';
 import 'trainer_theme.dart';
 
-const _feedbackIn = Duration(milliseconds: 240);
-const _feedbackStagger = Duration(milliseconds: 40);
-const _feedbackStaggeredIn = Duration(milliseconds: 360);
-const _feedbackOut = Duration(milliseconds: 160);
-const _reducedFade = Duration(milliseconds: 150);
-const _dockResize = Duration(milliseconds: 380);
-const _shrinkDelay = Duration(milliseconds: 80);
+const _feedbackIn = PlayerMotion.medium;
+const _feedbackStagger = PlayerMotion.phaseStagger;
+const _feedbackOut = PlayerMotion.fast;
+const _reducedFade = PlayerMotion.reducedFade;
+const _dockResize = PlayerMotion.slow;
+const _shrinkDelay = PlayerMotion.phaseShrinkDelay;
+final _feedbackStaggeredIn = _feedbackIn + _feedbackStagger * 3;
 
 /// Player V1's dock. The player supplies the existing controls and owns their
 /// callbacks and session state.
@@ -45,9 +46,14 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
     with TickerProviderStateMixin {
   late final _enter = AnimationController(vsync: this, value: 1);
   late final _exit = AnimationController(vsync: this)..addListener(_onExitTick);
+  late final _expand = AnimationController(vsync: this, duration: _dockResize)
+    ..addStatusListener(_onExpandTick);
+  final _dockContentKey = GlobalKey();
+  final _dockSizeKey = GlobalKey();
   Widget? _outgoingFeedback;
   double? _outgoingHeight;
   bool _collapseFeedback = false;
+  bool _waitingForExpansion = false;
   bool _reduced = false;
 
   @override
@@ -56,6 +62,7 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
     final reduced = TrainerMotion.reduced(context);
     if (_reduced == reduced) return;
     _reduced = reduced;
+    _cancelExpansion();
     _enter.value = 1;
     if (_outgoingFeedback != null) _exit.value = 1;
   }
@@ -66,7 +73,11 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
     final feedback = widget.restFeedback;
     final previous = oldWidget.restFeedback;
     if (feedback == null && previous != null) {
+      final wasWaiting = _waitingForExpansion;
+      _cancelExpansion();
       _enter.stop();
+      // A rest skipped during expansion never exposed its feedback.
+      if (wasWaiting) return;
       _outgoingFeedback = previous;
       _outgoingHeight = oldWidget.minHeight;
       _collapseFeedback = false;
@@ -77,13 +88,52 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
       _outgoingFeedback = null;
       _outgoingHeight = null;
       _collapseFeedback = false;
-      _enter.duration = _reduced
-          ? _reducedFade
-          : feedback is TrainerRestFeedbackPanel
-          ? _feedbackStaggeredIn
-          : _feedbackIn;
-      _enter.forward(from: 0);
+      _enter.value = 0;
+      if (_reduced) {
+        _startEntrance(feedback);
+      } else {
+        _waitingForExpansion = true;
+        _expand.forward(from: 0);
+      }
     }
+  }
+
+  void _cancelExpansion() {
+    _waitingForExpansion = false;
+    _expand.stop();
+  }
+
+  void _startEntrance(Widget feedback) {
+    _enter.duration = _reduced
+        ? _reducedFade
+        : feedback is TrainerRestFeedbackPanel
+        ? _feedbackStaggeredIn
+        : _feedbackIn;
+    _enter.forward(from: 0);
+  }
+
+  void _onExpandTick(AnimationStatus status) {
+    if (status == AnimationStatus.completed) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _revealWhenExpanded(),
+      );
+    }
+  }
+
+  void _onResizeEnd() {
+    // AnimatedSize finishes during a frame. Check both render boxes after
+    // layout, including when a phase was interrupted mid-resize.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _revealWhenExpanded());
+  }
+
+  void _revealWhenExpanded() {
+    if (!mounted || !_waitingForExpansion || !_expand.isCompleted) return;
+    final feedback = widget.restFeedback;
+    final size = _dockSizeKey.currentContext?.size;
+    final contentSize = _dockContentKey.currentContext?.size;
+    if (feedback == null || size == null || size != contentSize) return;
+    setState(() => _waitingForExpansion = false);
+    _startEntrance(feedback);
   }
 
   void _onExitTick() {
@@ -104,6 +154,7 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
 
   @override
   void dispose() {
+    _expand.dispose();
     _enter.dispose();
     _exit.dispose();
     super.dispose();
@@ -122,24 +173,29 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
         maxHeight: double.infinity,
         fit: OverflowBoxFit.deferToChild,
         child: IgnorePointer(
-          ignoring: leaving,
+          ignoring: leaving || _waitingForExpansion,
           child: ExcludeSemantics(
-            excluding: leaving,
+            excluding: leaving || _waitingForExpansion,
             child: AnimatedBuilder(
               animation: Listenable.merge([_enter, _exit]),
               builder: (context, child) {
                 final entered = stagger
                     ? 1.0
-                    : Curves.easeOutCubic.transform(_enter.value);
+                    : PlayerMotion.enter.transform(_enter.value);
                 final exited = leaving
                     ? Curves.easeIn.transform(_exit.value)
                     : 0.0;
                 return Opacity(
-                  opacity: entered * (1 - exited),
+                  key: const ValueKey('player-v1-rest-feedback-opacity'),
+                  opacity: _waitingForExpansion ? 0 : entered * (1 - exited),
                   child: _reduced
                       ? child
                       : Transform.translate(
-                          offset: Offset(0, 12 * (1 - entered + exited)),
+                          offset: Offset(
+                            0,
+                            PlayerMotion.small * (1 - entered) +
+                                PlayerMotion.normal * exited,
+                          ),
                           transformHitTests: false,
                           child: child,
                         ),
@@ -168,9 +224,11 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
   Widget _resize(Widget child) => _reduced
       ? child
       : AnimatedSize(
+          key: _dockSizeKey,
           alignment: Alignment.bottomCenter,
           duration: _dockResize,
-          curve: Curves.easeInOutCubic,
+          curve: PlayerMotion.morph,
+          onEnd: _onResizeEnd,
           child: child,
         );
 
@@ -191,6 +249,7 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
         children: [
           _resize(
             ConstrainedBox(
+              key: _dockContentKey,
               constraints: BoxConstraints(minHeight: height),
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
@@ -288,7 +347,7 @@ class _RestFeedbackEntrance extends InheritedWidget {
     final progress = Interval(
       start / total,
       (start + _feedbackIn.inMilliseconds) / total,
-      curve: Curves.easeOutCubic,
+      curve: PlayerMotion.enter,
     );
     return AnimatedBuilder(
       animation: animation,
@@ -298,7 +357,7 @@ class _RestFeedbackEntrance extends InheritedWidget {
         return Opacity(
           opacity: value,
           child: Transform.translate(
-            offset: Offset(0, 12 * (1 - value)),
+            offset: Offset(0, PlayerMotion.small * (1 - value)),
             transformHitTests: false,
             child: child,
           ),
@@ -386,9 +445,7 @@ class TrainerRestFeedbackPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               AnimatedSwitcher(
-                duration: reduced
-                    ? _reducedFade
-                    : const Duration(milliseconds: 200),
+                duration: reduced ? _reducedFade : PlayerMotion.controlsFade,
                 child: Text(
                   currentTitle,
                   key: ValueKey(currentTitle),
@@ -500,9 +557,7 @@ class _TrainerV1FeedbackButtonState extends State<TrainerV1FeedbackButton> {
               : Colors.white
         : color;
     final reduced = TrainerMotion.reduced(context);
-    final duration = reduced
-        ? Duration.zero
-        : const Duration(milliseconds: 200);
+    final duration = reduced ? Duration.zero : PlayerMotion.controlsFade;
     final button = Semantics(
       selected: selected,
       child: TextButton(
@@ -565,8 +620,8 @@ class _TrainerV1FeedbackButtonState extends State<TrainerV1FeedbackButton> {
       onPointerCancel: (_) => _highlight(false),
       child: AnimatedScale(
         scale: _pressed ? .96 : 1,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
+        duration: PlayerMotion.press,
+        curve: PlayerMotion.enter,
         child: button,
       ),
     );

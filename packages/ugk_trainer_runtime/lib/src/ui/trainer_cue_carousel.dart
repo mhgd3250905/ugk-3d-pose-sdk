@@ -5,6 +5,8 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'trainer_player_motion.dart';
+import 'trainer_player_v1_motion.dart';
 import 'trainer_theme.dart';
 
 /// Cleans legacy semicolon-delimited copy without turning separate steps into
@@ -361,26 +363,33 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
             ),
           ],
         );
-        final pageSwitcher = AnimatedSwitcher(
-          duration: reduced ? Duration.zero : _transition,
-          transitionBuilder: (child, animation) => AnimatedBuilder(
-            animation: animation,
-            builder: (context, _) => Transform.translate(
-              offset: Offset(
-                0,
-                animation.status == AnimationStatus.reverse
-                    ? -8 * (1 - animation.value)
-                    : 0,
-              ),
-              child: Opacity(opacity: animation.value, child: child),
-            ),
-          ),
-          layoutBuilder: (current, previous) => Stack(
-            alignment: playerV1 ? Alignment.center : Alignment.topLeft,
-            children: [...previous, ?current],
-          ),
-          child: pageContent,
-        );
+        final pageSwitcher = playerV1
+            ? TrainerPhaseSwitcher(
+                identity: (_index, page.text),
+                enterCurve: PlayerMotion.enter,
+                exitCurve: PlayerMotion.exit,
+                child: pageContent,
+              )
+            : AnimatedSwitcher(
+                duration: reduced ? Duration.zero : _transition,
+                transitionBuilder: (child, animation) => AnimatedBuilder(
+                  animation: animation,
+                  builder: (context, _) => Transform.translate(
+                    offset: Offset(
+                      0,
+                      animation.status == AnimationStatus.reverse
+                          ? -8 * (1 - animation.value)
+                          : 0,
+                    ),
+                    child: Opacity(opacity: animation.value, child: child),
+                  ),
+                ),
+                layoutBuilder: (current, previous) => Stack(
+                  alignment: playerV1 ? Alignment.center : Alignment.topLeft,
+                  children: [...previous, ?current],
+                ),
+                child: pageContent,
+              );
         final dots = ExcludeSemantics(
           child: Wrap(
             alignment: WrapAlignment.center,
@@ -388,8 +397,12 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
             runSpacing: playerV1 ? 5 : 6,
             children: [
               for (var i = 0; i < _pages.length; i++)
-                Container(
+                AnimatedContainer(
                   key: ValueKey('trainer-cue-dot-$i'),
+                  duration: playerV1 && !reduced
+                      ? PlayerMotion.controlsFade
+                      : Duration.zero,
+                  curve: PlayerMotion.morph,
                   width: playerV1 && i == _index ? 14 : 6,
                   height: 6,
                   decoration: BoxDecoration(

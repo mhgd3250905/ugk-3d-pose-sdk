@@ -55,8 +55,10 @@ import 'trainer_completion.dart';
 import 'trainer_cue_carousel.dart';
 import 'trainer_experience.dart';
 import 'trainer_media_download_indicator.dart';
+import 'trainer_player_motion.dart';
 import 'trainer_player_v1_dock.dart';
 import 'trainer_player_v1_motion.dart';
+import 'trainer_player_v1_sheets.dart';
 import 'trainer_poster.dart';
 import 'trainer_stage.dart';
 import 'trainer_strings.dart';
@@ -307,6 +309,8 @@ class TrainerPlayer extends StatefulWidget {
     this.doseLabel,
     this.announceDiscomfortPause = true,
     this.mediaBuilder,
+    this.coverHeroTag,
+    this.coverHeroAsset,
     this.showMediaDownloadIndicator = true,
     this.mediaDownloadState,
     this.onMediaDownloadRetry,
@@ -323,6 +327,11 @@ class TrainerPlayer extends StatefulWidget {
   });
 
   final TrainingPlan plan;
+
+  /// Optional V1 Hero source tag and cover asset supplied by the host.
+  /// Use `ugk-player-cover-<exerciseId>` for both ends of the flight.
+  final String? coverHeroTag;
+  final String? coverHeroAsset;
 
   /// Optional host statistics and labels on the V1 completion page.
   final int? streakDays;
@@ -496,6 +505,14 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   /// True only during the leading switch's own [_tick].
   bool _navigationLeadingTick = false;
   final _mediaHost = GlobalKey();
+  final _v1Dock = GlobalKey();
+  int? _v1NavigationGeneration;
+  int _v1NavigationDirection = 0;
+  SessionPhase? _v1FinalPhase;
+  bool _v1CompletionVisible = false;
+  double? _v1CompletionDockTop;
+  Timer? _v1CompletionFade;
+  bool _v1Started = false;
   Future<void>? _audioEnding;
   bool _audioEnded = false;
   bool _audioRestarting = false;
@@ -788,6 +805,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   @override
   void dispose() {
+    _v1CompletionFade?.cancel();
     _disposed = true;
     _experience?.control.removeListener(_experienceChanged);
     _exitPopTimer?.cancel();
@@ -1057,7 +1075,13 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   void _onDone(double t) {
     if (_doneHandled) return;
     _doneHandled = true;
-    if (!_exitingEarly) _retireMedia();
+    if (!_exitingEarly) {
+      if (_th.usePlayerV1) {
+        _beginV1Completion();
+      } else {
+        _retireMedia();
+      }
+    }
     _endedAt ??= t;
     _clock.stop();
     // Keep the closing line (including queued tails) audible before ending
@@ -1185,6 +1209,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _shownKey = '';
     _saveFailed = false;
     _doneHandled = false;
+    _v1CompletionFade?.cancel();
+    _v1FinalPhase = null;
+    _v1CompletionVisible = false;
+    _v1CompletionDockTop = null;
+    _v1Started = false;
+    _v1HapticAction = null;
     _hapticGen = -1;
     _hapticSecond = -1;
     _progress.value = 0;
@@ -1218,30 +1248,78 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _haptics(SessionPhase p, double t) {
-    if (_paused || (_engine.done && !_th.usePlayerV1)) return;
+    if (_th.usePlayerV1) {
+      _v1Haptics(p, t);
+      return;
+    }
+    if (_paused || _engine.done) return;
     if (_engine.generation != _hapticGen) {
       _hapticGen = _engine.generation;
       _hapticSecond = -1;
-      final lastVisit = _th.usePlayerV1 ? _engine.visits.lastOrNull : null;
-      final restEnded =
-          lastVisit != null &&
-          lastVisit.exit == PhaseExit.natural &&
-          _isPlayerV1Rest(lastVisit.phase);
-      if (restEnded || p.isWork && _engine.generation > 0) {
+      if (p.isWork && _engine.generation > 0) {
         unawaited(HapticFeedback.mediumImpact());
       }
     }
-    if (_engine.done) return;
     if (p.seconds == 0 || p.selfPaced || p.countedOnClock) return;
     final left = _engine.secondsLeft(t);
     if (left >= 1 && left <= 3 && left != _hapticSecond) {
       _hapticSecond = left;
-      unawaited(
-        _th.usePlayerV1 && _isPlayerV1Rest(p)
-            ? HapticFeedback.lightImpact()
-            : HapticFeedback.selectionClick(),
-      );
+      unawaited(HapticFeedback.selectionClick());
     }
+  }
+
+  String? _v1HapticAction;
+
+  void _v1Haptics(SessionPhase phase, double t) {
+    if (_engine.done || _paused) return;
+    if (_engine.generation != _hapticGen) {
+      _hapticGen = _engine.generation;
+      _hapticSecond = -1;
+      if (phase.isWork) {
+        if (!_v1Started || _v1HapticAction != phase.exerciseId) {
+          unawaited(HapticFeedback.mediumImpact());
+        }
+        _v1Started = true;
+        _v1HapticAction = phase.exerciseId;
+      } else if (phase.kind == PhaseKind.switchSide) {
+        unawaited(HapticFeedback.mediumImpact());
+      }
+    }
+    if (phase.selfPaced || phase.countedOnClock) return;
+    final left = _engine.secondsLeft(t);
+    if (left >= 1 && left <= 3 && left != _hapticSecond) {
+      _hapticSecond = left;
+      unawaited(HapticFeedback.selectionClick());
+    }
+  }
+
+  void _beginV1Completion() {
+    final visit = _engine.visits.lastOrNull;
+    if (visit?.exit == PhaseExit.natural ||
+        visit?.exit == PhaseExit.completed) {
+      unawaited(HapticFeedback.heavyImpact());
+    }
+    final dock = _v1Dock.currentContext?.findRenderObject();
+    final root = _materialScope.currentContext?.findRenderObject();
+    if (dock is RenderBox &&
+        root is RenderBox &&
+        dock.attached &&
+        root.attached) {
+      _v1CompletionDockTop = dock.localToGlobal(Offset.zero, ancestor: root).dy;
+    }
+    _v1FinalPhase = visit?.phase;
+    if (visit == null ||
+        visit.exit != PhaseExit.natural ||
+        TrainerMotion.reduced(context)) {
+      _retireMedia();
+      _v1CompletionVisible = true;
+      return;
+    }
+    _v1CompletionFade = Timer(PlayerMotion.actionOut, () {
+      if (!mounted) return;
+      _retireMedia();
+      setState(() => _v1CompletionVisible = true);
+    });
   }
 
   /// The big number in the ring: the rep, the self-paced target or the
@@ -1397,8 +1475,21 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _tick();
   }
 
-  void _skip() => _after(() => _runner.skip(_t), settleVoice: true);
-  void _previous() => _after(() => _runner.previous(_t), settleVoice: true);
+  void _navigateV1(int direction, VoidCallback change) {
+    final generation = _engine.generation;
+    change();
+    if (_th.usePlayerV1 && generation != _engine.generation) {
+      _v1NavigationGeneration = _engine.generation;
+      _v1NavigationDirection = direction;
+    }
+  }
+
+  void _skip() =>
+      _after(() => _navigateV1(1, () => _runner.skip(_t)), settleVoice: true);
+  void _previous() => _after(
+    () => _navigateV1(-1, () => _runner.previous(_t)),
+    settleVoice: true,
+  );
 
   void _extendRest() {
     if (_waitingForStart) return;
@@ -1434,7 +1525,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   void _completeSet() {
     if (_waitingForStart || _paused || !_engine.awaitingCompletion) return;
-    unawaited(HapticFeedback.lightImpact());
+    if (!_th.usePlayerV1) unawaited(HapticFeedback.lightImpact());
     _queue.cancelAll(_t);
     _submit(_runner.completeSet(_t), _t);
     _subtitle = null;
@@ -1515,8 +1606,16 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       strings: _s,
       theme: _th,
     );
-    final handler = widget.onDiscomfort ?? _defaultDiscomfort;
-    final d = await handler(context, at);
+    final handler = widget.onDiscomfort;
+    final d = handler != null
+        ? await handler(context, at)
+        : _th.usePlayerV1
+        ? await showTrainerV1DiscomfortSheet(
+            context: _materialContext,
+            theme: _th,
+            strings: _s,
+          )
+        : await _defaultDiscomfort(context, at);
     if (!mounted) return;
     final mayResume =
         wasRunning && interruptionRevision == _interruptionRevision;
@@ -1650,52 +1749,77 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   Future<bool> _confirmClose() async {
     if (_engine.done) return true;
-    final ok = await showDialog<bool>(
-      context: _materialContext,
-      barrierColor: _th.shadow.withValues(alpha: .32),
-      builder: (c) => AlertDialog(
-        backgroundColor: _th.surface.withValues(alpha: 1),
-        surfaceTintColor: _th.surface.withValues(alpha: 1),
-        shadowColor: _th.shadow,
-        elevation: 2,
-        shape: RoundedSuperellipseBorder(
-          borderRadius: BorderRadius.circular(28),
-          side: BorderSide(color: _th.border, width: 1),
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(
-          TrainerSpace.x4,
-          0,
-          TrainerSpace.x4,
-          TrainerSpace.x4,
-        ),
-        title: Text(_s.closeTitle, style: _th.title),
-        content: Text(_s.closeBody, style: _th.body.copyWith(color: _th.muted)),
-        actions: [
-          TextButton(
-            key: const ValueKey('close-confirm'),
-            style: TextButton.styleFrom(
-              minimumSize: const Size(64, 44),
-              shape: const StadiumBorder(),
+    final wasRunning = _th.usePlayerV1 && !_paused;
+    final interruption = _interruptionRevision;
+    if (wasRunning) _togglePause(announce: false);
+    final ok = _th.usePlayerV1
+        ? await showTrainerV1ExitSheet(
+            context: _materialContext,
+            theme: _th,
+            strings: _s,
+            completed: _engine.fullyCompletedExercises,
+            total: _occurrences,
+            onConfirm: _notifyExitStarted,
+          )
+        : await showDialog<bool>(
+            context: _materialContext,
+            barrierColor: _th.shadow.withValues(alpha: .32),
+            builder: (c) => AlertDialog(
+              backgroundColor: _th.surface.withValues(alpha: 1),
+              surfaceTintColor: _th.surface.withValues(alpha: 1),
+              shadowColor: _th.shadow,
+              elevation: 2,
+              shape: RoundedSuperellipseBorder(
+                borderRadius: BorderRadius.circular(28),
+                side: BorderSide(color: _th.border, width: 1),
+              ),
+              actionsPadding: const EdgeInsets.fromLTRB(
+                TrainerSpace.x4,
+                0,
+                TrainerSpace.x4,
+                TrainerSpace.x4,
+              ),
+              title: Text(_s.closeTitle, style: _th.title),
+              content: Text(
+                _s.closeBody,
+                style: _th.body.copyWith(color: _th.muted),
+              ),
+              actions: [
+                TextButton(
+                  key: const ValueKey('close-confirm'),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(64, 44),
+                    shape: const StadiumBorder(),
+                  ),
+                  onPressed: () {
+                    _notifyExitStarted();
+                    if (c.mounted) Navigator.pop(c, true);
+                  },
+                  child: Text(
+                    _s.closeConfirm,
+                    style: TextStyle(color: _th.muted),
+                  ),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _th.accent,
+                    foregroundColor: _th.onAccent,
+                    minimumSize: const Size(88, 44),
+                    shape: StadiumBorder(side: BorderSide(color: _th.border)),
+                  ),
+                  onPressed: () => Navigator.pop(c, false),
+                  child: Text(_s.closeCancel),
+                ),
+              ],
             ),
-            onPressed: () {
-              _notifyExitStarted();
-              if (c.mounted) Navigator.pop(c, true);
-            },
-            child: Text(_s.closeConfirm, style: TextStyle(color: _th.muted)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: _th.accent,
-              foregroundColor: _th.onAccent,
-              minimumSize: const Size(88, 44),
-              shape: StadiumBorder(side: BorderSide(color: _th.border)),
-            ),
-            onPressed: () => Navigator.pop(c, false),
-            child: Text(_s.closeCancel),
-          ),
-        ],
-      ),
-    );
+          );
+    if (ok != true &&
+        mounted &&
+        wasRunning &&
+        _paused &&
+        interruption == _interruptionRevision) {
+      _togglePause(announce: false);
+    }
     if (ok == true && mounted && !_engine.done) {
       // Finish the data engine as before, but keep its last presentation:
       // finish() moves its phase/index straight to done.
@@ -1816,7 +1940,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    final p = _exitingEarly ? _earlyExitFrame!.phase : _phase;
+    final p = _exitingEarly ? _earlyExitFrame!.phase : _v1FinalPhase ?? _phase;
     final d = p.exerciseId == null ? null : widget.drillOf(p.exerciseId!);
     return PopScope(
       canPop: false,
@@ -1840,7 +1964,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   Widget _playerBody(SessionPhase phase, TrainerDrill? drill) {
-    if (_engine.done && !_exitingEarly && !_waitingForStart) {
+    if (_engine.done &&
+        !_exitingEarly &&
+        !_waitingForStart &&
+        _v1FinalPhase == null) {
       final result = _th.usePlayerV1
           ? _doneView()
           : TrainerResultStage(
@@ -1864,14 +1991,21 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       fit: StackFit.expand,
       children: [
         IgnorePointer(
-          ignoring: _exitingEarly,
+          ignoring: _exitingEarly || _v1FinalPhase != null,
           child: TickerMode(
-            enabled: !_exitingEarly,
-            child: _th.usePlayerV1 && !_preview
-                ? _sessionViewV1(phase, drill)
-                : _sessionView(phase, drill),
+            enabled: !_exitingEarly && !_v1CompletionVisible,
+            child: ExcludeSemantics(
+              excluding: _v1CompletionVisible,
+              child: Opacity(
+                opacity: _v1CompletionVisible ? 0 : 1,
+                child: _th.usePlayerV1 && !_preview
+                    ? _sessionViewV1(phase, _v1CompletionVisible ? null : drill)
+                    : _sessionView(phase, drill),
+              ),
+            ),
           ),
         ),
+        if (_v1CompletionVisible) _chromeDone(_doneView()),
         if (_exitingEarly && _showEarlyExitProgress)
           Center(
             child: TweenAnimationBuilder<double>(
@@ -1908,7 +2042,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     size: size,
 
     onPressed: () {
-      unawaited(HapticFeedback.selectionClick());
+      if (!_th.usePlayerV1) unawaited(HapticFeedback.selectionClick());
       onPressed();
     },
   );
@@ -2011,12 +2145,17 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   );
 
   /// Edge-to-edge on the stage: [theme] carries radius 0.
-  Widget _media(SessionPhase p, TrainerDrill d, TrainerTheme theme) {
+  Widget _media(
+    SessionPhase p,
+    TrainerDrill d,
+    TrainerTheme theme, {
+    bool? mirrored,
+  }) {
     final experience = _experience;
     final req = TrainerMediaRequest(
       drill: d,
       paused: _exitingEarly || (!_preview && _paused),
-      mirrored: p.side == Side.left,
+      mirrored: mirrored ?? p.side == Side.left,
       theme: theme,
       strings: _s,
       mediaPreparer: _mediaPrefetcher,
@@ -2084,9 +2223,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         mediaPreparer: _mediaPrefetcher,
         posterAsset: experience == null ? null : _experiencePosterAsset(d),
       );
-      return p.side == Side.left
-          ? Transform.flip(flipX: true, child: media)
-          : media;
+      return req.mirrored ? Transform.flip(flipX: true, child: media) : media;
     }
     final m = d.media;
     if (m == null) {
@@ -2096,7 +2233,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       key: const ValueKey('player-media'),
       media: m,
       paused: _exitingEarly || (!_preview && _paused),
-      mirrored: p.side == Side.left,
+      mirrored: req.mirrored,
       radius: 0,
       stage: theme.mediaStage,
       errorLabel: _s.mediaUnavailable,
@@ -3207,7 +3344,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   /// reading as one label.
   Widget _digits(SessionPhase p, double t, {bool template = false}) {
     final counted = p.countedOnClock;
-    final left = _exitingEarly
+    final left = _v1FinalPhase != null
+        ? 0
+        : _exitingEarly
         ? _earlyExitFrame!.secondsLeft
         : _engine.secondsLeft(t);
     final working = p.isWork;
@@ -3236,34 +3375,36 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         left >= 1 &&
         left <= 3 &&
         !_paused;
-    final value = _counterValue(p, t);
+    final value = _v1FinalPhase == null ? _counterValue(p, t) : '0';
     final unit = counted
         ? _s.repsCaption(p.reps!)
         : working
         ? _s.secondsCaption
         : _s.startsInCaption;
+    final pulse =
+        (working || _isPlayerV1Rest(p)) && !_paused && left >= 1 && left <= 3;
     return Semantics(
       label: '$value $unit',
       excludeSemantics: true,
-      child: TrainerCountdownDigits(
-        theme: _th,
-        value: value,
-        unit: unit,
-        size: template ? 44 : 32,
-        unitSize: template ? 14 : 13,
-        numberWeight: template ? FontWeight.w700 : FontWeight.w300,
-        unitColor: template ? _th.sub : null,
-        restPulse:
-            template &&
-            _isPlayerV1Rest(p) &&
-            !_paused &&
-            left >= 1 &&
-            left <= 3,
-        color: template || working ? _th.text : _th.muted,
-        urgent: urgent,
-        dim: _paused,
-        numberKey: const ValueKey('counter'),
-      ),
+      child: template
+          ? TrainerV1PhaseCountdown(
+              phase: _engine.generation,
+              theme: _th,
+              value: value,
+              unit: unit,
+              numberKey: const ValueKey('counter'),
+              restPulse: pulse,
+              dim: _paused,
+            )
+          : TrainerCountdownDigits(
+              theme: _th,
+              value: value,
+              unit: unit,
+              color: working ? _th.text : _th.muted,
+              urgent: urgent,
+              dim: _paused,
+              numberKey: const ValueKey('counter'),
+            ),
     );
   }
 
@@ -3274,6 +3415,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     result: _result(),
     streakDays: widget.streakDays,
     trainedAreas: widget.trainedAreas,
+    entryDockTop: _v1CompletionDockTop,
     drillOf: widget.drillOf,
     feeling: _feeling,
     onFeelingChanged: (value) {

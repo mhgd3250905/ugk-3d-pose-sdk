@@ -122,7 +122,7 @@ void main() {
         for (final (file, state, elapsed) in [
           ('work', ShowcaseState.training, const Duration(seconds: 1)),
           ('rest', ShowcaseState.rest, const Duration(seconds: 1)),
-          ('done', ShowcaseState.result, const Duration(seconds: 4)),
+          ('done', ShowcaseState.result, const Duration(seconds: 6)),
         ]) {
           final results = <SessionResult>[];
           await withClock(Clock(tester.binding.clock.now), () async {

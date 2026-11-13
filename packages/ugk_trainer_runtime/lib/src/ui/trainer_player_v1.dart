@@ -13,6 +13,7 @@ class _PlayerV1Scaffold extends StatefulWidget {
     required this.mediaStatus,
     required this.cue,
     required this.dock,
+    required this.animateEntry,
   });
 
   final TrainerTheme theme;
@@ -22,12 +23,64 @@ class _PlayerV1Scaffold extends StatefulWidget {
   final Widget? mediaStatus;
   final Widget cue;
   final Widget dock;
+  final bool animateEntry;
 
   @override
   State<_PlayerV1Scaffold> createState() => _PlayerV1ScaffoldState();
 }
 
-class _PlayerV1ScaffoldState extends State<_PlayerV1Scaffold> {
+class _PlayerV1ScaffoldState extends State<_PlayerV1Scaffold>
+    with SingleTickerProviderStateMixin {
+  late final _entry = AnimationController(vsync: this);
+  bool _entryStarted = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_entryStarted) return;
+    _entryStarted = true;
+    _entry.duration = !widget.animateEntry
+        ? Duration.zero
+        : TrainerMotion.reduced(context)
+        ? PlayerMotion.reducedFade
+        : PlayerMotion.dockDelay + PlayerMotion.slow;
+    _entry.forward();
+  }
+
+  @override
+  void dispose() {
+    _entry.dispose();
+    super.dispose();
+  }
+
+  Widget _appear(Widget child, Duration delay, Duration duration, double dy) {
+    final reduced = TrainerMotion.reduced(context);
+    return AnimatedBuilder(
+      animation: _entry,
+      child: child,
+      builder: (_, child) {
+        final elapsed = _entry.value * (_entry.duration?.inMicroseconds ?? 0);
+        final amount = !widget.animateEntry
+            ? 1.0
+            : reduced
+            ? _entry.value
+            : PlayerMotion.enter.transform(
+                ((elapsed - delay.inMicroseconds) / duration.inMicroseconds)
+                    .clamp(0.0, 1.0),
+              );
+        return Opacity(
+          opacity: amount,
+          child: reduced
+              ? child
+              : Transform.translate(
+                  offset: Offset(0, (1 - amount) * dy),
+                  child: child,
+                ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final safe = widget.safe;
@@ -74,7 +127,17 @@ class _PlayerV1ScaffoldState extends State<_PlayerV1Scaffold> {
                     child: widget.media,
                   ),
                 ),
-                Positioned(top: top, left: 0, right: 0, child: widget.header),
+                Positioned(
+                  top: top,
+                  left: 0,
+                  right: 0,
+                  child: _appear(
+                    widget.header,
+                    Duration.zero,
+                    PlayerMotion.medium,
+                    -PlayerMotion.small,
+                  ),
+                ),
                 if (widget.mediaStatus case final status?)
                   Positioned(
                     top:
@@ -88,10 +151,15 @@ class _PlayerV1ScaffoldState extends State<_PlayerV1Scaffold> {
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [widget.cue, widget.dock],
+                  child: _appear(
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [widget.cue, widget.dock],
+                    ),
+                    PlayerMotion.dockDelay,
+                    PlayerMotion.slow,
+                    PlayerMotion.large,
                   ),
                 ),
               ],
@@ -129,7 +197,7 @@ class _PlayerV1TrackState extends State<_PlayerV1Track>
     with SingleTickerProviderStateMixin {
   late final _fill = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 300),
+    duration: PlayerMotion.trackFill,
     value: 1,
   );
   int? _filling;
@@ -177,7 +245,7 @@ class _PlayerV1TrackState extends State<_PlayerV1Track>
       listenable: Listenable.merge([widget.progress, _fill]),
       builder: (context, _) {
         final current = widget.rest ? 1.0 : widget.progress.value;
-        final amount = Curves.easeInOutCubic.transform(_fill.value);
+        final amount = PlayerMotion.morph.transform(_fill.value);
         double valueAt(int index) {
           final target = index < widget.index
               ? 1.0
@@ -231,6 +299,9 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
     final rest = _isPlayerV1Rest(phase);
     final upcoming = rest || phase.kind == PhaseKind.prep;
     final generation = _engine.generation;
+    final manual = _v1NavigationGeneration == generation
+        ? _v1NavigationDirection
+        : 0;
     final completedPhase = rest ? _lastWorkVisit() : null;
     final displayedPhase = completedPhase ?? phase;
     // The engine points at the next item during a transition rest.
@@ -286,7 +357,8 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
       key: const ValueKey('player-v1-scaffold'),
       theme: _th,
       safe: safe,
-      media: _stageV1(phase, drill, rest),
+      media: _stageV1(phase, drill, rest, manual),
+      animateEntry: widget.chromeAnimation == null,
       mediaStatus: drill == null
           ? null
           : _chromeLayer(
@@ -316,32 +388,43 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
                         child: TweenAnimationBuilder<Color?>(
                           tween: ColorTween(end: rest ? _th.accent : _th.sub),
                           duration: TrainerMotion.reduced(context)
-                              ? const Duration(milliseconds: 150)
-                              : const Duration(milliseconds: 240),
-                          curve: Curves.easeInOutCubic,
-                          builder: (_, color, _) => TrainerPhaseSwitcher(
-                            identity: (title, subtitle),
-                            alignment: AlignmentDirectional.centerStart,
-                            reserveOutgoingSpace: false,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  title ?? '',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: _v1Text(16, bold: true),
+                              ? PlayerMotion.reducedFade
+                              : PlayerMotion.medium,
+                          curve: PlayerMotion.morph,
+                          builder: (_, color, _) =>
+                              TrainerPhaseSwitcher.sequential(
+                                key: const ValueKey('player-v1-phase-header'),
+                                identity: (title, subtitle),
+                                alignment: AlignmentDirectional.centerStart,
+                                reserveOutgoingSpace: false,
+                                axis: manual == 0
+                                    ? Axis.vertical
+                                    : Axis.horizontal,
+                                enterOffset: manual == 0
+                                    ? 4
+                                    : manual * PlayerMotion.manualSlide,
+                                exitOffset: manual == 0
+                                    ? 0
+                                    : manual * PlayerMotion.manualSlide,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      title ?? '',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: _v1Text(16, bold: true),
+                                    ),
+                                    Text(
+                                      subtitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: _v1Text(12, color: color),
+                                    ),
+                                  ],
                                 ),
-                                Text(
-                                  subtitle,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: _v1Text(12, color: color),
-                                ),
-                              ],
-                            ),
-                          ),
+                              ),
                         ),
                       ),
                       const SizedBox(width: TrainerSpace.x2),
@@ -386,81 +469,51 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: TrainerSpace.x5),
             child: _chromeLayer(
-              SizedBox(
-                height: 36,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    TrainerPhaseSwitcher(
-                      identity: upcoming && next != null,
-                      enterDuration: const Duration(milliseconds: 220),
-                      exitDuration: const Duration(milliseconds: 160),
-                      enterOffset: -6,
-                      exitOffset: 0,
-                      enterScale: .96,
-                      exitScale: .96,
-                      child: upcoming && next != null
-                          ? Padding(
-                              padding: EdgeInsets.only(
-                                right: showDiscomfort ? 112 : 0,
-                              ),
-                              child: _floatingCardV1(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: TrainerSpace.x3,
-                                  vertical: TrainerSpace.x1,
-                                ),
-                                child: Text(
-                                  '${_s.upcomingLabel} · ${next.name}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: _v1Text(
-                                    12,
-                                    color: _th.accent,
-                                    bold: true,
-                                  ),
-                                ),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                    Row(
-                      key: const ValueKey('top-hud'),
-                      children: [
-                        Expanded(
-                          child: TrainerPhaseSwitcher(
-                            identity: !upcoming && next != null,
-                            alignment: Alignment.centerLeft,
-                            enterDuration: const Duration(milliseconds: 220),
-                            exitDuration: const Duration(milliseconds: 160),
-                            enterDelay: const Duration(milliseconds: 160),
-                            enterOffset: -6,
-                            exitOffset: 6,
+              TrainerPhaseSwitcher.sequential(
+                key: const ValueKey('player-v1-phase-capsules'),
+                identity: upcoming,
+                alignment: AlignmentDirectional.centerStart,
+                child: SizedBox(
+                  height: 36,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      if (upcoming && next != null)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            right: showDiscomfort ? 112 : 0,
+                          ),
+                          child: _floatingCardV1(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: TrainerSpace.x3,
+                              vertical: TrainerSpace.x1,
+                            ),
+                            child: Text(
+                              '${_s.upcomingLabel} · ${next.name}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: _v1Text(12, color: _th.accent, bold: true),
+                            ),
+                          ),
+                        ),
+                      Row(
+                        key: const ValueKey('top-hud'),
+                        children: [
+                          Expanded(
                             child: !upcoming && next != null
                                 ? _nextCapsuleV1(next)
                                 : const SizedBox.shrink(),
                           ),
-                        ),
-                        const SizedBox(width: TrainerSpace.x2),
-                        TrainerPhaseSwitcher(
-                          identity: showDiscomfort,
-                          alignment: Alignment.centerRight,
-                          enterDuration: const Duration(milliseconds: 220),
-                          exitDuration: const Duration(milliseconds: 160),
-                          enterDelay: const Duration(milliseconds: 220),
-                          enterOffset: -6,
-                          exitOffset: 6,
-                          child: showDiscomfort
-                              ? ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 144,
-                                  ),
-                                  child: _discomfortV1(),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                      ],
-                    ),
-                  ],
+                          const SizedBox(width: TrainerSpace.x2),
+                          if (showDiscomfort)
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 144),
+                              child: _discomfortV1(),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
               _TrainerChromeLayer.hud,
@@ -470,15 +523,15 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
       ),
       cue: TrainerPhaseSwitcher(
         identity: cue != null,
-        enterDuration: const Duration(milliseconds: 280),
-        enterDelay: Duration(
-          milliseconds: widget.restFeedbackBuilder == null ? 120 : 200,
-        ),
-        exitDuration: const Duration(milliseconds: 160),
-        enterCurve: Curves.easeOutCubic,
-        exitCurve: Curves.easeIn,
-        enterOffset: 16,
-        exitOffset: -16,
+        enterDuration: PlayerMotion.actionIn,
+        enterDelay: widget.restFeedbackBuilder == null
+            ? PlayerMotion.ringFade
+            : PlayerMotion.phaseCueDelay,
+        exitDuration: PlayerMotion.fast,
+        enterCurve: PlayerMotion.enter,
+        exitCurve: PlayerMotion.exit,
+        enterOffset: PlayerMotion.large,
+        exitOffset: -PlayerMotion.large,
         child: cue == null
             ? const SizedBox.shrink()
             : Padding(
@@ -486,68 +539,76 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
                 child: cue,
               ),
       ),
-      dock: TrainerPlayerV1Dock(
-        key: const ValueKey('player-v1-dock'),
-        theme: _th,
-        minHeight: rest ? 300 : _v1WorkDockHeight,
-        bottomInset: safe.bottom,
-        restFeedback: _restFeedback(phase),
-        optionalControls: _hasOptionalControls
-            ? _chromeLayer(
-                _optionalControls(phase),
-                _TrainerChromeLayer.transportControls,
-              )
-            : null,
-        countdown: _chromeLayer(
-          TrainerPhaseSwitcher(
-            identity: generation,
-            enterOffset: 12,
-            exitOffset: 12,
-            child: _digits(phase, _t, template: true),
+      dock: KeyedSubtree(
+        key: _v1Dock,
+        child: TrainerPlayerV1Dock(
+          key: const ValueKey('player-v1-dock'),
+          theme: _th,
+          minHeight: rest ? 300 : _v1WorkDockHeight,
+          bottomInset: safe.bottom,
+          restFeedback: _restFeedback(phase),
+          optionalControls: _hasOptionalControls
+              ? _chromeLayer(
+                  _optionalControls(phase),
+                  _TrainerChromeLayer.transportControls,
+                )
+              : null,
+          countdown: _chromeLayer(
+            _digits(phase, _t, template: true),
+            _TrainerChromeLayer.transportDigits,
           ),
-          _TrainerChromeLayer.transportDigits,
-        ),
-        previous: _chromeLayer(
-          _circle(
-            key: const ValueKey('prev'),
-            icon: CupertinoIcons.backward_end_fill,
-            tooltip: _s.previous,
-            onPressed: _previous,
-            size: 48,
-            theme: controls,
+          previous: _chromeLayer(
+            _circle(
+              key: const ValueKey('prev'),
+              icon: CupertinoIcons.backward_end_fill,
+              tooltip: _s.previous,
+              onPressed: _previous,
+              size: 48,
+              theme: controls,
+            ),
+            _TrainerChromeLayer.previous,
           ),
-          _TrainerChromeLayer.previous,
-        ),
-        primary: _chromeLayer(
-          UgkPlayPauseButton(
-            key: const ValueKey('pause'),
-            isPlaying: !_paused,
-            progress: _progress,
-            onTap: _togglePause,
-            theme: controls,
-            strings: _s,
-            trackColor: _th.track,
-            progressColor: _th.accent,
-            size: 64,
-            ringSize: 80,
-            iconSize: 28,
-            ringStrokeWidth: 4,
-            ringPhase: generation,
-            buttonGlowColor: _th.accent.withValues(alpha: .30),
-            remaining: !phase.selfPaced && phase.seconds > 0,
+          primary: _chromeLayer(
+            _V1FinishRing(
+              active:
+                  phase.isWork &&
+                  !phase.selfPaced &&
+                  !_paused &&
+                  _engine.index + 1 < _engine.phases.length &&
+                  _engine.phases[_engine.index + 1].kind == PhaseKind.done &&
+                  _engine.remainingIn(_t) <= 1,
+              accent: _th.accent,
+              child: UgkPlayPauseButton(
+                key: const ValueKey('pause'),
+                isPlaying: !_paused,
+                progress: _progress,
+                onTap: _togglePause,
+                theme: controls,
+                strings: _s,
+                trackColor: _th.track,
+                progressColor: _th.accent,
+                size: 64,
+                ringSize: 80,
+                iconSize: 28,
+                ringStrokeWidth: 4,
+                ringPhase: generation,
+                buttonGlowColor: _th.accent.withValues(alpha: .30),
+                remaining: !phase.selfPaced && phase.seconds > 0,
+              ),
+            ),
+            _TrainerChromeLayer.pause,
           ),
-          _TrainerChromeLayer.pause,
-        ),
-        next: _chromeLayer(
-          _circle(
-            key: const ValueKey('skip'),
-            icon: CupertinoIcons.forward_end_fill,
-            tooltip: _s.skip,
-            onPressed: _skip,
-            size: 48,
-            theme: controls,
+          next: _chromeLayer(
+            _circle(
+              key: const ValueKey('skip'),
+              icon: CupertinoIcons.forward_end_fill,
+              tooltip: _s.skip,
+              onPressed: _skip,
+              size: 48,
+              theme: controls,
+            ),
+            _TrainerChromeLayer.next,
           ),
-          _TrainerChromeLayer.next,
         ),
       ),
     );
@@ -592,15 +653,24 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
             ClipOval(
               child: SizedBox.square(
                 dimension: 28,
-                child: ColoredBox(
-                  color: _th.ctrl,
-                  child: poster == null
-                      ? placeholder
-                      : Image.asset(
-                          poster,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => placeholder,
-                        ),
+                child: TrainerPhaseSwitcher(
+                  identity: poster ?? drill.id,
+                  enterDuration: PlayerMotion.medium,
+                  exitDuration: PlayerMotion.fast,
+                  enterDelay: PlayerMotion.fast,
+                  enterOffset: 0,
+                  exitOffset: 0,
+                  exitScale: .9,
+                  child: ColoredBox(
+                    color: _th.ctrl,
+                    child: poster == null
+                        ? placeholder
+                        : Image.asset(
+                            poster,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => placeholder,
+                          ),
+                  ),
                 ),
               ),
             ),
@@ -624,48 +694,94 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
     );
   }
 
-  Widget _discomfortV1() => Semantics(
-    button: true,
+  Widget _discomfortV1() => _V1DiscomfortButton(
     label: _s.discomfort,
     onTap: _discomfort,
+    theme: _th,
+    textStyle: _v1Text(13, color: _th.caution, bold: true),
+  );
+}
+
+class _V1DiscomfortButton extends StatefulWidget {
+  const _V1DiscomfortButton({
+    required this.label,
+    required this.onTap,
+    required this.theme,
+    required this.textStyle,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final TrainerTheme theme;
+  final TextStyle textStyle;
+
+  @override
+  State<_V1DiscomfortButton> createState() => _V1DiscomfortButtonState();
+}
+
+class _V1DiscomfortButtonState extends State<_V1DiscomfortButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: widget.label,
+    onTap: widget.onTap,
     excludeSemantics: true,
     child: SizedBox(
       height: 36,
-      child: Material(
-        color: _th.cautionBg,
-        borderRadius: BorderRadius.circular(18),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          key: const ValueKey('discomfort'),
-          onTap: _discomfort,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: TrainerSpace.x3),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  CupertinoIcons.waveform_path_ecg,
-                  size: 16,
-                  color: _th.caution,
-                ),
-                const SizedBox(width: TrainerSpace.x1),
-                Flexible(
-                  child: Text(
-                    _s.discomfort,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: _v1Text(13, color: _th.caution, bold: true),
+      child: AnimatedScale(
+        scale: _pressed && !TrainerMotion.reduced(context) ? .96 : 1,
+        duration: PlayerMotion.fast,
+        curve: PlayerMotion.enter,
+        child: Material(
+          color: widget.theme.cautionBg,
+          borderRadius: BorderRadius.circular(18),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: const ValueKey('discomfort'),
+            onTap: widget.onTap,
+            onHighlightChanged: (value) => setState(() => _pressed = value),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: TrainerSpace.x3),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    CupertinoIcons.waveform_path_ecg,
+                    size: 16,
+                    color: widget.theme.caution,
                   ),
-                ),
-              ],
+                  const SizedBox(width: TrainerSpace.x1),
+                  Flexible(
+                    child: Text(
+                      widget.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: widget.textStyle,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     ),
   );
+}
 
-  Widget _stageV1(SessionPhase phase, TrainerDrill? drill, bool rest) {
+extension _TrainerPlayerV1Stage on _TrainerPlayerState {
+  Widget _stageV1(
+    SessionPhase phase,
+    TrainerDrill? drill,
+    bool rest,
+    int manual,
+  ) {
+    final seconds = _engine.secondsLeft(_t);
+    final lastKind = _engine.visits.lastOrNull?.phase.kind;
+    final starting =
+        phase.isWork && lastKind == PhaseKind.prep && _engine.elapsedIn(_t) < 1;
     Widget? media;
     if (drill != null) {
       media = DrillMediaHandoff(
@@ -673,10 +789,15 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
           key: ValueKey('media-${drill.id}'),
           child: RepaintBoundary(
             key: _mediaHost,
-            child: _media(
-              phase,
-              drill,
-              _th.copyWith(radius: 0, mediaStage: Colors.transparent),
+            child: _V1SideTurn(
+              switching: phase.kind == PhaseKind.switchSide,
+              mirror: phase.side == Side.left,
+              builder: (mirror) => _media(
+                phase,
+                drill,
+                _th.copyWith(radius: 0, mediaStage: Colors.transparent),
+                mirrored: mirror,
+              ),
             ),
           ),
         ),
@@ -709,15 +830,22 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
         );
       }
       media = AnimatedOpacity(
-        opacity: rest ? .55 : 1,
-        duration: Duration(
-          milliseconds: TrainerMotion.reduced(context)
-              ? 150
-              : rest
-              ? 300
-              : 400,
-        ),
-        curve: Curves.easeOut,
+        opacity: _v1FinalPhase != null
+            ? 0
+            : rest || phase.kind == PhaseKind.prep
+            ? .55
+            : 1,
+        duration: TrainerMotion.reduced(context)
+            ? PlayerMotion.reducedFade
+            : _v1FinalPhase != null
+            ? PlayerMotion.actionOut
+            : rest
+            ? PlayerMotion.trackFill
+            : phase.kind == PhaseKind.work &&
+                  _engine.visits.lastOrNull?.phase.kind == PhaseKind.prep
+            ? PlayerMotion.medium
+            : PlayerMotion.checkDraw,
+        curve: PlayerMotion.enter,
         child: media,
       );
     }
@@ -765,11 +893,440 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
                     ),
                   ),
                 ),
-                ?media,
+                if (media != null)
+                  _V1MediaMotion(
+                    action: drill!.id,
+                    manual: manual,
+                    initialCoverTag: widget.coverHeroTag,
+                    initialCoverAsset: widget.coverHeroAsset,
+                    poster: drill.media?.posterFor(light: !_th.isDark),
+                    mirror: phase.side == Side.left,
+                    child: media,
+                  ),
+                if (starting || phase.kind == PhaseKind.prep && seconds <= 3)
+                  _V1PrepMark(
+                    key: const ValueKey('player-v1-prep-mark'),
+                    label: starting ? _s.playerStart : '$seconds',
+                    starting: starting,
+                    theme: _th,
+                  ),
+                if (phase.kind == PhaseKind.switchSide)
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: _V1SideLabel(
+                      label: _s.switchTo(phase.side ?? Side.left),
+                      theme: _th,
+                    ),
+                  ),
               ],
             ),
           ),
         );
+      },
+    );
+  }
+}
+
+class _V1FinishRing extends StatefulWidget {
+  const _V1FinishRing({
+    required this.active,
+    required this.accent,
+    required this.child,
+  });
+
+  final bool active;
+  final Color accent;
+  final Widget child;
+
+  @override
+  State<_V1FinishRing> createState() => _V1FinishRingState();
+}
+
+class _V1FinishRingState extends State<_V1FinishRing>
+    with SingleTickerProviderStateMixin {
+  late final _pulse = AnimationController(vsync: this);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.active && _pulse.isDismissed) _start();
+  }
+
+  @override
+  void didUpdateWidget(_V1FinishRing oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active && !oldWidget.active) _start();
+    if (!widget.active && oldWidget.active) _pulse.value = 0;
+  }
+
+  void _start() {
+    _pulse.duration = TrainerMotion.reduced(context)
+        ? PlayerMotion.reducedFade
+        : PlayerMotion.trackFill;
+    _pulse.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    alignment: Alignment.center,
+    clipBehavior: Clip.none,
+    children: [
+      Positioned.fill(
+        child: IgnorePointer(
+          child: AnimatedBuilder(
+            animation: _pulse,
+            builder: (_, _) => DecoratedBox(
+              decoration: ShapeDecoration(
+                shape: const CircleBorder(),
+                shadows: [
+                  BoxShadow(
+                    color: widget.accent.withValues(
+                      alpha:
+                          .6 * math.sin(math.pi * _pulse.value).clamp(0.0, 1.0),
+                    ),
+                    blurRadius: 12,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      widget.child,
+    ],
+  );
+}
+
+class _V1SideTurn extends StatefulWidget {
+  const _V1SideTurn({
+    required this.switching,
+    required this.mirror,
+    required this.builder,
+  });
+
+  final bool switching;
+  final bool mirror;
+  final Widget Function(bool) builder;
+
+  @override
+  State<_V1SideTurn> createState() => _V1SideTurnState();
+}
+
+class _V1SideTurnState extends State<_V1SideTurn>
+    with SingleTickerProviderStateMixin {
+  late final _turn = AnimationController(
+    vsync: this,
+    duration: PlayerMotion.sideHalf * 2,
+    value: 1,
+  );
+  bool _previousMirror = false;
+  bool _reduced = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduced = TrainerMotion.reduced(context);
+    if (_reduced) _turn.value = 1;
+  }
+
+  @override
+  void didUpdateWidget(_V1SideTurn oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.mirror != widget.mirror && widget.switching && !_reduced) {
+      _previousMirror = _turn.value < .5 ? _previousMirror : oldWidget.mirror;
+      _turn.forward(from: 0);
+    } else if (!widget.switching && _turn.isAnimating) {
+      _turn.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _turn.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _turn,
+    builder: (_, _) {
+      final t = _turn.value;
+      final before = t < .5;
+      final child = widget.builder(before ? _previousMirror : widget.mirror);
+      if (_reduced || t == 1) {
+        return Opacity(
+          opacity: 1,
+          child: Transform(transform: Matrix4.identity(), child: child),
+        );
+      }
+      final amount = before
+          ? PlayerMotion.exit.transform(t * 2)
+          : 1 - PlayerMotion.enter.transform((t - .5) * 2);
+      return Opacity(
+        opacity: 1 - amount * .6,
+        child: Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..setEntry(3, 2, .001)
+            ..rotateY((before ? 1 : -1) * amount * math.pi / 2),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
+class _V1MediaMotion extends StatefulWidget {
+  const _V1MediaMotion({
+    required this.action,
+    required this.manual,
+    required this.child,
+    required this.initialCoverTag,
+    required this.initialCoverAsset,
+    required this.poster,
+    required this.mirror,
+  });
+
+  final String action;
+  final int manual;
+  final Widget child;
+  final String? initialCoverTag;
+  final String? initialCoverAsset;
+  final String? poster;
+  final bool mirror;
+
+  @override
+  State<_V1MediaMotion> createState() => _V1MediaMotionState();
+}
+
+class _V1MediaMotionState extends State<_V1MediaMotion>
+    with TickerProviderStateMixin {
+  late final _entrance = AnimationController(vsync: this);
+  late final _action = AnimationController(vsync: this, value: 1);
+  bool _started = false;
+  bool _reduced = false;
+  String? _initialAction;
+  String? _oldPoster;
+  bool _oldMirror = false;
+  bool get _cover =>
+      _initialAction == widget.action &&
+      widget.initialCoverTag != null &&
+      widget.initialCoverAsset != null &&
+      !_reduced;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduced = TrainerMotion.reduced(context);
+    if (_started) return;
+    _started = true;
+    _initialAction = widget.action;
+    _entrance.duration = _reduced
+        ? PlayerMotion.reducedFade
+        : _cover
+        ? PlayerMotion.heroFlight + PlayerMotion.medium
+        : PlayerMotion.medium;
+    _entrance.forward();
+  }
+
+  @override
+  void didUpdateWidget(_V1MediaMotion oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.action == widget.action) return;
+    _oldPoster = oldWidget.poster;
+    _oldMirror = oldWidget.mirror;
+    _action.duration = _reduced
+        ? PlayerMotion.reducedFade
+        : widget.manual != 0
+        ? PlayerMotion.medium
+        : PlayerMotion.dockDelay + PlayerMotion.actionIn;
+    _action.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _action.dispose();
+    _entrance.dispose();
+    super.dispose();
+  }
+
+  Widget _poster(String asset, bool mirrored) =>
+      TrainerPoster(asset: asset, mirrored: mirrored);
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: Listenable.merge([_entrance, _action]),
+    child: widget.child,
+    builder: (_, child) {
+      final motion = _action.value;
+      final elapsed = motion * (_action.duration?.inMicroseconds ?? 0);
+      final changed = motion < 1;
+      final old = changed
+          ? _reduced || widget.manual != 0
+                ? motion
+                : (elapsed / PlayerMotion.actionOut.inMicroseconds).clamp(
+                    0.0,
+                    1.0,
+                  )
+          : 1.0;
+      final incoming = !changed
+          ? 1.0
+          : _reduced || widget.manual != 0
+          ? motion
+          : ((elapsed - PlayerMotion.dockDelay.inMicroseconds) /
+                    PlayerMotion.actionIn.inMicroseconds)
+                .clamp(0.0, 1.0);
+      final entryElapsed =
+          _entrance.value * (_entrance.duration?.inMicroseconds ?? 0);
+      final entry = _cover
+          ? ((entryElapsed - PlayerMotion.heroFlight.inMicroseconds) /
+                    PlayerMotion.medium.inMicroseconds)
+                .clamp(0.0, 1.0)
+          : _entrance.value;
+      final out = _reduced ? old : PlayerMotion.exit.transform(old);
+      final enter = _reduced
+          ? incoming
+          : PlayerMotion.enter.transform(incoming);
+      final dx = widget.manual == 0
+          ? PlayerMotion.large
+          : widget.manual * PlayerMotion.manualSlide;
+      Widget frame(double opacity, double offset, Widget child) => Opacity(
+        opacity: opacity,
+        child: _reduced
+            ? child
+            : Transform.translate(offset: Offset(offset, 0), child: child),
+      );
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          if (_oldPoster case final String asset when changed)
+            IgnorePointer(
+              child: frame(1 - out, -dx * out, _poster(asset, _oldMirror)),
+            ),
+          frame(enter * entry, dx * (1 - enter), child!),
+          if (_cover && entry < 1)
+            IgnorePointer(
+              child: Opacity(
+                opacity: 1 - entry,
+                child: Hero(
+                  tag: widget.initialCoverTag!,
+                  child: _poster(widget.initialCoverAsset!, false),
+                ),
+              ),
+            ),
+        ],
+      );
+    },
+  );
+}
+
+class _V1PrepMark extends StatelessWidget {
+  const _V1PrepMark({
+    super.key,
+    required this.label,
+    required this.starting,
+    required this.theme,
+  });
+
+  final String label;
+  final bool starting;
+  final TrainerTheme theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = TrainerMotion.reduced(context);
+    final hold = starting ? PlayerMotion.medium : PlayerMotion.prepHold;
+    return IgnorePointer(
+      child: Center(
+        child: TweenAnimationBuilder<double>(
+          key: ValueKey(label),
+          tween: Tween(begin: 0, end: 1),
+          duration: reduced
+              ? PlayerMotion.reducedFade
+              : hold + PlayerMotion.fast,
+          child: Text(
+            label,
+            style: theme.numeral(64).copyWith(fontWeight: FontWeight.w700),
+          ),
+          builder: (_, t, child) {
+            final elapsed = t * (hold + PlayerMotion.fast).inMilliseconds;
+            final inAmount = reduced
+                ? t
+                : PlayerMotion.enter.transform(
+                    (elapsed / PlayerMotion.prepEnter.inMilliseconds).clamp(
+                      0.0,
+                      1.0,
+                    ),
+                  );
+            final out = reduced
+                ? 0.0
+                : ((elapsed - hold.inMilliseconds) /
+                          PlayerMotion.fast.inMilliseconds)
+                      .clamp(0.0, 1.0);
+            return Opacity(
+              opacity: inAmount * (1 - out),
+              child: reduced
+                  ? child
+                  : Transform.scale(scale: 1.3 - .3 * inAmount, child: child),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _V1SideLabel extends StatelessWidget {
+  const _V1SideLabel({required this.label, required this.theme});
+
+  final String label;
+  final TrainerTheme theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = TrainerMotion.reduced(context);
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: PlayerMotion.fast * 2 + PlayerMotion.sideHold,
+      child: Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: theme.accent,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: theme.label.copyWith(
+                fontSize: 13,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+      builder: (_, t, child) {
+        final fade = reduced ? PlayerMotion.reducedFade : PlayerMotion.fast;
+        final elapsed =
+            t * (PlayerMotion.fast * 2 + PlayerMotion.sideHold).inMilliseconds;
+        final enter = (elapsed / fade.inMilliseconds).clamp(0.0, 1.0);
+        final exit =
+            ((elapsed -
+                        PlayerMotion.fast.inMilliseconds -
+                        PlayerMotion.sideHold.inMilliseconds) /
+                    fade.inMilliseconds)
+                .clamp(0.0, 1.0);
+        return Opacity(opacity: enter * (1 - exit), child: child);
       },
     );
   }

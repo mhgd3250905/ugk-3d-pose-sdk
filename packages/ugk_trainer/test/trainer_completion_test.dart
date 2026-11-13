@@ -54,36 +54,44 @@ void main() {
     int? streakDays,
     List<String> trainedAreas = const [],
     String? thumbnailAsset,
-  }) => tester.pumpWidget(
-    MaterialApp(
-      home: MediaQuery(
-        data: MediaQueryData(
-          disableAnimations: reduced,
-          textScaler: TextScaler.linear(textScale),
-        ),
-        child: Scaffold(
-          body: TrainerCompletion(
-            theme: theme,
-            strings: TrainerStrings.en(),
-            result: session ?? result(),
-            drillOf: (id) => TrainerDrill(
-              id: id,
-              name: 'Move $id',
-              thumbnailAsset: thumbnailAsset,
+    double? entryDockTop,
+    bool settleReduced = true,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: MediaQueryData(
+            disableAnimations: reduced,
+            textScaler: TextScaler.linear(textScale),
+          ),
+          child: Scaffold(
+            body: TrainerCompletion(
+              theme: theme,
+              strings: TrainerStrings.en(),
+              result: session ?? result(),
+              drillOf: (id) => TrainerDrill(
+                id: id,
+                name: 'Move $id',
+                thumbnailAsset: thumbnailAsset,
+              ),
+              feeling: feeling,
+              onFeelingChanged: onFeeling ?? (_) {},
+              onFinish: onFinish,
+              onReplay: onReplay,
+              error: error,
+              feedback: feedback,
+              streakDays: streakDays,
+              trainedAreas: trainedAreas,
+              entryDockTop: entryDockTop,
             ),
-            feeling: feeling,
-            onFeelingChanged: onFeeling ?? (_) {},
-            onFinish: onFinish,
-            onReplay: onReplay,
-            error: error,
-            feedback: feedback,
-            streakDays: streakDays,
-            trainedAreas: trainedAreas,
           ),
         ),
       ),
-    ),
-  );
+    );
+    if (settleReduced && reduced && theme.usePlayerV1) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+  }
 
   String value(WidgetTester tester, String metric) => tester
       .widget<Text>(find.byKey(ValueKey('completion-$metric-value')))
@@ -483,6 +491,82 @@ void main() {
     );
     expect(find.byKey(const ValueKey('finish')).hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('player V1 expands from the dock before counting and finishing', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await mount(
+      tester,
+      theme: TrainerTheme.playerV1,
+      session: result(single: true),
+      entryDockTop: 620,
+      streakDays: 12,
+      onFinish: () {},
+    );
+    final heroEntry = find.byKey(const ValueKey('completion-hero-entry'));
+    final finish = find.byKey(const ValueKey('finish'));
+    expect(tester.getTopLeft(heroEntry).dy, 620);
+    expect(tester.getSize(heroEntry).height, 0);
+    expect(finish.hitTestable(), findsNothing);
+    await tester.pump(const Duration(milliseconds: 240));
+    final halfway = Curves.easeInOutCubic.transform(.5);
+    expect(tester.getTopLeft(heroEntry).dy, closeTo(620 * (1 - halfway), .01));
+    expect(tester.getSize(heroEntry).height, closeTo(300 * halfway, .01));
+    await tester.pump(const Duration(milliseconds: 240));
+    expect(heroEntry, findsNothing);
+    expect(value(tester, 'duration'), '0:00');
+    expect(value(tester, 'exercises'), '0/1');
+    expect(value(tester, 'streak'), '0');
+
+    await tester.pump(const Duration(milliseconds: 560));
+    expect(value(tester, 'duration'), isNot(anyOf('0:00', '2:05')));
+    expect(int.parse(value(tester, 'streak')), inExclusiveRange(0, 12));
+    expect(finish.hitTestable(), findsNothing);
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(value(tester, 'duration'), '2:05');
+    expect(value(tester, 'exercises'), '1/1');
+    expect(value(tester, 'streak'), '12');
+    expect(finish.hitTestable(), findsOneWidget);
+    BoxDecoration finishDecoration() =>
+        tester
+                .widget<DecoratedBox>(
+                  find.byKey(const ValueKey('completion-finish-glow')),
+                )
+                .decoration
+            as BoxDecoration;
+    expect(finishDecoration().boxShadow!.single.color.a, closeTo(.35, .001));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(finishDecoration().boxShadow, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('reduced player V1 completion only fades for 150 ms', (
+    tester,
+  ) async {
+    await mount(
+      tester,
+      theme: TrainerTheme.playerV1Dark,
+      reduced: true,
+      settleReduced: false,
+      streakDays: 4,
+      onFinish: () {},
+    );
+    final finish = find.byKey(const ValueKey('finish'));
+    final fade = find.ancestor(of: finish, matching: find.byType(Opacity));
+    expect(tester.widget<Opacity>(fade).opacity, 0);
+    expect(find.byKey(const ValueKey('completion-hero-entry')), findsNothing);
+    expect(find.byKey(const ValueKey('completion-check-draw')), findsNothing);
+    expect(value(tester, 'duration'), '2:05');
+    expect(value(tester, 'streak'), '4');
+    await tester.pump(const Duration(milliseconds: 75));
+    expect(tester.widget<Opacity>(fade).opacity, closeTo(.5, .01));
+    await tester.pump(const Duration(milliseconds: 75));
+    expect(tester.widget<Opacity>(fade).opacity, 1);
+    expect(finish.hitTestable(), findsOneWidget);
   });
 
   for (final theme in [TrainerTheme.playerV1, TrainerTheme.playerV1Dark]) {

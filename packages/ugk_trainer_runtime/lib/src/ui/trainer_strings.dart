@@ -87,6 +87,9 @@ class TrainerStrings {
     this.completionTitle,
     this.streak = 'Streak (days)',
     this.trainedAreasLabel = 'Areas trained',
+    this.playerStart = 'Start',
+    this.closeSheetTitle = 'End this workout?',
+    this.closeSheetProgress = _enCloseSheetProgress,
   });
 
   /// Top label during prep ("准备 · 第一个动作").
@@ -178,11 +181,18 @@ class TrainerStrings {
   final String restLabel, upcomingLabel;
   final String? completionTitle;
   final String streak, trainedAreasLabel;
+  final String playerStart;
+  final String closeSheetTitle;
+  final String Function(int completed, int total) closeSheetProgress;
   static String _enMediaDownloading(int? percentage) => percentage == null
       ? 'Downloading demo…'
       : 'Downloading demo $percentage%';
   static String _enDuration(int seconds) => '${seconds ~/ 60}m${seconds % 60}s';
   static String _zhDuration(int seconds) => '${seconds ~/ 60}分${seconds % 60}秒';
+  static String _enCloseSheetProgress(int completed, int total) =>
+      '$completed/$total exercises completed';
+  static String _zhCloseSheetProgress(int completed, int total) =>
+      '已完成 $completed/$total 个动作';
 
   static String _zhDose({
     required bool reps,
@@ -197,6 +207,9 @@ class TrainerStrings {
   }) => '$amount ${reps ? 'reps' : 's'}${perSide ? ' each side' : ''}';
 
   factory TrainerStrings.zh() => TrainerStrings(
+    playerStart: '开始',
+    closeSheetTitle: '要结束这次训练吗？',
+    closeSheetProgress: _zhCloseSheetProgress,
     restLabel: '休息',
     upcomingLabel: '即将开始',
     completionTitle: '练完了，干得漂亮',

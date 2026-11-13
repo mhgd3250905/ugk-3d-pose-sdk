@@ -6,6 +6,8 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'trainer_player_motion.dart';
+import 'trainer_player_v1_motion.dart';
 import 'trainer_theme.dart';
 
 /// The player's countdown (docs/design-audit-2026-10-19.md §1 H3, M10–M12;
@@ -381,7 +383,7 @@ class TrainerCountdownDigits extends StatelessWidget {
         _Breath(
           active: restPulse && !still,
           beat: value,
-          duration: const Duration(milliseconds: 300),
+          duration: PlayerMotion.medium,
           amplitude: .08,
           child: TrainerRollingNumber(
             key: numberKey,
@@ -408,10 +410,142 @@ class TrainerCountdownDigits extends StatelessWidget {
     );
     face = _Breath(active: urgent && !still, beat: value, child: face);
     return AnimatedOpacity(
-      opacity: dim ? .45 : 1,
-      duration: TrainerMotion.medium,
+      opacity: dim ? (theme.usePlayerV1 ? .5 : .45) : 1,
+      duration: theme.usePlayerV1
+          ? (still ? PlayerMotion.reducedFade : PlayerMotion.controlsFade)
+          : TrainerMotion.medium,
       curve: TrainerMotion.standard,
       child: face,
+    );
+  }
+}
+
+/// The V1 clock keeps its numeric center fixed as the unit or digit count
+/// changes. Only the phase switch animates the unit, while ordinary clock
+/// ticks continue to roll the number in its own slot.
+class TrainerV1PhaseCountdown extends StatelessWidget {
+  const TrainerV1PhaseCountdown({
+    super.key,
+    required this.phase,
+    required this.theme,
+    required this.value,
+    required this.unit,
+    this.numberKey,
+    this.restPulse = false,
+    this.dim = false,
+  });
+
+  final Object phase;
+  final TrainerTheme theme;
+  final String value;
+  final String unit;
+  final Key? numberKey;
+  final bool restPulse;
+  final bool dim;
+
+  static const _half = Duration(milliseconds: 120);
+  static const _gap = 44 * .12;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = TrainerMotion.reduced(context);
+    final direction = Directionality.of(context);
+    final scaler = MediaQuery.textScalerOf(context);
+    final numberStyle = theme
+        .numeral(44)
+        .copyWith(fontWeight: FontWeight.w700, letterSpacing: -.88);
+    final unitStyle = TextStyle(
+      fontFamily: theme.fontFamily,
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      color: theme.sub,
+      fontFeatures: TrainerTheme.tabular,
+    );
+    Size measure(String text, TextStyle style) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textDirection: direction,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      final size = painter.size;
+      painter.dispose();
+      return size;
+    }
+
+    final digits = measure('88', numberStyle);
+    final suffix = measure(unit, unitStyle);
+    final number = TrainerPhaseSwitcher.sequential(
+      key: const ValueKey('player-v1-countdown-number'),
+      identity: phase,
+      enterDuration: _half,
+      exitDuration: _half,
+      enterOffset: PlayerMotion.normal,
+      exitOffset: PlayerMotion.normal,
+      child: SizedBox(
+        height: digits.height,
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: _Breath(
+              active: restPulse && !reduced,
+              beat: value,
+              duration: PlayerMotion.medium,
+              amplitude: .08,
+              child: TrainerRollingNumber(
+                key: numberKey,
+                value: value,
+                style: numberStyle,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final caption = TrainerPhaseSwitcher.sequential(
+      key: const ValueKey('player-v1-countdown-unit'),
+      identity: (phase, unit),
+      enterDuration: _half,
+      exitDuration: _half,
+      enterOffset: 0,
+      exitOffset: 0,
+      alignment: AlignmentDirectional.centerStart,
+      child: Text(unit, maxLines: 1, style: unitStyle),
+    );
+
+    return AnimatedOpacity(
+      opacity: dim ? .5 : 1,
+      duration: reduced ? PlayerMotion.reducedFade : PlayerMotion.controlsFade,
+      curve: TrainerMotion.standard,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.hasBoundedWidth
+              ? constraints.maxWidth
+              : digits.width + 2 * (_gap + suffix.width);
+          final numberWidth = math.min(digits.width, width);
+          final unitWidth = math.max(0.0, (width - numberWidth) / 2 - _gap);
+          return SizedBox(
+            width: width,
+            height: math.max(digits.height, suffix.height),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(width: numberWidth, child: number),
+                PositionedDirectional(
+                  end: 0,
+                  width: unitWidth,
+                  bottom: 0,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: caption,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }

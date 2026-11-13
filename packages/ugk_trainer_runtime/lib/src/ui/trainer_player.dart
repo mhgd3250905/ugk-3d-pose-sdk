@@ -56,6 +56,7 @@ import 'trainer_cue_carousel.dart';
 import 'trainer_experience.dart';
 import 'trainer_media_download_indicator.dart';
 import 'trainer_player_v1_dock.dart';
+import 'trainer_player_v1_motion.dart';
 import 'trainer_poster.dart';
 import 'trainer_stage.dart';
 import 'trainer_strings.dart';
@@ -1217,19 +1218,29 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _haptics(SessionPhase p, double t) {
-    if (_engine.done || _paused) return;
+    if (_paused || (_engine.done && !_th.usePlayerV1)) return;
     if (_engine.generation != _hapticGen) {
       _hapticGen = _engine.generation;
       _hapticSecond = -1;
-      if (p.isWork && _engine.generation > 0) {
+      final lastVisit = _th.usePlayerV1 ? _engine.visits.lastOrNull : null;
+      final restEnded =
+          lastVisit != null &&
+          lastVisit.exit == PhaseExit.natural &&
+          _isPlayerV1Rest(lastVisit.phase);
+      if (restEnded || p.isWork && _engine.generation > 0) {
         unawaited(HapticFeedback.mediumImpact());
       }
     }
+    if (_engine.done) return;
     if (p.seconds == 0 || p.selfPaced || p.countedOnClock) return;
     final left = _engine.secondsLeft(t);
     if (left >= 1 && left <= 3 && left != _hapticSecond) {
       _hapticSecond = left;
-      unawaited(HapticFeedback.selectionClick());
+      unawaited(
+        _th.usePlayerV1 && _isPlayerV1Rest(p)
+            ? HapticFeedback.lightImpact()
+            : HapticFeedback.selectionClick(),
+      );
     }
   }
 
@@ -3242,6 +3253,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         unitSize: template ? 14 : 13,
         numberWeight: template ? FontWeight.w700 : FontWeight.w300,
         unitColor: template ? _th.sub : null,
+        restPulse:
+            template &&
+            _isPlayerV1Rest(p) &&
+            !_paused &&
+            left >= 1 &&
+            left <= 3,
         color: template || working ? _th.text : _th.muted,
         urgent: urgent,
         dim: _paused,

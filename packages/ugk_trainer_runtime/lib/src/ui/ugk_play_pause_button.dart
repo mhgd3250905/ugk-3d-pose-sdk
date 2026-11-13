@@ -29,6 +29,7 @@ class UgkPlayPauseButton extends StatefulWidget {
     this.ringStrokeWidth,
     this.buttonGlowColor,
     this.remaining = false,
+    this.ringPhase,
   }) : assert(size >= 48),
        assert(ringSize >= size),
        assert(iconSize > 0),
@@ -51,6 +52,9 @@ class UgkPlayPauseButton extends StatefulWidget {
   /// Interpret [progress] as elapsed time and draw the time remaining.
   final bool remaining;
 
+  /// An optional phase identity for the V1 ring transition.
+  final Object? ringPhase;
+
   @override
   State<UgkPlayPauseButton> createState() => _UgkPlayPauseButtonState();
 }
@@ -61,6 +65,11 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
   static const _colorDuration = Duration(milliseconds: 280);
   static const _reducedDuration = Duration(milliseconds: 150);
   static const _confirmationWindow = Duration(milliseconds: 320);
+  static const _ringFillDuration = 80;
+  static const _ringExitDuration = 120;
+  static const _ringEnterDuration = 240;
+  static const _ringDuration =
+      _ringFillDuration + _ringExitDuration + _ringEnterDuration;
 
   late bool _playing = widget.isPlaying;
   bool _reduced = false;
@@ -69,6 +78,8 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
   bool _pointerCancelled = false;
   bool _optimistic = false;
   Timer? _confirmation;
+  double _paintedSweep = 0;
+  double _outgoingSweep = 0;
 
   // Unbounded morph permits the specified easeOutBack overshoot. Every new
   // target animates from the controller's current value, including reversals.
@@ -89,6 +100,7 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
     vsync: this,
     duration: const Duration(milliseconds: 1200),
   );
+  late final _ringMotion = AnimationController(vsync: this, value: 1);
   late final _animation = Listenable.merge([
     _morph,
     _settle,
@@ -97,6 +109,7 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
     _press,
     _atmosphere,
     _breath,
+    _ringMotion,
   ]);
 
   late Color _baseColor = _discColor;
@@ -141,6 +154,7 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
     final reduced = TrainerMotion.reduced(context);
     if (_reduced != reduced) {
       _reduced = reduced;
+      _ringMotion.value = 1;
       if (reduced) {
         _press.stop();
         _ripple.stop();
@@ -154,6 +168,16 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
   @override
   void didUpdateWidget(UgkPlayPauseButton oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.ringPhase == null) {
+      if (_ringMotion.isAnimating) _ringMotion.value = 1;
+    } else if (oldWidget.ringPhase != null &&
+        oldWidget.ringPhase != widget.ringPhase) {
+      _outgoingSweep = _paintedSweep;
+      _ringMotion.duration = _reduced
+          ? _reducedDuration
+          : const Duration(milliseconds: _ringDuration);
+      _ringMotion.forward(from: 0);
+    }
     if (_optimistic || oldWidget.isPlaying != widget.isPlaying) {
       _confirmation?.cancel();
       _optimistic = false;
@@ -186,14 +210,20 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
       _initialYScale = initialYScale;
       _morph.animateTo(
         playing ? 1 : 0,
-        duration: _reduced ? _reducedDuration : _morphDuration,
+        duration: _reduced
+            ? _reducedDuration
+            : widget.theme.usePlayerV1
+            ? const Duration(milliseconds: 200)
+            : _morphDuration,
         curve: _reduced
             ? Curves.linear
+            : widget.theme.usePlayerV1
+            ? Curves.easeInOutCubic
             : playing
             ? Curves.easeOutBack
             : Curves.easeOutCubic,
       );
-      if (_reduced) {
+      if (_reduced || widget.theme.usePlayerV1) {
         _settle.stop();
       } else {
         _settleStart = _settle.value;
@@ -324,6 +354,7 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
       _press,
       _atmosphere,
       _breath,
+      _ringMotion,
     ]) {
       c.dispose();
     }
@@ -410,6 +441,31 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
       th.onAccent,
       _morph.value.clamp(0.0, 1.0),
     )!;
+    final transition = _ringMotion.value;
+    final elapsed = transition * _ringDuration;
+    final exit = ((elapsed - _ringFillDuration) / _ringExitDuration).clamp(
+      0.0,
+      1.0,
+    );
+    final enter =
+        ((elapsed - _ringFillDuration - _ringExitDuration) / _ringEnterDuration)
+            .clamp(0.0, 1.0);
+    final outgoingOpacity = _reduced ? 1 - transition : 1 - exit;
+    final incomingOpacity = _reduced ? transition : enter;
+    final fill = (elapsed / _ringFillDuration).clamp(0.0, 1.0);
+    final leavingSweep = _reduced
+        ? _outgoingSweep
+        : _outgoingSweep + (1 - _outgoingSweep) * fill;
+    final liveSweep = _reduced ? 1.0 : Curves.easeOutCubic.transform(enter);
+    final progress = transition == 1
+        ? widget.progress
+        : _RingSweep(widget.progress, liveSweep, widget.remaining);
+    final track = widget.trackColor ?? (th.isDark ? th.surfaceHigh : th.track);
+    final progressColor = widget.progressColor ?? th.accent;
+    final knob = widget.knobColor ?? th.ringKnob;
+    final thickness = widget.ringStrokeWidth == null
+        ? .032
+        : widget.ringStrokeWidth! / widget.ringSize;
     return Transform.scale(
       key: const ValueKey('button-press'),
       scale: press,
@@ -426,24 +482,46 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
                 child: CustomPaint(
                   key: const ValueKey('ring'),
                   size: Size.square(widget.ringSize),
-                  painter: TrainerRingPainter(
-                    widget.progress,
-                    track:
-                        widget.trackColor ??
-                        (th.isDark ? th.surfaceHigh : th.track),
-                    color: widget.progressColor ?? th.accent,
-                    knob: widget.knobColor ?? th.ringKnob,
+                  painter: _PlayPauseRingPainter(
+                    progress,
+                    track: track,
+                    color: progressColor.withValues(
+                      alpha: progressColor.a * incomingOpacity,
+                    ),
+                    knob: knob.withValues(alpha: knob.a * incomingOpacity),
                     glow: !_reduced,
                     glowOpacity: _atmosphere.value,
                     glowBlur: 4,
-                    thickness: widget.ringStrokeWidth == null
-                        ? .032
-                        : widget.ringStrokeWidth! / widget.ringSize,
+                    thickness: thickness,
                     remaining: widget.remaining,
+                    onPaint: (sweep) {
+                      if (incomingOpacity > 0) _paintedSweep = sweep;
+                    },
                   ),
                 ),
               ),
             ),
+            if (outgoingOpacity > 0)
+              IgnorePointer(
+                child: Opacity(
+                  opacity: outgoingOpacity,
+                  child: CustomPaint(
+                    key: const ValueKey('ring-outgoing'),
+                    size: Size.square(widget.ringSize),
+                    painter: _PlayPauseRingPainter(
+                      AlwaysStoppedAnimation(leavingSweep),
+                      track: Colors.transparent,
+                      color: progressColor,
+                      knob: knob,
+                      glow: false,
+                      thickness: thickness,
+                      onPaint: (sweep) {
+                        if (incomingOpacity == 0) _paintedSweep = sweep;
+                      },
+                    ),
+                  ),
+                ),
+              ),
             if (!_reduced && _rippleColor != null && _rippleProgress < 1)
               IgnorePointer(
                 child: OverflowBox(
@@ -499,21 +577,29 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
                         th.border,
                       ),
                       child: Center(
-                        child: Transform.translate(
-                          offset: Offset(_reduced ? 0 : _iconX, 0),
-                          child: Transform.scale(
-                            scaleY: _reduced ? 1 : _iconYScale,
-                            child: CustomPaint(
-                              key: const ValueKey('morph-icon'),
-                              size: Size.square(widget.iconSize),
-                              painter: _GlyphPainter(
-                                _morph.value,
-                                glyph,
-                                _reduced,
+                        child: th.usePlayerV1 && !_reduced
+                            ? AnimatedIcon(
+                                key: const ValueKey('morph-icon'),
+                                icon: AnimatedIcons.play_pause,
+                                progress: _morph,
+                                color: glyph,
+                                size: widget.iconSize,
+                              )
+                            : Transform.translate(
+                                offset: Offset(_reduced ? 0 : _iconX, 0),
+                                child: Transform.scale(
+                                  scaleY: _reduced ? 1 : _iconYScale,
+                                  child: CustomPaint(
+                                    key: const ValueKey('morph-icon'),
+                                    size: Size.square(widget.iconSize),
+                                    painter: _GlyphPainter(
+                                      _morph.value,
+                                      glyph,
+                                      _reduced,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        ),
                       ),
                     ),
                   ),
@@ -525,6 +611,51 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
       ),
     );
   }
+}
+
+class _PlayPauseRingPainter extends TrainerRingPainter {
+  _PlayPauseRingPainter(
+    super.progress, {
+    required super.track,
+    required super.color,
+    required super.knob,
+    required super.glow,
+    super.glowOpacity,
+    super.glowBlur,
+    required super.thickness,
+    super.remaining,
+    required this.onPaint,
+  });
+
+  final ValueChanged<double> onPaint;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    super.paint(canvas, size);
+    final elapsed = progress.value.clamp(0.0, 1.0);
+    onPaint(remaining ? 1 - elapsed : elapsed);
+  }
+}
+
+/// Scales the visible sweep while continuing to listen to the elapsed clock.
+class _RingSweep implements ValueListenable<double> {
+  const _RingSweep(this.elapsed, this.amount, this.remaining);
+
+  final ValueListenable<double> elapsed;
+  final double amount;
+  final bool remaining;
+
+  @override
+  double get value => remaining
+      ? 1 - (1 - elapsed.value.clamp(0.0, 1.0)) * amount
+      : elapsed.value.clamp(0.0, 1.0) * amount;
+
+  @override
+  void addListener(VoidCallback listener) => elapsed.addListener(listener);
+
+  @override
+  void removeListener(VoidCallback listener) =>
+      elapsed.removeListener(listener);
 }
 
 class _ColorLayer {

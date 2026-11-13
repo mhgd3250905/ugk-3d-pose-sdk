@@ -81,5 +81,16 @@ $env:NO_PROXY = '127.0.0.1,localhost'
 flutter test test/player_v1_capture_test.dart
 ```
 
+用训练引擎依次经过训练、休息、下一动作并录制阶段切换。在示例目录运行：
+
+```powershell
+$phaseOutput = Join-Path (Resolve-Path ../../..) 'build/player-ui-v1/phase-animation'
+$env:SHOWCASE_PHASE_FRAMES = Join-Path $phaseOutput 'frames'
+flutter test test/player_v1_phase_animation_test.dart
+ffmpeg -framerate 30 -i (Join-Path $env:SHOWCASE_PHASE_FRAMES 'frame-%03d.png') -c:v libx264 -pix_fmt yuv420p -movflags +faststart (Join-Path $phaseOutput 'player-v1-phase-transition.mp4')
+```
+
+录制使用同一 360×800 dp 视口和随包站位图。测试在每帧核对训练页和媒体视口的身份与位置，视频输出为 720×1600。
+
 只重采指定页面时可设置 `SHOWCASE_CAPTURE_FILES`，例如
 `hip-done,flare-done,training-single-cue`。

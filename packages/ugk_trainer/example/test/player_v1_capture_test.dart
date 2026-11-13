@@ -253,6 +253,7 @@ void main() {
               choice,
             );
             expect(tester.getSize(check), const Size(14, 14));
+            expect(find.text('已记录'), findsOneWidget);
             await capture(tester, 'rest-${mode.name}-selected');
 
             if (mode == ThemeMode.light) {

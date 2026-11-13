@@ -117,20 +117,21 @@ class _Breath extends StatefulWidget {
     required this.active,
     required this.beat,
     required this.child,
+    this.duration = TrainerMotion.breath,
+    this.amplitude = .06,
   });
   final bool active;
   final Object beat;
   final Widget child;
+  final Duration duration;
+  final double amplitude;
 
   @override
   State<_Breath> createState() => _BreathState();
 }
 
 class _BreathState extends State<_Breath> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(
-    vsync: this,
-    duration: TrainerMotion.breath,
-  );
+  late final _c = AnimationController(vsync: this, duration: widget.duration);
 
   @override
   void initState() {
@@ -141,6 +142,7 @@ class _BreathState extends State<_Breath> with SingleTickerProviderStateMixin {
   @override
   void didUpdateWidget(_Breath old) {
     super.didUpdateWidget(old);
+    if (old.duration != widget.duration) _c.duration = widget.duration;
     if (!widget.active) {
       _c.value = 0;
     } else if (!old.active || old.beat != widget.beat) {
@@ -162,8 +164,10 @@ class _BreathState extends State<_Breath> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: _c,
-    builder: (_, child) =>
-        Transform.scale(scale: 1 + .06 * _breath(_c.value), child: child),
+    builder: (_, child) => Transform.scale(
+      scale: 1 + widget.amplitude * _breath(_c.value),
+      child: child,
+    ),
     child: widget.child,
   );
 }
@@ -346,6 +350,7 @@ class TrainerCountdownDigits extends StatelessWidget {
     this.unitColor,
     this.color,
     this.urgent = false,
+    this.restPulse = false,
     this.dim = false,
     this.numberKey,
   });
@@ -358,6 +363,7 @@ class TrainerCountdownDigits extends StatelessWidget {
   final Color? unitColor;
   final Color? color;
   final bool urgent;
+  final bool restPulse;
   final bool dim;
   final Key? numberKey;
 
@@ -372,12 +378,18 @@ class TrainerCountdownDigits extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.baseline,
       textBaseline: TextBaseline.alphabetic,
       children: [
-        TrainerRollingNumber(
-          key: numberKey,
-          value: value,
-          style: theme
-              .numeral(size, color: c)
-              .copyWith(fontWeight: numberWeight, letterSpacing: -size * .02),
+        _Breath(
+          active: restPulse && !still,
+          beat: value,
+          duration: const Duration(milliseconds: 300),
+          amplitude: .08,
+          child: TrainerRollingNumber(
+            key: numberKey,
+            value: value,
+            style: theme
+                .numeral(size, color: c)
+                .copyWith(fontWeight: numberWeight, letterSpacing: -size * .02),
+          ),
         ),
         if (unit != null) ...[
           SizedBox(width: size * .12),

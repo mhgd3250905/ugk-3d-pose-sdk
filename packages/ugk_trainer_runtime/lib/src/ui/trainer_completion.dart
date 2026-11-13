@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../result/session_result.dart';
 import 'trainer_player.dart' show TrainerDrill;
+import 'trainer_player_v1_dock.dart' show TrainerV1FeedbackButton;
+import 'trainer_stage.dart' show TrainerResultStage;
 import 'trainer_strings.dart';
 import 'trainer_theme.dart';
 
@@ -22,6 +24,8 @@ class TrainerCompletion extends StatefulWidget {
     this.onReplay,
     this.feedback,
     this.error,
+    this.streakDays,
+    this.trainedAreas = const [],
   });
 
   final TrainerTheme theme;
@@ -34,6 +38,8 @@ class TrainerCompletion extends StatefulWidget {
   final VoidCallback? onReplay;
   final Widget? feedback;
   final Widget? error;
+  final int? streakDays;
+  final List<String> trainedAreas;
 
   @override
   State<TrainerCompletion> createState() => _TrainerCompletionState();
@@ -95,9 +101,9 @@ class _TrainerCompletionState extends State<TrainerCompletion>
   Widget _card({required Key key, required Widget child}) => DecoratedBox(
     key: key,
     decoration: BoxDecoration(
-      color: _theme.cardSurface,
+      color: _theme.usePlayerV1 ? _theme.card : _theme.cardSurface,
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: _theme.cardBorder),
+      border: _theme.usePlayerV1 ? null : Border.all(color: _theme.cardBorder),
     ),
     child: Padding(padding: const EdgeInsets.all(16), child: child),
   );
@@ -111,6 +117,9 @@ class _TrainerCompletionState extends State<TrainerCompletion>
         int roll(num value) => (value * progress).round();
         final result = widget.result;
         final reps = result.completedReps;
+        final dividerColor = _theme.usePlayerV1
+            ? _theme.track
+            : _theme.cardBorder;
         return IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -120,20 +129,27 @@ class _TrainerCompletionState extends State<TrainerCompletion>
                 _strings.durationLabel(roll(result.activeSeconds)),
                 _strings.actualDuration,
               ),
-              VerticalDivider(width: 1, thickness: 1, color: _theme.cardBorder),
+              VerticalDivider(width: 1, thickness: 1, color: dividerColor),
               _metric(
                 'exercises',
                 '${roll(result.completedExercises)}/${result.totalExercises}',
                 _strings.exercisesDone,
               ),
-              VerticalDivider(width: 1, thickness: 1, color: _theme.cardBorder),
-              _metric(
-                'dose',
-                reps == null
-                    ? _strings.durationLabel(roll(result.workSeconds))
-                    : '${roll(reps)}',
-                reps == null ? _strings.totalWorkTime : _strings.totalReps,
-              ),
+              VerticalDivider(width: 1, thickness: 1, color: dividerColor),
+              if (_theme.usePlayerV1)
+                _metric(
+                  'streak',
+                  widget.streakDays?.toString() ?? '—',
+                  _strings.streak,
+                )
+              else
+                _metric(
+                  'dose',
+                  reps == null
+                      ? _strings.durationLabel(roll(result.workSeconds))
+                      : '${roll(reps)}',
+                  reps == null ? _strings.totalWorkTime : _strings.totalReps,
+                ),
             ],
           ),
         );
@@ -152,7 +168,7 @@ class _TrainerCompletionState extends State<TrainerCompletion>
             key: ValueKey('completion-$id-value'),
             textAlign: TextAlign.center,
             style: _text(
-              26,
+              _theme.usePlayerV1 ? 22 : 26,
               FontWeight.w700,
             ).copyWith(fontFeatures: TrainerTheme.tabular),
           ),
@@ -160,7 +176,11 @@ class _TrainerCompletionState extends State<TrainerCompletion>
           Text(
             label,
             textAlign: TextAlign.center,
-            style: _text(12, FontWeight.w400, color: _theme.muted),
+            style: _text(
+              12,
+              FontWeight.w400,
+              color: _theme.usePlayerV1 ? _theme.sub : _theme.muted,
+            ),
           ),
         ],
       ),
@@ -270,13 +290,32 @@ class _TrainerCompletionState extends State<TrainerCompletion>
     final label = index < _strings.feelingLabels.length
         ? _strings.feelingLabels[index]
         : TrainerStrings.en().feelingLabels[index];
+    final key = ValueKey('completion-feeling-${feeling.name}');
+    void select() => widget.onFeelingChanged(selected ? null : feeling);
+    if (_theme.usePlayerV1) {
+      final (color, background) = switch (feeling) {
+        TrainingFeeling.easy ||
+        TrainingFeeling.justRight => (_theme.good, _theme.goodBg),
+        TrainingFeeling.tired => (_theme.caution, _theme.cautionBg),
+        TrainingFeeling.uncomfortable => (_theme.danger, _theme.dangerBg),
+      };
+      return TrainerV1FeedbackButton(
+        key: key,
+        theme: _theme,
+        label: label,
+        color: color,
+        background: background,
+        selected: selected,
+        onPressed: select,
+      );
+    }
     return Semantics(
       selected: selected,
       child: SizedBox(
         height: 34,
         child: OutlinedButton(
-          key: ValueKey('completion-feeling-${feeling.name}'),
-          onPressed: () => widget.onFeelingChanged(selected ? null : feeling),
+          key: key,
+          onPressed: select,
           style: OutlinedButton.styleFrom(
             backgroundColor: selected ? _theme.accent : _theme.cardSurface,
             foregroundColor: selected ? _theme.primaryForeground : _theme.text,
@@ -297,6 +336,233 @@ class _TrainerCompletionState extends State<TrainerCompletion>
     );
   }
 
+  Widget _hero(
+    BuildContext context,
+    String title,
+    String subtitle,
+  ) => DecoratedBox(
+    key: const ValueKey('completion-hero'),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [_theme.heroTop, _theme.heroBottom],
+      ),
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+    ),
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(
+        TrainerSpace.gutter,
+        math.max(20, MediaQuery.paddingOf(context).top + 12),
+        TrainerSpace.gutter,
+        68,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox.square(
+            key: const ValueKey('completion-badge'),
+            dimension: 72,
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+              ),
+              child: Icon(
+                Icons.check_rounded,
+                size: 42,
+                color: _theme.accentDeep,
+              ),
+            ),
+          ),
+          const SizedBox(height: TrainerSpace.x4),
+          Flexible(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  flex: 2,
+                  child: Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: _text(26, FontWeight.w700, color: Colors.white),
+                  ),
+                ),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: TrainerSpace.x1),
+                  Flexible(
+                    child: Text(
+                      subtitle,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: _text(13, FontWeight.w400, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _feedbackCard() => _card(
+    key: const ValueKey('completion-feedback'),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _feelings(),
+        if (widget.feedback case final feedback?) ...[
+          const SizedBox(height: TrainerSpace.x4),
+          feedback,
+        ],
+      ],
+    ),
+  );
+
+  Widget _trainedAreas() => _card(
+    key: const ValueKey('completion-trained-areas'),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(_strings.trainedAreasLabel, style: _text(14, FontWeight.w600)),
+        const SizedBox(height: TrainerSpace.x2),
+        Wrap(
+          spacing: TrainerSpace.x2,
+          runSpacing: TrainerSpace.x2,
+          children: [
+            for (final area in widget.trainedAreas)
+              DecoratedBox(
+                decoration: ShapeDecoration(
+                  color: _theme.tint,
+                  shape: const StadiumBorder(),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: TrainerSpace.x3,
+                    vertical: 6,
+                  ),
+                  child: Text(
+                    area,
+                    style: _text(13, FontWeight.w500, color: _theme.accentText),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  Widget _v1Footer() {
+    const radius = BorderRadius.all(Radius.circular(26));
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                boxShadow: [
+                  if (widget.onFinish != null)
+                    BoxShadow(
+                      color: _theme.glow.withValues(alpha: .28),
+                      offset: const Offset(0, 6),
+                      blurRadius: 16,
+                    ),
+                ],
+              ),
+              child: FilledButton(
+                key: const ValueKey('finish'),
+                onPressed: widget.onFinish,
+                style: FilledButton.styleFrom(
+                  backgroundColor: _theme.accent,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: _theme.tint,
+                  disabledForegroundColor: _theme.sub,
+                  shape: const RoundedRectangleBorder(borderRadius: radius),
+                  textStyle: _text(17, FontWeight.w700),
+                ),
+                child: Text(_strings.finish),
+              ),
+            ),
+          ),
+          TextButton(
+            key: const ValueKey('completion-replay'),
+            onPressed: widget.onReplay,
+            style: TextButton.styleFrom(
+              foregroundColor: _theme.sub,
+              disabledForegroundColor: _theme.sub,
+              textStyle: _text(14, FontWeight.w400),
+            ),
+            child: Text(_strings.replay),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _v1(BuildContext context, String title, String subtitle) =>
+      TrainerResultStage(
+        theme: _theme,
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                key: const ValueKey('completion-scroll'),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 300),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: 300,
+                        child: _hero(context, title, subtitle),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 244, 20, 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _statistics(),
+                            const SizedBox(height: TrainerSpace.x4),
+                            _feedbackCard(),
+                            if (widget.trainedAreas.isNotEmpty) ...[
+                              const SizedBox(height: TrainerSpace.x4),
+                              _trainedAreas(),
+                            ],
+                            if (widget.result.items.length > 1) ...[
+                              const SizedBox(height: TrainerSpace.x4),
+                              _items(),
+                            ],
+                            if (widget.error case final error?) ...[
+                              const SizedBox(height: TrainerSpace.x4),
+                              error,
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            _v1Footer(),
+          ],
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final result = widget.result;
@@ -306,6 +572,9 @@ class _TrainerCompletionState extends State<TrainerCompletion>
         : result.items.length == 1
         ? widget.drillOf(result.items.single.exerciseId)?.name ?? ''
         : '';
+    if (_theme.usePlayerV1) {
+      return _v1(context, _strings.completionTitle ?? title, subtitle);
+    }
     return SafeArea(
       child: Column(
         children: [

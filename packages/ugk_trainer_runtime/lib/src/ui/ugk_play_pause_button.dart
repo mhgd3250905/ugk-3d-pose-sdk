@@ -26,9 +26,13 @@ class UgkPlayPauseButton extends StatefulWidget {
     this.size = 76,
     this.ringSize = 96,
     this.iconSize = 38,
+    this.ringStrokeWidth,
+    this.buttonGlowColor,
+    this.remaining = false,
   }) : assert(size >= 48),
        assert(ringSize >= size),
-       assert(iconSize > 0);
+       assert(iconSize > 0),
+       assert(ringStrokeWidth == null || ringStrokeWidth > 0);
 
   final bool isPlaying;
   final ValueListenable<double> progress;
@@ -41,6 +45,11 @@ class UgkPlayPauseButton extends StatefulWidget {
   final double size;
   final double ringSize;
   final double iconSize;
+  final double? ringStrokeWidth;
+  final Color? buttonGlowColor;
+
+  /// Interpret [progress] as elapsed time and draw the time remaining.
+  final bool remaining;
 
   @override
   State<UgkPlayPauseButton> createState() => _UgkPlayPauseButtonState();
@@ -427,7 +436,10 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
                     glow: !_reduced,
                     glowOpacity: _atmosphere.value,
                     glowBlur: 4,
-                    thickness: .032,
+                    thickness: widget.ringStrokeWidth == null
+                        ? .032
+                        : widget.ringStrokeWidth! / widget.ringSize,
+                    remaining: widget.remaining,
                   ),
                 ),
               ),
@@ -452,6 +464,8 @@ class _UgkPlayPauseButtonState extends State<UgkPlayPauseButton>
               decoration: ShapeDecoration(
                 shape: const CircleBorder(),
                 shadows: [
+                  if (!_reduced && widget.buttonGlowColor != null)
+                    BoxShadow(color: widget.buttonGlowColor!, blurRadius: 16),
                   BoxShadow(
                     color: th.shadow,
                     blurRadius: 6,

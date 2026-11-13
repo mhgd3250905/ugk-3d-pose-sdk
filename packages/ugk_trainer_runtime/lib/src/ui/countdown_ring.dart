@@ -178,6 +178,7 @@ class TrainerRingPainter extends CustomPainter {
     this.glowOpacity = 1,
     this.glowBlur,
     this.thickness = .05,
+    this.remaining = false,
   }) : super(repaint: progress);
   final ValueListenable<double> progress;
   final Color track;
@@ -186,13 +187,15 @@ class TrainerRingPainter extends CustomPainter {
   final bool glow;
   final double glowOpacity;
   final double? glowBlur;
+  final bool remaining;
 
   /// Arc stroke as a fraction of the diameter (track is 42 % of it).
   final double thickness;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final p = progress.value.clamp(0.0, 1.0);
+    final elapsed = progress.value.clamp(0.0, 1.0);
+    final p = remaining ? 1 - elapsed : elapsed;
     final stroke = size.width * thickness;
     final center = size.center(Offset.zero);
     final radius = size.width / 2 - stroke / 2 - size.width * .03;
@@ -280,7 +283,8 @@ class TrainerRingPainter extends CustomPainter {
       old.glow != glow ||
       old.glowOpacity != glowOpacity ||
       old.glowBlur != glowBlur ||
-      old.thickness != thickness;
+      old.thickness != thickness ||
+      old.remaining != remaining;
 }
 
 /// A number that rolls over when it changes: the old value rises out and
@@ -337,6 +341,9 @@ class TrainerCountdownDigits extends StatelessWidget {
     required this.value,
     this.unit,
     this.size = 32,
+    this.unitSize = 13,
+    this.numberWeight = FontWeight.w300,
+    this.unitColor,
     this.color,
     this.urgent = false,
     this.dim = false,
@@ -346,6 +353,9 @@ class TrainerCountdownDigits extends StatelessWidget {
   final String value;
   final String? unit;
   final double size;
+  final double unitSize;
+  final FontWeight numberWeight;
+  final Color? unitColor;
   final Color? color;
   final bool urgent;
   final bool dim;
@@ -367,10 +377,7 @@ class TrainerCountdownDigits extends StatelessWidget {
           value: value,
           style: theme
               .numeral(size, color: c)
-              .copyWith(
-                fontWeight: FontWeight.w300,
-                letterSpacing: -size * .02,
-              ),
+              .copyWith(fontWeight: numberWeight, letterSpacing: -size * .02),
         ),
         if (unit != null) ...[
           SizedBox(width: size * .12),
@@ -378,9 +385,9 @@ class TrainerCountdownDigits extends StatelessWidget {
             unit!,
             style: TextStyle(
               fontFamily: theme.fontFamily,
-              fontSize: 13,
+              fontSize: unitSize,
               fontWeight: FontWeight.w500,
-              color: theme.muted,
+              color: unitColor ?? theme.muted,
               fontFeatures: TrainerTheme.tabular,
             ),
           ),

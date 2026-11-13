@@ -4,23 +4,24 @@ import 'package:flutter/material.dart';
 @immutable
 class TrainerTheme {
   const TrainerTheme({
-    required this.brightness,
+    Brightness brightness = Brightness.light,
+    bool? isDark,
     required this.background,
     required this.surface,
     required this.surfaceHigh,
     required this.border,
     required this.shadow,
-    required this.track,
+    this.track = const Color(0xFFE1E7E4),
     required this.ringKnob,
-    required this.accent,
+    this.accent = const Color(0xFF14A37B),
     required this.accentSubtle,
     required this.accentText,
     required this.onAccent,
-    required this.text,
+    this.text = const Color(0xFF1A2421),
     required this.muted,
     required this.faint,
-    required this.caution,
-    required this.danger,
+    this.caution = const Color(0xFFC26A00),
+    this.danger = const Color(0xFFD93D42),
     required this.mediaStage,
     this.fontFamily,
     this.radius = 22,
@@ -29,7 +30,27 @@ class TrainerTheme {
     Color? cardSurface,
     Color? cardBorder,
     this.primaryForeground = const Color(0xFFFFFFFF),
-  }) : pausedColor = pausedColor ?? accent,
+    this.usePlayerV1 = false,
+    this.stageTop = const Color(0xFFF6F8F7),
+    this.stageBottom = const Color(0xFFE9EEEC),
+    this.glow = const Color(0xFF14A37B),
+    this.accentDeep = const Color(0xFF0E6F56),
+    this.tint = const Color(0xFFE8F6F1),
+    this.good = const Color(0xFF0E6F56),
+    this.goodBg = const Color(0xFFE8F6F1),
+    this.card = const Color(0xFFFFFFFF),
+    this.sub = const Color(0xFF6B7772),
+    this.cautionBg = const Color(0xFFFFF4E5),
+    this.dangerBg = const Color(0xFFFDECED),
+    this.ctrl = const Color(0xFFF1F4F3),
+    this.heroTop = const Color(0xFF0A5341),
+    this.heroBottom = const Color(0xFF0E6F56),
+  }) : brightness = isDark == null
+           ? brightness
+           : isDark
+           ? Brightness.dark
+           : Brightness.light,
+       pausedColor = pausedColor ?? accent,
        onPaused = onPaused ?? onAccent,
        cardSurface = cardSurface ?? surface,
        cardBorder = cardBorder ?? border;
@@ -70,11 +91,29 @@ class TrainerTheme {
   final String? fontFamily;
   final double radius;
 
+  /// Opt into the player template without changing existing app layouts.
+  final bool usePlayerV1;
+  final Color stageTop;
+  final Color stageBottom;
+  final Color glow;
+  final Color accentDeep;
+  final Color tint;
+  final Color good;
+  final Color goodBg;
+  final Color card;
+  final Color sub;
+  final Color cautionBg;
+  final Color dangerBg;
+  final Color ctrl;
+  final Color heroTop;
+  final Color heroBottom;
+
   bool get isDark => brightness == Brightness.dark;
 
   /// Every visual token can be overridden within the player scope.
   TrainerTheme copyWith({
     Brightness? brightness,
+    bool? isDark,
     Color? background,
     Color? surface,
     Color? surfaceHigh,
@@ -99,8 +138,24 @@ class TrainerTheme {
     Color? mediaStage,
     String? fontFamily,
     double? radius,
+    bool? usePlayerV1,
+    Color? stageTop,
+    Color? stageBottom,
+    Color? glow,
+    Color? accentDeep,
+    Color? tint,
+    Color? good,
+    Color? goodBg,
+    Color? card,
+    Color? sub,
+    Color? cautionBg,
+    Color? dangerBg,
+    Color? ctrl,
+    Color? heroTop,
+    Color? heroBottom,
   }) => TrainerTheme(
     brightness: brightness ?? this.brightness,
+    isDark: isDark,
     background: background ?? this.background,
     surface: surface ?? this.surface,
     surfaceHigh: surfaceHigh ?? this.surfaceHigh,
@@ -125,6 +180,78 @@ class TrainerTheme {
     mediaStage: mediaStage ?? this.mediaStage,
     fontFamily: fontFamily ?? this.fontFamily,
     radius: radius ?? this.radius,
+    usePlayerV1: usePlayerV1 ?? this.usePlayerV1,
+    stageTop: stageTop ?? this.stageTop,
+    stageBottom: stageBottom ?? this.stageBottom,
+    glow: glow ?? this.glow,
+    accentDeep: accentDeep ?? this.accentDeep,
+    tint: tint ?? this.tint,
+    good: good ?? this.good,
+    goodBg: goodBg ?? this.goodBg,
+    card: card ?? this.card,
+    sub: sub ?? this.sub,
+    cautionBg: cautionBg ?? this.cautionBg,
+    dangerBg: dangerBg ?? this.dangerBg,
+    ctrl: ctrl ?? this.ctrl,
+    heroTop: heroTop ?? this.heroTop,
+    heroBottom: heroBottom ?? this.heroBottom,
+  );
+
+  static const playerV1 = TrainerTheme(
+    usePlayerV1: true,
+    brightness: Brightness.light,
+    background: Color(0xFFF6F8F7),
+    surface: Colors.white,
+    surfaceHigh: Color(0xFFF1F4F3),
+    border: Color(0xFFE1E7E4),
+    shadow: Color(0x0C1A2421),
+    track: Color(0xFFE1E7E4),
+    ringKnob: Colors.white,
+    accent: Color(0xFF14A37B),
+    accentSubtle: Color(0xFFE8F6F1),
+    accentText: Color(0xFF0E6F56),
+    onAccent: Colors.white,
+    text: Color(0xFF1A2421),
+    muted: Color(0xFF6B7772),
+    faint: Color(0xFF6B7772),
+    caution: Color(0xFFC26A00),
+    danger: Color(0xFFD93D42),
+    mediaStage: Colors.transparent,
+  );
+
+  static const playerV1Dark = TrainerTheme(
+    usePlayerV1: true,
+    brightness: Brightness.dark,
+    stageTop: Color(0xFF1C1E24),
+    stageBottom: Color(0xFF0C0D10),
+    glow: Color(0xFFFF6A2B),
+    accentDeep: Color(0xFFD64812),
+    tint: Color(0xFF40261C),
+    good: Color(0xFF3DDC97),
+    // Feedback fills are the corresponding colour at 14% over the card.
+    goodBg: Color(0xFF29413D),
+    card: Color(0xFF26282E),
+    sub: Color(0xFF989CA6),
+    cautionBg: Color(0xFF443D34),
+    dangerBg: Color(0xFF443339),
+    ctrl: Color(0xFF30333A),
+    background: Color(0xFF1C1E24),
+    surface: Color(0xFF26282E),
+    surfaceHigh: Color(0xFF30333A),
+    border: Color(0xFF3A3D46),
+    shadow: Color(0x33000000),
+    track: Color(0xFF3A3D46),
+    ringKnob: Colors.white,
+    accent: Color(0xFFFF6A2B),
+    accentSubtle: Color(0xFF40261C),
+    accentText: Color(0xFFFF6A2B),
+    onAccent: Colors.white,
+    text: Color(0xFFF4F5F7),
+    muted: Color(0xFF989CA6),
+    faint: Color(0xFF989CA6),
+    caution: Color(0xFFFFC15C),
+    danger: Color(0xFFFF7A7A),
+    mediaStage: Colors.transparent,
   );
 
   static const dark = TrainerTheme(

@@ -50,6 +50,9 @@ void main() {
     VoidCallback? onFinish,
     VoidCallback? onReplay,
     Widget? error,
+    Widget? feedback,
+    int? streakDays,
+    List<String> trainedAreas = const [],
   }) => tester.pumpWidget(
     MaterialApp(
       home: MediaQuery(
@@ -68,6 +71,9 @@ void main() {
             onFinish: onFinish,
             onReplay: onReplay,
             error: error,
+            feedback: feedback,
+            streakDays: streakDays,
+            trainedAreas: trainedAreas,
           ),
         ),
       ),
@@ -249,4 +255,158 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('player V1 shows supplied streak and areas with host actions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final events = <Object>[];
+    await mount(
+      tester,
+      theme: TrainerTheme.playerV1Dark,
+      reduced: true,
+      session: result(single: true),
+      streakDays: 4,
+      trainedAreas: const ['Hips', 'Glutes'],
+      feedback: const Text('Host feedback'),
+      onFeeling: (feeling) => events.add(feeling!),
+      onFinish: () => events.add('finish'),
+      onReplay: () => events.add('replay'),
+    );
+    final hero = find.byKey(const ValueKey('completion-hero'));
+    final stats = find.byKey(const ValueKey('completion-stats'));
+    expect(tester.getSize(hero).height, 300);
+    expect(tester.getTopLeft(stats).dy - tester.getTopLeft(hero).dy, 244);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('completion-badge'))),
+      const Size(72, 72),
+    );
+    expect(value(tester, 'duration'), '2m5s');
+    expect(value(tester, 'exercises'), '1/1');
+    expect(value(tester, 'streak'), '4');
+    final feedback = find.byKey(const ValueKey('completion-feedback'));
+    final areas = find.byKey(const ValueKey('completion-trained-areas'));
+    expect(tester.getTopLeft(areas).dy - tester.getBottomLeft(feedback).dy, 16);
+    expect(
+      find.descendant(of: feedback, matching: find.text('Host feedback')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: areas, matching: find.text('Hips')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: areas, matching: find.text('Glutes')),
+      findsOneWidget,
+    );
+    final finish = find.byKey(const ValueKey('finish'));
+    expect(tester.getSize(finish).height, 52);
+    final style = tester.widget<FilledButton>(finish).style!;
+    expect(style.foregroundColor!.resolve({}), Colors.white);
+    await tester.tap(find.byKey(const ValueKey('completion-feeling-easy')));
+    await tester.tap(finish);
+    await tester.tap(find.byKey(const ValueKey('completion-replay')));
+    expect(events, [TrainingFeeling.easy, 'finish', 'replay']);
+  });
+
+  testWidgets('player V1 keeps absent host data empty on a compact display', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 480);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await mount(
+      tester,
+      theme: TrainerTheme.playerV1,
+      reduced: true,
+      textScale: 1.5,
+      session: result(single: true),
+      onFinish: () {},
+    );
+    expect(value(tester, 'streak'), '—');
+    expect(
+      find.byKey(const ValueKey('completion-trained-areas')),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('finish')).hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final theme in [TrainerTheme.playerV1, TrainerTheme.playerV1Dark]) {
+    testWidgets('V1 completion feedback colors in ${theme.brightness.name}', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      TrainingFeeling? selection;
+      Future<void> show() => mount(
+        tester,
+        theme: theme,
+        reduced: true,
+        session: result(single: true),
+        feeling: selection,
+        onFeeling: (value) => selection = value,
+      );
+      Finder option(TrainingFeeling feeling) =>
+          find.byKey(ValueKey('completion-feeling-${feeling.name}'));
+      ButtonStyle style(TrainingFeeling feeling) => tester
+          .widget<TextButton>(
+            find.descendant(
+              of: option(feeling),
+              matching: find.byType(TextButton),
+            ),
+          )
+          .style!;
+
+      await show();
+      final roles = [
+        (theme.good, theme.goodBg),
+        (theme.good, theme.goodBg),
+        (theme.caution, theme.cautionBg),
+        (theme.danger, theme.dangerBg),
+      ];
+      for (final (index, feeling) in TrainingFeeling.values.indexed) {
+        final (color, fill) = roles[index];
+        expect(tester.getSize(option(feeling)).height, 46);
+        final inactive = style(feeling);
+        expect(inactive.foregroundColor!.resolve({}), color);
+        expect(inactive.backgroundColor!.resolve({}), fill);
+        expect(
+          inactive.side!.resolve({}),
+          BorderSide(color: color.withValues(alpha: theme.isDark ? .3 : .2)),
+        );
+        expect(
+          inactive.shape!.resolve({}),
+          const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(23)),
+          ),
+        );
+        final label = inactive.textStyle!.resolve({})!;
+        expect(label.fontSize, 15);
+        expect(label.fontWeight, FontWeight.w600);
+      }
+      final tired = option(TrainingFeeling.tired);
+      await tester.ensureVisible(tired);
+      await tester.tap(tired);
+      expect(selection, TrainingFeeling.tired);
+      await show();
+      final active = style(TrainingFeeling.tired);
+      expect(active.backgroundColor!.resolve({}), theme.caution);
+      expect(
+        active.foregroundColor!.resolve({}),
+        theme.isDark ? const Color(0xFF111214) : Colors.white,
+      );
+      final check = find.descendant(
+        of: tired,
+        matching: find.byIcon(Icons.check_rounded),
+      );
+      expect(tester.widget<Icon>(check).size, 14);
+      await tester.ensureVisible(tired);
+      await tester.tap(tired);
+      expect(selection, isNull);
+    });
+  }
 }

@@ -67,3 +67,16 @@ Remove-Item Env:SHOWCASE_FONT
 ```
 
 `SHOWCASE_FONT` 仅供本机加载有使用权的中文 TTF/TTC。字体文件不会被复制或随仓库分发。其他平台可传自己的字体路径；未设置时普通测试照常运行，但 Flutter 默认测试字体不适合视觉评审。截图目录可指定为仓库内的其他位置，便于同一 harness 对比基线与候选。
+
+## Player V1 展示
+
+运行 `flutter run --dart-define=SHOWCASE_PLAYER_V1=true` 进入 Player V1 展示。Web 入口也接受 `?style=player-v1`。现有主题菜单中的浅色对应 Hip，深色对应 Flare。动作示范使用 SDK 随包的透明站位图，休息和完成页由训练引擎正常推进。
+
+在示例目录执行以下命令，采集 360 dp 宽的两种主题 × 训练中、休息、完成共六张 PNG。
+
+```powershell
+$env:SHOWCASE_CAPTURE_DIR = Join-Path (Resolve-Path ../../..) 'build/player-ui-v1'
+$env:SHOWCASE_FONT = 'C:\Windows\Fonts\msyh.ttc'
+$env:NO_PROXY = '127.0.0.1,localhost'
+flutter test test/player_v1_capture_test.dart
+```

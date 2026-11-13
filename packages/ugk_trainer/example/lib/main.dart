@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -11,6 +12,9 @@ void main() => runApp(
       orElse: () => ShowcaseState.training,
     ),
     initialLibrary: Uri.base.queryParameters['page'] == 'library',
+    playerV1:
+        Uri.base.queryParameters['style'] == 'player-v1' ||
+        const bool.fromEnvironment('SHOWCASE_PLAYER_V1'),
     initialTheme: switch (Uri.base.queryParameters['theme']) {
       'light' => ThemeMode.light,
       'dark' => ThemeMode.dark,
@@ -30,6 +34,14 @@ enum ShowcaseState {
   final String label;
 }
 
+TrainerTheme _showcasePalette(Brightness brightness, bool playerV1) =>
+    switch ((brightness, playerV1)) {
+      (Brightness.light, true) => TrainerTheme.playerV1,
+      (Brightness.dark, true) => TrainerTheme.playerV1Dark,
+      (Brightness.light, false) => TrainerTheme.light,
+      (Brightness.dark, false) => TrainerTheme.dark,
+    };
+
 class ShowcaseApp extends StatefulWidget {
   const ShowcaseApp({
     super.key,
@@ -38,12 +50,16 @@ class ShowcaseApp extends StatefulWidget {
     this.fontFamily,
     this.onSaved,
     this.initialLibrary = false,
+    this.playerV1 = false,
+    this.showControls = true,
   });
   final ShowcaseState initialState;
   final ThemeMode initialTheme;
   final String? fontFamily;
   final ValueChanged<SessionResult>? onSaved;
   final bool initialLibrary;
+  final bool playerV1;
+  final bool showControls;
   @override
   State<ShowcaseApp> createState() => _ShowcaseAppState();
 }
@@ -51,9 +67,7 @@ class ShowcaseApp extends StatefulWidget {
 class _ShowcaseAppState extends State<ShowcaseApp> {
   late ThemeMode _mode = widget.initialTheme;
   ThemeData _theme(Brightness brightness) {
-    final palette = brightness == Brightness.dark
-        ? TrainerTheme.dark
-        : TrainerTheme.light;
+    final palette = _showcasePalette(brightness, widget.playerV1);
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
@@ -100,6 +114,8 @@ class _ShowcaseAppState extends State<ShowcaseApp> {
           initialState: widget.initialState,
           fontFamily: widget.fontFamily,
           onSaved: widget.onSaved,
+          playerV1: widget.playerV1,
+          showControls: widget.showControls,
         ),
         '/library' => const _PoseHubLibraryDemo(),
         _ => const _Launcher(),
@@ -173,10 +189,14 @@ class ShowcaseScreen extends StatefulWidget {
     required this.initialState,
     this.fontFamily,
     this.onSaved,
+    this.playerV1 = false,
+    this.showControls = true,
   });
   final ShowcaseState initialState;
   final String? fontFamily;
   final ValueChanged<SessionResult>? onSaved;
+  final bool playerV1;
+  final bool showControls;
   @override
   State<ShowcaseScreen> createState() => _ShowcaseScreenState();
 }
@@ -185,110 +205,128 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
   late ShowcaseState _state = widget.initialState;
   int _generation = 0;
   SessionResult? _lastSaved;
+  ({SessionPhase phase, TrainerRestFeedbackChoice choice})? _restChoice;
   void _select(ShowcaseState state) => setState(() {
     _state = state;
     _generation++;
+    _restChoice = null;
   });
+
+  void _recordRestChoice(
+    TrainerRestFeedback feedback,
+    TrainerRestFeedbackChoice choice,
+  ) {
+    setState(
+      () => _restChoice = (phase: feedback.completedPhase, choice: choice),
+    );
+    if (choice == TrainerRestFeedbackChoice.pain) {
+      unawaited(feedback.reportDiscomfort());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final settings = _ShowcaseSettings.of(context);
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final theme = (dark ? TrainerTheme.dark : TrainerTheme.light).copyWith(
-      fontFamily: widget.fontFamily,
-    );
+    final theme = _showcasePalette(
+      Theme.of(context).brightness,
+      widget.playerV1,
+    ).copyWith(fontFamily: widget.fontFamily);
     return Scaffold(
       backgroundColor: theme.background,
       body: Column(
         children: [
           // Demo controls stay outside the SDK viewport and its touch targets.
-          SafeArea(
-            bottom: false,
-            child: Container(
-              decoration: BoxDecoration(
-                color: theme.background,
-                border: Border(bottom: BorderSide(color: theme.track)),
-              ),
-              padding: const EdgeInsets.only(left: 16, right: 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'SDK 实色分层 · 模拟人物',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.label.copyWith(fontSize: 12),
+          if (widget.showControls)
+            SafeArea(
+              bottom: false,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: theme.background,
+                  border: Border(bottom: BorderSide(color: theme.track)),
+                ),
+                padding: const EdgeInsets.only(left: 16, right: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.playerV1 ? 'SDK Player V1' : 'SDK 实色分层 · 模拟人物',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.label.copyWith(fontSize: 12),
+                      ),
                     ),
-                  ),
-                  PopupMenuButton<ShowcaseState>(
-                    key: const ValueKey('showcase-state'),
-                    tooltip: '切换展示状态',
-                    initialValue: _state,
-                    onSelected: _select,
-                    itemBuilder: (_) => [
-                      for (final state in ShowcaseState.values)
-                        CheckedPopupMenuItem(
-                          value: state,
-                          checked: _state == state,
-                          child: Text(state.label),
-                        ),
-                    ],
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: SizedBox(
-                        height: 48,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(_state.label, style: theme.callout),
-                            const SizedBox(width: 4),
-                            Icon(Icons.expand_more_rounded, color: theme.muted),
-                          ],
+                    PopupMenuButton<ShowcaseState>(
+                      key: const ValueKey('showcase-state'),
+                      tooltip: '切换展示状态',
+                      initialValue: _state,
+                      onSelected: _select,
+                      itemBuilder: (_) => [
+                        for (final state in ShowcaseState.values)
+                          CheckedPopupMenuItem(
+                            value: state,
+                            checked: _state == state,
+                            child: Text(state.label),
+                          ),
+                      ],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: SizedBox(
+                          height: 48,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_state.label, style: theme.callout),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.expand_more_rounded,
+                                color: theme.muted,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  PopupMenuButton<ThemeMode>(
-                    key: const ValueKey('showcase-theme'),
-                    tooltip: '浅色、深色或跟随系统',
-                    initialValue: settings.mode,
-                    onSelected: settings.onMode,
-                    icon: Icon(switch (settings.mode) {
-                      ThemeMode.system => Icons.brightness_auto_rounded,
-                      ThemeMode.light => Icons.light_mode_rounded,
-                      ThemeMode.dark => Icons.dark_mode_rounded,
-                    }, color: theme.text),
-                    constraints: const BoxConstraints(minWidth: 168),
-                    itemBuilder: (_) => [
-                      for (final entry in const {
-                        ThemeMode.system: '跟随系统',
-                        ThemeMode.light: '浅色',
-                        ThemeMode.dark: '深色',
-                      }.entries)
-                        CheckedPopupMenuItem(
-                          value: entry.key,
-                          checked: settings.mode == entry.key,
-                          child: Text(entry.value),
-                        ),
-                    ],
-                  ),
-                  IconButton(
-                    key: const ValueKey('showcase-library'),
-                    tooltip: '219 动作库',
-                    onPressed: () =>
-                        Navigator.of(context).pushNamed('/library'),
-                    icon: Icon(Icons.grid_view_rounded, color: theme.text),
-                  ),
-                  IconButton(
-                    key: const ValueKey('showcase-restart'),
-                    tooltip: '重播当前展示',
-                    onPressed: () => _select(_state),
-                    icon: Icon(Icons.replay_rounded, color: theme.muted),
-                  ),
-                ],
+                    PopupMenuButton<ThemeMode>(
+                      key: const ValueKey('showcase-theme'),
+                      tooltip: '浅色、深色或跟随系统',
+                      initialValue: settings.mode,
+                      onSelected: settings.onMode,
+                      icon: Icon(switch (settings.mode) {
+                        ThemeMode.system => Icons.brightness_auto_rounded,
+                        ThemeMode.light => Icons.light_mode_rounded,
+                        ThemeMode.dark => Icons.dark_mode_rounded,
+                      }, color: theme.text),
+                      constraints: const BoxConstraints(minWidth: 168),
+                      itemBuilder: (_) => [
+                        for (final entry in const {
+                          ThemeMode.system: '跟随系统',
+                          ThemeMode.light: '浅色',
+                          ThemeMode.dark: '深色',
+                        }.entries)
+                          CheckedPopupMenuItem(
+                            value: entry.key,
+                            checked: settings.mode == entry.key,
+                            child: Text(entry.value),
+                          ),
+                      ],
+                    ),
+                    IconButton(
+                      key: const ValueKey('showcase-library'),
+                      tooltip: '219 动作库',
+                      onPressed: () =>
+                          Navigator.of(context).pushNamed('/library'),
+                      icon: Icon(Icons.grid_view_rounded, color: theme.text),
+                    ),
+                    IconButton(
+                      key: const ValueKey('showcase-restart'),
+                      tooltip: '重播当前展示',
+                      onPressed: () => _select(_state),
+                      icon: Icon(Icons.replay_rounded, color: theme.muted),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
           Expanded(
             child: MediaQuery.removePadding(
               context: context,
@@ -298,38 +336,84 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
                 child: TrainerPlayer(
                   key: ValueKey('showcase-player-${_state.name}-$_generation'),
                   plan: demoPlan,
-                  drillOf: demoDrill,
+                  drillOf: widget.playerV1 ? _playerV1Drill : demoDrill,
                   strings: TrainerStrings.zh(),
                   theme: theme,
                   sessionId: 'showcase-${_state.name}-$_generation',
-                  sessionBuilder: DemoSessionBuilder(_state),
+                  sessionBuilder: DemoSessionBuilder(
+                    _state,
+                    playerV1: widget.playerV1,
+                  ),
                   startMode: _state == ShowcaseState.preview
                       ? TrainerStartMode.preview
                       : TrainerStartMode.training,
                   keepAlive: false,
                   voice: TrainerVoice.silent,
-                  showExtendRest: true,
-                  showCompleteTimedPhase: true,
-                  showSoundToggle: true,
-                  mediaBuilder: (_, request) => DemoFigure(
-                    dark: request.theme.isDark,
-                    mirrored: request.mirrored,
-                  ),
+                  showExtendRest: !widget.playerV1,
+                  showCompleteTimedPhase: !widget.playerV1,
+                  showSoundToggle: !widget.playerV1,
+                  streakDays: widget.playerV1 ? 3 : null,
+                  trainedAreas: widget.playerV1 ? const ['髋部', '臀部'] : const [],
+                  mediaBuilder: (_, request) => widget.playerV1
+                      ? TrainerPoster(
+                          asset: playerV1PosterAssets[request.drill.id]!,
+                          mirrored: request.mirrored,
+                        )
+                      : DemoFigure(
+                          dark: request.theme.isDark,
+                          mirrored: request.mirrored,
+                        ),
+                  restFeedbackBuilder: widget.playerV1
+                      ? (_, feedback) {
+                          final selected =
+                              identical(
+                                _restChoice?.phase,
+                                feedback.completedPhase,
+                              )
+                              ? _restChoice?.choice
+                              : null;
+                          return TrainerRestFeedbackPanel(
+                            theme: theme,
+                            title: '刚才感觉怎么样？',
+                            description: '给刚完成的动作记下一个感受',
+                            selected: selected,
+                            comfortableLabel: '舒服',
+                            tightLabel: '有点紧',
+                            painLabel: '疼',
+                            onComfortable: () => _recordRestChoice(
+                              feedback,
+                              TrainerRestFeedbackChoice.comfortable,
+                            ),
+                            onTight: () => _recordRestChoice(
+                              feedback,
+                              TrainerRestFeedbackChoice.tight,
+                            ),
+                            onPain: () => _recordRestChoice(
+                              feedback,
+                              TrainerRestFeedbackChoice.pain,
+                            ),
+                          );
+                        }
+                      : null,
                   onFinished: (result) async {
                     // In memory only; no host app account or storage.
                     _lastSaved = result;
                     widget.onSaved?.call(result);
                   },
-                  feedbackBuilder: (_, result) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      _lastSaved?.sessionId == result.sessionId
-                          ? '展示记录已保存在内存，退出即清除'
-                          : '模拟训练 · 仅供界面验收',
-                      textAlign: TextAlign.center,
-                      style: theme.label,
-                    ),
-                  ),
+                  feedbackBuilder: (_, result) {
+                    final saved = _lastSaved?.sessionId == result.sessionId;
+                    final message = widget.playerV1
+                        ? (saved ? '本次展示记录已保存' : '正在保存展示记录')
+                        : (saved ? '展示记录已保存在内存，退出即清除' : '模拟训练 · 仅供界面验收');
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        message,
+                        textAlign: TextAlign.center,
+                        style: theme.label,
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -339,6 +423,39 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
     );
   }
 }
+
+const playerV1PosterAssets = {
+  'lunge': '${PoseHubActionLibrary.standingAssetRoot}s-kneel-hipflex.webp',
+  'reach': '${PoseHubActionLibrary.standingAssetRoot}s-figure4.webp',
+};
+
+TrainerDrill? _playerV1Drill(String id) => switch (id) {
+  'lunge' => TrainerDrill(
+    id: 'lunge',
+    name: '半跪髋屈肌拉伸',
+    cues: ['收紧腹部，慢慢把髋向前移', '保持呼吸，感受髋前侧伸展'],
+    targetMuscles: '髋部',
+    equipment: '徒手',
+    media: _playerV1Media('lunge'),
+  ),
+  'reach' => TrainerDrill(
+    id: 'reach',
+    name: '仰卧四字拉伸',
+    cues: ['放松肩颈，保持均匀呼吸'],
+    targetMuscles: '臀部',
+    equipment: '徒手',
+    media: _playerV1Media('reach'),
+  ),
+  _ => null,
+};
+
+DrillMedia _playerV1Media(String id) => DrillMedia(
+  id: id,
+  videoAsset: '',
+  posterAsset: playerV1PosterAssets[id]!,
+  duration: 0,
+  videoAvailable: false,
+);
 
 const _lunge = PlanItem(
   exerciseId: 'lunge',
@@ -396,8 +513,9 @@ TrainerDrill? demoDrill(String id) => switch (id) {
 
 /// Demo-only authored phases; production engine and public API stay unchanged.
 class DemoSessionBuilder extends SessionBuilder {
-  DemoSessionBuilder(this.state);
+  DemoSessionBuilder(this.state, {this.playerV1 = false});
   final ShowcaseState state;
+  final bool playerV1;
   SessionPhase _work(PlanItem item, int index, {Side? side, double? seconds}) =>
       SessionPhase(
         kind: PhaseKind.work,
@@ -468,13 +586,18 @@ class DemoSessionBuilder extends SessionBuilder {
         reach,
         done,
       ],
-      ShowcaseState.rest => [rest, reach, done],
+      ShowcaseState.rest => [
+        if (playerV1) _work(_lunge, 0, side: Side.right, seconds: .12),
+        rest,
+        reach,
+        done,
+      ],
       ShowcaseState.transition => [change, left, rest, reach, done],
       // Short genuine engine visits produce a result; no invented statistics.
       ShowcaseState.result => [
-        _work(_lunge, 0, side: Side.right, seconds: .12),
-        _work(_lunge, 0, side: Side.left, seconds: .12),
-        _work(_reach, 1, seconds: .12),
+        _work(_lunge, 0, side: Side.right, seconds: playerV1 ? 1 : .12),
+        _work(_lunge, 0, side: Side.left, seconds: playerV1 ? 1 : .12),
+        _work(_reach, 1, seconds: playerV1 ? 1 : .12),
         done,
       ],
     };

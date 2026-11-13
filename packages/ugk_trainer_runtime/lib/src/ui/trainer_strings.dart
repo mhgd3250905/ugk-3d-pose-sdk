@@ -82,6 +82,11 @@ class TrainerStrings {
         'Demo video download failed, tap to retry',
     this.mediaDownloadVerifying = 'Verifying demo video…',
     this.mediaDownloadReady = 'Demo video ready',
+    this.restLabel = 'Rest',
+    this.upcomingLabel = 'Up next',
+    this.completionTitle,
+    this.streak = 'Streak (days)',
+    this.trainedAreasLabel = 'Areas trained',
   });
 
   /// Top label during prep ("准备 · 第一个动作").
@@ -170,6 +175,9 @@ class TrainerStrings {
   final String mediaDownloadFailedSemantics;
   final String mediaDownloadVerifying;
   final String mediaDownloadReady;
+  final String restLabel, upcomingLabel;
+  final String? completionTitle;
+  final String streak, trainedAreasLabel;
   static String _enMediaDownloading(int? percentage) => percentage == null
       ? 'Downloading demo…'
       : 'Downloading demo $percentage%';
@@ -189,6 +197,11 @@ class TrainerStrings {
   }) => '$amount ${reps ? 'reps' : 's'}${perSide ? ' each side' : ''}';
 
   factory TrainerStrings.zh() => TrainerStrings(
+    restLabel: '休息',
+    upcomingLabel: '即将开始',
+    completionTitle: '练完了，干得漂亮',
+    streak: '连续训练（天）',
+    trainedAreasLabel: '训练部位',
     mediaDownloading: (percentage) =>
         percentage == null ? '正在下载示范…' : '正在下载示范 $percentage%',
     mediaDownloadingSemantics: (percentage) =>
@@ -263,6 +276,7 @@ class TrainerStrings {
   );
 
   factory TrainerStrings.en() => TrainerStrings(
+    completionTitle: 'You did it. Well done!',
     prepFirst: 'Get ready · first move',
     restNext: 'Rest · next move',
     restBetweenSets: 'Rest between sets',

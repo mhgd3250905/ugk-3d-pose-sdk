@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -75,6 +76,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
   TextDirection? _layoutDirection;
   Locale? _layoutLocale;
   String? _layoutFont;
+  bool? _layoutPlayerV1;
   double _countWidth = 0;
 
   @override
@@ -121,8 +123,8 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
     inherit: false,
     fontFamily: widget.theme.fontFamily,
     fontSize: size,
-    fontWeight: FontWeight.w500,
-    height: 1.5,
+    fontWeight: widget.theme.usePlayerV1 ? FontWeight.w700 : FontWeight.w500,
+    height: widget.theme.usePlayerV1 ? 1.3 : 1.5,
     color: widget.theme.text,
   );
 
@@ -145,14 +147,17 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
     BuildContext context,
   ) {
     final pages = <_CuePage>[];
+    final playerV1 = widget.theme.usePlayerV1;
+    final size = playerV1 ? 17.0 : 16.0;
+    final splitSize = playerV1 ? size : 14.0;
     void add(String text) {
       if (text.isEmpty) return;
-      if (_fits(text, 16, width, context)) {
-        pages.add(_CuePage(text, 16));
+      if (_fits(text, size, width, context)) {
+        pages.add(_CuePage(text, size));
         return;
       }
-      if (_fits(text, 14, width, context)) {
-        pages.add(_CuePage(text, 14));
+      if (!playerV1 && _fits(text, splitSize, width, context)) {
+        pages.add(_CuePage(text, splitSize));
         return;
       }
 
@@ -161,7 +166,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
       final commas = RegExp('[，,]').allMatches(text).toList();
       for (final comma in commas.reversed) {
         final prefix = _cleanCue(text.substring(0, comma.start));
-        if (prefix.isNotEmpty && _fits(prefix, 14, width, context)) {
+        if (prefix.isNotEmpty && _fits(prefix, splitSize, width, context)) {
           add(prefix);
           add(_cleanCue(text.substring(comma.end)));
           return;
@@ -177,7 +182,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
       var count = 1;
       while (low <= high) {
         final middle = (low + high) ~/ 2;
-        if (_fits(characters.take(middle).join(), 14, width, context)) {
+        if (_fits(characters.take(middle).join(), splitSize, width, context)) {
           count = middle;
           low = middle + 1;
         } else {
@@ -192,7 +197,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
       } else {
         // The one-character fallback only applies to constraints narrower
         // than a single glyph. It still never replaces content with dots.
-        pages.add(_CuePage(candidate, 14));
+        pages.add(_CuePage(candidate, splitSize));
         add(characters.skip(count).join().trimLeft());
       }
     }
@@ -243,6 +248,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
     final cues = normalizeTrainerCues(widget.cues);
     if (cues.isEmpty) return const SizedBox.shrink();
     final theme = widget.theme;
+    final playerV1 = theme.usePlayerV1;
     final reduced = TrainerMotion.reduced(context);
     final textScaler = MediaQuery.textScalerOf(context);
     return LayoutBuilder(
@@ -251,11 +257,13 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
         // A second pass accommodates extra pages introduced by text splitting.
         final direction = Directionality.of(context);
         final locale = Localizations.maybeLocaleOf(context);
+        final stepGap = playerV1 ? 10.0 : 12.0;
         if (_layoutWidth != constraints.maxWidth ||
             _layoutScaler != textScaler ||
             _layoutDirection != direction ||
             _layoutLocale != locale ||
             _layoutFont != theme.fontFamily ||
+            _layoutPlayerV1 != playerV1 ||
             !listEquals(_layoutCues, cues)) {
           var total = math.max(1, cues.length);
           for (var pass = 0; pass < 4; pass++) {
@@ -267,11 +275,13 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
               textDirection: direction,
               textScaler: textScaler,
             )..layout();
-            _countWidth = counter.width;
+            _countWidth = playerV1
+                ? math.max(34, counter.width + 16)
+                : counter.width;
             counter.dispose();
             _pages = _fitPages(
               cues,
-              math.max(1, constraints.maxWidth - 32 - _countWidth - 12),
+              math.max(1, constraints.maxWidth - 32 - _countWidth - stepGap),
               context,
             );
             if (_pages.length == total) break;
@@ -282,126 +292,179 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
           _layoutDirection = direction;
           _layoutLocale = locale;
           _layoutFont = theme.fontFamily;
+          _layoutPlayerV1 = playerV1;
           _layoutCues = cues;
         }
         _index = widget.preparing ? 0 : _index.clamp(0, _pages.length - 1);
         final page = _pages[_index];
-        final body = Row(
+        final counter = Text(
+          '${_index + 1}/${_pages.length}',
+          key: const ValueKey('trainer-cue-count'),
+          style: _counterStyle(theme),
+        );
+        final cueText = Text(
+          page.text,
+          key: const ValueKey('trainer-cue-text'),
+          style: _bodyStyle(page.size),
+          textAlign: playerV1 ? TextAlign.center : null,
+          maxLines: 2,
+          // Each page was measured with the same scaler.
+          overflow: TextOverflow.visible,
+        );
+        final pageContent = Row(
           key: ValueKey('trainer-cue-page-$_index-${page.text}'),
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: playerV1 ? MainAxisSize.min : MainAxisSize.max,
+          crossAxisAlignment: playerV1
+              ? CrossAxisAlignment.center
+              : CrossAxisAlignment.start,
           children: [
             SizedBox(
               width: _countWidth,
-              child: Padding(
-                padding: EdgeInsets.only(top: textScaler.scale(3)),
-                child: Text(
-                  '${_index + 1}/${_pages.length}',
-                  key: const ValueKey('trainer-cue-count'),
-                  style: _counterStyle(theme),
-                ),
-              ),
+              child: playerV1
+                  ? SizedBox(
+                      key: const ValueKey('trainer-cue-step-pill'),
+                      height: 22,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(11),
+                          color: theme.tint,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: counter,
+                          ),
+                        ),
+                      ),
+                    )
+                  : Padding(
+                      padding: EdgeInsets.only(top: textScaler.scale(3)),
+                      child: counter,
+                    ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                page.text,
-                key: const ValueKey('trainer-cue-text'),
-                style: _bodyStyle(page.size),
-                maxLines: 2,
-                // Every page has already been measured with the same scaler.
-                // Visible overflow preserves the text in pathological bounds.
-                overflow: TextOverflow.visible,
-              ),
+            SizedBox(width: stepGap),
+            Flexible(
+              fit: playerV1 ? FlexFit.loose : FlexFit.tight,
+              child: cueText,
             ),
           ],
         );
+        final pageSwitcher = AnimatedSwitcher(
+          duration: reduced ? Duration.zero : _transition,
+          transitionBuilder: (child, animation) => AnimatedBuilder(
+            animation: animation,
+            builder: (context, _) => Transform.translate(
+              offset: Offset(
+                0,
+                animation.status == AnimationStatus.reverse
+                    ? -8 * (1 - animation.value)
+                    : 0,
+              ),
+              child: Opacity(opacity: animation.value, child: child),
+            ),
+          ),
+          layoutBuilder: (current, previous) => Stack(
+            alignment: playerV1 ? Alignment.center : Alignment.topLeft,
+            children: [...previous, ?current],
+          ),
+          child: pageContent,
+        );
+        final dots = ExcludeSemantics(
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: playerV1 ? 5 : 6,
+            runSpacing: playerV1 ? 5 : 6,
+            children: [
+              for (var i = 0; i < _pages.length; i++)
+                Container(
+                  key: ValueKey('trainer-cue-dot-$i'),
+                  width: playerV1 && i == _index ? 14 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    borderRadius: playerV1 ? BorderRadius.circular(3) : null,
+                    shape: playerV1 ? BoxShape.rectangle : BoxShape.circle,
+                    color: i == _index
+                        ? theme.accent
+                        : playerV1
+                        ? theme.track
+                        : theme.cardBorder,
+                  ),
+                ),
+            ],
+          ),
+        );
+        final radius = BorderRadius.circular(playerV1 ? 20 : 16);
+        final card = GestureDetector(
+          onHorizontalDragStart: (_) => _dragDistance = 0,
+          onHorizontalDragUpdate: (details) =>
+              _dragDistance += details.delta.dx,
+          onHorizontalDragEnd: (details) {
+            final velocity = details.primaryVelocity ?? 0;
+            if (_dragDistance.abs() < 24 && velocity.abs() < 100) return;
+            final right = _dragDistance.abs() >= 24
+                ? _dragDistance > 0
+                : velocity > 0;
+            final rtl = Directionality.of(context) == TextDirection.rtl;
+            _move(right != rtl ? -1 : 1, manual: true);
+          },
+          child: Material(
+            key: const ValueKey('trainer-cue-container'),
+            color: playerV1
+                ? theme.card.withValues(alpha: .92)
+                : theme.cardSurface,
+            shape: RoundedRectangleBorder(
+              borderRadius: radius,
+              side: BorderSide(color: theme.cardBorder),
+            ),
+            child: InkWell(
+              borderRadius: radius,
+              onTap: _expand,
+              child: Semantics(
+                label: widget.semanticLabel,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 16,
+                  ),
+                  child: playerV1
+                      ? ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 36),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              pageSwitcher,
+                              if (_pages.length > 1) ...[
+                                const SizedBox(height: 10),
+                                dots,
+                              ],
+                            ],
+                          ),
+                        )
+                      : SizedBox(
+                          height: textScaler.scale(16) * 1.5 * 2,
+                          child: pageSwitcher,
+                        ),
+                ),
+              ),
+            ),
+          ),
+        );
+        if (playerV1) {
+          return ClipRRect(
+            borderRadius: radius,
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: card,
+            ),
+          );
+        }
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            GestureDetector(
-              onHorizontalDragStart: (_) => _dragDistance = 0,
-              onHorizontalDragUpdate: (details) =>
-                  _dragDistance += details.delta.dx,
-              onHorizontalDragEnd: (details) {
-                final velocity = details.primaryVelocity ?? 0;
-                if (_dragDistance.abs() < 24 && velocity.abs() < 100) return;
-                final right = _dragDistance.abs() >= 24
-                    ? _dragDistance > 0
-                    : velocity > 0;
-                final rtl = Directionality.of(context) == TextDirection.rtl;
-                _move(right != rtl ? -1 : 1, manual: true);
-              },
-              child: Material(
-                key: const ValueKey('trainer-cue-container'),
-                color: theme.cardSurface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: theme.cardBorder),
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: _expand,
-                  child: Semantics(
-                    label: widget.semanticLabel,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 14,
-                        horizontal: 16,
-                      ),
-                      child: SizedBox(
-                        height: textScaler.scale(16) * 1.5 * 2,
-                        child: AnimatedSwitcher(
-                          duration: reduced ? Duration.zero : _transition,
-                          transitionBuilder: (child, animation) =>
-                              AnimatedBuilder(
-                                animation: animation,
-                                builder: (context, _) => Transform.translate(
-                                  offset: Offset(
-                                    0,
-                                    animation.status == AnimationStatus.reverse
-                                        ? -8 * (1 - animation.value)
-                                        : 0,
-                                  ),
-                                  child: Opacity(
-                                    opacity: animation.value,
-                                    child: child,
-                                  ),
-                                ),
-                              ),
-                          layoutBuilder: (current, previous) => Stack(
-                            alignment: Alignment.topLeft,
-                            children: [...previous, ?current],
-                          ),
-                          child: body,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            ExcludeSemantics(
-              child: Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (var i = 0; i < _pages.length; i++)
-                    Container(
-                      key: ValueKey('trainer-cue-dot-$i'),
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: i == _index ? theme.accent : theme.cardBorder,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
+          children: [card, const SizedBox(height: 6), dots],
         );
       },
     );

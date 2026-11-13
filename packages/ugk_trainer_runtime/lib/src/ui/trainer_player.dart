@@ -20,6 +20,7 @@
 //   its backdrop continued as a floor ([TrainerStageFloor]).
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:clock/clock.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
@@ -54,6 +55,7 @@ import 'trainer_completion.dart';
 import 'trainer_cue_carousel.dart';
 import 'trainer_experience.dart';
 import 'trainer_media_download_indicator.dart';
+import 'trainer_player_v1_dock.dart';
 import 'trainer_poster.dart';
 import 'trainer_stage.dart';
 import 'trainer_strings.dart';
@@ -62,6 +64,7 @@ import 'trainer_theme.dart';
 import 'ugk_play_pause_button.dart';
 
 part 'trainer_chrome.dart';
+part 'trainer_player_v1.dart';
 
 /// What the player needs to show one exercise.
 class TrainerDrill {
@@ -296,6 +299,8 @@ class TrainerPlayer extends StatefulWidget {
     this.onDiscomfort,
     this.feedbackBuilder,
     this.restFeedbackBuilder,
+    this.streakDays,
+    this.trainedAreas = const [],
     this.sessionBuilder,
     this.replayBuilder,
     this.doseLabel,
@@ -317,6 +322,10 @@ class TrainerPlayer extends StatefulWidget {
   });
 
   final TrainingPlan plan;
+
+  /// Optional host statistics and labels on the V1 completion page.
+  final int? streakDays;
+  final List<String> trainedAreas;
 
   /// The app's exercise by id; null: left out of the session.
   final TrainerDrill? Function(String exerciseId) drillOf;
@@ -1821,10 +1830,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   Widget _playerBody(SessionPhase phase, TrainerDrill? drill) {
     if (_engine.done && !_exitingEarly && !_waitingForStart) {
-      final result = TrainerResultStage(
-        theme: _th,
-        child: SafeArea(child: _doneView()),
-      );
+      final result = _th.usePlayerV1
+          ? _doneView()
+          : TrainerResultStage(
+              theme: _th,
+              child: SafeArea(child: _doneView()),
+            );
       if (_earlyExitFrame == null) return _chromeDone(result);
       return _chromeDone(
         TweenAnimationBuilder<double>(
@@ -1845,7 +1856,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
           ignoring: _exitingEarly,
           child: TickerMode(
             enabled: !_exitingEarly,
-            child: _sessionView(phase, drill),
+            child: _th.usePlayerV1 && !_preview
+                ? _sessionViewV1(phase, drill)
+                : _sessionView(phase, drill),
           ),
         ),
         if (_exitingEarly && _showEarlyExitProgress)
@@ -1875,9 +1888,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     required String tooltip,
     required VoidCallback onPressed,
     double size = 44,
+    TrainerTheme? theme,
   }) => TrainerIconButton(
     key: key,
-    theme: _th,
+    theme: theme ?? _th,
     icon: Icon(icon),
     tooltip: tooltip,
     size: size,
@@ -2065,7 +2079,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     }
     final m = d.media;
     if (m == null) {
-      return ColoredBox(color: _th.mediaStage);
+      return ColoredBox(color: theme.mediaStage);
     }
     return DrillMediaView(
       key: const ValueKey('player-media'),
@@ -2073,7 +2087,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       paused: _exitingEarly || (!_preview && _paused),
       mirrored: p.side == Side.left,
       radius: 0,
-      stage: _th.mediaStage,
+      stage: theme.mediaStage,
       errorLabel: _s.mediaUnavailable,
       errorColor: _th.muted,
       playbackHandle: _mediaPlaybackHandle,
@@ -3016,14 +3030,9 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         (phase.kind != PhaseKind.rest && phase.kind != PhaseKind.roundRest)) {
       return null;
     }
-    SessionPhase? completed;
-    for (final visit in _engine.visits.reversed) {
-      if (visit.phase.isWork) {
-        completed = visit.phase;
-        break;
-      }
-    }
-    if (completed == null || completed.itemIndex >= phase.itemIndex) {
+    final completed = _lastWorkVisit();
+    if (completed == null ||
+        (!_th.usePlayerV1 && completed.itemIndex >= phase.itemIndex)) {
       return null;
     }
     final target = completed;
@@ -3035,6 +3044,13 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         reportDiscomfort: () => _discomfort(completedPhase: target),
       ),
     );
+  }
+
+  SessionPhase? _lastWorkVisit() {
+    for (final visit in _engine.visits.reversed) {
+      if (visit.phase.isWork) return visit.phase;
+    }
+    return null;
   }
 
   String _dose(PlanItem item, {SessionPhase? phase}) {
@@ -3086,23 +3102,25 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     );
   }
 
-  /// While working or paused: the move after this one, beneath the info card
-  /// on the left. Its text wraps within the room left by the safety control.
-  Widget? _nextUp(SessionPhase p) {
+  TrainerDrill? _nextDrill(SessionPhase p) {
     final phases = _engine.phases;
-    SessionPhase? next;
     final index = _exitingEarly ? _earlyExitFrame!.index : _engine.index;
     for (var i = index + 1; i < phases.length; i++) {
       final q = phases[i];
       if (q.kind == PhaseKind.work &&
           q.exerciseId != null &&
           q.itemIndex != p.itemIndex) {
-        next = q;
-        break;
+        return widget.drillOf(q.exerciseId!);
       }
     }
-    final d = next == null ? null : widget.drillOf(next.exerciseId!);
-    if (next == null || d == null) return null;
+    return null;
+  }
+
+  /// While working or paused: the move after this one, beneath the info card
+  /// on the left. Its text wraps within the room left by the safety control.
+  Widget? _nextUp(SessionPhase p) {
+    final d = _nextDrill(p);
+    if (d == null) return null;
     final poster = d.media?.posterFor(light: !_th.isDark);
     // Keep the thumbnail slot useful when a drill has no poster or a host's
     // asset is unavailable, rather than leaving an opaque empty circle.
@@ -3176,7 +3194,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   /// accent and breathe); the rep on the clock with `/ 12 次` for counted
   /// sets; the dose alone for self-paced sets. Screen readers get the same
   /// reading as one label.
-  Widget _digits(SessionPhase p, double t) {
+  Widget _digits(SessionPhase p, double t, {bool template = false}) {
     final counted = p.countedOnClock;
     final left = _exitingEarly
         ? _earlyExitFrame!.secondsLeft
@@ -3220,8 +3238,11 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         theme: _th,
         value: value,
         unit: unit,
-        size: 32,
-        color: working ? _th.text : _th.muted,
+        size: template ? 44 : 32,
+        unitSize: template ? 14 : 13,
+        numberWeight: template ? FontWeight.w700 : FontWeight.w300,
+        unitColor: template ? _th.sub : null,
+        color: template || working ? _th.text : _th.muted,
         urgent: urgent,
         dim: _paused,
         numberKey: const ValueKey('counter'),
@@ -3234,6 +3255,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     theme: _th,
     strings: _s,
     result: _result(),
+    streakDays: widget.streakDays,
+    trainedAreas: widget.trainedAreas,
     drillOf: widget.drillOf,
     feeling: _feeling,
     onFeelingChanged: (value) {
@@ -3243,15 +3266,20 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     },
     onFinish: _saver.saved ? _close : null,
     onReplay: _saver.saved ? _replay : null,
-    feedback: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (widget.feedbackBuilder != null)
-          widget.feedbackBuilder!(context, _result()),
-        if (_saver.saved && widget.replayBuilder != null)
-          widget.replayBuilder!(context, _result(), _replay),
-      ],
-    ),
+    feedback:
+        _th.usePlayerV1 &&
+            widget.feedbackBuilder == null &&
+            (!_saver.saved || widget.replayBuilder == null)
+        ? null
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.feedbackBuilder != null)
+                widget.feedbackBuilder!(context, _result()),
+              if (_saver.saved && widget.replayBuilder != null)
+                widget.replayBuilder!(context, _result(), _replay),
+            ],
+          ),
     error: _saveFailed
         ? Row(
             mainAxisAlignment: MainAxisAlignment.center,

@@ -53,6 +53,7 @@ void main() {
     Widget? feedback,
     int? streakDays,
     List<String> trainedAreas = const [],
+    String? thumbnailAsset,
   }) => tester.pumpWidget(
     MaterialApp(
       home: MediaQuery(
@@ -65,7 +66,11 @@ void main() {
             theme: theme,
             strings: TrainerStrings.en(),
             result: session ?? result(),
-            drillOf: (id) => TrainerDrill(id: id, name: 'Move $id'),
+            drillOf: (id) => TrainerDrill(
+              id: id,
+              name: 'Move $id',
+              thumbnailAsset: thumbnailAsset,
+            ),
             feeling: feeling,
             onFeelingChanged: onFeeling ?? (_) {},
             onFinish: onFinish,
@@ -344,7 +349,13 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     const theme = TrainerTheme.playerV1Dark;
-    await mount(tester, reduced: true, theme: theme);
+    await mount(
+      tester,
+      reduced: true,
+      theme: theme,
+      thumbnailAsset:
+          '${PoseHubActionLibrary.standingAssetRoot}glute-max-A.webp',
+    );
     final item = find.byKey(const ValueKey('completion-item-0'));
     final thumbnail = find.descendant(
       of: item,
@@ -361,7 +372,37 @@ void main() {
             find.descendant(of: thumbnail, matching: find.byType(ColoredBox)),
           )
           .color,
-      theme.ctrl,
+      const Color(0xFF3A3D46),
+    );
+    final image = find.descendant(of: thumbnail, matching: find.byType(Image));
+    final filter = find.descendant(
+      of: image,
+      matching: find.byType(ColorFiltered),
+    );
+    expect(
+      tester.widget<ColorFiltered>(filter).colorFilter,
+      const ColorFilter.matrix([
+        1.15,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1.15,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1.15,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+      ]),
     );
     expect(tester.getTopLeft(name).dx - tester.getTopRight(thumbnail).dx, 12);
     expect(tester.widget<Text>(name).maxLines, 1);
@@ -374,6 +415,51 @@ void main() {
     expect(tester.widget<Icon>(check).color, theme.good);
     expect(find.text('Skipped'), findsOneWidget);
     expect(find.byKey(const ValueKey('completion-item-check-1')), findsNothing);
+  });
+
+  testWidgets('player V1 scrolls the whole action card above the footer fade', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 480);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const theme = TrainerTheme.playerV1;
+    await mount(tester, reduced: true, theme: theme, onFinish: () {});
+    final scroll = find.byKey(const ValueKey('completion-scroll'));
+    final viewport = find.descendant(
+      of: scroll,
+      matching: find.byType(Scrollable),
+    );
+    final position = tester.state<ScrollableState>(viewport).position;
+    expect(position.maxScrollExtent, greaterThan(0));
+    position.jumpTo(position.maxScrollExtent);
+    await tester.pump();
+
+    final card = find.byKey(const ValueKey('completion-items'));
+    final lastRow = find.byKey(const ValueKey('completion-item-1'));
+    final fade = find.byKey(const ValueKey('completion-footer-fade'));
+    final footer = find.byKey(const ValueKey('completion-footer'));
+    final cardDecoration =
+        tester.widget<DecoratedBox>(card).decoration as BoxDecoration;
+    expect(cardDecoration.borderRadius, BorderRadius.circular(20));
+    expect(
+      tester.getBottomLeft(card).dy - tester.getBottomLeft(lastRow).dy,
+      16,
+    );
+    final fadeDecoration =
+        tester.widget<DecoratedBox>(fade).decoration as BoxDecoration;
+    expect((fadeDecoration.gradient! as LinearGradient).colors, [
+      theme.background.withValues(alpha: 0),
+      theme.background,
+    ]);
+    expect(tester.getSize(fade).height, 24);
+    expect(
+      tester.getBottomLeft(card).dy,
+      closeTo(tester.getTopLeft(fade).dy, .01),
+    );
+    expect(tester.getBottomLeft(fade).dy, tester.getTopLeft(footer).dy);
+    expect(lastRow.hitTestable(), findsOneWidget);
+    expect(find.byKey(const ValueKey('finish')).hitTestable(), findsOneWidget);
   });
 
   testWidgets('player V1 keeps absent host data empty on a compact display', (

@@ -201,6 +201,7 @@ class _TrainerCompletionState extends State<TrainerCompletion>
   Widget _thumbnail(TrainerDrill? drill) {
     final asset =
         drill?.thumbnailAsset ?? drill?.media?.posterFor(light: !_theme.isDark);
+    final darkThumbnail = _theme.usePlayerV1 && _theme.isDark;
     Widget fallback() => Center(
       child: Icon(Icons.accessibility_new, size: 24, color: _theme.muted),
     );
@@ -213,11 +214,41 @@ class _TrainerCompletionState extends State<TrainerCompletion>
               fit: BoxFit.contain,
               excludeFromSemantics: true,
               errorBuilder: (_, _, _) => fallback(),
+              frameBuilder: darkThumbnail
+                  ? (_, image, _, _) => ColorFiltered(
+                      colorFilter: const ColorFilter.matrix([
+                        1.15,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1.15,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1.15,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
+                      ]),
+                      child: image,
+                    )
+                  : null,
             ),
     );
     if (_theme.usePlayerV1) {
       return ClipOval(
-        child: ColoredBox(color: _theme.ctrl, child: thumbnail),
+        child: ColoredBox(
+          color: darkThumbnail ? const Color(0xFF3A3D46) : _theme.ctrl,
+          child: thumbnail,
+        ),
       );
     }
     return ClipRRect(borderRadius: BorderRadius.circular(10), child: thumbnail);
@@ -525,6 +556,7 @@ class _TrainerCompletionState extends State<TrainerCompletion>
   Widget _v1Footer() {
     const radius = BorderRadius.all(Radius.circular(26));
     return SafeArea(
+      key: const ValueKey('completion-footer'),
       top: false,
       minimum: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       child: Column(
@@ -575,57 +607,90 @@ class _TrainerCompletionState extends State<TrainerCompletion>
     );
   }
 
-  Widget _v1(BuildContext context, String title, String subtitle) =>
-      TrainerResultStage(
-        theme: _theme,
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                key: const ValueKey('completion-scroll'),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 300),
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: 300,
-                        child: _hero(context, title, subtitle),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 244, 20, 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _statistics(),
-                            const SizedBox(height: TrainerSpace.x4),
-                            _feedbackCard(),
-                            if (widget.trainedAreas.isNotEmpty) ...[
-                              const SizedBox(height: TrainerSpace.x4),
-                              _trainedAreas(),
-                            ],
-                            if (widget.result.items.length > 1) ...[
-                              const SizedBox(height: TrainerSpace.x4),
-                              _items(),
-                            ],
-                            if (widget.error case final error?) ...[
-                              const SizedBox(height: TrainerSpace.x4),
-                              error,
-                            ],
-                          ],
+  Widget _v1(BuildContext context, String title, String subtitle) {
+    const fadeHeight = 24.0;
+    final background = _theme.background.withValues(alpha: 1);
+    return TrainerResultStage(
+      theme: _theme,
+      child: Column(
+        children: [
+          Expanded(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                SingleChildScrollView(
+                  key: const ValueKey('completion-scroll'),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 300),
+                    child: Stack(
+                      children: [
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: 300,
+                          child: _hero(context, title, subtitle),
                         ),
-                      ),
-                    ],
+                        Padding(
+                          // The footer occupies its own measured height. At
+                          // the end of the scroll, this gap clears the fade.
+                          padding: const EdgeInsets.fromLTRB(
+                            20,
+                            244,
+                            20,
+                            fadeHeight,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _statistics(),
+                              const SizedBox(height: TrainerSpace.x4),
+                              _feedbackCard(),
+                              if (widget.trainedAreas.isNotEmpty) ...[
+                                const SizedBox(height: TrainerSpace.x4),
+                                _trainedAreas(),
+                              ],
+                              if (widget.result.items.length > 1) ...[
+                                const SizedBox(height: TrainerSpace.x4),
+                                _items(),
+                              ],
+                              if (widget.error case final error?) ...[
+                                const SizedBox(height: TrainerSpace.x4),
+                                error,
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: fadeHeight,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      key: const ValueKey('completion-footer-fade'),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [background.withValues(alpha: 0), background],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            _v1Footer(),
-          ],
-        ),
-      );
+          ),
+          _v1Footer(),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

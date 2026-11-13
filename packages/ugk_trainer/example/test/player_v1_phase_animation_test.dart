@@ -543,9 +543,15 @@ void main() {
             }
           }
 
-          Future<void> clip(String name, int start, int duration) async {
+          Future<void> clip(
+            String name,
+            int start,
+            int duration, {
+            VoidCallback? checkFrame,
+          }) async {
             for (var offset = 0; offset <= duration; offset += 40) {
               await advance(start + offset);
+              checkFrame?.call();
               await captureNamed(
                 tester,
                 '$name-${offset.toString().padLeft(3, '0')}',
@@ -588,10 +594,20 @@ void main() {
             findsWidgets,
           );
           await landmark('04-work-left');
-          await clip('left-to-rest', 7000, 760);
+          await clip(
+            'left-to-rest',
+            7000,
+            760,
+            checkFrame: _expectNoRestOverlap,
+          );
           expect(find.text('刚才感觉怎么样？').hitTestable(), findsOneWidget);
           await landmark('05-rest');
-          await clip('rest-to-next', 8600, 480);
+          await clip(
+            'rest-to-next',
+            8600,
+            480,
+            checkFrame: _expectNoRestOverlap,
+          );
           await advance(9200);
           expect(find.text('仰卧四字拉伸'), findsWidgets);
           expectPlaying(true);

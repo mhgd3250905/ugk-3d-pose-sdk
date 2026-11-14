@@ -5,6 +5,8 @@
 // line / asset) is the API of HipLab@99fcc83 lib/hip/voice/voice_library.dart.
 // Pure Dart.
 
+import 'package:ugk_coach/ugk_coach.dart' show PoseHubVoiceGuide;
+
 /// Calls the script says, by meaning. Each source maps them to its keys.
 enum VoiceCall {
   welcome,
@@ -148,6 +150,47 @@ abstract class VoiceSource {
 
   /// Voice script of an action (HipLab kits), null when none.
   KitVoice? kitVoice(String exerciseId) => null;
+
+  /// A ready script provided by the active action catalogue.
+  PoseHubVoiceGuide? voiceGuide(String exerciseId) => null;
+
+  /// Authored preparation time between sides, if the action has a ready guide.
+  int? sideSwitchSecondsFor(String exerciseId) => null;
+
+  /// Resolves an authored guide or phase clip to a playable voice key.
+  String? voiceGuideClipKey(
+    String exerciseId,
+    String clipId, {
+    required String lang,
+  }) => null;
+
+  /// Resolves a guide's shared phrase to playable keys in the active language.
+  List<String> voiceGuideCommonKeys(String key, {required String lang}) {
+    if (has(key, lang: lang)) return [key];
+    final seconds = key.startsWith('sec.')
+        ? int.tryParse(key.substring(4))
+        : null;
+    final count = key.startsWith('n.') ? int.tryParse(key.substring(2)) : null;
+    final phrased = seconds != null
+        ? secondsPhrase(seconds)
+        : count != null
+        ? number(count)
+        : [
+            ?switch (key) {
+              'p.ready' => call(VoiceCall.ready),
+              'p.go' => call(VoiceCall.go),
+              'p.last_rep' => call(VoiceCall.lastRep),
+              'p.again' => call(VoiceCall.again),
+              'p.right_first' => call(VoiceCall.rightFirst),
+              'p.switch_left' => call(VoiceCall.switchLeft),
+              'p.switch_right' => call(VoiceCall.switchRight),
+              'p.rest' => call(VoiceCall.rest),
+              'p.nice' => call(VoiceCall.nice),
+              _ => null,
+            },
+          ];
+    return phrased.every((k) => has(k, lang: lang)) ? phrased : const [];
+  }
 
   /// Clips of a number (a count, a total), empty when not recorded as one.
   List<String> number(int n) => ['n.$n'];

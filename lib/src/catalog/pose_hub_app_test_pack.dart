@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart' as crypto;
 
 import 'catalog.dart';
+import 'pose_hub_voice_guide.dart';
 
 /// An original, integrity-addressed file inside the external pack.
 final class PoseHubPackFile {
@@ -201,6 +202,14 @@ final class PoseHubPackAction {
   final Map<String, Object?> raw;
   late final Map<String, PoseHubPackFile> files;
   late final Map<String, Object?> rawTrainingDefinition;
+
+  /// Ready voice guide, when this pack supplies a supported script.
+  late final voiceGuide = PoseHubVoiceGuide.forAction(raw);
+
+  /// Authored time to change sides, if a valid value is present.
+  late final sideSwitchSeconds = PoseHubVoiceGuide.sideSwitchSecondsOfAction(
+    raw,
+  );
 
   /// Training pace authored in the pack (`rhythm.execution`, e.g. kind,
   /// leadSeconds, phases, reps, perSide, repUnit, startingSide), as the pack

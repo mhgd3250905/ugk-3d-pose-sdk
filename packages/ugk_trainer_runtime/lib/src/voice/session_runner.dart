@@ -56,8 +56,30 @@ class SessionRunner {
     _fired.clear();
   }
 
-  List<FiredCue> update(double t) {
-    engine.update(t);
+  List<FiredCue> update(double t, {bool waitForGuideSpeech = false}) {
+    final previousCues = _gen == engine.generation && engine.phase.isWork
+        ? _cues
+        : const <VoiceCue>[];
+    final workSeconds = engine.phase.seconds;
+    final workEnd = engine.phaseStart + workSeconds;
+    final previousIndex = engine.index;
+    engine.update(t, waitForGuideSpeech: waitForGuideSpeech);
+    if (engine.index > previousIndex &&
+        (engine.phaseStart - workEnd).abs() <=
+            SessionEngine.phaseEndTolerance) {
+      // The engine leaves the completed work before the next phase's cues
+      // are collected. Preserve only the timely cues explicitly due at its
+      // natural endpoint, including the last repetition's count.
+      return [
+        for (final (i, cue) in previousCues.indexed)
+          if (cue.atWorkEnd &&
+              !_fired.contains(i) &&
+              (cue.at - workSeconds).abs() <= SessionEngine.phaseEndTolerance &&
+              t - workEnd <= tolerance(cue))
+            FiredCue(workEnd, cue),
+        ..._due(t),
+      ];
+    }
     return _due(t);
   }
 
@@ -68,7 +90,7 @@ class SessionRunner {
     final local = t - engine.phaseStart;
     for (var i = 0; i < _cues.length; i++) {
       final c = _cues[i];
-      if (_fired.contains(i) || c.at > local + 1e-9) continue;
+      if (c.atWorkEnd || _fired.contains(i) || c.at > local + 1e-9) continue;
       _fired.add(i);
       if (local - c.at <= tolerance(c)) {
         out.add(FiredCue(engine.phaseStart + c.at, c));

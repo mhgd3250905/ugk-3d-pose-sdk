@@ -23,6 +23,8 @@ import '../rhythm/rhythm.dart';
 import 'voice_cue.dart';
 import 'voice_source.dart';
 
+part 'voice_guide_script.dart';
+
 /// Silence kept between two lines.
 const lineGap = .35;
 
@@ -72,7 +74,15 @@ class SessionScript {
 
   /// A move's own line key, or null when it has none in [lang].
   String? own(String exerciseId, DrillLine line) {
-    final k = source.drill(exerciseId, line);
+    final packId = switch (line) {
+      DrillLine.name => 'name',
+      DrillLine.cue1 => 'primaryCue',
+      _ => null,
+    };
+    final packKey = packId == null
+        ? null
+        : source.voiceGuideClipKey(exerciseId, packId, lang: lang);
+    final k = packKey ?? source.drill(exerciseId, line);
     if (k == null || !_has(k)) return null;
     if (line != DrillLine.name && line != DrillLine.finish) _subtitled.add(k);
     return k;
@@ -253,7 +263,9 @@ class SessionScript {
     final c = cue == null ? 0.0 : l([cue]);
     final ready = key(VoiceCall.ready);
     final r = ready == null ? 0.0 : l([ready]) + .2;
-    final spoken = w + pv + c + r;
+    final before = source.voiceGuide(id)?.before ?? const <String>[];
+    final guideIntro = [for (final common in before) ..._guideCommon(common)];
+    final spoken = w + pv + c + r + (guideIntro.isEmpty ? 0 : l(guideIntro));
     if (spoken <= 0) return minimum;
     final need = spoken + 3 + countdownMargin + .4;
     return need > minimum ? need.ceilToDouble() : minimum;
@@ -295,8 +307,9 @@ class SessionScript {
       case PhaseKind.prep:
         return _prep(p, planSeconds);
       case PhaseKind.work:
-        return _work(p);
+        return _guidedWork(p) ?? _work(p);
       case PhaseKind.switchSide:
+        if (p.afterGuidedSet && !bySkip) return const [];
         final item = p.item == null
             ? null
             : p.segment?.toPlanItem(p.item!) ?? p.item;
@@ -320,8 +333,28 @@ class SessionScript {
         ];
       case PhaseKind.rest:
       case PhaseKind.roundRest:
+        if (p.afterGuidedSet && !bySkip) {
+          final t = _timeline(p.seconds)..fixAll(_countdown(p.seconds));
+          final next = p.exerciseId;
+          final item = p.item;
+          if (p.nextExerciseId != null && next != null && item != null) {
+            _placeIntro(
+              t,
+              VoiceCall.next,
+              next,
+              p.segment?.toPlanItem(item) ?? item,
+            );
+            _placeGuideBefore(t, next);
+          }
+          return _queuedGuideCues(t.cues);
+        }
         return _rest(p, bySkip);
       case PhaseKind.done:
+        if (p.afterGuidedSet && !bySkip) {
+          return const [
+            VoiceCue(0, ['chime.finish'], CuePriority.call),
+          ];
+        }
         final clips = _strip(['chime.finish', ?call(VoiceCall.finish)]);
         return [if (clips.isNotEmpty) VoiceCue(0, clips, CuePriority.call)];
     }
@@ -338,11 +371,14 @@ class SessionScript {
   ];
 
   List<VoiceCue> _prep(SessionPhase p, double planSeconds) {
-    final t = _timeline(p.seconds)..fixAll(_countdown(p.seconds));
-    final ready = call(VoiceCall.ready);
-    if (ready != null) {
-      final at = p.seconds - 3 - len([ready]) - .2;
-      if (at >= 0) t.fix(VoiceCue(at, [ready], CuePriority.call));
+    final id = p.exerciseId;
+    final guided = id != null && source.voiceGuide(id) != null;
+    final t = _timeline(p.seconds)
+      ..fixAll(guided ? _guideCountdown(p.seconds) : _countdown(p.seconds));
+    final ready = guided ? _guideCommon('p.ready') : [?call(VoiceCall.ready)];
+    if (ready.isNotEmpty) {
+      final at = p.seconds - 3 - len(ready) - .2;
+      if (at >= 0) t.fix(VoiceCue(at, ready, CuePriority.call));
     }
     final minutes = (planSeconds / 60).round().clamp(1, 600);
     final welcome = call(VoiceCall.welcome);
@@ -353,7 +389,6 @@ class SessionScript {
         [welcome, total, ...m],
       ?(welcome == null ? null : [welcome]),
     ], CuePriority.info);
-    final id = p.exerciseId;
     if (id != null && p.item != null) {
       _placeIntro(
         t,
@@ -361,8 +396,9 @@ class SessionScript {
         id,
         p.segment?.toPlanItem(p.item!) ?? p.item!,
       );
+      _placeGuideBefore(t, id);
     }
-    return t.cues;
+    return guided ? _queuedGuideCues(t.cues) : t.cues;
   }
 
   List<VoiceCue> _rest(SessionPhase p, bool bySkip) {
@@ -390,7 +426,11 @@ class SessionScript {
     int skipOpeners,
   ) {
     final rest = p.seconds.round();
-    final t = _timeline(p.seconds)..fixAll(_countdown(p.seconds));
+    final id = p.exerciseId;
+    final next = p.nextExerciseId != null && id != null && p.item != null;
+    final guideNext = next && source.voiceGuide(id) != null;
+    final t = _timeline(p.seconds)
+      ..fixAll(guideNext ? _guideCountdown(p.seconds) : _countdown(p.seconds));
     final r = call(VoiceCall.rest);
     final secs = _phrase(source.secondsPhrase(rest));
     final tails = <List<String>>[
@@ -427,10 +467,10 @@ class SessionScript {
     );
     var introduced = true;
     if (p.kind == PhaseKind.roundRest && p.round > 0) {
-      t.place([_phrase(source.ordinalRound(p.round, lang: lang))], CuePriority.info);
+      t.place([
+        _phrase(source.ordinalRound(p.round, lang: lang)),
+      ], CuePriority.info);
     }
-    final id = p.exerciseId;
-    final next = p.nextExerciseId != null && id != null && p.item != null;
     if (next) {
       // Before a new move: what it is, how much, then its first key point.
       final placed = _placeIntro(
@@ -441,6 +481,7 @@ class SessionScript {
         withSets: p.rounds == 0 || p.sets > 1,
       );
       introduced = placed;
+      _placeGuideBefore(t, id);
       final cues = cueKeys(id);
       if (placed && cues.length > 1) {
         t.place([
@@ -455,7 +496,9 @@ class SessionScript {
           [last],
         ], CuePriority.info);
       } else if (p.sets > 1) {
-        t.place([_phrase(source.ordinalSet(p.set, lang: lang))], CuePriority.info);
+        t.place([
+          _phrase(source.ordinalSet(p.set, lang: lang)),
+        ], CuePriority.info);
       }
       final tip = own(id, DrillLine.rest);
       final cues = cueKeys(id);
@@ -472,7 +515,11 @@ class SessionScript {
         }
       }
     }
-    return (t.cues, introduced, openers.length);
+    return (
+      guideNext ? _queuedGuideCues(t.cues) : t.cues,
+      introduced,
+      openers.length,
+    );
   }
 
   /// Key points for this side: on the second side the move's own

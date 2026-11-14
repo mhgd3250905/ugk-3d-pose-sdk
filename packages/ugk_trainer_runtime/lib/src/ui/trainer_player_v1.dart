@@ -781,11 +781,7 @@ extension _TrainerPlayerV1Stage on _TrainerPlayerState {
   Widget _stageV1(SessionPhase phase, TrainerDrill? drill, int manual) {
     final seconds = _engine.secondsLeft(_t);
     final lastKind = _engine.visits.lastOrNull?.phase.kind;
-    final starting =
-        phase.isWork &&
-        lastKind == PhaseKind.prep &&
-        _engine.elapsedIn(_t) <
-            TrainerV1PrepMark.startDuration.inMilliseconds / 1000;
+    final starting = phase.isWork && lastKind == PhaseKind.prep;
     Widget? media;
     if (drill != null) {
       media = TrainerV1MediaScope(
@@ -897,19 +893,12 @@ extension _TrainerPlayerV1Stage on _TrainerPlayerState {
                     playback: _mediaPlaybackHandle,
                     child: media,
                   ),
-                if (starting)
-                  TrainerV1PrepMark(
-                    key: const ValueKey('player-v1-start-mark'),
-                    theme: _th,
-                    label: _s.playerStart,
-                    starting: true,
-                  )
-                else if (phase.kind == PhaseKind.prep && seconds <= 3)
+                if (starting || (phase.kind == PhaseKind.prep && seconds <= 3))
                   TrainerV1PrepMark(
                     key: const ValueKey('player-v1-prep-mark'),
-                    label: '$seconds',
+                    label: starting ? _s.playerStart : '$seconds',
                     theme: _th,
-                    starting: false,
+                    starting: starting,
                   ),
                 if (phase.kind == PhaseKind.switchSide)
                   Align(

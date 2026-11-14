@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'trainer_player_motion.dart';
 import 'trainer_theme.dart';
 
+part 'trainer_cue_wrap.dart';
+
 /// Cleans legacy semicolon-delimited copy without turning separate steps into
 /// one paragraph. Punctuation inside a step (notably commas) is retained.
 List<String> normalizeTrainerCues(Iterable<String> values) => [
@@ -134,7 +136,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
     fontFamily: widget.theme.fontFamily,
     fontSize: size,
     fontWeight: widget.theme.usePlayerV1 ? FontWeight.w700 : FontWeight.w500,
-    height: widget.theme.usePlayerV1 ? 1.3 : 1.5,
+    height: widget.theme.usePlayerV1 ? 1.35 : 1.5,
     color: widget.theme.text,
   );
 
@@ -143,14 +145,13 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
     double size,
     double width,
     BuildContext context, {
-    bool ellipsis = false,
+    int maxLines = 2,
   }) => TextPainter(
     text: TextSpan(text: text, style: _bodyStyle(size)),
     textDirection: Directionality.of(context),
     textScaler: MediaQuery.textScalerOf(context),
     locale: Localizations.maybeLocaleOf(context),
-    maxLines: 2,
-    ellipsis: ellipsis ? '…' : null,
+    maxLines: maxLines,
   )..layout(maxWidth: width);
 
   bool _fits(String text, double size, double width, BuildContext context) {
@@ -166,16 +167,15 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
     BuildContext context,
   ) {
     final pages = <_CuePage>[];
-    final playerV1 = widget.theme.usePlayerV1;
-    final size = playerV1 ? _playerV1CueSize : 16.0;
-    final splitSize = playerV1 ? size : 14.0;
+    const size = 16.0;
+    const splitSize = 14.0;
     void add(String text) {
       if (text.isEmpty) return;
       if (_fits(text, size, width, context)) {
         pages.add(_CuePage(text, size));
         return;
       }
-      if (!playerV1 && _fits(text, splitSize, width, context)) {
+      if (_fits(text, splitSize, width, context)) {
         pages.add(_CuePage(text, splitSize));
         return;
       }
@@ -291,12 +291,9 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
             _layoutPrepCaption != showPrepCaption ||
             !listEquals(_layoutCues, cues)) {
           final bodyWidth = math.max(1.0, constraints.maxWidth - 32);
-          if (showPrepCaption ||
-              (playerV1 &&
-                  cues.length == 1 &&
-                  _fits(cues.single, _playerV1CueSize, bodyWidth, context))) {
+          if (playerV1 && cues.length == 1) {
             _countWidth = 0;
-            _pages = [_CuePage(cues.single, _playerV1CueSize)];
+            _pages = [_wrapV1(cues.single, bodyWidth, context)];
           } else {
             // Reserve the count's measured width. Another pass accounts for
             // extra digits introduced when text splits into more pages.
@@ -314,11 +311,10 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
                   ? math.max(34, counter.width + 16)
                   : counter.width;
               counter.dispose();
-              _pages = _fitPages(
-                cues,
-                math.max(1, bodyWidth - _countWidth - stepGap),
-                context,
-              );
+              final width = math.max(1.0, bodyWidth - _countWidth - stepGap);
+              _pages = playerV1
+                  ? [for (final cue in cues) _wrapV1(cue, width, context)]
+                  : _fitPages(cues, width, context);
               if (_pages.length == total) break;
               total = _pages.length;
             }
@@ -335,7 +331,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
                     page.size,
                     textWidth,
                     context,
-                    ellipsis: showPrepCaption,
+                    maxLines: page.maxLines,
                   );
                   final height = math.max(32.0, painter.height.ceilToDouble());
                   painter.dispose();
@@ -363,12 +359,11 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
           page.text,
           key: const ValueKey('trainer-cue-text'),
           style: _bodyStyle(page.size),
+          semanticsLabel: playerV1 ? cues[_index] : null,
           textAlign: playerV1 ? TextAlign.center : null,
-          maxLines: 2,
-          // Instructions were measured with the same scaler.
-          overflow: showPrepCaption
-              ? TextOverflow.ellipsis
-              : TextOverflow.visible,
+          maxLines: page.maxLines,
+          softWrap: !playerV1,
+          overflow: playerV1 ? TextOverflow.clip : TextOverflow.visible,
         );
         final pageContent = playerV1
             ? Row(
@@ -416,7 +411,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
                   ),
                   Expanded(
                     child: _CuePush(
-                      identity: (showPrepCaption, _index, page.text),
+                      identity: (showPrepCaption, _index, cues[_index]),
                       height: _v1PageHeights[_index],
                       reduced: reduced,
                       child: cueText,
@@ -678,9 +673,10 @@ class _CuePushState extends State<_CuePush>
 }
 
 class _CuePage {
-  const _CuePage(this.text, this.size);
+  const _CuePage(this.text, this.size, {this.maxLines = 2});
   final String text;
   final double size;
+  final int maxLines;
 }
 
 class _CueSheet extends StatelessWidget {

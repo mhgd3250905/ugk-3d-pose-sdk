@@ -7,7 +7,8 @@ const _ring = ValueKey('player-v1-prep-ring');
 const _opacity = ValueKey('player-v1-prep-opacity');
 const _scale = ValueKey('player-v1-prep-scale');
 const _startLabel = ValueKey('player-v1-start-label');
-const _startPill = ValueKey('player-v1-start-pill');
+const _startCircle = ValueKey('player-v1-start-circle');
+const _startSweep = ValueKey('player-v1-start-sweep');
 const _startPulse = ValueKey('player-v1-start-pulse');
 const _startOpacity = ValueKey('player-v1-start-opacity');
 const _startScale = ValueKey('player-v1-start-scale');
@@ -38,6 +39,9 @@ double _glyphScale(WidgetTester tester) =>
 double _startAlpha(WidgetTester tester) =>
     tester.widget<Opacity>(find.byKey(_startOpacity)).opacity;
 
+double _startZoom(WidgetTester tester) =>
+    tester.widget<Transform>(find.byKey(_startScale)).transform.entry(0, 0);
+
 double _pulseAlpha(WidgetTester tester) => tester
     .widgetList<Opacity>(
       find.ancestor(
@@ -59,8 +63,11 @@ double _pulseScale(WidgetTester tester) => tester
     .transform
     .entry(0, 0);
 
-TrainerV1PrepRingPainter _painter(WidgetTester tester) =>
-    tester.widget<CustomPaint>(find.byKey(_ring)).painter!
+TrainerV1PrepRingPainter _painter(
+  WidgetTester tester, [
+  ValueKey<String> key = _ring,
+]) =>
+    tester.widget<CustomPaint>(find.byKey(key)).painter!
         as TrainerV1PrepRingPainter;
 
 void main() {
@@ -107,21 +114,26 @@ void main() {
     expect(_alpha(tester), 0);
   });
 
-  testWidgets('start cue enters, holds 450 ms and fades out over 200 ms', (
+  testWidgets('start circle continues the countdown sweep at the same center', (
     tester,
   ) async {
+    await _show(tester, label: '1');
+    await tester.pump(const Duration(milliseconds: 910));
+    final countdownRing = tester.getRect(find.byKey(_ring));
+    final sweepProgress = _painter(tester).progress;
     await _show(tester, label: '开始', starting: true);
     final label = tester.widget<Text>(find.byKey(_startLabel));
     expect(label.data, '开始');
-    expect(label.style?.fontSize, 56);
+    expect(label.style?.fontSize, closeTo(countdownRing.width * .26, .001));
     expect(label.style?.fontWeight, FontWeight.w800);
     expect(label.style?.color, Colors.white);
-    expect(label.style?.letterSpacing, 4);
-    final pill = tester.widget<DecoratedBox>(find.byKey(_startPill));
-    final decoration = pill.decoration as BoxDecoration;
-    final gradient = decoration.gradient! as LinearGradient;
-    expect(gradient.begin, Alignment.topLeft);
-    expect(gradient.end, Alignment.bottomRight);
+    expect(label.style?.letterSpacing, 2);
+    final circle = find.byKey(_startCircle);
+    final decoration =
+        tester.widget<DecoratedBox>(circle).decoration as BoxDecoration;
+    final gradient = decoration.gradient! as RadialGradient;
+    expect(decoration.shape, BoxShape.circle);
+    expect(gradient.center, Alignment.center);
     expect(gradient.colors, [const Color(0xFF22B086), const Color(0xFF1E9E78)]);
     expect((decoration.border! as Border).top.width, 2);
     expect(
@@ -131,35 +143,58 @@ void main() {
     expect(decoration.boxShadow?.single.offset, const Offset(0, 12));
     expect(decoration.boxShadow?.single.blurRadius, 32);
     expect(find.byKey(_ring), findsNothing);
-    expect(_startAlpha(tester), 0);
-    await tester.pump(const Duration(milliseconds: 180));
-    expect(_startAlpha(tester), inExclusiveRange(0, 1));
-    await tester.pump(const Duration(milliseconds: 180));
-    expect(_startAlpha(tester), 1);
+    expect(_startZoom(tester), 0);
+    expect(tester.getRect(find.byKey(_startSweep)), countdownRing);
     expect(
-      tester.widget<Transform>(find.byKey(_startScale)).transform.entry(0, 0),
-      closeTo(1, .001),
+      _painter(tester, _startSweep).progress,
+      closeTo(sweepProgress, .001),
     );
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(
+      _painter(tester, _startSweep).progress,
+      closeTo((sweepProgress + 1) / 2, .001),
+    );
+    expect(_startZoom(tester), 0);
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(_painter(tester, _startSweep).progress, 1);
+    expect(_startZoom(tester), 0);
+    await tester.pump(const Duration(milliseconds: 160));
+    expect(_startZoom(tester), closeTo(Curves.easeOutBack.transform(.5), .001));
+    await tester.pump(const Duration(milliseconds: 160));
+    expect(_startAlpha(tester), 1);
+    expect(_startZoom(tester), 1);
+    expect(tester.getRect(circle), countdownRing);
+    expect(tester.getCenter(find.byKey(_startLabel)), countdownRing.center);
+    expect(find.byKey(_startSweep), findsNothing);
     await tester.pump(const Duration(milliseconds: 450));
     expect(_startAlpha(tester), 1);
     await tester.pump(const Duration(milliseconds: 100));
     expect(_startAlpha(tester), inExclusiveRange(0, 1));
+    expect(_startZoom(tester), inExclusiveRange(1, 1.1));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(_startAlpha(tester), 0);
+    expect(circle, findsNothing);
   });
 
-  testWidgets('start pulse ends 600 ms from entry despite a theme change', (
+  testWidgets('start pulse plays once for 600 ms after the fill', (
     tester,
   ) async {
     await _show(tester, label: '开始', starting: true);
     final pulse = find.byKey(_startPulse);
+    await tester.pump(const Duration(milliseconds: 439));
+    expect(pulse, findsNothing);
+    await tester.pump(const Duration(milliseconds: 1));
     expect(pulse, findsOneWidget);
+    final decoration =
+        tester.widget<DecoratedBox>(pulse).decoration as BoxDecoration;
+    expect(decoration.shape, BoxShape.circle);
+    expect((decoration.border! as Border).top.width, 2);
+    expect(tester.getSize(pulse), tester.getSize(find.byKey(_startCircle)));
     expect(_pulseAlpha(tester), .5);
     expect(_pulseScale(tester), 1);
     await tester.pump(const Duration(milliseconds: 300));
     final halfwayScale = _pulseScale(tester);
     final halfwayAlpha = _pulseAlpha(tester);
-    expect(halfwayScale, inExclusiveRange(1, 1.5));
+    expect(halfwayScale, inExclusiveRange(1, 1.35));
     expect(halfwayAlpha, inExclusiveRange(0, .5));
     await _show(
       tester,
@@ -173,7 +208,11 @@ void main() {
     expect(pulse, findsOneWidget);
     await tester.pump(const Duration(milliseconds: 1));
     expect(pulse, findsNothing);
-    expect(_startAlpha(tester), 1);
+    expect(_startAlpha(tester), inExclusiveRange(0, 1));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(_startCircle), findsNothing);
+    await _show(tester, label: '开始', starting: true, reduced: true);
+    expect(find.byKey(_startCircle), findsNothing);
   });
 
   testWidgets('reduced start uses only 150 ms fades around the hold', (
@@ -182,6 +221,7 @@ void main() {
     await _show(tester, label: '开始', starting: true, reduced: true);
     expect(find.byKey(_startScale), findsNothing);
     expect(find.byKey(_startPulse), findsNothing);
+    expect(find.byKey(_startSweep), findsNothing);
     expect(find.byKey(_ring), findsNothing);
     expect(_startAlpha(tester), 0);
     await tester.pump(const Duration(milliseconds: 75));
@@ -193,7 +233,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 75));
     expect(_startAlpha(tester), inExclusiveRange(0, 1));
     await tester.pump(const Duration(milliseconds: 75));
-    expect(_startAlpha(tester), 0);
+    expect(find.byKey(_startCircle), findsNothing);
   });
 
   testWidgets('reduced prep only fades without scale or sweep', (tester) async {

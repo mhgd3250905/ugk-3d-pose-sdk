@@ -289,6 +289,71 @@ void main() {
     await clean(tester);
   });
 
+  testWidgets('V1 balances the same protected phrase in prep and work', (
+    tester,
+  ) async {
+    const caption = '第一个动作 半跪髋屈肌拉伸 每侧 40 秒 先做右边';
+    const expected = '第一个动作 半跪髋屈肌拉伸\n每侧 40 秒 先做右边';
+    for (final preparing in [true, false]) {
+      await mount(
+        tester,
+        theme: TrainerTheme.playerV1,
+        width: 340,
+        steps: const [caption],
+        preparing: preparing,
+        prepCaption: caption,
+      );
+      await tester.pump(const Duration(milliseconds: 320));
+      final displayed = tester.widget<Text>(text);
+      expect(displayed.data, expected);
+      expect(displayed.style!.height, 1.35);
+      expect(displayed.textAlign, TextAlign.center);
+    }
+    await clean(tester);
+  });
+
+  testWidgets('V1 shrinks before adding a third line', (tester) async {
+    Future<Text> display(double width) async {
+      await mount(
+        tester,
+        theme: TrainerTheme.playerV1,
+        preparing: true,
+        prepCaption: 'AAAA BBBB CCCC',
+        width: width,
+      );
+      await tester.pump(const Duration(milliseconds: 320));
+      return tester.widget<Text>(text);
+    }
+
+    final smaller = await display(174);
+    expect(smaller.style!.fontSize, 15);
+    expect(smaller.data!.split('\n'), hasLength(2));
+    final taller = await display(145);
+    expect(taller.style!.fontSize, 15);
+    expect(taller.data, 'AAAA\nBBBB\nCCCC');
+    expect(taller.maxLines, 3);
+    await clean(tester);
+  });
+
+  testWidgets('V1 splits an oversized unbroken fragment without an orphan', (
+    tester,
+  ) async {
+    const caption = '甲乙丙丁戊己庚辛壬癸';
+    await mount(
+      tester,
+      theme: TrainerTheme.playerV1,
+      preparing: true,
+      prepCaption: caption,
+      width: 135,
+    );
+    final displayed = tester.widget<Text>(text);
+    final lines = displayed.data!.split('\n');
+    expect(lines, hasLength(2));
+    expect(lines.join(), caption);
+    expect(lines.last.characters.length, greaterThanOrEqualTo(3));
+    await clean(tester);
+  });
+
   testWidgets('preparation resets and pins the first step, including swipes', (
     tester,
   ) async {

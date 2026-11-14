@@ -20,18 +20,18 @@ class TrainerV1PrepMark extends StatefulWidget {
   final bool starting;
   final TrainerTheme theme;
 
-  static const startDuration = Duration(milliseconds: 1010);
-
   @override
   State<TrainerV1PrepMark> createState() => _TrainerV1PrepMarkState();
 }
 
 class _TrainerV1PrepMarkState extends State<TrainerV1PrepMark>
     with SingleTickerProviderStateMixin {
+  static const _diameter = 220.0;
   static const _intro = Duration(milliseconds: 320);
   static const _digitDuration = Duration(seconds: 1);
   static const _digitExit = Duration(milliseconds: 760);
-  static const _startIntro = Duration(milliseconds: 360);
+  static const _sweepFinish = Duration(milliseconds: 120);
+  static const _startIntro = Duration(milliseconds: 320);
   static const _startHold = Duration(milliseconds: 450);
   static const _startPulse = Duration(milliseconds: 600);
   static const _outro = Duration(milliseconds: 200);
@@ -45,6 +45,9 @@ class _TrainerV1PrepMarkState extends State<TrainerV1PrepMark>
     _intro.inMicroseconds / Duration.microsecondsPerSecond,
   );
   bool? _reduced;
+  double _lastSweep = 0;
+
+  Duration get _sweep => _reduced! ? Duration.zero : _sweepFinish;
 
   Duration get _fadeIn => _reduced!
       ? PlayerMotion.reducedFade
@@ -53,7 +56,7 @@ class _TrainerV1PrepMarkState extends State<TrainerV1PrepMark>
       : _intro;
   Duration get _fadeOut => _reduced! ? PlayerMotion.reducedFade : _outro;
   Duration get _exitAt => widget.starting
-      ? _fadeIn + _startHold
+      ? _sweep + _fadeIn + _startHold
       : _reduced!
       ? _digitDuration - _fadeOut
       : _digitExit;
@@ -66,15 +69,19 @@ class _TrainerV1PrepMarkState extends State<TrainerV1PrepMark>
     final reduced = TrainerMotion.reduced(context);
     if (_reduced == reduced) return;
     final elapsed = (_clock.duration?.inMicroseconds ?? 0) * _clock.value;
+    final startCompleted = widget.starting && _clock.value == 1;
     _reduced = reduced;
-    _startAt(elapsed);
+    _startAt(startCompleted ? _duration.inMicroseconds.toDouble() : elapsed);
   }
 
   @override
   void didUpdateWidget(TrainerV1PrepMark oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.label != widget.label ||
-        oldWidget.starting != widget.starting) {
+    if (oldWidget.starting != widget.starting) {
+      // Keep the visible progress of the final digit across the handoff.
+      _lastSweep = widget.starting && oldWidget.label == '1' ? _clock.value : 0;
+      _startAt(0);
+    } else if (!widget.starting && oldWidget.label != widget.label) {
       _startAt(0);
     }
   }
@@ -166,7 +173,7 @@ class _TrainerV1PrepMarkState extends State<TrainerV1PrepMark>
                         ),
                 );
                 return SizedBox.square(
-                  dimension: 220,
+                  dimension: _diameter,
                   child: Stack(
                     alignment: Alignment.center,
                     clipBehavior: Clip.none,
@@ -217,7 +224,6 @@ class _TrainerV1PrepMarkState extends State<TrainerV1PrepMark>
   }
 
   Widget _buildStart(TrainerTheme theme, bool reduced) {
-    const radius = BorderRadius.all(Radius.circular(999));
     final defaultPrimary = theme.accent == TrainerTheme.playerV1.accent;
     final primary = defaultPrimary ? const Color(0xFF1E9E78) : theme.accent;
     final lighter = defaultPrimary
@@ -228,97 +234,109 @@ class _TrainerV1PrepMarkState extends State<TrainerV1PrepMark>
         child: Center(
           child: FittedBox(
             fit: BoxFit.scaleDown,
-            child: AnimatedBuilder(
-              animation: _clock,
-              child: DecoratedBox(
-                key: const ValueKey('player-v1-start-pill'),
-                decoration: BoxDecoration(
-                  borderRadius: radius,
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: .7),
-                    width: 2,
-                  ),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [lighter, primary],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primary.withValues(alpha: .35),
-                      blurRadius: 32,
-                      offset: const Offset(0, 12),
+            child: SizedBox.square(
+              dimension: _diameter,
+              child: AnimatedBuilder(
+                animation: _clock,
+                child: DecoratedBox(
+                  key: const ValueKey('player-v1-start-circle'),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: .7),
+                      width: 2,
                     ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 36,
-                    vertical: 14,
+                    gradient: RadialGradient(colors: [lighter, primary]),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primary.withValues(alpha: .35),
+                        blurRadius: 32,
+                        offset: const Offset(0, 12),
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    widget.label,
-                    key: const ValueKey('player-v1-start-label'),
-                    maxLines: 1,
-                    style: theme
-                        .numeral(56, color: Colors.white)
-                        .copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 4,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          widget.label,
+                          key: const ValueKey('player-v1-start-label'),
+                          maxLines: 1,
+                          style: theme
+                              .numeral(_diameter * .26, color: Colors.white)
+                              .copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 2,
+                              ),
                         ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              builder: (context, child) {
-                final elapsed = (_clock.value * _duration.inMicroseconds)
-                    .roundToDouble();
-                final entry = _ramp(elapsed, Duration.zero, _fadeIn);
-                final exitProgress = _ramp(elapsed, _exitAt, _fadeOut);
-                final exit = reduced
-                    ? exitProgress
-                    : Curves.easeIn.transform(exitProgress);
-                final easedEntry = Curves.easeOutBack.transform(entry);
-                final scale = entry == 1
-                    ? 1 + .12 * exit
-                    : easedEntry <= 1
-                    ? .6 + .4 * easedEntry
-                    : 1 + .08 * ((easedEntry - 1) / .0869).clamp(0.0, 1.0);
-                final pulse = _ramp(elapsed, Duration.zero, _startPulse);
-                final easedPulse = Curves.easeOut.transform(pulse);
-                return Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.center,
-                  children: [
-                    if (!reduced && pulse < 1)
-                      Positioned.fill(
-                        child: Opacity(
+                builder: (context, child) {
+                  if (_clock.value == 1) return const SizedBox.shrink();
+                  final elapsed = (_clock.value * _duration.inMicroseconds)
+                      .roundToDouble();
+                  final entry = _ramp(elapsed, _sweep, _fadeIn);
+                  final exitProgress = _ramp(elapsed, _exitAt, _fadeOut);
+                  final exit = reduced
+                      ? exitProgress
+                      : Curves.easeIn.transform(exitProgress);
+                  final pulseAt = _sweep + _fadeIn;
+                  final pulse = _ramp(elapsed, pulseAt, _startPulse);
+                  final easedPulse = Curves.easeOut.transform(pulse);
+                  return Stack(
+                    fit: StackFit.expand,
+                    clipBehavior: Clip.none,
+                    children: [
+                      if (!reduced && entry < 1)
+                        Opacity(
+                          opacity: 1 - entry,
+                          child: CustomPaint(
+                            key: const ValueKey('player-v1-start-sweep'),
+                            painter: TrainerV1PrepRingPainter(
+                              _lastSweep +
+                                  (1 - _lastSweep) *
+                                      _ramp(elapsed, Duration.zero, _sweep),
+                              theme.accent,
+                            ),
+                          ),
+                        ),
+                      if (!reduced &&
+                          elapsed >= pulseAt.inMicroseconds &&
+                          pulse < 1)
+                        Opacity(
                           opacity: .5 * (1 - easedPulse),
                           child: Transform.scale(
-                            scale: 1 + .5 * easedPulse,
+                            scale: 1 + .35 * easedPulse,
                             child: DecoratedBox(
                               key: const ValueKey('player-v1-start-pulse'),
                               decoration: BoxDecoration(
-                                borderRadius: radius,
+                                shape: BoxShape.circle,
                                 border: Border.all(color: primary, width: 2),
                               ),
                             ),
                           ),
                         ),
+                      Opacity(
+                        key: const ValueKey('player-v1-start-opacity'),
+                        opacity: reduced ? entry * (1 - exit) : 1 - exit,
+                        child: reduced
+                            ? child
+                            : Transform.scale(
+                                key: const ValueKey('player-v1-start-scale'),
+                                scale:
+                                    Curves.easeOutBack.transform(entry) *
+                                    (1 + .1 * exit),
+                                child: child,
+                              ),
                       ),
-                    Opacity(
-                      key: const ValueKey('player-v1-start-opacity'),
-                      opacity: entry * (1 - exit),
-                      child: reduced
-                          ? child
-                          : Transform.scale(
-                              key: const ValueKey('player-v1-start-scale'),
-                              scale: scale,
-                              child: child,
-                            ),
-                    ),
-                  ],
-                );
-              },
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),

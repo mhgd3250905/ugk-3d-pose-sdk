@@ -451,18 +451,26 @@ void main() {
       first.$2();
       await tester.pump();
       expect(fallbackText, findsOneWidget);
+      final fallbackCenter = tester.getCenter(fallbackText);
       lines.single.$2();
       await tester.pump();
       await advanceTo(1280);
       expect(_painted(fallbackText), hasLength(1));
-      expect(_painted(prepText), isEmpty);
+      expect(_painted(prepText), hasLength(1));
+      expect(tester.getCenter(fallbackText).dy, lessThan(fallbackCenter.dy));
+      expect(tester.getCenter(prepText).dy, greaterThan(fallbackCenter.dy));
+      expect(
+        tester.getRect(fallbackText).overlaps(tester.getRect(prepText)),
+        isFalse,
+      );
       await advanceTo(1360);
-      expect(_painted(fallbackText), isEmpty);
-      expect(_painted(prepText), isEmpty);
-      await advanceTo(1460);
-      expect(_painted(fallbackText), isEmpty);
+      expect(_paintOpacity(fallbackText.evaluate().single), 1);
+      expect(_paintOpacity(prepText.evaluate().single), 1);
+      await advanceTo(1440);
+      expect(_paintOpacity(fallbackText.evaluate().single), closeTo(.5, .002));
       expect(_painted(prepText), hasLength(1));
       await advanceTo(1680);
+      expect(fallbackText, findsNothing);
 
       expect(tester.state(card), same(cardState));
       final text = tester.widget<Text>(prepText);
@@ -480,10 +488,15 @@ void main() {
       expect(tester.state(card), same(cardState));
       expect(tester.element(panel), same(panelElement));
       expect(_painted(prepText), hasLength(1));
-      expect(_painted(workText), isEmpty);
-      await advanceTo(6280);
-      expect(_painted(prepText), isEmpty);
       expect(_painted(workText), hasLength(1));
+      expect(
+        tester.getCenter(prepText).dy,
+        lessThan(tester.getCenter(workText).dy),
+      );
+      expect(
+        tester.getRect(prepText).overlaps(tester.getRect(workText)),
+        isFalse,
+      );
       await advanceTo(6400);
       expect(prepText, findsNothing);
       expect(workText, findsOneWidget);

@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'trainer_player_motion.dart';
-import 'trainer_player_v1_motion.dart';
 import 'trainer_theme.dart';
 
 /// Cleans legacy semicolon-delimited copy without turning separate steps into
@@ -88,7 +87,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
   bool? _layoutPlayerV1;
   bool? _layoutPrepCaption;
   double _countWidth = 0;
-  double _v1BodyHeight = 32;
+  List<double> _v1PageHeights = const [];
 
   @override
   void initState() {
@@ -143,13 +142,15 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
     String text,
     double size,
     double width,
-    BuildContext context,
-  ) => TextPainter(
+    BuildContext context, {
+    bool ellipsis = false,
+  }) => TextPainter(
     text: TextSpan(text: text, style: _bodyStyle(size)),
     textDirection: Directionality.of(context),
     textScaler: MediaQuery.textScalerOf(context),
     locale: Localizations.maybeLocaleOf(context),
     maxLines: 2,
+    ellipsis: ellipsis ? '…' : null,
   )..layout(maxWidth: width);
 
   bool _fits(String text, double size, double width, BuildContext context) {
@@ -327,17 +328,20 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
               1.0,
               bodyWidth - (_pages.length > 1 ? _countWidth + stepGap : 0),
             );
-            _v1BodyHeight = 32;
-            for (final page in _pages) {
-              final painter = _measureCue(
-                page.text,
-                page.size,
-                textWidth,
-                context,
-              );
-              _v1BodyHeight = math.max(_v1BodyHeight, painter.height);
-              painter.dispose();
-            }
+            _v1PageHeights = _pages
+                .map((page) {
+                  final painter = _measureCue(
+                    page.text,
+                    page.size,
+                    textWidth,
+                    context,
+                    ellipsis: showPrepCaption,
+                  );
+                  final height = math.max(32.0, painter.height.ceilToDouble());
+                  painter.dispose();
+                  return height;
+                })
+                .toList(growable: false);
           }
           _layoutWidth = constraints.maxWidth;
           _layoutScaler = textScaler;
@@ -368,45 +372,53 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
         );
         final pageContent = playerV1
             ? Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (_pages.length > 1) ...[
-                    SizedBox(
-                      key: const ValueKey('trainer-cue-step-pill'),
-                      width: _countWidth,
-                      height: 22,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(11),
-                          color: theme.tint,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: AnimatedSwitcher(
-                              duration: reduced
-                                  ? Duration.zero
-                                  : PlayerMotion.fast,
-                              layoutBuilder: (current, _) =>
-                                  current ?? const SizedBox.shrink(),
-                              child: KeyedSubtree(
-                                key: ValueKey((_index, _pages.length)),
-                                child: counter,
+                  SizedBox(
+                    key: const ValueKey('trainer-cue-count-slot'),
+                    width: _pages.length > 1 ? _countWidth + stepGap : 0,
+                    height: 32,
+                    child: _pages.length < 2
+                        ? null
+                        : Align(
+                            alignment: AlignmentDirectional.centerStart,
+                            child: SizedBox(
+                              key: const ValueKey('trainer-cue-step-pill'),
+                              width: _countWidth,
+                              height: 22,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(11),
+                                  color: theme.tint,
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: AnimatedSwitcher(
+                                      duration: reduced
+                                          ? Duration.zero
+                                          : PlayerMotion.fast,
+                                      layoutBuilder: (current, _) =>
+                                          current ?? const SizedBox.shrink(),
+                                      child: KeyedSubtree(
+                                        key: ValueKey((_index, _pages.length)),
+                                        child: counter,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: stepGap),
-                  ],
+                  ),
                   Expanded(
-                    child: TrainerPhaseSwitcher.sequential(
+                    child: _CuePush(
                       identity: (showPrepCaption, _index, page.text),
-                      exitDuration: PlayerMotion.fast,
-                      enterDuration: const Duration(milliseconds: 200),
-                      exitOffset: PlayerMotion.small,
-                      enterOffset: PlayerMotion.small,
+                      height: _v1PageHeights[_index],
+                      reduced: reduced,
                       child: cueText,
                     ),
                   ),
@@ -483,10 +495,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
                     horizontal: 16,
                   ),
                   child: playerV1
-                      ? ConstrainedBox(
-                          constraints: BoxConstraints(minHeight: _v1BodyHeight),
-                          child: Center(heightFactor: 1, child: pageSwitcher),
-                        )
+                      ? pageSwitcher
                       : SizedBox(
                           height: textScaler.scale(16) * 1.5 * 2,
                           child: pageSwitcher,
@@ -544,6 +553,127 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
     fontWeight: FontWeight.w600,
     height: 1.5,
     color: theme.accent,
+  );
+}
+
+class _CuePush extends StatefulWidget {
+  const _CuePush({
+    required this.identity,
+    required this.height,
+    required this.reduced,
+    required this.child,
+  });
+
+  final Object identity;
+  final double height;
+  final bool reduced;
+  final Widget child;
+
+  @override
+  State<_CuePush> createState() => _CuePushState();
+}
+
+class _CuePushState extends State<_CuePush>
+    with SingleTickerProviderStateMixin {
+  static const _pushDuration = Duration(milliseconds: 320);
+  late final _motion = AnimationController(
+    vsync: this,
+    value: 1,
+    animationBehavior: AnimationBehavior.preserve,
+  );
+  _CuePush? _previous;
+
+  Duration get _duration =>
+      widget.reduced ? PlayerMotion.reducedFade : _pushDuration;
+
+  @override
+  void didUpdateWidget(_CuePush oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.identity != widget.identity) {
+      // Only the last target becomes the departing line, even if a swipe
+      // arrives before that target has reached its resting position.
+      _previous = oldWidget;
+      _motion.duration = _duration;
+      _motion.forward(from: 0);
+    } else if (oldWidget.reduced != widget.reduced) {
+      _previous = null;
+      _motion.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _motion.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ClipRect(
+    child: AnimatedSize(
+      alignment: Alignment.topCenter,
+      duration: widget.reduced ? Duration.zero : _pushDuration,
+      curve: Curves.easeInOutCubic,
+      clipBehavior: Clip.none,
+      child: AnimatedBuilder(
+        animation: _motion,
+        builder: (context, _) {
+          final t = _motion.value;
+          final previous = _previous;
+          final moving = previous != null && t < 1;
+          // Both rows share the same moving edge. The incoming row starts
+          // exactly at the bottom of the outgoing row, even with more lines.
+          final distance = widget.reduced || !moving ? 0.0 : previous.height;
+          final travelled = Curves.easeInOutCubic.transform(t) * distance;
+          return SizedBox(
+            height: widget.height,
+            width: double.infinity,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                if (moving)
+                  _layer(
+                    previous,
+                    offset: -travelled,
+                    opacity: widget.reduced
+                        ? 1 - t
+                        : 1 - (2 * t - 1).clamp(0.0, 1.0),
+                    outgoing: true,
+                  ),
+                _layer(
+                  widget,
+                  offset: distance - travelled,
+                  opacity: widget.reduced ? t : (2 * t).clamp(0.0, 1.0),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
+
+  Widget _layer(
+    _CuePush page, {
+    required double offset,
+    required double opacity,
+    bool outgoing = false,
+  }) => Positioned(
+    top: 0,
+    left: 0,
+    right: 0,
+    height: page.height,
+    child: IgnorePointer(
+      child: ExcludeSemantics(
+        excluding: outgoing || opacity == 0,
+        child: Opacity(
+          opacity: opacity,
+          child: Transform.translate(
+            offset: Offset(0, offset),
+            child: Center(child: page.child),
+          ),
+        ),
+      ),
+    ),
   );
 }
 

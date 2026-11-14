@@ -88,6 +88,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
   bool? _layoutPlayerV1;
   bool? _layoutPrepCaption;
   double _countWidth = 0;
+  double _v1BodyHeight = 32;
 
   @override
   void initState() {
@@ -138,14 +139,21 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
     color: widget.theme.text,
   );
 
+  TextPainter _measureCue(
+    String text,
+    double size,
+    double width,
+    BuildContext context,
+  ) => TextPainter(
+    text: TextSpan(text: text, style: _bodyStyle(size)),
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+    locale: Localizations.maybeLocaleOf(context),
+    maxLines: 2,
+  )..layout(maxWidth: width);
+
   bool _fits(String text, double size, double width, BuildContext context) {
-    final painter = TextPainter(
-      text: TextSpan(text: text, style: _bodyStyle(size)),
-      textDirection: Directionality.of(context),
-      textScaler: MediaQuery.textScalerOf(context),
-      locale: Localizations.maybeLocaleOf(context),
-      maxLines: 2,
-    )..layout(maxWidth: width);
+    final painter = _measureCue(text, size, width, context);
     final fits = !painter.didExceedMaxLines && painter.width <= width;
     painter.dispose();
     return fits;
@@ -314,6 +322,23 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
               total = _pages.length;
             }
           }
+          if (playerV1) {
+            final textWidth = math.max(
+              1.0,
+              bodyWidth - (_pages.length > 1 ? _countWidth + stepGap : 0),
+            );
+            _v1BodyHeight = 32;
+            for (final page in _pages) {
+              final painter = _measureCue(
+                page.text,
+                page.size,
+                textWidth,
+                context,
+              );
+              _v1BodyHeight = math.max(_v1BodyHeight, painter.height);
+              painter.dispose();
+            }
+          }
           _layoutWidth = constraints.maxWidth;
           _layoutScaler = textScaler;
           _layoutDirection = direction;
@@ -341,54 +366,69 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
               ? TextOverflow.ellipsis
               : TextOverflow.visible,
         );
-        final pageContent = Row(
-          key: ValueKey('trainer-cue-page-$_index-${page.text}'),
-          mainAxisSize: playerV1 ? MainAxisSize.min : MainAxisSize.max,
-          crossAxisAlignment: playerV1
-              ? CrossAxisAlignment.center
-              : CrossAxisAlignment.start,
-          children: [
-            if (!playerV1 || _pages.length > 1) ...[
-              SizedBox(
-                width: _countWidth,
-                child: playerV1
-                    ? SizedBox(
-                        key: const ValueKey('trainer-cue-step-pill'),
-                        height: 22,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(11),
-                            color: theme.tint,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: counter,
+        final pageContent = playerV1
+            ? Row(
+                children: [
+                  if (_pages.length > 1) ...[
+                    SizedBox(
+                      key: const ValueKey('trainer-cue-step-pill'),
+                      width: _countWidth,
+                      height: 22,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(11),
+                          color: theme.tint,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: AnimatedSwitcher(
+                              duration: reduced
+                                  ? Duration.zero
+                                  : PlayerMotion.fast,
+                              layoutBuilder: (current, _) =>
+                                  current ?? const SizedBox.shrink(),
+                              child: KeyedSubtree(
+                                key: ValueKey((_index, _pages.length)),
+                                child: counter,
+                              ),
                             ),
                           ),
                         ),
-                      )
-                    : Padding(
-                        padding: EdgeInsets.only(top: textScaler.scale(3)),
-                        child: counter,
                       ),
-              ),
-              SizedBox(width: stepGap),
-            ],
-            Flexible(
-              fit: playerV1 ? FlexFit.loose : FlexFit.tight,
-              child: cueText,
-            ),
-          ],
-        );
-        final pageSwitcher = playerV1
-            ? TrainerPhaseSwitcher(
-                identity: (showPrepCaption, _index, page.text),
-                enterCurve: PlayerMotion.enter,
-                exitCurve: PlayerMotion.exit,
-                child: pageContent,
+                    ),
+                    SizedBox(width: stepGap),
+                  ],
+                  Expanded(
+                    child: TrainerPhaseSwitcher.sequential(
+                      identity: (showPrepCaption, _index, page.text),
+                      exitDuration: PlayerMotion.fast,
+                      enterDuration: const Duration(milliseconds: 200),
+                      exitOffset: PlayerMotion.small,
+                      enterOffset: PlayerMotion.small,
+                      child: cueText,
+                    ),
+                  ),
+                ],
               )
+            : Row(
+                key: ValueKey('trainer-cue-page-$_index-${page.text}'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: _countWidth,
+                    child: Padding(
+                      padding: EdgeInsets.only(top: textScaler.scale(3)),
+                      child: counter,
+                    ),
+                  ),
+                  SizedBox(width: stepGap),
+                  Expanded(child: cueText),
+                ],
+              );
+        final pageSwitcher = playerV1
+            ? pageContent
             : AnimatedSwitcher(
                 duration: reduced ? Duration.zero : _transition,
                 transitionBuilder: (child, animation) => AnimatedBuilder(
@@ -404,7 +444,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
                   ),
                 ),
                 layoutBuilder: (current, previous) => Stack(
-                  alignment: playerV1 ? Alignment.center : Alignment.topLeft,
+                  alignment: Alignment.topLeft,
                   children: [...previous, ?current],
                 ),
                 child: pageContent,
@@ -444,7 +484,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
                   ),
                   child: playerV1
                       ? ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 32),
+                          constraints: BoxConstraints(minHeight: _v1BodyHeight),
                           child: Center(heightFactor: 1, child: pageSwitcher),
                         )
                       : SizedBox(

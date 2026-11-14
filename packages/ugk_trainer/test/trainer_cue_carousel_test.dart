@@ -17,6 +17,7 @@ void main() {
     bool reduced = false,
     double width = 360,
     double scale = 1,
+    TrainerTheme theme = TrainerTheme.light,
     ValueChanged<bool>? onExpandedChanged,
   }) => tester.pumpWidget(
     MaterialApp(
@@ -35,7 +36,7 @@ void main() {
                 cues: steps,
                 precautions: precautions,
                 preparing: preparing,
-                theme: TrainerTheme.light,
+                theme: theme,
                 onExpandedChanged: onExpandedChanged,
               ),
             ),
@@ -94,6 +95,83 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 221));
     expect(find.text(cues[1]), findsOneWidget);
+    await clean(tester);
+  });
+
+  testWidgets('V1 shows one cue at a time and keeps one stationary pill', (
+    tester,
+  ) async {
+    const steps = ['夹紧臀部，身体慢慢往前推', '呼气，再沉一点', '放松肩颈', '慢慢回到起始位置'];
+    final oldCue = find.text(steps[0]);
+    final newCue = find.text(steps[1]);
+    final pill = find.byKey(const ValueKey('trainer-cue-step-pill'));
+    final count = find.byKey(const ValueKey('trainer-cue-count'));
+
+    double opacity(Finder finder) {
+      final element = finder.evaluate().singleOrNull;
+      var value = element == null ? 0.0 : 1.0;
+      RenderObject? object = element?.renderObject;
+      while (object != null) {
+        value *= switch (object) {
+          RenderOpacity(:final opacity) => opacity,
+          RenderAnimatedOpacity(:final opacity) => opacity.value,
+          _ => 1.0,
+        };
+        object = object.parent;
+      }
+      return value;
+    }
+
+    await mount(tester, steps: steps, theme: TrainerTheme.playerV1);
+    final pillElement = tester.element(pill);
+    final pillRect = tester.getRect(pill);
+    final oldCenter = tester.getCenter(oldCue);
+    expect(tester.widget<Text>(count).data, '1/4');
+    expect(opacity(oldCue), 1);
+
+    void expectOnePill() {
+      expect(pill, findsOneWidget);
+      expect(count, findsOneWidget);
+      expect(tester.element(pill), same(pillElement));
+      expect(tester.getRect(pill), pillRect);
+      expect(opacity(pill), 1);
+    }
+
+    await tester.drag(container, const Offset(-160, 0));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 80));
+    final exit = Curves.easeInCubic.transform(.5);
+    expect(opacity(oldCue), closeTo(1 - exit, .002));
+    expect(tester.getCenter(oldCue).dy, closeTo(oldCenter.dy - 8 * exit, .02));
+    expect(opacity(newCue), 0);
+    expectOnePill();
+
+    await tester.pump(const Duration(milliseconds: 80));
+    expect(opacity(oldCue), 0);
+    expect(opacity(newCue), 0);
+    expectOnePill();
+    expect(tester.widget<Text>(count).data, '2/4');
+
+    await tester.pump(const Duration(milliseconds: 100));
+    final enter = Curves.easeOutCubic.transform(.5);
+    expect(opacity(oldCue), 0);
+    expect(opacity(newCue), closeTo(enter, .002));
+    expect(
+      tester.getCenter(newCue).dy,
+      closeTo(oldCenter.dy + 8 * (1 - enter), .02),
+    );
+    expect(
+      find.ancestor(of: newCue, matching: find.byType(ClipRect)),
+      findsWidgets,
+    );
+    expectOnePill();
+
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(opacity(oldCue), 0);
+    expect(opacity(newCue), 1);
+    expect(tester.getCenter(newCue).dy, closeTo(oldCenter.dy, .02));
+    expectOnePill();
+    expect(tester.takeException(), isNull);
     await clean(tester);
   });
 

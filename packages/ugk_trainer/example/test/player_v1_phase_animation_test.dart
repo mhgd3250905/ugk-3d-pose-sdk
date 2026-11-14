@@ -453,6 +453,15 @@ void main() {
       expect(fallbackText, findsOneWidget);
       lines.single.$2();
       await tester.pump();
+      await advanceTo(1280);
+      expect(_painted(fallbackText), hasLength(1));
+      expect(_painted(prepText), isEmpty);
+      await advanceTo(1360);
+      expect(_painted(fallbackText), isEmpty);
+      expect(_painted(prepText), isEmpty);
+      await advanceTo(1460);
+      expect(_painted(fallbackText), isEmpty);
+      expect(_painted(prepText), hasLength(1));
       await advanceTo(1680);
 
       expect(tester.state(card), same(cardState));
@@ -466,14 +475,18 @@ void main() {
       expect(dot, findsNothing);
       final panelElement = tester.element(panel);
 
+      final workText = find.text('收紧腹部，慢慢把髋向前移');
       await advanceTo(6080);
       expect(tester.state(card), same(cardState));
       expect(tester.element(panel), same(panelElement));
       expect(_painted(prepText), hasLength(1));
-      expect(_painted(find.text('收紧腹部，慢慢把髋向前移')), hasLength(1));
+      expect(_painted(workText), isEmpty);
       await advanceTo(6280);
+      expect(_painted(prepText), isEmpty);
+      expect(_painted(workText), hasLength(1));
+      await advanceTo(6400);
       expect(prepText, findsNothing);
-      expect(find.text('收紧腹部，慢慢把髋向前移'), findsOneWidget);
+      expect(workText, findsOneWidget);
       expect(tester.widget<Text>(count).data, '1/2');
       expect(dot, findsNothing);
       expect(tester.takeException(), isNull);

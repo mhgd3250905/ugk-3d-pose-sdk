@@ -42,6 +42,10 @@ class TrainerTheme {
     this.sub = const Color(0xFF6B7772),
     this.cautionBg = const Color(0xFFFFF4E5),
     this.dangerBg = const Color(0xFFFDECED),
+    this.feedbackPositive = const Color(0xFF1E9E78),
+    this.feedbackNeutral = const Color(0xFFE3A23B),
+    this.feedbackNegative = const Color(0xFFE5634D),
+    this.feedbackText = const Color(0xFF1F2A2E),
     this.ctrl = const Color(0xFFF1F4F3),
     this.heroTop = const Color(0xFF0A5341),
     this.heroBottom = const Color(0xFF0E6F56),
@@ -104,6 +108,10 @@ class TrainerTheme {
   final Color sub;
   final Color cautionBg;
   final Color dangerBg;
+  final Color feedbackPositive;
+  final Color feedbackNeutral;
+  final Color feedbackNegative;
+  final Color feedbackText;
   final Color ctrl;
   final Color heroTop;
   final Color heroBottom;
@@ -150,6 +158,10 @@ class TrainerTheme {
     Color? sub,
     Color? cautionBg,
     Color? dangerBg,
+    Color? feedbackPositive,
+    Color? feedbackNeutral,
+    Color? feedbackNegative,
+    Color? feedbackText,
     Color? ctrl,
     Color? heroTop,
     Color? heroBottom,
@@ -192,6 +204,10 @@ class TrainerTheme {
     sub: sub ?? this.sub,
     cautionBg: cautionBg ?? this.cautionBg,
     dangerBg: dangerBg ?? this.dangerBg,
+    feedbackPositive: feedbackPositive ?? this.feedbackPositive,
+    feedbackNeutral: feedbackNeutral ?? this.feedbackNeutral,
+    feedbackNegative: feedbackNegative ?? this.feedbackNegative,
+    feedbackText: feedbackText ?? this.feedbackText,
     ctrl: ctrl ?? this.ctrl,
     heroTop: heroTop ?? this.heroTop,
     heroBottom: heroBottom ?? this.heroBottom,
@@ -222,6 +238,7 @@ class TrainerTheme {
   static const playerV1Dark = TrainerTheme(
     usePlayerV1: true,
     brightness: Brightness.dark,
+    feedbackText: Color(0xFFF4F5F7),
     stageTop: Color(0xFF1C1E24),
     stageBottom: Color(0xFF0C0D10),
     glow: Color(0xFFFF6A2B),

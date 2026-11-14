@@ -188,7 +188,7 @@ void main() {
             expect(pause, findsOneWidget);
             expect(tester.getRect(track).height, 4);
             expect(tester.getRect(dock).bottom, 800);
-            expect(tester.getRect(dock).height, rest ? 300 : 172);
+            expect(tester.getRect(dock).height, rest ? 333 : 172);
             expect(
               tester.getRect(close).bottom,
               lessThan(tester.getTopLeft(track).dy),
@@ -246,7 +246,7 @@ void main() {
               tester.widget<TrainerRestFeedbackPanel>(panel).selected,
               choice,
             );
-            expect(tester.getSize(check), const Size(14, 14));
+            expect(tester.getSize(check), const Size(12, 12));
             expect(find.text('已记录'), findsOneWidget);
             await capture(tester, 'rest-${mode.name}-selected');
 

@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show OverflowBoxFit;
+import 'package:flutter/services.dart';
 
 import 'trainer_player_motion.dart';
 import 'trainer_theme.dart';
@@ -404,13 +407,32 @@ class _RestFeedbackEntrance extends InheritedWidget {
 /// The host's selected response in the standard rest feedback panel.
 enum TrainerRestFeedbackChoice { comfortable, tight, pain }
 
+enum TrainerRestFeedbackTone { positive, neutral, negative }
+
+/// A rest feedback option with optional host-defined styling.
+class TrainerRestFeedbackOption {
+  const TrainerRestFeedbackOption({
+    required this.choice,
+    required this.label,
+    this.onPressed,
+    this.tone,
+    this.icon,
+  });
+
+  final TrainerRestFeedbackChoice choice;
+  final String label;
+  final VoidCallback? onPressed;
+  final TrainerRestFeedbackTone? tone;
+  final IconData? icon;
+}
+
 /// A host supplies option labels, callbacks and the current selection.
 class TrainerRestFeedbackPanel extends StatelessWidget {
   const TrainerRestFeedbackPanel({
     super.key,
     required this.theme,
     required this.title,
-    required this.description,
+    this.description = '选一个，下一组帮你调整',
     this.recordedTitle,
     this.selected,
     this.comfortableLabel,
@@ -419,6 +441,7 @@ class TrainerRestFeedbackPanel extends StatelessWidget {
     this.onTight,
     this.painLabel,
     this.onPain,
+    this.options,
   });
 
   final TrainerTheme theme;
@@ -433,36 +456,35 @@ class TrainerRestFeedbackPanel extends StatelessWidget {
   final String? painLabel;
   final VoidCallback? onPain;
 
+  /// When supplied, replaces the three individually configured options.
+  final List<TrainerRestFeedbackOption>? options;
+
   @override
   Widget build(BuildContext context) {
     final currentTitle = selected == null ? title : recordedTitle ?? title;
     final reduced = TrainerMotion.reduced(context);
-    final options = [
-      if (comfortableLabel case final label?)
-        _option(
-          TrainerRestFeedbackChoice.comfortable,
-          label,
-          theme.goodBg,
-          theme.good,
-          onComfortable,
-        ),
-      if (tightLabel case final label?)
-        _option(
-          TrainerRestFeedbackChoice.tight,
-          label,
-          theme.cautionBg,
-          theme.caution,
-          onTight,
-        ),
-      if (painLabel case final label?)
-        _option(
-          TrainerRestFeedbackChoice.pain,
-          label,
-          theme.dangerBg,
-          theme.danger,
-          onPain,
-        ),
-    ];
+    final choices =
+        options ??
+        [
+          if (comfortableLabel case final label?)
+            TrainerRestFeedbackOption(
+              choice: TrainerRestFeedbackChoice.comfortable,
+              label: label,
+              onPressed: onComfortable,
+            ),
+          if (tightLabel case final label?)
+            TrainerRestFeedbackOption(
+              choice: TrainerRestFeedbackChoice.tight,
+              label: label,
+              onPressed: onTight,
+            ),
+          if (painLabel case final label?)
+            TrainerRestFeedbackOption(
+              choice: TrainerRestFeedbackChoice.pain,
+              label: label,
+              onPressed: onPain,
+            ),
+        ];
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -481,9 +503,10 @@ class TrainerRestFeedbackPanel extends StatelessWidget {
                   key: ValueKey(currentTitle),
                   textAlign: TextAlign.center,
                   style: theme.title.copyWith(
-                    fontSize: 17,
+                    color: theme.feedbackText,
+                    fontSize: 16,
                     height: 1.2,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -492,25 +515,33 @@ class TrainerRestFeedbackPanel extends StatelessWidget {
                 description,
                 textAlign: TextAlign.center,
                 style: theme.label.copyWith(
-                  color: theme.sub,
+                  color: const Color(0xFF8A9499),
                   fontSize: 12,
+                  fontWeight: FontWeight.w400,
                   height: 1.25,
                 ),
               ),
             ],
           ),
         ),
-        if (options.isNotEmpty) ...[
-          const SizedBox(height: 16),
+        if (choices.isNotEmpty) ...[
+          const SizedBox(height: 14),
           Row(
             children: [
-              for (var i = 0; i < options.length; i++) ...[
-                if (i > 0) const SizedBox(width: 8),
+              for (var i = 0; i < choices.length; i++) ...[
+                if (i > 0) const SizedBox(width: 10),
                 Expanded(
                   child: _RestFeedbackEntrance.stagger(
                     context,
                     i + 1,
-                    options[i],
+                    _option(
+                      choices[i],
+                      i == 0
+                          ? TrainerRestFeedbackTone.positive
+                          : i == choices.length - 1
+                          ? TrainerRestFeedbackTone.negative
+                          : TrainerRestFeedbackTone.neutral,
+                    ),
                   ),
                 ),
               ],
@@ -522,24 +553,242 @@ class TrainerRestFeedbackPanel extends StatelessWidget {
   }
 
   Widget _option(
-    TrainerRestFeedbackChoice choice,
-    String label,
-    Color background,
-    Color foreground,
-    VoidCallback? onPressed,
-  ) => TrainerV1FeedbackButton(
-    key: ValueKey('player-v1-rest-${choice.name}'),
-    theme: theme,
-    label: label,
-    background: background,
-    color: foreground,
-    selected: selected == choice,
-    scaleOnPress: true,
-    onPressed: onPressed,
-  );
+    TrainerRestFeedbackOption option,
+    TrainerRestFeedbackTone fallbackTone,
+  ) {
+    final (color, icon) = switch (option.tone ?? fallbackTone) {
+      TrainerRestFeedbackTone.positive => (
+        theme.feedbackPositive,
+        Icons.sentiment_satisfied_alt_rounded,
+      ),
+      TrainerRestFeedbackTone.neutral => (
+        theme.feedbackNeutral,
+        Icons.sentiment_neutral_rounded,
+      ),
+      TrainerRestFeedbackTone.negative => (
+        theme.feedbackNegative,
+        Icons.sentiment_dissatisfied_rounded,
+      ),
+    };
+    return _RestFeedbackCard(
+      key: ValueKey('player-v1-rest-${option.choice.name}'),
+      option: option,
+      icon: option.icon ?? icon,
+      color: color,
+      theme: theme,
+      selected: selected == option.choice,
+      dimmed: selected != null && selected != option.choice,
+    );
+  }
 }
 
-/// Shared appearance for V1 rest and completion feedback.
+class _RestFeedbackCard extends StatefulWidget {
+  const _RestFeedbackCard({
+    super.key,
+    required this.option,
+    required this.icon,
+    required this.color,
+    required this.theme,
+    required this.selected,
+    required this.dimmed,
+  });
+
+  final TrainerRestFeedbackOption option;
+  final IconData icon;
+  final Color color;
+  final TrainerTheme theme;
+  final bool selected;
+  final bool dimmed;
+
+  @override
+  State<_RestFeedbackCard> createState() => _RestFeedbackCardState();
+}
+
+class _RestFeedbackCardState extends State<_RestFeedbackCard>
+    with SingleTickerProviderStateMixin {
+  static const _ease = Curves.easeOut;
+  static final _bounce = TweenSequence<double>([
+    TweenSequenceItem(
+      tween: Tween(begin: 1.0, end: 1.04).chain(CurveTween(curve: _ease)),
+      weight: 1,
+    ),
+    TweenSequenceItem(
+      tween: Tween(begin: 1.04, end: 1.0).chain(CurveTween(curve: _ease)),
+      weight: 1,
+    ),
+  ]);
+  late final AnimationController _selection;
+  bool _pressed = false;
+  bool _reduced = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selection = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 240),
+      value: 1,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduced = TrainerMotion.reduced(context);
+    if (_reduced) _selection.value = 1;
+  }
+
+  @override
+  void didUpdateWidget(_RestFeedbackCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_reduced && widget.selected && !oldWidget.selected) {
+      _selection.forward(from: 0);
+    } else if (!widget.selected && oldWidget.selected) {
+      _selection.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _selection.dispose();
+    super.dispose();
+  }
+
+  void _highlight(bool pressed) {
+    if (!_reduced && _pressed != pressed) setState(() => _pressed = pressed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final duration = _reduced
+        ? _reducedFade
+        : const Duration(milliseconds: 200);
+    final color = widget.color;
+    final selected = widget.selected;
+    final radius = BorderRadius.circular(18);
+    final onPressed = widget.option.onPressed;
+    final card = Semantics(
+      selected: selected,
+      button: true,
+      child: AnimatedOpacity(
+        duration: duration,
+        curve: _ease,
+        opacity: widget.dimmed ? .45 : 1,
+        child: AnimatedContainer(
+          duration: duration,
+          curve: _ease,
+          height: 84,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: selected ? .16 : .08),
+            border: Border.all(
+              color: color.withValues(alpha: selected ? 1 : .22),
+              width: selected ? 1.5 : 1,
+            ),
+            borderRadius: radius,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: radius,
+              enableFeedback: false,
+              onHighlightChanged: _highlight,
+              onTap: onPressed == null
+                  ? null
+                  : () {
+                      if (widget.selected) return;
+                      unawaited(HapticFeedback.selectionClick());
+                      onPressed();
+                    },
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 8,
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(widget.icon, size: 26, color: color),
+                            const SizedBox(height: 6),
+                            Text(
+                              widget.option.label,
+                              maxLines: 1,
+                              textAlign: TextAlign.center,
+                              style: widget.theme.body.copyWith(
+                                color: widget.theme.feedbackText,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  PositionedDirectional(
+                    top: 8,
+                    end: 8,
+                    child: AnimatedSwitcher(
+                      duration: _reduced
+                          ? _reducedFade
+                          : const Duration(milliseconds: 220),
+                      layoutBuilder: (current, _) =>
+                          current ?? const SizedBox.shrink(),
+                      transitionBuilder: (child, animation) => _reduced
+                          ? FadeTransition(opacity: animation, child: child)
+                          : ScaleTransition(
+                              scale: animation.drive(
+                                CurveTween(curve: Curves.easeOutBack),
+                              ),
+                              child: child,
+                            ),
+                      child: selected
+                          ? SizedBox.square(
+                              key: const ValueKey('player-v1-rest-badge'),
+                              dimension: 18,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.check_rounded,
+                                    color: Colors.white,
+                                    size: 12,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (_reduced) return card;
+    return ScaleTransition(
+      scale: _selection.drive(_bounce),
+      child: AnimatedScale(
+        scale: _pressed ? .96 : 1,
+        duration: const Duration(milliseconds: 100),
+        curve: _ease,
+        child: card,
+      ),
+    );
+  }
+}
+
+/// Shared appearance for V1 completion feedback.
 class TrainerV1FeedbackButton extends StatefulWidget {
   const TrainerV1FeedbackButton({
     super.key,

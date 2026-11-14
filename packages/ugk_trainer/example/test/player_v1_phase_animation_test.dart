@@ -569,7 +569,7 @@ void main() {
             final currentRect = tester.getRect(viewport);
             expect(currentRect, stageRect, reason: 'frame $frame');
             final dockHeight = tester.getSize(dock).height;
-            if (dockHeight > 172 && dockHeight < 300) {
+            if (dockHeight > 172 && dockHeight < 333) {
               if (frame >= restFrame && frame < restSettledFrame) {
                 sawDockExpand = true;
               }
@@ -581,7 +581,7 @@ void main() {
                 frame == restSettledFrame ||
                 frame == workSettledFrame) {
               final rest = frame == restSettledFrame;
-              expect(dockHeight, rest ? 300 : 172);
+              expect(dockHeight, rest ? 333 : 172);
               final feedback = find.text('刚才感觉怎么样？').hitTestable();
               expect(feedback, rest ? findsOneWidget : findsNothing);
               if (rest) {

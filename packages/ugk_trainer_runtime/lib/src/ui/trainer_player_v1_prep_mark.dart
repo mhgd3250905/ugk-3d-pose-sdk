@@ -20,6 +20,8 @@ class TrainerV1PrepMark extends StatefulWidget {
   final bool starting;
   final TrainerTheme theme;
 
+  static const startDuration = Duration(milliseconds: 1010);
+
   @override
   State<TrainerV1PrepMark> createState() => _TrainerV1PrepMarkState();
 }
@@ -29,7 +31,9 @@ class _TrainerV1PrepMarkState extends State<TrainerV1PrepMark>
   static const _intro = Duration(milliseconds: 320);
   static const _digitDuration = Duration(seconds: 1);
   static const _digitExit = Duration(milliseconds: 760);
-  static const _startHold = Duration(milliseconds: 400);
+  static const _startIntro = Duration(milliseconds: 360);
+  static const _startHold = Duration(milliseconds: 450);
+  static const _startPulse = Duration(milliseconds: 600);
   static const _outro = Duration(milliseconds: 200);
 
   late final _clock = AnimationController(
@@ -42,7 +46,11 @@ class _TrainerV1PrepMarkState extends State<TrainerV1PrepMark>
   );
   bool? _reduced;
 
-  Duration get _fadeIn => _reduced! ? PlayerMotion.reducedFade : _intro;
+  Duration get _fadeIn => _reduced!
+      ? PlayerMotion.reducedFade
+      : widget.starting
+      ? _startIntro
+      : _intro;
   Duration get _fadeOut => _reduced! ? PlayerMotion.reducedFade : _outro;
   Duration get _exitAt => widget.starting
       ? _fadeIn + _startHold
@@ -86,9 +94,10 @@ class _TrainerV1PrepMarkState extends State<TrainerV1PrepMark>
   Widget build(BuildContext context) {
     final reduced = _reduced!;
     final theme = widget.theme;
+    if (widget.starting) return _buildStart(theme, reduced);
     final style = DefaultTextStyle.of(context).style.merge(
       theme
-          .numeral(widget.starting ? 72 : 160)
+          .numeral(160)
           .copyWith(color: Colors.white, fontWeight: FontWeight.w900),
     );
     return IgnorePointer(
@@ -120,11 +129,7 @@ class _TrainerV1PrepMarkState extends State<TrainerV1PrepMark>
                     ).createShader(rect),
                     child: Text(
                       widget.label,
-                      key: ValueKey(
-                        widget.starting
-                            ? 'player-v1-start-label'
-                            : 'player-v1-prep-digit',
-                      ),
+                      key: const ValueKey('player-v1-prep-digit'),
                       style: style,
                       maxLines: 1,
                     ),
@@ -160,7 +165,6 @@ class _TrainerV1PrepMarkState extends State<TrainerV1PrepMark>
                           child: child,
                         ),
                 );
-                if (widget.starting) return glyph;
                 return SizedBox.square(
                   dimension: 220,
                   child: Stack(
@@ -203,6 +207,116 @@ class _TrainerV1PrepMarkState extends State<TrainerV1PrepMark>
                       glyph,
                     ],
                   ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStart(TrainerTheme theme, bool reduced) {
+    const radius = BorderRadius.all(Radius.circular(999));
+    final defaultPrimary = theme.accent == TrainerTheme.playerV1.accent;
+    final primary = defaultPrimary ? const Color(0xFF1E9E78) : theme.accent;
+    final lighter = defaultPrimary
+        ? const Color(0xFF22B086)
+        : Color.alphaBlend(Colors.white.withValues(alpha: .08), primary);
+    return IgnorePointer(
+      child: ExcludeSemantics(
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: AnimatedBuilder(
+              animation: _clock,
+              child: DecoratedBox(
+                key: const ValueKey('player-v1-start-pill'),
+                decoration: BoxDecoration(
+                  borderRadius: radius,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: .7),
+                    width: 2,
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [lighter, primary],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: primary.withValues(alpha: .35),
+                      blurRadius: 32,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 36,
+                    vertical: 14,
+                  ),
+                  child: Text(
+                    widget.label,
+                    key: const ValueKey('player-v1-start-label'),
+                    maxLines: 1,
+                    style: theme
+                        .numeral(56, color: Colors.white)
+                        .copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 4,
+                        ),
+                  ),
+                ),
+              ),
+              builder: (context, child) {
+                final elapsed = (_clock.value * _duration.inMicroseconds)
+                    .roundToDouble();
+                final entry = _ramp(elapsed, Duration.zero, _fadeIn);
+                final exitProgress = _ramp(elapsed, _exitAt, _fadeOut);
+                final exit = reduced
+                    ? exitProgress
+                    : Curves.easeIn.transform(exitProgress);
+                final easedEntry = Curves.easeOutBack.transform(entry);
+                final scale = entry == 1
+                    ? 1 + .12 * exit
+                    : easedEntry <= 1
+                    ? .6 + .4 * easedEntry
+                    : 1 + .08 * ((easedEntry - 1) / .0869).clamp(0.0, 1.0);
+                final pulse = _ramp(elapsed, Duration.zero, _startPulse);
+                final easedPulse = Curves.easeOut.transform(pulse);
+                return Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    if (!reduced && pulse < 1)
+                      Positioned.fill(
+                        child: Opacity(
+                          opacity: .5 * (1 - easedPulse),
+                          child: Transform.scale(
+                            scale: 1 + .5 * easedPulse,
+                            child: DecoratedBox(
+                              key: const ValueKey('player-v1-start-pulse'),
+                              decoration: BoxDecoration(
+                                borderRadius: radius,
+                                border: Border.all(color: primary, width: 2),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    Opacity(
+                      key: const ValueKey('player-v1-start-opacity'),
+                      opacity: entry * (1 - exit),
+                      child: reduced
+                          ? child
+                          : Transform.scale(
+                              key: const ValueKey('player-v1-start-scale'),
+                              scale: scale,
+                              child: child,
+                            ),
+                    ),
+                  ],
                 );
               },
             ),

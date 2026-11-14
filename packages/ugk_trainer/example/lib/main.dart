@@ -376,7 +376,6 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
                             theme: theme,
                             title: '刚才感觉怎么样？',
                             recordedTitle: '已记录',
-                            description: '给刚完成的动作记下一个感受',
                             selected: selected,
                             comfortableLabel: '舒服',
                             tightLabel: '有点紧',

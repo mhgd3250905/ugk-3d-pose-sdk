@@ -782,7 +782,10 @@ extension _TrainerPlayerV1Stage on _TrainerPlayerState {
     final seconds = _engine.secondsLeft(_t);
     final lastKind = _engine.visits.lastOrNull?.phase.kind;
     final starting =
-        phase.isWork && lastKind == PhaseKind.prep && _engine.elapsedIn(_t) < 1;
+        phase.isWork &&
+        lastKind == PhaseKind.prep &&
+        _engine.elapsedIn(_t) <
+            TrainerV1PrepMark.startDuration.inMilliseconds / 1000;
     Widget? media;
     if (drill != null) {
       media = TrainerV1MediaScope(

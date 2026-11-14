@@ -14,6 +14,7 @@ import 'media_controller.dart';
 import 'media_playback_handle.dart';
 import 'media_view.dart';
 import 'packed_alpha_video.dart';
+import 'trainer_v1_media_scope.dart';
 import 'training_media_repository.dart';
 
 /// Presentation-only handover for training: settle rapid target changes before
@@ -481,7 +482,9 @@ class _DrillMediaViewState extends State<DrillMediaView> {
         // the target poster remains visible beneath it.
         opacity: retiring ? (keepFrozen ? 1 : 0) : (hasFrame ? 1 : 1 / 255),
         duration:
-            retiring || (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
+            retiring ||
+                TrainerV1MediaScope.of(context) ||
+                (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
             ? Duration.zero
             : const Duration(milliseconds: 120),
         child: Transform.flip(
@@ -553,7 +556,9 @@ class _DrillMediaViewState extends State<DrillMediaView> {
       waiting = AnimatedOpacity(
         key: const ValueKey('drill-alpha-poster-reveal'),
         opacity: c?.hasFrame == true && c?.failed != true ? 0 : 1,
-        duration: MediaQuery.maybeDisableAnimationsOf(context) ?? false
+        duration:
+            TrainerV1MediaScope.of(context) ||
+                (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
             ? Duration.zero
             : const Duration(milliseconds: 120),
         child: waiting,

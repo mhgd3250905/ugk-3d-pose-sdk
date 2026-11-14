@@ -21,6 +21,8 @@ enum PhaseKind { prep, work, switchSide, rest, roundRest, done }
 
 enum Side { right, left }
 
+enum VoiceGuideSetExit { moreSets, moreSetsSameSide, sideDone, allDone }
+
 class SessionPhase {
   const SessionPhase({
     required this.kind,
@@ -46,6 +48,8 @@ class SessionPhase {
     this.doneExerciseId,
     this.segmentId,
     this.segment,
+    this.voiceGuideSetExit,
+    this.afterGuidedSet = false,
   });
 
   final PhaseKind kind;
@@ -87,6 +91,8 @@ class SessionPhase {
     doneExerciseId: doneExerciseId,
     segmentId: segmentId,
     segment: segment,
+    voiceGuideSetExit: voiceGuideSetExit,
+    afterGuidedSet: afterGuidedSet,
   );
 
   /// Index of the exercise occurrence in play order (for progress / skip).
@@ -126,6 +132,8 @@ class SessionPhase {
 
   /// During the rest after an exercise: the one just finished (for "X，完成").
   final String? doneExerciseId;
+  final VoiceGuideSetExit? voiceGuideSetExit;
+  final bool afterGuidedSet;
 
   bool get isWork => kind == PhaseKind.work;
 
@@ -201,6 +209,8 @@ class SessionBuilder {
     this.prepSecondsFor,
     this.rhythmDefaults = const RhythmDefaults(),
     this.sideSwitchMarginSeconds = 0,
+    this.voiceGuideFor,
+    this.guideSideSwitchSecondsFor,
   });
 
   /// A typical estimate allowance for repositioning between sides
@@ -223,6 +233,8 @@ class SessionBuilder {
   final SwitchSeconds? switchSecondsFor;
   final PrepSeconds? prepSecondsFor;
   final RhythmDefaults rhythmDefaults;
+  final PoseHubVoiceGuide? Function(String exerciseId)? voiceGuideFor;
+  final int? Function(String exerciseId)? guideSideSwitchSecondsFor;
 
   /// Extra seconds [planSeconds] adds for every side switch of a unilateral
   /// (perSide) action, on top of the played switch phase. Estimates only:
@@ -358,87 +370,128 @@ class SessionBuilder {
     for (var i = 0; i < occ.length; i++) {
       final o = occ[i];
       final item = o.item;
-      for (var s = 1; s <= o.sets; s++) {
-        final segments = item.segments.isEmpty
-            ? <PlanSegment?>[null]
-            : item.segments;
-        for (final segment in segments) {
-          final dose = segment?.toPlanItem(item) ?? item;
-          final rhythm = segment == null
-              ? rhythmOf(item)
-              : _segmentRhythm(segment, dose);
-          final work = workSeconds(dose, rhythm);
-          final counted = rhythm.counted;
-          final reps = rhythm.selfPaced
-              ? dose.reps
-              : counted
-              ? (dose.mode == DoseMode.reps
-                    ? dose.reps
-                    : (rhythm.defaultReps ?? 1))
-              : null;
-          SessionPhase at(PhaseKind kind, double seconds, Side? side) =>
-              SessionPhase(
-                kind: kind,
-                seconds: seconds,
-                exerciseId: dose.exerciseId,
-                item: item,
-                segmentId: segment?.id,
-                segment: segment,
-                itemIndex: i,
-                blockIndex: o.blockIndex,
-                itemInBlock: o.itemInBlock,
-                set: s,
-                sets: o.sets,
-                round: o.round,
-                rounds: o.rounds,
-                side: side,
-                blockName: o.block.name,
-                reps: kind == PhaseKind.work ? reps : null,
-                repSeconds: kind == PhaseKind.work && counted
-                    ? rhythm.cycleFor()
-                    : null,
-                rhythm: rhythm,
-                selfPaced: kind == PhaseKind.work && rhythm.selfPaced,
-                holdSeconds: kind == PhaseKind.work ? rhythm.holdSeconds : null,
-              );
-          // An alternating pair (one count = one left + one right) moves
-          // both sides inside every count: one work phase, no side switch.
-          final sides = item.perSide && !rhythm.alternatePair
-              ? [Side.right, Side.left]
-              : [null];
-          for (var k = 0; k < sides.length; k++) {
-            if (k > 0) {
-              final side = sides[k]!;
-              final base = switchSideSeconds.toDouble();
-              final widened =
-                  switchSecondsFor?.call(dose, rhythm, side) ?? base;
-              out.add(
-                at(PhaseKind.switchSide, widened > base ? widened : base, side),
-              );
-            }
-            out.add(at(PhaseKind.work, work, sides[k]));
-          }
-        }
-        if (s < o.sets) {
-          out.add(
-            SessionPhase(
-              kind: PhaseKind.rest,
-              seconds: item.restSeconds.toDouble(),
-              exerciseId:
-                  item.segments.firstOrNull?.exerciseId ?? item.exerciseId,
-              segment: item.segments.firstOrNull,
-              segmentId: item.segments.firstOrNull?.id,
+      final wholeRhythm = rhythmOf(item);
+      final authoredGuide = item.segments.isEmpty
+          ? voiceGuideFor?.call(item.exerciseId)
+          : null;
+      final guide =
+          wholeRhythm.selfPaced ||
+              (authoredGuide?.mode == PoseHubVoiceGuideMode.reps) !=
+                  wholeRhythm.counted
+          ? null
+          : authoredGuide;
+      final order = guide?.sides;
+      if (order?.eachSideSeparately == true &&
+          order!.order.length == 2 &&
+          order.order.toSet().containsAll(['right', 'left']) &&
+          !wholeRhythm.alternatePair) {
+        out.addAll(
+          _guidedSidePhases(o, i, order.order.map(Side.values.byName).toList()),
+        );
+      } else {
+        for (var s = 1; s <= o.sets; s++) {
+          final segments = item.segments.isEmpty
+              ? <PlanSegment?>[null]
+              : item.segments;
+          for (final segment in segments) {
+            final dose = segment?.toPlanItem(item) ?? item;
+            final rhythm = segment == null
+                ? wholeRhythm
+                : _segmentRhythm(segment, dose);
+            final work = workSeconds(dose, rhythm);
+            final counted = rhythm.counted;
+            final reps = rhythm.selfPaced
+                ? dose.reps
+                : counted
+                ? (dose.mode == DoseMode.reps
+                      ? dose.reps
+                      : (rhythm.defaultReps ?? 1))
+                : null;
+            SessionPhase at(
+              PhaseKind kind,
+              double seconds,
+              Side? side, {
+              VoiceGuideSetExit? guidance,
+            }) => SessionPhase(
+              kind: kind,
+              seconds: seconds,
+              exerciseId: dose.exerciseId,
               item: item,
+              segmentId: segment?.id,
+              segment: segment,
               itemIndex: i,
               blockIndex: o.blockIndex,
               itemInBlock: o.itemInBlock,
-              set: s + 1,
+              set: s,
               sets: o.sets,
               round: o.round,
               rounds: o.rounds,
+              side: side,
               blockName: o.block.name,
-            ),
-          );
+              reps: kind == PhaseKind.work ? reps : null,
+              repSeconds: kind == PhaseKind.work && counted
+                  ? rhythm.cycleFor()
+                  : null,
+              rhythm: rhythm,
+              selfPaced: kind == PhaseKind.work && rhythm.selfPaced,
+              holdSeconds: kind == PhaseKind.work ? rhythm.holdSeconds : null,
+              voiceGuideSetExit: guidance,
+            );
+            // An alternating pair (one count = one left + one right) moves
+            // both sides inside every count: one work phase, no side switch.
+            final sides = item.perSide && !rhythm.alternatePair
+                ? [Side.right, Side.left]
+                : [null];
+            for (var k = 0; k < sides.length; k++) {
+              if (k > 0) {
+                final side = sides[k]!;
+                final base = switchSideSeconds.toDouble();
+                final widened =
+                    switchSecondsFor?.call(dose, rhythm, side) ?? base;
+                out.add(
+                  at(
+                    PhaseKind.switchSide,
+                    widened > base ? widened : base,
+                    side,
+                  ),
+                );
+              }
+              out.add(
+                at(
+                  PhaseKind.work,
+                  work,
+                  sides[k],
+                  guidance: guide == null || rhythm.selfPaced
+                      ? null
+                      : s < o.sets
+                      ? VoiceGuideSetExit.moreSets
+                      : VoiceGuideSetExit.allDone,
+                ),
+              );
+            }
+          }
+          if (s < o.sets) {
+            out.add(
+              SessionPhase(
+                kind: PhaseKind.rest,
+                seconds: item.restSeconds.toDouble(),
+                exerciseId:
+                    item.segments.firstOrNull?.exerciseId ?? item.exerciseId,
+                segment: item.segments.firstOrNull,
+                segmentId: item.segments.firstOrNull?.id,
+                item: item,
+                itemIndex: i,
+                blockIndex: o.blockIndex,
+                itemInBlock: o.itemInBlock,
+                set: s + 1,
+                sets: o.sets,
+                round: o.round,
+                rounds: o.rounds,
+                blockName: o.block.name,
+                afterGuidedSet: out.last.voiceGuideSetExit != null,
+              ),
+            );
+          }
         }
       }
       if (i < occ.length - 1) {
@@ -470,14 +523,95 @@ class SessionBuilder {
             nextExerciseId: n.item.exerciseId,
             nextItem: n.item,
             doneExerciseId: o.item.exerciseId,
+            afterGuidedSet: out.last.voiceGuideSetExit != null,
           ),
         );
       }
     }
     out.add(
-      SessionPhase(kind: PhaseKind.done, seconds: 0, itemIndex: occ.length),
+      SessionPhase(
+        kind: PhaseKind.done,
+        seconds: 0,
+        itemIndex: occ.length,
+        afterGuidedSet: out.last.voiceGuideSetExit != null,
+      ),
     );
     return out;
+  }
+
+  Iterable<SessionPhase> _guidedSidePhases(
+    _Occurrence occurrence,
+    int itemIndex,
+    List<Side> sides,
+  ) sync* {
+    final item = occurrence.item;
+    final rhythm = rhythmOf(item);
+    final work = workSeconds(item, rhythm);
+    for (final (sideIndex, side) in sides.indexed) {
+      SessionPhase phase(
+        PhaseKind kind,
+        double seconds,
+        int set, {
+        VoiceGuideSetExit? exit,
+        bool afterSet = false,
+      }) => SessionPhase(
+        kind: kind,
+        seconds: seconds,
+        exerciseId: item.exerciseId,
+        item: item,
+        itemIndex: itemIndex,
+        blockIndex: occurrence.blockIndex,
+        itemInBlock: occurrence.itemInBlock,
+        round: occurrence.round,
+        rounds: occurrence.rounds,
+        blockName: occurrence.block.name,
+        set: set,
+        sets: occurrence.sets,
+        side: side,
+        rhythm: kind == PhaseKind.rest ? null : rhythm,
+        reps: kind == PhaseKind.work && rhythm.counted
+            ? item.reps ?? rhythm.defaultReps ?? 1
+            : null,
+        repSeconds: kind == PhaseKind.work && rhythm.counted
+            ? rhythm.cycleFor()
+            : null,
+        holdSeconds: kind == PhaseKind.work ? rhythm.holdSeconds : null,
+        voiceGuideSetExit: exit,
+        afterGuidedSet: afterSet,
+      );
+      if (sideIndex > 0) {
+        final authored = guideSideSwitchSecondsFor?.call(item.exerciseId);
+        final base = switchSideSeconds.toDouble();
+        final widened = switchSecondsFor?.call(item, rhythm, side) ?? base;
+        yield phase(
+          PhaseKind.switchSide,
+          authored?.toDouble() ?? (widened > base ? widened : base),
+          1,
+          afterSet: true,
+        );
+      }
+      for (var set = 1; set <= occurrence.sets; set++) {
+        final more = set < occurrence.sets;
+        yield phase(
+          PhaseKind.work,
+          work,
+          set,
+          exit: more
+              ? VoiceGuideSetExit.moreSetsSameSide
+              : sideIndex < sides.length - 1
+              ? VoiceGuideSetExit.sideDone
+              : VoiceGuideSetExit.allDone,
+        );
+        if (more) {
+          yield phase(
+            PhaseKind.rest,
+            item.restSeconds.toDouble(),
+            set + 1,
+            afterSet: true,
+          );
+        }
+      }
+    }
   }
 
   /// Total seconds of the plan excluding the lead-in (self-paced sets at
@@ -623,12 +757,21 @@ class SessionEngine {
 
   /// Advance to active time [t]; returns true when the phase changed. A
   /// self-paced set holds the clock until [completeSet].
-  bool update(double t) {
+  bool update(double t, {bool waitForGuideSpeech = false}) {
     var changed = false;
     while (!done &&
         !phase.selfPaced &&
         t + phaseEndTolerance >= _phaseStart + phase.seconds) {
-      final end = _phaseStart + phase.seconds;
+      final waiting =
+          phase.kind == PhaseKind.switchSide && phase.afterGuidedSet;
+      if (waiting && waitForGuideSpeech) {
+        _guideDelayedSwitch = phase;
+        break;
+      }
+      final end = identical(_guideDelayedSwitch, phase)
+          ? t
+          : _phaseStart + phase.seconds;
+      _guideDelayedSwitch = null;
       _leave(end, PhaseExit.natural);
       _phaseStart = end;
       _index++;
@@ -638,6 +781,8 @@ class SessionEngine {
     if (changed) generation++;
     return changed;
   }
+
+  SessionPhase? _guideDelayedSwitch;
 
   /// 完成本组: ends a self-paced set at [t]; false when not in one.
   bool completeSet(double t) {

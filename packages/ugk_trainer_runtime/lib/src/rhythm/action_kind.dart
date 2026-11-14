@@ -36,7 +36,14 @@ enum ActionKind {
 
 /// One phase of a rep: go / hold / back / rest.
 class KitPhase {
-  const KitPhase(this.id, this.seconds, this.cues, {this.cueAt = 0, this.side});
+  const KitPhase(
+    this.id,
+    this.seconds,
+    this.cues, {
+    this.cueAt = 0,
+    this.side,
+    this.guideCue,
+  });
   final String id;
   final double seconds;
 
@@ -53,14 +60,17 @@ class KitPhase {
   /// (右/左, 开门/关门). Empty: silent phase. Keys of the app's voice source.
   final List<String> cues;
 
+  /// Authored pack phase marker, reserved for a ready voice guide.
+  final String? guideCue;
+
   String? cueFor(int count) =>
       cues.isEmpty ? null : cues[(count - 1) % cues.length];
 
   KitPhase withSeconds(double s) =>
-      KitPhase(id, s, cues, cueAt: cueAt, side: side);
+      KitPhase(id, s, cues, cueAt: cueAt, side: side, guideCue: guideCue);
 
   KitPhase withSide(String? s) =>
-      KitPhase(id, seconds, cues, cueAt: cueAt, side: s);
+      KitPhase(id, seconds, cues, cueAt: cueAt, side: s, guideCue: guideCue);
 
   factory KitPhase.fromJson(Map<String, dynamic> j) {
     final c = j['cue'];
@@ -73,6 +83,7 @@ class KitPhase {
           ? [for (final x in c) x as String]
           : [c as String],
       cueAt: (j['cueAt'] as num? ?? 0).toDouble(),
+      guideCue: j['guideCue'] as String?,
     );
   }
 
@@ -82,6 +93,7 @@ class KitPhase {
     if (cues.length == 1) 'cue': cues.single,
     if (cues.length > 1) 'cue': cues,
     if (cueAt != 0) 'cueAt': cueAt,
+    'guideCue': ?guideCue,
   };
 }
 

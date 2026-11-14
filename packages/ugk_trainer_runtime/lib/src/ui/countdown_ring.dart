@@ -6,6 +6,8 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'trainer_player_motion.dart';
+import 'trainer_player_v1_motion.dart';
 import 'trainer_theme.dart';
 
 /// The player's countdown (docs/design-audit-2026-10-19.md §1 H3, M10–M12;
@@ -117,20 +119,21 @@ class _Breath extends StatefulWidget {
     required this.active,
     required this.beat,
     required this.child,
+    this.duration = TrainerMotion.breath,
+    this.amplitude = .06,
   });
   final bool active;
   final Object beat;
   final Widget child;
+  final Duration duration;
+  final double amplitude;
 
   @override
   State<_Breath> createState() => _BreathState();
 }
 
 class _BreathState extends State<_Breath> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(
-    vsync: this,
-    duration: TrainerMotion.breath,
-  );
+  late final _c = AnimationController(vsync: this, duration: widget.duration);
 
   @override
   void initState() {
@@ -141,6 +144,7 @@ class _BreathState extends State<_Breath> with SingleTickerProviderStateMixin {
   @override
   void didUpdateWidget(_Breath old) {
     super.didUpdateWidget(old);
+    if (old.duration != widget.duration) _c.duration = widget.duration;
     if (!widget.active) {
       _c.value = 0;
     } else if (!old.active || old.beat != widget.beat) {
@@ -162,8 +166,10 @@ class _BreathState extends State<_Breath> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: _c,
-    builder: (_, child) =>
-        Transform.scale(scale: 1 + .06 * _breath(_c.value), child: child),
+    builder: (_, child) => Transform.scale(
+      scale: 1 + widget.amplitude * _breath(_c.value),
+      child: child,
+    ),
     child: widget.child,
   );
 }
@@ -178,6 +184,7 @@ class TrainerRingPainter extends CustomPainter {
     this.glowOpacity = 1,
     this.glowBlur,
     this.thickness = .05,
+    this.remaining = false,
   }) : super(repaint: progress);
   final ValueListenable<double> progress;
   final Color track;
@@ -186,13 +193,15 @@ class TrainerRingPainter extends CustomPainter {
   final bool glow;
   final double glowOpacity;
   final double? glowBlur;
+  final bool remaining;
 
   /// Arc stroke as a fraction of the diameter (track is 42 % of it).
   final double thickness;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final p = progress.value.clamp(0.0, 1.0);
+    final elapsed = progress.value.clamp(0.0, 1.0);
+    final p = remaining ? 1 - elapsed : elapsed;
     final stroke = size.width * thickness;
     final center = size.center(Offset.zero);
     final radius = size.width / 2 - stroke / 2 - size.width * .03;
@@ -280,7 +289,8 @@ class TrainerRingPainter extends CustomPainter {
       old.glow != glow ||
       old.glowOpacity != glowOpacity ||
       old.glowBlur != glowBlur ||
-      old.thickness != thickness;
+      old.thickness != thickness ||
+      old.remaining != remaining;
 }
 
 /// A number that rolls over when it changes: the old value rises out and
@@ -337,8 +347,12 @@ class TrainerCountdownDigits extends StatelessWidget {
     required this.value,
     this.unit,
     this.size = 32,
+    this.unitSize = 13,
+    this.numberWeight = FontWeight.w300,
+    this.unitColor,
     this.color,
     this.urgent = false,
+    this.restPulse = false,
     this.dim = false,
     this.numberKey,
   });
@@ -346,8 +360,12 @@ class TrainerCountdownDigits extends StatelessWidget {
   final String value;
   final String? unit;
   final double size;
+  final double unitSize;
+  final FontWeight numberWeight;
+  final Color? unitColor;
   final Color? color;
   final bool urgent;
+  final bool restPulse;
   final bool dim;
   final Key? numberKey;
 
@@ -362,15 +380,18 @@ class TrainerCountdownDigits extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.baseline,
       textBaseline: TextBaseline.alphabetic,
       children: [
-        TrainerRollingNumber(
-          key: numberKey,
-          value: value,
-          style: theme
-              .numeral(size, color: c)
-              .copyWith(
-                fontWeight: FontWeight.w300,
-                letterSpacing: -size * .02,
-              ),
+        _Breath(
+          active: restPulse && !still,
+          beat: value,
+          duration: PlayerMotion.medium,
+          amplitude: .08,
+          child: TrainerRollingNumber(
+            key: numberKey,
+            value: value,
+            style: theme
+                .numeral(size, color: c)
+                .copyWith(fontWeight: numberWeight, letterSpacing: -size * .02),
+          ),
         ),
         if (unit != null) ...[
           SizedBox(width: size * .12),
@@ -378,9 +399,9 @@ class TrainerCountdownDigits extends StatelessWidget {
             unit!,
             style: TextStyle(
               fontFamily: theme.fontFamily,
-              fontSize: 13,
+              fontSize: unitSize,
               fontWeight: FontWeight.w500,
-              color: theme.muted,
+              color: unitColor ?? theme.muted,
               fontFeatures: TrainerTheme.tabular,
             ),
           ),
@@ -389,10 +410,138 @@ class TrainerCountdownDigits extends StatelessWidget {
     );
     face = _Breath(active: urgent && !still, beat: value, child: face);
     return AnimatedOpacity(
-      opacity: dim ? .45 : 1,
-      duration: TrainerMotion.medium,
+      opacity: dim ? (theme.usePlayerV1 ? .5 : .45) : 1,
+      duration: theme.usePlayerV1
+          ? (still ? PlayerMotion.reducedFade : PlayerMotion.controlsFade)
+          : TrainerMotion.medium,
       curve: TrainerMotion.standard,
       child: face,
+    );
+  }
+}
+
+/// The V1 clock keeps its numeric center fixed as the unit or digit count
+/// changes. Units fade sequentially while numeric ticks roll through the
+/// same fixed center.
+class TrainerV1PhaseCountdown extends StatelessWidget {
+  const TrainerV1PhaseCountdown({
+    super.key,
+    required this.phase,
+    required this.theme,
+    required this.value,
+    required this.unit,
+    this.numberKey,
+    this.restPulse = false,
+    this.dim = false,
+  });
+
+  final Object phase;
+  final TrainerTheme theme;
+  final String value;
+  final String unit;
+  final Key? numberKey;
+  final bool restPulse;
+  final bool dim;
+
+  static const _half = Duration(milliseconds: 120);
+  static const _gap = 44 * .12;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = TrainerMotion.reduced(context);
+    final direction = Directionality.of(context);
+    final scaler = MediaQuery.textScalerOf(context);
+    final numberStyle = theme
+        .numeral(44)
+        .copyWith(fontWeight: FontWeight.w700, letterSpacing: -.88);
+    final unitStyle = TextStyle(
+      fontFamily: theme.fontFamily,
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      color: theme.sub,
+      fontFeatures: TrainerTheme.tabular,
+    );
+    Size measure(String text, TextStyle style) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textDirection: direction,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      final size = painter.size;
+      painter.dispose();
+      return size;
+    }
+
+    final digits = measure('88', numberStyle);
+    final suffix = measure(unit, unitStyle);
+    final number = TrainerPhaseSwitcher(
+      key: const ValueKey('player-v1-countdown-number'),
+      identity: value,
+      enterDuration: PlayerMotion.medium,
+      exitDuration: PlayerMotion.medium,
+      enterOffset: PlayerMotion.normal,
+      exitOffset: PlayerMotion.normal,
+      child: SizedBox(
+        height: digits.height,
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: _Breath(
+              active: restPulse && !reduced,
+              beat: value,
+              duration: PlayerMotion.medium,
+              amplitude: .08,
+              child: Text(key: numberKey, value, style: numberStyle),
+            ),
+          ),
+        ),
+      ),
+    );
+    final caption = TrainerPhaseSwitcher.sequential(
+      key: const ValueKey('player-v1-countdown-unit'),
+      identity: (phase, unit),
+      enterDuration: _half,
+      exitDuration: _half,
+      enterOffset: 0,
+      exitOffset: 0,
+      alignment: AlignmentDirectional.centerStart,
+      child: Text(unit, maxLines: 1, style: unitStyle),
+    );
+
+    return AnimatedOpacity(
+      opacity: dim ? .5 : 1,
+      duration: reduced ? PlayerMotion.reducedFade : PlayerMotion.controlsFade,
+      curve: TrainerMotion.standard,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.hasBoundedWidth
+              ? constraints.maxWidth
+              : digits.width + 2 * (_gap + suffix.width);
+          final numberWidth = math.min(digits.width, width);
+          final unitWidth = math.max(0.0, (width - numberWidth) / 2 - _gap);
+          return SizedBox(
+            width: width,
+            height: math.max(digits.height, suffix.height),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(width: numberWidth, child: number),
+                PositionedDirectional(
+                  end: 0,
+                  width: unitWidth,
+                  bottom: 0,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: caption,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }

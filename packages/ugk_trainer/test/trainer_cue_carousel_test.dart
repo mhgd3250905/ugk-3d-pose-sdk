@@ -14,9 +14,11 @@ void main() {
     List<String> steps = cues,
     List<String> precautions = const [],
     bool preparing = false,
+    String? prepCaption,
     bool reduced = false,
     double width = 360,
     double scale = 1,
+    TrainerTheme theme = TrainerTheme.light,
     ValueChanged<bool>? onExpandedChanged,
   }) => tester.pumpWidget(
     MaterialApp(
@@ -35,7 +37,8 @@ void main() {
                 cues: steps,
                 precautions: precautions,
                 preparing: preparing,
-                theme: TrainerTheme.light,
+                prepCaption: prepCaption,
+                theme: theme,
                 onExpandedChanged: onExpandedChanged,
               ),
             ),
@@ -47,6 +50,22 @@ void main() {
 
   Future<void> clean(WidgetTester tester) =>
       tester.pumpWidget(const SizedBox.shrink());
+
+  double opacity(Finder finder) {
+    final element = finder.evaluate().singleOrNull;
+    var value = element == null ? 0.0 : 1.0;
+    RenderObject? object = element?.renderObject;
+    while (object != null) {
+      value *= switch (object) {
+        RenderOpacity(:final opacity) => opacity,
+        RenderAnimatedOpacity(:final opacity) => opacity.value,
+        RenderOffstage(offstage: true) => 0.0,
+        _ => 1.0,
+      };
+      object = object.parent;
+    }
+    return value;
+  }
 
   test('legacy punctuation becomes distinct, clean steps', () {
     expect(
@@ -94,6 +113,244 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 221));
     expect(find.text(cues[1]), findsOneWidget);
+    await clean(tester);
+  });
+
+  testWidgets('V1 pushes both cues through one clipped line area', (
+    tester,
+  ) async {
+    const steps = ['夹紧臀部，身体慢慢往前推', '呼气，再沉一点', '放松肩颈', '慢慢回到起始位置'];
+    final oldCue = find.text(steps[0]);
+    final newCue = find.text(steps[1]);
+    final pill = find.byKey(const ValueKey('trainer-cue-step-pill'));
+    final count = find.byKey(const ValueKey('trainer-cue-count'));
+
+    await mount(tester, steps: steps, theme: TrainerTheme.playerV1);
+    final pillElement = tester.element(pill);
+    final pillRect = tester.getRect(pill);
+    final cardRect = tester.getRect(container);
+    final oldCenter = tester.getCenter(oldCue);
+    final lineArea = find.ancestor(of: oldCue, matching: find.byType(ClipRect));
+    expect(lineArea, findsOneWidget);
+    final height = tester.getSize(lineArea).height;
+    expect(tester.widget<Text>(count).data, '1/4');
+    expect(opacity(oldCue), 1);
+
+    void expectOnePill() {
+      expect(pill, findsOneWidget);
+      expect(count, findsOneWidget);
+      expect(tester.element(pill), same(pillElement));
+      expect(tester.getRect(pill), pillRect);
+      expect(tester.getRect(container), cardRect);
+      expect(opacity(pill), 1);
+    }
+
+    void expectPush(double progress) {
+      final offset = height * Curves.easeInOutCubic.transform(progress);
+      expect(tester.getCenter(oldCue).dy, closeTo(oldCenter.dy - offset, .02));
+      expect(
+        tester.getCenter(newCue).dy,
+        closeTo(oldCenter.dy + height - offset, .02),
+      );
+      expect(tester.getRect(oldCue).overlaps(tester.getRect(newCue)), isFalse);
+      expectOnePill();
+    }
+
+    await tester.drag(container, const Offset(-160, 0));
+    await tester.pump();
+    Future<void> advanceSegment() async {
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 8));
+        final clip = tester.getRect(
+          find.ancestor(of: newCue, matching: find.byType(ClipRect)),
+        );
+        final visible = [
+          for (final cue in [oldCue, newCue])
+            if (opacity(cue) > 0) tester.getRect(cue),
+        ];
+        expect(
+          visible.where(
+            (rect) => clip.top <= rect.top && clip.bottom >= rect.bottom,
+          ),
+          hasLength(lessThanOrEqualTo(1)),
+        );
+        if (visible.length == 2) {
+          expect(visible[0].overlaps(visible[1]), isFalse);
+        }
+      }
+    }
+
+    await advanceSegment();
+    expectPush(.25);
+    expect(opacity(oldCue), 1);
+    expect(opacity(newCue), closeTo(.5, .002));
+    expect(opacity(count), closeTo(.5, .002));
+
+    await advanceSegment();
+    expectPush(.5);
+    expect(opacity(oldCue), 1);
+    expect(opacity(newCue), 1);
+    expect(opacity(count), 1);
+    expect(tester.widget<Text>(count).data, '2/4');
+
+    await advanceSegment();
+    expectPush(.75);
+    expect(opacity(oldCue), closeTo(.5, .002));
+    expect(opacity(newCue), 1);
+
+    await advanceSegment();
+    expect(opacity(oldCue), 0);
+    expect(opacity(newCue), 1);
+    expect(tester.getCenter(newCue).dy, closeTo(oldCenter.dy, .02));
+    expectOnePill();
+    expect(tester.takeException(), isNull);
+    await clean(tester);
+  });
+
+  testWidgets('V1 finishes an interrupted push before starting the next', (
+    tester,
+  ) async {
+    await mount(tester, theme: TrainerTheme.playerV1);
+    final oldCue = find.text(cues[0]);
+    final secondCue = find.text(cues[1]);
+    final thirdCue = find.text(cues[2]);
+    final settledCenter = tester.getCenter(oldCue);
+
+    await tester.drag(container, const Offset(-160, 0));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 80));
+    expect(opacity(oldCue), 1);
+    expect(opacity(secondCue), closeTo(.5, .002));
+
+    await tester.drag(container, const Offset(-160, 0));
+    await tester.pump();
+    expect(oldCue, findsNothing);
+    expect(opacity(secondCue), 1);
+    expect(tester.getCenter(secondCue), settledCenter);
+    expect(opacity(thirdCue), 0);
+    await tester.pump(const Duration(milliseconds: 320));
+    expect(secondCue, findsNothing);
+    expect(opacity(thirdCue), 1);
+    expect(tester.getCenter(thirdCue), settledCenter);
+    await clean(tester);
+  });
+
+  testWidgets('V1 enlarges the card over 320 ms for a two-line caption', (
+    tester,
+  ) async {
+    const short = 'First line';
+    const twoLines = 'Keep breathing\nand stay balanced';
+    Future<void> show(String caption) => mount(
+      tester,
+      preparing: true,
+      prepCaption: caption,
+      theme: TrainerTheme.playerV1,
+    );
+    await show(short);
+    final cardElement = tester.element(container);
+    final initial = tester.getSize(container);
+    await show(twoLines);
+    expect(tester.getSize(container), initial);
+    await tester.pump(const Duration(milliseconds: 160));
+    final halfway = tester.getSize(container);
+    await tester.pump(const Duration(milliseconds: 160));
+    final grown = tester.getSize(container);
+    expect(halfway.height, inExclusiveRange(initial.height, grown.height));
+    expect(halfway.width, initial.width);
+    expect(grown.width, initial.width);
+    expect(tester.element(container), same(cardElement));
+    expect(find.text(short), findsNothing);
+    expect(opacity(find.text(twoLines)), 1);
+    final paragraph = tester.renderObject<RenderParagraph>(
+      find.descendant(of: find.text(twoLines), matching: find.byType(RichText)),
+    );
+    expect(paragraph.didExceedMaxLines, isFalse);
+    await clean(tester);
+  });
+
+  testWidgets('V1 reduced motion crossfades for 150 ms without shifting', (
+    tester,
+  ) async {
+    await mount(tester, theme: TrainerTheme.playerV1, reduced: true);
+    final oldCue = find.text(cues[0]);
+    final newCue = find.text(cues[1]);
+    final center = tester.getCenter(oldCue);
+    await tester.drag(container, const Offset(-160, 0));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 75));
+    expect(tester.getCenter(oldCue), center);
+    expect(tester.getCenter(newCue), center);
+    expect(opacity(oldCue), closeTo(.5, .002));
+    expect(opacity(newCue), closeTo(.5, .002));
+    await tester.pump(const Duration(milliseconds: 75));
+    expect(oldCue, findsNothing);
+    expect(tester.getCenter(newCue), center);
+    expect(opacity(newCue), 1);
+    await clean(tester);
+  });
+
+  testWidgets('V1 balances the same protected phrase in prep and work', (
+    tester,
+  ) async {
+    const caption = '第一个动作 半跪髋屈肌拉伸 每侧 40 秒 先做右边';
+    const expected = '第一个动作 半跪髋屈肌拉伸\n每侧 40 秒 先做右边';
+    for (final preparing in [true, false]) {
+      await mount(
+        tester,
+        theme: TrainerTheme.playerV1,
+        width: 340,
+        steps: const [caption],
+        preparing: preparing,
+        prepCaption: caption,
+      );
+      await tester.pump(const Duration(milliseconds: 320));
+      final displayed = tester.widget<Text>(text);
+      expect(displayed.data, expected);
+      expect(displayed.style!.height, 1.35);
+      expect(displayed.textAlign, TextAlign.center);
+    }
+    await clean(tester);
+  });
+
+  testWidgets('V1 shrinks before adding a third line', (tester) async {
+    Future<Text> display(double width) async {
+      await mount(
+        tester,
+        theme: TrainerTheme.playerV1,
+        preparing: true,
+        prepCaption: 'AAAA BBBB CCCC',
+        width: width,
+      );
+      await tester.pump(const Duration(milliseconds: 320));
+      return tester.widget<Text>(text);
+    }
+
+    final smaller = await display(174);
+    expect(smaller.style!.fontSize, 15);
+    expect(smaller.data!.split('\n'), hasLength(2));
+    final taller = await display(145);
+    expect(taller.style!.fontSize, 15);
+    expect(taller.data, 'AAAA\nBBBB\nCCCC');
+    expect(taller.maxLines, 3);
+    await clean(tester);
+  });
+
+  testWidgets('V1 splits an oversized unbroken fragment without an orphan', (
+    tester,
+  ) async {
+    const caption = '甲乙丙丁戊己庚辛壬癸';
+    await mount(
+      tester,
+      theme: TrainerTheme.playerV1,
+      preparing: true,
+      prepCaption: caption,
+      width: 135,
+    );
+    final displayed = tester.widget<Text>(text);
+    final lines = displayed.data!.split('\n');
+    expect(lines, hasLength(2));
+    expect(lines.join(), caption);
+    expect(lines.last.characters.length, greaterThanOrEqualTo(3));
     await clean(tester);
   });
 

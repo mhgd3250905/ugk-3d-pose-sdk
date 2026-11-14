@@ -50,29 +50,48 @@ void main() {
     VoidCallback? onFinish,
     VoidCallback? onReplay,
     Widget? error,
-  }) => tester.pumpWidget(
-    MaterialApp(
-      home: MediaQuery(
-        data: MediaQueryData(
-          disableAnimations: reduced,
-          textScaler: TextScaler.linear(textScale),
-        ),
-        child: Scaffold(
-          body: TrainerCompletion(
-            theme: theme,
-            strings: TrainerStrings.en(),
-            result: session ?? result(),
-            drillOf: (id) => TrainerDrill(id: id, name: 'Move $id'),
-            feeling: feeling,
-            onFeelingChanged: onFeeling ?? (_) {},
-            onFinish: onFinish,
-            onReplay: onReplay,
-            error: error,
+    Widget? feedback,
+    int? streakDays,
+    List<String> trainedAreas = const [],
+    String? thumbnailAsset,
+    double? entryDockTop,
+    bool settleReduced = true,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: MediaQueryData(
+            disableAnimations: reduced,
+            textScaler: TextScaler.linear(textScale),
+          ),
+          child: Scaffold(
+            body: TrainerCompletion(
+              theme: theme,
+              strings: TrainerStrings.en(),
+              result: session ?? result(),
+              drillOf: (id) => TrainerDrill(
+                id: id,
+                name: 'Move $id',
+                thumbnailAsset: thumbnailAsset,
+              ),
+              feeling: feeling,
+              onFeelingChanged: onFeeling ?? (_) {},
+              onFinish: onFinish,
+              onReplay: onReplay,
+              error: error,
+              feedback: feedback,
+              streakDays: streakDays,
+              trainedAreas: trainedAreas,
+              entryDockTop: entryDockTop,
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+    if (settleReduced && reduced && theme.usePlayerV1) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+  }
 
   String value(WidgetTester tester, String metric) => tester
       .widget<Text>(find.byKey(ValueKey('completion-$metric-value')))
@@ -249,4 +268,413 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('player V1 shows supplied streak and areas with host actions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final events = <Object>[];
+    await mount(
+      tester,
+      theme: TrainerTheme.playerV1Dark,
+      reduced: true,
+      session: result(single: true),
+      streakDays: 4,
+      trainedAreas: const ['Hips', 'Glutes'],
+      feedback: const Text('Host feedback'),
+      onFeeling: (feeling) => events.add(feeling!),
+      onFinish: () => events.add('finish'),
+      onReplay: () => events.add('replay'),
+    );
+    final hero = find.byKey(const ValueKey('completion-hero'));
+    final stats = find.byKey(const ValueKey('completion-stats'));
+    expect(tester.getSize(hero).height, 300);
+    expect(tester.getTopLeft(stats).dy - tester.getTopLeft(hero).dy, 244);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('completion-badge'))),
+      const Size(72, 72),
+    );
+    final badge = find.byKey(const ValueKey('completion-badge'));
+    expect(
+      tester
+          .widget<Icon>(
+            find.descendant(
+              of: badge,
+              matching: find.byIcon(Icons.check_rounded),
+            ),
+          )
+          .color,
+      TrainerTheme.playerV1Dark.accent,
+    );
+    expect(value(tester, 'duration'), '2:05');
+    expect(value(tester, 'exercises'), '1/1');
+    expect(value(tester, 'streak'), '4');
+    final feedback = find.byKey(const ValueKey('completion-feedback'));
+    final areas = find.byKey(const ValueKey('completion-trained-areas'));
+    final prompt = find.text('How did that feel?');
+    final firstChoice = find.byKey(const ValueKey('completion-feeling-easy'));
+    final hostExplanation = find.text('Host feedback');
+    expect(tester.widget<Text>(prompt).style?.fontSize, 16);
+    expect(tester.widget<Text>(prompt).style?.fontWeight, FontWeight.w700);
+    expect(
+      tester.getTopLeft(firstChoice).dy - tester.getBottomLeft(prompt).dy,
+      14,
+    );
+    expect(
+      tester.getTopLeft(hostExplanation).dy -
+          tester.getBottomLeft(firstChoice).dy,
+      12,
+    );
+    expect(tester.getTopLeft(areas).dy - tester.getBottomLeft(feedback).dy, 16);
+    expect(
+      find.descendant(of: feedback, matching: find.text('Host feedback')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: areas, matching: find.text('Hips')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: areas, matching: find.text('Glutes')),
+      findsOneWidget,
+    );
+    final finish = find.byKey(const ValueKey('finish'));
+    expect(tester.getSize(finish).height, 52);
+    final style = tester.widget<FilledButton>(finish).style!;
+    expect(style.foregroundColor!.resolve({}), Colors.white);
+    await tester.tap(find.byKey(const ValueKey('completion-feeling-easy')));
+    await tester.tap(finish);
+    await tester.tap(find.byKey(const ValueKey('completion-replay')));
+    expect(events, [TrainingFeeling.easy, 'finish', 'replay']);
+  });
+
+  testWidgets('player V1 lists recorded exercise time in compact rows', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const theme = TrainerTheme.playerV1Dark;
+    await mount(
+      tester,
+      reduced: true,
+      theme: theme,
+      thumbnailAsset:
+          '${PoseHubActionLibrary.standingAssetRoot}glute-max-A.webp',
+    );
+    final item = find.byKey(const ValueKey('completion-item-0'));
+    final thumbnail = find.descendant(
+      of: item,
+      matching: find.byType(ClipOval),
+    );
+    final name = find.descendant(of: item, matching: find.text('Move squat'));
+    final time = find.descendant(of: item, matching: find.text('1:23'));
+    final check = find.byKey(const ValueKey('completion-item-check-0'));
+    expect(tester.getSize(item).height, 56);
+    expect(tester.getSize(thumbnail), const Size(40, 40));
+    expect(
+      tester
+          .widget<ColoredBox>(
+            find.descendant(of: thumbnail, matching: find.byType(ColoredBox)),
+          )
+          .color,
+      const Color(0xFF3A3D46),
+    );
+    final image = find.descendant(of: thumbnail, matching: find.byType(Image));
+    final filter = find.descendant(
+      of: image,
+      matching: find.byType(ColorFiltered),
+    );
+    expect(
+      tester.widget<ColorFiltered>(filter).colorFilter,
+      const ColorFilter.matrix([
+        1.15,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1.15,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1.15,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+      ]),
+    );
+    expect(tester.getTopLeft(name).dx - tester.getTopRight(thumbnail).dx, 12);
+    expect(tester.widget<Text>(name).maxLines, 1);
+    expect(tester.widget<Text>(name).overflow, TextOverflow.ellipsis);
+    expect(tester.widget<Text>(name).style?.fontSize, 15);
+    expect(tester.widget<Text>(name).style?.fontWeight, FontWeight.w600);
+    expect(tester.widget<Text>(time).style?.fontSize, 13);
+    expect(tester.widget<Text>(time).style?.color, theme.sub);
+    expect(tester.getTopLeft(check).dx - tester.getTopRight(time).dx, 8);
+    expect(tester.widget<Icon>(check).color, theme.good);
+    expect(find.text('Skipped'), findsOneWidget);
+    expect(find.byKey(const ValueKey('completion-item-check-1')), findsNothing);
+  });
+
+  testWidgets('player V1 scrolls the whole action card above the footer fade', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 480);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const theme = TrainerTheme.playerV1;
+    await mount(tester, reduced: true, theme: theme, onFinish: () {});
+    final scroll = find.byKey(const ValueKey('completion-scroll'));
+    final viewport = find.descendant(
+      of: scroll,
+      matching: find.byType(Scrollable),
+    );
+    final position = tester.state<ScrollableState>(viewport).position;
+    expect(position.maxScrollExtent, greaterThan(0));
+    position.jumpTo(position.maxScrollExtent);
+    await tester.pump();
+
+    final card = find.byKey(const ValueKey('completion-items'));
+    final lastRow = find.byKey(const ValueKey('completion-item-1'));
+    final fade = find.byKey(const ValueKey('completion-footer-fade'));
+    final footer = find.byKey(const ValueKey('completion-footer'));
+    final cardDecoration =
+        tester.widget<DecoratedBox>(card).decoration as BoxDecoration;
+    expect(cardDecoration.borderRadius, BorderRadius.circular(20));
+    expect(
+      tester.getBottomLeft(card).dy - tester.getBottomLeft(lastRow).dy,
+      16,
+    );
+    final fadeDecoration =
+        tester.widget<DecoratedBox>(fade).decoration as BoxDecoration;
+    expect((fadeDecoration.gradient! as LinearGradient).colors, [
+      theme.background.withValues(alpha: 0),
+      theme.background,
+    ]);
+    expect(tester.getSize(fade).height, 24);
+    expect(
+      tester.getBottomLeft(card).dy,
+      closeTo(tester.getTopLeft(fade).dy, .01),
+    );
+    expect(tester.getBottomLeft(fade).dy, tester.getTopLeft(footer).dy);
+    expect(lastRow.hitTestable(), findsOneWidget);
+    expect(find.byKey(const ValueKey('finish')).hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('player V1 keeps absent host data empty on a compact display', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 480);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await mount(
+      tester,
+      theme: TrainerTheme.playerV1,
+      reduced: true,
+      textScale: 1.5,
+      session: result(single: true),
+      onFinish: () {},
+    );
+    expect(value(tester, 'streak'), '—');
+    expect(
+      find.byKey(const ValueKey('completion-trained-areas')),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('finish')).hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'player V1 morphs the dock into the hero and reveals finish by 1300 ms',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await mount(
+        tester,
+        theme: TrainerTheme.playerV1,
+        session: result(single: true),
+        entryDockTop: 620,
+        streakDays: 12,
+        onFinish: () {},
+      );
+      final heroEntry = find.byKey(const ValueKey('completion-hero-entry'));
+      final finish = find.byKey(const ValueKey('finish'));
+      final backdrop = find.byKey(const ValueKey('completion-entry-backdrop'));
+      expect(tester.getTopLeft(heroEntry).dy, 620);
+      expect(tester.getBottomLeft(heroEntry).dy, 844);
+      final initial =
+          tester.widget<DecoratedBox>(heroEntry).decoration as BoxDecoration;
+      expect((initial.gradient! as LinearGradient).colors, [
+        TrainerTheme.playerV1.card,
+        TrainerTheme.playerV1.card,
+      ]);
+      expect(tester.widget<ColoredBox>(backdrop).color.a, 0);
+      expect(finish.hitTestable(), findsNothing);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.widget<ColoredBox>(backdrop).color.a, closeTo(.5, .01));
+      await tester.pump(const Duration(milliseconds: 140));
+      final halfway = Curves.easeInOutCubic.transform(.5);
+      expect(
+        tester.getTopLeft(heroEntry).dy,
+        closeTo(620 * (1 - halfway), .01),
+      );
+      expect(
+        tester.getBottomLeft(heroEntry).dy,
+        closeTo(844 - 544 * halfway, .01),
+      );
+      expect(tester.widget<ColoredBox>(backdrop).color.a, 1);
+      await tester.pump(const Duration(milliseconds: 240));
+      expect(heroEntry, findsNothing);
+      expect(value(tester, 'duration'), '0:00');
+      expect(value(tester, 'exercises'), '0/1');
+      expect(value(tester, 'streak'), '0');
+
+      await tester.pump(const Duration(milliseconds: 560));
+      expect(value(tester, 'duration'), isNot(anyOf('0:00', '2:05')));
+      expect(int.parse(value(tester, 'streak')), inExclusiveRange(0, 12));
+      expect(finish.hitTestable(), findsNothing);
+      await tester.pump(const Duration(milliseconds: 260));
+      final finishFades = tester.widgetList<Opacity>(
+        find.ancestor(of: finish, matching: find.byType(Opacity)),
+      );
+      expect(finishFades, isNotEmpty);
+      expect(finishFades.map((fade) => fade.opacity), everyElement(1));
+      expect(finish.hitTestable(), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 160));
+      expect(value(tester, 'duration'), '2:05');
+      expect(value(tester, 'exercises'), '1/1');
+      expect(value(tester, 'streak'), '12');
+      expect(finish.hitTestable(), findsOneWidget);
+      BoxDecoration finishDecoration() =>
+          tester
+                  .widget<DecoratedBox>(
+                    find.byKey(const ValueKey('completion-finish-glow')),
+                  )
+                  .decoration
+              as BoxDecoration;
+      expect(finishDecoration().boxShadow!.single.color.a, closeTo(.35, .001));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(finishDecoration().boxShadow, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('reduced player V1 completion only fades for 150 ms', (
+    tester,
+  ) async {
+    await mount(
+      tester,
+      theme: TrainerTheme.playerV1Dark,
+      reduced: true,
+      settleReduced: false,
+      streakDays: 4,
+      onFinish: () {},
+    );
+    final finish = find.byKey(const ValueKey('finish'));
+    final fade = find.ancestor(of: finish, matching: find.byType(Opacity));
+    expect(tester.widget<Opacity>(fade).opacity, 0);
+    expect(find.byKey(const ValueKey('completion-hero-entry')), findsNothing);
+    expect(find.byKey(const ValueKey('completion-check-draw')), findsNothing);
+    expect(value(tester, 'duration'), '2:05');
+    expect(value(tester, 'streak'), '4');
+    await tester.pump(const Duration(milliseconds: 75));
+    expect(tester.widget<Opacity>(fade).opacity, closeTo(.5, .01));
+    await tester.pump(const Duration(milliseconds: 75));
+    expect(tester.widget<Opacity>(fade).opacity, 1);
+    expect(finish.hitTestable(), findsOneWidget);
+  });
+
+  for (final theme in [TrainerTheme.playerV1, TrainerTheme.playerV1Dark]) {
+    testWidgets('V1 completion feedback colors in ${theme.brightness.name}', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      TrainingFeeling? selection;
+      Future<void> show() => mount(
+        tester,
+        theme: theme,
+        reduced: true,
+        session: result(single: true),
+        feeling: selection,
+        onFeeling: (value) => selection = value,
+      );
+      Finder option(TrainingFeeling feeling) =>
+          find.byKey(ValueKey('completion-feeling-${feeling.name}'));
+      ButtonStyle style(TrainingFeeling feeling) => tester
+          .widget<TextButton>(
+            find.descendant(
+              of: option(feeling),
+              matching: find.byType(TextButton),
+            ),
+          )
+          .style!;
+
+      await show();
+      final roles = [
+        (theme.good, theme.goodBg),
+        (theme.good, theme.goodBg),
+        (theme.caution, theme.cautionBg),
+        (theme.danger, theme.dangerBg),
+      ];
+      Rect? previous;
+      for (final (index, feeling) in TrainingFeeling.values.indexed) {
+        final (color, fill) = roles[index];
+        final rect = tester.getRect(option(feeling));
+        expect(rect.height, 44);
+        if (previous case final last?) {
+          expect(rect.top, last.top);
+          expect(rect.width, closeTo(last.width, .01));
+          expect(rect.left - last.right, 8);
+        }
+        previous = rect;
+        final inactive = style(feeling);
+        expect(inactive.foregroundColor!.resolve({}), color);
+        expect(inactive.backgroundColor!.resolve({}), fill);
+        expect(
+          inactive.side!.resolve({}),
+          BorderSide(color: color.withValues(alpha: theme.isDark ? .3 : .2)),
+        );
+        expect(
+          inactive.shape!.resolve({}),
+          const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(22)),
+          ),
+        );
+        final label = inactive.textStyle!.resolve({})!;
+        expect(label.fontSize, 15);
+        expect(label.fontWeight, FontWeight.w600);
+      }
+      final tired = option(TrainingFeeling.tired);
+      await tester.ensureVisible(tired);
+      await tester.tap(tired);
+      expect(selection, TrainingFeeling.tired);
+      await show();
+      final active = style(TrainingFeeling.tired);
+      expect(active.backgroundColor!.resolve({}), theme.caution);
+      expect(
+        active.foregroundColor!.resolve({}),
+        theme.isDark ? const Color(0xFF111214) : Colors.white,
+      );
+      final check = find.descendant(
+        of: tired,
+        matching: find.byIcon(Icons.check_rounded),
+      );
+      expect(tester.widget<Icon>(check).size, 14);
+      await tester.ensureVisible(tired);
+      await tester.tap(tired);
+      expect(selection, isNull);
+    });
+  }
 }

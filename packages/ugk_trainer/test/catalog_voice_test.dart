@@ -73,6 +73,89 @@ void main() {
   );
   final index = CatalogVoiceIndex.fromCatalogJson(catalogJson);
 
+  test(
+    'ready guide prefers verified common audio with local fallback per key',
+    () async {
+      final bytes = utf8.encode('r2-v14 common');
+      final authoredBytes = utf8.encode('r2-v14 coaching');
+      final sha = crypto.sha256.convert(bytes).toString();
+      const common = 'voice/_common/r2-v14/zh/n.1.m4a';
+      const guide = 'voice/abs-A/r2-v14/zh/g.set.1.m4a';
+      final metadata = <String, Object?>{
+        'language': 'zh',
+        'bytes': bytes.length,
+        'sha256': sha,
+        'durationSeconds': .5,
+      };
+      final index = CatalogVoiceIndex.fromCatalogJson({
+        'mediaDistribution': {'baseUrl': 'https://test.example/pack/'},
+        'voiceCommon': {
+          'format': 'pose-hub-voice-common@1',
+          'files': [
+            {...metadata, 'key': 'n.1', 'path': common},
+          ],
+        },
+        'actions': [
+          {
+            'id': 'abs-A',
+            'training': {
+              'sideSwitchSeconds': 10,
+              'perSide': 'each-side-separately',
+            },
+            'voiceGuide': {
+              'format': 'pose-hub-voice-guide@1',
+              'status': 'ready',
+              'mode': 'hold',
+              'set': [
+                {'at': 0, 'key': 'p.go'},
+                {'at': 4, 'clipId': 'g.set.1', 'zh': '腰贴地', 'en': 'Back down'},
+              ],
+            },
+            'voice': {
+              'files': [
+                {
+                  ...metadata,
+                  'clipId': 'g.set.1',
+                  'path': guide,
+                  'bytes': authoredBytes.length,
+                  'sha256': crypto.sha256.convert(authoredBytes).toString(),
+                },
+              ],
+            },
+          },
+        ],
+      });
+      final http = _Http({
+        'https://test.example/pack/$common': bytes,
+        'https://test.example/pack/$guide': authoredBytes,
+      });
+      final source = LayeredVoiceSource(
+        primary: local,
+        catalog: index,
+        cache: CatalogVoiceCache(
+          store: MemoryPoseHubCatalogStore(),
+          pathOf: (name) => '/cache/$name',
+          http: http,
+        ),
+      );
+      expect(source.voiceGuide('abs-A')!.sides!.eachSideSeparately, isTrue);
+      expect(source.sideSwitchSecondsFor('abs-A'), 10);
+      expect(source.voiceGuideCommonKeys('n.1', lang: 'zh'), ['n.1']);
+      await source.prepare(['abs-A'], lang: 'zh');
+      final packed = source.voiceGuideCommonKeys('n.1', lang: 'zh').single;
+      expect(packed, 'catalog:_common/n.1');
+      expect(
+        source.asset(packed, lang: 'zh'),
+        startsWith('/cache/catalog-voice/'),
+      );
+      expect(source.voiceGuideCommonKeys('n.2', lang: 'zh'), ['n.2']);
+      final clip = source.voiceGuideClipKey('abs-A', 'g.set.1', lang: 'zh')!;
+      expect(source.line(clip, lang: 'zh'), '腰贴地');
+      expect(source.voiceGuideClipKey('abs-A', 'g.set.1', lang: 'en'), isNull);
+      expect(http.asked, isNotEmpty);
+    },
+  );
+
   test('live r2-v3: 222 actions list name + primaryCue, 27 are pending', () {
     expect(index.pending, hasLength(27));
     expect(index.pending, contains('h-supine-cactus-chest'));

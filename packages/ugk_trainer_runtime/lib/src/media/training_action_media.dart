@@ -10,6 +10,7 @@ import 'media_controller.dart';
 import 'media_playback_control.dart';
 import 'media_playback_handle.dart';
 import 'packed_alpha_video.dart';
+import 'trainer_v1_media_scope.dart';
 import 'training_media_policy.dart';
 
 /// One shared public action, with the same alpha video/poster in both themes.
@@ -119,6 +120,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   bool _routeCurrent = true;
   bool _retainingExit = false;
   bool _retainingCovered = false;
+  bool _playerV1 = false;
   Animation<double>? _exitAnimation;
   bool _primeAttempted = false;
   bool _frameReady = false;
@@ -141,8 +143,10 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final policy = widget.policy ?? TrainingMediaPolicyScope.maybeOf(context);
+    _playerV1 = TrainerV1MediaScope.of(context);
     _tickersEnabled = TickerMode.valuesOf(context).enabled;
     _routeCurrent = ModalRoute.isCurrentOf(context) ?? true;
+    final wasRetainingCovered = _retainingCovered;
     _updateCoveredRetention();
     _bindExitAnimation();
     final visible = _effectiveVisible;
@@ -150,6 +154,8 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
       _policy = policy;
       _visible = visible;
       _reload();
+    } else if (_playerV1 && wasRetainingCovered != _retainingCovered) {
+      _sync();
     }
   }
 
@@ -163,6 +169,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
       oldWidget.playbackControl?.unbind(this);
     }
     final wasVisible = _visible;
+    final wasRetainingCovered = _retainingCovered;
     _updateCoveredRetention();
     _visible = _effectiveVisible;
     if (oldWidget.retainSurfaceDuringRouteExit !=
@@ -180,7 +187,8 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
       _reload();
     } else if (oldWidget.paused != widget.paused ||
         oldWidget.playing != widget.playing ||
-        oldWidget.prepareFirstFrame != widget.prepareFirstFrame) {
+        oldWidget.prepareFirstFrame != widget.prepareFirstFrame ||
+        (_playerV1 && wasRetainingCovered != _retainingCovered)) {
       if (widget.paused && _controller?.hasFrame != true) {
         _primeAttempted = false;
       }
@@ -218,11 +226,14 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   }
 
   void _updateCoveredRetention() {
-    if (!widget.retainPausedSurfaceWhileCovered ||
-        !widget.playing ||
-        !widget.paused ||
+    final retain = _playerV1
+        ? widget.playing || widget.prefetchWhenIdle
+        : widget.retainPausedSurfaceWhileCovered &&
+              widget.playing &&
+              widget.paused &&
+              _controller?.hasFrame == true;
+    if (!retain ||
         !_foreground ||
-        _controller?.hasFrame != true ||
         _controller?.failed == true ||
         ModalRoute.of(context)?.animation?.status == AnimationStatus.reverse) {
       _retainingCovered = false;
@@ -351,7 +362,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   void _sync() {
     final controller = _controller;
     if (controller == null) return;
-    if (!_canPlay) {
+    if (!_canPlay || (_playerV1 && _retainingCovered)) {
       controller.pause();
     } else if (widget.paused) {
       if (widget.prepareFirstFrame && !controller.hasFrame) {
@@ -369,6 +380,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     final controller = _controller;
     if (_primeAttempted ||
         !_canPlay ||
+        (_playerV1 && _retainingCovered) ||
         !widget.paused ||
         !widget.prepareFirstFrame ||
         controller == null ||
@@ -433,7 +445,10 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     final revealed =
         controller?.hasFrame == true &&
         controller?.failed != true &&
-        (!widget.paused || widget.revealPausedFrame);
+        (_playerV1 || !widget.paused || widget.revealPausedFrame);
+    final revealDuration = _playerV1
+        ? Duration.zero
+        : const Duration(milliseconds: 120);
     final progress = _download?.value.progress;
     final supported = UgkPackedAlphaVideo.isSupportedFor(
       nativeAlpha: widget.nativeAlpha,
@@ -464,7 +479,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
                   AnimatedOpacity(
                     key: const ValueKey('public-action-poster'),
                     opacity: revealed ? 0 : 1,
-                    duration: const Duration(milliseconds: 120),
+                    duration: revealDuration,
                     child: TrainerPoster(
                       asset: poster,
                       bundle: experience?.bundle,
@@ -481,7 +496,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
                 if (_source != null && controller != null && _pin != null)
                   AnimatedOpacity(
                     opacity: revealed ? 1 : 1 / 255,
-                    duration: const Duration(milliseconds: 120),
+                    duration: revealDuration,
                     child: _PinnedPackedVideo(
                       key: ObjectKey(controller),
                       source: _source!,

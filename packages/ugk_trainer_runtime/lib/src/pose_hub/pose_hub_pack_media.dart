@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
 import '../media/media_controller.dart';
+import '../media/trainer_v1_media_scope.dart';
 import '../ui/trainer_experience.dart';
 import '../ui/trainer_poster.dart';
 import '../ui/trainer_theme.dart';
@@ -218,7 +219,9 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
             IgnorePointer(
               child: AnimatedOpacity(
                 opacity: widget.playing && hasFrame && _prepared ? 0 : 1,
-                duration: const Duration(milliseconds: 180),
+                duration: TrainerV1MediaScope.of(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 180),
                 curve: Curves.easeOut,
                 child: ColoredBox(
                   key: const ValueKey('pose-hub-pack-cover'),

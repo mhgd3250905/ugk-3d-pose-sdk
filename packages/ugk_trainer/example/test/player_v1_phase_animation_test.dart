@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:clock/clock.dart';
@@ -22,6 +23,20 @@ const _numberKey = ValueKey('player-v1-countdown-number');
 const _unitKey = ValueKey('player-v1-countdown-unit');
 const _feedbackSlotKey = ValueKey('player-v1-rest-feedback-slot');
 const _sheetKey = ValueKey('player-v1-sheet');
+const _prepVoiceLine = '右膝跪稳。身体保持正直。';
+
+class _PrepVoiceOutput extends MutedVoiceOutput
+    implements StartReportingVoiceOutput {
+  final pending = <(List<String>, VoidCallback)>[];
+
+  @override
+  Future<void> speakReportingStart(
+    List<String> assets,
+    VoidCallback onStarted,
+  ) async {
+    pending.add((assets, onStarted));
+  }
+}
 
 double _paintOpacity(Element element) {
   var opacity = 1.0;
@@ -144,6 +159,14 @@ class _ManualFlowSession extends SessionBuilder {
   }
 }
 
+class _PrepVoiceSession extends SessionBuilder {
+  @override
+  List<SessionPhase> phases(TrainingPlan plan) {
+    final phases = DemoSessionBuilder(ShowcaseState.preview).phases(plan);
+    return [phases.first.withSeconds(6), phases[1].withSeconds(8), phases.last];
+  }
+}
+
 TrainerDrill? _drill(String id) => switch (id) {
   'lunge' => TrainerDrill(
     id: id,
@@ -216,6 +239,7 @@ void main() {
     bool withCoverRoute = false,
     double phaseSeconds = 1.5,
     SessionBuilder? sessionBuilder,
+    TrainerVoice? voice,
     ValueChanged<SessionResult>? onSaved,
   }) async {
     tester.view.devicePixelRatio = 1;
@@ -249,7 +273,7 @@ void main() {
       strings: TrainerStrings.zh(),
       sessionBuilder: sessionBuilder ?? _TransitionSession(phaseSeconds),
       keepAlive: false,
-      voice: TrainerVoice.silent,
+      voice: voice ?? TrainerVoice.silent,
       tick: const Duration(milliseconds: 20),
       startGate: startGate,
       coverHeroTag: withCoverRoute ? _coverHeroTag : null,
@@ -364,6 +388,99 @@ void main() {
     'frame-${frame.toString().padLeft(3, '0')}',
     frameOutput,
   );
+
+  testWidgets('prep shows the spoken line in the same card as work cues', (
+    tester,
+  ) async {
+    await withClock(Clock(tester.binding.clock.now), () async {
+      final voiceOutput = _PrepVoiceOutput();
+      const hostCaption = '第一个动作是弓步。';
+      final source = ManifestVoiceSource(
+        const {
+          'zh': {'p.first': 200, 'drill.lunge': 200, 'point.lunge': 300},
+        },
+        const {},
+        const {},
+        const {
+          'point.lunge': {'zh': _prepVoiceLine},
+        },
+      );
+      await mount(
+        tester,
+        sessionBuilder: _PrepVoiceSession(),
+        voice: TrainerVoice(
+          source: source,
+          output: voiceOutput,
+          settings: const VoiceSettings(chimes: false),
+          prepCaptionFor: (clips, language) =>
+              language == 'zh' && clips.contains('p.first')
+              ? hostCaption
+              : null,
+        ),
+      );
+      final card = find.byType(TrainerCueCarousel);
+      final cardState = tester.state(card);
+      final panel = find.byKey(const ValueKey('trainer-cue-container'));
+      final prepText = find.text(_prepVoiceLine);
+      final count = find.byKey(const ValueKey('trainer-cue-count'));
+      final dot = find.byKey(const ValueKey('trainer-cue-dot-0'));
+      expect(prepText, findsNothing);
+
+      var elapsed = 0;
+      Future<void> advanceTo(int time) async {
+        while (elapsed < time) {
+          final step = math.min(time - elapsed, 20);
+          await tester.pump(Duration(milliseconds: step));
+          elapsed += step;
+        }
+      }
+
+      await advanceTo(1200);
+      final lines = voiceOutput.pending
+          .where(
+            (line) => line.$1.contains(source.asset('point.lunge', lang: 'zh')),
+          )
+          .toList();
+      expect(lines, hasLength(1));
+      expect(prepText, findsNothing, reason: 'queued audio has not started');
+      final first = voiceOutput.pending.singleWhere(
+        (line) => line.$1.contains(source.asset('p.first', lang: 'zh')),
+      );
+      final fallbackText = find.text(hostCaption);
+      expect(fallbackText, findsNothing);
+      first.$2();
+      await tester.pump();
+      expect(fallbackText, findsOneWidget);
+      lines.single.$2();
+      await tester.pump();
+      await advanceTo(1680);
+
+      expect(tester.state(card), same(cardState));
+      final text = tester.widget<Text>(prepText);
+      expect(text.style!.fontSize, 17);
+      expect(text.style!.fontWeight, FontWeight.w700);
+      expect(text.maxLines, 2);
+      expect(text.textAlign, TextAlign.center);
+      expect(tester.getCenter(prepText), tester.getCenter(panel));
+      expect(count, findsNothing);
+      expect(dot, findsNothing);
+      final panelElement = tester.element(panel);
+
+      await advanceTo(6080);
+      expect(tester.state(card), same(cardState));
+      expect(tester.element(panel), same(panelElement));
+      expect(_painted(prepText), hasLength(1));
+      expect(_painted(find.text('收紧腹部，慢慢把髋向前移')), hasLength(1));
+      await advanceTo(6280);
+      expect(prepText, findsNothing);
+      expect(find.text('收紧腹部，慢慢把髋向前移'), findsOneWidget);
+      expect(tester.widget<Text>(count).data, '1/2');
+      expect(dot, findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
+  });
 
   for (final dark in sheets ? [false, true] : [false]) {
     testWidgets('natural work and rest transitions retain the media viewport '

@@ -67,23 +67,17 @@ void main() {
     final firstDot = find.byKey(const ValueKey('trainer-cue-dot-0'));
     final secondDot = find.byKey(const ValueKey('trainer-cue-dot-1'));
     expect(tester.getSize(cue).height, greaterThanOrEqualTo(64));
+    expect(firstDot, findsNothing);
+    expect(secondDot, findsNothing);
     if (count == 1) {
       final text = find.byKey(const ValueKey('trainer-cue-text'));
       expect(pill, findsNothing);
       expect(label, findsNothing);
-      expect(firstDot, findsNothing);
-      expect(secondDot, findsNothing);
       expect(tester.getCenter(text).dx, closeTo(tester.getCenter(cue).dx, .01));
       expect(tester.getCenter(text).dy, closeTo(tester.getCenter(cue).dy, .01));
     } else {
       expect(tester.getSize(pill).height, 22);
       expect(tester.widget<Text>(label).data, '1/$count');
-      expect(tester.getSize(firstDot), const Size(14, 6));
-      expect(tester.getSize(secondDot), const Size(6, 6));
-      expect(
-        tester.getRect(secondDot).left - tester.getRect(firstDot).right,
-        5,
-      );
     }
   }
 

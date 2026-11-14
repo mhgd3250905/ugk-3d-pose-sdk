@@ -48,10 +48,9 @@ class TrainerPlayerV1Dock extends StatefulWidget {
 
 class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
     with TickerProviderStateMixin {
-  late final _enter = AnimationController(vsync: this, value: 1);
-  late final _exit = AnimationController(vsync: this)..addListener(_onExitTick);
-  late final _expand = AnimationController(vsync: this, duration: _dockResize)
-    ..addStatusListener(_onExpandTick);
+  late final AnimationController _enter;
+  late final AnimationController _exit;
+  late final AnimationController _expand;
   final _dockContentKey = GlobalKey();
   final _dockSizeKey = GlobalKey();
   Widget? _outgoingFeedback;
@@ -59,6 +58,15 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
   bool _collapseFeedback = false;
   bool _waitingForExpansion = false;
   bool _reduced = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _enter = AnimationController(vsync: this, value: 1);
+    _exit = AnimationController(vsync: this)..addListener(_onExitTick);
+    _expand = AnimationController(vsync: this, duration: _dockResize)
+      ..addStatusListener(_onExpandTick);
+  }
 
   @override
   void didChangeDependencies() {

@@ -377,6 +377,111 @@ void main() {
     ),
   );
 
+  for (final hostMedia in [false, true]) {
+    final source = hostMedia ? 'host' : 'policy';
+    testWidgets('V1 exit sheet keeps the $source video frame', (tester) async {
+      await withClock(Clock(tester.binding.clock.now), () async {
+        repository.ready = true;
+        await _mount(
+          tester,
+          bundle,
+          child: TrainingMediaPolicyScope(
+            policy: policy,
+            child: _player(
+              _actionId,
+              theme: TrainerTheme.playerV1,
+              mediaBuilder: hostMedia
+                  ? (_, request) => TrainingActionMedia(
+                      actionId: request.drill.id,
+                      playing: request.canPlay,
+                      paused: request.paused,
+                      playbackHandle: request.playbackHandle,
+                    )
+                  : null,
+            ),
+          ),
+        );
+        await finishTransition(tester);
+        platform.emit(1, 'ready');
+        platform.emit(1, 'first-frame');
+        await tester.pump();
+        await tester.pump();
+
+        final player = tester.state(find.byType(TrainerPlayer));
+        final surface = find.byType(UgkPackedAlphaVideo, skipOffstage: false);
+        final element = tester.element(surface);
+        final controller = tester
+            .widget<UgkPackedAlphaVideo>(surface)
+            .controller;
+        final close = find.byKey(const ValueKey('close'));
+        final pause = find.byKey(const ValueKey('pause'));
+        final sheet = find.byKey(const ValueKey('player-v1-sheet'));
+        final poster = find.byKey(
+          const ValueKey('public-action-poster'),
+          skipOffstage: false,
+        );
+        expect(controller.wantsPlay, isTrue);
+        expect(await controller.readPosition(), 1.25);
+        final initialCommands = platform.commands.length;
+
+        void expectSameFrame({required bool playing}) {
+          expect(tester.state(find.byType(TrainerPlayer)), same(player));
+          expect(tester.element(surface), same(element));
+          expect(
+            tester.widget<UgkPackedAlphaVideo>(surface).controller,
+            same(controller),
+          );
+          expect(
+            tester
+                .widget<Texture>(find.byType(Texture, skipOffstage: false))
+                .textureId,
+            101,
+          );
+          expect(tester.widget<AnimatedOpacity>(poster).opacity, 0);
+          expect(
+            tester.widget<AnimatedOpacity>(poster).duration,
+            Duration.zero,
+          );
+          expect(controller.wantsPlay, playing);
+          expect(controller.hasFrame, isTrue);
+          expect(platform.sources, hasLength(1));
+        }
+
+        for (final wasPlaying in [true, false]) {
+          if (!wasPlaying) {
+            await tester.tap(pause);
+            await finishTransition(tester);
+          }
+          await tester.tap(close);
+          await tester.pump();
+          expectSameFrame(playing: false);
+          await finishTransition(tester);
+          expect(sheet, findsOneWidget);
+          expectSameFrame(playing: false);
+          expect(await controller.readPosition(), 1.25);
+          if (wasPlaying) {
+            await tester.tap(find.byKey(const ValueKey('close-cancel')));
+          } else {
+            // Drag from the grab area so the sheet owns the gesture.
+            await tester.dragFrom(
+              tester.getRect(sheet).topCenter + const Offset(0, 12),
+              const Offset(0, 320),
+            );
+          }
+          await finishTransition(tester);
+          expect(sheet, findsNothing);
+          expectSameFrame(playing: wasPlaying);
+          expect(await controller.readPosition(), 1.25);
+        }
+        final commands = platform.commands
+            .skip(initialCommands)
+            .map((c) => c.$2);
+        expect(commands.where((type) => type == 'play'), hasLength(1));
+        expect(commands, everyElement(isIn(['pause', 'play', 'position'])));
+      });
+    });
+  }
+
   testWidgets(
     'opt-in paused frame survives cover and return on the same native surface',
     (tester) async {

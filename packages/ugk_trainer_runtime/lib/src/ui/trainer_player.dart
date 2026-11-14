@@ -35,6 +35,7 @@ import '../media/drill_media.dart';
 import '../media/drill_media_view.dart';
 import '../media/media_playback_handle.dart';
 import '../media/packed_alpha_video.dart';
+import '../media/trainer_v1_media_scope.dart';
 import '../media/training_action_media.dart';
 import '../media/training_media_policy.dart';
 import '../platform/screen_awake.dart';
@@ -58,6 +59,7 @@ import 'trainer_media_download_indicator.dart';
 import 'trainer_player_motion.dart';
 import 'trainer_player_v1_dock.dart';
 import 'trainer_player_v1_motion.dart';
+import 'trainer_player_v1_prep_mark.dart';
 import 'trainer_player_v1_sheets.dart';
 import 'trainer_poster.dart';
 import 'trainer_stage.dart';
@@ -109,6 +111,7 @@ class TrainerVoice {
     required this.output,
     this.settings = const VoiceSettings(),
     this.scriptBuilder,
+    this.prepCaptionFor,
   });
   final VoiceSource source;
   final VoiceOutput output;
@@ -118,6 +121,10 @@ class TrainerVoice {
   /// The shared engine and runner still own timing and stale-cue handling.
   final SessionScript Function(VoiceSource source, String language)?
   scriptBuilder;
+
+  /// Optional transcript for a preparation line whose clips lack text metadata.
+  /// Receives the played clip keys and active voice language.
+  final String? Function(List<String> clips, String language)? prepCaptionFor;
 
   static final silent = TrainerVoice(
     source: _NoVoice(),
@@ -521,6 +528,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   StreamSubscription<AudioInterruption>? _interruptions;
   double? _endedAt;
   String? _subtitle;
+  final _v1PrepCues = Expando<int>();
+  (int, String?)? _v1PrepCaption;
   int _shownGen = -1;
   bool _saveFailed = false;
   bool _doneHandled = false;
@@ -913,9 +922,28 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   /// Records the leading switch's announcement (see
   /// [_navigationAnnouncedCues]); may arrive after the switch's own tick.
   void _onCueStarted(VoiceCue cue) {
-    if (cue.priority != CuePriority.call) return;
     if (_disposed || !mounted) return;
     if (_navigationCoalescing || _paused || _engine.done) return;
+    final generation = _engine.generation;
+    if (_v1PrepCues[cue] == generation && _phase.kind == PhaseKind.prep) {
+      final source = _voice.source;
+      final language = _voice.settings.language;
+      final clips = cue.voiceClips
+          .where((clip) => source.has(clip, lang: language))
+          .toList(growable: false);
+      final lines = [
+        for (final clip in clips) source.line(clip, lang: language)?.trim(),
+      ];
+      final caption =
+          lines.isNotEmpty &&
+              lines.every((line) => line != null && line.isNotEmpty)
+          ? lines.join(' ')
+          : _voice.prepCaptionFor?.call(clips, language);
+      if (_v1PrepCaption != (generation, caption)) {
+        setState(() => _v1PrepCaption = (generation, caption));
+      }
+    }
+    if (cue.priority != CuePriority.call) return;
     // The leading tick may still cross a zero-length phase; its index is
     // taken once that tick is over.
     if (!_navigationLeadingTick && _navigationAnnounced != _engine.index) {
@@ -925,9 +953,11 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _submit(Iterable<FiredCue> fired, double t) {
+    final v1Prep = _th.usePlayerV1 && _phase.kind == PhaseKind.prep;
     for (final f in fired) {
+      if (v1Prep) _v1PrepCues[f.cue] = _engine.generation;
       _queue.submit(f.cue, t);
-      if (f.cue.subtitle != null) _subtitle = f.cue.subtitle;
+      if (!v1Prep && f.cue.subtitle != null) _subtitle = f.cue.subtitle;
     }
   }
 
@@ -1372,6 +1402,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       }
     } else {
       _queue.cancelAll(_t);
+      _v1PrepCaption = null;
       final paused = announce ? _script.call(VoiceCall.paused) : null;
       if (paused != null) {
         _queue.submit(VoiceCue(0, [paused], CuePriority.call), _t);

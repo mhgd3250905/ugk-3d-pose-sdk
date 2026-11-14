@@ -25,7 +25,8 @@ String _cleanCue(String value) => value
 
 /// One readable coaching step at a time, shared by demonstration and training.
 ///
-/// [preparing] pins the first step throughout the preparation countdown.
+/// During [preparing], Player V1 displays [prepCaption] and the legacy card
+/// pins the first step.
 /// [onExpandedChanged] lets the player pause for the half-height instruction
 /// sheet and restore its previous playback state when the sheet is dismissed.
 /// Cautions are supplied separately in [precautions] and never mixed into the
@@ -37,6 +38,7 @@ class TrainerCueCarousel extends StatefulWidget {
     required this.theme,
     this.precautions = const [],
     this.preparing = false,
+    this.prepCaption,
     this.onExpandedChanged,
     this.sheetTitle = '怎么做',
     this.precautionsTitle = '注意事项',
@@ -49,6 +51,10 @@ class TrainerCueCarousel extends StatefulWidget {
   final List<String> precautions;
   final TrainerTheme theme;
   final bool preparing;
+
+  /// The current voice subtitle for the Player V1 preparation countdown.
+  final String? prepCaption;
+
   final ValueChanged<bool>? onExpandedChanged;
   final String sheetTitle;
   final String precautionsTitle;
@@ -80,6 +86,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
   Locale? _layoutLocale;
   String? _layoutFont;
   bool? _layoutPlayerV1;
+  bool? _layoutPrepCaption;
   double _countWidth = 0;
 
   @override
@@ -248,10 +255,17 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    final cues = normalizeTrainerCues(widget.cues);
-    if (cues.isEmpty) return const SizedBox.shrink();
     final theme = widget.theme;
     final playerV1 = theme.usePlayerV1;
+    final showPrepCaption = playerV1 && widget.preparing;
+    final cues = showPrepCaption
+        ? [
+            if (widget.prepCaption?.trim() case final String text
+                when text.isNotEmpty)
+              text,
+          ]
+        : normalizeTrainerCues(widget.cues);
+    if (cues.isEmpty) return const SizedBox.shrink();
     final reduced = TrainerMotion.reduced(context);
     final textScaler = MediaQuery.textScalerOf(context);
     return LayoutBuilder(
@@ -265,11 +279,13 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
             _layoutLocale != locale ||
             _layoutFont != theme.fontFamily ||
             _layoutPlayerV1 != playerV1 ||
+            _layoutPrepCaption != showPrepCaption ||
             !listEquals(_layoutCues, cues)) {
           final bodyWidth = math.max(1.0, constraints.maxWidth - 32);
-          if (playerV1 &&
-              cues.length == 1 &&
-              _fits(cues.single, _playerV1CueSize, bodyWidth, context)) {
+          if (showPrepCaption ||
+              (playerV1 &&
+                  cues.length == 1 &&
+                  _fits(cues.single, _playerV1CueSize, bodyWidth, context))) {
             _countWidth = 0;
             _pages = [_CuePage(cues.single, _playerV1CueSize)];
           } else {
@@ -304,6 +320,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
           _layoutLocale = locale;
           _layoutFont = theme.fontFamily;
           _layoutPlayerV1 = playerV1;
+          _layoutPrepCaption = showPrepCaption;
           _layoutCues = cues;
         }
         _index = widget.preparing ? 0 : _index.clamp(0, _pages.length - 1);
@@ -319,8 +336,10 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
           style: _bodyStyle(page.size),
           textAlign: playerV1 ? TextAlign.center : null,
           maxLines: 2,
-          // Each page was measured with the same scaler.
-          overflow: TextOverflow.visible,
+          // Instructions were measured with the same scaler.
+          overflow: showPrepCaption
+              ? TextOverflow.ellipsis
+              : TextOverflow.visible,
         );
         final pageContent = Row(
           key: ValueKey('trainer-cue-page-$_index-${page.text}'),
@@ -365,7 +384,7 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
         );
         final pageSwitcher = playerV1
             ? TrainerPhaseSwitcher(
-                identity: (_index, page.text),
+                identity: (showPrepCaption, _index, page.text),
                 enterCurve: PlayerMotion.enter,
                 exitCurve: PlayerMotion.exit,
                 child: pageContent,
@@ -390,34 +409,6 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
                 ),
                 child: pageContent,
               );
-        final dots = ExcludeSemantics(
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            spacing: playerV1 ? 5 : 6,
-            runSpacing: playerV1 ? 5 : 6,
-            children: [
-              for (var i = 0; i < _pages.length; i++)
-                AnimatedContainer(
-                  key: ValueKey('trainer-cue-dot-$i'),
-                  duration: playerV1 && !reduced
-                      ? PlayerMotion.controlsFade
-                      : Duration.zero,
-                  curve: PlayerMotion.morph,
-                  width: playerV1 && i == _index ? 14 : 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    borderRadius: playerV1 ? BorderRadius.circular(3) : null,
-                    shape: playerV1 ? BoxShape.rectangle : BoxShape.circle,
-                    color: i == _index
-                        ? theme.accent
-                        : playerV1
-                        ? theme.track
-                        : theme.cardBorder,
-                  ),
-                ),
-            ],
-          ),
-        );
         final radius = BorderRadius.circular(playerV1 ? 20 : 16);
         final card = GestureDetector(
           onHorizontalDragStart: (_) => _dragDistance = 0,
@@ -447,25 +438,14 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
               child: Semantics(
                 label: widget.semanticLabel,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 14,
+                  padding: EdgeInsets.symmetric(
+                    vertical: playerV1 ? 16 : 14,
                     horizontal: 16,
                   ),
                   child: playerV1
                       ? ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 36),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              pageSwitcher,
-                              if (_pages.length > 1) ...[
-                                const SizedBox(height: 10),
-                                dots,
-                              ],
-                            ],
-                          ),
+                          constraints: const BoxConstraints(minHeight: 32),
+                          child: Center(heightFactor: 1, child: pageSwitcher),
                         )
                       : SizedBox(
                           height: textScaler.scale(16) * 1.5 * 2,
@@ -488,7 +468,30 @@ class _TrainerCueCarouselState extends State<TrainerCueCarousel> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [card, const SizedBox(height: 6), dots],
+          children: [
+            card,
+            const SizedBox(height: 6),
+            ExcludeSemantics(
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (var i = 0; i < _pages.length; i++)
+                    AnimatedContainer(
+                      key: ValueKey('trainer-cue-dot-$i'),
+                      duration: Duration.zero,
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: i == _index ? theme.accent : theme.cardBorder,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
         );
       },
     );

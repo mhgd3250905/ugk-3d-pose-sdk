@@ -529,6 +529,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   double? _endedAt;
   String? _subtitle;
   final _v1PrepCues = Expando<int>();
+  final _v1WorkCues = Expando<int>();
   (int, String?)? _v1PrepCaption;
   int _shownGen = -1;
   bool _saveFailed = false;
@@ -669,6 +670,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
           transitionSeconds: widget.transitionSeconds,
           switchSecondsFor: _script.switchSecondsFor,
           prepSecondsFor: _voice.settings.voice ? _script.prepSecondsFor : null,
+          voiceGuideFor: _voice.source.voiceGuide,
+          guideSideSwitchSecondsFor: _voice.source.sideSwitchSecondsFor,
         );
     _occurrences = _builder.occurrenceCount(_plan);
     _runner = SessionRunner(SessionEngine(_builder.phases(_plan)), _script);
@@ -925,6 +928,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (_disposed || !mounted) return;
     if (_navigationCoalescing || _paused || _engine.done) return;
     final generation = _engine.generation;
+    if (cue.queueWithoutCutting &&
+        _v1WorkCues[cue] == generation &&
+        _phase.kind == PhaseKind.work &&
+        cue.subtitle != null) {
+      setState(() => _subtitle = cue.subtitle);
+    }
     if (_v1PrepCues[cue] == generation && _phase.kind == PhaseKind.prep) {
       final source = _voice.source;
       final language = _voice.settings.language;
@@ -956,8 +965,15 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     final v1Prep = _th.usePlayerV1 && _phase.kind == PhaseKind.prep;
     for (final f in fired) {
       if (v1Prep) _v1PrepCues[f.cue] = _engine.generation;
+      final guidedWork =
+          f.cue.queueWithoutCutting &&
+          _phase.kind == PhaseKind.work &&
+          f.cue.subtitle != null;
+      if (guidedWork) _v1WorkCues[f.cue] = _engine.generation;
       _queue.submit(f.cue, t);
-      if (!v1Prep && f.cue.subtitle != null) _subtitle = f.cue.subtitle;
+      if (!v1Prep && !guidedWork && f.cue.subtitle != null) {
+        _subtitle = f.cue.subtitle;
+      }
     }
   }
 
@@ -976,7 +992,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       // Do not mark intermediate runner cues fired before the final target.
       _engine.update(t);
     } else {
-      _submit(_runner.update(t), t);
+      _submit(
+        _runner.update(t, waitForGuideSpeech: _queue.guidedSpeechPending),
+        t,
+      );
       _queue.tick(t);
     }
     if (_engine.generation != _shownGen && _phase.kind != PhaseKind.work) {
@@ -1128,8 +1147,12 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       _terminalAudio = Timer(Duration(microseconds: (tail * 1e6).ceil()), () {
         _terminalAudio = null;
         if (_disposed || owner != _audioOwner || !_engine.done) return;
-        unawaited(_endAudio());
-        hold?.release();
+        unawaited(() async {
+          await _queue.whenGuidedIdle();
+          if (_disposed || owner != _audioOwner || !_engine.done) return;
+          unawaited(_endAudio());
+          hold?.release();
+        }());
       });
     }
     final saving = _save();

@@ -24,6 +24,7 @@ export 'src/catalog/catalog_repository.dart';
 export 'src/catalog/catalog_source.dart';
 export 'src/catalog/drill_pack_adapter.dart';
 export 'src/catalog/pose_hub_app_test_pack.dart';
+export 'src/catalog/pose_hub_voice_guide.dart';
 export 'src/config/auth.dart';
 export 'src/config/llm_config.dart';
 export 'src/config/pricing.dart';

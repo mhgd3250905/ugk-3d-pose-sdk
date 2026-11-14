@@ -10,15 +10,16 @@
 //  * [CatalogVoiceCache] downloads a clip on demand from the catalogue's
 //    media root (`mediaDistribution.baseUrl` + path), checks size + SHA-256
 //    and keeps it in an atomically written cache (the hot-update store);
-//  * [LayeredVoiceSource] puts it behind the app's own source: the local
-//    pack wins line by line, then the catalogue, and an action with neither
-//    keeps the generic calls plus its written intro (subtitle / screen).
+//  * [LayeredVoiceSource] keeps local pack precedence for legacy scripts.
+//    Ready guides use verified re-recordings and shared vocabulary, with
+//    the local voice as the fallback for shared phrases.
 //
 // Pure Dart except the default file store / HTTP client (conditional io).
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:ugk_coach/ugk_coach.dart' show PoseHubVoiceGuide;
 
 import '../pose_hub/pose_hub_catalog_io_stub.dart'
     if (dart.library.io) '../pose_hub/pose_hub_catalog_io_native.dart';
@@ -36,6 +37,7 @@ class CatalogVoiceClip {
     required this.sha256,
     required this.seconds,
     required this.url,
+    this.text,
   });
 
   final String actionId;
@@ -50,6 +52,7 @@ class CatalogVoiceClip {
   final String sha256;
   final double seconds;
   final Uri url;
+  final String? text;
 
   /// Name of the verified copy in the cache (content addressed, so a new
   /// recording under the same path never reads a stale file).
@@ -60,14 +63,78 @@ class CatalogVoiceClip {
 /// written name and primary key point of every action (also those whose
 /// voice is still pending).
 class CatalogVoiceIndex {
-  CatalogVoiceIndex._(this._clips, this._names, this._cues, this.pending);
+  CatalogVoiceIndex._(
+    this._clips,
+    this._names,
+    this._cues,
+    this.pending,
+    this._common,
+    this._guides,
+    this._sideSwitchSeconds,
+  );
 
   static final empty = CatalogVoiceIndex._(
     const {},
     const {},
     const {},
     const {},
+    const {},
+    const {},
+    const {},
   );
+
+  static const _commonActionId = '_common';
+  static final _sha256 = RegExp(r'^[0-9a-f]{64}$');
+
+  static Map<String, Map<String, CatalogVoiceClip>> _readFiles(
+    Object? files,
+    String actionId,
+    Uri? base, {
+    required String keyField,
+  }) {
+    final result = <String, Map<String, CatalogVoiceClip>>{};
+    for (final file in files is List ? files : const []) {
+      if (file is! Map) continue;
+      final lang = file['language'];
+      final key = file[keyField];
+      final path = file['path'];
+      final bytes = file['bytes'];
+      final sha = file['sha256'];
+      if (lang is! String ||
+          key is! String ||
+          path is! String ||
+          bytes is! int ||
+          sha is! String ||
+          !_sha256.hasMatch(sha) ||
+          path.startsWith('/') ||
+          path.split('/').contains('..')) {
+        continue;
+      }
+      final pathUri = Uri.tryParse(path);
+      if (pathUri == null || pathUri.hasScheme || pathUri.hasAuthority) {
+        continue;
+      }
+      final downloadUrl = file['downloadUrl'];
+      final url =
+          base?.resolveUri(pathUri) ??
+          (downloadUrl is String ? Uri.tryParse(downloadUrl) : null);
+      if (url == null || url.scheme != 'https' || url.host.isEmpty) continue;
+      final secs = file['durationSeconds'];
+      final text = file['text'];
+      (result[lang] ??= {})[key] = CatalogVoiceClip(
+        actionId: actionId,
+        language: lang,
+        clipId: key,
+        path: path,
+        bytes: bytes,
+        sha256: sha,
+        seconds: secs is num ? secs.toDouble() : estimateSeconds(key),
+        url: url,
+        text: text is String && text.isNotEmpty ? text : null,
+      );
+    }
+    return result;
+  }
 
   /// From a catalogue JSON map (`pose-hub-app-test-catalog@1`). [baseUrl]
   /// overrides `mediaDistribution.baseUrl`.
@@ -85,10 +152,25 @@ class CatalogVoiceIndex {
     final names = <String, Map<String, String>>{};
     final cues = <String, Map<String, String>>{};
     final pending = <String>{};
+    final guides = <String, PoseHubVoiceGuide>{};
+    final sideSwitchSeconds = <String, int>{};
+    final common = catalog['voiceCommon'];
+    final commonClips =
+        common is Map && common['format'] == 'pose-hub-voice-common@1'
+        ? _readFiles(common['files'], _commonActionId, base, keyField: 'key')
+        : <String, Map<String, CatalogVoiceClip>>{};
     for (final raw in catalog['actions'] as List? ?? const []) {
       if (raw is! Map) continue;
       final id = raw['id'];
       if (id is! String) continue;
+      final guide = PoseHubVoiceGuide.forAction(
+        Map<Object?, Object?>.from(raw),
+      );
+      if (guide != null) {
+        guides[id] = guide;
+        final seconds = PoseHubVoiceGuide.sideSwitchSecondsOfAction(raw);
+        if (seconds != null) sideSwitchSeconds[id] = seconds;
+      }
       final n = <String, String>{
         if (raw['nameZh'] is String) 'zh': raw['nameZh'] as String,
         if (raw['nameEn'] is String) 'en': raw['nameEn'] as String,
@@ -113,46 +195,22 @@ class CatalogVoiceIndex {
       if (c.isNotEmpty) cues[id] = c;
       final voice = raw['voice'];
       final files = voice is Map ? voice['files'] : null;
-      final out = <String, Map<String, CatalogVoiceClip>>{};
-      for (final f in files is List ? files : const []) {
-        if (f is! Map) continue;
-        final lang = f['language'], clip = f['clipId'], path = f['path'];
-        final bytes = f['bytes'], sha = f['sha256'];
-        if (lang is! String ||
-            clip is! String ||
-            path is! String ||
-            bytes is! int ||
-            sha is! String ||
-            !RegExp(r'^[0-9a-f]{64}$').hasMatch(sha) ||
-            path.startsWith('/') ||
-            path.split('/').contains('..')) {
-          continue;
-        }
-        final url = base != null
-            ? base.resolve(path)
-            : f['downloadUrl'] is String
-            ? Uri.parse(f['downloadUrl'] as String)
-            : null;
-        if (url == null || url.scheme != 'https') continue;
-        final secs = f['durationSeconds'];
-        (out[lang] ??= {})[clip] = CatalogVoiceClip(
-          actionId: id,
-          language: lang,
-          clipId: clip,
-          path: path,
-          bytes: bytes,
-          sha256: sha,
-          seconds: secs is num ? secs.toDouble() : estimateSeconds(clip),
-          url: url,
-        );
-      }
+      final out = _readFiles(files, id, base, keyField: 'clipId');
       if (out.isEmpty) {
         pending.add(id);
       } else {
         clips[id] = out;
       }
     }
-    return CatalogVoiceIndex._(clips, names, cues, pending);
+    return CatalogVoiceIndex._(
+      clips,
+      names,
+      cues,
+      pending,
+      commonClips,
+      guides,
+      sideSwitchSeconds,
+    );
   }
 
   /// From catalogue bytes.
@@ -165,6 +223,9 @@ class CatalogVoiceIndex {
   final Map<String, Map<String, Map<String, CatalogVoiceClip>>> _clips;
   final Map<String, Map<String, String>> _names;
   final Map<String, Map<String, String>> _cues;
+  final Map<String, Map<String, CatalogVoiceClip>> _common;
+  final Map<String, PoseHubVoiceGuide> _guides;
+  final Map<String, int> _sideSwitchSeconds;
 
   /// Actions without any recorded catalogue line (voice still pending).
   final Set<String> pending;
@@ -175,7 +236,25 @@ class CatalogVoiceIndex {
     ..._names.keys,
   };
 
-  Set<String> get languages => {for (final a in _clips.values) ...a.keys};
+  Set<String> get languages => {
+    for (final a in _clips.values) ...a.keys,
+    if (_guides.isNotEmpty) ..._common.keys,
+  };
+
+  CatalogVoiceClip? commonClip(String key, String lang) => _common[lang]?[key];
+
+  PoseHubVoiceGuide? guide(String actionId) => _guides[actionId];
+
+  int? sideSwitchSeconds(String actionId) => _sideSwitchSeconds[actionId];
+
+  String? guideText(String actionId, String clipId, String lang) {
+    final source = guide(actionId);
+    if (source == null) return null;
+    for (final line in [...source.set, ...source.reminders, ...source.steps]) {
+      if (line.clipId == clipId) return line.text(lang);
+    }
+    return null;
+  }
 
   CatalogVoiceClip? clip(String actionId, String clipId, String lang) =>
       _clips[actionId]?[lang]?[clipId];
@@ -183,6 +262,9 @@ class CatalogVoiceIndex {
   List<CatalogVoiceClip> clipsOf(String actionId, String lang) => [
     ...?_clips[actionId]?[lang]?.values,
   ];
+
+  Iterable<CatalogVoiceClip> commonClipsOf(String lang) =>
+      _common[lang]?.values ?? const [];
 
   /// Written name of an action.
   String? name(String actionId, String lang) =>
@@ -327,7 +409,10 @@ class LayeredVoiceSource extends VoiceSource implements PreparableVoiceSource {
 
   CatalogVoiceClip? _clip(String key, String lang) {
     final p = _parse(key);
-    return p == null ? null : catalog.clip(p.$1, p.$2, lang);
+    if (p == null) return null;
+    return p.$1 == CatalogVoiceIndex._commonActionId
+        ? catalog.commonClip(p.$2, lang)
+        : catalog.clip(p.$1, p.$2, lang);
   }
 
   static String? _clipIdOf(DrillLine line) => switch (line) {
@@ -364,11 +449,44 @@ class LayeredVoiceSource extends VoiceSource implements PreparableVoiceSource {
   String? line(String key, {required String lang}) {
     final p = _parse(key);
     if (p == null) return primary.line(key, lang: lang);
+    final clip = _clip(key, lang);
+    final text = clip?.text;
+    if (text != null &&
+        (p.$1 == CatalogVoiceIndex._commonActionId ||
+            catalog.guide(p.$1) != null)) {
+      return text;
+    }
     return switch (p.$2) {
       'name' => catalog.name(p.$1, lang),
       'primaryCue' => catalog.primaryCue(p.$1, lang),
-      _ => null,
+      _ => catalog.guideText(p.$1, p.$2, lang),
     };
+  }
+
+  @override
+  PoseHubVoiceGuide? voiceGuide(String exerciseId) => catalog.guide(exerciseId);
+
+  @override
+  int? sideSwitchSecondsFor(String exerciseId) =>
+      catalog.sideSwitchSeconds(exerciseId);
+
+  @override
+  String? voiceGuideClipKey(
+    String exerciseId,
+    String clipId, {
+    required String lang,
+  }) {
+    if (catalog.guide(exerciseId) == null) return null;
+    final key = keyOf(exerciseId, clipId);
+    return has(key, lang: lang) ? key : null;
+  }
+
+  @override
+  List<String> voiceGuideCommonKeys(String key, {required String lang}) {
+    final packed = keyOf(CatalogVoiceIndex._commonActionId, key);
+    return has(packed, lang: lang)
+        ? [packed]
+        : primary.voiceGuideCommonKeys(key, lang: lang);
   }
 
   /// Which language a drill line is looked up in is the script's; this
@@ -414,16 +532,19 @@ class LayeredVoiceSource extends VoiceSource implements PreparableVoiceSource {
       await (p as PreparableVoiceSource).prepare(exerciseIds, lang: lang);
     }
     final ids = exerciseIds.toSet();
+    final hasGuide = ids.any((id) => catalog.guide(id) != null);
     await cache.prefetch([
+      if (hasGuide) ...catalog.commonClipsOf(lang),
       for (final id in ids)
         for (final c in catalog.clipsOf(id, lang))
-          if (c.clipId == 'name' || c.clipId == 'primaryCue')
-            if (drill(
-                  id,
-                  c.clipId == 'name' ? DrillLine.name : DrillLine.cue1,
-                ) ==
-                keyOf(id, c.clipId))
-              c,
+          if (catalog.guide(id) != null ||
+              ((c.clipId == 'name' || c.clipId == 'primaryCue') &&
+                  drill(
+                        id,
+                        c.clipId == 'name' ? DrillLine.name : DrillLine.cue1,
+                      ) ==
+                      keyOf(id, c.clipId)))
+            c,
     ]);
   }
 

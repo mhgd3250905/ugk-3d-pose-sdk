@@ -169,14 +169,15 @@ class Rhythm {
   /// `phases` is a list of `{"id", "seconds", "cue"}` maps, or the compact
   /// text the Pose-Hub r2 catalog delivers in `rhythm.execution.phases`:
   /// `"go=0.8s@phase.start; hold=1.2s@phase.peak; back=0.8s@phase.end; rest=1.2s"`
-  /// (`""` = no phases). The `@phase.*` tags are timeline markers, not voice
-  /// clip ids, so text phases carry id and seconds only. Malformed text
+  /// (`""` = no phases). Legacy playback ignores the `@phase.*` markers.
+  /// A ready voice guide can resolve the marker against pack audio. Malformed text
   /// throws a [FormatException] instead of silently dropping a phase.
   static List<KitPhase> _phasesFromJson(Object? raw) {
     if (raw == null) return const [];
     if (raw is List) {
       return [
-        for (final p in raw) KitPhase.fromJson(Map<String, dynamic>.from(p as Map)),
+        for (final p in raw)
+          KitPhase.fromJson(Map<String, dynamic>.from(p as Map)),
       ];
     }
     if (raw is String) {
@@ -186,7 +187,17 @@ class Rhythm {
         if (text.isEmpty) continue;
         final m = _textPhase.firstMatch(text);
         if (m == null) throw FormatException('rhythm phase "$text"');
-        out.add(KitPhase(m.group(1)!, double.parse(m.group(2)!), const []));
+        final marker = m.group(3);
+        out.add(
+          KitPhase(
+            m.group(1)!,
+            double.parse(m.group(2)!),
+            const [],
+            guideCue: marker != null && marker.startsWith('phase.')
+                ? marker
+                : null,
+          ),
+        );
       }
       return out;
     }
@@ -194,7 +205,7 @@ class Rhythm {
   }
 
   static final _textPhase = RegExp(
-    r'^([A-Za-z][\w-]*)\s*=\s*(\d+(?:\.\d+)?|\.\d+)s(?:\s*@\s*[\w.-]+)?$',
+    r'^([A-Za-z][\w-]*)\s*=\s*(\d+(?:\.\d+)?|\.\d+)s(?:\s*@\s*([\w.-]+))?$',
   );
 
   /// HipLab action kit (`action-kit@1`, `assets/action_kits/<id>.json`).

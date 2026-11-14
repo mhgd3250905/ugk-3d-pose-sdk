@@ -44,6 +44,122 @@ void main() {
 
   Map<String, Object?> fresh() => _read('$_pack/catalog.json');
 
+  test('ready guide and side-switch time are read from action metadata', () {
+    final json = fresh();
+    final action = _action(json);
+    action['training'] = {'sideSwitchSeconds': 12};
+    action['voiceGuide'] = {
+      'format': PoseHubVoiceGuide.format,
+      'status': 'ready',
+      'mode': 'hold',
+      'set': [
+        {'at': 0, 'key': 'p.go'},
+        {
+          'at': 8,
+          'clipId': 'g.set.1',
+          'zh': '放松肩膀',
+          'en': 'Relax your shoulders',
+        },
+      ],
+      'afterSet': {
+        'moreSetsSameSide': ['p.rest', 'sec.15'],
+        'sideDone': ['p.release', 'p.switch_left'],
+      },
+      'sides': {
+        'order': ['right', 'left'],
+        'perSide': 'each-side-separately',
+      },
+    };
+    final parsed = PoseHubAppTestCatalog.fromJson(json).allActions.first;
+    final guide = parsed.voiceGuide!;
+    expect(parsed.sideSwitchSeconds, 12);
+    expect(guide.mode, PoseHubVoiceGuideMode.hold);
+    expect(guide.set.map((cue) => cue.at), [0, 8]);
+    expect(guide.set.first.key, 'p.go');
+    expect(guide.set.last.clipId, 'g.set.1');
+    expect(guide.set.last.text('en'), 'Relax your shoulders');
+    expect(guide.afterSet.moreSetsSameSide, ['p.rest', 'sec.15']);
+    expect(guide.afterSet.sideDone, ['p.release', 'p.switch_left']);
+    expect(guide.sides!.eachSideSeparately, isTrue);
+    expect(guide.sides!.order, ['right', 'left']);
+    final rhythm = action['rhythm']! as Map<String, Object?>;
+    rhythm['execution'] = {'sideSwitchSeconds': 10};
+    expect(PoseHubVoiceGuide.sideSwitchSecondsOfAction(action), 10);
+    rhythm['execution'] = {'sideSwitchSeconds': 21};
+    expect(PoseHubVoiceGuide.sideSwitchSecondsOfAction(action), 12);
+  });
+
+  test('a ready guide without sides inherits the authored side order', () {
+    final guide = PoseHubVoiceGuide.forAction({
+      'startingSide': 'left',
+      'training': {'perSide': 'each-side-separately'},
+      'voiceGuide': {
+        'format': PoseHubVoiceGuide.format,
+        'status': 'ready',
+        'mode': 'hold',
+        'set': [
+          {'at': 0, 'key': 'p.go'},
+        ],
+      },
+    });
+    expect(guide!.sides!.eachSideSeparately, isTrue);
+    expect(guide.sides!.order, ['left', 'right']);
+  });
+
+  test('non-ready and malformed guides preserve catalogue availability', () {
+    final json = fresh();
+    final action = _action(json);
+    for (final (format, status) in [
+      (PoseHubVoiceGuide.format, 'script-only'),
+      ('pose-hub-voice-guide@2', 'ready'),
+      (PoseHubVoiceGuide.format, 'ready'),
+    ]) {
+      action['voiceGuide'] = {
+        'format': format,
+        'status': status,
+        'mode': 'reps',
+        'repSeconds': 7,
+        'phaseCues': 'first-2-reps',
+        'count': {'key': 'n.{rep}', 'at': 'wrong'},
+      };
+      expect(
+        PoseHubAppTestCatalog.fromJson(json).allActions.first.voiceGuide,
+        isNull,
+      );
+    }
+  });
+
+  test('steps and repetition-end reminders are parsed for a ready guide', () {
+    final guide = PoseHubVoiceGuide.tryParse({
+      'format': PoseHubVoiceGuide.format,
+      'status': 'ready',
+      'mode': 'reps',
+      'repSeconds': 12,
+      'phaseCues': 'steps',
+      'count': {'key': 'n.{rep}', 'at': 'rep-end'},
+      'before': ['p.right_first'],
+      'steps': [
+        {
+          'at': 1.5,
+          'clipId': 'g.step.0',
+          'zh': '撑到手肘',
+          'en': 'Up to your elbow',
+        },
+      ],
+      'reminders': [
+        {'afterRep': 2, 'key': 'p.last_rep'},
+      ],
+    })!;
+    expect(guide.phaseCues, PoseHubVoiceGuidePhaseCues.steps);
+    expect(guide.repSeconds, 12);
+    expect(guide.countKey, 'n.{rep}');
+    expect(guide.before, ['p.right_first']);
+    expect(guide.steps.single.at, 1.5);
+    expect(guide.steps.single.clipId, 'g.step.0');
+    expect(guide.reminders.single.afterRep, 2);
+    expect(guide.reminders.single.key, 'p.last_rep');
+  });
+
   test(
     'canonical and inline views carry the selected pack image descriptors',
     () {

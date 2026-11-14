@@ -34,7 +34,118 @@ class _GatedVolumePlatform extends FakePlatform {
   }
 }
 
+class _GatedSpeech extends MutedVoiceOutput {
+  final started = <List<String>>[];
+  Completer<void>? _current;
+  int stops = 0;
+
+  @override
+  Future<void> speak(List<String> assets) {
+    expect(_current, isNull, reason: 'previous speech is still playing');
+    started.add(assets);
+    return (_current = Completer<void>()).future;
+  }
+
+  void finish() {
+    final current = _current;
+    _current = null;
+    current?.complete();
+  }
+
+  @override
+  Future<void> stopSpeech() async {
+    stops++;
+    finish();
+  }
+}
+
 void main() {
+  group('catalogue guide speech', () {
+    final voices = smartSource();
+    const opening = VoiceCue(
+      0,
+      ['p.go'],
+      CuePriority.call,
+      queueWithoutCutting: true,
+    );
+    const reminder = VoiceCue(
+      1,
+      ['p.slow'],
+      CuePriority.coach,
+      queueWithoutCutting: true,
+    );
+    const closing = VoiceCue(
+      2,
+      ['p.nice'],
+      CuePriority.call,
+      queueWithoutCutting: true,
+    );
+    const count = VoiceCue(
+      2,
+      ['n.2'],
+      CuePriority.count,
+      queueWithoutCutting: true,
+    );
+
+    test(
+      'counts take precedence while real speech is allowed to finish',
+      () async {
+        final output = _GatedSpeech();
+        final queue = VoiceQueue(
+          output: output,
+          lib: voices,
+          settings: const VoiceSettings(),
+        );
+        queue.submit(opening, 0);
+        queue.tick(0);
+        queue.submit(reminder, 1);
+        queue.submit(closing, 2);
+        queue.submit(count, 2);
+        queue.tick(2);
+        expect(queue.log.map((line) => line.clips.single), ['p.go']);
+        expect(output.stops, 0);
+
+        var idle = false;
+        final drained = queue.whenGuidedIdle().then<void>((_) => idle = true);
+        for (final next in ['n.2', 'p.slow', 'p.nice']) {
+          output.finish();
+          await Future<void>.delayed(Duration.zero);
+          expect(queue.log.last.clips, [next]);
+          expect(idle, isFalse);
+        }
+        output.finish();
+        await drained;
+        expect(idle, isTrue);
+        expect(queue.log.every((line) => line.cutAt == null), isTrue);
+        expect(output.stops, 0);
+      },
+    );
+
+    test(
+      'cancelling a guide drops its backlog and allows a new guide',
+      () async {
+        final output = _GatedSpeech();
+        final queue = VoiceQueue(
+          output: output,
+          lib: voices,
+          settings: const VoiceSettings(),
+        );
+        queue.submit(opening, 0);
+        queue.tick(0);
+        queue.submit(reminder, 1);
+        final drained = queue.whenGuidedIdle();
+        queue.cancelAll(1);
+        queue.submit(count, 2);
+        queue.tick(2);
+        await drained;
+        expect(output.stops, 1);
+        expect(queue.log.map((line) => line.clips.single), ['p.go', 'n.2']);
+        output.finish();
+        await queue.whenGuidedIdle();
+      },
+    );
+  });
+
   group('3: numbers are never swallowed', () {
     test('3-2-1 asked faster than the player prepares: all three play, in '
         'order (before: each number dropped the one before it)', () async {

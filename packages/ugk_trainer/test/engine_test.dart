@@ -8,6 +8,34 @@ import 'package:ugk_trainer/engine.dart';
 
 import 'support.dart';
 
+class _GuideEndpointScript extends SessionScript {
+  _GuideEndpointScript() : super(source: smartSource());
+
+  @override
+  List<VoiceCue> cues(
+    SessionPhase p, {
+    required double planSeconds,
+    bool bySkip = false,
+  }) => p.isWork
+      ? [
+          VoiceCue(
+            p.seconds,
+            ['n.2'],
+            CuePriority.count,
+            queueWithoutCutting: true,
+            atWorkEnd: true,
+          ),
+          VoiceCue(
+            p.seconds,
+            ['p.nice'],
+            CuePriority.call,
+            queueWithoutCutting: true,
+            atWorkEnd: true,
+          ),
+        ]
+      : const [];
+}
+
 void main() {
   final rhythms = smartRhythms();
   SessionBuilder builder() => SessionBuilder(rhythms: rhythms);
@@ -364,6 +392,33 @@ void main() {
       expect(e.phaseStart, 12);
       expect(e.visits.last.exit, PhaseExit.replaced);
       expect(e.visits.first.phase.kind, PhaseKind.prep);
+    });
+  });
+
+  group('guided work endpoints', () {
+    SessionRunner runner() => SessionRunner(
+      SessionEngine(const [
+        SessionPhase(kind: PhaseKind.work, seconds: 8, itemIndex: 0),
+        SessionPhase(kind: PhaseKind.rest, seconds: 0, itemIndex: 1),
+        SessionPhase(kind: PhaseKind.done, seconds: 0, itemIndex: 1),
+      ]),
+      _GuideEndpointScript(),
+    );
+
+    test('natural boundary delivers count and after-set line only once', () {
+      final session = runner();
+      expect(session.update(7.99), isEmpty);
+      expect(session.update(8).map((f) => (f.time, f.cue.clips.single)), [
+        (8, 'n.2'),
+        (8, 'p.nice'),
+      ]);
+      expect(session.engine.done, isTrue);
+      expect(session.update(8), isEmpty);
+    });
+
+    test('manual skip and a stale endpoint drop both lines', () {
+      expect((runner()..skip(6)).update(8), isEmpty);
+      expect(runner().update(20), isEmpty);
     });
   });
 }

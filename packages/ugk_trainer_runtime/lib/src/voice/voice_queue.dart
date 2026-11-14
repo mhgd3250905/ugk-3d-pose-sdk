@@ -3,6 +3,8 @@
 // clip library is a [VoiceSource]; [VoiceSettings.language] is a plain
 // voice-language code chosen by the app (HipLab: 跟随 App / 中文 / English).
 // Pure Dart.
+import 'dart:async';
+
 import 'voice_cue.dart';
 import 'voice_source.dart';
 
@@ -175,6 +177,10 @@ class VoiceQueue {
   final List<(double, String)> chimeLog = [];
   SpokenLine? _current;
   final List<_Pending> _pending = [];
+  final List<(VoiceCue, VoiceCue)> _guidedPending = [];
+  Future<void>? _speaking;
+  Completer<void>? _guidedIdle;
+  double _guidedTime = 0;
 
   /// Called with a submitted cue (as passed to [submit]) when [output]
   /// confirms its speech really started (see [StartReportingVoiceOutput]).
@@ -217,6 +223,12 @@ class VoiceQueue {
     final clips = cue.voiceClips.where((c) => lib.has(c, lang: lang)).toList();
     if (clips.isEmpty) return;
     final trimmed = VoiceCue(cue.at, clips, cue.priority);
+    if (cue.queueWithoutCutting || _guidedIdle != null) {
+      _guidedIdle ??= Completer<void>();
+      _guidedPending.add((trimmed, cue));
+      _guidedTime = now;
+      return;
+    }
     if (!_busy(now)) {
       _start(trimmed, now, cue);
       return;
@@ -248,6 +260,11 @@ class VoiceQueue {
 
   /// Call often (every timer tick): starts a waiting line when the air is free.
   void tick(double now) {
+    if (_guidedIdle != null) {
+      _guidedTime = now;
+      _drainGuided(now);
+      return;
+    }
     _pending.removeWhere((p) => p.deadline < now);
     if (_pending.isEmpty || _busy(now)) return;
     _pending.sort(
@@ -255,6 +272,32 @@ class VoiceQueue {
     );
     final next = _pending.removeAt(0);
     _start(next.cue, now, next.source);
+  }
+
+  bool get guidedSpeechPending => _guidedIdle != null;
+
+  /// Wait until the guided queue and any speech ahead of it have finished.
+  Future<void> whenGuidedIdle() => _guidedIdle?.future ?? Future<void>.value();
+
+  void _drainGuided(double now) {
+    if (_speaking != null) return;
+    if (_guidedPending.isEmpty) {
+      _completeGuided();
+      return;
+    }
+    final firstCount = _guidedPending.indexWhere(
+      (entry) => entry.$1.priority == CuePriority.count,
+    );
+    final (cue, source) = _guidedPending.removeAt(
+      firstCount < 0 ? 0 : firstCount,
+    );
+    _start(cue, now, source);
+  }
+
+  void _completeGuided() {
+    final idle = _guidedIdle;
+    _guidedIdle = null;
+    idle?.complete();
   }
 
   void _start(VoiceCue cue, double now, VoiceCue source) {
@@ -269,20 +312,39 @@ class VoiceQueue {
     final assets = [for (final c in cue.clips) lib.asset(c, lang: lang)];
     final out = output;
     final report = onStarted;
-    if (report != null && out is StartReportingVoiceOutput) {
-      final epoch = _stopEpoch;
-      (out as StartReportingVoiceOutput).speakReportingStart(assets, () {
-        if (epoch == _stopEpoch) report(source);
-      });
-    } else {
-      output.speak(assets);
-    }
+    final epoch = _stopEpoch;
+    final playing = Future<void>.sync(() {
+      if (report != null && out is StartReportingVoiceOutput) {
+        return (out as StartReportingVoiceOutput).speakReportingStart(
+          assets,
+          () {
+            if (epoch == _stopEpoch) report(source);
+          },
+        );
+      }
+      return output.speak(assets);
+    });
+    _speaking = playing;
+    unawaited(
+      playing.then<void>(
+        (_) => _finished(playing, line),
+        onError: (Object _, StackTrace _) => _finished(playing, line),
+      ),
+    );
+  }
+
+  void _finished(Future<void> playing, SpokenLine line) {
+    if (!identical(_speaking, playing)) return;
+    _speaking = null;
+    if (_guidedIdle == null) return;
+    _drainGuided(_guidedTime > line.end ? _guidedTime : line.end);
   }
 
   void _cut(double now) {
     final cur = _current;
     if (cur != null && now < cur.end) cur.cutAt = now;
     _current = null;
+    _speaking = null;
     _stopEpoch++;
     output.stopSpeech();
   }
@@ -298,11 +360,14 @@ class VoiceQueue {
   /// F24-1). The tail grace applies to a normal takeover only, never here.
   void cancelAll(double now) {
     _pending.clear();
+    _guidedPending.clear();
+    _completeGuided();
     for (final line in log.reversed) {
       if (line.end <= now) break;
       line.cutAt ??= now < line.start ? line.start : now;
     }
     _current = null;
+    _speaking = null;
     _stopEpoch++;
     output.stopSpeech();
   }

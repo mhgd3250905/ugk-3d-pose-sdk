@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — coach 0.9.0
+
+- SDK 0.9.0 reads theme-aware Pose-Hub r2-v17 media. Set the channel pointer's `min_sdk` to `0.9.0` so older SDKs keep using r2-v16.
+
 ## Unreleased — bundled Pose-Hub r2-v16 (V4 actions, 2026-11-16, draft)
 
 - Bundle Pose-Hub r2-v16 from the `stable` channel (published 2026-11-15 01:08 CST; dev/beta/stable all r2-v16), replacing r2-v10: `catalog.json` c8536ffc…a562 (5,097,205 B), semantic `catalog/catalog.json` 03d61ba5…7820 (318,292 B). Same 249 action IDs; V4 text, rhythm (`real-tempo r3`), voiceGuide and media revisions. Synced with `tool/sync_bundled_pack.py --channel stable`; `--check` rc 0.

@@ -295,6 +295,41 @@ void main() {
     expect(() => PoseHubAppTestCatalog.fromJson(json), throwsFormatException);
   });
 
+  test('r2-v17 validates separate original and themed media totals', () {
+    final json = fresh();
+    final totals = json['mediaDistribution']! as Map<String, Object?>;
+    final originalFiles = totals['mediaFiles']! as int;
+    final originalBytes = totals['mediaBytes']! as int;
+    addTheme(json, PoseHubMediaTheme.light);
+    addTheme(json, PoseHubMediaTheme.dark);
+    totals['themeFiles'] = (totals['mediaFiles']! as int) - originalFiles;
+    totals['themeBytes'] = (totals['mediaBytes']! as int) - originalBytes;
+    totals['mediaFiles'] = originalFiles;
+    totals['mediaBytes'] = originalBytes;
+    expect(
+      PoseHubAppTestCatalog.fromJson(json).allActions.first.themedMedia,
+      hasLength(2),
+    );
+
+    for (final field in [
+      'mediaFiles',
+      'mediaBytes',
+      'themeFiles',
+      'themeBytes',
+    ]) {
+      final value = totals[field]! as int;
+      totals[field] = value + 1;
+      expect(
+        () => PoseHubAppTestCatalog.fromJson(json),
+        throwsFormatException,
+        reason: field,
+      );
+      totals[field] = value;
+    }
+    totals.remove('themeBytes');
+    expect(() => PoseHubAppTestCatalog.fromJson(json), throwsFormatException);
+  });
+
   Map<String, Object?> downloadFile([Object? url]) => {
     'path': 'media/demo-A/demo-A.rgb-alpha.mp4',
     'bytes': 123,

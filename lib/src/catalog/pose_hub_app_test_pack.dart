@@ -618,6 +618,23 @@ final class PoseHubAppTestCatalog {
         mediaBytes = _integer(mediaBytes + file.bytes, 'media byte total');
       }
     }
+    if (distribution.containsKey('themeFiles') ||
+        distribution.containsKey('themeBytes')) {
+      // r2-v17 reports the original media and the theme variants separately.
+      final legacyMedia = allActions.expand((action) => action.files.values);
+      final legacyFiles = legacyMedia.length;
+      final legacyBytes = legacyMedia.fold(0, (sum, file) => sum + file.bytes);
+      if (_integer(distribution['themeFiles'], 'themeFiles') !=
+              mediaFiles - legacyFiles ||
+          _integer(distribution['themeBytes'], 'themeBytes') !=
+              mediaBytes - legacyBytes) {
+        throw const FormatException(
+          'Theme media distribution totals differ from files',
+        );
+      }
+      mediaFiles = legacyFiles;
+      mediaBytes = legacyBytes;
+    }
     if (_integer(distribution['mediaFiles'], 'mediaFiles', minimum: 1) !=
             mediaFiles ||
         _integer(distribution['mediaBytes'], 'mediaBytes', minimum: 1) !=

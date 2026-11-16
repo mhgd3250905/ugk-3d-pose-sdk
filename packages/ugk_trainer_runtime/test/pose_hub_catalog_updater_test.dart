@@ -188,7 +188,8 @@ void main() {
       const pack = 'r2-v23';
       final raw = jsonDecode(utf8.decode(r1Bytes)) as Map<String, Object?>;
       final id = bundled.allActions.first.id;
-      publish(pack, _json(addFixtureThemes({...raw, 'pack': pack}, id)));
+      final next = _json(addFixtureThemes({...raw, 'pack': pack}, id));
+      publish(pack, next, pointer: _pointer(pack, next, minSdk: '0.9.0'));
 
       expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.updated);
       final updated = await readVerifiedPoseHubCatalog(store);
@@ -621,9 +622,9 @@ void main() {
     },
   );
 
-  test('the SDK compares min_sdk against 0.8.0', () {
-    expect(poseHubCatalogSdkVersion, '0.8.0');
-    expect(_config.sdkVersion, '0.8.0');
+  test('the SDK compares min_sdk against 0.9.0', () {
+    expect(poseHubCatalogSdkVersion, '0.9.0');
+    expect(_config.sdkVersion, '0.9.0');
   });
 
   test('file store writes atomically and reads back', () async {

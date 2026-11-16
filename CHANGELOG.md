@@ -1,13 +1,12 @@
 # Changelog
 
-## Unreleased — coach 0.9.0
+## SDK tag ugk_trainer-v0.9.0 — 2026-11-16（V4 默认皮肤基准）
 
-- SDK 0.9.0 reads theme-aware Pose-Hub r2-v17 media. Set the channel pointer's `min_sdk` to `0.9.0` so older SDKs keep using r2-v16.
-
-## Unreleased — bundled Pose-Hub r2-v16 (V4 actions, 2026-11-16, draft)
+- Repository tag `ugk_trainer-v0.9.0` is fixed at `4eb87ceabd39bfd132cd6c79c0474de3be683feb`. The root `ugk_coach` package is version `0.9.0`.
+- The theme skin rollout was withdrawn on 2026-11-16. The dev, beta and stable channels serve r2-v16 again. The r2-v17 catalog and theme-r1 media remain archived outside those channels. The SDK still reads optional `files.themes` and uses default media when the catalog has no matching theme.
 
 - Bundle Pose-Hub r2-v16 from the `stable` channel (published 2026-11-15 01:08 CST; dev/beta/stable all r2-v16), replacing r2-v10: `catalog.json` c8536ffc…a562 (5,097,205 B), semantic `catalog/catalog.json` 03d61ba5…7820 (318,292 B). Same 249 action IDs; V4 text, rhythm (`real-tempo r3`), voiceGuide and media revisions. Synced with `tool/sync_bundled_pack.py --channel stable`; `--check` rc 0.
-- `standing/` regenerated from r2-v16 videos (249 frame-zero WebP + `index.json`, 4,816,773 B → 4,792,077 B). Videos stay unbundled and download on demand; media root unchanged (`pack/r2-v1/`). Hot-update, pointer and player logic unchanged.
+- `standing/` regenerated from r2-v16 videos (249 frame-zero WebP + `index.json`, 4,816,773 B → 4,792,077 B). Videos download on demand from `pack/r2-v1/`.
 - Test paths and pack-version expectations follow the new bundle (`app-pack-r2-v10` → `app-pack-r2-v16`).
 
 ## Unreleased — PR #18 alternating pairs + bundled r2-v2 (2026-11-05, draft)

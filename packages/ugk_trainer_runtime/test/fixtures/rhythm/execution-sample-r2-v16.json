@@ -1,0 +1,447 @@
+{
+  "format": "ugk-rhythm-execution-sample@1",
+  "note": "Fixed test fixture. Copied once from the bundled Pose-Hub pack; do NOT resync when the bundled pack changes. Tests assert on these rows only.",
+  "source": {
+    "pack": "r2-v16",
+    "id": "app-pack-r2-v16",
+    "sourceCommit": "fefcb9a574d6a4d42aa2dc27ed8d56f180a504bb",
+    "catalog": "packages/ugk_trainer/assets/pose_hub/app-pack-r2-v16/catalog.json",
+    "catalogSha256": "c8536ffcf13e677449c251720183bcf099ae5ca166182026be411544d9bfa562",
+    "copiedAt": "2026-11-16"
+  },
+  "actions": [
+    {
+      "id": "h-mountain-climber",
+      "nameZh": "慢速登山跑",
+      "unilateral": true,
+      "startingSide": "right",
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 3,
+        "reps": 8,
+        "restSeconds": 45
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_alternate",
+          "leadSeconds": 1,
+          "phases": "go=1s; hold=0.5s; back=1s",
+          "source": "real-tempo r3",
+          "reps": 8,
+          "perSide": "alternate",
+          "repUnit": "left+right",
+          "startingSide": "right"
+        }
+      }
+    },
+    {
+      "id": "w-dead-bug",
+      "nameZh": "死虫式",
+      "unilateral": true,
+      "startingSide": "right",
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 3,
+        "reps": 6,
+        "restSeconds": 30
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_alternate",
+          "leadSeconds": 1,
+          "phases": "go=1.5s; hold=0.5s; back=1.5s",
+          "source": "real-tempo r3",
+          "reps": 6,
+          "perSide": "alternate",
+          "repUnit": "left+right",
+          "startingSide": "right"
+        }
+      }
+    },
+    {
+      "id": "h-russian-twist",
+      "nameZh": "俄罗斯转体",
+      "unilateral": true,
+      "startingSide": "right",
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 3,
+        "reps": 10,
+        "restSeconds": 30
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_alternate",
+          "leadSeconds": 1,
+          "phases": "go=0.8s; hold=0.4s; back=0.8s",
+          "source": "real-tempo r3",
+          "reps": 10,
+          "perSide": "alternate",
+          "repUnit": "left+right",
+          "startingSide": "right"
+        }
+      }
+    },
+    {
+      "id": "n-chair-wiper",
+      "nameZh": "坐椅雨刷（膝内倒）",
+      "unilateral": true,
+      "startingSide": "right",
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 2,
+        "reps": 6,
+        "restSeconds": 30
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_alternate",
+          "leadSeconds": 1,
+          "phases": "go=1s; hold=0.5s; back=1s",
+          "source": "real-tempo r3",
+          "reps": 6,
+          "perSide": "alternate",
+          "repUnit": "left+right",
+          "startingSide": "right"
+        }
+      }
+    },
+    {
+      "id": "n-squat-shift",
+      "nameZh": "低位蹲姿左右移重心",
+      "unilateral": true,
+      "startingSide": "left",
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 2,
+        "reps": 6,
+        "restSeconds": 30
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_alternate",
+          "leadSeconds": 1,
+          "phases": "go=1.5s; hold=1s; back=1.5s",
+          "source": "real-tempo r3",
+          "reps": 6,
+          "perSide": "alternate",
+          "repUnit": "left+right",
+          "startingSide": "left"
+        }
+      }
+    },
+    {
+      "id": "adductors-A",
+      "nameZh": "哥萨克蹲",
+      "unilateral": true,
+      "startingSide": "right",
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 3,
+        "reps": 6,
+        "restSeconds": 45
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_alternate",
+          "leadSeconds": 1,
+          "phases": "go=1.5s; hold=0.8s; back=1.5s; rest=0.2s",
+          "source": "real-tempo r3",
+          "reps": 6,
+          "perSide": "alternate",
+          "repUnit": "left+right",
+          "startingSide": "right"
+        }
+      }
+    },
+    {
+      "id": "h-squat",
+      "nameZh": "徒手深蹲",
+      "unilateral": false,
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 3,
+        "reps": 12,
+        "restSeconds": 45
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_updown",
+          "leadSeconds": 1,
+          "phases": "go=1.5s; hold=0.5s; back=1.5s",
+          "source": "real-tempo r3",
+          "reps": 12
+        }
+      }
+    },
+    {
+      "id": "h-db-press",
+      "nameZh": "站姿哑铃推举",
+      "unilateral": false,
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 3,
+        "reps": 10,
+        "restSeconds": 60
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_updown",
+          "leadSeconds": 1,
+          "phases": "go=1s; hold=0.5s; back=1.5s; rest=0.5s",
+          "source": "real-tempo r3",
+          "reps": 10
+        }
+      }
+    },
+    {
+      "id": "chest-B",
+      "nameZh": "平行杆深幅俯卧撑",
+      "unilateral": false,
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 3,
+        "reps": 8,
+        "restSeconds": 60
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_updown",
+          "leadSeconds": 1,
+          "phases": "go=1.5s; hold=0.5s; back=1s; rest=0.5s",
+          "source": "real-tempo r3",
+          "reps": 8
+        }
+      }
+    },
+    {
+      "id": "h-side-leg-raise",
+      "nameZh": "站姿侧抬腿",
+      "unilateral": true,
+      "startingSide": "right",
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 3,
+        "reps": 12,
+        "restSeconds": 30
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_updown",
+          "leadSeconds": 1,
+          "phases": "go=1s; hold=0.5s; back=1.5s",
+          "source": "real-tempo r3",
+          "reps": 12,
+          "perSide": "each-side-separately",
+          "startingSide": "right"
+        }
+      }
+    },
+    {
+      "id": "h-calf-raise",
+      "nameZh": "扶墙提踵",
+      "unilateral": false,
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 3,
+        "reps": 15,
+        "restSeconds": 30
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_hold",
+          "leadSeconds": 1,
+          "phases": "go=1s; hold=0.8s; back=1.2s",
+          "source": "real-tempo r3",
+          "reps": 15
+        }
+      }
+    },
+    {
+      "id": "abs-C",
+      "nameZh": "双杠直臂支撑举腿",
+      "unilateral": false,
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 3,
+        "reps": 8,
+        "restSeconds": 60
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_hold",
+          "leadSeconds": 1,
+          "phases": "go=1s; hold=0.8s; back=1.5s; rest=0.2s",
+          "source": "real-tempo r3",
+          "reps": 8
+        }
+      }
+    },
+    {
+      "id": "h-hip-gate",
+      "nameZh": "扶椅站姿开髋门",
+      "unilateral": true,
+      "startingSide": "right",
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 2,
+        "reps": 6,
+        "restSeconds": 20
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_cycle",
+          "leadSeconds": 1,
+          "phases": "go=1.2s; hold=2.4s; back=1s; rest=0.4s",
+          "source": "real-tempo r3",
+          "reps": 6,
+          "perSide": "each-side-separately",
+          "startingSide": "right"
+        }
+      }
+    },
+    {
+      "id": "o-seated-catcow",
+      "nameZh": "坐姿猫牛式",
+      "unilateral": false,
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 2,
+        "reps": 6,
+        "restSeconds": 20
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_cycle",
+          "leadSeconds": 1,
+          "phases": "go=2.5s; back=2.5s",
+          "source": "real-tempo r3",
+          "reps": 6
+        }
+      }
+    },
+    {
+      "id": "n-pelvis-circle",
+      "nameZh": "站姿转胯画圈",
+      "unilateral": false,
+      "defaultDose": {
+        "mode": "reps",
+        "sets": 2,
+        "reps": 8,
+        "restSeconds": 20
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "rep_cycle",
+          "leadSeconds": 1,
+          "phases": "go=4s",
+          "source": "real-tempo r3",
+          "reps": 8
+        }
+      }
+    },
+    {
+      "id": "s-butterfly",
+      "nameZh": "蝴蝶式",
+      "unilateral": false,
+      "defaultDose": {
+        "mode": "time",
+        "sets": 2,
+        "seconds": 30,
+        "restSeconds": 15
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "hold",
+          "leadSeconds": 1,
+          "phases": "",
+          "source": "user-decision static-hold r2"
+        }
+      }
+    },
+    {
+      "id": "s-kneel-hipflex",
+      "nameZh": "半跪髋前侧拉伸",
+      "unilateral": true,
+      "startingSide": "left",
+      "defaultDose": {
+        "mode": "time",
+        "sets": 2,
+        "seconds": 30,
+        "restSeconds": 15
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "hold",
+          "leadSeconds": 1,
+          "phases": "",
+          "source": "user-decision static-hold r2",
+          "perSide": "each-side-separately",
+          "sideSwitchSeconds": 10,
+          "startingSide": "left"
+        }
+      }
+    },
+    {
+      "id": "abs-A",
+      "nameZh": "空心体支撑",
+      "unilateral": false,
+      "defaultDose": {
+        "mode": "time",
+        "sets": 3,
+        "seconds": 20,
+        "restSeconds": 45
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "hold",
+          "leadSeconds": 1,
+          "phases": "",
+          "source": "real-practice r2"
+        }
+      }
+    },
+    {
+      "id": "abs-B",
+      "nameZh": "平行杆团身 L 撑",
+      "unilateral": false,
+      "defaultDose": {
+        "mode": "time",
+        "sets": 3,
+        "seconds": 10,
+        "restSeconds": 60
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "hold",
+          "leadSeconds": 1,
+          "phases": "",
+          "source": "timer"
+        }
+      }
+    },
+    {
+      "id": "t-flare-side-hold",
+      "nameZh": "托马斯侧撑定格",
+      "unilateral": true,
+      "startingSide": "right",
+      "defaultDose": {
+        "mode": "time",
+        "sets": 3,
+        "seconds": 10,
+        "restSeconds": 60
+      },
+      "rhythm": {
+        "execution": {
+          "kind": "hold",
+          "leadSeconds": 1,
+          "phases": "",
+          "source": "spec-timeline manual r2",
+          "perSide": "each-side-separately",
+          "sideSwitchSeconds": 10,
+          "startingSide": "right"
+        }
+      }
+    }
+  ]
+}

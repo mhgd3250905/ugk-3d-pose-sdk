@@ -1,10 +1,24 @@
 # 项目维护台账
 
-更新日期：2026-11-04。仓库：[mhgd3250905/ugk-3d-pose-sdk](https://github.com/mhgd3250905/ugk-3d-pose-sdk)。
+更新日期：2026-11-16。仓库：[mhgd3250905/ugk-3d-pose-sdk](https://github.com/mhgd3250905/ugk-3d-pose-sdk)。
 
 本台账统一记录维护状态、已合并成果、验证证据和待办。包版本、接口行为仍以对应清单和实现为准；发布历史保留在 CHANGELOG。表内 SHA 是核验快照，后续文档提交会推进 main，不能把快照当成永远最新的分支指针。
 
-## 当前快照：SDK 固定 tag v0.7.2 / 问答 v3（2026-11-04）
+## 当前快照：SDK 固定 tag v0.9.0 / V4 默认皮肤（2026-11-16）
+
+| 项目 | 本次核对结果 |
+|---|---|
+| 固定版本 | 附注 tag `ugk_trainer-v0.9.0` 指向 `4eb87ceabd39bfd132cd6c79c0474de3be683feb`，为 PR #31 合并后的 main 快照 |
+| 包版本 | 根包 `ugk_coach` 0.9.0、`ugk_trainer` 0.6.0、`ugk_coach_ui` 0.4.0，以各自的 `pubspec.yaml` 为准 |
+| 内置目录 | Pose-Hub r2-v16 含 249 个动作，目录为 5,097,205 字节，SHA-256 为 `c8536ffcf13e677449c251720183bcf099ae5ca166182026be411544d9bfa562` |
+| 线上渠道 | 主题皮肤已撤回。dev、beta、stable 三个指针均指向同 SHA 的 r2-v16。r2-v17 目录与 theme-r1 素材仍保留，三渠道已停止分发 r2-v17 |
+| SDK 行为 | SDK 保留对可选 `files.themes` 的读取。目录缺少对应主题时使用默认媒体 |
+| 版本记录 | [文档 PR #32](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/32) 对齐 README、CHANGELOG 与台账 |
+
+2026-11-16 23:06（北京时间）在文档提交 `8ea858244c07d7ded3cfa5390b2c567e0e45177a` 上回读远端 tag 和三个渠道，
+并通过 `python tool/sync_bundled_pack.py --channel stable --check`。该提交相对固定 tag 只改文档，检查覆盖的内置资源和配置一致。
+
+## 历史快照：SDK 固定 tag v0.7.2 / 问答 v3（2026-11-04）
 
 | 项目 | 本次核对结果 |
 |---|---|

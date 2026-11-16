@@ -1,10 +1,11 @@
 # ugk_coach · 三 App 共用的 AI 训练助理 SDK
 
-当前固定 SDK tag 为 **`ugk_trainer-v0.7.2`**（2026-11-04），目标提交
-`c1a51a09cdc3add3696cad159ca6044ccf5af6c8`，包含 PR #12 的问答 v3、统一准入及恢复失败处理。
+当前固定 SDK tag 为 **`ugk_trainer-v0.9.0`**（2026-11-16），指向
+`4eb87ceabd39bfd132cd6c79c0474de3be683feb`。这是 V4 默认皮肤基准，根包 `ugk_coach` 为 `0.9.0`，内置 Pose-Hub r2-v16。
+主题皮肤已撤回。发布与渠道记录见 [CHANGELOG](CHANGELOG.md) 和[项目维护台账](docs/project-ledger.md)。
+
 App 继续通过 `CoachChatAgentMode.qaV2` 配置启用问答 Agent；旧 `CoachAssistant` / `CoachSession` 已删除。
-tag 名与各包清单版本独立，后续文档提交不会移动 tag。当前版本、迁移点和证据范围见
-[项目维护台账](docs/project-ledger.md)及[问答 v3 说明](docs/coach-qa-agent-v3.md)。
+迁移点和验证范围见[问答 v3 说明](docs/coach-qa-agent-v3.md)。
 以下集成记录保留各自当时的提交与验收语境，不作为最新 main 指针。
 
 第 2 批已审核快进并推送 main `67c9747b8e29955d2be21c020c5ef3881b4966e6`，剩余调用优化目标已获用户接受。

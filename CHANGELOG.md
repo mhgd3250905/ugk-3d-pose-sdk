@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — bundled Pose-Hub r2-v16 (V4 actions, 2026-11-16, draft)
+
+- Bundle Pose-Hub r2-v16 from the `stable` channel (published 2026-11-15 01:08 CST; dev/beta/stable all r2-v16), replacing r2-v10: `catalog.json` c8536ffc…a562 (5,097,205 B), semantic `catalog/catalog.json` 03d61ba5…7820 (318,292 B). Same 249 action IDs; V4 text, rhythm (`real-tempo r3`), voiceGuide and media revisions. Synced with `tool/sync_bundled_pack.py --channel stable`; `--check` rc 0.
+- `standing/` regenerated from r2-v16 videos (249 frame-zero WebP + `index.json`, 4,816,773 B → 4,792,077 B). Videos stay unbundled and download on demand; media root unchanged (`pack/r2-v1/`). Hot-update, pointer and player logic unchanged.
+- Test paths and pack-version expectations follow the new bundle (`app-pack-r2-v10` → `app-pack-r2-v16`).
+
 ## Unreleased — PR #18 alternating pairs + bundled r2-v2 (2026-11-05, draft)
 
 - Count `repUnit: left+right` actions as one rep = one left + one right (no side split, no switch). `Rhythm.planRepSecondsFor()` gives plan estimates the per-side cost (half a pair) so `每侧 N 次 × 2` equals the played time; hosts that project `repSeconds` for planning should use it instead of `cycleFor()`.

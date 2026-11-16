@@ -641,6 +641,39 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
     );
   }
 
+  Widget _poseHubThumbnail(
+    BuildContext context,
+    String exerciseId,
+    String? asset,
+    Widget fallback, {
+    BoxFit fit = BoxFit.contain,
+  }) {
+    if (asset != null &&
+        asset.isNotEmpty &&
+        !asset.startsWith('packages/ugk_trainer/assets/pose_hub/')) {
+      return fallback;
+    }
+    final id = widget.drillOf(exerciseId)?.media?.actionId ?? exerciseId;
+    final policy = TrainingMediaPolicyScope.maybeOf(context);
+    final policyAction = policy?.actionFor(id);
+    final action = policyAction ?? _poseHubAction(id);
+    if (action == null ||
+        !action.themedMedia.containsKey(poseHubMediaThemeOf(context))) {
+      return fallback;
+    }
+    return ExcludeSemantics(
+      child: PoseHubStandingImage(
+        action: action,
+        theme: _th,
+        thumbnail: true,
+        fit: fit,
+        repository: policyAction == null ? null : policy?.repository,
+        mediaBaseUri: widget.poseHubMediaBaseUri,
+        legacyFallback: fallback,
+      ),
+    );
+  }
+
   Widget _nextCapsuleV1(TrainerDrill drill) {
     final poster =
         drill.thumbnailAsset ?? drill.media?.posterFor(light: !_th.isDark);
@@ -669,13 +702,19 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
                   exitScale: .9,
                   child: ColoredBox(
                     color: _th.ctrl,
-                    child: poster == null
-                        ? placeholder
-                        : Image.asset(
-                            poster,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => placeholder,
-                          ),
+                    child: _poseHubThumbnail(
+                      context,
+                      drill.id,
+                      poster,
+                      poster == null
+                          ? placeholder
+                          : Image.asset(
+                              poster,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => placeholder,
+                            ),
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),

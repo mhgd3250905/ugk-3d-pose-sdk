@@ -28,6 +28,7 @@ class TrainerCompletion extends StatefulWidget {
     this.streakDays,
     this.trainedAreas = const [],
     this.entryDockTop,
+    this.thumbnailBuilder,
   });
 
   final TrainerTheme theme;
@@ -45,6 +46,15 @@ class TrainerCompletion extends StatefulWidget {
 
   /// Position of the previous dock top in the completion page's coordinates.
   final double? entryDockTop;
+
+  /// Supplies catalogue artwork while allowing the existing poster as fallback.
+  final Widget Function(
+    BuildContext context,
+    String exerciseId,
+    String? asset,
+    Widget fallback,
+  )?
+  thumbnailBuilder;
 
   @override
   State<TrainerCompletion> createState() => _TrainerCompletionState();
@@ -241,50 +251,53 @@ class _TrainerCompletionState extends State<TrainerCompletion>
     ),
   );
 
-  Widget _thumbnail(TrainerDrill? drill) {
+  Widget _thumbnail(String exerciseId, TrainerDrill? drill) {
     final asset =
         drill?.thumbnailAsset ?? drill?.media?.posterFor(light: !_theme.isDark);
     final darkThumbnail = _theme.usePlayerV1 && _theme.isDark;
     Widget fallback() => Center(
       child: Icon(Icons.accessibility_new, size: 24, color: _theme.muted),
     );
+    final artwork = asset == null || asset.isEmpty
+        ? fallback()
+        : Image.asset(
+            asset,
+            fit: BoxFit.contain,
+            excludeFromSemantics: true,
+            errorBuilder: (_, _, _) => fallback(),
+            frameBuilder: darkThumbnail
+                ? (_, image, _, _) => ColorFiltered(
+                    colorFilter: const ColorFilter.matrix([
+                      1.15,
+                      0,
+                      0,
+                      0,
+                      0,
+                      0,
+                      1.15,
+                      0,
+                      0,
+                      0,
+                      0,
+                      0,
+                      1.15,
+                      0,
+                      0,
+                      0,
+                      0,
+                      0,
+                      1,
+                      0,
+                    ]),
+                    child: image,
+                  )
+                : null,
+          );
     final thumbnail = SizedBox.square(
       dimension: 40,
-      child: asset == null || asset.isEmpty
-          ? fallback()
-          : Image.asset(
-              asset,
-              fit: BoxFit.contain,
-              excludeFromSemantics: true,
-              errorBuilder: (_, _, _) => fallback(),
-              frameBuilder: darkThumbnail
-                  ? (_, image, _, _) => ColorFiltered(
-                      colorFilter: const ColorFilter.matrix([
-                        1.15,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1.15,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1.15,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                      ]),
-                      child: image,
-                    )
-                  : null,
-            ),
+      child:
+          widget.thumbnailBuilder?.call(context, exerciseId, asset, artwork) ??
+          artwork,
     );
     if (_theme.usePlayerV1) {
       return ClipOval(
@@ -308,7 +321,7 @@ class _TrainerCompletionState extends State<TrainerCompletion>
           height: 56,
           child: Row(
             children: [
-              _thumbnail(drill),
+              _thumbnail(item.exerciseId, drill),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -352,7 +365,7 @@ class _TrainerCompletionState extends State<TrainerCompletion>
       opacity: skipped ? .5 : 1,
       child: Row(
         children: [
-          _thumbnail(drill),
+          _thumbnail(item.exerciseId, drill),
           const SizedBox(width: 12),
           Expanded(
             child: Text(

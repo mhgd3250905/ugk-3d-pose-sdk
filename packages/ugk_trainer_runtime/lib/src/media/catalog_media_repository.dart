@@ -142,6 +142,33 @@ extension CatalogMediaPriorityAccess on CatalogMediaRepository {
   }
 }
 
+/// Optional exact-file pinning for repositories serving themed videos.
+abstract interface class CatalogMediaVideoPinning {
+  void Function() retainVideoFile(coach.PoseHubPackFile file);
+}
+
+extension CatalogMediaVideoPinningAccess on CatalogMediaRepository {
+  void Function() retainMediaVideo(
+    coach.PoseHubPackAction action,
+    coach.PoseHubPackFile file,
+  ) {
+    final repository = this;
+    if (repository is CatalogMediaVideoPinning) {
+      return (repository as CatalogMediaVideoPinning).retainVideoFile(file);
+    }
+    return identical(action.video, file) ? retainVideo(action.id) : () {};
+  }
+}
+
+Iterable<Map<String, coach.PoseHubPackFile>> _mediaFiles(
+  coach.PoseHubPackAction action,
+) sync* {
+  yield action.files;
+  for (final media in action.themedMedia.values) {
+    yield media.files;
+  }
+}
+
 Future<CatalogMediaRepository> _create({
   required coach.PoseHubAppTestCatalog catalog,
   required String catalogRevision,
@@ -182,7 +209,8 @@ Future<CatalogMediaRepository> _create({
   }
   final files = {
     for (final action in catalog.allActions)
-      for (final file in action.files.values) file.path: file,
+      for (final media in _mediaFiles(action))
+        for (final file in media.values) file.path: file,
   };
   final bases = List<Uri>.unmodifiable(mediaBaseUrls);
   final store = await platform.createCatalogMediaStore(
@@ -191,7 +219,9 @@ Future<CatalogMediaRepository> _create({
     rootDirectory: rootDirectory,
     files: files.values.toList(),
     videos: {
-      for (final action in catalog.allActions) action.video.path: action.video,
+      for (final action in catalog.allActions)
+        for (final media in _mediaFiles(action))
+          media['video']!.path: media['video']!,
     }.values.toList(),
     mediaBaseUrls: bases,
     allowInsecureLocalhost: allowInsecureLocalhost,
@@ -222,7 +252,10 @@ Future<CatalogMediaRepository> _create({
 }
 
 class _Repository
-    implements CatalogMediaRepository, CatalogMediaPriorityRepository {
+    implements
+        CatalogMediaRepository,
+        CatalogMediaPriorityRepository,
+        CatalogMediaVideoPinning {
   _Repository(
     this.catalog,
     this.files,
@@ -235,12 +268,18 @@ class _Repository
     this.onTiming,
   ) {
     for (final action in catalog.allActions) {
-      for (final role in action.files.entries) {
-        final file = role.value;
-        (_actionsForFile[file.path] ??= {}).add(action.id);
-        (_filesForHash[file.sha256] ??= []).add(file);
-        if (role.key != 'video') _images.add(file.path);
-        if (role.key == 'video') _videos.add(file.path);
+      for (final media in _mediaFiles(action)) {
+        for (final role in media.entries) {
+          final file = role.value;
+          (_actionsForFile[file.path] ??= {}).add(action.id);
+          (_filesForHash[file.sha256] ??= []).add(file);
+          _fileKinds[file.path] = role.key;
+          if (role.key == 'video') {
+            _videos.add(file.path);
+          } else {
+            _images.add(file.path);
+          }
+        }
       }
     }
   }
@@ -264,6 +303,7 @@ class _Repository
   final _fileStates = <String, ValueNotifier<CatalogMediaDownloadState>>{};
   final _actionStates = <String, ValueNotifier<CatalogMediaDownloadState>>{};
   final _actionsForFile = <String, Set<String>>{};
+  final _fileKinds = <String, String>{};
   final _filesForHash = <String, List<coach.PoseHubPackFile>>{};
   final _images = <String>{};
   final _videos = <String>{};
@@ -681,14 +721,7 @@ class _Repository
     }
   }
 
-  String _kindOf(coach.PoseHubPackFile file) {
-    for (final id in _actionsForFile[file.path]!) {
-      for (final entry in _action(id).files.entries) {
-        if (entry.value.path == file.path) return entry.key;
-      }
-    }
-    return 'unknown';
-  }
+  String _kindOf(coach.PoseHubPackFile file) => _fileKinds[file.path]!;
 
   @override
   Future<Uri> ensureAction(String actionId) {
@@ -769,6 +802,15 @@ class _Repository
       store.retainVideo(_action(actionId).video);
 
   @override
+  void Function() retainVideoFile(coach.PoseHubPackFile file) {
+    final video = _known(file);
+    if (!_videos.contains(video.path)) {
+      throw ArgumentError('Expected a catalogue video.');
+    }
+    return store.retainVideo(video);
+  }
+
+  @override
   Future<int> videoCacheBytes() async {
     _check();
     await _clearing;
@@ -826,9 +868,9 @@ class _Repository
     _check();
     await store.clearVideoCache();
     _check();
-    for (final action in catalog.allActions) {
-      if (_fileStates.containsKey(action.video.path)) {
-        _set(action.video, CatalogMediaDownloadPhase.idle);
+    for (final path in _videos) {
+      if (_fileStates.containsKey(path)) {
+        _set(files[path]!, CatalogMediaDownloadPhase.idle);
       }
     }
   }

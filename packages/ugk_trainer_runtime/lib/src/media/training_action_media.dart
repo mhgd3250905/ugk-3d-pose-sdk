@@ -2,9 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:ugk_coach/ugk_coach.dart';
 
+import '../pose_hub/pose_hub_media_theme.dart';
+import '../pose_hub/pose_hub_pack_image.dart';
 import '../ui/trainer_experience.dart';
 import '../ui/trainer_poster.dart';
+import '../ui/trainer_theme.dart';
 import 'catalog_media_repository.dart';
 import 'media_controller.dart';
 import 'media_playback_control.dart';
@@ -13,7 +17,7 @@ import 'packed_alpha_video.dart';
 import 'trainer_v1_media_scope.dart';
 import 'training_media_policy.dart';
 
-/// One shared public action, with the same alpha video/poster in both themes.
+/// One shared public action, with catalogue media for the current theme.
 /// Download and decoder failures affect only this demonstration, never training.
 class TrainingActionMedia extends StatefulWidget {
   const TrainingActionMedia({
@@ -36,6 +40,7 @@ class TrainingActionMedia extends StatefulWidget {
     this.nativeAlpha = false,
     this.onFrameReadyChanged,
     this.revealPausedFrame = true,
+    this.thumbnail = false,
   });
   final String actionId;
   final TrainingMediaPolicy? policy;
@@ -90,6 +95,9 @@ class TrainingActionMedia extends StatefulWidget {
   /// Playing video reveals normally. The default preserves existing behavior.
   final bool revealPausedFrame;
 
+  /// Requests the smaller catalogue image for list previews.
+  final bool thumbnail;
+
   @override
   State<TrainingActionMedia> createState() => _TrainingActionMediaState();
 }
@@ -108,6 +116,7 @@ class _VideoPin {
 class _TrainingActionMediaState extends State<TrainingActionMedia>
     with WidgetsBindingObserver {
   TrainingMediaPolicy? _policy;
+  PoseHubMediaTheme? _mediaTheme;
   ValueListenable<CatalogMediaDownloadState>? _download;
   DrillMediaController? _controller;
   _VideoPin? _pin;
@@ -143,6 +152,11 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final policy = widget.policy ?? TrainingMediaPolicyScope.maybeOf(context);
+    final theme = poseHubMediaThemeOf(context);
+    final action = policy?.actionFor(widget.actionId);
+    final videoChanged =
+        action?.mediaFor(theme).video != action?.mediaFor(_mediaTheme).video;
+    _mediaTheme = theme;
     _playerV1 = TrainerV1MediaScope.of(context);
     _tickersEnabled = TickerMode.valuesOf(context).enabled;
     _routeCurrent = ModalRoute.isCurrentOf(context) ?? true;
@@ -150,7 +164,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     _updateCoveredRetention();
     _bindExitAnimation();
     final visible = _effectiveVisible;
-    if (!identical(policy, _policy) || visible != _visible) {
+    if (!identical(policy, _policy) || visible != _visible || videoChanged) {
       _policy = policy;
       _visible = visible;
       _reload();
@@ -162,6 +176,11 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
   @override
   void didUpdateWidget(TrainingActionMedia oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final theme = poseHubMediaThemeOf(context);
+    final action = _policy?.actionFor(widget.actionId);
+    final videoChanged =
+        action?.mediaFor(theme).video != action?.mediaFor(_mediaTheme).video;
+    _mediaTheme = theme;
     if (oldWidget.playbackHandle != widget.playbackHandle) {
       oldWidget.playbackHandle?.unbind(this);
     }
@@ -177,7 +196,8 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
       _bindExitAnimation();
       _visible = _effectiveVisible;
     }
-    if (oldWidget.actionId != widget.actionId ||
+    if (videoChanged ||
+        oldWidget.actionId != widget.actionId ||
         oldWidget.policy != widget.policy ||
         (oldWidget.playing || oldWidget.prefetchWhenIdle) !=
             (widget.playing || widget.prefetchWhenIdle) ||
@@ -324,22 +344,23 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
       _bindHandle();
       return;
     }
-    final pin = _pin = _VideoPin(policy.repository.retainVideo(action.id));
-    _download = policy.repository.watchFile(action.video)
-      ..addListener(_changed);
+    final video = action.mediaFor(_mediaTheme).video;
+    final pin = _pin = _VideoPin(
+      policy.repository.retainMediaVideo(action, video),
+    );
+    _download = policy.repository.watchFile(video)..addListener(_changed);
     _bindHandle();
-    unawaited(_resolve(_request, policy, pin));
+    unawaited(_resolve(_request, policy.repository, video, pin));
   }
 
   Future<void> _resolve(
     int request,
-    TrainingMediaPolicy policy,
+    CatalogMediaRepository repository,
+    PoseHubPackFile video,
     _VideoPin pin,
   ) async {
     try {
-      final uri = await policy.repository.ensureFileWithPriority(
-        policy.actionFor(widget.actionId)!.video,
-      );
+      final uri = await repository.ensureFileWithPriority(video);
       if (!mounted || request != _request) return;
       setState(() {
         _source = uri;
@@ -438,8 +459,19 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
 
   @override
   Widget build(BuildContext context) {
-    final poster = _policy?.posterAssetFor(widget.actionId);
+    final policy = _policy;
+    final poster = policy?.posterAssetFor(widget.actionId);
+    final action = policy?.actionFor(widget.actionId);
+    final hasThemedPoster =
+        action != null && action.themedMedia.containsKey(_mediaTheme);
     final experience = TrainerExperienceScope.maybeOf(context);
+    final fallback = poster == null
+        ? null
+        : TrainerPoster(
+            asset: poster,
+            bundle: experience?.bundle,
+            decodeWidth: experience?.decodeWidth,
+          );
     final stage = widget.stage ?? Theme.of(context).colorScheme.surface;
     final controller = _controller;
     final revealed =
@@ -475,16 +507,22 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
             child: Stack(
               fit: StackFit.expand,
               children: [
-                if (poster != null)
+                if (fallback != null)
                   AnimatedOpacity(
                     key: const ValueKey('public-action-poster'),
                     opacity: revealed ? 0 : 1,
                     duration: revealDuration,
-                    child: TrainerPoster(
-                      asset: poster,
-                      bundle: experience?.bundle,
-                      decodeWidth: experience?.decodeWidth,
-                    ),
+                    child: hasThemedPoster
+                        ? PoseHubStandingImage(
+                            action: action,
+                            thumbnail: widget.thumbnail,
+                            repository: policy!.repository,
+                            legacyFallback: fallback,
+                            theme: _mediaTheme == PoseHubMediaTheme.dark
+                                ? TrainerTheme.dark
+                                : TrainerTheme.light,
+                          )
+                        : fallback,
                   )
                 else
                   const Center(

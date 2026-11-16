@@ -175,6 +175,161 @@ void main() {
     },
   );
 
+  Map<String, Object?> addTheme(
+    Map<String, Object?> data,
+    PoseHubMediaTheme theme,
+  ) {
+    final action = _action(data);
+    final files = _files(action);
+    final distribution = data['mediaDistribution']! as Map<String, Object?>;
+    final base = distribution['baseUrl'];
+    final id = action['id'];
+    final variant = <String, Object?>{
+      'skin': theme == PoseHubMediaTheme.light ? 'tech-white' : 'neon-night',
+    };
+    for (final (kind, suffix) in [
+      ('video', 'rgb-alpha.mp4'),
+      ('cover', 'cover.alpha.webp'),
+      ('thumbnail', 'thumbnail.alpha.webp'),
+    ]) {
+      final name = '$id.${theme.name}.$suffix';
+      final path = 'media/$id/theme-r1/$name';
+      final original = files[kind]! as Map<String, Object?>;
+      variant[kind] = {
+        ...original,
+        'path': path,
+        'assetName': name,
+        'downloadUrl': '$base$path',
+        'sha256': (theme == PoseHubMediaTheme.light ? 'a' : 'b') * 64,
+      };
+      distribution['mediaFiles'] = (distribution['mediaFiles']! as int) + 1;
+      distribution['mediaBytes'] =
+          (distribution['mediaBytes']! as int) + (original['bytes']! as int);
+    }
+    final themes =
+        files.putIfAbsent('themes', () => <String, Object?>{})
+            as Map<String, Object?>;
+    themes[theme.name] = variant;
+    return variant;
+  }
+
+  test('selected media theme is preserved in the action and drill views', () {
+    final json = fresh();
+    final light = addTheme(json, PoseHubMediaTheme.light);
+    final dark = addTheme(json, PoseHubMediaTheme.dark);
+    for (final source in [
+      PoseHubAppTestCatalog.fromJson(json, semanticCatalog: canonical),
+      PoseHubAppTestCatalog.fromJson(json),
+    ]) {
+      final action = source.allActions.first;
+      final legacy = action.mediaFor(null);
+      expect(legacy.video, same(action.video));
+      expect(legacy.skin, isNull);
+      expect(action.allMediaFiles, hasLength(9));
+      final drill = source.toAiCatalog()[action.id]!;
+      final projected = drill.raw['poseHubMedia']! as Map<String, Object?>;
+      final projectedThemes = PoseHubPackMediaFiles.themesFromJson(
+        projected['themes'],
+      );
+      for (final (theme, variant) in [
+        (PoseHubMediaTheme.light, light),
+        (PoseHubMediaTheme.dark, dark),
+      ]) {
+        final media = action.mediaFor(theme);
+        expect(media.skin, variant['skin']);
+        expect(media.video.raw, variant['video']);
+        expect(media.cover.raw, variant['cover']);
+        expect(media.thumbnail.raw, variant['thumbnail']);
+        expect(projectedThemes[theme]!.video.raw, variant['video']);
+        final view = action.forMediaTheme(theme);
+        expect(view.video.raw, variant['video']);
+        expect(view.cover.raw, variant['cover']);
+        expect(view.thumbnail.raw, variant['thumbnail']);
+        expect(view.raw['files'], {
+          'video': variant['video'],
+          'cover': variant['cover'],
+          'thumbnail': variant['thumbnail'],
+        });
+        expect(action.forMediaTheme(theme), same(view));
+      }
+    }
+  });
+
+  test('missing theme keeps the original action media', () {
+    final json = fresh();
+    addTheme(json, PoseHubMediaTheme.light);
+    final catalog = PoseHubAppTestCatalog.fromJson(json);
+    for (final action in catalog.allActions.take(2)) {
+      expect(
+        action.mediaFor(PoseHubMediaTheme.dark),
+        same(action.mediaFor(null)),
+      );
+      expect(action.forMediaTheme(PoseHubMediaTheme.dark), same(action));
+    }
+  });
+
+  test('theme paths and byte receipts are validated like legacy files', () {
+    for (final invalidFile in [
+      {'path': 'media/another-action/theme-r1/light.mp4'},
+      {'sha256': 'bad'},
+      {'bytes': 0},
+      {'downloadUrl': 'https://example.test/other-objects/light.mp4'},
+    ]) {
+      final json = fresh();
+      final variant = addTheme(json, PoseHubMediaTheme.light);
+      (variant['video']! as Map<String, Object?>).addAll(invalidFile);
+      expect(
+        () => PoseHubAppTestCatalog.fromJson(json),
+        throwsFormatException,
+        reason: '$invalidFile',
+      );
+    }
+  });
+
+  test('media distribution totals include theme variants', () {
+    final json = fresh();
+    final variant = addTheme(json, PoseHubMediaTheme.light);
+    PoseHubAppTestCatalog.fromJson(json);
+    final video = variant['video']! as Map<String, Object?>;
+    video['bytes'] = (video['bytes']! as int) + 1;
+    expect(() => PoseHubAppTestCatalog.fromJson(json), throwsFormatException);
+  });
+
+  test('r2-v17 validates separate original and themed media totals', () {
+    final json = fresh();
+    final totals = json['mediaDistribution']! as Map<String, Object?>;
+    final originalFiles = totals['mediaFiles']! as int;
+    final originalBytes = totals['mediaBytes']! as int;
+    addTheme(json, PoseHubMediaTheme.light);
+    addTheme(json, PoseHubMediaTheme.dark);
+    totals['themeFiles'] = (totals['mediaFiles']! as int) - originalFiles;
+    totals['themeBytes'] = (totals['mediaBytes']! as int) - originalBytes;
+    totals['mediaFiles'] = originalFiles;
+    totals['mediaBytes'] = originalBytes;
+    expect(
+      PoseHubAppTestCatalog.fromJson(json).allActions.first.themedMedia,
+      hasLength(2),
+    );
+
+    for (final field in [
+      'mediaFiles',
+      'mediaBytes',
+      'themeFiles',
+      'themeBytes',
+    ]) {
+      final value = totals[field]! as int;
+      totals[field] = value + 1;
+      expect(
+        () => PoseHubAppTestCatalog.fromJson(json),
+        throwsFormatException,
+        reason: field,
+      );
+      totals[field] = value;
+    }
+    totals.remove('themeBytes');
+    expect(() => PoseHubAppTestCatalog.fromJson(json), throwsFormatException);
+  });
+
   Map<String, Object?> downloadFile([Object? url]) => {
     'path': 'media/demo-A/demo-A.rgb-alpha.mp4',
     'bytes': 123,

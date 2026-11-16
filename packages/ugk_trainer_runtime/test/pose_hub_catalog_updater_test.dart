@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_coach/ugk_coach.dart' as coach;
 import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart';
 
+import 'fixtures/themed_pose_hub_catalog.dart';
+
 const _assetDir = 'test/fixtures/pose_hub/r2-v1/';
 final _bundledDir = PoseHubActionLibrary.assetRoot.replaceFirst(
   'packages/ugk_trainer/',
@@ -178,6 +180,24 @@ void main() {
       bundle: _PackBundle(),
       verifiedCache: store,
     ),
+  );
+
+  test(
+    'updated catalogue keeps themed descriptors without fetching media',
+    () async {
+      const pack = 'r2-v23';
+      final raw = jsonDecode(utf8.decode(r1Bytes)) as Map<String, Object?>;
+      final id = bundled.allActions.first.id;
+      final next = _json(addFixtureThemes({...raw, 'pack': pack}, id));
+      publish(pack, next, pointer: _pointer(pack, next, minSdk: '0.9.0'));
+
+      expect(await updater().checkNow(), PoseHubCatalogUpdateOutcome.updated);
+      final updated = await readVerifiedPoseHubCatalog(store);
+      final action = updated!.tryGet(id)!;
+      expect(action.mediaFor(coach.PoseHubMediaTheme.light).skin, 'tech-white');
+      expect(action.mediaFor(coach.PoseHubMediaTheme.dark).skin, 'neon-night');
+      expect(http.requests, everyElement(endsWith('.json')));
+    },
   );
 
   setUpAll(() async {
@@ -602,9 +622,9 @@ void main() {
     },
   );
 
-  test('the SDK compares min_sdk against 0.8.0', () {
-    expect(poseHubCatalogSdkVersion, '0.8.0');
-    expect(_config.sdkVersion, '0.8.0');
+  test('the SDK compares min_sdk against 0.9.0', () {
+    expect(poseHubCatalogSdkVersion, '0.9.0');
+    expect(_config.sdkVersion, '0.9.0');
   });
 
   test('file store writes atomically and reads back', () async {

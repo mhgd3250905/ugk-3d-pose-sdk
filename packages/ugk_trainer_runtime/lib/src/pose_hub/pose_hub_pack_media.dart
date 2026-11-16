@@ -8,6 +8,7 @@ import '../ui/trainer_poster.dart';
 import '../ui/trainer_theme.dart';
 import 'pose_hub_media_prefetcher.dart';
 import 'pose_hub_media_preparation.dart';
+import 'pose_hub_media_theme.dart';
 import 'pose_hub_pack_image.dart';
 import 'pose_hub_pack_surface.dart';
 
@@ -51,6 +52,8 @@ class PoseHubPackMedia extends StatefulWidget {
 
 class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
   late DrillMediaController _controller;
+  late PoseHubPackAction _sourceAction;
+  PoseHubMediaTheme? _mediaTheme;
   PoseHubPackPlaybackStatus? _lastStatus;
   final _preparation = PoseHubMediaPreparationController();
   PoseHubMediaPrefetcher? _ownedPrefetcher;
@@ -102,10 +105,19 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
   @override
   void initState() {
     super.initState();
+    _sourceAction = widget.action;
     _preparation.addListener(_preparationChanged);
     _bind();
     _bindPreparer();
-    _ensurePreparation();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final theme = poseHubMediaThemeOf(context);
+    if (theme == _mediaTheme) return;
+    _mediaTheme = theme;
+    _updateSource();
   }
 
   void _ensurePreparation() {
@@ -114,7 +126,7 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
         preparer != null &&
         _preparation.state.status != PoseHubMediaPreparationStatus.preparing &&
         _preparation.state.status != PoseHubMediaPreparationStatus.ready) {
-      _preparation.start(preparer, widget.action);
+      _preparation.start(preparer, _sourceAction);
     }
   }
 
@@ -157,18 +169,26 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
   @override
   void didUpdateWidget(PoseHubPackMedia oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _mediaTheme = poseHubMediaThemeOf(context);
+    _updateSource(oldWidget: oldWidget);
+  }
+
+  void _updateSource({PoseHubPackMedia? oldWidget}) {
+    final action = widget.action.forMediaTheme(_mediaTheme);
     final sourceChanged =
-        oldWidget.action.id != widget.action.id ||
-        oldWidget.action.files.entries.any(
-          (entry) =>
-              entry.value.sha256 != widget.action.files[entry.key]?.sha256 ||
-              entry.value.bytes != widget.action.files[entry.key]?.bytes ||
-              entry.value.path != widget.action.files[entry.key]?.path,
-        ) ||
-        oldWidget.baseUri != widget.baseUri ||
-        oldWidget.mediaPreparer != widget.mediaPreparer;
+        _sourceAction.id != action.id ||
+        _sourceAction.files.entries.any((entry) {
+          final next = action.files[entry.key];
+          return entry.value.sha256 != next?.sha256 ||
+              entry.value.bytes != next?.bytes ||
+              entry.value.path != next?.path;
+        }) ||
+        (oldWidget != null &&
+            (oldWidget.baseUri != widget.baseUri ||
+                oldWidget.mediaPreparer != widget.mediaPreparer));
+    _sourceAction = action;
     if ((sourceChanged &&
-            (oldWidget.mediaPreparer != null ||
+            (oldWidget?.mediaPreparer != null ||
                 widget.mediaPreparer != null)) ||
         (!widget.playing &&
             _preparation.state.status ==
@@ -176,7 +196,8 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
       _preparation.cancel();
     }
     if (sourceChanged) _bindPreparer();
-    if (sourceChanged || oldWidget.playing != widget.playing) {
+    if (sourceChanged ||
+        (oldWidget != null && oldWidget.playing != widget.playing)) {
       _controller.removeListener(_changed);
       _controller.dispose();
       _lastStatus = null;
@@ -185,7 +206,7 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
       _sync();
       _report();
     }
-    if (sourceChanged || (!oldWidget.playing && widget.playing)) {
+    if (sourceChanged || oldWidget == null || !oldWidget.playing) {
       _ensurePreparation();
     }
   }
@@ -204,6 +225,14 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
   Widget build(BuildContext context) {
     final hasFrame = _controller.hasFrame && !_controller.failed;
     final experience = TrainerExperienceScope.maybeOf(context);
+    final poster = experience != null && widget.posterAsset != null
+        ? TrainerPoster(
+            asset: widget.posterAsset!,
+            bundle: experience.bundle,
+            decodeWidth: experience.decodeWidth,
+          )
+        : null;
+    final hasThemedPoster = widget.action.themedMedia.containsKey(_mediaTheme);
     return Semantics(
       label: '${widget.action.nameZh}动作示范',
       child: AspectRatio(
@@ -213,7 +242,7 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
           children: [
             if (widget.playing && _prepared && supportsPoseHubPackPlayback)
               PoseHubPackSurface(
-                sourceUri: widget.action.video.resolve(_mediaBase),
+                sourceUri: _sourceAction.video.resolve(_mediaBase),
                 controller: _controller,
               ),
             IgnorePointer(
@@ -226,16 +255,13 @@ class _PoseHubPackMediaState extends State<PoseHubPackMedia> {
                 child: ColoredBox(
                   key: const ValueKey('pose-hub-pack-cover'),
                   color: widget.theme.mediaStage,
-                  child: experience != null && widget.posterAsset != null
-                      ? TrainerPoster(
-                          asset: widget.posterAsset!,
-                          bundle: experience.bundle,
-                          decodeWidth: experience.decodeWidth,
-                        )
+                  child: poster != null && !hasThemedPoster
+                      ? poster
                       : PoseHubStandingImage(
                           action: widget.action,
                           theme: widget.theme,
                           mediaBaseUri: _mediaBase,
+                          legacyFallback: poster,
                         ),
                 ),
               ),

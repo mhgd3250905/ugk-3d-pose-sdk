@@ -17,6 +17,7 @@ class _Fixture {
     List<int>? videoSizes,
     int coverBytes = 48,
     bool sharedVideos = false,
+    bool themed = false,
   }) {
     final rows = <Map<String, Object?>>[];
     for (var i = 0; i < actions; i++) {
@@ -41,6 +42,29 @@ class _Fixture {
           'path': path,
           'bytes': bytes.length,
           'sha256': sha256.convert(bytes).toString(),
+        };
+      }
+      if (themed) {
+        files['themes'] = {
+          for (final (theme, skin, value) in [
+            ('light', 'tech-white', 1),
+            ('dark', 'neon-night', 2),
+          ])
+            theme: {
+              'skin': skin,
+              for (final role in ['video', 'cover', 'thumbnail'])
+                role: () {
+                  final extension = role == 'video' ? 'mp4' : 'webp';
+                  final path = 'media/$id/$theme/$role.$extension';
+                  final bytes = Uint8List.fromList([i, value, role.length]);
+                  bodies[path] = bytes;
+                  return {
+                    'path': path,
+                    'bytes': bytes.length,
+                    'sha256': sha256.convert(bytes).toString(),
+                  };
+                }(),
+            },
         };
       }
       rows.add({
@@ -194,6 +218,38 @@ void main() {
       isEmpty,
     );
   }
+
+  test(
+    'keeps both themed videos independently verified and available offline',
+    () async {
+      fixture = _Fixture(themed: true);
+      final repo = await create();
+      final light = fixture.first.mediaFor(coach.PoseHubMediaTheme.light).video;
+      final dark = fixture.first.mediaFor(coach.PoseHubMediaTheme.dark).video;
+      final lightUri = await repo.ensureFile(light);
+      expect(
+        repo.watchFile(light).value.phase,
+        CatalogMediaDownloadPhase.ready,
+      );
+      expect(repo.watchFile(dark).value.phase, CatalogMediaDownloadPhase.idle);
+      final darkUri = await repo.ensureFile(dark);
+      expect(darkUri, isNot(lightUri));
+      expect(requested, ['/${light.path}', '/${dark.path}']);
+
+      final offline = await create(offline: true);
+      expect(await offline.ensureFile(light), lightUri);
+      expect(await offline.ensureFile(dark), darkUri);
+      expect(
+        await File.fromUri(lightUri).readAsBytes(),
+        fixture.bodies[light.path],
+      );
+      expect(
+        await File.fromUri(darkUri).readAsBytes(),
+        fixture.bodies[dark.path],
+      );
+      expect(requested, hasLength(2));
+    },
+  );
 
   test(
     'create makes an empty versioned root immediately and requests no media',

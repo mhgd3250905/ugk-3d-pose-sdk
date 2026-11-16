@@ -11,6 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_coach/ugk_coach.dart' as coach;
 import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart';
 
+import 'fixtures/themed_pose_hub_catalog.dart';
+
 const _actionId = 'h-squat';
 const _posterRoot = 'public-posters/';
 const _png =
@@ -379,6 +381,51 @@ void main() {
             const Scaffold(body: Text('covering page')),
       ),
     ),
+  );
+
+  testWidgets(
+    'switching brightness retires a pending video from the old theme',
+    (tester) async {
+      repository.dispose();
+      final themed = coach.PoseHubAppTestCatalog.fromJson(
+        addFixtureThemes(catalog.raw, _actionId),
+      );
+      repository = _Repository(themed, order);
+      policy = TrainingMediaPolicy(
+        repository: repository,
+        posterAssetRoot: _posterRoot,
+      );
+      final action = themed.tryGet(_actionId)!;
+      final light = action.mediaFor(coach.PoseHubMediaTheme.light).video;
+      final dark = action.mediaFor(coach.PoseHubMediaTheme.dark).video;
+      final brightness = ValueNotifier(Brightness.light);
+      addTearDown(brightness.dispose);
+      await _mount(
+        tester,
+        bundle,
+        child: ValueListenableBuilder(
+          valueListenable: brightness,
+          builder: (context, value, _) => Theme(
+            data: ThemeData(brightness: value),
+            child: TrainingActionMedia(actionId: _actionId, policy: policy),
+          ),
+        ),
+      );
+
+      List<coach.PoseHubPackFile> videos() =>
+          repository.calls.where((file) => file.path.endsWith('.mp4')).toList();
+      expect(videos(), [light]);
+      brightness.value = Brightness.dark;
+      await tester.pump();
+      expect(videos(), [light, dark]);
+      repository.complete(light);
+      await tester.pump();
+      expect(platform.sources, isEmpty);
+      repository.complete(dark);
+      await tester.pump();
+      await tester.pump();
+      expect(platform.sources, [dark.resolve(repository.mediaBaseUri)]);
+    },
   );
 
   for (final hostMedia in [false, true]) {

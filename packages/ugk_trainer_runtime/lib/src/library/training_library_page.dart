@@ -61,6 +61,7 @@ class TrainingLibraryPage extends StatelessWidget {
       config: config,
       mediaPolicy: mediaPolicy,
       theme: theme,
+      thumbnail: true,
     ),
     onOpenAction: (action) => unawaited(
       TrainingLibraryDetails.open(
@@ -88,12 +89,16 @@ class TrainingLibraryActionArt extends StatelessWidget {
     this.theme,
     this.playing = false,
     this.mirrored = false,
+    this.thumbnail = false,
   });
   final String actionId;
   final TrainingLibraryConfig config;
   final TrainingMediaPolicy mediaPolicy;
   final TrainerTheme? theme;
   final bool playing, mirrored;
+
+  /// Use the catalogue thumbnail for a list row and keep the cover in detail.
+  final bool thumbnail;
 
   @override
   Widget build(BuildContext context) {
@@ -110,6 +115,7 @@ class TrainingLibraryActionArt extends StatelessWidget {
       policy: mediaPolicy,
       playing: playing,
       mirrored: mirrored,
+      thumbnail: thumbnail,
       radius: resolved.radius,
       stage: resolved.mediaStage,
     );

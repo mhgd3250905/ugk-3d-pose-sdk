@@ -5,10 +5,9 @@ import 'package:ugk_coach/ugk_coach.dart' as coach;
 /// Fallback pack version for a catalogue without a `pack` field.
 const poseHubLegacyPackVersion = 'r1-v3';
 
-/// The SDK version a pointer's `min_sdk` is compared against: the release
-/// that ships the action-library hot update (see CHANGELOG); hosts may
-/// override it through [PoseHubCatalogUpdateConfig.sdkVersion].
-const poseHubCatalogSdkVersion = '0.8.0';
+/// The SDK version compared against a channel pointer's `min_sdk`.
+/// Hosts may override it through [PoseHubCatalogUpdateConfig.sdkVersion].
+const poseHubCatalogSdkVersion = '0.9.0';
 
 /// Media root of one immutable pack: `https://media.uuugk.win/pack/<pack>/`.
 Uri poseHubMediaBaseUriForPack(String pack) {

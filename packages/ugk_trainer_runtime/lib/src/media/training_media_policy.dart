@@ -79,6 +79,7 @@ class TrainingMediaPolicy {
   /// No download failure gates training's clock, voice or route.
   Future<void> prefetchActions(
     Iterable<String> ids, {
+    PoseHubMediaTheme? theme,
     bool Function()? isCurrent,
   }) async {
     final actions = [
@@ -86,14 +87,16 @@ class TrainingMediaPolicy {
     ].take(2).toList();
     if (actions.isEmpty) return;
     try {
-      await repository.ensureFileWithPriority(actions.first.video);
+      await repository.ensureFileWithPriority(
+        actions.first.mediaFor(theme).video,
+      );
       if (!prefetchBeforeTraining ||
           actions.length < 2 ||
           isCurrent?.call() == false) {
         return;
       }
       await repository.ensureFileWithPriority(
-        actions[1].video,
+        actions[1].mediaFor(theme).video,
         priority: CatalogMediaPriority.prefetch,
       );
     } catch (_) {

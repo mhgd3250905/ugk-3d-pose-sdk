@@ -32,7 +32,21 @@ def checked_image(data: bytes) -> bytes:
     return data
 
 
-def video_rows(catalog: dict) -> list[tuple[str, dict]]:
+def validate_video(video: object, identity: str) -> dict:
+    if not isinstance(video, dict):
+        raise ValueError(f"Missing video descriptor: {identity}")
+    path = video.get("path")
+    if (not isinstance(path, str) or "\\" in path or path.startswith("/")
+            or any(part in ("", ".", "..") for part in path.split("/"))):
+        raise ValueError(f"Invalid standing video path: {identity}")
+    if (type(video.get("bytes")) is not int or video["bytes"] < 1
+            or not isinstance(video.get("sha256"), str)
+            or not re.fullmatch(r"[a-f0-9]{64}", video["sha256"])):
+        raise ValueError(f"Invalid standing video integrity: {identity}")
+    return video
+
+
+def video_rows(catalog: dict) -> list[tuple[str, str | None, dict]]:
     rows = []
     seen = set()
     for action in catalog.get("actions", []):
@@ -41,21 +55,23 @@ def video_rows(catalog: dict) -> list[tuple[str, dict]]:
                 or identity in seen):
             raise ValueError("Invalid or duplicate standing action ID")
         seen.add(identity)
-        video = action.get("files", {}).get("video")
-        if not isinstance(video, dict):
-            raise ValueError(f"Missing video descriptor: {identity}")
-        path = video.get("path")
-        if (not isinstance(path, str) or "\\" in path or path.startswith("/")
-                or any(part in ("", ".", "..") for part in path.split("/"))):
-            raise ValueError(f"Invalid standing video path: {identity}")
-        if (type(video.get("bytes")) is not int or video["bytes"] < 1
-                or not isinstance(video.get("sha256"), str)
-                or not re.fullmatch(r"[a-f0-9]{64}", video["sha256"])):
-            raise ValueError(f"Invalid standing video integrity: {identity}")
-        rows.append((identity, video))
+        files = action.get("files", {})
+        rows.append((identity, None, validate_video(files.get("video"), identity)))
+        themes = files.get("themes", {})
+        if not isinstance(themes, dict) or set(themes) - {"light", "dark"}:
+            raise ValueError(f"Invalid standing themes: {identity}")
+        for theme, media in themes.items():
+            label = f"{identity}.{theme}"
+            if not isinstance(media, dict):
+                raise ValueError(f"Invalid standing theme: {label}")
+            rows.append((identity, theme, validate_video(media.get("video"), label)))
     if not rows:
         raise ValueError("Cannot build standing images for an empty catalogue")
     return rows
+
+
+def image_name(identity: str, theme: str | None) -> str:
+    return f"{identity}.{theme}.webp" if theme else f"{identity}.webp"
 
 
 def read_index(directory: Path) -> dict | None:
@@ -71,13 +87,16 @@ def read_index(directory: Path) -> dict | None:
 
 
 def cached_image(directory: Path, index: dict | None, identity: str,
-                 video: dict) -> bytes | None:
+                 theme: str | None, video: dict) -> bytes | None:
     record = index["actions"].get(identity) if index else None
+    if theme is not None and isinstance(record, dict):
+        themes = record.get("themes")
+        record = themes.get(theme) if isinstance(themes, dict) else None
     if (not isinstance(record, dict) or record.get("videoPath") != video["path"]
             or record.get("videoSha256") != video["sha256"]):
         return None
     try:
-        data = (directory / f"{identity}.webp").read_bytes()
+        data = (directory / image_name(identity, theme)).read_bytes()
         if (len(data) != record.get("imageBytes")
                 or hashlib.sha256(data).hexdigest() != record.get("imageSha256")):
             return None
@@ -86,16 +105,21 @@ def cached_image(directory: Path, index: dict | None, identity: str,
         return None
 
 
-def index_bytes(pack: str, images: dict[str, tuple[dict, bytes]]) -> bytes:
+def index_bytes(pack: str, images: dict[tuple[str, str | None], tuple[dict, bytes]]) -> bytes:
+    actions = {}
+    for identity, theme in sorted(images, key=lambda pair: (pair[0], pair[1] or "")):
+        video, data = images[identity, theme]
+        record = {
+            "videoPath": video["path"], "videoSha256": video["sha256"],
+            "imageSha256": hashlib.sha256(data).hexdigest(), "imageBytes": len(data),
+        }
+        if theme is None:
+            actions[identity] = record
+        else:
+            actions[identity].setdefault("themes", {})[theme] = record
     index = {
         "schema": 1, "pack": pack, "frame": FRAME, "width": SIDE, "height": SIDE,
-        "actions": {
-            identity: {
-                "videoPath": video["path"], "videoSha256": video["sha256"],
-                "imageSha256": hashlib.sha256(data).hexdigest(), "imageBytes": len(data),
-            }
-            for identity, (video, data) in sorted(images.items())
-        },
+        "actions": actions,
     }
     return (json.dumps(index, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
 
@@ -105,10 +129,10 @@ def check_standing(directory: Path, catalog: dict, pack: str) -> list[Path]:
     index = read_index(directory)
     rows = video_rows(catalog)
     if (index is None or index.get("pack") != pack
-            or set(index["actions"]) != {identity for identity, _ in rows}):
+            or set(index["actions"]) != {identity for identity, _, _ in rows}):
         return [directory / "index.json"]
-    return [directory / f"{identity}.webp" for identity, video in rows
-            if cached_image(directory, index, identity, video) is None]
+    return [directory / image_name(identity, theme) for identity, theme, video in rows
+            if cached_image(directory, index, identity, theme, video) is None]
 
 
 def decode_frame_zero(video: bytes, ffmpeg: str = "ffmpeg") -> bytes:
@@ -170,8 +194,8 @@ def build_standing(directory: Path, catalog: dict, pack: str, media_base: str,
     rows = video_rows(catalog)
 
     def build(row):
-        identity, video = row
-        data = cached_image(directory, index, identity, video)
+        identity, theme, video = row
+        data = cached_image(directory, index, identity, theme, video)
         if data is None:
             source = verified_video(video, media_base, media_roots, cache, fetch)
             try:
@@ -179,12 +203,12 @@ def build_standing(directory: Path, catalog: dict, pack: str, media_base: str,
             except subprocess.CalledProcessError as error:
                 raise ValueError(f"Standing frame extraction failed for {identity}: "
                                  f"{error.stderr.decode('utf-8', errors='replace')[:400]}") from error
-        return identity, (video, data)
+        return (identity, theme), (video, data)
 
     # Keep extraction bounded; no media renderer or remote object is modified.
     with ThreadPoolExecutor(max_workers=1) as pool:
         images = dict(pool.map(build, rows))
     return {
-        **{f"{identity}.webp": data for identity, (_, data) in images.items()},
+        **{image_name(identity, theme): data for (identity, theme), (_, data) in images.items()},
         "index.json": index_bytes(pack, images),
     }

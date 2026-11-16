@@ -100,6 +100,35 @@ class SyncBundledPackTests(unittest.TestCase):
         self.assertNotIn("app-pack-r2-v2", (self.root / PUBSPEC).read_text(encoding="utf-8"))
         self.assertEqual(self.run_sync(check=True), 0)
 
+    def test_sync_builds_and_checks_standing_images_for_both_themes(self):
+        payload = json.loads(self.catalog)
+        files = payload["actions"][0]["files"]
+        files["themes"] = {}
+        for theme, skin in (("light", "tech-white"), ("dark", "neon-night")):
+            path = f"media/example/theme-r1/example.{theme}.rgb-alpha.mp4"
+            url = f"https://media.example/pack/r2-v1/{path}"
+            files["themes"][theme] = {
+                "skin": skin, "video": {**files["video"], "path": path, "downloadUrl": url},
+            }
+            self.objects[url] = self.video
+        self.catalog = json.dumps(payload).encode()
+        self.objects[self.pointer["catalog"]] = self.catalog
+        self.pointer.update(
+            catalog_sha256=hashlib.sha256(self.catalog).hexdigest(), catalog_bytes=len(self.catalog),
+        )
+        self.objects[CHANNEL_BASE + "beta.json"] = json.dumps(self.pointer).encode()
+
+        self.assertEqual(self.run_sync(), 0)
+        self.assertEqual(self.run_sync(check=True), 0)
+        standing = self.root / ASSETS / "app-pack-r2-v7/standing"
+        index = json.loads((standing / "index.json").read_bytes())
+        themes = index["actions"]["example"]["themes"]
+        for theme, media in files["themes"].items():
+            self.assertEqual(themes[theme]["videoPath"], media["video"]["path"])
+            self.assertEqual((standing / f"example.{theme}.webp").read_bytes(), self.poster)
+        (standing / "example.dark.webp").unlink()
+        self.assertEqual(check_standing(standing, payload, "r2-v7"), [standing / "example.dark.webp"])
+
     def test_check_detects_stale_bundle_without_writing(self):
         before = self.snapshot()
         self.assertEqual(self.run_sync(check=True), 1)

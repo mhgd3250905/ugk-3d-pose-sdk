@@ -483,6 +483,9 @@ CoachExercise _withCatalogArtwork(CoachExercise exercise, coach.Drill drill) {
   final video = coach.PoseHubPackFile.fromJson(media['video']);
   final cover = coach.PoseHubPackFile.fromJson(media['cover']);
   final thumbnailFile = coach.PoseHubPackFile.fromJson(media['thumbnail']);
+  final themedMedia = coach.PoseHubPackMediaFiles.themesFromJson(
+    media['themes'],
+  );
   final base = media['baseUri'];
   return CoachExercise(
     id: exercise.id,
@@ -501,6 +504,7 @@ CoachExercise _withCatalogArtwork(CoachExercise exercise, coach.Drill drill) {
       video: video,
       cover: cover,
       thumbnailFile: thumbnailFile,
+      themedMedia: themedMedia,
       thumbnail: thumbnail,
       theme: Theme.of(context).brightness == Brightness.dark
           ? TrainerTheme.dark

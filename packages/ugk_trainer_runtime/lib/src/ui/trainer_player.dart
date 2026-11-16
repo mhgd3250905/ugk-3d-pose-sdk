@@ -42,6 +42,8 @@ import '../platform/screen_awake.dart';
 import '../platform/training_keep_alive.dart';
 import '../pose_hub/pose_hub_media_prefetcher.dart';
 import '../pose_hub/pose_hub_media_preparation.dart';
+import '../pose_hub/pose_hub_media_theme.dart';
+import '../pose_hub/pose_hub_pack_image.dart';
 import '../pose_hub/pose_hub_pack_media.dart';
 import '../result/session_result.dart';
 import '../rhythm/rhythm.dart';
@@ -569,6 +571,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   PoseHubMediaPrefetcher? _mediaPrefetcher;
   Future<void>? _mediaRetirement;
   int _mediaGeneration = -1;
+  PoseHubMediaTheme? _mediaTheme;
   TrainingMediaPolicy? _publicMediaPolicy;
   String? _publicPrefetchIds;
   final _mediaPlaybackHandle = DrillMediaPlaybackHandle();
@@ -733,6 +736,18 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     }
     final gate = _startGate;
     if (gate != null) unawaited(_awaitStartGate(gate));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final theme = poseHubMediaThemeOf(context);
+    if (theme != _mediaTheme) {
+      _mediaTheme = theme;
+      _mediaGeneration = -1;
+    }
+    TrainingMediaPolicyScope.maybeOf(context);
+    _prioritizeMedia();
   }
 
   Future<void> _awaitStartGate(Future<void> gate) async {
@@ -1047,6 +1062,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   }
 
   void _prioritizeMedia() {
+    final theme = _mediaTheme;
+    if (theme == null) return;
     final policy = TrainingMediaPolicyScope.read(context);
     if (policy != null &&
         !_exitingEarly &&
@@ -1062,13 +1079,16 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
               drill.media?.actionId ?? drill.id,
       ];
       final upcoming = ids.take(2).toList();
-      final key = upcoming.join('|');
+      final key = upcoming
+          .map((id) => policy.actionFor(id)?.mediaFor(theme).video.path ?? id)
+          .join('|');
       if (!identical(policy, _publicMediaPolicy) || key != _publicPrefetchIds) {
         _publicMediaPolicy = policy;
         _publicPrefetchIds = key;
         unawaited(
           policy.prefetchActions(
             upcoming,
+            theme: theme,
             isCurrent: () =>
                 mounted &&
                 !_disposed &&
@@ -1096,7 +1116,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     _mediaGeneration = _engine.generation;
     scheduler.prioritize([
       for (final phase in _engine.phases.skip(_engine.index))
-        ?_poseHubAction(phase.exerciseId ?? ''),
+        ?_poseHubAction(phase.exerciseId ?? '')?.forMediaTheme(theme),
     ]);
   }
 
@@ -2309,13 +2329,18 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     final policy = TrainingMediaPolicyScope.maybeOf(context);
     // DrillMediaView keeps the host media id in its existing inspection API.
     final playbackMediaId = drill.media?.id ?? drill.id;
-    final video = policy?.actionFor(id)?.video;
+    final action = policy?.actionFor(id);
+    final video = action?.mediaFor(_mediaTheme).video;
     final state =
         widget.mediaDownloadState ??
         (video == null ? null : policy!.repository.watchFile(video));
     if (state == null) return const SizedBox.shrink();
     return TrainerMediaDownloadIndicator(
-      key: ValueKey('media-download-$id'),
+      key: ValueKey(
+        video != null && !identical(video, action?.video)
+            ? 'media-download-$id/${video.sha256}'
+            : 'media-download-$id',
+      ),
       state: state,
       actionId: id,
       playbackMediaId: playbackMediaId,
@@ -3474,6 +3499,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     trainedAreas: widget.trainedAreas,
     entryDockTop: _v1CompletionDockTop,
     drillOf: widget.drillOf,
+    thumbnailBuilder: _poseHubThumbnail,
     feeling: _feeling,
     onFeelingChanged: (value) {
       if (_completionReceipt == null && !_closing) {

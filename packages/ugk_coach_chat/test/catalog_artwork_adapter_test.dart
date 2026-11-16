@@ -70,6 +70,65 @@ void main() {
     },
   );
 
+  testWidgets('catalogue artwork keeps both theme media variants', (
+    tester,
+  ) async {
+    final media = drill.raw['poseHubMedia']! as Map<String, Object?>;
+    final themed = coach.Drill.tryParse({
+      ...drill.raw,
+      'poseHubMedia': {
+        ...media,
+        'themes': {
+          for (final theme in coach.PoseHubMediaTheme.values)
+            theme.name: {
+              'skin': switch (theme) {
+                coach.PoseHubMediaTheme.light => 'tech-white',
+                coach.PoseHubMediaTheme.dark => 'neon-night',
+              },
+              for (final kind in ['video', 'cover', 'thumbnail'])
+                kind: {
+                  'path':
+                      'media/${drill.id}/theme-r1/${theme.name}-$kind.'
+                      '${kind == 'video' ? 'mp4' : 'webp'}',
+                  'bytes': 10,
+                  'sha256': 'a' * 64,
+                },
+            },
+        },
+      },
+    }, <String>[])!;
+    late PoseHubCatalogImage image;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CoachChatTheme(
+          visual: CoachChatVisuals(exerciseFor: (_, _) => _host),
+          child: Builder(
+            builder: (context) {
+              final resolved = toCoachExercise(context, themed);
+              image =
+                  resolved.artworkBuilder!(context, thumbnail: true)
+                      as PoseHubCatalogImage;
+              return const SizedBox();
+            },
+          ),
+        ),
+      ),
+    );
+    expect(
+      image.themedMedia.keys.toSet(),
+      coach.PoseHubMediaTheme.values.toSet(),
+    );
+    expect(
+      image.themedMedia[coach.PoseHubMediaTheme.light]!.thumbnail.path,
+      endsWith('/light-thumbnail.webp'),
+    );
+    expect(
+      image.themedMedia[coach.PoseHubMediaTheme.dark]!.cover.path,
+      endsWith('/dark-cover.webp'),
+    );
+    expect(image.cover.path, action.cover.path);
+  });
+
   testWidgets('host theme covers and cutouts follow platform brightness', (
     tester,
   ) async {

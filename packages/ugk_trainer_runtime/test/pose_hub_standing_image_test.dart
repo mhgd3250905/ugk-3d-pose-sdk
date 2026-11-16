@@ -23,11 +23,31 @@ PoseHubPackFile _file(
   'sha256': role == 'video' ? 'a' * 64 : sha256.convert(_pixel).toString(),
 });
 
+Map<PoseHubMediaTheme, PoseHubPackMediaFiles> _themes(
+  Set<PoseHubMediaTheme> enabled,
+) => PoseHubPackMediaFiles.themesFromJson({
+  for (final theme in enabled)
+    theme.name: {
+      'skin': switch (theme) {
+        PoseHubMediaTheme.light => 'tech-white',
+        PoseHubMediaTheme.dark => 'neon-night',
+      },
+      for (final kind in ['video', 'cover', 'thumbnail'])
+        kind: _file(kind, revision: theme.name).raw,
+    },
+});
+
 class _Bundle extends CachingAssetBundle {
-  _Bundle({this.matches = false, this.hasImage = true, this.hasRecord = true});
+  _Bundle({
+    this.matches = false,
+    this.hasImage = true,
+    this.hasRecord = true,
+    this.matchingThemes = const {},
+  });
   final bool matches;
   final bool hasImage;
   final bool hasRecord;
+  final Set<PoseHubMediaTheme> matchingThemes;
   @override
   Future<ByteData> load(String key) async {
     if (key.endsWith('AssetManifest.bin')) {
@@ -47,6 +67,17 @@ class _Bundle extends CachingAssetBundle {
                       revision: matches ? 'r2-v8' : 'r2-v7',
                     ).path,
                     'videoSha256': 'a' * 64,
+                    if (matchingThemes.isNotEmpty)
+                      'themes': {
+                        for (final theme in matchingThemes)
+                          theme.name: {
+                            'videoPath': _file(
+                              'video',
+                              revision: theme.name,
+                            ).path,
+                            'videoSha256': 'a' * 64,
+                          },
+                      },
                   },
               },
             }),
@@ -54,7 +85,11 @@ class _Bundle extends CachingAssetBundle {
         ),
       );
     }
-    if (key.endsWith('/action.webp') && hasImage) {
+    if ((key.endsWith('/action.webp') ||
+            matchingThemes.any(
+              (theme) => key.endsWith('/action.${theme.name}.webp'),
+            )) &&
+        hasImage) {
       return ByteData.sublistView(_pixel);
     }
     throw FlutterError('No fixture asset: $key');
@@ -76,7 +111,13 @@ Widget _card(
   _Cache cache, {
   bool thumbnail = false,
   String id = 'action',
+  ThemeMode themeMode = ThemeMode.light,
+  Map<PoseHubMediaTheme, PoseHubPackMediaFiles> themedMedia = const {},
 }) => MaterialApp(
+  theme: ThemeData.light(),
+  darkTheme: ThemeData.dark(),
+  themeMode: themeMode,
+  themeAnimationDuration: Duration.zero,
   home: DefaultAssetBundle(
     bundle: bundle,
     child: PoseHubCatalogImage(
@@ -86,6 +127,7 @@ Widget _card(
       cover: _file('cover', id: id),
       thumbnailFile: _file('thumbnail', id: id),
       thumbnail: thumbnail,
+      themedMedia: themedMedia,
       cache: cache,
     ),
   ),
@@ -148,6 +190,61 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'brightness switch selects the new thumbnail and missing themes use the base video',
+    (tester) async {
+      final bundle = _Bundle(matches: true);
+      final cache = _Cache();
+      Future<void> show(ThemeMode mode, Set<PoseHubMediaTheme> variants) async {
+        await tester.pumpWidget(
+          _card(
+            bundle,
+            cache,
+            thumbnail: true,
+            themeMode: mode,
+            themedMedia: _themes(variants),
+          ),
+        );
+        await tester.pump();
+      }
+
+      await show(ThemeMode.light, PoseHubMediaTheme.values.toSet());
+      expect(
+        cache.calls.single.path,
+        _file('thumbnail', revision: 'light').path,
+      );
+      await show(ThemeMode.dark, PoseHubMediaTheme.values.toSet());
+      expect(cache.calls.map((file) => file.path), [
+        _file('thumbnail', revision: 'light').path,
+        _file('thumbnail', revision: 'dark').path,
+      ]);
+      await show(ThemeMode.dark, {PoseHubMediaTheme.light});
+      expect(cache.calls, hasLength(2));
+      expect(find.byKey(const ValueKey('standing-action')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('matching bundled theme frames render with zero downloads', (
+    tester,
+  ) async {
+    final bundle = _Bundle(matchingThemes: PoseHubMediaTheme.values.toSet());
+    final cache = _Cache();
+    final variants = _themes(PoseHubMediaTheme.values.toSet());
+    for (final mode in [ThemeMode.light, ThemeMode.dark]) {
+      await tester.pumpWidget(
+        _card(bundle, cache, themeMode: mode, themedMedia: variants),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(ValueKey('standing-action.${mode.name}')),
+        findsOneWidget,
+      );
+      expect(cache.calls, isEmpty);
+      expect(tester.takeException(), isNull);
+    }
+  });
 
   testWidgets('verified replacement is displayed only after it has decoded', (
     tester,

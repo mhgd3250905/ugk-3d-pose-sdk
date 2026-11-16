@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 
 import '../media/training_media_policy.dart';
+import '../pose_hub/pose_hub_media_theme.dart';
 import 'trainer_poster.dart';
 import 'trainer_slide_route.dart';
 import 'trainer_theme.dart';
@@ -87,7 +88,12 @@ abstract final class TrainerLauncher {
       _prepareSideIcons();
       if (policy != null) {
         // The mounted player owns the single next-action lookahead.
-        unawaited(policy.prefetchActions(planActionIds.take(1)));
+        unawaited(
+          policy.prefetchActions(
+            planActionIds.take(1),
+            theme: poseHubMediaThemeOf(context),
+          ),
+        );
       }
       for (final next in posterAssets.toSet()) {
         if (next.isEmpty || next == asset) continue;

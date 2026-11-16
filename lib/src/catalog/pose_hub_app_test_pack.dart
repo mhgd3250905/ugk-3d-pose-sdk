@@ -73,6 +73,55 @@ final class PoseHubPackFile {
   }
 }
 
+/// The catalog's light and dark presentation variants.
+enum PoseHubMediaTheme { light, dark }
+
+/// The three catalog file descriptors for one action presentation.
+final class PoseHubPackMediaFiles {
+  PoseHubPackMediaFiles._(this.files, {this.skin});
+
+  final Map<String, PoseHubPackFile> files;
+  final String? skin;
+
+  PoseHubPackFile get video => files['video']!;
+  PoseHubPackFile get cover => files['cover']!;
+  PoseHubPackFile get thumbnail => files['thumbnail']!;
+
+  /// Reads the optional themes table, including from a drill's poseHubMedia.
+  static Map<PoseHubMediaTheme, PoseHubPackMediaFiles> themesFromJson(
+    Object? json,
+  ) {
+    if (json == null) return const {};
+    final themes = _map(json, 'files.themes');
+    final parsed = <PoseHubMediaTheme, PoseHubPackMediaFiles>{};
+    for (final entry in themes.entries) {
+      final theme = switch (entry.key) {
+        'light' => PoseHubMediaTheme.light,
+        'dark' => PoseHubMediaTheme.dark,
+        _ => throw FormatException('Unknown media theme: ${entry.key}'),
+      };
+      final source = _map(entry.value, 'files.themes.${entry.key}');
+      if (source.keys.any(
+        (key) => key != 'skin' && !_mediaKinds.contains(key),
+      )) {
+        throw FormatException('Unexpected media field for ${entry.key}');
+      }
+      parsed[theme] = PoseHubPackMediaFiles._(
+        _parseMediaFiles(source),
+        skin: _text(source['skin'], 'files.themes.${entry.key}.skin'),
+      );
+    }
+    return Map.unmodifiable(parsed);
+  }
+
+  static Map<String, PoseHubPackFile> _parseMediaFiles(
+    Map<String, Object?> source,
+  ) => Map.unmodifiable({
+    for (final kind in _mediaKinds)
+      kind: PoseHubPackFile.fromJson(source[kind]),
+  });
+}
+
 /// All source semantics, including null/unknown values, are preserved in [raw].
 /// Action lifecycle (`status` in the catalogue). IDs are never removed:
 /// `not_recommended` stays browsable but is not suggested by the coach;
@@ -118,25 +167,30 @@ final class PoseHubPackAction {
       status = PoseHubActionStatus.parse(raw['status']),
       statusSince = _optionalText(raw['status_since'], 'action.status_since') {
     final sourceFiles = _map(raw['files'], '$id.files');
-    if (sourceFiles.keys.toSet().difference(_mediaKinds).isNotEmpty ||
-        _mediaKinds.difference(sourceFiles.keys.toSet()).isNotEmpty) {
+    if (sourceFiles.keys.any(
+          (key) => key != 'themes' && !_mediaKinds.contains(key),
+        ) ||
+        !_mediaKinds.every(sourceFiles.containsKey)) {
       throw FormatException('$id must declare video, cover and thumbnail');
     }
-    files = Map.unmodifiable({
-      for (final kind in _mediaKinds)
-        kind: PoseHubPackFile.fromJson(sourceFiles[kind]),
-    });
-    for (final entry in files.entries) {
-      final extension = entry.key == 'video' ? '.mp4' : '.webp';
-      if (!entry.value.path.startsWith('media/$id/') ||
-          !entry.value.path.endsWith(extension)) {
-        throw FormatException(
-          '$id.${entry.key} has an invalid pack media path',
-        );
+    _defaultMedia = PoseHubPackMediaFiles._(
+      PoseHubPackMediaFiles._parseMediaFiles(sourceFiles),
+    );
+    themedMedia = sourceFiles.containsKey('themes')
+        ? PoseHubPackMediaFiles.themesFromJson(
+            _map(sourceFiles['themes'], '$id.files.themes'),
+          )
+        : const {};
+    for (final media in [_defaultMedia, ...themedMedia.values]) {
+      for (final entry in media.files.entries) {
+        final extension = entry.key == 'video' ? '.mp4' : '.webp';
+        if (!entry.value.path.startsWith('media/$id/') ||
+            !entry.value.path.endsWith(extension)) {
+          throw FormatException(
+            '$id.${entry.key} has an invalid pack media path',
+          );
+        }
       }
-    }
-    if (files.values.map((f) => f.path).toSet().length != files.length) {
-      throw FormatException('$id repeats a media path');
     }
     final semantics = rawTrainingSemantics;
     final declared = _boolean(
@@ -200,7 +254,41 @@ final class PoseHubPackAction {
   final bool availableForTraining;
   final bool availableForApp;
   final Map<String, Object?> raw;
-  late final Map<String, PoseHubPackFile> files;
+  late final PoseHubPackMediaFiles _defaultMedia;
+  late final Map<PoseHubMediaTheme, PoseHubPackMediaFiles> themedMedia;
+  late final _themedViews = <PoseHubMediaTheme, PoseHubPackAction>{};
+
+  /// The original files remain available to callers without a theme.
+  Map<String, PoseHubPackFile> get files => _defaultMedia.files;
+
+  Iterable<PoseHubPackFile> get allMediaFiles sync* {
+    yield* files.values;
+    for (final media in themedMedia.values) {
+      yield* media.files.values;
+    }
+  }
+
+  /// Uses the original files when the requested theme has no media.
+  PoseHubPackMediaFiles mediaFor(PoseHubMediaTheme? theme) =>
+      themedMedia[theme] ?? _defaultMedia;
+
+  /// Adapts the selected files for hosts which read the original file fields.
+  PoseHubPackAction forMediaTheme(PoseHubMediaTheme? theme) {
+    if (theme == null || !themedMedia.containsKey(theme)) return this;
+    return _themedViews.putIfAbsent(theme, () {
+      final selected = themedMedia[theme]!;
+      return PoseHubPackAction._(
+        Map.unmodifiable({
+          ...raw,
+          'files': Map<String, Object?>.unmodifiable({
+            for (final entry in selected.files.entries)
+              entry.key: entry.value.raw,
+          }),
+        }),
+      );
+    });
+  }
+
   late final Map<String, Object?> rawTrainingDefinition;
 
   /// Ready voice guide, when this pack supplies a supported script.
@@ -275,7 +363,7 @@ final class PoseHubAppTestCatalog {
       if (byId.containsKey(action.id)) {
         throw FormatException('Duplicate action id: ${action.id}');
       }
-      for (final file in action.files.values) {
+      for (final file in action.allMediaFiles) {
         if (!paths.add(file.path)) {
           throw FormatException('Duplicate media path: ${file.path}');
         }
@@ -324,7 +412,7 @@ final class PoseHubAppTestCatalog {
     if (raw.containsKey('mediaDistribution')) {
       _validateMediaDistribution();
     } else if (allActions.any(
-      (action) => action.files.values.any(
+      (action) => action.allMediaFiles.any(
         (file) =>
             file.raw['downloadUrl'] != null || file.raw['assetName'] != null,
       ),
@@ -515,7 +603,7 @@ final class PoseHubAppTestCatalog {
     var mediaFiles = 0;
     var mediaBytes = 0;
     for (final action in allActions) {
-      for (final file in action.files.values) {
+      for (final file in action.allMediaFiles) {
         final location = kind == 'github-release-assets@1'
             ? _assetName(file.raw['assetName'], 'file.assetName')
             : file.path;
@@ -546,6 +634,8 @@ final class PoseHubAppTestCatalog {
     ...drill.raw,
     'poseHubMedia': Map<String, Object?>.unmodifiable({
       for (final entry in action.files.entries) entry.key: entry.value.raw,
+      if (action.themedMedia.isNotEmpty)
+        'themes': _map(action.raw['files'], '${action.id}.files')['themes'],
       if (raw['mediaDistribution'] case final Map<String, Object?> distribution)
         if (distribution['baseUrl'] case final String base) 'baseUri': base,
     }),

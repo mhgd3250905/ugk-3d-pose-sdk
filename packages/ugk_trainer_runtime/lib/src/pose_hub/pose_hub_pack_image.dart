@@ -4,9 +4,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:ugk_coach/ugk_coach.dart';
 
+import '../media/catalog_media_repository.dart';
 import '../ui/trainer_theme.dart';
 import 'pose_hub_action_library.dart';
 import 'pose_hub_image_cache.dart';
+import 'pose_hub_media_theme.dart';
 import 'pose_hub_pack_image_platform.dart' as platform;
 
 export 'pose_hub_image_cache.dart';
@@ -20,8 +22,11 @@ class PoseHubStandingImage extends StatelessWidget {
     required this.action,
     this.theme = TrainerTheme.light,
     this.thumbnail = false,
+    this.fit = BoxFit.contain,
     this.mediaBaseUri,
     this.cache,
+    this.repository,
+    this.legacyFallback,
   });
 
   final PoseHubPackAction action;
@@ -29,8 +34,15 @@ class PoseHubStandingImage extends StatelessWidget {
 
   /// Lists request the small catalogue thumbnail; large cards use the cover.
   final bool thumbnail;
+  final BoxFit fit;
   final Uri? mediaBaseUri;
   final PoseHubImageCache? cache;
+
+  /// Uses the host's verified media repository when one is already in scope.
+  final CatalogMediaRepository? repository;
+
+  /// An existing poster to keep visible until the selected image is ready.
+  final Widget? legacyFallback;
 
   @override
   Widget build(BuildContext context) => PoseHubCatalogImage(
@@ -39,10 +51,14 @@ class PoseHubStandingImage extends StatelessWidget {
     video: action.video,
     cover: action.cover,
     thumbnailFile: action.thumbnail,
+    themedMedia: action.themedMedia,
     thumbnail: thumbnail,
+    fit: fit,
     theme: theme,
     mediaBaseUri: mediaBaseUri,
     cache: cache,
+    repository: repository,
+    legacyFallback: legacyFallback,
   );
 }
 
@@ -56,10 +72,14 @@ class PoseHubCatalogImage extends StatefulWidget {
     required this.video,
     required this.cover,
     required this.thumbnailFile,
+    this.themedMedia = const {},
     this.theme = TrainerTheme.light,
     this.thumbnail = false,
+    this.fit = BoxFit.contain,
     this.mediaBaseUri,
     this.cache,
+    this.repository,
+    this.legacyFallback,
   });
 
   final String id;
@@ -67,55 +87,86 @@ class PoseHubCatalogImage extends StatefulWidget {
   final PoseHubPackFile video;
   final PoseHubPackFile cover;
   final PoseHubPackFile thumbnailFile;
+  final Map<PoseHubMediaTheme, PoseHubPackMediaFiles> themedMedia;
   final TrainerTheme theme;
   final bool thumbnail;
+  final BoxFit fit;
   final Uri? mediaBaseUri;
   final PoseHubImageCache? cache;
+
+  /// Uses the host's verified media repository when one is already in scope.
+  final CatalogMediaRepository? repository;
+
+  /// An existing poster to keep visible until the selected image is ready.
+  final Widget? legacyFallback;
 
   @override
   State<PoseHubCatalogImage> createState() => _PoseHubCatalogImageState();
 }
 
+typedef _ArtworkSelection = ({
+  PoseHubMediaTheme? theme,
+  PoseHubPackFile video,
+  PoseHubPackFile image,
+});
+
 class _PoseHubCatalogImageState extends State<PoseHubCatalogImage> {
   static final _indices = Expando<Future<Map<String, Object?>>>();
   AssetBundle? _bundle;
+  _ArtworkSelection? _selected;
+  PoseHubMediaTheme? _bundledTheme;
   Uri? _verified;
   var _generation = 0;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final bundle = DefaultAssetBundle.of(context);
-    if (identical(bundle, _bundle)) return;
-    _bundle = bundle;
-    _start();
+    _updateArtwork();
   }
 
   @override
   void didUpdateWidget(PoseHubCatalogImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final oldFile = oldWidget.thumbnail
-        ? oldWidget.thumbnailFile
-        : oldWidget.cover;
-    final file = widget.thumbnail ? widget.thumbnailFile : widget.cover;
-    if (oldWidget.id != widget.id ||
-        oldWidget.video.path != widget.video.path ||
-        oldWidget.video.sha256 != widget.video.sha256 ||
-        oldFile.path != file.path ||
-        oldFile.sha256 != file.sha256 ||
-        oldFile.bytes != file.bytes ||
-        oldWidget.mediaBaseUri != widget.mediaBaseUri ||
-        !identical(oldWidget.cache, widget.cache)) {
-      _start();
-    }
+    _updateArtwork(
+      force:
+          oldWidget.id != widget.id ||
+          oldWidget.mediaBaseUri != widget.mediaBaseUri ||
+          !identical(oldWidget.cache, widget.cache) ||
+          !identical(oldWidget.repository, widget.repository),
+    );
   }
 
-  void _start() {
-    final generation = ++_generation;
+  void _updateArtwork({bool force = false}) {
+    final bundle = DefaultAssetBundle.of(context);
+    final theme = poseHubMediaThemeOf(context);
+    final media = widget.themedMedia[theme];
+    final selected = (
+      theme: media == null ? null : theme,
+      video: media?.video ?? widget.video,
+      image: widget.thumbnail
+          ? media?.thumbnail ?? widget.thumbnailFile
+          : media?.cover ?? widget.cover,
+    );
+    final previous = _selected;
+    if (!force &&
+        identical(bundle, _bundle) &&
+        previous != null &&
+        previous.theme == selected.theme &&
+        previous.video.path == selected.video.path &&
+        previous.video.sha256 == selected.video.sha256 &&
+        previous.image.path == selected.image.path &&
+        previous.image.sha256 == selected.image.sha256 &&
+        previous.image.bytes == selected.image.bytes &&
+        previous.image.downloadUri == selected.image.downloadUri) {
+      return;
+    }
+    _bundle = bundle;
+    _selected = selected;
+    _bundledTheme = null;
     _verified = null;
-    final bundle = _bundle!;
+    final generation = ++_generation;
     final index = _indices[bundle] ??= _readIndex(bundle);
-    unawaited(_resolve(index, generation));
+    unawaited(_resolve(index, generation, selected));
   }
 
   static Future<Map<String, Object?>> _readIndex(AssetBundle bundle) async {
@@ -138,21 +189,33 @@ class _PoseHubCatalogImageState extends State<PoseHubCatalogImage> {
   Future<void> _resolve(
     Future<Map<String, Object?>> index,
     int generation,
+    _ArtworkSelection selected,
   ) async {
     try {
       final entries = await index;
       if (!mounted || generation != _generation) return;
-      final entry = entries[widget.id];
-      if (entry is Map<String, dynamic> &&
-          entry['videoPath'] == widget.video.path &&
-          entry['videoSha256'] == widget.video.sha256) {
+      final action = entries[widget.id];
+      final themes = action is Map<String, Object?> ? action['themes'] : null;
+      final entry = selected.theme == null
+          ? action
+          : themes is Map<String, Object?>
+          ? themes[selected.theme!.name]
+          : null;
+      if (entry is Map<String, Object?> &&
+          entry['videoPath'] == selected.video.path &&
+          entry['videoSha256'] == selected.video.sha256) {
+        if (selected.theme != null) {
+          setState(() => _bundledTheme = selected.theme);
+        }
         return;
       }
-      final file = widget.thumbnail ? widget.thumbnailFile : widget.cover;
-      final uri = await (widget.cache ?? PoseHubImageCache.shared).ensureFile(
-        file,
-        mediaBaseUri: widget.mediaBaseUri,
-      );
+      final repository = widget.repository;
+      final uri = await (repository != null
+          ? repository.ensureFile(selected.image)
+          : (widget.cache ?? PoseHubImageCache.shared).ensureFile(
+              selected.image,
+              mediaBaseUri: widget.mediaBaseUri,
+            ));
       if (!mounted || generation != _generation) return;
       setState(() => _verified = uri);
     } catch (_) {
@@ -160,28 +223,36 @@ class _PoseHubCatalogImageState extends State<PoseHubCatalogImage> {
     }
   }
 
-  Widget _fallback() => Image.asset(
-    '${PoseHubActionLibrary.standingAssetRoot}${widget.id}.webp'.replaceFirst(
-      'packages/ugk_trainer/',
-      '',
-    ),
-    key: ValueKey('standing-${widget.id}'),
-    package: 'ugk_trainer',
-    fit: BoxFit.contain,
-    gaplessPlayback: true,
-    semanticLabel: '${widget.name}站位图',
-    errorBuilder: (_, _, _) => ColoredBox(color: widget.theme.mediaStage),
-  );
+  Widget _fallback([PoseHubMediaTheme? theme]) {
+    if (theme == null) {
+      if (widget.legacyFallback case final fallback?) return fallback;
+    }
+    final basename = theme == null ? widget.id : '${widget.id}.${theme.name}';
+    return Image.asset(
+      '${PoseHubActionLibrary.standingAssetRoot}$basename.webp'.replaceFirst(
+        'packages/ugk_trainer/',
+        '',
+      ),
+      key: ValueKey('standing-$basename'),
+      package: 'ugk_trainer',
+      fit: widget.fit,
+      gaplessPlayback: true,
+      semanticLabel: '${widget.name}站位图',
+      errorBuilder: (_, _, _) => theme == null
+          ? ColoredBox(color: widget.theme.mediaStage)
+          : _fallback(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final uri = _verified;
-    if (uri == null) return _fallback();
-    final file = widget.thumbnail ? widget.thumbnailFile : widget.cover;
+    if (uri == null) return _fallback(_bundledTheme);
+    final file = _selected!.image;
     return platform.packImage(
       uri,
       key: ValueKey('${widget.id}/${file.sha256}'),
-      fit: BoxFit.contain,
+      fit: widget.fit,
       semanticLabel: '${widget.name}站位图',
       errorBuilder: (_, _, _) => _fallback(),
       frameBuilder: (_, child, frame, synchronous) =>

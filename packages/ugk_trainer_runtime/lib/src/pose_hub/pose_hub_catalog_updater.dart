@@ -17,6 +17,8 @@ import 'pose_hub_catalog_io_types.dart';
 import 'pose_hub_catalog_voice.dart';
 import 'pose_hub_image_cache.dart';
 
+export 'package:ugk_coach/ugk_coach.dart'
+    show PoseHubDisplayUpdatePhase, PoseHubDisplayUpdateProgress;
 export 'pose_hub_catalog_io_types.dart';
 
 /// Default HTTP client: dart:io on native platforms, unavailable on web.
@@ -97,7 +99,7 @@ enum PoseHubCatalogUpdateOutcome {
   /// Any download, verification or write failed; the old cache is kept.
   failed,
 
-  /// A new catalogue was verified and stored for the next load.
+  /// A new catalogue was verified and atomically stored.
   updated,
 }
 
@@ -120,7 +122,10 @@ class PoseHubCatalogUpdater {
        _persistentAssets = false,
        _assetRootDirectory = null;
 
-  /// Install the new catalogue and its verified non-video assets together.
+  /// Atomically install the new catalogue and verified display assets.
+  ///
+  /// Videos and voice are training media loaded on demand. Subscribe to
+  /// [displayProgress] and [catalogChanges] before starting the first check.
   ///
   /// On native platforms the image and voice consumers use application
   /// support by default. If the host overrides their storage root, pass the
@@ -128,8 +133,8 @@ class PoseHubCatalogUpdater {
   /// [PoseHubActionLibrary.useVerifiedCache] when setting up the host.
   ///
   /// Both [maybeCheck] and [checkNow] leave the current catalogue in place
-  /// until the non-video downloads finish. The next training session can
-  /// load the new catalogue after [PoseHubCatalogUpdateOutcome.updated].
+  /// until the display downloads finish. The committed catalogue is then
+  /// available immediately to display consumers.
   PoseHubCatalogUpdater.withPersistentAssets({
     required this.config,
     required this.store,
@@ -153,7 +158,12 @@ class PoseHubCatalogUpdater {
       ? PoseHubImageCache(
           rootDirectory: _assetRootDirectory,
           loadBytes: (uri, maxBytes) async {
-            final response = await _get(uri, 'media', maxBytes: maxBytes);
+            final response = await _get(
+              uri,
+              'media',
+              maxBytes: maxBytes,
+              displayBytes: maxBytes - 1,
+            );
             _ok(response, 'media', null);
             return response.body;
           },
@@ -165,6 +175,23 @@ class PoseHubCatalogUpdater {
   static final _inUsePredecessors =
       <String?, Map<String, coach.PoseHubAppTestCatalog>>{};
   bool _startupPruneChecked = false;
+
+  final _displayEvents =
+      StreamController<coach.PoseHubDisplayUpdateProgress>.broadcast();
+  final _catalogEvents =
+      StreamController<coach.PoseHubAppTestCatalog>.broadcast();
+  _DisplayTransfer? _display;
+  _DisplayTransfer? _failedDisplay;
+
+  /// Work and status for new compatible revisions. An unchanged pointer, a
+  /// blocked SDK version, or an offline check with no known update is silent.
+  Stream<coach.PoseHubDisplayUpdateProgress> get displayProgress =>
+      _displayEvents.stream;
+
+  /// Emits the verified catalogue immediately after the display files and
+  /// current pointer are durable. Hosts use this to replace display data.
+  Stream<coach.PoseHubAppTestCatalog> get catalogChanges =>
+      _catalogEvents.stream;
 
   /// The catalogue in use; defaults to the verified cache, else the bundle.
   final Future<coach.PoseHubAppTestCatalog> Function()? loadLocal;
@@ -189,6 +216,7 @@ class PoseHubCatalogUpdater {
       _running ??= _check().whenComplete(() => _running = null);
 
   Future<PoseHubCatalogUpdateOutcome> _check() async {
+    _display = null;
     final state = await _readState();
     final previousEtag = state['etag'] is String
         ? state['etag'] as String
@@ -204,6 +232,11 @@ class PoseHubCatalogUpdater {
     } catch (error) {
       etag = previousEtag;
       outcome = _fail('unexpected: $error', null);
+    }
+    if (outcome != PoseHubCatalogUpdateOutcome.failed && _display == null) {
+      // An earlier failed update can be withdrawn or superseded by the SDK.
+      _failedDisplay?.finish(coach.PoseHubDisplayUpdatePhase.completed);
+      _failedDisplay = null;
     }
     try {
       await store.writeAtomic(
@@ -271,11 +304,19 @@ class PoseHubCatalogUpdater {
       return PoseHubCatalogUpdateOutcome.blocked;
     }
 
+    if (_persistentAssets) {
+      _display = _DisplayTransfer(
+        pack,
+        pointer.catalogBytes,
+        _displayEvents.add,
+      );
+    }
     final catalogResponse = await _get(
       pointer.catalog,
       'catalog',
       pack: pack,
       maxBytes: pointer.catalogBytes + 1,
+      displayBytes: pointer.catalogBytes,
     );
     _ok(catalogResponse, 'catalog', pack);
     final catalogBytes = catalogResponse.body;
@@ -330,8 +371,10 @@ class PoseHubCatalogUpdater {
 
     if (_images case final images?) {
       try {
-        // Prepare verified files before writing the record that exposes them.
-        await _prepareAssets(verified, images);
+        final display = _display!;
+        display.verifyDocuments();
+        // Prepare verified display files before exposing the new catalogue.
+        await _prepareDisplayAssets(verified, images, display);
       } catch (error) {
         throw _Failure('assets_not_ready: $error', pack);
       }
@@ -345,9 +388,8 @@ class PoseHubCatalogUpdater {
         final retiring = <(String, String), coach.PoseHubPackFile>{
           for (final file in await _readRetiredMedia(localPack))
             if (!keep.contains(file.sha256)) (file.path, file.sha256): file,
-          for (final action in local.allActions)
-            for (final file in action.allMediaFiles)
-              if (!keep.contains(file.sha256)) (file.path, file.sha256): file,
+          for (final file in _catalogMedia(local))
+            if (!keep.contains(file.sha256)) (file.path, file.sha256): file,
         };
         await store.writeAtomic(
           _retiredMediaName(pack),
@@ -374,6 +416,12 @@ class PoseHubCatalogUpdater {
       );
     } catch (error) {
       throw _Failure('cache_write_failed: $error', pack);
+    }
+    if (_display case final display?) {
+      PoseHubActionLibrary.refreshVerifiedCache(store);
+      _catalogEvents.add(verified);
+      display.finish(coach.PoseHubDisplayUpdatePhase.completed);
+      _failedDisplay = null;
     }
     await _prune(keep: {pack, localPack});
     if (_images case final images?) {
@@ -406,51 +454,60 @@ class PoseHubCatalogUpdater {
         return bytes;
       }
     }
+    _display?.addDocument(file.bytes);
     final response = await _get(
       pointer.catalog.resolve(file.path),
       'semantic',
       pack: pointer.pack,
       maxBytes: file.bytes + 1,
+      displayBytes: file.bytes,
     );
     _ok(response, 'semantic', pointer.pack);
     return response.body;
   }
 
-  Future<void> _prepareAssets(
+  Future<void> _prepareDisplayAssets(
     coach.PoseHubAppTestCatalog catalog,
     PoseHubImageCache images,
+    _DisplayTransfer transfer,
   ) async {
     final base = PoseHubActionLibrary.mediaBaseUriFor(catalog);
     final files = {
-      for (final action in catalog.allActions)
-        for (final variant in [
-          action.files,
-          ...action.themedMedia.values.map((m) => m.files),
-        ])
-          for (final entry in variant.entries)
-            if (entry.key != 'video')
-              (entry.value.sha256, entry.value.bytes): entry.value,
-    }.values.iterator;
+      for (final file in catalog.displayMediaFiles)
+        (file.sha256, file.bytes): file,
+    }.values;
+    final missing = <coach.PoseHubPackFile>[];
+    await _forDisplayAssets(files, (file) async {
+      if (await images.findLocal(file, mediaBaseUri: base) == null) {
+        missing.add(file);
+      }
+    });
+    transfer.planAssets(missing);
+    await _forDisplayAssets(missing, (file) async {
+      await images.ensureFile(file, mediaBaseUri: base);
+      transfer.verifyFile();
+    });
+  }
+
+  Future<void> _forDisplayAssets(
+    Iterable<coach.PoseHubPackFile> files,
+    Future<void> Function(coach.PoseHubPackFile) operation,
+  ) async {
+    final remaining = files.iterator;
     Object? failed;
 
-    Future<void> prepareImages() async {
-      while (failed == null && files.moveNext()) {
-        final file = files.current;
+    Future<void> worker() async {
+      while (failed == null && remaining.moveNext()) {
         try {
-          await images.ensureFile(file, mediaBaseUri: base);
+          await operation(remaining.current);
         } catch (error) {
           failed ??= error;
         }
       }
     }
 
-    await Future.wait(List.generate(6, (_) => prepareImages()));
+    await Future.wait(List.generate(6, (_) => worker()));
     if (failed case final error?) throw error;
-    await preparePoseHubCatalogVoice(
-      catalog,
-      assetRootDirectory: images.rootDirectory,
-      http: http,
-    );
   }
 
   Future<void> _pruneAssetsOnFreshLaunch() async {
@@ -512,9 +569,17 @@ class PoseHubCatalogUpdater {
 
   Set<String> _mediaHashes(Iterable<coach.PoseHubAppTestCatalog> catalogs) => {
     for (final catalog in catalogs)
-      for (final action in catalog.allActions)
-        for (final file in action.allMediaFiles) file.sha256,
+      for (final file in _catalogMedia(catalog)) file.sha256,
   };
+
+  Iterable<coach.PoseHubPackFile> _catalogMedia(
+    coach.PoseHubAppTestCatalog catalog,
+  ) sync* {
+    yield* catalog.displayAssets.values;
+    for (final action in catalog.allActions) {
+      yield* action.allMediaFiles;
+    }
+  }
 
   /// Keeps only the current and the previous pack in the cache. Best
   /// effort: the switch has already happened, so a failed delete is retried
@@ -558,9 +623,32 @@ class PoseHubCatalogUpdater {
     String? pack,
     Map<String, String> headers = const {},
     required int maxBytes,
+    int? displayBytes,
   }) async {
     try {
-      return await http.get(uri, headers: headers, maxBytes: maxBytes);
+      final display = _display;
+      final client = http;
+      final planned = displayBytes;
+      if (display != null && planned != null) {
+        void received(int bytes) =>
+            display.receive(uri, bytes.clamp(0, planned));
+        if (client is PoseHubCatalogProgressHttpClient) {
+          return await client.getWithProgress(
+            uri,
+            headers: headers,
+            maxBytes: maxBytes,
+            onBytes: received,
+          );
+        }
+        final response = await client.get(
+          uri,
+          headers: headers,
+          maxBytes: maxBytes,
+        );
+        received(response.body.length);
+        return response;
+      }
+      return await client.get(uri, headers: headers, maxBytes: maxBytes);
     } catch (error) {
       throw _Failure('${what}_download_failed: $error', pack);
     }
@@ -573,6 +661,10 @@ class PoseHubCatalogUpdater {
   }
 
   PoseHubCatalogUpdateOutcome _fail(String reason, String? pack) {
+    if (_display case final display?) {
+      display.finish(coach.PoseHubDisplayUpdatePhase.failed, reason);
+      _failedDisplay = display;
+    }
     onEvent?.call(
       PoseHubCatalogUpdateEvent(
         PoseHubCatalogUpdateEvent.failed,
@@ -592,6 +684,77 @@ class PoseHubCatalogUpdater {
     } catch (_) {
       return const {};
     }
+  }
+}
+
+class _DisplayTransfer {
+  _DisplayTransfer(this.version, this.totalBytes, this.report) {
+    _emit();
+  }
+
+  final String version;
+  final void Function(coach.PoseHubDisplayUpdateProgress) report;
+  int totalFiles = 1;
+  int totalBytes;
+  int completedFiles = 0;
+  int receivedBytes = 0;
+  bool totalsKnown = false;
+  final _receivedByUrl = <Uri, int>{};
+  final _clock = Stopwatch()..start();
+  int _lastReport = 0;
+
+  void receive(Uri uri, int bytes) {
+    final previous = _receivedByUrl[uri] ?? 0;
+    if (bytes <= previous) return;
+    _receivedByUrl[uri] = bytes;
+    receivedBytes += bytes - previous;
+    _reportIfDue();
+  }
+
+  void addDocument(int bytes) {
+    totalFiles++;
+    totalBytes += bytes;
+  }
+
+  void verifyDocuments() => completedFiles = totalFiles;
+
+  void planAssets(List<coach.PoseHubPackFile> files) {
+    totalFiles += files.length;
+    totalBytes += files.fold(0, (total, file) => total + file.bytes);
+    totalsKnown = true;
+    _emit();
+  }
+
+  void verifyFile() {
+    completedFiles++;
+    _reportIfDue();
+  }
+
+  void _reportIfDue() {
+    if (_clock.elapsedMilliseconds - _lastReport >= 40) _emit();
+  }
+
+  void finish(coach.PoseHubDisplayUpdatePhase phase, [String? error]) =>
+      _emit(phase, error);
+
+  void _emit([
+    coach.PoseHubDisplayUpdatePhase phase =
+        coach.PoseHubDisplayUpdatePhase.downloading,
+    String? error,
+  ]) {
+    _lastReport = _clock.elapsedMilliseconds;
+    report(
+      coach.PoseHubDisplayUpdateProgress(
+        phase: phase,
+        version: version,
+        totalFiles: totalFiles,
+        completedFiles: completedFiles,
+        totalBytes: totalBytes,
+        receivedBytes: receivedBytes,
+        totalsKnown: totalsKnown,
+        error: error,
+      ),
+    );
   }
 }
 

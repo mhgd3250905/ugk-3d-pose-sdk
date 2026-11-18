@@ -37,6 +37,10 @@ class _Repository implements CatalogMediaRepository {
   final coach.PoseHubAppTestCatalog catalog;
   final List<String> events;
   final calls = <coach.PoseHubPackFile>[];
+  Iterable<coach.PoseHubPackFile> get videoCalls =>
+      calls.where((file) => file.path.endsWith('.mp4'));
+  Iterable<String> get pendingVideos =>
+      pending.keys.where((path) => path.endsWith('.mp4'));
   final pending = <String, Completer<Uri>>{};
   final states = <String, ValueNotifier<CatalogMediaDownloadState>>{};
   bool ready = false;
@@ -98,6 +102,13 @@ class _Repository implements CatalogMediaRepository {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _NoLegacyPosterPolicy extends TrainingMediaPolicy {
+  const _NoLegacyPosterPolicy({required super.repository});
+
+  @override
+  String? posterAssetFor(String id) => null;
 }
 
 class _Platform extends PackedAlphaPlatform implements PackedAlphaUriPlatform {
@@ -179,7 +190,7 @@ class _UnsupportedPlatform extends _Platform {
   bool get isSupported => false;
 }
 
-coach.TrainingPlan _plan(String id) => coach.TrainingPlan(
+coach.TrainingPlan _plan(String id, {String? nextId}) => coach.TrainingPlan(
   id: 'public-media',
   source: 'template',
   title: 'Public media',
@@ -193,14 +204,15 @@ coach.TrainingPlan _plan(String id) => coach.TrainingPlan(
       name: 'Main',
       type: coach.BlockType.main,
       items: [
-        coach.PlanItem(
-          exerciseId: id,
-          mode: coach.DoseMode.time,
-          sets: 1,
-          workSeconds: 30,
-          perSide: false,
-          restSeconds: 0,
-        ),
+        for (final actionId in [id, ?nextId])
+          coach.PlanItem(
+            exerciseId: actionId,
+            mode: coach.DoseMode.time,
+            sets: 1,
+            workSeconds: 30,
+            perSide: false,
+            restSeconds: 0,
+          ),
       ],
     ),
   ],
@@ -303,6 +315,7 @@ int _seconds(WidgetTester tester) => int.parse(
 
 void main() {
   late coach.PoseHubAppTestCatalog catalog;
+  late coach.PoseHubAppTestCatalog bundledCatalog;
   late _Repository repository;
   late _Platform platform;
   late TrainingMediaPolicy policy;
@@ -311,8 +324,11 @@ void main() {
 
   setUpAll(() {
     catalog = coach.PoseHubAppTestCatalog.fromBytes(
+      File('test/fixtures/pose_hub/r2-v1/catalog.json').readAsBytesSync(),
+    );
+    bundledCatalog = coach.PoseHubAppTestCatalog.fromBytes(
       File(
-        'test/fixtures/pose_hub/r2-v1/catalog.json',
+        '${PoseHubActionLibrary.assetRoot.replaceFirst('packages/ugk_trainer/', '../ugk_trainer/')}catalog.json',
       ).readAsBytesSync(),
     );
   });
@@ -659,7 +675,7 @@ void main() {
     'pending download is not started as hidden video by covered retention',
     (tester) async {
       final context = await _mount(tester, bundle, child: pausedMedia());
-      expect(repository.calls, hasLength(1));
+      expect(repository.videoCalls, hasLength(1));
       cover(context);
       await finishTransition(tester);
       repository.complete(catalog.tryGet(_actionId)!.video);
@@ -811,6 +827,114 @@ void main() {
     },
   );
 
+  testWidgets(
+    'r2-v18 starts its ordinary cover without a legacy poster or video request',
+    (tester) async {
+      final current = _Repository(bundledCatalog, order);
+      addTearDown(current.dispose);
+      final action = bundledCatalog.tryGet(_actionId)!;
+      expect(action.themedMedia, isEmpty);
+      await _mount(
+        tester,
+        bundle,
+        child: SizedBox.square(
+          dimension: 200,
+          child: TrainingActionMedia(
+            actionId: action.id,
+            policy: _NoLegacyPosterPolicy(repository: current),
+            playing: false,
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(current.calls.map((file) => (file.path, file.sha256)), [
+        (action.cover.path, action.cover.sha256),
+      ]);
+      expect(
+        find.byKey(const ValueKey('public-action-poster')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('public-action-missing')), findsNothing);
+      expect(platform.sources, isEmpty);
+      expect(current.videoCalls, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'r2-v18 thumbnails supply the next action and completion with legacy posters present',
+    (tester) async {
+      await withClock(Clock(tester.binding.clock.now), () async {
+        final current = _Repository(bundledCatalog, order);
+        addTearDown(current.dispose);
+        final first = bundledCatalog.tryGet(_actionId)!;
+        final next = bundledCatalog.semanticCompleteActions.firstWhere(
+          (action) => action.id != first.id,
+        );
+        expect(first.themedMedia, isEmpty);
+        expect(next.themedMedia, isEmpty);
+        await _mount(
+          tester,
+          bundle,
+          child: TrainingMediaPolicyScope(
+            policy: TrainingMediaPolicy(
+              repository: current,
+              posterAssetRoot: _posterRoot,
+              prefetchBeforeTraining: false,
+            ),
+            child: TrainerPlayer(
+              plan: _plan(first.id, nextId: next.id),
+              drillOf: (id) => TrainerDrill(
+                id: id,
+                name: id,
+                thumbnailAsset: '$_posterRoot$id.webp',
+              ),
+              mediaBuilder: (_, _) => const SizedBox.expand(),
+              strings: TrainerStrings.en(),
+              prepSeconds: 0,
+              transitionSeconds: 0,
+              keepAlive: false,
+              theme: TrainerTheme.playerV1,
+              onFinished: (_) async {},
+            ),
+          ),
+        );
+        await _advance(tester, 700);
+        final nextThumbnail = tester.widget<PoseHubStandingImage>(
+          find.byType(PoseHubStandingImage),
+        );
+        expect(nextThumbnail.action.id, next.id);
+        expect(nextThumbnail.thumbnail, isTrue);
+        expect(
+          current.calls
+              .where((file) => file.path.endsWith('.webp'))
+              .map((file) => (file.path, file.sha256)),
+          [(next.thumbnail.path, next.thumbnail.sha256)],
+        );
+        expect(current.videoCalls, everyElement(first.video));
+
+        for (var index = 0; index < 2; index++) {
+          await tester.tap(find.byKey(const ValueKey('skip')).hitTestable());
+          await _advance(tester, 700);
+        }
+        for (final (index, action) in [first, next].indexed) {
+          final widget = tester.widget<PoseHubStandingImage>(
+            find.descendant(
+              of: find.byKey(ValueKey('completion-item-$index')),
+              matching: find.byType(PoseHubStandingImage),
+            ),
+          );
+          expect(widget.action.id, action.id);
+          expect(widget.thumbnail, isTrue);
+          expect(
+            current.calls.map((file) => (file.path, file.sha256)),
+            contains((action.thumbnail.path, action.thumbnail.sha256)),
+          );
+        }
+        expect(platform.sources, isEmpty);
+      });
+    },
+  );
+
   testWidgets('both themes retain one poster key until a real first frame', (
     tester,
   ) async {
@@ -949,7 +1073,7 @@ void main() {
       await _mount(tester, bundle, child: media(false));
       await tester.pump();
       expect(tester.state(find.byType(TrainingActionMedia)), same(state));
-      expect(repository.calls, hasLength(1));
+      expect(repository.videoCalls, hasLength(1));
       expect(find.byType(CircularProgressIndicator), findsNothing);
       repository.complete(catalog.tryGet(_actionId)!.video);
       await tester.pump();
@@ -966,7 +1090,7 @@ void main() {
       await tester.pump();
       expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(tester.element(surface), same(surfaceElement));
-      expect(repository.calls, hasLength(1));
+      expect(repository.videoCalls, hasLength(1));
       expect(platform.sources, hasLength(1));
       expect(platform.commands.where((c) => c.$2 == 'dispose'), isEmpty);
 
@@ -989,7 +1113,7 @@ void main() {
       await tester.tap(retry);
       await tester.pump();
       await tester.pump();
-      expect(repository.calls, hasLength(2));
+      expect(repository.videoCalls, hasLength(2));
       expect(platform.sources, hasLength(2));
       expect(retry, findsNothing);
       expect(find.byType(CircularProgressIndicator), findsNothing);
@@ -1035,13 +1159,13 @@ void main() {
     repository.fail(catalog.tryGet(_actionId)!.video);
     await tester.pump();
     await _advance(tester, 2000);
-    expect(repository.calls, hasLength(1));
+    expect(repository.videoCalls, hasLength(1));
     expect(find.byKey(const ValueKey('media-download-retry')), findsOneWidget);
     expect(tester.widget<RawImage>(find.byType(RawImage)).image, isNotNull);
     expect(platform.sources, isEmpty);
     await tester.tap(find.byKey(const ValueKey('media-download-retry')));
     await tester.pump();
-    expect(repository.calls, hasLength(2));
+    expect(repository.videoCalls, hasLength(2));
     repository.complete(catalog.tryGet(_actionId)!.video);
     await tester.pump();
     await tester.pump();
@@ -1095,38 +1219,33 @@ void main() {
     );
   }
 
-  testWidgets(
-    'launcher prefetches only video while pending training advances',
-    (tester) async {
-      await withClock(Clock(tester.binding.clock.now), () async {
-        final context = await _mount(tester, bundle);
-        final poster = policy.posterAssetFor(_actionId)!;
-        await _warm(tester, context, poster);
-        unawaited(
-          TrainerLauncher.open<void>(
-            context,
-            firstPosterAsset: poster,
-            mediaPolicy: policy,
-            planActionIds: const [_actionId],
-            builder: (_) => _player(_actionId),
-          ),
-        );
-        await _enter(tester);
-        expect(find.byType(TrainerPlayer), findsOneWidget);
-        expect(repository.pending, isNotEmpty);
-        expect(repository.calls, isNotEmpty);
-        expect(
-          repository.calls.every((file) => file.path.endsWith('.mp4')),
-          isTrue,
-        );
-        final before = _seconds(tester);
-        expect(before, greaterThan(0));
-        await _advance(tester, 2000);
-        expect(_seconds(tester), lessThan(before));
-        expect(platform.sources, isEmpty);
-      });
-    },
-  );
+  testWidgets('launcher prepares video while pending training advances', (
+    tester,
+  ) async {
+    await withClock(Clock(tester.binding.clock.now), () async {
+      final context = await _mount(tester, bundle);
+      final poster = policy.posterAssetFor(_actionId)!;
+      await _warm(tester, context, poster);
+      unawaited(
+        TrainerLauncher.open<void>(
+          context,
+          firstPosterAsset: poster,
+          mediaPolicy: policy,
+          planActionIds: const [_actionId],
+          builder: (_) => _player(_actionId),
+        ),
+      );
+      await _enter(tester);
+      expect(find.byType(TrainerPlayer), findsOneWidget);
+      expect(repository.pending, isNotEmpty);
+      expect(repository.videoCalls, isNotEmpty);
+      final before = _seconds(tester);
+      expect(before, greaterThan(0));
+      await _advance(tester, 2000);
+      expect(_seconds(tester), lessThan(before));
+      expect(platform.sources, isEmpty);
+    });
+  });
 
   testWidgets(
     'unknown supine action starts without a substituted public clip',
@@ -2124,40 +2243,42 @@ void main() {
     );
   }
 
-  testWidgets('standalone idle media stays offline until playback is enabled', (
-    tester,
-  ) async {
-    final playing = ValueNotifier(false);
-    addTearDown(playing.dispose);
-    final context = await _mount(
-      tester,
-      bundle,
-      child: ValueListenableBuilder<bool>(
-        valueListenable: playing,
-        builder: (_, enabled, _) => TrainingActionMedia(
-          actionId: _actionId,
-          policy: policy,
-          playing: enabled,
+  testWidgets(
+    'standalone idle media loads the cover but waits for playback to request video',
+    (tester) async {
+      final playing = ValueNotifier(false);
+      addTearDown(playing.dispose);
+      final context = await _mount(
+        tester,
+        bundle,
+        child: ValueListenableBuilder<bool>(
+          valueListenable: playing,
+          builder: (_, enabled, _) => TrainingActionMedia(
+            actionId: _actionId,
+            policy: policy,
+            playing: enabled,
+          ),
         ),
-      ),
-    );
-    await _warm(tester, context, policy.posterAssetFor(_actionId)!);
-    await _advance(tester, 2000);
-    expect(repository.calls, isEmpty);
-    expect(platform.sources, isEmpty);
-    expect(order, isNot(contains('pin:$_actionId')));
-    expect(find.byType(TrainerPoster), findsOneWidget);
+      );
+      await _warm(tester, context, policy.posterAssetFor(_actionId)!);
+      await _advance(tester, 2000);
+      final action = catalog.tryGet(_actionId)!;
+      expect(repository.calls, [action.cover]);
+      expect(platform.sources, isEmpty);
+      expect(order, isNot(contains('pin:$_actionId')));
+      expect(find.byType(TrainerPoster), findsOneWidget);
 
-    playing.value = true;
-    await tester.pump();
-    final video = catalog.tryGet(_actionId)!.video;
-    expect(repository.calls, [video]);
-    expect(order.where((event) => event == 'pin:$_actionId'), hasLength(1));
-    repository.complete(video);
-    await tester.pump();
-    await tester.pump();
-    expect(platform.sources, hasLength(1));
-  });
+      playing.value = true;
+      await tester.pump();
+      final video = action.video;
+      expect(repository.calls, [action.cover, video]);
+      expect(order.where((event) => event == 'pin:$_actionId'), hasLength(1));
+      repository.complete(video);
+      await tester.pump();
+      await tester.pump();
+      expect(platform.sources, hasLength(1));
+    },
+  );
 
   testWidgets(
     'player prepares the current video during entry then only its next video',
@@ -2205,7 +2326,11 @@ void main() {
             // independent poster lease so the first entry frame is observable
             // without waiting for real image work inside the fake clock.
             firstPosterAsset: null,
-            mediaPolicy: policy,
+            mediaPolicy: TrainingMediaPolicy(
+              repository: repository,
+              posterAssetRoot: _posterRoot,
+              prefetchBeforeTraining: true,
+            ),
             planActionIds: actions.map((action) => action.id),
             builder: (_) => TrainerPlayer(
               plan: plan,
@@ -2225,8 +2350,8 @@ void main() {
         );
         expect(current.playing, isFalse);
         expect(current.prefetchWhenIdle, isTrue);
-        expect(repository.pending.keys, [actions[0].video.path]);
-        expect(repository.calls.map((file) => file.path).toSet(), {
+        expect(repository.pendingVideos, [actions[0].video.path]);
+        expect(repository.videoCalls.map((file) => file.path).toSet(), {
           actions[0].video.path,
         });
         expect(order.where((event) => event == 'pin:$_actionId'), hasLength(1));
@@ -2241,12 +2366,12 @@ void main() {
           isTrue,
         );
         expect(order.where((event) => event == 'pin:$_actionId'), hasLength(1));
-        expect(repository.pending.keys, [actions[0].video.path]);
+        expect(repository.pendingVideos, [actions[0].video.path]);
         repository.complete(actions[0].video);
         await tester.pump();
         await tester.pump();
-        expect(repository.pending.keys, [actions[1].video.path]);
-        expect(repository.calls.map((file) => file.path).toSet(), {
+        expect(repository.pendingVideos, [actions[1].video.path]);
+        expect(repository.videoCalls.map((file) => file.path).toSet(), {
           actions[0].video.path,
           actions[1].video.path,
         });
@@ -2254,8 +2379,8 @@ void main() {
         repository.complete(actions[1].video);
         await tester.pump();
         await _advance(tester, 1000);
-        expect(repository.pending, isEmpty);
-        expect(repository.calls.map((file) => file.path).toSet(), {
+        expect(repository.pendingVideos, isEmpty);
+        expect(repository.videoCalls.map((file) => file.path).toSet(), {
           actions[0].video.path,
           actions[1].video.path,
         });
@@ -2286,7 +2411,7 @@ void main() {
       );
       await _warm(tester, context, policy.posterAssetFor(_actionId)!);
       final video = catalog.tryGet(_actionId)!.video;
-      expect(repository.calls, [video]);
+      expect(repository.videoCalls, [video]);
       repository.complete(video);
       await tester.pump();
       await tester.pump();
@@ -2310,7 +2435,7 @@ void main() {
         tester.widget<UgkPackedAlphaVideo>(surface).controller,
         same(controller),
       );
-      expect(repository.calls, [video]);
+      expect(repository.videoCalls, [video]);
       expect(platform.sources, hasLength(1));
       expect(order.where((event) => event == 'pin:$_actionId'), hasLength(1));
       expect(platform.commands.where((c) => c.$2 == 'prime-first-frame'), [
@@ -2358,7 +2483,7 @@ void main() {
       await tester.pump();
       await tester.pump();
       expect(handle.failed, isTrue);
-      expect(repository.calls, [video]);
+      expect(repository.videoCalls, [video]);
 
       final unsupported = _UnsupportedPlatform(order);
       addTearDown(unsupported.eventsController.close);
@@ -2379,8 +2504,8 @@ void main() {
       final snapshot = await handle.capture();
       expect(snapshot!.mediaId, replacement.id);
       expect(snapshot.ready, isFalse);
-      expect(repository.calls, [video]);
-      expect(repository.pending, isEmpty);
+      expect(repository.videoCalls, [video]);
+      expect(repository.pendingVideos, isEmpty);
       expect(order.where((event) => event == 'pin:${replacement.id}'), isEmpty);
       expect(unsupported.sources, isEmpty);
       expect(find.byType(UgkPackedAlphaVideo), findsNothing);

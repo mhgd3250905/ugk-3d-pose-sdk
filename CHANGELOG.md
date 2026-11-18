@@ -3,7 +3,8 @@
 ## SDK 1.0.1 — 2026-11-18
 
 - Use persistent application support for native training media. Before using the new location, migrate and verify existing files by SHA-256. Share verified Pose-Hub image and video objects across catalog revisions while retaining the existing video cache budget and playback pins.
-- Hosts can use `PoseHubCatalogUpdater.withPersistentAssets` to verify the catalog, covers, thumbnails, published standing frames and voice before atomically saving the new catalog as current. Failed updates leave the old catalog active. Playback downloads video on demand.
+- `PoseHubCatalogUpdater.withPersistentAssets` preloads the catalog and display assets, then publishes the new catalog immediately after atomic activation. It reports verified file counts and transfer bytes through `displayProgress`. The SDK UI provides `PoseHubDisplayUpdateDialogHost` and `PoseHubDisplayUpdateDialog` for progress, retry and automatic dismissal.
+- Training videos and voice are prepared on demand for the opened action. The next-action tile, completion thumbnails and the player's first frame use verified theme art or regular catalog cover/thumbnail with the bundled fallback.
 - A later launch reuses the installed catalog and its assets. Obsolete objects are cleaned up after activation while existing training sessions can continue to use their catalog.
 
 ## SDK 1.0.0 — 2026-11-18（首个正式版本候选）

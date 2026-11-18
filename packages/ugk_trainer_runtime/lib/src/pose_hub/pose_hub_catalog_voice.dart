@@ -21,8 +21,8 @@ CatalogVoiceIndex _voiceIndex(
   requireValidFiles: requireValidFiles,
 );
 
-/// Verifies and saves all published voice clips before a catalogue can become
-/// active. The player opens these same files by content hash.
+/// Explicitly prepares all published voice clips for offline training.
+/// The player can reuse the verified files by content hash.
 Future<void> preparePoseHubCatalogVoice(
   PoseHubAppTestCatalog catalog, {
   String? assetRootDirectory,
@@ -56,9 +56,8 @@ Future<void> prunePoseHubCatalogVoice(
 }
 
 /// The app's own voice ([primary]) with the active Pose-Hub catalogue's
-/// recorded lines behind it. The player reuses the updater's verified
-/// files in application support, and can prepare missing clips when a
-/// session starts.
+/// recorded lines behind it. Opening an action lets the player verify and
+/// reuse the clips in application support or fetch the missing recordings.
 ///
 /// [catalog] defaults to [PoseHubActionLibrary.load]. If the updater uses
 /// a custom application support root, pass the same [assetRootDirectory].

@@ -337,6 +337,7 @@ class TrainerPlayer extends StatefulWidget {
     this.poseHubActionOf,
     this.poseHubMediaBaseUri,
     this.poseHubMediaPreparer,
+    this.prefetchUpcomingPoseHubMedia = false,
     this.sessionId,
     this.prepSeconds = 10,
     this.transitionSeconds = 15,
@@ -462,13 +463,17 @@ class TrainerPlayer extends StatefulWidget {
   /// SDK retries its own current video and bound decoder.
   final VoidCallback? onMediaDownloadRetry;
 
-  /// Optional PoseHub rendering and ordered prefetch for the shared player.
+  /// Optional Pose-Hub rendering and media preparation for the shared player.
   /// A custom [mediaBuilder] can use [TrainerMediaRequest.mediaPreparer] to
-  /// participate in the same two-action queue. Session timing never waits.
+  /// join the same current-action preparation. Session timing never waits.
   final PoseHubAppTestCatalog? poseHubCatalog;
   final PoseHubPackAction? Function(String exerciseId)? poseHubActionOf;
   final Uri? poseHubMediaBaseUri;
   final PoseHubMediaPreparer? poseHubMediaPreparer;
+
+  /// Opts host-provided media preparation back into its plan-order queue.
+  /// The public [TrainingMediaPolicy] has its own lookahead option.
+  final bool prefetchUpcomingPoseHubMedia;
 
   /// Fixed id (e.g. resuming); null: a new one.
   final String? sessionId;
@@ -688,7 +693,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         );
     _occurrences = _builder.occurrenceCount(_plan);
     _runner = SessionRunner(SessionEngine(_builder.phases(_plan)), _script);
-    _prepareVoice();
+    _prepareVoiceForPhase();
     if (_engine.done) _preview = false;
     _waitingForStart =
         widget.startMode == TrainerStartMode.training && _startGate != null;
@@ -819,26 +824,39 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         : widget.prepSeconds.toDouble();
   }
 
-  /// Warm a preparable voice source (catalogue clips) for this plan; the
-  /// session never waits on it. When it finishes the current phase's cues
-  /// are rebuilt so the downloaded lines are used from now on.
-  void _prepareVoice() {
+  // Warm the selected action as soon as its prep or rest screen opens. The
+  // training clock continues while the source checks or fetches its clips.
+  void _prepareVoiceForPhase() {
     final source = _voice.source;
-    if (source is! PreparableVoiceSource) return;
-    if (!_voice.settings.voice) return;
-    final ids = <String>{for (final p in _engine.phases) ?p.exerciseId};
+    final id = _phase.exerciseId;
+    if (source is! PreparableVoiceSource ||
+        !_soundSettings.voice ||
+        id == null ||
+        _engine.done ||
+        id == _voicePrepareAction) {
+      return;
+    }
+    _voicePrepareAction = id;
     final gen = ++_voicePrepareGeneration;
     unawaited(
-      (source as PreparableVoiceSource)
-          .prepare(ids, lang: _voice.settings.language)
+      Future<void>.sync(
+            () => (source as PreparableVoiceSource).prepare([
+              id,
+            ], lang: _voice.settings.language),
+          )
           .then((_) {
-            if (!mounted || gen != _voicePrepareGeneration) return;
+            if (!mounted ||
+                gen != _voicePrepareGeneration ||
+                _phase.exerciseId != id) {
+              return;
+            }
             _runner.refreshVoice(_t);
           })
           .catchError((Object _) {}),
     );
   }
 
+  String? _voicePrepareAction;
   int _voicePrepareGeneration = 0;
 
   @override
@@ -1027,6 +1045,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       _subtitle = null;
     }
     if (_engine.done) _onDone(t);
+    _prepareVoiceForPhase();
     _prioritizeMedia();
     final p = _phase;
     _syncProgress(t);
@@ -1044,13 +1063,13 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   void _configureMedia() {
     final preparer = widget.poseHubMediaPreparer;
-    // Legacy host preparers keep their existing queue until the host opts
-    // into download-state integration. The policy repository has its own
-    // current-video/next-video scheduling independently of this bridge.
-    final nextOnly = widget.mediaDownloadState != null;
+    final currentOnly = !widget.prefetchUpcomingPoseHubMedia;
+    final nextOnly = !currentOnly && widget.mediaDownloadState != null;
     final scheduler = _mediaPrefetcher;
     if (scheduler?.host != preparer ||
-        (scheduler != null && scheduler.prefetchNextOnly != nextOnly)) {
+        (scheduler != null &&
+            (scheduler.prefetchNextOnly != nextOnly ||
+                scheduler.currentActionOnly != currentOnly))) {
       _retireMedia();
       _mediaPrefetcher = preparer == null
           ? null
@@ -1058,6 +1077,7 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
               preparer,
               afterCancellation: _mediaRetirement,
               prefetchNextOnly: nextOnly,
+              currentActionOnly: currentOnly,
             );
     }
     _mediaGeneration = -1;
@@ -1079,11 +1099,11 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         !_exitingEarly &&
         !_engine.done &&
         UgkPackedAlphaVideo.isSupported) {
+      final phases = policy.prefetchBeforeTraining
+          ? _engine.phases.skip(_engine.index)
+          : [_phase];
       final ids = [
-        for (final id in {
-          for (final phase in _engine.phases.skip(_engine.index))
-            ?phase.exerciseId,
-        })
+        for (final id in {for (final phase in phases) ?phase.exerciseId})
           if (widget.drillOf(id) case final drill?)
             if (drill.media?.videoAvailable != false)
               drill.media?.actionId ?? drill.id,
@@ -1124,8 +1144,11 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       return;
     }
     _mediaGeneration = _engine.generation;
+    final phases = widget.prefetchUpcomingPoseHubMedia
+        ? _engine.phases.skip(_engine.index)
+        : [_phase];
     scheduler.prioritize([
-      for (final phase in _engine.phases.skip(_engine.index))
+      for (final phase in phases)
         ?_poseHubAction(phase.exerciseId ?? '')?.forMediaTheme(theme),
     ]);
   }
@@ -1145,6 +1168,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (oldWidget.poseHubCatalog != widget.poseHubCatalog ||
         oldWidget.poseHubActionOf != widget.poseHubActionOf ||
         oldWidget.poseHubMediaPreparer != widget.poseHubMediaPreparer ||
+        oldWidget.prefetchUpcomingPoseHubMedia !=
+            widget.prefetchUpcomingPoseHubMedia ||
         oldWidget.poseHubMediaBaseUri != widget.poseHubMediaBaseUri ||
         (oldWidget.mediaDownloadState == null) !=
             (widget.mediaDownloadState == null)) {
@@ -1272,6 +1297,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
         SessionScript(source: _voice.source, lang: _voice.settings.language);
     _occurrences = _builder.occurrenceCount(_plan);
     _runner = SessionRunner(SessionEngine(_builder.phases(_plan)), _script);
+    _voicePrepareAction = null;
+    _prepareVoiceForPhase();
     _recorder = SessionRecorder(plan: _plan, totalExercises: _occurrences);
     _configureMedia();
     _experience?.control.replay();
@@ -3406,7 +3433,8 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
   Widget? _nextUp(SessionPhase p) {
     final d = _nextDrill(p);
     if (d == null) return null;
-    final poster = d.media?.posterFor(light: !_th.isDark);
+    final poster =
+        d.thumbnailAsset ?? d.media?.posterFor(light: !_th.isDark);
     // Keep the thumbnail slot useful when a drill has no poster or a host's
     // asset is unavailable, rather than leaving an opaque empty circle.
     final placeholder = Icon(
@@ -3438,13 +3466,19 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
                     dimension: 28,
                     child: ColoredBox(
                       color: _th.surfaceHigh,
-                      child: poster == null
-                          ? placeholder
-                          : Image.asset(
-                              poster,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => placeholder,
-                            ),
+                      child: _poseHubThumbnail(
+                        context,
+                        d.id,
+                        poster,
+                        poster == null
+                            ? placeholder
+                            : Image.asset(
+                                poster,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => placeholder,
+                              ),
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                 ),

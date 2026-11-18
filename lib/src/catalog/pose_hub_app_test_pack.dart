@@ -375,6 +375,32 @@ final class PoseHubAppTestCatalog {
     if (actions.isEmpty) {
       throw const FormatException('App-test catalog must not be empty');
     }
+    final display = <String, PoseHubPackFile>{};
+    if (raw.containsKey('displayAssets')) {
+      final declared = _map(raw['displayAssets'], 'displayAssets');
+      final distribution = raw['mediaDistribution'];
+      final baseValue = distribution is Map ? distribution['baseUrl'] : null;
+      for (final entry in declared.entries) {
+        final name = _id(entry.key, 'displayAssets key');
+        final file = PoseHubPackFile.fromJson(entry.value);
+        final location = Uri.parse(file.path);
+        if (!(file.path.startsWith('media/') ||
+                file.path.startsWith('standing/')) ||
+            !const ['.webp', '.png', '.jpg', '.jpeg'].any(file.path.endsWith)) {
+          throw FormatException('Invalid display asset path: ${file.path}');
+        }
+        if (file.downloadUri case final download?) {
+          if (baseValue is! String ||
+              Uri.parse(baseValue).resolveUri(location) != download) {
+            throw FormatException(
+              'Invalid display download receipt: ${file.path}',
+            );
+          }
+        }
+        display[name] = file;
+      }
+    }
+    displayAssets = Map.unmodifiable(display);
     allActions = List.unmodifiable(actions);
     _byId = Map.unmodifiable(byId);
     semanticCompleteActions = List.unmodifiable(
@@ -468,6 +494,25 @@ final class PoseHubAppTestCatalog {
   late final String id;
   late final String semanticCatalogVersion;
   late final PoseHubPackFile semanticCatalogFile;
+
+  /// Optional standalone display images, such as home thumbnails and frames.
+  late final Map<String, PoseHubPackFile> displayAssets;
+
+  /// All published display artwork, including each action's theme variants.
+  Iterable<PoseHubPackFile> get displayMediaFiles sync* {
+    yield* displayAssets.values;
+    for (final action in allActions) {
+      for (final media in [
+        action.files,
+        ...action.themedMedia.values.map((variant) => variant.files),
+      ]) {
+        for (final entry in media.entries) {
+          if (entry.key != 'video') yield entry.value;
+        }
+      }
+    }
+  }
+
   late final List<PoseHubPackAction> allActions;
   late final List<PoseHubPackAction> semanticCompleteActions;
   late final List<PoseHubPackAction> pendingActions;

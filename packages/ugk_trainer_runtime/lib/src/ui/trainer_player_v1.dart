@@ -654,28 +654,21 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
     Widget fallback, {
     BoxFit fit = BoxFit.contain,
   }) {
-    if (asset != null &&
-        asset.isNotEmpty &&
-        !asset.startsWith('packages/ugk_trainer/assets/pose_hub/')) {
-      return fallback;
-    }
     final id = widget.drillOf(exerciseId)?.media?.actionId ?? exerciseId;
     final policy = TrainingMediaPolicyScope.maybeOf(context);
     final policyAction = policy?.actionFor(id);
     final action = policyAction ?? _poseHubAction(id);
-    if (action == null ||
-        !action.themedMedia.containsKey(poseHubMediaThemeOf(context))) {
-      return fallback;
-    }
+    if (action == null) return fallback;
     return ExcludeSemantics(
       child: PoseHubStandingImage(
         action: action,
         theme: _th,
         thumbnail: true,
+        preferCatalogArtwork: true,
         fit: fit,
         repository: policyAction == null ? null : policy?.repository,
         mediaBaseUri: widget.poseHubMediaBaseUri,
-        legacyFallback: fallback,
+        legacyFallback: asset == null || asset.isEmpty ? null : fallback,
       ),
     );
   }

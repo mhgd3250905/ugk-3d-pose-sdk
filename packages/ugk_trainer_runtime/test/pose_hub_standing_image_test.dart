@@ -97,12 +97,15 @@ class _Bundle extends CachingAssetBundle {
 }
 
 class _Cache extends PoseHubImageCache {
+  _Cache({this.load});
+
+  final Future<Uri> Function(PoseHubPackFile)? load;
   final calls = <PoseHubPackFile>[];
   final completion = Completer<Uri>();
   @override
   Future<Uri> ensureFile(PoseHubPackFile file, {Uri? mediaBaseUri}) {
     calls.add(file);
-    return completion.future;
+    return load?.call(file) ?? completion.future;
   }
 }
 
@@ -110,6 +113,8 @@ Widget _card(
   _Bundle bundle,
   _Cache cache, {
   bool thumbnail = false,
+  bool preferCatalogArtwork = false,
+  PoseHubPackFile? thumbnailFile,
   String id = 'action',
   ThemeMode themeMode = ThemeMode.light,
   Map<PoseHubMediaTheme, PoseHubPackMediaFiles> themedMedia = const {},
@@ -125,8 +130,9 @@ Widget _card(
       name: 'Action',
       video: _file('video', id: id),
       cover: _file('cover', id: id),
-      thumbnailFile: _file('thumbnail', id: id),
+      thumbnailFile: thumbnailFile ?? _file('thumbnail', id: id),
       thumbnail: thumbnail,
+      preferCatalogArtwork: preferCatalogArtwork,
       themedMedia: themedMedia,
       cache: cache,
     ),
@@ -221,6 +227,62 @@ void main() {
       ]);
       await show(ThemeMode.dark, {PoseHubMediaTheme.light});
       expect(cache.calls, hasLength(2));
+      expect(find.byKey(const ValueKey('standing-action')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'catalogue-first thumbnail changes SHA even when its path and video stay the same',
+    (tester) async {
+      final bundle = _Bundle(matches: true);
+      final cache = _Cache();
+      final original = _file('thumbnail');
+      final revised = PoseHubPackFile.fromJson({
+        ...original.raw,
+        'sha256': 'c' * 64,
+      });
+      for (final thumbnail in [original, revised]) {
+        await tester.pumpWidget(
+          _card(
+            bundle,
+            cache,
+            thumbnail: true,
+            preferCatalogArtwork: true,
+            thumbnailFile: thumbnail,
+          ),
+        );
+        await tester.pump();
+      }
+      expect(cache.calls.map((file) => (file.path, file.sha256)), [
+        (original.path, original.sha256),
+        (revised.path, revised.sha256),
+      ]);
+      expect(find.byKey(const ValueKey('standing-action')), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'catalogue-first thumbnail tries themed then ordinary before bundled artwork',
+    (tester) async {
+      final cache = _Cache(
+        load: (_) async => throw const CatalogMediaException('sha256', 'bad'),
+      );
+      await tester.pumpWidget(
+        _card(
+          _Bundle(matches: true),
+          cache,
+          thumbnail: true,
+          preferCatalogArtwork: true,
+          themeMode: ThemeMode.dark,
+          themedMedia: _themes({PoseHubMediaTheme.dark}),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(cache.calls.map((file) => file.path), [
+        _file('thumbnail', revision: 'dark').path,
+        _file('thumbnail').path,
+      ]);
       expect(find.byKey(const ValueKey('standing-action')), findsOneWidget);
       expect(tester.takeException(), isNull);
     },

@@ -304,7 +304,7 @@ void main() {
   );
 
   test(
-    'persistent upgrade verifies standing and voice before switching, then reuses them',
+    'display update reports the exact work, retries offline, and publishes verified artwork immediately',
     () async {
       const before = 'r2-v16';
       const after = 'r2-v18';
@@ -325,61 +325,52 @@ void main() {
 
       final action =
           (tiny['actions'] as List<Object?>).first! as Map<String, Object?>;
-      final defaultFiles = action['files']! as Map<String, Object?>;
-      final cover = [9, 11, 20];
+      final files = action['files']! as Map<String, Object?>;
+      const thumbPath = 'media/action-0/thumb.webp';
+      const homePath = 'standing/home-preview.webp';
+      const standingPath = 'media/action-0/standing.webp';
+      const coverPath = 'media/action-0/$after/cover.webp';
+      final cover = [9, 11, 22, 20];
       final thumb = [10, 11, 20];
       final standing = [10, 21, 20];
-      final clip = [12, 0, 30];
-      defaultFiles['cover'] = descriptor(
-        'media/action-0/$before/cover.webp',
-        cover,
-      );
-      defaultFiles['thumbnail'] = descriptor(
-        'media/action-0/thumb.webp',
-        thumb,
-      );
+      final home = [7, 18, 29, 50, 39];
+      files['thumbnail'] = descriptor(thumbPath, thumb);
       action['voice'] = {
         'files': [
           {
-            ...descriptor('voice/action-0/name.m4a', clip),
+            ...descriptor('voice/action-0/name.m4a', [12, 0, 30]),
             'language': 'zh',
             'clipId': 'name',
           },
         ],
       };
       final baseline = _json(tiny);
+      final baselineSha = sha256.convert(baseline).toString();
       await durable.writeAtomic('packs/$before/catalog.json', baseline);
       await durable.writeAtomic('packs/$before/semantic.json', semanticBytes);
       await durable.writeAtomic(
         'current.json',
         _json({
           'pack': before,
-          'catalog_sha256': sha256.convert(baseline).toString(),
+          'catalog_sha256': baselineSha,
           'catalog_bytes': baseline.length,
         }),
       );
-      final legacyCover = File(
-        '${support.path}/posehub-media/$before/${sha256.convert(baseline)}/media/action-0/$before/cover.webp',
+      final legacyThumb = File(
+        '${support.path}/posehub-media/$before/$baselineSha/$thumbPath',
       );
-      await legacyCover.parent.create(recursive: true);
-      await legacyCover.writeAsBytes(cover);
-
+      await legacyThumb.parent.create(recursive: true);
+      await legacyThumb.writeAsBytes(thumb);
       tiny['pack'] = after;
-      defaultFiles['cover'] = descriptor(
-        'media/action-0/$after/cover.webp',
-        cover,
-      );
-      defaultFiles['standing'] = descriptor(
-        'media/action-0/standing.webp',
-        standing,
-      );
-      final nextCatalog = _json(tiny);
-      publish(after, nextCatalog);
+      tiny['displayAssets'] = {'home-preview': descriptor(homePath, home)};
+      files['cover'] = descriptor(coverPath, cover);
+      files['standing'] = descriptor(standingPath, standing);
+      final nextBytes = _json(tiny);
+      publish(after, nextBytes);
       const base = 'https://media.uuugk.win/pack/$after/';
-      final currentClip = '${base}voice/action-0/name.m4a';
-      http.serve('${base}media/action-0/thumb.webp', thumb);
-      http.serve('${base}media/action-0/standing.webp', standing);
-      http.serve(currentClip, [12, 0, 31]);
+      http.serve('$base$coverPath', cover);
+      http.serve('$base$homePath', home);
+      // No standing image route simulates a lost connection after discovery.
 
       PoseHubCatalogUpdater persistentUpdater() =>
           PoseHubCatalogUpdater.withPersistentAssets(
@@ -390,43 +381,91 @@ void main() {
                 coach.PoseHubAppTestCatalog.fromBytes(baseline),
             assetRootDirectory: support.path,
           );
+      final updater = persistentUpdater();
+      final progress = <PoseHubDisplayUpdateProgress>[];
+      final activated = <coach.PoseHubAppTestCatalog>[];
+      final progressSub = updater.displayProgress.listen(progress.add);
+      final catalogSub = updater.catalogChanges.listen(activated.add);
+      addTearDown(progressSub.cancel);
+      addTearDown(catalogSub.cancel);
 
-      expect(
-        await persistentUpdater().checkNow(),
-        PoseHubCatalogUpdateOutcome.failed,
-      );
+      expect(await updater.maybeCheck(), PoseHubCatalogUpdateOutcome.failed);
       expect(
         poseHubPackVersionOf((await readVerifiedPoseHubCatalog(durable))!),
         before,
       );
-      expect(http.requests, contains(currentClip));
+      expect(activated, isEmpty);
+      expect(progress.first.phase, PoseHubDisplayUpdatePhase.downloading);
+      expect(progress.first.totalsKnown, isFalse);
+      final planned = progress.firstWhere((event) => event.totalsKnown);
+      expect(planned.totalFiles, 4);
+      expect(
+        planned.totalBytes,
+        nextBytes.length + cover.length + home.length + standing.length,
+      );
+      expect(progress.last.phase, PoseHubDisplayUpdatePhase.failed);
       expect(
         http.requests,
-        isNot(contains('${base}media/action-0/$after/cover.webp')),
+        unorderedEquals([
+          _pointerUrl,
+          '${base}catalog.json',
+          '$base$standingPath',
+          '$base$coverPath',
+          '$base$homePath',
+        ]),
       );
-      expect(http.requests, isNot(contains('${base}catalog/catalog.json')));
-      expect(http.requests.where((u) => u.endsWith('.mp4')), isEmpty);
 
-      http.serve(currentClip, clip);
+      http.serve('$base$standingPath', standing);
       http.requests.clear();
-      expect(
-        await persistentUpdater().checkNow(),
-        PoseHubCatalogUpdateOutcome.updated,
-      );
-      final current = (await readVerifiedPoseHubCatalog(durable))!;
+      expect(await updater.checkNow(), PoseHubCatalogUpdateOutcome.updated);
+      expect(progress.last.phase, PoseHubDisplayUpdatePhase.completed);
+      expect(progress.last.completedFiles, progress.last.totalFiles);
+      expect(progress.last.receivedBytes, progress.last.totalBytes);
+      final current = activated.single;
       expect(poseHubPackVersionOf(current), after);
       expect(
-        current.allActions.single.mediaFor(null).standing?.bytes,
-        standing.length,
+        poseHubPackVersionOf((await readVerifiedPoseHubCatalog(durable))!),
+        after,
       );
-      expect(http.requests, [_pointerUrl, '${base}catalog.json', currentClip]);
-
-      http.requests.clear();
+      expect(http.requests, [
+        _pointerUrl,
+        '${base}catalog.json',
+        '$base$standingPath',
+      ]);
+      final images = PoseHubImageCache(
+        rootDirectory: support.path,
+        loadBytes: (_, _) async =>
+            throw StateError('downloaded after publication'),
+      );
+      expect(current.displayAssets['home-preview']?.path, homePath);
       expect(
-        await persistentUpdater().checkNow(),
+        current.displayMediaFiles.map((file) => file.path),
+        unorderedEquals([homePath, coverPath, thumbPath, standingPath]),
+      );
+      for (final file in current.displayMediaFiles) {
+        final uri = await images.ensureFile(
+          file,
+          mediaBaseUri: Uri.parse(base),
+        );
+        expect(
+          sha256.convert(await File.fromUri(uri).readAsBytes()).toString(),
+          file.sha256,
+        );
+      }
+
+      progress.clear();
+      http.requests.clear();
+      final restarted = persistentUpdater();
+      final restartSubscription = restarted.displayProgress.listen(
+        progress.add,
+      );
+      addTearDown(restartSubscription.cancel);
+      expect(
+        await restarted.maybeCheck(),
         PoseHubCatalogUpdateOutcome.unchanged,
       );
       expect(http.requests, [_pointerUrl]);
+      expect(progress, isEmpty);
     },
   );
 

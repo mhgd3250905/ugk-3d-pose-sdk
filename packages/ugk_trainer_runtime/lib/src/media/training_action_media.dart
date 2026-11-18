@@ -462,8 +462,6 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     final policy = _policy;
     final poster = policy?.posterAssetFor(widget.actionId);
     final action = policy?.actionFor(widget.actionId);
-    final hasThemedPoster =
-        action != null && action.themedMedia.containsKey(_mediaTheme);
     final experience = TrainerExperienceScope.maybeOf(context);
     final fallback = poster == null
         ? null
@@ -471,6 +469,18 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
             asset: poster,
             bundle: experience?.bundle,
             decodeWidth: experience?.decodeWidth,
+          );
+    final artwork = action == null
+        ? fallback
+        : PoseHubStandingImage(
+            action: action,
+            thumbnail: widget.thumbnail,
+            preferCatalogArtwork: true,
+            repository: policy!.repository,
+            legacyFallback: fallback,
+            theme: _mediaTheme == PoseHubMediaTheme.dark
+                ? TrainerTheme.dark
+                : TrainerTheme.light,
           );
     final stage = widget.stage ?? Theme.of(context).colorScheme.surface;
     final controller = _controller;
@@ -489,7 +499,7 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
     // allowing the player's separate download HUD to own presentation.
     final showStatus =
         widget.showInlineStatus &&
-        poster != null &&
+        artwork != null &&
         _canPlay &&
         supported &&
         !revealed &&
@@ -507,22 +517,12 @@ class _TrainingActionMediaState extends State<TrainingActionMedia>
             child: Stack(
               fit: StackFit.expand,
               children: [
-                if (fallback != null)
+                if (artwork != null)
                   AnimatedOpacity(
                     key: const ValueKey('public-action-poster'),
                     opacity: revealed ? 0 : 1,
                     duration: revealDuration,
-                    child: hasThemedPoster
-                        ? PoseHubStandingImage(
-                            action: action,
-                            thumbnail: widget.thumbnail,
-                            repository: policy!.repository,
-                            legacyFallback: fallback,
-                            theme: _mediaTheme == PoseHubMediaTheme.dark
-                                ? TrainerTheme.dark
-                                : TrainerTheme.light,
-                          )
-                        : fallback,
+                    child: artwork,
                   )
                 else
                   const Center(

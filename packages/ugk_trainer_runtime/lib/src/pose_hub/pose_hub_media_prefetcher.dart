@@ -12,6 +12,7 @@ final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
     this.host, {
     Future<void>? afterCancellation,
     this.prefetchNextOnly = false,
+    this.currentActionOnly = false,
   }) : _startBarrier = afterCancellation ?? Future<void>.value(),
        _canStart = afterCancellation == null {
     if (!_canStart) {
@@ -26,9 +27,13 @@ final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
 
   final PoseHubMediaPreparer host;
 
-  /// The training player prepares its current action, then only the next one.
-  /// Existing hosts retain the original queue unless they select this mode.
+  /// Includes one lookahead once the current action's media is ready.
   final bool prefetchNextOnly;
+
+  /// Limits preparation to actions the player has already opened.
+  /// When the selection changes, only its downloads can start or retry.
+  final bool currentActionOnly;
+  bool get _boundedWindow => currentActionOnly || prefetchNextOnly;
   final _entries = <String, _Entry>{};
   final _queue = <_Entry>[];
   _Entry? _current, _next;
@@ -56,9 +61,11 @@ final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
     for (final action in actions) {
       final entry = _entry(action);
       if (!ordered.contains(entry)) ordered.add(entry);
-      if (prefetchNextOnly && ordered.length == 2) break;
+      if (currentActionOnly || (prefetchNextOnly && ordered.length == 2)) {
+        break;
+      }
     }
-    if (prefetchNextOnly) {
+    if (_boundedWindow) {
       _current = ordered.firstOrNull;
       _next = ordered.length > 1 ? ordered[1] : null;
       _queue.removeWhere((entry) => !_wanted(entry));
@@ -82,9 +89,9 @@ final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
   }
 
   void _makeRoomFor(_Entry current) {
-    // A visible action moves ahead of queued work, but never cancels a
-    // verified host download which already owns a slot.
-    if (prefetchNextOnly) return;
+    // Keep earlier requests when possible. With no slot left, the newly
+    // opened action takes priority over the oldest work.
+    if (prefetchNextOnly && !currentActionOnly) return;
     if (_canQueue(current) && current.rank == 0 && _active == 2) {
       final running = _entries.values.where((e) => e.running).toList()
         ..sort((a, b) => b.rank.compareTo(a.rank));
@@ -102,12 +109,10 @@ final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
       entry.retry == null;
 
   bool _wanted(_Entry entry) =>
-      !prefetchNextOnly ||
-      identical(entry, _current) ||
-      identical(entry, _next);
+      !_boundedWindow || identical(entry, _current) || identical(entry, _next);
 
   bool _mayStart(_Entry entry) =>
-      !prefetchNextOnly ||
+      !_boundedWindow ||
       identical(entry, _current) ||
       (identical(entry, _next) && _current?.ready != null);
 
@@ -132,7 +137,7 @@ final class PoseHubMediaPrefetcher implements PoseHubMediaPreparer {
           output.add(event);
           if (event is PoseHubMediaReady) unawaited(output.close());
         }, onDone: () => unawaited(output.close()));
-        if (prefetchNextOnly && !identical(entry, _current)) {
+        if (_boundedWindow && !identical(entry, _current)) {
           // An explicit consumer is the current action; a preceding plan-order
           // prioritize() normally establishes the same identity already.
           prioritize([action]);

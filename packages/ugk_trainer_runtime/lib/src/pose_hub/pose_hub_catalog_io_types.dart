@@ -10,6 +10,17 @@ abstract interface class PoseHubCatalogHttpClient {
   });
 }
 
+/// Optional native transfer reporting. Custom clients can continue to use [get].
+abstract interface class PoseHubCatalogProgressHttpClient
+    implements PoseHubCatalogHttpClient {
+  Future<PoseHubCatalogHttpResponse> getWithProgress(
+    Uri uri, {
+    required Map<String, String> headers,
+    required int maxBytes,
+    required void Function(int receivedBytes) onBytes,
+  });
+}
+
 class PoseHubCatalogHttpResponse {
   const PoseHubCatalogHttpResponse(this.statusCode, this.body, {this.etag});
   final int statusCode;
@@ -45,7 +56,8 @@ class MemoryPoseHubCatalogStore implements PoseHubCatalogStore {
     final prefix = directory.endsWith('/') ? directory : '$directory/';
     return {
       for (final key in values.keys)
-        if (key.startsWith(prefix)) key.substring(prefix.length).split('/').first,
+        if (key.startsWith(prefix))
+          key.substring(prefix.length).split('/').first,
     }.toList();
   }
 

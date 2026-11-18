@@ -56,6 +56,18 @@ class _Host implements PoseHubMediaPreparer {
   }
 }
 
+class _PreparedVoice extends ManifestVoiceSource
+    implements PreparableVoiceSource {
+  _PreparedVoice() : super(const {}, const {}, const {}, const {});
+  final actions = <String>[];
+
+  @override
+  Future<void> prepare(
+    Iterable<String> exerciseIds, {
+    required String lang,
+  }) async => actions.addAll(exerciseIds);
+}
+
 void main() {
   final catalog = PoseHubAppTestCatalog.fromBytes(
     File(_catalogAsset).readAsBytesSync(),
@@ -261,6 +273,60 @@ void main() {
     );
   });
 
+  test('a newly opened action takes priority over stalled requests', () async {
+    final currentOnly = PoseHubMediaPrefetcher(host, currentActionOnly: true);
+    addTearDown(currentOnly.dispose);
+
+    currentOnly.prioritize(actions);
+    expect(host.actions, [actions[0]]);
+    currentOnly.prioritize(actions.skip(1));
+    expect(host.actions, [actions[0], actions[1]]);
+    currentOnly.prioritize(actions.skip(2));
+    await Future<void>.delayed(Duration.zero);
+    expect(host.actions, [actions[0], actions[1], actions[2]]);
+    expect(host.active, 2);
+  });
+
+  testWidgets(
+    'opening an action prepares only its video and voice by default',
+    (tester) async {
+      final voice = _PreparedVoice();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TrainerPlayer(
+            plan: planOf([
+              for (final action in actions.take(2)) timed(action.id, 30),
+            ]),
+            drillOf: (id) => TrainerDrill(id: id, name: id),
+            strings: TrainerStrings.en(),
+            onFinished: (_) async {},
+            prepSeconds: 0,
+            transitionSeconds: 0,
+            keepAlive: false,
+            poseHubActionOf: catalog.tryGet,
+            poseHubMediaPreparer: host,
+            voice: TrainerVoice(
+              source: voice,
+              output: const MutedVoiceOutput(),
+            ),
+            mediaBuilder: (_, _) => const SizedBox.expand(),
+          ),
+        ),
+      );
+      await tester.pump();
+      host.ready(0);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(host.actions, [actions[0]]);
+      expect(voice.actions, [actions[0].id]);
+
+      await tester.tap(find.byKey(const ValueKey('skip')));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(host.actions, [actions[0], actions[1]]);
+      expect(voice.actions, [actions[0].id, actions[1].id]);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   testWidgets(
     'player reuses same-host queue across callback rebuilds and waits when provider changes',
     (tester) async {
@@ -283,6 +349,7 @@ void main() {
           keepAlive: false,
           poseHubActionOf: catalog.tryGet,
           poseHubMediaPreparer: provider,
+          prefetchUpcomingPoseHubMedia: true,
           mediaDownloadState: downloadState,
           poseHubMediaBaseUri: Uri.parse('file:///cache/'),
         ),

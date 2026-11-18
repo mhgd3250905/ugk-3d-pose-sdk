@@ -10,6 +10,7 @@ import '../ui/trainer_player.dart';
 import '../ui/trainer_strings.dart';
 import '../ui/trainer_theme.dart';
 import 'pose_hub_action_library.dart';
+import 'pose_hub_catalog_channel.dart';
 import 'pose_hub_media_preparation.dart';
 import 'pose_hub_pack_image.dart';
 
@@ -69,6 +70,13 @@ class PoseHubActionBrowser extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resolved = _themeOf(context, theme);
+    final updatedArtwork =
+        (comparePoseHubPacks(
+              poseHubPackVersionOf(catalog),
+              PoseHubActionLibrary.packVersion,
+            ) ??
+            0) >
+        0;
     return TrainingLibraryBrowser(
       actions: catalog.semanticCompleteActions,
       config: libraryConfig,
@@ -80,6 +88,7 @@ class PoseHubActionBrowser extends StatelessWidget {
             action: action,
             theme: theme,
             thumbnail: true,
+            preferCatalogArtwork: updatedArtwork,
             mediaBaseUri: mediaBaseUri,
           ),
       onOpenAction: (action) {

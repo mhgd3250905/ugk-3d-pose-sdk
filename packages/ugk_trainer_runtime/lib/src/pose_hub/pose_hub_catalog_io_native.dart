@@ -12,7 +12,7 @@ PoseHubCatalogHttpClient createPoseHubCatalogHttpClient({
 PoseHubCatalogStore createPoseHubCatalogFileStore(String directory) =>
     _FileStore(directory);
 
-class _IoHttp implements PoseHubCatalogHttpClient {
+class _IoHttp implements PoseHubCatalogProgressHttpClient {
   _IoHttp(this.timeout);
   final Duration timeout;
   late final _client = HttpClient()..connectionTimeout = timeout;
@@ -22,6 +22,19 @@ class _IoHttp implements PoseHubCatalogHttpClient {
     Uri uri, {
     Map<String, String> headers = const {},
     int maxBytes = 64 * 1024 * 1024,
+  }) => getWithProgress(
+    uri,
+    headers: headers,
+    maxBytes: maxBytes,
+    onBytes: (_) {},
+  );
+
+  @override
+  Future<PoseHubCatalogHttpResponse> getWithProgress(
+    Uri uri, {
+    required Map<String, String> headers,
+    required int maxBytes,
+    required void Function(int) onBytes,
   }) async {
     final request = await _client.getUrl(uri).timeout(timeout);
     headers.forEach(request.headers.set);
@@ -32,6 +45,7 @@ class _IoHttp implements PoseHubCatalogHttpClient {
       if (builder.length > maxBytes) {
         throw const HttpException('Response exceeds its size limit');
       }
+      onBytes(builder.length);
     }
     return PoseHubCatalogHttpResponse(
       response.statusCode,

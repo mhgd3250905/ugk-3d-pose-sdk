@@ -31,13 +31,7 @@ class PoseHubImageCache {
   Future<Uri> ensureFile(PoseHubPackFile file, {Uri? mediaBaseUri}) {
     final key = '${file.sha256}/${file.bytes}';
     if (_pending[key] case final pending?) return pending;
-    final source = mediaBaseUri?.scheme == 'file'
-        ? file.resolve(mediaBaseUri!)
-        : file.downloadUri ??
-              file.resolve(
-                mediaBaseUri ??
-                    Uri.parse(PoseHubActionLibrary.mediaReleaseBaseUri),
-              );
+    final source = _source(file, mediaBaseUri);
     final job = _ensure(file, source);
     _pending[key] = job;
     unawaited(
@@ -53,22 +47,43 @@ class PoseHubImageCache {
     return job;
   }
 
+  /// Looks up a verified image by content, including migratable legacy copies.
+  /// This method makes no network request.
+  Future<Uri?> findLocal(PoseHubPackFile file, {Uri? mediaBaseUri}) async {
+    final store = await _openStore(file, _source(file, mediaBaseUri));
+    try {
+      return await store.cached(file) ?? await store.reusable(file);
+    } finally {
+      store.dispose();
+    }
+  }
+
+  static Uri _source(PoseHubPackFile file, Uri? base) => base?.scheme == 'file'
+      ? file.resolve(base!)
+      : file.downloadUri ??
+            file.resolve(
+              base ?? Uri.parse(PoseHubActionLibrary.mediaReleaseBaseUri),
+            );
+
+  Future<CatalogMediaFileStore> _openStore(PoseHubPackFile file, Uri source) =>
+      platform.createCatalogMediaStore(
+        revision: file.sha256,
+        packVersion: 'images',
+        rootDirectory: rootDirectory,
+        files: [file],
+        videos: const [],
+        mediaBaseUrls: source.scheme == 'file' ? [] : [source.resolve('.')],
+        allowInsecureLocalhost: allowInsecureLocalhost,
+        timeout: timeout,
+        maxRedirects: 5,
+        maxVideoCacheBytes: catalogVideoCacheLimitBytes,
+        legacyCacheDirectory: null,
+        legacyVideos: const [],
+        contentOnly: true,
+      );
+
   Future<Uri> _ensure(PoseHubPackFile file, Uri source) async {
-    final store = await platform.createCatalogMediaStore(
-      revision: file.sha256,
-      packVersion: 'images',
-      rootDirectory: rootDirectory,
-      files: [file],
-      videos: const [],
-      mediaBaseUrls: source.scheme == 'file' ? [] : [source.resolve('.')],
-      allowInsecureLocalhost: allowInsecureLocalhost,
-      timeout: timeout,
-      maxRedirects: 5,
-      maxVideoCacheBytes: catalogVideoCacheLimitBytes,
-      legacyCacheDirectory: null,
-      legacyVideos: const [],
-      contentOnly: true,
-    );
+    final store = await _openStore(file, source);
     try {
       final cached = await store.cached(file) ?? await store.reusable(file);
       if (cached != null) return cached;

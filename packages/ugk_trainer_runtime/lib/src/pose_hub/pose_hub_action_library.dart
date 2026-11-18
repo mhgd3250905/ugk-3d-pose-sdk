@@ -51,6 +51,12 @@ abstract final class PoseHubActionLibrary {
   /// The catalogue in use is never switched underneath a running session.
   static void resetForNextSession() => _bundled = null;
 
+  /// Lets the next library load see an atomically committed catalogue if the
+  /// host is using that store. Existing sessions retain their loaded object.
+  static void refreshVerifiedCache(PoseHubCatalogStore store) {
+    if (identical(_verifiedCache, store)) _bundled = null;
+  }
+
   /// Prefers the verified local cache, then the bundled baseline.
   static Future<PoseHubAppTestCatalog> load({
     AssetBundle? bundle,

@@ -559,10 +559,11 @@ void main() {
           ),
         ),
       );
-      expect(host.actions, [first, second]);
+      expect(host.actions, [first]);
       for (var i = 0; i < 65; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
+      expect(host.actions, [first, second]);
       expect(saved, hasLength(1));
       expect(saved.single.full, isTrue);
       expect(platform.sources, isEmpty);

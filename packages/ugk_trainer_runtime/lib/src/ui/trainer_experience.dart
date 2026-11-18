@@ -87,7 +87,7 @@ abstract final class TrainerLauncher {
       }
       _prepareSideIcons();
       if (policy != null) {
-        // The mounted player owns the single next-action lookahead.
+        // This action is opening now. The mounted player handles later moves.
         unawaited(
           policy.prefetchActions(
             planActionIds.take(1),

@@ -13,7 +13,7 @@ class TrainingMediaPolicy {
   const TrainingMediaPolicy({
     required this.repository,
     this.posterAssetRoot = 'assets/public_posters/',
-    this.prefetchBeforeTraining = true,
+    this.prefetchBeforeTraining = false,
   });
 
   /// The bundled catalogue's media root (r2-v2 reuses r2-v1 media); other
@@ -22,8 +22,8 @@ class TrainingMediaPolicy {
   final CatalogMediaRepository repository;
   final String posterAssetRoot;
 
-  /// Enables the single next-action lookahead. Preparing the current action
-  /// does not depend on this speculative-prefetch switch.
+  /// Opts into the single next-action lookahead. By default only the
+  /// currently opened action is prepared.
   final bool prefetchBeforeTraining;
   PoseHubAppTestCatalog get catalog => repository.catalog;
 
@@ -35,7 +35,7 @@ class TrainingMediaPolicy {
     AssetBundle? bundle,
     String? rootDirectory,
     int maxVideoCacheBytes = 300000000,
-    bool prefetchBeforeTraining = true,
+    bool prefetchBeforeTraining = false,
     CatalogMediaTimingCallback? onTiming,
   }) async {
     final data = await (bundle ?? rootBundle).load(manifestAsset);

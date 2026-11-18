@@ -27,12 +27,12 @@ class _Repository implements CatalogMediaRepository {
   _Repository(this.catalog);
   @override
   final coach.PoseHubAppTestCatalog catalog;
-  final requested = <String>[];
+  final requested = <(String path, String sha256)>[];
   @override
   Uri get mediaBaseUri => Uri.parse('file:///public-cache/');
   @override
   Future<Uri> ensureFile(coach.PoseHubPackFile file) {
-    requested.add(file.path);
+    requested.add((file.path, file.sha256));
     return Completer<Uri>().future;
   }
 
@@ -57,6 +57,7 @@ class _Platform extends PackedAlphaPlatform {
 
 void main() {
   late coach.PoseHubAppTestCatalog catalog;
+  late coach.PoseHubPackAction squat;
   late coach.CoachActionScopeManifest scope;
   late TrainingLibraryConfig config;
   late _Repository repository;
@@ -66,6 +67,7 @@ void main() {
       'test/fixtures/pose_hub/r2-v1/catalog.json',
     ).readAsBytesSync();
     catalog = coach.PoseHubAppTestCatalog.fromBytes(bytes);
+    squat = catalog.tryGet('h-squat')!;
     scope = coach.CoachActionScopeManifest.fromCatalogBytes(
       appId: 'test',
       catalogBytes: bytes,
@@ -103,6 +105,12 @@ void main() {
     });
   }
 
+  void expectRequests(List<coach.PoseHubPackFile> files) {
+    expect(repository.requested, [
+      for (final file in files) (file.path, file.sha256),
+    ]);
+  }
+
   test('library exposure uses the canonical scope manifest', () {
     expect(identical(config.scopeManifest, scope), isTrue);
     expect(config.actions(catalog).map((action) => action.id), ['h-squat']);
@@ -125,7 +133,7 @@ void main() {
     );
     expect(art.actionId, 'h-squat');
     expect(art.playing, isFalse);
-    expect(repository.requested, isEmpty);
+    expectRequests([squat.thumbnail]);
   });
 
   testWidgets('self-test artwork preserves right-side mirroring', (
@@ -154,7 +162,7 @@ void main() {
       ),
       isTrue,
     );
-    expect(repository.requested, isEmpty);
+    expectRequests([squat.cover]);
   });
 
   testWidgets(
@@ -204,13 +212,13 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('posehub-search-clear')));
       await tester.pump();
       expect(find.byKey(const ValueKey('posehub-action-list')), findsOneWidget);
-      expect(repository.requested, isEmpty);
+      expectRequests([squat.thumbnail, squat.thumbnail]);
     },
   );
 
   for (final brightness in Brightness.values) {
     testWidgets(
-      '${brightness.name} details defer download until explicit play',
+      '${brightness.name} details request video only after explicit play',
       (tester) async {
         await mount(
           tester,
@@ -227,7 +235,7 @@ void main() {
           find.byKey(const ValueKey('library-detail-h-squat')),
           findsOneWidget,
         );
-        expect(repository.requested, isEmpty);
+        expectRequests([squat.cover]);
         expect(
           tester
               .widget<TrainingActionMedia>(find.byType(TrainingActionMedia))
@@ -236,7 +244,7 @@ void main() {
         );
         await tester.tap(find.byKey(const ValueKey('library-detail-play')));
         await tester.pump();
-        expect(repository.requested, [catalog.tryGet('h-squat')!.video.path]);
+        expectRequests([squat.cover, squat.video]);
         expect(
           tester
               .widget<TrainingActionMedia>(find.byType(TrainingActionMedia))
@@ -260,7 +268,7 @@ void main() {
     );
     expect(find.byKey(const ValueKey('library-detail-start')), findsNothing);
     expect(find.text('力量 · 入门 · 徒手'), findsOneWidget);
-    expect(repository.requested, isEmpty);
+    expectRequests([squat.cover]);
   });
 
   testWidgets('a blocked action cannot start from shared detail', (
@@ -286,7 +294,7 @@ void main() {
           .onPressed,
       isNull,
     );
-    expect(repository.requested, isEmpty);
+    expectRequests([squat.cover]);
   });
 
   testWidgets(
@@ -331,7 +339,7 @@ void main() {
       expect(find.textContaining('Stop if your knees hurt'), findsOneWidget);
       expect(find.text(originalName), findsNothing);
       expect(jsonEncode(action.raw), originalDefinition);
-      expect(repository.requested, isEmpty);
+      expectRequests([squat.cover]);
       expect(tester.takeException(), isNull);
     },
   );
@@ -353,7 +361,7 @@ void main() {
         find.byKey(const ValueKey('posehub-action-h-squat')),
         findsOneWidget,
       );
-      expect(repository.requested, isEmpty);
+      expectRequests([squat.thumbnail]);
       await tester.enterText(
         find.byKey(const ValueKey('posehub-search')),
         'localized',
@@ -393,7 +401,7 @@ void main() {
       );
       expect(find.text('Localized movement'), findsOneWidget);
       expect(find.text('力量 · 入门 · 徒手'), findsOneWidget);
-      expect(repository.requested, isEmpty);
+      expectRequests([squat.thumbnail, squat.thumbnail, squat.cover]);
       expect(tester.takeException(), isNull);
     },
   );
@@ -449,6 +457,6 @@ void main() {
     expect(started, ['h-squat']);
     expect(nativePlayerStarted, isFalse);
     expect(find.byType(TrainingLibraryDetail), findsNothing);
-    expect(repository.requested, isEmpty);
+    expectRequests([squat.cover]);
   });
 }

@@ -35,9 +35,7 @@ class _Downloads
 
 void main() {
   final catalog = PoseHubAppTestCatalog.fromBytes(
-    File(
-      'test/fixtures/pose_hub/r2-v1/catalog.json',
-    ).readAsBytesSync(),
+    File('test/fixtures/pose_hub/r2-v1/catalog.json').readAsBytesSync(),
   );
   final actions = catalog.semanticCompleteActions.take(3).toList();
 
@@ -45,7 +43,10 @@ void main() {
     'only the next video starts after the current video is verified',
     () async {
       final repository = _Downloads(catalog);
-      final policy = TrainingMediaPolicy(repository: repository);
+      final policy = TrainingMediaPolicy(
+        repository: repository,
+        prefetchBeforeTraining: true,
+      );
       final prepared = policy.prefetchActions(
         actions.map((action) => action.id),
       );
@@ -65,10 +66,37 @@ void main() {
   );
 
   test(
-    'jumping away drops lookahead while preserving the running video',
+    'default policy waits until the next action is explicitly opened',
     () async {
       final repository = _Downloads(catalog);
       final policy = TrainingMediaPolicy(repository: repository);
+      final first = policy.prefetchActions(actions.map((action) => action.id));
+      repository.ready(actions[0]);
+      await first;
+      expect(repository.calls, [
+        (actions[0].video.path, CatalogMediaPriority.current),
+      ]);
+
+      final next = policy.prefetchActions(
+        actions.skip(1).map((action) => action.id),
+      );
+      repository.ready(actions[1]);
+      await next;
+      expect(repository.calls, [
+        (actions[0].video.path, CatalogMediaPriority.current),
+        (actions[1].video.path, CatalogMediaPriority.current),
+      ]);
+    },
+  );
+
+  test(
+    'jumping away drops lookahead while preserving the running video',
+    () async {
+      final repository = _Downloads(catalog);
+      final policy = TrainingMediaPolicy(
+        repository: repository,
+        prefetchBeforeTraining: true,
+      );
       var current = true;
       final prepared = policy.prefetchActions(
         actions.map((action) => action.id),

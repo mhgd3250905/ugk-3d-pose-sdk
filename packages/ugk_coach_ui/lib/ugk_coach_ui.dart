@@ -25,3 +25,4 @@ export 'src/task_bubble.dart' show CoachTaskBubble, CoachTaskCutoutBuilder;
 export 'src/coach_delivery_transition.dart' show CoachDeliveryTransition;
 export 'src/plan_focus_label.dart'
     show PlanFocusLabel, CoachPlanFocusIconBuilder;
+export 'src/pose_hub_display_update_dialog.dart';

@@ -22,6 +22,7 @@ class PoseHubStandingImage extends StatelessWidget {
     required this.action,
     this.theme = TrainerTheme.light,
     this.thumbnail = false,
+    this.preferCatalogArtwork = false,
     this.fit = BoxFit.contain,
     this.mediaBaseUri,
     this.cache,
@@ -34,6 +35,9 @@ class PoseHubStandingImage extends StatelessWidget {
 
   /// Lists request the small catalogue thumbnail; large cards use the cover.
   final bool thumbnail;
+
+  /// Prefers current catalogue artwork even if the bundled video still matches.
+  final bool preferCatalogArtwork;
   final BoxFit fit;
   final Uri? mediaBaseUri;
   final PoseHubImageCache? cache;
@@ -54,6 +58,7 @@ class PoseHubStandingImage extends StatelessWidget {
     standingFile: action.mediaFor(null).standing,
     themedMedia: action.themedMedia,
     thumbnail: thumbnail,
+    preferCatalogArtwork: preferCatalogArtwork,
     fit: fit,
     theme: theme,
     mediaBaseUri: mediaBaseUri,
@@ -77,6 +82,7 @@ class PoseHubCatalogImage extends StatefulWidget {
     this.themedMedia = const {},
     this.theme = TrainerTheme.light,
     this.thumbnail = false,
+    this.preferCatalogArtwork = false,
     this.fit = BoxFit.contain,
     this.mediaBaseUri,
     this.cache,
@@ -93,6 +99,9 @@ class PoseHubCatalogImage extends StatefulWidget {
   final Map<PoseHubMediaTheme, PoseHubPackMediaFiles> themedMedia;
   final TrainerTheme theme;
   final bool thumbnail;
+
+  /// Prefers current catalogue artwork even if the bundled video still matches.
+  final bool preferCatalogArtwork;
   final BoxFit fit;
   final Uri? mediaBaseUri;
   final PoseHubImageCache? cache;
@@ -111,6 +120,7 @@ typedef _ArtworkSelection = ({
   PoseHubMediaTheme? theme,
   PoseHubPackFile video,
   PoseHubPackFile image,
+  PoseHubPackFile? fallbackImage,
 });
 
 class _PoseHubCatalogImageState extends State<PoseHubCatalogImage> {
@@ -118,7 +128,7 @@ class _PoseHubCatalogImageState extends State<PoseHubCatalogImage> {
   AssetBundle? _bundle;
   _ArtworkSelection? _selected;
   PoseHubMediaTheme? _bundledTheme;
-  Uri? _verified;
+  ({PoseHubPackFile file, Uri uri})? _verified;
   var _generation = 0;
 
   @override
@@ -133,6 +143,7 @@ class _PoseHubCatalogImageState extends State<PoseHubCatalogImage> {
     _updateArtwork(
       force:
           oldWidget.id != widget.id ||
+          oldWidget.preferCatalogArtwork != widget.preferCatalogArtwork ||
           oldWidget.mediaBaseUri != widget.mediaBaseUri ||
           !identical(oldWidget.cache, widget.cache) ||
           !identical(oldWidget.repository, widget.repository),
@@ -143,14 +154,20 @@ class _PoseHubCatalogImageState extends State<PoseHubCatalogImage> {
     final bundle = DefaultAssetBundle.of(context);
     final theme = poseHubMediaThemeOf(context);
     final media = widget.themedMedia[theme];
+    final ordinary = widget.thumbnail
+        ? widget.thumbnailFile
+        : widget.standingFile ?? widget.cover;
     final selected = (
       theme: media == null ? null : theme,
       video: media?.video ?? widget.video,
-      image: widget.thumbnail
-          ? media?.thumbnail ?? widget.thumbnailFile
-          : (media == null ? widget.standingFile : media.standing) ??
-                media?.cover ??
-                widget.cover,
+      image: media == null
+          ? ordinary
+          : widget.thumbnail
+          ? media.thumbnail
+          : media.standing ?? media.cover,
+      fallbackImage: media != null && widget.preferCatalogArtwork
+          ? ordinary
+          : null,
     );
     final previous = _selected;
     if (!force &&
@@ -159,10 +176,8 @@ class _PoseHubCatalogImageState extends State<PoseHubCatalogImage> {
         previous.theme == selected.theme &&
         previous.video.path == selected.video.path &&
         previous.video.sha256 == selected.video.sha256 &&
-        previous.image.path == selected.image.path &&
-        previous.image.sha256 == selected.image.sha256 &&
-        previous.image.bytes == selected.image.bytes &&
-        previous.image.downloadUri == selected.image.downloadUri) {
+        _sameFile(previous.image, selected.image) &&
+        _sameFile(previous.fallbackImage, selected.fallbackImage)) {
       return;
     }
     _bundle = bundle;
@@ -173,6 +188,12 @@ class _PoseHubCatalogImageState extends State<PoseHubCatalogImage> {
     final index = _indices[bundle] ??= _readIndex(bundle);
     unawaited(_resolve(index, generation, selected));
   }
+
+  static bool _sameFile(PoseHubPackFile? a, PoseHubPackFile? b) =>
+      a?.path == b?.path &&
+      a?.sha256 == b?.sha256 &&
+      a?.bytes == b?.bytes &&
+      a?.downloadUri == b?.downloadUri;
 
   static Future<Map<String, Object?>> _readIndex(AssetBundle bundle) async {
     try {
@@ -196,39 +217,44 @@ class _PoseHubCatalogImageState extends State<PoseHubCatalogImage> {
     int generation,
     _ArtworkSelection selected,
   ) async {
-    try {
-      final entries = await index;
-      if (!mounted || generation != _generation) return;
-      final action = entries[widget.id];
-      final themes = action is Map<String, Object?> ? action['themes'] : null;
-      final entry = selected.theme == null
-          ? action
-          : themes is Map<String, Object?>
-          ? themes[selected.theme!.name]
-          : null;
-      final standing = selected.theme == null
-          ? widget.standingFile
-          : widget.themedMedia[selected.theme]?.standing;
-      if (standing == null &&
-          entry is Map<String, Object?> &&
-          entry['videoPath'] == selected.video.path &&
-          entry['videoSha256'] == selected.video.sha256) {
-        if (selected.theme != null) {
-          setState(() => _bundledTheme = selected.theme);
-        }
-        return;
+    final entries = await index;
+    if (!mounted || generation != _generation) return;
+    final action = entries[widget.id];
+    final themes = action is Map<String, Object?> ? action['themes'] : null;
+    final entry = selected.theme == null
+        ? action
+        : themes is Map<String, Object?>
+        ? themes[selected.theme!.name]
+        : null;
+    final standing = selected.theme == null
+        ? widget.standingFile
+        : widget.themedMedia[selected.theme]?.standing;
+    if (standing == null &&
+        entry is Map<String, Object?> &&
+        entry['videoPath'] == selected.video.path &&
+        entry['videoSha256'] == selected.video.sha256) {
+      if (selected.theme != null) {
+        setState(() => _bundledTheme = selected.theme);
       }
-      final repository = widget.repository;
-      final uri = await (repository != null
-          ? repository.ensureFile(selected.image)
-          : (widget.cache ?? PoseHubImageCache.shared).ensureFile(
-              selected.image,
-              mediaBaseUri: widget.mediaBaseUri,
-            ));
-      if (!mounted || generation != _generation) return;
-      setState(() => _verified = uri);
-    } catch (_) {
-      // Offline, unavailable and corrupt images all keep the quiet fallback.
+      if (!widget.preferCatalogArtwork) return;
+    }
+
+    for (final file in [selected.image, ?selected.fallbackImage]) {
+      try {
+        final repository = widget.repository;
+        final uri = await (repository != null
+            ? repository.ensureFile(file)
+            : (widget.cache ?? PoseHubImageCache.shared).ensureFile(
+                file,
+                mediaBaseUri: widget.mediaBaseUri,
+              ));
+        if (!mounted || generation != _generation) return;
+        setState(() => _verified = (file: file, uri: uri));
+        return;
+      } catch (_) {
+        if (!mounted || generation != _generation) return;
+        // Try ordinary catalogue art when the theme's file is unavailable.
+      }
     }
   }
 
@@ -255,17 +281,16 @@ class _PoseHubCatalogImageState extends State<PoseHubCatalogImage> {
 
   @override
   Widget build(BuildContext context) {
-    final uri = _verified;
-    if (uri == null) return _fallback(_bundledTheme);
-    final file = _selected!.image;
+    final verified = _verified;
+    if (verified == null) return _fallback(_bundledTheme);
     return platform.packImage(
-      uri,
-      key: ValueKey('${widget.id}/${file.sha256}'),
+      verified.uri,
+      key: ValueKey('${widget.id}/${verified.file.sha256}'),
       fit: widget.fit,
       semanticLabel: '${widget.name}站位图',
-      errorBuilder: (_, _, _) => _fallback(),
+      errorBuilder: (_, _, _) => _fallback(_bundledTheme),
       frameBuilder: (_, child, frame, synchronous) =>
-          synchronous || frame != null ? child : _fallback(),
+          synchronous || frame != null ? child : _fallback(_bundledTheme),
     );
   }
 }

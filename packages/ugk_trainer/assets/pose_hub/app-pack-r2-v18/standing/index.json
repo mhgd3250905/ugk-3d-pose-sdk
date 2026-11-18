@@ -1,0 +1,1503 @@
+{
+  "schema": 1,
+  "pack": "r2-v18",
+  "frame": 0,
+  "width": 640,
+  "height": 640,
+  "actions": {
+    "abs-A": {
+      "videoPath": "media/abs-A/r2-v18/abs-A.rgb-alpha.mp4",
+      "videoSha256": "ec137206e841ddd647f0387e583d8321ab547f1a674b20db24abd79f76efed25",
+      "imageSha256": "18a563265c7b173fca4a654576d66fa48b2f22d5f50f4c54d09560be74f95e14",
+      "imageBytes": 12434
+    },
+    "abs-B": {
+      "videoPath": "media/abs-B/r2-v18/abs-B.rgb-alpha.mp4",
+      "videoSha256": "dab0ff49d7346aa4a95d10ab5ab0c3982d471d64e3a01f78dde1fdf08b0eb8ce",
+      "imageSha256": "dd83ceff390ab9373517347bbdd56ee9abdbb9877dd5de9eefa6155bd27cf4d8",
+      "imageBytes": 30130
+    },
+    "abs-C": {
+      "videoPath": "media/abs-C/r2-v18/abs-C.rgb-alpha.mp4",
+      "videoSha256": "8cbba8054677793260b544fe69dcc48016c99a9e82eadb794e85fbd37edabde7",
+      "imageSha256": "6130ebe0c78e86a0764d5fa1a41226eefa0583df87626b0c469f1e9dd8ea3aa5",
+      "imageBytes": 26242
+    },
+    "adductors-A": {
+      "videoPath": "media/adductors-A/r2-v18/adductors-A.rgb-alpha.mp4",
+      "videoSha256": "25bbe620b200d0506b7582d1f56b669f3e6317c778207daf27da4f44d40dadc8",
+      "imageSha256": "d249bebdf52e4998c458e477e13eb3945d038bfa479c4f3430fcb420cd582c99",
+      "imageBytes": 21272
+    },
+    "adductors-B": {
+      "videoPath": "media/adductors-B/r2-v18/adductors-B.rgb-alpha.mp4",
+      "videoSha256": "3154d8fd4a927f9191cd7111a38e047c09d76e493507afaacbf519cd437ead33",
+      "imageSha256": "34898975af06e9ee177a7c56a9f55bfb9144c8fcdd414afc4fe7e85b68444299",
+      "imageBytes": 24852
+    },
+    "adductors-C": {
+      "videoPath": "media/adductors-C/r2-v18/adductors-C.rgb-alpha.mp4",
+      "videoSha256": "98c92665e209842d90ef5bfb1e0acc9bad2b0ddfed4b1981010a06b98d508e3f",
+      "imageSha256": "6b7393ad3e3f3c1e3bc14db473d69e5749b2be50705c63c93e3b960dbc333cfc",
+      "imageBytes": 23548
+    },
+    "chest-A": {
+      "videoPath": "media/chest-A/r2-v18/chest-A.rgb-alpha.mp4",
+      "videoSha256": "5907c5722adc3c78ce85019930ae19d2cfb6487d68ed7c2adf9ae883ed229f85",
+      "imageSha256": "3dbf5b41b3cec1bdf6493594a322086459f9d6b09e92a9fd07c98bef75b2ca4a",
+      "imageBytes": 19656
+    },
+    "chest-B": {
+      "videoPath": "media/chest-B/r2-v18/chest-B.rgb-alpha.mp4",
+      "videoSha256": "41cd655753156c95472e263c813314bd6121d032ac658139ee8802e7e6838cf8",
+      "imageSha256": "733ee984f2c8105a2ded154273a58e111c7df4088cba9212c82316d2cd8749a7",
+      "imageBytes": 32698
+    },
+    "chest-C": {
+      "videoPath": "media/chest-C/r2-v18/chest-C.rgb-alpha.mp4",
+      "videoSha256": "520225baf2b87149a9933cc42665aed62fbc9acea3303e5a8f72f57071ecabaf",
+      "imageSha256": "6005e1065b4958a5318bb49ba7f4c544bfe1cc6a25d21785906c49ad1ae06961",
+      "imageBytes": 25790
+    },
+    "deltoids-A": {
+      "videoPath": "media/deltoids-A/r2-v18/deltoids-A.rgb-alpha.mp4",
+      "videoSha256": "b1ab51c0652517541c42e89e2d716afec7c61f59a829dfa07c5981bb035a699e",
+      "imageSha256": "19757f28051a6d368948270752826cf9fe727c513cd13784926ca9780a80beab",
+      "imageBytes": 19564
+    },
+    "deltoids-B": {
+      "videoPath": "media/deltoids-B/r2-v18/deltoids-B.rgb-alpha.mp4",
+      "videoSha256": "b54fe56db2ca71ab0f411c2d296bf09e986363b22702e891c0cd8a75e6297601",
+      "imageSha256": "7fcb167db235400aaf063dbe47b71f9b549a80bb414bcd9b477db86dd200fe3b",
+      "imageBytes": 17302
+    },
+    "deltoids-C": {
+      "videoPath": "media/deltoids-C/r2-v18/deltoids-C.rgb-alpha.mp4",
+      "videoSha256": "2338f0ed940fa9c0ce92db11a0050d6cf33d53d563dbd5db345634ad6311f59c",
+      "imageSha256": "4c800cd999c30e6aaf1f9c70d62c8ef3a7ee1d55a2793006cb9b5ae65f9ce70c",
+      "imageBytes": 23616
+    },
+    "erectors-A": {
+      "videoPath": "media/erectors-A/r2-v18/erectors-A.rgb-alpha.mp4",
+      "videoSha256": "6a39fca7014ce858aae059017fd125ab6dfb0527cde434d46d8190a0ec4a0931",
+      "imageSha256": "9f8b4bb504a1bbc7f26e137ecd234d7b01413c454720f06388fdbe77cd0f6b99",
+      "imageBytes": 20758
+    },
+    "erectors-B": {
+      "videoPath": "media/erectors-B/r2-v18/erectors-B.rgb-alpha.mp4",
+      "videoSha256": "1cced16666f5b342122a7e4916d24d7f0f6800670f63211ab6f3a89d8b4a0ab1",
+      "imageSha256": "069a2332365d844d7c2bf95cc2aa610d80404eb0a3d3374b935e981494d14237",
+      "imageBytes": 26766
+    },
+    "erectors-C": {
+      "videoPath": "media/erectors-C/r2-v18/erectors-C.rgb-alpha.mp4",
+      "videoSha256": "b4abf2d58ba979982506e2a19cff21068e9e1b298b05b003009ebf1d63f0d7ab",
+      "imageSha256": "2d9a2bd2b2e80a6bb8a19992ae065fd702134dd88377682b94a02684a0d8f9dc",
+      "imageBytes": 26050
+    },
+    "forearms-A": {
+      "videoPath": "media/forearms-A/r2-v18/forearms-A.rgb-alpha.mp4",
+      "videoSha256": "7c4d129cdc50c4a3dbf9a9d2f9657b1bace458a85405e65c768c80950536d63f",
+      "imageSha256": "110c7203457c5b6eeb522d112b61ad11fa65150676201107b307a75fd6616af9",
+      "imageBytes": 18604
+    },
+    "forearms-B": {
+      "videoPath": "media/forearms-B/r2-v18/forearms-B.rgb-alpha.mp4",
+      "videoSha256": "bb5eca845073975b7a0d93ab45f083b1ea87fbac2ab2edb189531b62f65d356c",
+      "imageSha256": "300eebb21f1ef5c5af9282664f3444af02f00b0ba4a706ad6f75be560caed7a3",
+      "imageBytes": 35898
+    },
+    "forearms-C": {
+      "videoPath": "media/forearms-C/r2-v18/forearms-C.rgb-alpha.mp4",
+      "videoSha256": "4031889f0e3d753674737e9580156e9bef638902304455b2d310d25e26d6e111",
+      "imageSha256": "f2a3d2440d324ac9b572f795926055a64bc32a75e56344ddf6266aca7ea2f3f2",
+      "imageBytes": 21506
+    },
+    "g-cable-hip-abduction": {
+      "videoPath": "media/g-cable-hip-abduction/r2-v18/g-cable-hip-abduction.rgb-alpha.mp4",
+      "videoSha256": "be318eccacce0e4bea123593900b410f4323617cdb128eed97258315b9e00fe2",
+      "imageSha256": "c7ccf9bcc088363a4763cfd618feff169a4b409c98a755f0f174a2bb71941764",
+      "imageBytes": 29658
+    },
+    "g-cable-hip-extension": {
+      "videoPath": "media/g-cable-hip-extension/r2-v18/g-cable-hip-extension.rgb-alpha.mp4",
+      "videoSha256": "ce29e341def8c7504cee682816d00a058889f290ecbce771205fd78498655cab",
+      "imageSha256": "7b5063f53711288a992b92386d5b4154db0cc3a74822f821967e0e78c3d4cb82",
+      "imageBytes": 33502
+    },
+    "glute-max-A": {
+      "videoPath": "media/glute-max-A/r2-v18/glute-max-A.rgb-alpha.mp4",
+      "videoSha256": "a3ea777613124861c133298123169dcee3fb4e952e82726b25bd166c15664468",
+      "imageSha256": "8172662bbd903c4bde955951ddb9239900b6334ec905b8e478cbb0b5f7f92c22",
+      "imageBytes": 13720
+    },
+    "glute-max-B": {
+      "videoPath": "media/glute-max-B/r2-v18/glute-max-B.rgb-alpha.mp4",
+      "videoSha256": "26d4f26ccb798567b1001956437136e2731f490d2eb14b2d9d9e9e56b30f64af",
+      "imageSha256": "e018b7f2684e95ebf454886ceca01c6dacfc24e1618577a42fdb75a65013cb15",
+      "imageBytes": 16824
+    },
+    "glute-max-C": {
+      "videoPath": "media/glute-max-C/r2-v18/glute-max-C.rgb-alpha.mp4",
+      "videoSha256": "61b4986c46fd4b0fbd14f8751dcec01e75672627a2c4a98089a8b893c39a9710",
+      "imageSha256": "6939392b279062dfa9fec2f1609aaf4aa87515b7e29b23381f93eba38bcdb884",
+      "imageBytes": 22362
+    },
+    "h-9090-liftoff": {
+      "videoPath": "media/h-9090-liftoff/r2-v18/h-9090-liftoff.rgb-alpha.mp4",
+      "videoSha256": "e2e4db562bb3cec96731d7dde89f8ef8c49ef8a50d8deb6adf833993f44ea1aa",
+      "imageSha256": "092a98c746b01e62e80b8f7f663272eda789cd91342c6be049bd1b408278c8a0",
+      "imageBytes": 18876
+    },
+    "h-adductor-rock": {
+      "videoPath": "media/h-adductor-rock/r2-v18/h-adductor-rock.rgb-alpha.mp4",
+      "videoSha256": "01a26837bd49e12f2af6325a06078c36cfb639cad1da62a67c08e6717ff4f13b",
+      "imageSha256": "cd36a1ac56d60dcee4941ce3431f3961361cf21dd60faab19d99ecdabd75721e",
+      "imageBytes": 18922
+    },
+    "h-banana": {
+      "videoPath": "media/h-banana/r2-v18/h-banana.rgb-alpha.mp4",
+      "videoSha256": "ceabaebc9a8354ea9a4141babc69462b8bf347e73109fa554012bbb00a0284a8",
+      "imageSha256": "b694aa634ce498009ca7f4e0ee6752fea0f5d178a61a3d9723cbe2c42db28c57",
+      "imageBytes": 14448
+    },
+    "h-band-biceps-curl": {
+      "videoPath": "media/h-band-biceps-curl/r2-v18/h-band-biceps-curl.rgb-alpha.mp4",
+      "videoSha256": "de2fc868bb58828f83f193e0676d9a76670c4cb15b3ba38afba854f593e9ae36",
+      "imageSha256": "2ffa4f681070df0f5d6fa5acdaea7cdfe21f39b7e6eeabe80984b8bf4b040f1e",
+      "imageBytes": 21338
+    },
+    "h-band-chest-fly": {
+      "videoPath": "media/h-band-chest-fly/r2-v18/h-band-chest-fly.rgb-alpha.mp4",
+      "videoSha256": "24853faf75c330437e5ad31feed6540f49059ab620d5b8f75ece9b5a33d59396",
+      "imageSha256": "ce5548484234f0e71c2db9b3e10ea20d93b02ffd1a2b6f223ee0915a33b283ab",
+      "imageBytes": 30488
+    },
+    "h-band-face-pull": {
+      "videoPath": "media/h-band-face-pull/r2-v18/h-band-face-pull.rgb-alpha.mp4",
+      "videoSha256": "27d313e01bff5df0c23796e7abde277d18accb36786df64e9c06c3df3844da96",
+      "imageSha256": "a4624c810ec707bd5c43f40065269ff5b225add93d15d52f32c908c43f14bcb9",
+      "imageBytes": 22596
+    },
+    "h-band-hip-extension": {
+      "videoPath": "media/h-band-hip-extension/r2-v18/h-band-hip-extension.rgb-alpha.mp4",
+      "videoSha256": "7903e00a2331faf124a7bf206a9e31c66437b718099138c19ab968c83a0e16df",
+      "imageSha256": "45832a32abf5934ab9b951ba7301292739260ffbadce5d6f360ca81e993e82d2",
+      "imageBytes": 25524
+    },
+    "h-band-hip-ir": {
+      "videoPath": "media/h-band-hip-ir/r2-v18/h-band-hip-ir.rgb-alpha.mp4",
+      "videoSha256": "4a5745a8069f38359ebb324b86ebc09939b457eb04cce97e5ea2da62457814de",
+      "imageSha256": "a6ab6cfca856edca68e624f7d8af60fdd7cc26a594b9287e2d7db0e4b50cdbb0",
+      "imageBytes": 26698
+    },
+    "h-band-leg-out": {
+      "videoPath": "media/h-band-leg-out/r2-v18/h-band-leg-out.rgb-alpha.mp4",
+      "videoSha256": "a280cfd32ec842ea2906aa9a858e55bde58c260ba584a8a4077913c7a5277f0a",
+      "imageSha256": "bbc3f1a18221b915daf25ebfbca4da821e2dc1bf671ece46c9ad778dc89c034b",
+      "imageBytes": 22744
+    },
+    "h-band-pallof": {
+      "videoPath": "media/h-band-pallof/r2-v18/h-band-pallof.rgb-alpha.mp4",
+      "videoSha256": "06f39d26d6069eee3956e01eda307784c687e27a668b8785b0d543b520273d30",
+      "imageSha256": "48053d36b11c77fab97ee238986bb8370b9d081507fcf95c321e7c9c9ec005b4",
+      "imageBytes": 26950
+    },
+    "h-band-pull-apart": {
+      "videoPath": "media/h-band-pull-apart/r2-v18/h-band-pull-apart.rgb-alpha.mp4",
+      "videoSha256": "6788af8aa5439e284f375e5d3aee39cd516d47ef15b3db0532f4147b21451b1a",
+      "imageSha256": "0ea0f59e0df1ec3b8197542c8eb59407d3f96f32662434a8c4f16ee8f4557d17",
+      "imageBytes": 23034
+    },
+    "h-band-row": {
+      "videoPath": "media/h-band-row/r2-v18/h-band-row.rgb-alpha.mp4",
+      "videoSha256": "d830d8f19aae7d50377c54be1fb200fd4aea5b2d66d6d635c5c0868a58835b00",
+      "imageSha256": "855a5a6f61ca92eade03de7679c0803eb1e4e2a09ed7ac33fbdca5d67acb6d43",
+      "imageBytes": 25544
+    },
+    "h-band-shoulder-ir": {
+      "videoPath": "media/h-band-shoulder-ir/r2-v18/h-band-shoulder-ir.rgb-alpha.mp4",
+      "videoSha256": "217adf95ce7770e17e367a9149aa138c691ce5efcce6f707508679d0bba44e77",
+      "imageSha256": "307f5b8f72e353069691534bc188336a98f4a4c2c2785187fce4f346e8156d5f",
+      "imageBytes": 23518
+    },
+    "h-band-standing-abduction": {
+      "videoPath": "media/h-band-standing-abduction/r2-v18/h-band-standing-abduction.rgb-alpha.mp4",
+      "videoSha256": "98f2d0819d25c77e677b9b1afaaf7c85bf7025cf535b55cc368f053ab878c32e",
+      "imageSha256": "5031420d2f5f05f4382680fade43220fba3b2e16a35398f83d5e8ae13fa6b132",
+      "imageBytes": 28792
+    },
+    "h-band-standing-adduction": {
+      "videoPath": "media/h-band-standing-adduction/r2-v18/h-band-standing-adduction.rgb-alpha.mp4",
+      "videoSha256": "92dcdf2bd712c2c2ef68e7926e7049ca8a0a7d814f9ef03ae94f29abf62bef5b",
+      "imageSha256": "06a6c607433fed807d58cd6c65245ec64f654a7178450fcd7177094f41b4e9cc",
+      "imageBytes": 35616
+    },
+    "h-band-stepout": {
+      "videoPath": "media/h-band-stepout/r2-v18/h-band-stepout.rgb-alpha.mp4",
+      "videoSha256": "6b88ffa538763d6e44406eb263f32daf5b0f67f0e8ea87571c3ac4ef630deec1",
+      "imageSha256": "a0cbe20cb7a05def15487e8c592186ddf4915cd79cf9f1453a228dfd32b1e6bf",
+      "imageBytes": 28186
+    },
+    "h-band-straight-leg-raise": {
+      "videoPath": "media/h-band-straight-leg-raise/r2-v18/h-band-straight-leg-raise.rgb-alpha.mp4",
+      "videoSha256": "586f76bb140c992a027e90e01dd8edd65942c9437b5867f2c337679cf7ea179c",
+      "imageSha256": "d688c98f949aa0e2354c0df88cbb39195c8716432a6fd88eb3a58802a1ae736c",
+      "imageBytes": 26188
+    },
+    "h-band-triceps-pressdown": {
+      "videoPath": "media/h-band-triceps-pressdown/r2-v18/h-band-triceps-pressdown.rgb-alpha.mp4",
+      "videoSha256": "2f497b3bbc0456a67460c597a05f5fcc07b8fc71063296aaaae176dbf5a6cd85",
+      "imageSha256": "0ee22acada7e20e17fed796afb6d8b4726e8ac0dc701957589b4846810f1a2dc",
+      "imageBytes": 25022
+    },
+    "h-bear-plank": {
+      "videoPath": "media/h-bear-plank/r2-v18/h-bear-plank.rgb-alpha.mp4",
+      "videoSha256": "7096815a8809ee27f1515616c0c3e9313b7e97f32f893763e9e82a127acc0364",
+      "imageSha256": "e1280ed52f518a682bf3e598ef2cd0f4e94d58bf3590d5f3edc40dbcfbb32b59",
+      "imageBytes": 21262
+    },
+    "h-bent-knee-calf-raise": {
+      "videoPath": "media/h-bent-knee-calf-raise/r2-v18/h-bent-knee-calf-raise.rgb-alpha.mp4",
+      "videoSha256": "c4cbf46e1ee75074c596f4c1220c021ef610a627fa0d7d161478b8ae8635145f",
+      "imageSha256": "6e9dcc3edabfa8ba3ca7640b0d52caa6a5d05d88ffa1bba21b565f2d3086d6a9",
+      "imageBytes": 15866
+    },
+    "h-biceps-self": {
+      "videoPath": "media/h-biceps-self/r2-v18/h-biceps-self.rgb-alpha.mp4",
+      "videoSha256": "9a7b6c72f5966228f6575e0f3da94185785e180191a6d8bc8db4f1c1dfbe31d7",
+      "imageSha256": "9b3d4c7a65f576e9ad272cb10d61c75ab0abaecc9f67998e46472976e4105360",
+      "imageBytes": 18932
+    },
+    "h-bilateral-farmer-hold-native": {
+      "videoPath": "media/h-bilateral-farmer-hold-native/r2-v18/h-bilateral-farmer-hold-native.rgb-alpha.mp4",
+      "videoSha256": "622dd283a7a1ab5c1ce0a0ff9946e5cd4993c656bc3f231e695f794c84630f30",
+      "imageSha256": "ecd330726a3318c7e24664e688f14f9174863daaa649c8ced74cfb80610dfd75",
+      "imageBytes": 19844
+    },
+    "h-bilateral-upper-back-hug": {
+      "videoPath": "media/h-bilateral-upper-back-hug/r2-v18/h-bilateral-upper-back-hug.rgb-alpha.mp4",
+      "videoSha256": "96676cb505ad7594a7820a98371dc3da9d8d6e273927a06e47c459ffa4d62478",
+      "imageSha256": "b27593a3d4dc655851f3f38af4e45a25d4ab07f9fede238e70f40f1ac0845d2f",
+      "imageBytes": 17432
+    },
+    "h-bridge-march": {
+      "videoPath": "media/h-bridge-march/r2-v18/h-bridge-march.rgb-alpha.mp4",
+      "videoSha256": "5526b09105ca5397eb27a1079395b075f01322b99ee0c33fe30529b8d2bf93ec",
+      "imageSha256": "0a40f77b19042e077a14f7cbadabe3894c2ceda5a09af9798672360dbb83e4ff",
+      "imageBytes": 16646
+    },
+    "h-bridge-overhead": {
+      "videoPath": "media/h-bridge-overhead/r2-v18/h-bridge-overhead.rgb-alpha.mp4",
+      "videoSha256": "c8ea186aff44f45356b83b331eea6cfc7a6cc0d0c0df50ab2445e34d4bac7a04",
+      "imageSha256": "98469d7f85c5f6464c2afd52ca6700b10ebfd2c420e77d46ab7979b6aeabe126",
+      "imageBytes": 16060
+    },
+    "h-bulgarian": {
+      "videoPath": "media/h-bulgarian/r2-v18/h-bulgarian.rgb-alpha.mp4",
+      "videoSha256": "d2edd5b9550167b5c68e52e70001bfc6fc24bac418be09f0a9ccc3da3bdc8abd",
+      "imageSha256": "b549b30e74fa526d5942eb87783a71ba56fd529107427b679daec67b047941ce",
+      "imageBytes": 27778
+    },
+    "h-butterfly-active": {
+      "videoPath": "media/h-butterfly-active/r2-v18/h-butterfly-active.rgb-alpha.mp4",
+      "videoSha256": "b9092d175470f6e643484ede903baa7bab24d7508db3f20aaf8c4379626c413c",
+      "imageSha256": "b965a79c74be2255a9932b3f13b291552807e8867b1ed99fa6d40da9ba70ae00",
+      "imageBytes": 24912
+    },
+    "h-calf-raise": {
+      "videoPath": "media/h-calf-raise/r2-v18/h-calf-raise.rgb-alpha.mp4",
+      "videoSha256": "45143ef8ba2ccaa8438290bac63f729a3b4ac0d3ff5562c6e55dbeccf25ffb49",
+      "imageSha256": "df34c4e38b2ad82181a065eaf90bb512946e77fe63f6d9f20573fd2e13503d80",
+      "imageBytes": 15828
+    },
+    "h-catcow-quad": {
+      "videoPath": "media/h-catcow-quad/r2-v18/h-catcow-quad.rgb-alpha.mp4",
+      "videoSha256": "dec6ccf07fe2900a2701613166b37aef8bacf4fb58befa1a90d5563d88bcc33c",
+      "imageSha256": "259ddda93e70e2aafc4049f0b5d58008b50ed08985a0c985512a35a40cd96cb6",
+      "imageBytes": 17350
+    },
+    "h-chair-dip": {
+      "videoPath": "media/h-chair-dip/r2-v18/h-chair-dip.rgb-alpha.mp4",
+      "videoSha256": "2715e180224456d9d877a533d6e4d0360a04fbfd47b400647bd9c623aa50f2a3",
+      "imageSha256": "272dc3166798c07143b9332420a8725455cc23f25e168832f2993ae8d9a9079f",
+      "imageBytes": 30718
+    },
+    "h-chair-elbow-triceps-stretch": {
+      "videoPath": "media/h-chair-elbow-triceps-stretch/r2-v18/h-chair-elbow-triceps-stretch.rgb-alpha.mp4",
+      "videoSha256": "30e2b5aa4d9cf171f211212a13c63e15f5ff0d98a1ccb3bb14ebc7ad978c66ea",
+      "imageSha256": "7c479a8a8e44c5779fd92342f5f76657ca392515e3435655272d6dc6fdb85d9d",
+      "imageBytes": 33008
+    },
+    "h-chair-kickback": {
+      "videoPath": "media/h-chair-kickback/r2-v18/h-chair-kickback.rgb-alpha.mp4",
+      "videoSha256": "6791dd247c62588b9e5373b36185ec99dd9afcd862e4725cdeae484843327583",
+      "imageSha256": "793ae7f8ff041ba2b7a4b07f8966425ae6fca8883f4a5b5b6353788f13dcb8d8",
+      "imageBytes": 21952
+    },
+    "h-chair-lat": {
+      "videoPath": "media/h-chair-lat/r2-v18/h-chair-lat.rgb-alpha.mp4",
+      "videoSha256": "5a5dec3896b1a188d3ad8bd403e64ff94738f6d5e4ceb91c99505a7e28bdda5d",
+      "imageSha256": "06e7bfaec73fdd815b0fed6a5a81fe2cdb56308e99503b48679326bdc8adb3ed",
+      "imageBytes": 26754
+    },
+    "h-chair-progressive-front-split-native": {
+      "videoPath": "media/h-chair-progressive-front-split-native/r2-v18/h-chair-progressive-front-split-native.rgb-alpha.mp4",
+      "videoSha256": "9a2a0a2a3c1739e666a78194b6047dcee234281bbde5ce2f2b4923e56a0470fb",
+      "imageSha256": "23d0538c11f5b784e52db3c829d48db015983112a31a857b053d8af4587cf278",
+      "imageBytes": 19928
+    },
+    "h-chair-single-leg-hip-thrust": {
+      "videoPath": "media/h-chair-single-leg-hip-thrust/r2-v18/h-chair-single-leg-hip-thrust.rgb-alpha.mp4",
+      "videoSha256": "51d86d498c779c50a1caed120e6af122aa20803e06f3d3ad690e0ed76c0f181c",
+      "imageSha256": "a99c7463c8de0cc8804ad0be5b577a893932eef0cd409c8dbee8a8ce2f495c49",
+      "imageBytes": 26002
+    },
+    "h-chair-sit-to-stand": {
+      "videoPath": "media/h-chair-sit-to-stand/r2-v18/h-chair-sit-to-stand.rgb-alpha.mp4",
+      "videoSha256": "fd2915be3071a279de7b61a762ab6eaece532721c16795c13b526f1e412767a3",
+      "imageSha256": "da4ce138729e106f7e8ca95701011e48dfaf3a994ffccddd5445a1b86016c836",
+      "imageBytes": 26294
+    },
+    "h-chair-step-up": {
+      "videoPath": "media/h-chair-step-up/r2-v18/h-chair-step-up.rgb-alpha.mp4",
+      "videoSha256": "aba7fcfd6d451e140069accdebb9a024569bad62d88538275f39de943053e71c",
+      "imageSha256": "09dd3292f55b8cd47ce7017e53b0763b86b6af843d80c34cc705cf614b893583",
+      "imageBytes": 16132
+    },
+    "h-chair-tspine": {
+      "videoPath": "media/h-chair-tspine/r2-v18/h-chair-tspine.rgb-alpha.mp4",
+      "videoSha256": "ed81e1f6f0afc42886d7dbbdb8c768641003eadae736661aeab2a0e127b00032",
+      "imageSha256": "7d358a38d4aa8abd4f9010094ea2e7b054f0bc6198f5afaad84bee5bbee23241",
+      "imageBytes": 20906
+    },
+    "h-close-stance-forward-fold-native": {
+      "videoPath": "media/h-close-stance-forward-fold-native/r2-v18/h-close-stance-forward-fold-native.rgb-alpha.mp4",
+      "videoSha256": "e26fbf9440055af2588bc3538e6fd7b47f272f3035fe86ed4314b84406bc2405",
+      "imageSha256": "fe3bd59614d98d1c505196f10407f02a66e9bce6e4b5b2a9e4fa7f01ca234a49",
+      "imageBytes": 15810
+    },
+    "h-cobra": {
+      "videoPath": "media/h-cobra/r2-v18/h-cobra.rgb-alpha.mp4",
+      "videoSha256": "0181e3311d9d70e3059bdb3bd55a08cdbc0f18e89d210a33aa8b28d0a3578a22",
+      "imageSha256": "cd7adfacbb03e4c71b2b687694dd4136ac78a6ae3d39fc59a2b1ff8dabfad76b",
+      "imageBytes": 14168
+    },
+    "h-couch-stretch": {
+      "videoPath": "media/h-couch-stretch/r2-v18/h-couch-stretch.rgb-alpha.mp4",
+      "videoSha256": "146a7b68f6c4b8721cbe763b96fbf9defdd73f2f76d078e1e713f79f7d036fe3",
+      "imageSha256": "94887e3d34516bd8d78b0f0df100695c1aa52cabcdcac4a766cae1a5ab3a5e90",
+      "imageBytes": 28000
+    },
+    "h-crossbody": {
+      "videoPath": "media/h-crossbody/r2-v18/h-crossbody.rgb-alpha.mp4",
+      "videoSha256": "491eedfbef176080738113158ea9be856f9968d31c4c729bd11c391aea5c2f51",
+      "imageSha256": "3d361b403654d38e5c9b5b2abc189dd6fba9e63948faafe8c8012f2b0f322a8b",
+      "imageBytes": 19088
+    },
+    "h-crunch": {
+      "videoPath": "media/h-crunch/r2-v18/h-crunch.rgb-alpha.mp4",
+      "videoSha256": "3ee413811185af05f91b2fbd6a1456dd629da85c55bf363ed30b21d7092a6b32",
+      "imageSha256": "53a1abd1a10db147248c826423352c27929ff933bafe5335b6e5144d99a4290b",
+      "imageBytes": 13348
+    },
+    "h-db-calf-raise": {
+      "videoPath": "media/h-db-calf-raise/r2-v18/h-db-calf-raise.rgb-alpha.mp4",
+      "videoSha256": "d4dea476442aa50a019c74d7104395bc5e86d57e11a115652f35609b4c92f774",
+      "imageSha256": "38a46862a992dfae16969db3d61579598a035ddc4038500745ab4ebf0eb137dd",
+      "imageBytes": 16342
+    },
+    "h-db-curl": {
+      "videoPath": "media/h-db-curl/r2-v18/h-db-curl.rgb-alpha.mp4",
+      "videoSha256": "29b303001360bba8d542c31611d603921ead341f7fb549dc15500f306a83897e",
+      "imageSha256": "985ca33341cc48d2234078aa83f78ee43405e813da4c67acacaa6bcfc993e985",
+      "imageBytes": 19026
+    },
+    "h-db-floor-fly": {
+      "videoPath": "media/h-db-floor-fly/r2-v18/h-db-floor-fly.rgb-alpha.mp4",
+      "videoSha256": "64868648cfc39f4c9b202640d69c9cb842749b51289a914d9ae561fec31e9580",
+      "imageSha256": "5004efa97597d3cc67a530b25cfee6deb9e51cfe584eee5fda44e6ee9740f912",
+      "imageBytes": 19002
+    },
+    "h-db-floor-press": {
+      "videoPath": "media/h-db-floor-press/r2-v18/h-db-floor-press.rgb-alpha.mp4",
+      "videoSha256": "ccc5d2cdb00a98ca3bfafad50cd61a06a4dbd72e91f0c73ee4fc7a13cd29856a",
+      "imageSha256": "5afdf041a219d81ae7c3bafc9d36b6919635c3712b0ec68401c40096defc3a53",
+      "imageBytes": 21568
+    },
+    "h-db-front-raise": {
+      "videoPath": "media/h-db-front-raise/r2-v18/h-db-front-raise.rgb-alpha.mp4",
+      "videoSha256": "4b2c216bacef0c2cbe83145e3dc03ecdb19814d1e46f786f7a38f82a7765a87a",
+      "imageSha256": "7949a00cf0d415bdf2bebf37d217bb2b774d36d89bf5b2a095fe96b7de02f72f",
+      "imageBytes": 18616
+    },
+    "h-db-hammer-curl": {
+      "videoPath": "media/h-db-hammer-curl/r2-v18/h-db-hammer-curl.rgb-alpha.mp4",
+      "videoSha256": "256fbf85354031e0fc2f79a0060338ec1197d473ed9d8b87d43492c52dfd8be6",
+      "imageSha256": "79882998e05d4703481e25037b8aa3d4b29678c79453609933fade39eaca12b0",
+      "imageBytes": 19980
+    },
+    "h-db-kickback": {
+      "videoPath": "media/h-db-kickback/r2-v18/h-db-kickback.rgb-alpha.mp4",
+      "videoSha256": "349f49c82dbabde1f9b44013ad4e76a70f4f44c0ee744c283469f0da56cc2147",
+      "imageSha256": "0348c75a266dfea1077cf4d76d9f1fc33e58f615392e82525d43574e1f92dba7",
+      "imageBytes": 21274
+    },
+    "h-db-lateral": {
+      "videoPath": "media/h-db-lateral/r2-v18/h-db-lateral.rgb-alpha.mp4",
+      "videoSha256": "baaabdc8aeb716aed2d06f6531a6b3db23d2bf1b7f793b55c3ad5b967f7117d7",
+      "imageSha256": "453726bf5e24f7b75e97b37863c29e489ad717d68bfb59f469a800bd9deeba57",
+      "imageBytes": 22824
+    },
+    "h-db-overhead-shrug": {
+      "videoPath": "media/h-db-overhead-shrug/r2-v18/h-db-overhead-shrug.rgb-alpha.mp4",
+      "videoSha256": "bb882c27bcac0758ad5a4e6c7389b6ea1a08532408a12f3491522eba534df8d5",
+      "imageSha256": "142c8a372f5cdf8dad03700fa71562cc5f1e0e9194346178f487d0a765242b17",
+      "imageBytes": 20748
+    },
+    "h-db-overhead-triceps-extension": {
+      "videoPath": "media/h-db-overhead-triceps-extension/r2-v18/h-db-overhead-triceps-extension.rgb-alpha.mp4",
+      "videoSha256": "765533d4f99c843d16650b033eff6a083cd542e1931db349079d3ccaece4a4d2",
+      "imageSha256": "3101f1be5bb8de3a9bd3ba7ff9944482962635ae83feaee2254bc3c32b34d34a",
+      "imageBytes": 15884
+    },
+    "h-db-press": {
+      "videoPath": "media/h-db-press/r2-v18/h-db-press.rgb-alpha.mp4",
+      "videoSha256": "85cb53addadd36f4e5cacc7fae597b3379bd63feadce51601f74c4966e2a0f47",
+      "imageSha256": "d39e323e3eb83716e3f9a1ca592d524ecc21d2549e4195bc7300358be81937fe",
+      "imageBytes": 22788
+    },
+    "h-db-rdl": {
+      "videoPath": "media/h-db-rdl/r2-v18/h-db-rdl.rgb-alpha.mp4",
+      "videoSha256": "9cf2e46b763ab520ccef35ed484b9c8811bb56ee57b753282c9a9c45eb8c5ada",
+      "imageSha256": "29c1909941bd1314786ee7f3ea085236d77368b602b03cde1e6a8fa84aa954d3",
+      "imageBytes": 15382
+    },
+    "h-db-reverse-curl": {
+      "videoPath": "media/h-db-reverse-curl/r2-v18/h-db-reverse-curl.rgb-alpha.mp4",
+      "videoSha256": "b9a08f2a9dbf061e20b640a863f5392aaa1ccd97dd6ce957db41ebbb4a9b22fc",
+      "imageSha256": "e85910f1fbfd5b4a104c736b6698e91df09c17d5ff434cfc5c86eced5565b05f",
+      "imageBytes": 21676
+    },
+    "h-db-reverse-fly": {
+      "videoPath": "media/h-db-reverse-fly/r2-v18/h-db-reverse-fly.rgb-alpha.mp4",
+      "videoSha256": "ebc9e4a063c0a60839ae7718c9aa8bd2c664e21acf2eac15bbfc1a6a141ea5c0",
+      "imageSha256": "b32bc4ff47d88debba8af909328691325bf157b14c22c7a9e096192470ed42c5",
+      "imageBytes": 20232
+    },
+    "h-db-row": {
+      "videoPath": "media/h-db-row/r2-v18/h-db-row.rgb-alpha.mp4",
+      "videoSha256": "49b0019f71253519940b82eb5b91ea5f52f7a3d3a551b181cbd94695484a188a",
+      "imageSha256": "e25b08abe90d4844440515c1eaff91f6a6dfecc24bee27626a1a17cfe0ebaefe",
+      "imageBytes": 37422
+    },
+    "h-db-shrug": {
+      "videoPath": "media/h-db-shrug/r2-v18/h-db-shrug.rgb-alpha.mp4",
+      "videoSha256": "d4531dd4b65356aa5a1a2ec46a341bf3fb90623220da7f4640b2e953d461da14",
+      "imageSha256": "9f6c48af2b805cc48490a45af579e8adbc7a0476c1f5308e0620db74b713933b",
+      "imageBytes": 20840
+    },
+    "h-db-split-squat": {
+      "videoPath": "media/h-db-split-squat/r2-v18/h-db-split-squat.rgb-alpha.mp4",
+      "videoSha256": "d8f40fbfc4b7816ffc514d3b67bb1bc6c9c42c63ad31b833361b1f9b709c2997",
+      "imageSha256": "c27c85b168dee01530531373a4f76116d367b66e3cd1011d4c418edd03e15748",
+      "imageBytes": 20610
+    },
+    "h-db-supported-calf-raise": {
+      "videoPath": "media/h-db-supported-calf-raise/r2-v18/h-db-supported-calf-raise.rgb-alpha.mp4",
+      "videoSha256": "e0169da79ae4c422efb47307346be1188cfdb89a3c1a0814e90da83bd6d0d41a",
+      "imageSha256": "5598d7e61ffab1d4d646119c62fbee54788006c5a2e3cead56526059f0da5a02",
+      "imageBytes": 14160
+    },
+    "h-db-zottman-curl": {
+      "videoPath": "media/h-db-zottman-curl/r2-v18/h-db-zottman-curl.rgb-alpha.mp4",
+      "videoSha256": "989aa2ba0870dac9fbcd07fe804926ca1f60b79eb96168de0180fa99fa480ce9",
+      "imageSha256": "7c0c9f85783d0cd5a2271b08a68e4e08a34670a7d8e3bc33e97fed1dc212c0e4",
+      "imageBytes": 22276
+    },
+    "h-dd-shoulder": {
+      "videoPath": "media/h-dd-shoulder/r2-v18/h-dd-shoulder.rgb-alpha.mp4",
+      "videoSha256": "e567f27bd393e89451e13b4275dde2fbca784d5826ca10a9129e5062c155a29a",
+      "imageSha256": "f5b47dc9da465be2e0d5b5319dc5de5fa7378fbff11d0ae372ed7b46817bb836",
+      "imageBytes": 18242
+    },
+    "h-donkey-kick": {
+      "videoPath": "media/h-donkey-kick/r2-v18/h-donkey-kick.rgb-alpha.mp4",
+      "videoSha256": "09ba86e4ae040e56cb96bde1b5b8a55c9f784514fce3fd72fd7ccad1f15da642",
+      "imageSha256": "932c26ae4d8d11084b06e376f81cec13e53c59481d5fc07dcca0cbda960a1990",
+      "imageBytes": 18502
+    },
+    "h-doorframe-forearms-pec-native-r3": {
+      "videoPath": "media/h-doorframe-forearms-pec-native-r3/r2-v18/h-doorframe-forearms-pec-native-r3.rgb-alpha.mp4",
+      "videoSha256": "98e3077e20414789eff247ceaef29242227e9d4e04aec76dbdf39400399dadfa",
+      "imageSha256": "5bc05e10365aa1ddfd15cb50ae076d75eda95b313e1b681182322a3c8e105baf",
+      "imageBytes": 25126
+    },
+    "h-fixed-bar-vertical-pull": {
+      "videoPath": "media/h-fixed-bar-vertical-pull/r2-v18/h-fixed-bar-vertical-pull.rgb-alpha.mp4",
+      "videoSha256": "c4d7087e44a6c2bd6c43cc4aec29d2d125e7a2f49bb92ad0e38f3cd84f3c6831",
+      "imageSha256": "40b1c7ea30823103093b79c529ceeb90071e696c14ee16f336e819436183b317",
+      "imageBytes": 25052
+    },
+    "h-floor-nordic-hand-reset": {
+      "videoPath": "media/h-floor-nordic-hand-reset/r2-v18/h-floor-nordic-hand-reset.rgb-alpha.mp4",
+      "videoSha256": "53784578573123704721eeed5c35e85b8566e8122ba442402ea6dc418766f872",
+      "imageSha256": "27312b966f0f2357354ce01e353d09a736fffdfa2e467e465017da576c9d6bae",
+      "imageBytes": 17992
+    },
+    "h-forearm-plank": {
+      "videoPath": "media/h-forearm-plank/r2-v18/h-forearm-plank.rgb-alpha.mp4",
+      "videoSha256": "502d7fb3f288eea419898983a154597d2a5bfe0f09236756e6c646a531740792",
+      "imageSha256": "10e0108088b621a87c472f9e95776e13e68946ee56a58e51b3828e56c0ab7c4b",
+      "imageBytes": 16984
+    },
+    "h-forward-lunge": {
+      "videoPath": "media/h-forward-lunge/r2-v18/h-forward-lunge.rgb-alpha.mp4",
+      "videoSha256": "e38047a015aeed829de650cd35fbd7a52e85e2fbac448cdca04bd30214d1989d",
+      "imageSha256": "f920047fdf415240f84b4c2992d20fc3e095a695e1b712d13e213b5b87486291",
+      "imageBytes": 17374
+    },
+    "h-goblet-squat": {
+      "videoPath": "media/h-goblet-squat/r2-v18/h-goblet-squat.rgb-alpha.mp4",
+      "videoSha256": "ce4eaeec1e2dc69f877176ae53fe11e2e5316d87bcb23f9855c81cdb2b3d1342",
+      "imageSha256": "ab7125bbb77fb61b6c953f2e2f5cbc1325a40e9de1c7d2d4effa3056944d6002",
+      "imageBytes": 18276
+    },
+    "h-good-morning": {
+      "videoPath": "media/h-good-morning/r2-v18/h-good-morning.rgb-alpha.mp4",
+      "videoSha256": "77322a71d4535a82a9978d18a15f50d80be7e557dc00060172ddb10f94c0d151",
+      "imageSha256": "8268cd067402c005f5aaba48fd952468ca5b3a68fa431cdc63af559f62a2e6af",
+      "imageBytes": 15142
+    },
+    "h-half-kneeling-quad-stretch": {
+      "videoPath": "media/h-half-kneeling-quad-stretch/r2-v18/h-half-kneeling-quad-stretch.rgb-alpha.mp4",
+      "videoSha256": "5b2f1f914abe81a4a00369566c5ec0842bef7462e3e8c3dc23f565209f7f95e7",
+      "imageSha256": "05a57a07b4fc6127e2f8b645bafc42cd98c15ca2088a3195eb5d44107fd7dbe4",
+      "imageBytes": 24264
+    },
+    "h-hip-gate": {
+      "videoPath": "media/h-hip-gate/r2-v18/h-hip-gate.rgb-alpha.mp4",
+      "videoSha256": "43ed428493c464d7597831c2e47038560e303a32a866db31e5a12b7d25fa2809",
+      "imageSha256": "5eb694af632f4f3aec5b6e1eccb22be53099bc2ef13e5f8b24d7f3973a09864a",
+      "imageBytes": 22632
+    },
+    "h-incline-pushup": {
+      "videoPath": "media/h-incline-pushup/r2-v18/h-incline-pushup.rgb-alpha.mp4",
+      "videoSha256": "19e7f1e08e9ea48364476b93d137c6fe7a10c66ac93c16b469fae98fc0b318bf",
+      "imageSha256": "899691c3a8413e818530070b388db0df8d5ad36ed8cadf160cdfdde6b7c1912b",
+      "imageBytes": 24524
+    },
+    "h-inner-thigh": {
+      "videoPath": "media/h-inner-thigh/r2-v18/h-inner-thigh.rgb-alpha.mp4",
+      "videoSha256": "631af91e4c1fd267cf92c322a0f1d02c57f2bfac5b3d9633d70daf649d8371d5",
+      "imageSha256": "f30407f6002c1e2553f88c3db0b16cf0066a1c5ea64850713e2b01eb4c3d6f60",
+      "imageBytes": 20606
+    },
+    "h-kb-swing": {
+      "videoPath": "media/h-kb-swing/r2-v18/h-kb-swing.rgb-alpha.mp4",
+      "videoSha256": "e150955d9487f99e40164b1d50be1416a79b32727d03dabc86c616cf4b30c079",
+      "imageSha256": "7c551b98dc3c1006e04c5cdc13a4bfb6bbd8bc033176ef2b280af343b5a07d81",
+      "imageBytes": 17986
+    },
+    "h-knee-hug": {
+      "videoPath": "media/h-knee-hug/r2-v18/h-knee-hug.rgb-alpha.mp4",
+      "videoSha256": "35c40cc919e8d66df89f72692c546339dab1cc2f40e277b66eb2ff037281f16e",
+      "imageSha256": "0136b94c452e08a9cd47eafe10a18180dadc777132cac24a45faaa876687a1cd",
+      "imageBytes": 18338
+    },
+    "h-knee-wall-dorsiflexion-native": {
+      "videoPath": "media/h-knee-wall-dorsiflexion-native/r2-v18/h-knee-wall-dorsiflexion-native.rgb-alpha.mp4",
+      "videoSha256": "fbae2d7900f740d4c353c4a0bf2ab2a43886eacc31ff176d57783d65d242048b",
+      "imageSha256": "fd5238ae368d6b28aa4293261c8a10b2910dac5379a9644ee59907a40bbf051d",
+      "imageBytes": 19060
+    },
+    "h-kneeling-instep-stretch": {
+      "videoPath": "media/h-kneeling-instep-stretch/r2-v18/h-kneeling-instep-stretch.rgb-alpha.mp4",
+      "videoSha256": "9379332430454384b0279178918fb145a92682760f39f05c91ed488933833bfb",
+      "imageSha256": "773fa47e6cd007d9ee8a35d3170f5a0a93905670bebf7c4ef2e9faaf41c61a93",
+      "imageBytes": 20422
+    },
+    "h-kneeling-pushup": {
+      "videoPath": "media/h-kneeling-pushup/r2-v18/h-kneeling-pushup.rgb-alpha.mp4",
+      "videoSha256": "1129fa0aa2158ad25e708b0a0292b80b3e6c5c48110d3ef26998120791f50a15",
+      "imageSha256": "6bb23fdc74e5d0193fb5eaa9098a58ee8bcbbc2fea23341ee9bbaff855be249a",
+      "imageBytes": 17850
+    },
+    "h-kneeling-thread-needle": {
+      "videoPath": "media/h-kneeling-thread-needle/r2-v18/h-kneeling-thread-needle.rgb-alpha.mp4",
+      "videoSha256": "ec6155218d5aa3a8a635773bc7c7f47ef4d2bb1062c580578efd9f85e58a7d02",
+      "imageSha256": "e3dfb6db8a43ef1c62d8a8a472ddd0249f2e3e5b5c47e1171205eea825a9ae38",
+      "imageBytes": 19154
+    },
+    "h-lateral-step-lunge": {
+      "videoPath": "media/h-lateral-step-lunge/r2-v18/h-lateral-step-lunge.rgb-alpha.mp4",
+      "videoSha256": "f6ebfe7f582b363bd1e4bbe7b569ce00c5047b874d8ed7e187d421b756f205a0",
+      "imageSha256": "cbf66d7a49db7e8da37ebdecedc521172fc20181d0c8afda9899d33a0daea273",
+      "imageBytes": 23378
+    },
+    "h-mountain-climber": {
+      "videoPath": "media/h-mountain-climber/r2-v18/h-mountain-climber.rgb-alpha.mp4",
+      "videoSha256": "0badf11f320abe297837cae92acaf6b06a18993f41846e50b4632a97d2290856",
+      "imageSha256": "38787bb59d5a835573f3cdac67145246f6d43d54245ebbe110e3ed8300db298e",
+      "imageBytes": 17772
+    },
+    "h-open-book": {
+      "videoPath": "media/h-open-book/r2-v18/h-open-book.rgb-alpha.mp4",
+      "videoSha256": "cfca1d0998493cee1d89db51d9f79ed4a75e633931c2ae47015e59390dcf23ce",
+      "imageSha256": "159be242f51ce9b3f5dfa2293edec209ef20d7226a2b757450354d2d8504b181",
+      "imageBytes": 21130
+    },
+    "h-overhead-triceps-stretch": {
+      "videoPath": "media/h-overhead-triceps-stretch/r2-v18/h-overhead-triceps-stretch.rgb-alpha.mp4",
+      "videoSha256": "07c006093398ee0d06120155383eac9bab5f6aaf499be0f2388cf1ef2ffe3d65",
+      "imageSha256": "e96f383360047b0f4f8b02a4410eac7de87433f828e545cb366794d5055baa93",
+      "imageBytes": 17324
+    },
+    "h-pike-pushup": {
+      "videoPath": "media/h-pike-pushup/r2-v18/h-pike-pushup.rgb-alpha.mp4",
+      "videoSha256": "d0e353374b0c4c858e6588ca8074969139c2e90997746994e9ba0b59b408ea5d",
+      "imageSha256": "789343c2534a47acaea363c1a6028235daf5b878adcd4fed1dd7941522caa611",
+      "imageBytes": 22014
+    },
+    "h-pike-scapular-elevation": {
+      "videoPath": "media/h-pike-scapular-elevation/r2-v18/h-pike-scapular-elevation.rgb-alpha.mp4",
+      "videoSha256": "69bdddd1c8beb9617e4fd127566d1ca97c0e0e50b917051f458c0a4533098c7d",
+      "imageSha256": "8a62c8a5e242548670595bc2817a998fe9fb0e634a35bfc151b7ed1cf59c567c",
+      "imageBytes": 23172
+    },
+    "h-plank-side-step": {
+      "videoPath": "media/h-plank-side-step/r2-v18/h-plank-side-step.rgb-alpha.mp4",
+      "videoSha256": "8e3abf18d58fd11a8e070418faf0c3d2092d494a60cff3a50b102af241d67072",
+      "imageSha256": "6a985f22f33883e4c45c2a160008f1cd753f3efd943aab951770e4b1f39c6326",
+      "imageBytes": 16300
+    },
+    "h-quad-cars": {
+      "videoPath": "media/h-quad-cars/r2-v18/h-quad-cars.rgb-alpha.mp4",
+      "videoSha256": "4ad086c51fff6e2082a356256e2e2d640da6f478658d68c4ca7850be9c76180c",
+      "imageSha256": "25a2aa75240cb3e5616ef77f50d8765594ea178435c75c0c31534751e61c1ef6",
+      "imageBytes": 16696
+    },
+    "h-quadruped-open": {
+      "videoPath": "media/h-quadruped-open/r2-v18/h-quadruped-open.rgb-alpha.mp4",
+      "videoSha256": "558e52231bdb5a2a5cad9e8b8c72eb67e9046588b3a1943268b8011f2bf8b2dd",
+      "imageSha256": "a55af6be9ed537c89b434a48baffd0ac0a575d03e42804966c9f6d1f0f3dae61",
+      "imageBytes": 19650
+    },
+    "h-quadruped-rockback": {
+      "videoPath": "media/h-quadruped-rockback/r2-v18/h-quadruped-rockback.rgb-alpha.mp4",
+      "videoSha256": "b92ea2d052d6be57e0e2fa6022b2bb6a4e2beb53d24b01574cc0c6bd27f5925d",
+      "imageSha256": "6310e2590982f816510458eefa502bc145e96795e0dae320c12743c2a82235f8",
+      "imageBytes": 16804
+    },
+    "h-reverse-clam": {
+      "videoPath": "media/h-reverse-clam/r2-v18/h-reverse-clam.rgb-alpha.mp4",
+      "videoSha256": "b8bb13c593dafa8f5a33b8f7f74976452b55fe5c2521e5327106500754a1ff9b",
+      "imageSha256": "6113b8a5ead3b4659d977076919718f881f9e3f1540a61fa18ea7312ad4aad14",
+      "imageBytes": 19942
+    },
+    "h-reverse-crunch": {
+      "videoPath": "media/h-reverse-crunch/r2-v18/h-reverse-crunch.rgb-alpha.mp4",
+      "videoSha256": "6b43a1ce5f8794d207dcdbe4b101a284cfd8aebf31574550cdb79cfbc546d519",
+      "imageSha256": "4301e23514696cbe5d285e63f740a5b0bdeb8b34894be63d2e5da807fab8aa93",
+      "imageBytes": 16102
+    },
+    "h-reverse-lunge": {
+      "videoPath": "media/h-reverse-lunge/r2-v18/h-reverse-lunge.rgb-alpha.mp4",
+      "videoSha256": "0d2ce948b3db3c58b073d18c2233d0b33b27e3d71a8ffedd2eb84844575dad70",
+      "imageSha256": "faa5c7fe79393fdec9aff7d201b84562a1d6743e5318889ffd02fa5f9d22f783",
+      "imageBytes": 16196
+    },
+    "h-russian-twist": {
+      "videoPath": "media/h-russian-twist/r2-v18/h-russian-twist.rgb-alpha.mp4",
+      "videoSha256": "491879371e52db86142449529c5bcd92f77729c55f2812777085fe5ef709ae09",
+      "imageSha256": "94e7bc2ea17d764f2e5c51184ec466d5fab4a0c59b29ab04ac10d2bc595a6df3",
+      "imageBytes": 21716
+    },
+    "h-seated-reachback": {
+      "videoPath": "media/h-seated-reachback/r2-v18/h-seated-reachback.rgb-alpha.mp4",
+      "videoSha256": "2f6d97091bf7d47cd5fe0dcdf42c5e7a0f5ebdc410feb86d29165359624f566f",
+      "imageSha256": "c005468b3840b2cf6f7b305b8268eb31e28933e7f40a22254b82d30ee16120b7",
+      "imageBytes": 20242
+    },
+    "h-short-side-plank": {
+      "videoPath": "media/h-short-side-plank/r2-v18/h-short-side-plank.rgb-alpha.mp4",
+      "videoSha256": "4e99adcc68e56b0478956468772dde1963096c062bfbdf9d0be19cb0d363ed70",
+      "imageSha256": "8dafb488c08be0294716ef864889cfbeee990ed27322d5f178e102b7aa23cef6",
+      "imageBytes": 14780
+    },
+    "h-side-er": {
+      "videoPath": "media/h-side-er/r2-v18/h-side-er.rgb-alpha.mp4",
+      "videoSha256": "c10225410b532bc877bec241c91d7f3a27f9ab82161c153a4e5cbe8208fe0a99",
+      "imageSha256": "7f8e4fe86d026217fe327128d152217ff817a174b019c2f82aa28ee25871806e",
+      "imageBytes": 14058
+    },
+    "h-side-leg-raise": {
+      "videoPath": "media/h-side-leg-raise/r2-v18/h-side-leg-raise.rgb-alpha.mp4",
+      "videoSha256": "7de60a267930b4737306e07224fc2bbbbb035e9fbbe2fa8a28aed45bdaef917a",
+      "imageSha256": "cc11746ebad58248b7894744315d6c3437fc1916f3401d93ef93f783cfc007ca",
+      "imageBytes": 20354
+    },
+    "h-slider-body-saw": {
+      "videoPath": "media/h-slider-body-saw/r2-v18/h-slider-body-saw.rgb-alpha.mp4",
+      "videoSha256": "5072fd3a7c33cad756865a8f78568158e708c4f7522c46c2f056f2d5248f071a",
+      "imageSha256": "e882abc7d11e14a6bd0982dc05ae14dd7fec5714b91d9b8ad8ff74f74ee68ebc",
+      "imageBytes": 14716
+    },
+    "h-squat": {
+      "videoPath": "media/h-squat/r2-v18/h-squat.rgb-alpha.mp4",
+      "videoSha256": "8cce7328393f9d59a53f460b597cadc19af8c2a4857775c63dea33d0dd180f72",
+      "imageSha256": "1cbd41e21eea36b44b26ed1d2c2a0bacee53034bcd5ddb188ab7c8dee6a76198",
+      "imageBytes": 17860
+    },
+    "h-standing-arm-extension-stretch": {
+      "videoPath": "media/h-standing-arm-extension-stretch/r2-v18/h-standing-arm-extension-stretch.rgb-alpha.mp4",
+      "videoSha256": "9312547d8cc14462ae775278783e996c339f6298774c9c90db5f326597eb0c99",
+      "imageSha256": "4332e7a8a71ae10c0f5e4c04771d7fb974b20c5bea93be6074761981d2adb869",
+      "imageBytes": 15716
+    },
+    "h-standing-forearm-rotation": {
+      "videoPath": "media/h-standing-forearm-rotation/r2-v18/h-standing-forearm-rotation.rgb-alpha.mp4",
+      "videoSha256": "c1085a60e38590cf904cbfb97c3bea1654950814746f92504fa9f1d7ea3b913b",
+      "imageSha256": "6563990fd84cfcc7e587873d91bf07cd4370263306fefeb81661cf2c678ad292",
+      "imageBytes": 19414
+    },
+    "h-standing-wrist-deviation": {
+      "videoPath": "media/h-standing-wrist-deviation/r2-v18/h-standing-wrist-deviation.rgb-alpha.mp4",
+      "videoSha256": "d1148f636f312281ba0f2d9d34c4798ff61d89cef7aa3b4dc0d9806dab8914e5",
+      "imageSha256": "604aa15cd1c9fa27de51fcd8d7b8690056f03e12ad3effb2dcc2e18364884c0d",
+      "imageBytes": 20308
+    },
+    "h-standing-wrist-extensor-stretch": {
+      "videoPath": "media/h-standing-wrist-extensor-stretch/r2-v18/h-standing-wrist-extensor-stretch.rgb-alpha.mp4",
+      "videoSha256": "adc928608b92fd66ef742188222ef07c5a3845cd6ff0d4732921aae009109731",
+      "imageSha256": "04c7b3021569f467e91f175a6d5c5a85108810f5ccd4bd39920325fe496bec3c",
+      "imageBytes": 16802
+    },
+    "h-step-jack": {
+      "videoPath": "media/h-step-jack/r2-v18/h-step-jack.rgb-alpha.mp4",
+      "videoSha256": "6fb2245e3c6f8fb24499b2133a4502d711896251c770ce643a42059545d9d551",
+      "imageSha256": "b05a25c751edc61dfc3080a5a3a792e47607603c5b4870aa36007bf44a97185a",
+      "imageBytes": 17572
+    },
+    "h-straight-arm-hang-native": {
+      "videoPath": "media/h-straight-arm-hang-native/r2-v18/h-straight-arm-hang-native.rgb-alpha.mp4",
+      "videoSha256": "a98284d0517602faa657b10bc14d51aa932c14050fa25f4bd91d018999ecad33",
+      "imageSha256": "f6e9c51645d70216cbab4695843164754320b2d8deafeb63d7ced7370950317a",
+      "imageBytes": 24830
+    },
+    "h-suitcase-hold": {
+      "videoPath": "media/h-suitcase-hold/r2-v18/h-suitcase-hold.rgb-alpha.mp4",
+      "videoSha256": "c39ecbf56360b6d8babddf878f528c0fb995eeff478be3a584dcd93f364396c3",
+      "imageSha256": "7b2efcf09a0c01d7282442f3aa13a64272336f483011f03f27f5453ce5bae598",
+      "imageBytes": 21024
+    },
+    "h-suitcase-march": {
+      "videoPath": "media/h-suitcase-march/r2-v18/h-suitcase-march.rgb-alpha.mp4",
+      "videoSha256": "a2fc36f96e4d3960d4a78e789017cffcda0cf3b7d25366382e2917be230933ed",
+      "imageSha256": "e9dc825dcacf2215ce95e2c9e256933a5d148b9295f8fc93fa0a303b84f7551e",
+      "imageBytes": 21994
+    },
+    "h-sumo-pry": {
+      "videoPath": "media/h-sumo-pry/r2-v18/h-sumo-pry.rgb-alpha.mp4",
+      "videoSha256": "b64ca2e680e8daa73cd66a6919bee4b238b7e9f18f896415179c5cd4c9ee25c0",
+      "imageSha256": "dd2fcfa1edd91c04b988f0aa1fb1ac94935f540cf43e91625a0cb7488ae40b6b",
+      "imageBytes": 23286
+    },
+    "h-superman": {
+      "videoPath": "media/h-superman/r2-v18/h-superman.rgb-alpha.mp4",
+      "videoSha256": "ab7f935aa03e09ea5393e4041e65bba5fd7fd6d97f2a0a56bee2979c63a5b065",
+      "imageSha256": "4285a815c36779f739a95dadc4565e4953dd1ff165b5afdf2e256eef4651f834",
+      "imageBytes": 14306
+    },
+    "h-supine-bilateral-leg-raise": {
+      "videoPath": "media/h-supine-bilateral-leg-raise/r2-v18/h-supine-bilateral-leg-raise.rgb-alpha.mp4",
+      "videoSha256": "b1ac0c46e614924e22c6b2d66811aa039569c518cf810712e8986f286210c575",
+      "imageSha256": "b5007997ce91bccab7693df83fe4958c6e5a1b74da4439b05018d77d2808c707",
+      "imageBytes": 16616
+    },
+    "h-supine-cactus-chest": {
+      "videoPath": "media/h-supine-cactus-chest/r2-v18/h-supine-cactus-chest.rgb-alpha.mp4",
+      "videoSha256": "ccfeaaa9bd2ac240e699693075cb4f5008db704fd0fa7cb899d58584888b79f5",
+      "imageSha256": "2c992fd3830045349222b509738f87717fb665e64d69456abee15df3706837c7",
+      "imageBytes": 20594
+    },
+    "h-supine-heel-slide": {
+      "videoPath": "media/h-supine-heel-slide/r2-v18/h-supine-heel-slide.rgb-alpha.mp4",
+      "videoSha256": "a5e1cdf81feb523bcd534a7484d9b94cf65f06ea2ed80d987828741f28c7e7e1",
+      "imageSha256": "7cf10d5252a36c070a0fdeb0e88621269188eafc40ec32171f1ed39556ff281c",
+      "imageBytes": 12274
+    },
+    "h-supine-twist": {
+      "videoPath": "media/h-supine-twist/r2-v18/h-supine-twist.rgb-alpha.mp4",
+      "videoSha256": "bd7a954d5287525200d41b30648cca0d0cde2065dc99899c481c6eb27d0d941d",
+      "imageSha256": "86db1f31c25dc1efd3b7a3f512124e6e5fa57866b267267fe020a1e8752121ad",
+      "imageBytes": 16708
+    },
+    "h-supported-single-leg-calf": {
+      "videoPath": "media/h-supported-single-leg-calf/r2-v18/h-supported-single-leg-calf.rgb-alpha.mp4",
+      "videoSha256": "aac13e1d8228e3c8d14b247d434d1b512f62a179b2c26b1ddc21728c19fd404f",
+      "imageSha256": "08deef23465c866c5dbaa8e125e06b7915a50630106c54280c18c5c18f1c8060",
+      "imageBytes": 16740
+    },
+    "h-tabletop": {
+      "videoPath": "media/h-tabletop/r2-v18/h-tabletop.rgb-alpha.mp4",
+      "videoSha256": "780c7ef7f65c8bd2820d7b8917cfcc7108e694973925aa5045a0062b4771ac7c",
+      "imageSha256": "bb0dbd6690e5b20427b26c274b65f3971f0bf460c019ccfa284b0491df3bbc3a",
+      "imageBytes": 18588
+    },
+    "h-tib-raise": {
+      "videoPath": "media/h-tib-raise/r2-v18/h-tib-raise.rgb-alpha.mp4",
+      "videoSha256": "33210de7e861269f9649a1030d8cf40304880cee427089ff753027be120265af",
+      "imageSha256": "b81aea5df267ea366da44fe45a83baeb5ba15219c4b7a891998e62fb5088666b",
+      "imageBytes": 13294
+    },
+    "h-towel-behind": {
+      "videoPath": "media/h-towel-behind/r2-v18/h-towel-behind.rgb-alpha.mp4",
+      "videoSha256": "0357c430ac32df6437573d43f252feb73037246d518e3707f9cd09632da5f168",
+      "imageSha256": "b9e22f64668e5e2b507b15b6cd00fef9c495acdd6a87358b9914d25307880967",
+      "imageBytes": 15996
+    },
+    "h-towel-isometric-curl": {
+      "videoPath": "media/h-towel-isometric-curl/r2-v18/h-towel-isometric-curl.rgb-alpha.mp4",
+      "videoSha256": "6c34fac778d8be8355b6f7d885fa7990ac22b7bab7779199c5e6cf586c8bdfc0",
+      "imageSha256": "9f4e91f3fbb2769b3d46db062f114c84388345401264caa353620575846b59f1",
+      "imageBytes": 24242
+    },
+    "h-towel-pass": {
+      "videoPath": "media/h-towel-pass/r2-v18/h-towel-pass.rgb-alpha.mp4",
+      "videoSha256": "beba8c400c7f5e646c286ee85fd9d09f9ee524bdbe2171ccfd8e667724777fce",
+      "imageSha256": "d95c253e6c44d306e9b3673c8fb9a1a9608ba55ad0993b19b7bcca44376eadf8",
+      "imageBytes": 19502
+    },
+    "h-towel-pulldown": {
+      "videoPath": "media/h-towel-pulldown/r2-v18/h-towel-pulldown.rgb-alpha.mp4",
+      "videoSha256": "9e7f9df035c8f072b546c66704fa246347c2a3c88bf4b8fdf2f33ce10a5ba4a0",
+      "imageSha256": "ced1c20ea9cbcd4068e19dacc98bc3a498a922b5f15af6b899a7315b1c91efca",
+      "imageBytes": 21208
+    },
+    "h-unsupported-star-reach-native": {
+      "videoPath": "media/h-unsupported-star-reach-native/r2-v18/h-unsupported-star-reach-native.rgb-alpha.mp4",
+      "videoSha256": "ee387835eb4bf1c7aced73b71a5250cc6d286717def2fb62c6056b79ba3be441",
+      "imageSha256": "30f68e193aa1afb1f3a0b912942bf0a6b025955ce051d7f3bf9047299a7534ba",
+      "imageBytes": 21472
+    },
+    "h-wall-angel": {
+      "videoPath": "media/h-wall-angel/r2-v18/h-wall-angel.rgb-alpha.mp4",
+      "videoSha256": "f46b1a8ac60456463d9f5c11e2a558726c71e048060c90001c4f17542bea713b",
+      "imageSha256": "f42dcac983a22150ec7f25f358b6372085768edebcdaff2ecfdbb9b2a5737f2e",
+      "imageBytes": 13068
+    },
+    "h-wall-calf": {
+      "videoPath": "media/h-wall-calf/r2-v18/h-wall-calf.rgb-alpha.mp4",
+      "videoSha256": "5d5f3c6753f14e42ba89ce7a1ff6b6df76d3c95d2175002eb88e22f9cf0df986",
+      "imageSha256": "803c0ea9cbe3884cfbbcd3341260052a501c16cbe6226daa3f3bd03eb0034308",
+      "imageBytes": 19730
+    },
+    "h-wall-calf-bent-knee": {
+      "videoPath": "media/h-wall-calf-bent-knee/r2-v18/h-wall-calf-bent-knee.rgb-alpha.mp4",
+      "videoSha256": "2f5b2656cf9292037651d2af6ac724955e74414bd7cc7dcf2a4c6a4b6afc6aae",
+      "imageSha256": "e0a8616a2edce0e8720ca8e7df9d7bdc508605320856fdbf538c4e6f833506df",
+      "imageBytes": 20112
+    },
+    "h-wall-palm-lift": {
+      "videoPath": "media/h-wall-palm-lift/r2-v18/h-wall-palm-lift.rgb-alpha.mp4",
+      "videoSha256": "832362c310c31311dacbf6dc187c7f00389f2bbb8c0c682570508a47be166687",
+      "imageSha256": "79663295c16c73cc0d2beaa5809ca54518ce1fed6378ca2746c09a7f568499a1",
+      "imageBytes": 16468
+    },
+    "h-wall-pec": {
+      "videoPath": "media/h-wall-pec/r2-v18/h-wall-pec.rgb-alpha.mp4",
+      "videoSha256": "a4998bb87841658e45fcbda9e93c70d49cf6179513e342b70d59e7cec929dbf8",
+      "imageSha256": "bdd70f154626fcc1029965a4caaaeed6745e1ed5ef87866c5b053b3f17e7f96a",
+      "imageBytes": 23444
+    },
+    "h-wall-straddle": {
+      "videoPath": "media/h-wall-straddle/r2-v18/h-wall-straddle.rgb-alpha.mp4",
+      "videoSha256": "9179eb8d10bcc6c3d361ef04330fdb7f120ea758bc72bc595817a3a3b3db9e44",
+      "imageSha256": "0d4358c8fcb91cae1c7521b751f9bafa78402ee184f88e122041a21a14382a98",
+      "imageBytes": 21282
+    },
+    "h-wall-wrist-flexor-stretch": {
+      "videoPath": "media/h-wall-wrist-flexor-stretch/r2-v18/h-wall-wrist-flexor-stretch.rgb-alpha.mp4",
+      "videoSha256": "d0b58a0a00ba38bce86d88bfa9374cd832b00a8a5a29c1c4963f225090a51fb4",
+      "imageSha256": "af1c761d4ff4ac80d67f482cddfab5006eca3da9c6f3732e0d7a30f0f32ec529",
+      "imageBytes": 15146
+    },
+    "hamstrings-A": {
+      "videoPath": "media/hamstrings-A/r2-v18/hamstrings-A.rgb-alpha.mp4",
+      "videoSha256": "c47589f0994c3b6c0a7cfeeb4aafb3d81db43dd238faf750d6e5a26d7bb4b9a2",
+      "imageSha256": "3bae1494dda11ceb647b5c1ec453ce9c113e864fdf03a4ace4c99e21445c43d2",
+      "imageBytes": 17744
+    },
+    "hamstrings-B": {
+      "videoPath": "media/hamstrings-B/r2-v18/hamstrings-B.rgb-alpha.mp4",
+      "videoSha256": "9b67780fe9a90fb0692f77e22e8b45b723197c924882fdec33352d42299a8275",
+      "imageSha256": "6fb38273650cbb0986bbcbfab35f11d04dd29ce9ca7801ac8fdf0884478bf39d",
+      "imageBytes": 13918
+    },
+    "hamstrings-C": {
+      "videoPath": "media/hamstrings-C/r2-v18/hamstrings-C.rgb-alpha.mp4",
+      "videoSha256": "5ab824890d8e0984c66dabcda478d4d4cbe5ca9da6a2462d8fe34925e9d1d90f",
+      "imageSha256": "71df7daa6c3cd482cd37f9f98c6427d03feb26f93cc66f8982041738c2629689",
+      "imageBytes": 22114
+    },
+    "hip-abductors-A": {
+      "videoPath": "media/hip-abductors-A/r2-v18/hip-abductors-A.rgb-alpha.mp4",
+      "videoSha256": "987f227dbf7656f5a1481552653cb47fd8ce29f95249ce34b32f8b28625cb9a1",
+      "imageSha256": "b8704e78ba59ded4b08c2253a94f446e8b5e6c18774090d896df1972b255b0fd",
+      "imageBytes": 17866
+    },
+    "hip-abductors-B": {
+      "videoPath": "media/hip-abductors-B/r2-v18/hip-abductors-B.rgb-alpha.mp4",
+      "videoSha256": "9b14598475eddbc23263063e446e6320db52b0f7ee8ba55be8a769dedcd14e93",
+      "imageSha256": "8702100f54e7e713c43bd9532a7b5036a6e52461d959d01ff55ac32b084600a5",
+      "imageBytes": 22348
+    },
+    "hip-abductors-C": {
+      "videoPath": "media/hip-abductors-C/r2-v18/hip-abductors-C.rgb-alpha.mp4",
+      "videoSha256": "e3767ff4f2ff4d8e0a01b8415e4930beb581e24f4c71daf6ba5b155b5f5c1a67",
+      "imageSha256": "1fd3e132f1c3cb9bcb7f4ebf116cc99a5799cc9dd558f4d5991ad2b406a3ce18",
+      "imageBytes": 21440
+    },
+    "hip-flexors-A": {
+      "videoPath": "media/hip-flexors-A/r2-v18/hip-flexors-A.rgb-alpha.mp4",
+      "videoSha256": "67f67527deee26cac7e1430ba4ef28d8ec89f76e152b24b662d8ad8bfb224687",
+      "imageSha256": "0f241ce44b8844089ef012a20e31f7dadefc7fd0abc1544d67656bc74d31b07b",
+      "imageBytes": 16346
+    },
+    "hip-flexors-B": {
+      "videoPath": "media/hip-flexors-B/r2-v18/hip-flexors-B.rgb-alpha.mp4",
+      "videoSha256": "91c63b7abc867b996db162ca520fa549f6e1d8c6e184acf189f48ea3b9e03888",
+      "imageSha256": "81b999af9a1058a04dc833ea904f25c09b1f55d765c226ee0227a126031544a0",
+      "imageBytes": 18626
+    },
+    "hip-flexors-C": {
+      "videoPath": "media/hip-flexors-C/r2-v18/hip-flexors-C.rgb-alpha.mp4",
+      "videoSha256": "32dac7e0b9b73be15917946245db43dfe5c09f5f59fc366a8ffbf0e487ebbbde",
+      "imageSha256": "23fc3895cfcda8bf2e366bb7ff5dc873bc3662892b99d19c2c35f64da6d81422",
+      "imageBytes": 25600
+    },
+    "lats-A": {
+      "videoPath": "media/lats-A/r2-v18/lats-A.rgb-alpha.mp4",
+      "videoSha256": "8867c6fe0f743f05a7350ebba66c4201386f53008a09fb04e0662cf049ddfcc0",
+      "imageSha256": "948bf8144989adaeada42391c83f7a84d8af7985afa501b291cc58547829edd7",
+      "imageBytes": 15918
+    },
+    "lats-B": {
+      "videoPath": "media/lats-B/r2-v18/lats-B.rgb-alpha.mp4",
+      "videoSha256": "007bb7c0ad09a8e0c55a9d9e4757b4ba4922a171f48a418f45b02394357e09a7",
+      "imageSha256": "7d647d9b4a07813309dc5ddc5596e3e4785c11220a51fe658feb807e853bb6cc",
+      "imageBytes": 26652
+    },
+    "lats-C": {
+      "videoPath": "media/lats-C/r2-v18/lats-C.rgb-alpha.mp4",
+      "videoSha256": "5d5a3b0385aeb55822fe0b7a3229646073f32b89d1af04d4f8de192b6e9367dc",
+      "imageSha256": "9a928e33d51a5e7e434e2dc8ff1880b8a34b0723ff85d82e5c4509dbedc11aa8",
+      "imageBytes": 24308
+    },
+    "n-chair-wiper": {
+      "videoPath": "media/n-chair-wiper/r2-v18/n-chair-wiper.rgb-alpha.mp4",
+      "videoSha256": "d862258f658a695a67d8aa3b011d9541db0b37c177d57cec642771596e04ddce",
+      "imageSha256": "2cc019d3040bf7f9ff7ca7edc3ad92628124144d326d6ae5a48407a9e3b1c30b",
+      "imageBytes": 25466
+    },
+    "n-half-split": {
+      "videoPath": "media/n-half-split/r2-v18/n-half-split.rgb-alpha.mp4",
+      "videoSha256": "72a2e92e5b1d9d291145bac1ae0ba34c583df0d347c7d40d4e0ac1da60879205",
+      "imageSha256": "ef1bd8fc587e0ce99911a3d7660e5406467a8ae437e178873d93ef64be958ab2",
+      "imageBytes": 19122
+    },
+    "n-leg-circles": {
+      "videoPath": "media/n-leg-circles/r2-v18/n-leg-circles.rgb-alpha.mp4",
+      "videoSha256": "8f39ab31dc97b5b1f937e81b53720eb4ce3fc1b002d03b92df219f0bcc77bb93",
+      "imageSha256": "7e0bb336d5bf56b1ae88b8db0918e122bd5af42ea4db6787cb876e654d5640e8",
+      "imageBytes": 18690
+    },
+    "n-pelvis-circle": {
+      "videoPath": "media/n-pelvis-circle/r2-v18/n-pelvis-circle.rgb-alpha.mp4",
+      "videoSha256": "5465577002b8234ced15876e9bce3675c75ab2c51e7121dd2f808128ae9b0959",
+      "imageSha256": "7a94a46eac6077a3805949b29aed86b5eaf8e8043c5f85491b5990951f282e0c",
+      "imageBytes": 20438
+    },
+    "n-prone-hip-ext": {
+      "videoPath": "media/n-prone-hip-ext/r2-v18/n-prone-hip-ext.rgb-alpha.mp4",
+      "videoSha256": "c01ea084f2b98db2af12bb3c8c1240146a4aac5afcdf74f4fbf4fb9024072e47",
+      "imageSha256": "e7daeb5056ed5a24514f16dcea8303b8cf90a978a4119f1855ce329a0523d9c2",
+      "imageBytes": 15348
+    },
+    "n-prone-ir": {
+      "videoPath": "media/n-prone-ir/r2-v18/n-prone-ir.rgb-alpha.mp4",
+      "videoSha256": "7de300896dd144de69899fb73a557c90c46285a15b5c18976cfcbea49b738684",
+      "imageSha256": "65a79a48ab10ccd19ff14175d2a91ec79924b4d450b12dd0a24f383530854082",
+      "imageBytes": 16392
+    },
+    "n-seated-ir-drop": {
+      "videoPath": "media/n-seated-ir-drop/r2-v18/n-seated-ir-drop.rgb-alpha.mp4",
+      "videoSha256": "9f76a06856de7b88df69872d5b972d81c38f8d8d43b446db6752132bb9e8a7d9",
+      "imageSha256": "05358a319e8ed94d8d362cb3148295ba20a88f12df01db4e947c815383524b55",
+      "imageBytes": 18428
+    },
+    "n-seated-knee-lift": {
+      "videoPath": "media/n-seated-knee-lift/r2-v18/n-seated-knee-lift.rgb-alpha.mp4",
+      "videoSha256": "34e8d01e1a9db404c0ebeb6a7ffd9802b3b88668d2cd3623c1c5c3c21048816d",
+      "imageSha256": "ce5aeab8aca92b48aab974fe2c18a234674c73adb5f71fbf8f1c5fb9bd35ecf1",
+      "imageBytes": 28466
+    },
+    "n-seated-squeeze": {
+      "videoPath": "media/n-seated-squeeze/r2-v18/n-seated-squeeze.rgb-alpha.mp4",
+      "videoSha256": "ba556e03d42a596635671289c15bf3aa9a2aaea9096cdbf0aadb5b174194faa3",
+      "imageSha256": "1c747e6bb08d3d6b1c7ba160aa597ab469f2c36998d55c1e9d9ba920ac2bb2ee",
+      "imageBytes": 26712
+    },
+    "n-slider-lateral": {
+      "videoPath": "media/n-slider-lateral/r2-v18/n-slider-lateral.rgb-alpha.mp4",
+      "videoSha256": "d42d61f105d89bedcbf8a6a8633591b0bb00ba7ace02a3cd7f5eb79b49ec1347",
+      "imageSha256": "58c4171ea66a4aadf73f9b14c6797f47d82cbf054b367803eca0b402ea3c62c2",
+      "imageBytes": 19728
+    },
+    "n-squat-shift": {
+      "videoPath": "media/n-squat-shift/r2-v18/n-squat-shift.rgb-alpha.mp4",
+      "videoSha256": "3bf0536e6215313f7ed71d52a0fec57a5ce0894adf83c01143af054c23d026b9",
+      "imageSha256": "cad55034f2642bb01086810a1f6482c0964557487ed281efc79602102f9dc180",
+      "imageBytes": 25156
+    },
+    "n-straddle-fold": {
+      "videoPath": "media/n-straddle-fold/r2-v18/n-straddle-fold.rgb-alpha.mp4",
+      "videoSha256": "e5e45fe9bbab7ad6d7f5f880640d2f695e3a049e275d4332e8e2de101ce970c8",
+      "imageSha256": "8ad0b5a1b2ee02de58152ceabee420533c0a60a5a7e51d87fea50fc1528eb0a2",
+      "imageBytes": 18136
+    },
+    "n-thomas-test": {
+      "videoPath": "media/n-thomas-test/r2-v18/n-thomas-test.rgb-alpha.mp4",
+      "videoSha256": "fd2548ad6ecae9a1b97779ef95b7cdc6bf5cca27633e6e4c90982efab2db9c36",
+      "imageSha256": "7ede6d488c7c03fe2297b8470dc1277cc0e72bddff771ffa0019f1434df3dcd5",
+      "imageBytes": 15996
+    },
+    "n-wide-fold": {
+      "videoPath": "media/n-wide-fold/r2-v18/n-wide-fold.rgb-alpha.mp4",
+      "videoSha256": "f034b077a695a65327f381b50fbedf62e913b610023d94137f03b52b34ebfb86",
+      "imageSha256": "29be59632de890402163150167ff3d67327e610b583dd1667ff1a1da8fe8b713",
+      "imageBytes": 41540
+    },
+    "n-windshield": {
+      "videoPath": "media/n-windshield/r2-v18/n-windshield.rgb-alpha.mp4",
+      "videoSha256": "85886f5e1f297ccb53f35ee90e46c1638828505b485cc60c0b6a4231f9df9a3f",
+      "imageSha256": "94eed5d4c8b0ca8f57de6357e51b9a4d8980331a10fe194fe6140244a4f210c5",
+      "imageBytes": 23832
+    },
+    "o-chair-knee-extension": {
+      "videoPath": "media/o-chair-knee-extension/r2-v18/o-chair-knee-extension.rgb-alpha.mp4",
+      "videoSha256": "d10d73862f0a22c42a13c47daf7e253a4d8b461fc51b8c1dcd6e79005bc365ec",
+      "imageSha256": "fe30433496e9f19d359341180736dabdf6f687748710bff694fbbb101bc679de",
+      "imageBytes": 29368
+    },
+    "o-seated-calf-raise": {
+      "videoPath": "media/o-seated-calf-raise/r2-v18/o-seated-calf-raise.rgb-alpha.mp4",
+      "videoSha256": "a962dfdb908b803127c72768446db379a4a3aa4e1a8a2634722c526a91b63376",
+      "imageSha256": "76b0bed122dadaf773d78087faebde4559e55f18e9af0fa9386c370385417333",
+      "imageBytes": 27306
+    },
+    "o-seated-catcow": {
+      "videoPath": "media/o-seated-catcow/r2-v18/o-seated-catcow.rgb-alpha.mp4",
+      "videoSha256": "7f32180ef640a4ea265328fea1add39652abff9e6ddc3947489e3426b0ef191b",
+      "imageSha256": "67f211963d92bb8012cdf106880dd48eedd9cab5509facc6ca1a2363fb20395f",
+      "imageBytes": 27888
+    },
+    "o-seated-fig4": {
+      "videoPath": "media/o-seated-fig4/r2-v18/o-seated-fig4.rgb-alpha.mp4",
+      "videoSha256": "9abf254aaa1419ad225fbb11d1de613657dfc073556a454329bad3b1ab15fa2c",
+      "imageSha256": "6f9b1a30225d8aacea34b941c3b80d5366336f3cadd777847c8aed09e5be3828",
+      "imageBytes": 29196
+    },
+    "o-seated-ham": {
+      "videoPath": "media/o-seated-ham/r2-v18/o-seated-ham.rgb-alpha.mp4",
+      "videoSha256": "ff290a9ddf0e9ea4d7eff4501cb774011492462836e5364f5f02271b166cb20b",
+      "imageSha256": "62d4e33303c02ea9188ccc883e71814e21592714ae05c3b8ba23c0c917b9403c",
+      "imageBytes": 32394
+    },
+    "o-seated-hip-er": {
+      "videoPath": "media/o-seated-hip-er/r2-v18/o-seated-hip-er.rgb-alpha.mp4",
+      "videoSha256": "67cb385e5a09d2fe07afebaeb7c69973cb4955e9f7f2060ac84da73c9a1d6f0a",
+      "imageSha256": "be99adfa3e152744b52e29ed2533997833b519b992fa3b4258fdbc8a661fd5e1",
+      "imageBytes": 28978
+    },
+    "o-seated-sidebend": {
+      "videoPath": "media/o-seated-sidebend/r2-v18/o-seated-sidebend.rgb-alpha.mp4",
+      "videoSha256": "7cfad0590327945a0262079255471084989423b18efe2048e563c1518439f6ad",
+      "imageSha256": "b002248ec64fef3fdb40eb1742361c52a851f9755d84f975cb73f085244a8e4c",
+      "imageBytes": 23846
+    },
+    "o-seated-twist": {
+      "videoPath": "media/o-seated-twist/r2-v18/o-seated-twist.rgb-alpha.mp4",
+      "videoSha256": "df372f80878270ec3ea4f44bec290b30dce96a116c61b0c2adb951d113161336",
+      "imageSha256": "1bca949a78a275a0f273ea208f95d74fde363ce54e3ed00344e4c6ac83b79e46",
+      "imageBytes": 23870
+    },
+    "o-stand-crossreach": {
+      "videoPath": "media/o-stand-crossreach/r2-v18/o-stand-crossreach.rgb-alpha.mp4",
+      "videoSha256": "5e8e6604db0ffc7bcc8b51d5b9eef0246b4ae17d1908ba0e510121ba853bb307",
+      "imageSha256": "de138e69e5a4bb52a20ae3bfac68d268adc572a24050046787e8a1bdde7782bd",
+      "imageBytes": 25784
+    },
+    "o-stand-ham": {
+      "videoPath": "media/o-stand-ham/r2-v18/o-stand-ham.rgb-alpha.mp4",
+      "videoSha256": "582340e160c3fc41dd43592e59b4ad7fc760fafe2ef665d49ceaf2e5782b4645",
+      "imageSha256": "318ef4adf120f6c21b71bf1d7f205a43ecf0db33eb68db4a9b4a91385a87539c",
+      "imageBytes": 23586
+    },
+    "o-stand-lunge": {
+      "videoPath": "media/o-stand-lunge/r2-v18/o-stand-lunge.rgb-alpha.mp4",
+      "videoSha256": "564889bc8f2a28e4824e856e8ac18758080e433f7ee043402d55b355acb91e72",
+      "imageSha256": "2fddc045e1ef5291a4258566aec13d995ede02906836b10cb2f81589fb6fd50c",
+      "imageBytes": 24120
+    },
+    "o-stand-quad": {
+      "videoPath": "media/o-stand-quad/r2-v18/o-stand-quad.rgb-alpha.mp4",
+      "videoSha256": "bc7dca7d9112a26e584802e7daa2cba8eb622b11285487e40d3fbc246d477a29",
+      "imageSha256": "855dcd32318c4bac866d81d29a570fce1bd10c8e43921919e896ecd4b57e71d1",
+      "imageBytes": 20938
+    },
+    "o-stand-sidebend": {
+      "videoPath": "media/o-stand-sidebend/r2-v18/o-stand-sidebend.rgb-alpha.mp4",
+      "videoSha256": "6272dcfefd4917be0aee9dafd72232ffa04d99817314e80510b1013ec7064b8b",
+      "imageSha256": "21cfd859f5875edb3f6b6e658446b68f7ff208d7ecb0b6ee4d4d42405c0c8dac",
+      "imageBytes": 27634
+    },
+    "o-supported-ankle-eversion": {
+      "videoPath": "media/o-supported-ankle-eversion/r2-v18/o-supported-ankle-eversion.rgb-alpha.mp4",
+      "videoSha256": "1e89a83d8077b1ef81cbff16013e9545c8334196be1420a73e834ae82a08e8bc",
+      "imageSha256": "9d17d926750fd538d3f7377dbc8b16bad2e91af629578a15ef56f77fa4df66ea",
+      "imageBytes": 28320
+    },
+    "o-supported-ankle-inversion": {
+      "videoPath": "media/o-supported-ankle-inversion/r2-v18/o-supported-ankle-inversion.rgb-alpha.mp4",
+      "videoSha256": "92b45102a89729c796622708a637c20b93846029fdc48c72ce29297d5d9225a3",
+      "imageSha256": "1bf4453da3764b5828c991573ade1ccd2c2e52f51ff5a7f2d73d34c40cb444a7",
+      "imageBytes": 28506
+    },
+    "o-supported-ankle-pump": {
+      "videoPath": "media/o-supported-ankle-pump/r2-v18/o-supported-ankle-pump.rgb-alpha.mp4",
+      "videoSha256": "965deb3ad946ec230c1fdb55083273e68da75bd964d6253d55767221bd2e17c0",
+      "imageSha256": "f73c332715500ac2aa2273f629c513c712d468672f8ecce2098eddd4f18d3440",
+      "imageBytes": 21650
+    },
+    "o-supported-hip-airplane": {
+      "videoPath": "media/o-supported-hip-airplane/r2-v18/o-supported-hip-airplane.rgb-alpha.mp4",
+      "videoSha256": "628320901d5e669cfc19f443ad08bdff30c83807d0795f6f1a4c580c68ea7e9a",
+      "imageSha256": "989e58c5ef198dec1b1e8f0010349e207c16924d45db1641accfebcf1e036138",
+      "imageBytes": 29994
+    },
+    "o-supported-hip-hitch": {
+      "videoPath": "media/o-supported-hip-hitch/r2-v18/o-supported-hip-hitch.rgb-alpha.mp4",
+      "videoSha256": "e5776566869eadb66323836c924748e1a6317b4156f0eabf1c69071fadc71e8b",
+      "imageSha256": "fe8a9e48b2eaebe1896df9f87ae42a737afb3723c333027674647646c67d8d75",
+      "imageBytes": 26694
+    },
+    "o-supported-hip-ir": {
+      "videoPath": "media/o-supported-hip-ir/r2-v18/o-supported-hip-ir.rgb-alpha.mp4",
+      "videoSha256": "aad85fee1ccca244fd278d5fa9aa41090507bf05fc5aa0dc1d2124590ac6ef51",
+      "imageSha256": "76144c438c0c5e9faed4369ce2f1a8582f4a1cc989c9b2c561993081b8b0e297",
+      "imageBytes": 24244
+    },
+    "o-supported-knee-curl": {
+      "videoPath": "media/o-supported-knee-curl/r2-v18/o-supported-knee-curl.rgb-alpha.mp4",
+      "videoSha256": "fe3ddc9f81f9aea4b795876d7f640ef3a472a354e111fbcfa381288da6f9b265",
+      "imageSha256": "4e7c3cb7a74dea2f1f6c05a281f06021b02230e6fea2b470732440e66bc7b177",
+      "imageBytes": 19518
+    },
+    "o-supported-march": {
+      "videoPath": "media/o-supported-march/r2-v18/o-supported-march.rgb-alpha.mp4",
+      "videoSha256": "258b3cb75ca2549084b30dc509d4f7efdc42fdcf02b7402d737b0038a68e8278",
+      "imageSha256": "07f6030eeaa97d7b203e5892da19488927a563f1fd251e4ec039650be1b9b6fb",
+      "imageBytes": 29714
+    },
+    "o-supported-mini-squat": {
+      "videoPath": "media/o-supported-mini-squat/r2-v18/o-supported-mini-squat.rgb-alpha.mp4",
+      "videoSha256": "07f660127cf7765985803c830cbbcfb42510eb3e0807c3dd953ccb1938da4d40",
+      "imageSha256": "4bbb9469e36f1d293674549ec679e0a960bb36c265bcc429d3733e4e66285a6c",
+      "imageBytes": 23968
+    },
+    "o-supported-single-leg-rdl": {
+      "videoPath": "media/o-supported-single-leg-rdl/r2-v18/o-supported-single-leg-rdl.rgb-alpha.mp4",
+      "videoSha256": "6878dc3ece735d1081ad5dea1d8ac58bda0f9128ee656a08520baa4559c48c71",
+      "imageSha256": "9b2e4cc377871d8c7442aeaf37a2e0b1e5dda3bda0b5d22cf17608168ce35f60",
+      "imageBytes": 25388
+    },
+    "o-supported-star-reach": {
+      "videoPath": "media/o-supported-star-reach/r2-v18/o-supported-star-reach.rgb-alpha.mp4",
+      "videoSha256": "1757db9cba6651be2c8614e7f3514f539776d4d85eb0254fa5790c666b3d3b47",
+      "imageSha256": "891384782a692990b80c2444ce8e23c6eb15c71e574a29ee61be1d111dee2c8e",
+      "imageBytes": 28296
+    },
+    "o-wall-hip-hinge-stretch": {
+      "videoPath": "media/o-wall-hip-hinge-stretch/r2-v18/o-wall-hip-hinge-stretch.rgb-alpha.mp4",
+      "videoSha256": "ebf270fced78fa86d86691e0e12fed995f4f3027adcfb2ca5b1dbada11de67b4",
+      "imageSha256": "213f8442de26042f2a51714407bcab9e37559fb62ec63d077bf489b4e4216198",
+      "imageBytes": 19296
+    },
+    "obliques-A": {
+      "videoPath": "media/obliques-A/r2-v18/obliques-A.rgb-alpha.mp4",
+      "videoSha256": "bbdef6f726803647855ce1e0522d6bba7350750ac3b6db3ca9b55c8786d94764",
+      "imageSha256": "05c628510e128e7d080993b802dd422715e0c62fbc392a6b6670f541193574cf",
+      "imageBytes": 16208
+    },
+    "obliques-B": {
+      "videoPath": "media/obliques-B/r2-v18/obliques-B.rgb-alpha.mp4",
+      "videoSha256": "f0b6b67740115f62aea23e9002982fd60f0b3833d58125c149d9a1eeee06d2eb",
+      "imageSha256": "dba04471d2d8146427c4ec041ebde8daa6088d864ec9a6209bde27532b6a6867",
+      "imageBytes": 27786
+    },
+    "obliques-C": {
+      "videoPath": "media/obliques-C/r2-v18/obliques-C.rgb-alpha.mp4",
+      "videoSha256": "f132dfdb081dcf9d00377fea9807af64c01c92d84058b6a20e118ef57c08ba5b",
+      "imageSha256": "ba180419140766a523e804453f955e2f1943b523b02eb5845dbcc5a622b10c69",
+      "imageBytes": 32628
+    },
+    "quadriceps-A": {
+      "videoPath": "media/quadriceps-A/r2-v18/quadriceps-A.rgb-alpha.mp4",
+      "videoSha256": "cca31561b31beb8f62fb533376662ba67e9aacd6d2cb0ba2b46ff72974afa0a1",
+      "imageSha256": "1eac0b25c99f1d9e32f4adee257218688dd30bd492d08e0b745a28d42d48ad0f",
+      "imageBytes": 16616
+    },
+    "quadriceps-B": {
+      "videoPath": "media/quadriceps-B/r2-v18/quadriceps-B.rgb-alpha.mp4",
+      "videoSha256": "b280357672cdbbadd1e2ab175b174bc0e91b1c1361b7b3b2548af6c05511e0b1",
+      "imageSha256": "853047428ef90cef29e4e664c262ee77beef73d5dc46c48fd34824ecde7c059a",
+      "imageBytes": 21484
+    },
+    "quadriceps-C": {
+      "videoPath": "media/quadriceps-C/r2-v18/quadriceps-C.rgb-alpha.mp4",
+      "videoSha256": "e037d485518f4bca52a04291112b2609aab850fd62e25bd04665b1335ffdd522",
+      "imageSha256": "50eb40d7b5a1a8e8670834fd5fb1e757785ec566c84fd370acaf024880759132",
+      "imageBytes": 27466
+    },
+    "rotator-cuff-A": {
+      "videoPath": "media/rotator-cuff-A/r2-v18/rotator-cuff-A.rgb-alpha.mp4",
+      "videoSha256": "2676cd4ac364a132b6122a02caaec9d3fd6d79e230f7991bf9d1b20b3deb0259",
+      "imageSha256": "28ad83be2612e8164c9142442337d43161c18f4687edda636ee93a160f4f661f",
+      "imageBytes": 19188
+    },
+    "rotator-cuff-B": {
+      "videoPath": "media/rotator-cuff-B/r2-v18/rotator-cuff-B.rgb-alpha.mp4",
+      "videoSha256": "c3b7a5a4f09dc9282a8a3e718f6331f414c241fbce0b2ed3fd3641a441673e7e",
+      "imageSha256": "b65710336d59b447dce11b1b445182d768af888895fcf2b61e534d9b106a8082",
+      "imageBytes": 28014
+    },
+    "rotator-cuff-C": {
+      "videoPath": "media/rotator-cuff-C/r2-v18/rotator-cuff-C.rgb-alpha.mp4",
+      "videoSha256": "a4305ca37b1cecee1611fef3087be731b177b82274f92fdbc74ac361e6a5693f",
+      "imageSha256": "26e64eb3fc3f478dbd787deaeffad345adf891183c2ec77dcea5b217bd6c8e3f",
+      "imageBytes": 37222
+    },
+    "s-9090": {
+      "videoPath": "media/s-9090/r2-v18/s-9090.rgb-alpha.mp4",
+      "videoSha256": "fe05eb108e34639484db37393760533292b1e5ca1858d5781303f57f5b6305a1",
+      "imageSha256": "69ac1ab1f68728f1edb54c473f019e997f3002e2d3d72a261e67d9d185f99b96",
+      "imageBytes": 22586
+    },
+    "s-butterfly": {
+      "videoPath": "media/s-butterfly/r2-v18/s-butterfly.rgb-alpha.mp4",
+      "videoSha256": "b35cfa45f7030e5f71e2787741701569c26292a7ba5b76d1842c8c9c64105183",
+      "imageSha256": "ea6db6607f87f9944ec9388761d76ec319e9b11f5304b9e7021779baf84c2d93",
+      "imageBytes": 24160
+    },
+    "s-figure4": {
+      "videoPath": "media/s-figure4/r2-v18/s-figure4.rgb-alpha.mp4",
+      "videoSha256": "8a54a757763c8d995170b7f64e0be90c8fe09ec172b3004b25cd3f75b05d6daf",
+      "imageSha256": "7770575f230c8d2f083cd895a4de7eb35c34b49b54521d31fb52b6274b032ce6",
+      "imageBytes": 15468
+    },
+    "s-frog": {
+      "videoPath": "media/s-frog/r2-v18/s-frog.rgb-alpha.mp4",
+      "videoSha256": "784662a86d380f029906183712e9006f050edf8da3aafdedf46949770e464db5",
+      "imageSha256": "f7e22ee6ea861f6c3786a70846d5fa080cc0312c92d1b6dd512c19dec0710322",
+      "imageBytes": 13872
+    },
+    "s-kneel-hipflex": {
+      "videoPath": "media/s-kneel-hipflex/r2-v18/s-kneel-hipflex.rgb-alpha.mp4",
+      "videoSha256": "6a931a7f37052ed9099641f7480c0de1a2b84ac1ff6d9ac9330cbd0f3c2c2514",
+      "imageSha256": "b12d83f88cfe62438d4df4e98cc87705dba58b5f620abb2ec81b4d4511794b82",
+      "imageBytes": 17114
+    },
+    "s-lizard": {
+      "videoPath": "media/s-lizard/r2-v18/s-lizard.rgb-alpha.mp4",
+      "videoSha256": "e308087325db13444e790fccc295dd648790dcbb004aff9cec1e4433a743be09",
+      "imageSha256": "9bd0f45c76e08ef99da865cd9ffda51d1c48adf8929042e854cbf2b42c866b24",
+      "imageBytes": 20206
+    },
+    "s-pigeon": {
+      "videoPath": "media/s-pigeon/r2-v18/s-pigeon.rgb-alpha.mp4",
+      "videoSha256": "4834f5fe9b29c3809597b9c19d37de26c1c9b2d51f65a50002380afcd2070ff1",
+      "imageSha256": "143bbed81347d9b88c465f0d243bf1a8c6e84a0689801d03a2fd1cff097733cc",
+      "imageBytes": 18244
+    },
+    "s-seated-fold": {
+      "videoPath": "media/s-seated-fold/r2-v18/s-seated-fold.rgb-alpha.mp4",
+      "videoSha256": "2525ee97331c807a03355233d9b4307ec07ec1cb3fd4e4930496bbe94ccdd07c",
+      "imageSha256": "ad8da36a816120103436ef3ed1e2c181d25b8469bdec25b52a22294c6012062e",
+      "imageBytes": 15420
+    },
+    "scapular-A": {
+      "videoPath": "media/scapular-A/r2-v18/scapular-A.rgb-alpha.mp4",
+      "videoSha256": "b319da178db52b3470e0c22e72ff2c5f3a8a3ad98bf6d5b1780ce88a7e60e45c",
+      "imageSha256": "3315e94cb51d534b665688143a4f9c55201ad29a597b65b635df88247689d207",
+      "imageBytes": 13130
+    },
+    "scapular-B": {
+      "videoPath": "media/scapular-B/r2-v18/scapular-B.rgb-alpha.mp4",
+      "videoSha256": "e0ea76cb98afe6916a87371ffff50014c287a39e8dd55c748613b2de444a081c",
+      "imageSha256": "59c611b16db4a97ae4bae231f1a0e7b619c51009b1461cb31836f8adc8588fe6",
+      "imageBytes": 20212
+    },
+    "serratus-A": {
+      "videoPath": "media/serratus-A/r2-v18/serratus-A.rgb-alpha.mp4",
+      "videoSha256": "659b4bff809739dcf191dd31f4b223b9dcdfb8f3d1a1fc2f113673b59e794348",
+      "imageSha256": "d31c3e638163307fa97ca15829ff89f2a6f24a70ebc0fa8f702b1e869d8191c8",
+      "imageBytes": 19514
+    },
+    "serratus-B": {
+      "videoPath": "media/serratus-B/r2-v18/serratus-B.rgb-alpha.mp4",
+      "videoSha256": "3034047fe21d2f415446287a2a20b2b07f9aeb2c366a655c2ecb55c04771efc7",
+      "imageSha256": "c77b0d45670a466ae43b693040723a7d85a1fbe883213a69a0bbebd14f13d9d6",
+      "imageBytes": 15352
+    },
+    "serratus-C": {
+      "videoPath": "media/serratus-C/r2-v18/serratus-C.rgb-alpha.mp4",
+      "videoSha256": "67b801792d812b9c071acc2ec4fda1acaeed27b24ded4a7e9725649051dd1bbc",
+      "imageSha256": "719617a6f20ec4aeaa3695a8b4954845f78e3633789f9e2a2c64631cfe34f6f4",
+      "imageBytes": 27316
+    },
+    "t-flare-side-hold": {
+      "videoPath": "media/t-flare-side-hold/r2-v18/t-flare-side-hold.rgb-alpha.mp4",
+      "videoSha256": "6e8c143fbb1cab973576035180e76bc94a44d4f6e580e6429fb93e7a8ee89791",
+      "imageSha256": "d9ebc1e8510c1404444f6b659706e086fe85be15f1b1c9ba8cfe733d5420f106",
+      "imageBytes": 29466
+    },
+    "t-lsit-open-close": {
+      "videoPath": "media/t-lsit-open-close/r2-v18/t-lsit-open-close.rgb-alpha.mp4",
+      "videoSha256": "37628a08fad5e7ca3f89fa55780bb70d6c04579d3b3653d987871cb3afa6cf32",
+      "imageSha256": "71216f4a6c1b19edbefb6552df6ab479d68defad6cc7a023b3d8fbcc1c8b54e8",
+      "imageBytes": 22102
+    },
+    "t-lsit-tuck": {
+      "videoPath": "media/t-lsit-tuck/r2-v18/t-lsit-tuck.rgb-alpha.mp4",
+      "videoSha256": "5aff91fba450ef8393d87e92d95d64b7d6f6cb5d05e05318f2087edc7486b016",
+      "imageSha256": "4d5ccb9c334b54a279265da2889fa3b96cfab9972e4e7f69c17d9ba2b69197e4",
+      "imageBytes": 23672
+    },
+    "t-lsit-vsit-circles": {
+      "videoPath": "media/t-lsit-vsit-circles/r2-v18/t-lsit-vsit-circles.rgb-alpha.mp4",
+      "videoSha256": "f24dafe7f7096faf93346d4b042259727b6a7955a6dbf2289457d3bce4406e46",
+      "imageSha256": "f35104dc1cde1fcbaec05aac5a44e2a5aaefd5ed625f4278d0d6ad9923635de5",
+      "imageBytes": 15828
+    },
+    "t-lsit-wide": {
+      "videoPath": "media/t-lsit-wide/r2-v18/t-lsit-wide.rgb-alpha.mp4",
+      "videoSha256": "52043e6efce13a73040a0c335a810e6074d4f7f3fc733b68cc1daa337402f214",
+      "imageSha256": "bcf68762775343ac296e5cdda14506febccb0d57ea1db6b2e6a7990fa53f87d9",
+      "imageBytes": 26634
+    },
+    "t-seated-straddle-ext": {
+      "videoPath": "media/t-seated-straddle-ext/r2-v18/t-seated-straddle-ext.rgb-alpha.mp4",
+      "videoSha256": "ddba72ff66fe9f1e747cf43a08170b2ce8796f302d6d521fb7ba8c6bb155010c",
+      "imageSha256": "568190eb5eff41cfcf66a845a4a6196485b4b0952ecb1fd40963f2317441eeda",
+      "imageBytes": 15462
+    },
+    "t-seated-straddle-lift-1leg": {
+      "videoPath": "media/t-seated-straddle-lift-1leg/r2-v18/t-seated-straddle-lift-1leg.rgb-alpha.mp4",
+      "videoSha256": "6d9cd95ab998bab8f3f110dbc66ef4ecbe50ad456ca632c77ef3ebf19d0a353c",
+      "imageSha256": "83f9be6a10c814ee435de15f0ed732f74e5254392307ecd67f60eb8ef38f0ed6",
+      "imageBytes": 17596
+    },
+    "t-seated-straddle-lifts": {
+      "videoPath": "media/t-seated-straddle-lifts/r2-v18/t-seated-straddle-lifts.rgb-alpha.mp4",
+      "videoSha256": "55eae0d13b523c84bed1de19a0748041b190a86d000f223441323f6a7061f852",
+      "imageSha256": "dcc231d1869832ffb204ebf134bfd36cdcef1d89f1d786349defce916f96c2c3",
+      "imageBytes": 20068
+    },
+    "t-straddle-hold": {
+      "videoPath": "media/t-straddle-hold/r2-v18/t-straddle-hold.rgb-alpha.mp4",
+      "videoSha256": "a16c500399c3ea710f509b98cd193a6d21d7858ff8fde4b555c6bef0aecd75a1",
+      "imageSha256": "7c39d8f202f461d845967395a4fc9dd1496f99741e7537fe96568642cc05aecc",
+      "imageBytes": 18432
+    },
+    "t-tuck-planche": {
+      "videoPath": "media/t-tuck-planche/r2-v18/t-tuck-planche.rgb-alpha.mp4",
+      "videoSha256": "a637c5038c9fe7c75d801e2adcdb098f24120ee90a1c204c280833a618f72fea",
+      "imageSha256": "23c3c50bcd30524944765d3a7c0a5c9b713fece2e5d1b4d31be8b565f608ee0c",
+      "imageBytes": 22160
+    },
+    "t-vsit": {
+      "videoPath": "media/t-vsit/r2-v18/t-vsit.rgb-alpha.mp4",
+      "videoSha256": "e8b2ff13e22a1c20b6e27c85ba8a1b66b45e18c4811aa9f377d2ab2547fb2525",
+      "imageSha256": "19ea8d063624282e82bc460438c77b48a3d6aa1030b658a56715b442b2332405",
+      "imageBytes": 26114
+    },
+    "triceps-A": {
+      "videoPath": "media/triceps-A/r2-v18/triceps-A.rgb-alpha.mp4",
+      "videoSha256": "5894ce97e21ff355a64aa65993c0d9afa2affebee7a32351a7627993dc127c95",
+      "imageSha256": "31306626b98ae0be555b6efd3e42de16d85ef9898ae54c173f557aa1da158803",
+      "imageBytes": 21634
+    },
+    "triceps-B": {
+      "videoPath": "media/triceps-B/r2-v18/triceps-B.rgb-alpha.mp4",
+      "videoSha256": "284a3146414dfa2a6e6b945d431ecaf4eb66d48ce206f48a24dce3a880b296d7",
+      "imageSha256": "acac4167e72be4f28cb6f48ca58b14d0e7c8294918f1f572bc6ff48288afa7c2",
+      "imageBytes": 31330
+    },
+    "triceps-C": {
+      "videoPath": "media/triceps-C/r2-v18/triceps-C.rgb-alpha.mp4",
+      "videoSha256": "158be180618198ceacfb388f827dce4f6e24d867ff0a1a93f7047051d92a6306",
+      "imageSha256": "31bccac5b1fa0e84a772c157a49d7e6048ec95efda5a47748c9b8663ac1de2da",
+      "imageBytes": 24616
+    },
+    "w-bird-dog": {
+      "videoPath": "media/w-bird-dog/r2-v18/w-bird-dog.rgb-alpha.mp4",
+      "videoSha256": "fd71549d44f28b351a3d5bf46783e44b38dbf1a91c7e435c02e969133295bf7f",
+      "imageSha256": "5147e0199a5fde7e863f7640f9b2c06546e62b4954f0d2e75b6be583b26e7eca",
+      "imageBytes": 14726
+    },
+    "w-chair-hip-thrust": {
+      "videoPath": "media/w-chair-hip-thrust/r2-v18/w-chair-hip-thrust.rgb-alpha.mp4",
+      "videoSha256": "0d6c09751db6ac9f95ddb45f9596916a133f9adbd935f4e53c6ddc7ba53e935e",
+      "imageSha256": "7f81444baeb0b1ff389b47eb6c639f117a0ae26c56a7593958b225d757929605",
+      "imageBytes": 24378
+    },
+    "w-clamshell": {
+      "videoPath": "media/w-clamshell/r2-v18/w-clamshell.rgb-alpha.mp4",
+      "videoSha256": "e5df11a2105d3d304dede4da8d55a2fc252cf344966525e6ad149619b2c9aec1",
+      "imageSha256": "ac4d98be4361ad59dd80d2922f480691cbf69544eb8cb736937434cb300f590e",
+      "imageBytes": 19086
+    },
+    "w-dead-bug": {
+      "videoPath": "media/w-dead-bug/r2-v18/w-dead-bug.rgb-alpha.mp4",
+      "videoSha256": "dc615cfe08b7657d705009648d1d9499a2a2a3869251b3195a98b8f2e5092e8d",
+      "imageSha256": "2e670590004b8c1bf4dd4b2731412148f49aaab762ca56ae244924320c14b159",
+      "imageBytes": 15966
+    },
+    "w-feet-on-chair-bridge": {
+      "videoPath": "media/w-feet-on-chair-bridge/r2-v18/w-feet-on-chair-bridge.rgb-alpha.mp4",
+      "videoSha256": "7ecd1c5a894a697e00c995037d0a32d7fdf69382fb60a432454916dae3eb953d",
+      "imageSha256": "5a7798bc74598d553309f23872ac0d3d0fb8561c8aafd66e36e9356c1c9f910b",
+      "imageBytes": 20088
+    },
+    "w-fire-hydrant": {
+      "videoPath": "media/w-fire-hydrant/r2-v18/w-fire-hydrant.rgb-alpha.mp4",
+      "videoSha256": "cdd0917f3250ff47c2e8cda735fd536fb447961fb88c22ac9ada8a9778bca1a2",
+      "imageSha256": "431c3159b2823b2326d779bb435d6de6acdd22c6169242060c3a17fdadb83da2",
+      "imageBytes": 16956
+    },
+    "w-prone-swimmer": {
+      "videoPath": "media/w-prone-swimmer/r2-v18/w-prone-swimmer.rgb-alpha.mp4",
+      "videoSha256": "1491e0670861f12b601aa97d028d927b24d8aa970072cffa0531560d2d586eb2",
+      "imageSha256": "249d029970991ac69455c00ebdc61d9e6217930bfc4512dc3ee432ae6823ed78",
+      "imageBytes": 18510
+    },
+    "w-wall-sit": {
+      "videoPath": "media/w-wall-sit/r2-v18/w-wall-sit.rgb-alpha.mp4",
+      "videoSha256": "24839525fcad2c60fb1192be9af206b8b87833b56a9e26b8a3f5e53cb29d694b",
+      "imageSha256": "90e5d653414635fb09816fa94049b02ab4ade954ba93329a8b7aa1c76b3d5a5a",
+      "imageBytes": 18694
+    }
+  }
+}

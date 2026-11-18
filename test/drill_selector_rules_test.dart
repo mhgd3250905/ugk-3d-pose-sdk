@@ -5,10 +5,12 @@ import 'package:test/test.dart';
 import 'package:ugk_coach/src/catalog/catalog.dart';
 import 'package:ugk_coach/src/profile/coach_profile.dart';
 
+import 'support/bundled_pose_hub_file.dart';
+
 /// 规格第 7 节：没标 apps/tags 的动作由 App profile 规则（部位、类型、器械）放行。
 Catalog _bundled() => Catalog.fromJson(
   jsonDecode(
-    File('packages/ugk_trainer/assets/pose_hub/app-pack-r2-v16/catalog/catalog.json').readAsStringSync(),
+    bundledPoseHubFile('catalog/catalog.json').readAsStringSync(),
   ),
 );
 

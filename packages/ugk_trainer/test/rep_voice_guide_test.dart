@@ -9,10 +9,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_trainer/engine.dart';
+import 'package:ugk_trainer/ugk_trainer.dart' show PoseHubActionLibrary;
 
 import 'support.dart';
 
-const _catalog = 'assets/pose_hub/app-pack-r2-v16/catalog.json';
+const _catalog =
+    'assets/pose_hub/app-pack-${PoseHubActionLibrary.packVersion}/catalog.json';
 
 /// Fixed r2-era executions of 坐姿猫牛式 / 坐椅雨刷 (inline; they no longer
 /// mirror the bundled pack and are not meant to).

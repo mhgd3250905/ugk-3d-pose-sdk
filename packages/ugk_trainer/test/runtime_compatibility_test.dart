@@ -300,7 +300,7 @@ void main() {
       expect(provider.package, 'ugk_trainer');
       expect(
         provider.assetName,
-        'assets/pose_hub/app-pack-r2-v16/standing/s-butterfly.webp',
+        key.replaceFirst('packages/ugk_trainer/', ''),
       );
     },
   );

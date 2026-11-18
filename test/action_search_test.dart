@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:ugk_coach/src/agent/action_search.dart';
@@ -11,6 +10,7 @@ import 'package:ugk_coach/src/catalog/pose_hub_app_test_pack.dart';
 import 'package:ugk_coach/src/profile/coach_profile.dart';
 
 import 'support.dart';
+import 'support/bundled_pose_hub_file.dart';
 
 void main() {
   final catalog = loadCatalog();
@@ -156,12 +156,13 @@ void main() {
   test(
     'every published profile action has a compact nonempty Chinese and English search row',
     () {
-      const root = 'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v16';
       final manifest =
-          jsonDecode(File('$root/catalog.json').readAsStringSync())
+          jsonDecode(bundledPoseHubFile('catalog.json').readAsStringSync())
               as Map<String, Object?>;
       final canonical =
-          jsonDecode(File('$root/catalog/catalog.json').readAsStringSync())
+          jsonDecode(
+                bundledPoseHubFile('catalog/catalog.json').readAsStringSync(),
+              )
               as Map<String, Object?>;
       final published = PoseHubAppTestCatalog.fromJson(
         manifest,

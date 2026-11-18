@@ -7,6 +7,7 @@ import 'package:ugk_coach/ugk_coach_qa_v2.dart' as qa;
 import 'package:ugk_coach_chat/ugk_coach_chat.dart';
 
 import 'chat_controller_test.dart' show ChatPlans, ChatHistory, ChatPreferences;
+import 'fixtures/bundled_pose_hub_file.dart';
 
 const _fold = 'h-close-stance-forward-fold-native';
 const _groups = [
@@ -23,9 +24,7 @@ const _floor = {'supine', 'prone', 'quadruped', 'kneeling', 'side_lying'};
 /// restore must all reach the same core verdict instead of the plan being
 /// assembled under tags and rejected by the core gate.
 void main() {
-  final meta = File(
-    '../ugk_trainer/assets/pose_hub/app-pack-r2-v16/catalog.json',
-  );
+  final meta = bundledPoseHubFile('catalog.json');
   final descriptor = coach.PoseHubAppTestCatalog.fromBytes(
     meta.readAsBytesSync(),
   );

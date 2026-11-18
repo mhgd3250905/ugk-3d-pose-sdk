@@ -1,5 +1,11 @@
 # Changelog
 
+## SDK 1.0.0 — 2026-11-18（首个正式版本候选）
+
+- Adopt V5 modeling as the first formal SDK baseline and align the five SDK packages at 1.0.0. All earlier SDK versions were transitional.
+- Bundle Pose-Hub r2-v18 from the stable channel. The main catalog is 5,124,493 bytes with SHA-256 `1de7303f94fe0441ed4d006d4a4aa7ceac0e160b1c2527ae0f875b112bb52203`. The bundle contains the main and semantic catalogs plus transparent standing first frames. Videos download on demand.
+- Show rest feedback after both normal completion and skips, including side switches. The resting card collapses after selection and can be reopened. The completion list shows the chosen feeling beside each exercise, while completion counts reflect work actually completed.
+
 ## SDK tag ugk_trainer-v0.9.0 — 2026-11-16（V4 默认皮肤基准）
 
 - Repository tag `ugk_trainer-v0.9.0` is fixed at `4eb87ceabd39bfd132cd6c79c0474de3be683feb`. The root `ugk_coach` package is version `0.9.0`.

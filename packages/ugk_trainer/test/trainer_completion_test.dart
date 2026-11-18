@@ -3,40 +3,44 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_trainer/src/ui/trainer_completion.dart';
 import 'package:ugk_trainer/ugk_trainer.dart';
 
-SessionResult result({bool timed = false, bool single = false}) =>
-    SessionResult(
-      sessionId: 'completion-test',
-      planId: 'plan-test',
-      planTitle: 'Daily mobility',
-      startedAt: DateTime.utc(2026, 10, 28, 10),
-      endedAt: DateTime.utc(2026, 10, 28, 10, 2, 5),
-      activeSeconds: 125,
-      endedEarly: false,
-      completedExercises: 1,
-      totalExercises: single ? 1 : 2,
-      items: [
-        ItemResult(
-          exerciseId: 'squat',
-          blockIndex: 0,
-          itemInBlock: 0,
-          plannedSets: 3,
-          completedSets: 2,
-          activeSeconds: 83,
-          status: ItemStatus.completed,
-          completedReps: timed ? null : 17,
-        ),
-        if (!single)
-          const ItemResult(
-            exerciseId: 'fold',
-            blockIndex: 0,
-            itemInBlock: 1,
-            plannedSets: 1,
-            completedSets: 0,
-            activeSeconds: 6,
-            status: ItemStatus.skipped,
-          ),
-      ],
-    );
+SessionResult result({
+  bool timed = false,
+  bool single = false,
+  TrainerRestFeedbackChoice? restFeedback,
+}) => SessionResult(
+  sessionId: 'completion-test',
+  planId: 'plan-test',
+  planTitle: 'Daily mobility',
+  startedAt: DateTime.utc(2026, 10, 28, 10),
+  endedAt: DateTime.utc(2026, 10, 28, 10, 2, 5),
+  activeSeconds: 125,
+  endedEarly: false,
+  completedExercises: 1,
+  totalExercises: single ? 1 : 2,
+  items: [
+    ItemResult(
+      exerciseId: 'squat',
+      blockIndex: 0,
+      itemInBlock: 0,
+      plannedSets: 3,
+      completedSets: 2,
+      activeSeconds: 83,
+      status: ItemStatus.completed,
+      completedReps: timed ? null : 17,
+      restFeedback: restFeedback,
+    ),
+    if (!single)
+      const ItemResult(
+        exerciseId: 'fold',
+        blockIndex: 0,
+        itemInBlock: 1,
+        plannedSets: 1,
+        completedSets: 0,
+        activeSeconds: 6,
+        status: ItemStatus.skipped,
+      ),
+  ],
+);
 
 void main() {
   Future<void> mount(
@@ -53,6 +57,7 @@ void main() {
     Widget? feedback,
     int? streakDays,
     List<String> trainedAreas = const [],
+    String Function(String id)? drillName,
     String? thumbnailAsset,
     double? entryDockTop,
     bool settleReduced = true,
@@ -71,7 +76,7 @@ void main() {
               result: session ?? result(),
               drillOf: (id) => TrainerDrill(
                 id: id,
-                name: 'Move $id',
+                name: drillName?.call(id) ?? 'Move $id',
                 thumbnailAsset: thumbnailAsset,
               ),
               feeling: feeling,
@@ -322,16 +327,17 @@ void main() {
       tester.getTopLeft(firstChoice).dy - tester.getBottomLeft(prompt).dy,
       14,
     );
+    expect(tester.getTopLeft(prompt).dy - tester.getTopLeft(feedback).dy, 16);
     expect(
-      tester.getTopLeft(hostExplanation).dy -
-          tester.getBottomLeft(firstChoice).dy,
-      12,
+      tester.getBottomLeft(feedback).dy - tester.getBottomLeft(firstChoice).dy,
+      16,
     );
     expect(tester.getTopLeft(areas).dy - tester.getBottomLeft(feedback).dy, 16);
     expect(
       find.descendant(of: feedback, matching: find.text('Host feedback')),
-      findsOneWidget,
+      findsNothing,
     );
+    expect(hostExplanation, findsOneWidget);
     expect(
       find.descendant(of: areas, matching: find.text('Hips')),
       findsOneWidget,
@@ -468,6 +474,52 @@ void main() {
     expect(tester.getBottomLeft(fade).dy, tester.getTopLeft(footer).dy);
     expect(lastRow.hitTestable(), findsOneWidget);
     expect(find.byKey(const ValueKey('finish')).hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('player V1 reserves room for a tagged item and its status', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const theme = TrainerTheme.playerV1;
+    const longName = 'A long movement name that needs to be truncated';
+    await mount(
+      tester,
+      theme: theme,
+      reduced: true,
+      drillName: (id) => id == 'squat' ? longName : 'Other move',
+      session: result(restFeedback: TrainerRestFeedbackChoice.tight),
+    );
+    final badge = find.byKey(const ValueKey('completion-item-rest-feedback-0'));
+    final label = find.descendant(of: badge, matching: find.text('Tight'));
+    final name = find.text(longName);
+    final status = find.text('1:23');
+    expect(tester.getSize(badge).height, 22);
+    expect(tester.getTopLeft(badge).dx - tester.getTopRight(name).dx, 6);
+    expect(
+      tester.getTopRight(badge).dx,
+      lessThan(tester.getTopLeft(status).dx),
+    );
+    expect(tester.widget<Text>(name).overflow, TextOverflow.ellipsis);
+    expect(tester.widget<Text>(label).style?.fontWeight, FontWeight.w500);
+    expect(tester.widget<Text>(label).style?.color, theme.caution);
+    final decoration =
+        tester
+                .widget<DecoratedBox>(
+                  find.descendant(
+                    of: badge,
+                    matching: find.byType(DecoratedBox),
+                  ),
+                )
+                .decoration
+            as BoxDecoration;
+    expect(decoration.color, theme.caution.withValues(alpha: .15));
+    expect(decoration.borderRadius, BorderRadius.circular(11));
+    expect(
+      find.byKey(const ValueKey('completion-item-rest-feedback-1')),
+      findsNothing,
+    );
   });
 
   testWidgets('player V1 keeps absent host data empty on a compact display', (

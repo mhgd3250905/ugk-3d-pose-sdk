@@ -6,21 +6,24 @@ import 'package:ugk_trainer_runtime/src/ui/trainer_player_v1_dock.dart';
 import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart';
 
 void main() {
-  testWidgets('V1 between-set rest renders the SDK semantic feedback cards', (
+  testWidgets('V1 rest feedback collapses and reopens above fixed controls', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await withClock(Clock(tester.binding.clock.now), () async {
       const item = PlanItem(
         exerciseId: 'squat',
         mode: DoseMode.time,
-        sets: 2,
+        sets: 3,
         workSeconds: 2,
         perSide: false,
         restSeconds: 15,
       );
       const theme = TrainerTheme.playerV1;
       TrainerRestFeedback? rest;
-      var selections = 0;
+      SessionPhase? recordedPhase;
+      final selections = <TrainerRestFeedbackChoice>[];
       await tester.pumpWidget(
         MaterialApp(
           home: TrainerPlayer(
@@ -53,13 +56,20 @@ void main() {
                 builder: (_, update) => TrainerRestFeedbackPanel(
                   theme: theme,
                   title: '刚才感觉怎么样？',
-                  selected: selections == 0
-                      ? null
-                      : TrainerRestFeedbackChoice.comfortable,
+                  selected: recordedPhase == feedback.phase
+                      ? selections.last
+                      : null,
                   comfortableLabel: '舒服',
                   tightLabel: '有点紧',
                   painLabel: '疼',
-                  onComfortable: () => update(() => selections++),
+                  onComfortable: () => update(() {
+                    recordedPhase = feedback.phase;
+                    selections.add(TrainerRestFeedbackChoice.comfortable);
+                  }),
+                  onTight: () => update(() {
+                    recordedPhase = feedback.phase;
+                    selections.add(TrainerRestFeedbackChoice.tight);
+                  }),
                 ),
               );
             },
@@ -119,14 +129,27 @@ void main() {
         find.descendant(of: panel, matching: find.byType(OutlinedButton)),
         findsNothing,
       );
-      expect(
-        tester.getRect(cards.first).bottom,
-        lessThan(tester.getTopLeft(find.byKey(const ValueKey('pause'))).dy),
+      final pause = find.byKey(const ValueKey('pause'));
+      final countdown = find.byKey(
+        const ValueKey('player-v1-countdown-number'),
       );
+      final viewport = find.byKey(const ValueKey('player-v1-media-viewport'));
+      final capsule = find.byKey(
+        const ValueKey('player-v1-rest-feedback-edit'),
+      );
+      final dockTop = tester.getTopLeft(dock).dy;
+      final pausePosition = tester.getCenter(pause);
+      final pauseElement = tester.element(pause);
+      final countdownPosition = tester.getCenter(countdown);
+      final mediaRect = tester.getRect(viewport);
+      expect(tester.getRect(cards.first).bottom, lessThan(pausePosition.dy));
+      expect(dockTop, lessThan(mediaRect.bottom));
       await tester.tap(cards.first);
+      expect(selections, [TrainerRestFeedbackChoice.comfortable]);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
-      expect(selections, 1);
+      await tester.pump(const Duration(milliseconds: 299));
+      expect(tester.getTopLeft(dock).dy, dockTop);
+      expect(capsule, findsNothing);
       expect(
         find.descendant(
           of: cards.first,
@@ -147,8 +170,222 @@ void main() {
           .45,
         );
       }
+
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump(const Duration(milliseconds: 120));
+      final midpoint = tester.getTopLeft(dock).dy;
+      expect(midpoint, greaterThan(dockTop));
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(tester.getTopLeft(dock).dy, greaterThan(midpoint));
+      expect(
+        tester.getTopLeft(dock).dy,
+        greaterThanOrEqualTo(mediaRect.bottom),
+      );
+      expect(tester.getRect(viewport), mediaRect);
+      expect(tester.getCenter(pause), pausePosition);
+      expect(tester.element(pause), same(pauseElement));
+      expect(tester.getCenter(countdown), countdownPosition);
+      expect(panel, findsNothing);
+      expect(tester.getSize(capsule).height, 32);
+      expect(find.text('已记录：舒服'), findsOneWidget);
+      expect(find.text('修改'), findsOneWidget);
+
+      await tester.tap(capsule);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 240));
+      expect(tester.getTopLeft(dock).dy, dockTop);
+      expect(cards[1].hitTestable(), findsOneWidget);
+      await tester.tap(cards[1]);
+      expect(selections, [
+        TrainerRestFeedbackChoice.comfortable,
+        TrainerRestFeedbackChoice.tight,
+      ]);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 240));
+      expect(find.text('已记录：有点紧'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('skip')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 2100));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(rest!.phase.set, 3);
+      expect(panel.hitTestable(), findsOneWidget);
+      expect(capsule, findsNothing);
+      expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     });
+  });
+
+  testWidgets('V1 rest without feedback keeps the ordinary dock height', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await withClock(Clock(tester.binding.clock.now), () async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TrainerPlayer(
+            plan: TrainingPlan(
+              id: 'skipped-rest',
+              source: 'template',
+              title: 'Plan',
+              goal: 'core',
+              scene: 'home',
+              level: 1,
+              targetMinutes: 2,
+              blocks: [
+                PlanBlock(
+                  id: 'main',
+                  name: 'Main',
+                  type: BlockType.main,
+                  items: [
+                    for (final id in ['squat', 'lunge'])
+                      PlanItem(
+                        exerciseId: id,
+                        mode: DoseMode.time,
+                        sets: 1,
+                        workSeconds: 30,
+                        perSide: false,
+                        restSeconds: 0,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            drillOf: (id) => TrainerDrill(id: id, name: id),
+            theme: TrainerTheme.playerV1,
+            strings: TrainerStrings.zh(),
+            prepSeconds: 0,
+            keepAlive: false,
+            onFinished: (_) async {},
+          ),
+        ),
+      );
+      final dock = find.byType(TrainerPlayerV1Dock);
+      final pause = find.byKey(const ValueKey('pause'));
+      await tester.pump(const Duration(seconds: 1));
+      final workHeight = tester.getSize(dock).height;
+      final pauseCenter = tester.getCenter(pause);
+
+      await tester.tap(find.byKey(const ValueKey('skip')));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      final restDock = tester.widget<TrainerPlayerV1Dock>(dock);
+      expect(restDock.restIdentity, isA<SessionPhase>());
+      expect((restDock.restIdentity! as SessionPhase).kind, PhaseKind.rest);
+      expect(restDock.restFeedback, isNull);
+      expect(tester.getSize(dock).height, workHeight);
+      expect(tester.getCenter(pause), pauseCenter);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  });
+
+  testWidgets('wrapped rest feedback appears when dock layout retargets', (
+    tester,
+  ) async {
+    final extraHeight = ValueNotifier<double?>(null);
+    addTearDown(extraHeight.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: ValueListenableBuilder(
+              valueListenable: extraHeight,
+              builder: (context, height, _) => TrainerPlayerV1Dock(
+                theme: TrainerTheme.playerV1,
+                strings: TrainerStrings.zh(),
+                minHeight: height == null ? 172 : 300,
+                compactMinHeight: 172,
+                bottomInset: 0,
+                countdown: const Text('10'),
+                previous: const SizedBox.shrink(),
+                primary: const SizedBox(height: 80),
+                next: const SizedBox.shrink(),
+                restFeedback: height == null
+                    ? null
+                    : StatefulBuilder(
+                        builder: (_, _) => Padding(
+                          padding: EdgeInsets.only(top: height),
+                          child: TrainerRestFeedbackPanel(
+                            theme: TrainerTheme.playerV1,
+                            title: '刚才感觉怎么样？',
+                            comfortableLabel: '舒服',
+                            onComfortable: () {},
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final feedbackOpacity = find.byKey(
+      const ValueKey('player-v1-rest-feedback-opacity'),
+    );
+    extraHeight.value = 0;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 340));
+    expect(tester.widget<Opacity>(feedbackOpacity).opacity, 0);
+
+    extraHeight.value = 32;
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump(const Duration(milliseconds: 20));
+    extraHeight.value = 64;
+    await tester.pump(const Duration(milliseconds: 20));
+    extraHeight.value = 96;
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(tester.widget<Opacity>(feedbackOpacity).opacity, 1);
+    expect(find.text('舒服').hitTestable(), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('reduced motion toggles the rest feedback immediately', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: Scaffold(
+            body: TrainerPlayerV1Dock(
+              theme: TrainerTheme.playerV1,
+              strings: TrainerStrings.zh(),
+              minHeight: 300,
+              compactMinHeight: 172,
+              bottomInset: 0,
+              countdown: const SizedBox.shrink(),
+              previous: const SizedBox.shrink(),
+              primary: const SizedBox.shrink(),
+              next: const SizedBox.shrink(),
+              restFeedback: TrainerRestFeedbackPanel(
+                theme: TrainerTheme.playerV1,
+                title: '刚才感觉怎么样？',
+                comfortableLabel: '舒服',
+                onComfortable: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('舒服'));
+    await tester.pump();
+    expect(find.text('已记录：舒服'), findsOneWidget);
+    expect(find.text('刚才感觉怎么样？'), findsNothing);
+
+    await tester.tap(find.text('修改'));
+    await tester.pump();
+    expect(find.text('已记录：舒服'), findsNothing);
+    expect(find.text('刚才感觉怎么样？'), findsOneWidget);
   });
 
   testWidgets('a newly opened player can exit before dock feedback animates', (

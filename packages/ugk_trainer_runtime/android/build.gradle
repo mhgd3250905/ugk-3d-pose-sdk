@@ -11,7 +11,7 @@ if (agpMajor < 9) {
 }
 
 group 'com.ugk.trainer'
-version '0.1.0'
+version '1.0.0'
 
 android {
     namespace 'com.ugk.trainer'

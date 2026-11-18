@@ -68,6 +68,9 @@ class TrainerStrings {
       'Tiring',
       'Uncomfortable',
     ],
+    this.restFeedbackComfortable = 'Good',
+    this.restFeedbackTight = 'Tight',
+    this.restFeedbackPain = 'Pain',
     this.actualDuration = 'Actual duration',
     this.totalReps = 'Total reps',
     this.totalWorkTime = 'Total work time',
@@ -83,6 +86,8 @@ class TrainerStrings {
     this.mediaDownloadVerifying = 'Verifying demo video…',
     this.mediaDownloadReady = 'Demo video ready',
     this.restLabel = 'Rest',
+    this.restFeedbackRecorded = _enRestFeedbackRecorded,
+    this.restFeedbackEdit = 'Edit',
     this.upcomingLabel = 'Up next',
     this.completionTitle,
     this.streak = 'Streak (days)',
@@ -171,6 +176,7 @@ class TrainerStrings {
   final String feelingPrompt, actualDuration, totalReps, totalWorkTime;
   final String skipped, replay;
   final List<String> feelingLabels;
+  final String restFeedbackComfortable, restFeedbackTight, restFeedbackPain;
   final String Function(int seconds) durationLabel;
   final String Function(int? percentage) mediaDownloading;
   final String Function(int? percentage) mediaDownloadingSemantics;
@@ -179,6 +185,8 @@ class TrainerStrings {
   final String mediaDownloadVerifying;
   final String mediaDownloadReady;
   final String restLabel, upcomingLabel;
+  final String Function(String label) restFeedbackRecorded;
+  final String restFeedbackEdit;
   final String? completionTitle;
   final String streak, trainedAreasLabel;
   final String playerStart;
@@ -189,6 +197,8 @@ class TrainerStrings {
       : 'Downloading demo $percentage%';
   static String _enDuration(int seconds) => '${seconds ~/ 60}m${seconds % 60}s';
   static String _zhDuration(int seconds) => '${seconds ~/ 60}分${seconds % 60}秒';
+  static String _enRestFeedbackRecorded(String label) => 'Recorded: $label';
+  static String _zhRestFeedbackRecorded(String label) => '已记录：$label';
   static String _enCloseSheetProgress(int completed, int total) =>
       '$completed/$total exercises completed';
   static String _zhCloseSheetProgress(int completed, int total) =>
@@ -214,6 +224,8 @@ class TrainerStrings {
     upcomingLabel: '即将开始',
     completionTitle: '练完了，干得漂亮',
     streak: '连续训练（天）',
+    restFeedbackRecorded: _zhRestFeedbackRecorded,
+    restFeedbackEdit: '修改',
     trainedAreasLabel: '训练部位',
     mediaDownloading: (percentage) =>
         percentage == null ? '正在下载示范…' : '正在下载示范 $percentage%',
@@ -231,6 +243,9 @@ class TrainerStrings {
     closeInstructions: '收起',
     feelingPrompt: '这次感觉怎么样？',
     feelingLabels: const ['轻松', '刚好', '有点累', '不舒服'],
+    restFeedbackComfortable: '舒服',
+    restFeedbackTight: '有点紧',
+    restFeedbackPain: '疼',
     actualDuration: '实际时长',
     totalReps: '总次数',
     totalWorkTime: '总时长',

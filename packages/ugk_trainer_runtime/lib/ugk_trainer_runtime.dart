@@ -40,7 +40,6 @@ export 'src/ui/trainer_media_download_indicator.dart';
 export 'src/ui/trainer_player.dart';
 export 'src/ui/trainer_player_v1_dock.dart'
     show
-        TrainerRestFeedbackChoice,
         TrainerRestFeedbackOption,
         TrainerRestFeedbackPanel,
         TrainerRestFeedbackTone;

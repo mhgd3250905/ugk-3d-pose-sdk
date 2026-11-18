@@ -7,6 +7,7 @@ import 'package:ugk_coach/ugk_coach_qa_v2.dart' as qa;
 import 'package:ugk_coach_chat/ugk_coach_chat.dart';
 
 import 'chat_controller_test.dart' show ChatPlans, ChatHistory, ChatPreferences;
+import 'fixtures/bundled_pose_hub_file.dart';
 
 const _mainIds = [
   'h-db-rdl',
@@ -26,9 +27,7 @@ void main() {
   test(
     '20 minute home plan admits, plays, saves and restores with actual equipment',
     () async {
-      final meta = File(
-        '../ugk_trainer/assets/pose_hub/app-pack-r2-v16/catalog.json',
-      );
+      final meta = bundledPoseHubFile('catalog.json');
       final descriptor = coach.PoseHubAppTestCatalog.fromBytes(
         meta.readAsBytesSync(),
       );

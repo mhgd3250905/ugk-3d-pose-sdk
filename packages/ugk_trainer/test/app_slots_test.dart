@@ -428,6 +428,171 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('rest feedback records skipped and finished items separately', (
+    tester,
+  ) async {
+    final saved = <SessionResult>[];
+    final offered = <String?>{};
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: TrainerPlayer(
+            plan: planOf([timed('a', 10), timed('b', 2), timed('a', 2)]),
+            drillOf: (id) => TrainerDrill(id: id, name: id),
+            strings: TrainerStrings.en(),
+            theme: TrainerTheme.playerV1,
+            prepSeconds: 0,
+            transitionSeconds: 5,
+            keepAlive: false,
+            mediaBuilder: (_, _) => const SizedBox.expand(),
+            onFinished: (result) async => saved.add(result),
+            restFeedbackBuilder: (_, feedback) {
+              offered.add(feedback.completedPhase.exerciseId);
+              return TrainerRestFeedbackPanel(
+                theme: TrainerTheme.playerV1,
+                title: 'How did it feel?',
+                comfortableLabel: 'Good',
+                tightLabel: 'Tight',
+                painLabel: 'Pain',
+                onComfortable: () {},
+                onTight: () {},
+                onPain: () {},
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byKey(const ValueKey('skip')));
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(offered, {'a'});
+    await tester.tap(find.text('Good'));
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('player-v1-rest-feedback-edit')),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 7));
+    expect(offered, {'a', 'b'});
+    await tester.tap(find.text('Tight'));
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pump(const Duration(milliseconds: 500));
+    final result = saved.single;
+    expect(result.completedExercises, 2);
+    expect(result.totalExercises, 3);
+    expect(result.items.map((item) => item.status), [
+      ItemStatus.skipped,
+      ItemStatus.completed,
+      ItemStatus.completed,
+    ]);
+    expect(
+      SessionResult.fromJson(
+        result.toJson(),
+      ).items.map((item) => item.restFeedback),
+      [
+        TrainerRestFeedbackChoice.comfortable,
+        TrainerRestFeedbackChoice.tight,
+        null,
+      ],
+    );
+  });
+
+  testWidgets(
+    'rest feedback targets the pending side after skipping a side switch',
+    (tester) async {
+      final saved = <SessionResult>[];
+      final offered = <(String?, Side?, bool)>{};
+      DiscomfortContext? reported;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: TrainerPlayer(
+              plan: planOf([
+                reps('a', 3, perSide: true),
+                reps('b', 3, perSide: true),
+                timed('c', 2),
+              ]),
+              drillOf: (id) => TrainerDrill(id: id, name: id),
+              strings: TrainerStrings.en(),
+              theme: TrainerTheme.playerV1,
+              sessionBuilder: SessionBuilder(
+                prepSeconds: 0,
+                transitionSeconds: 5,
+                switchSideSeconds: 2,
+                rhythms: {
+                  'a': Rhythm.fromRepSeconds(1),
+                  'b': Rhythm.fromRepSeconds(1),
+                },
+              ),
+              keepAlive: false,
+              mediaBuilder: (_, _) => const SizedBox.expand(),
+              onFinished: (result) async => saved.add(result),
+              onDiscomfort: (_, at) async {
+                reported = at;
+                return const DiscomfortDecision(
+                  DiscomfortAction.continueEasier,
+                );
+              },
+              restFeedbackBuilder: (_, feedback) {
+                final phase = feedback.completedPhase;
+                offered.add((
+                  phase.exerciseId,
+                  phase.side,
+                  phase.countedOnClock,
+                ));
+                return StatefulBuilder(
+                  builder: (_, _) => TrainerRestFeedbackPanel(
+                    theme: TrainerTheme.playerV1,
+                    title: 'How did it feel?',
+                    comfortableLabel: 'Good',
+                    onComfortable: () {},
+                    painLabel: 'Pain',
+                    onPain: feedback.reportDiscomfort,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 3500));
+      await tester.tap(find.byKey(const ValueKey('skip')));
+      await tester.pump(const Duration(milliseconds: 800));
+      expect(offered, {('a', Side.left, true)});
+      await tester.tap(find.text('Pain').hitTestable());
+      await tester.pump();
+      expect(reported?.phase.exerciseId, 'a');
+      expect(reported?.phase.side, Side.left);
+      expect(reported?.resumePhase.exerciseId, 'b');
+      expect(reported?.afterExercise, isTrue);
+
+      await tester.pump(const Duration(seconds: 13));
+      expect(offered, {('a', Side.left, true), ('b', Side.left, true)});
+      expect(find.text('Good').hitTestable(), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 4500));
+      await tester.tap(find.byKey(const ValueKey('skip')));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      expect(offered, {('a', Side.left, true), ('b', Side.left, true)});
+      final result = saved.single;
+      expect(result.completedExercises, 1);
+      expect(result.items.map((item) => item.status), [
+        ItemStatus.skipped,
+        ItemStatus.completed,
+        ItemStatus.skipped,
+      ]);
+      expect(result.items.first.completedSideSets, {'right': 1, 'left': 0});
+      expect(result.items.first.restFeedback, TrainerRestFeedbackChoice.pain);
+      expect(result.discomfort.single.exerciseId, 'a');
+      expect(result.discomfort.single.side, Side.left);
+      expect(result.items.last.restFeedback, isNull);
+    },
+  );
+
   testWidgets('replacement with no remaining work completes and saves once', (
     tester,
   ) async {

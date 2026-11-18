@@ -9,6 +9,9 @@ import 'package:ugk_coach/ugk_coach.dart';
 import 'package:ugk_trainer/engine.dart' as engine;
 import 'package:ugk_trainer/ugk_trainer.dart';
 
+const _bundledRoot =
+    'assets/pose_hub/app-pack-${PoseHubActionLibrary.packVersion}/';
+
 class _PackBundle extends CachingAssetBundle {
   _PackBundle({
     this.corrupt = false,
@@ -38,7 +41,7 @@ Map<String, Object?> _futureRelease() {
   final data =
       jsonDecode(
             File(
-              'assets/pose_hub/app-pack-r2-v16/catalog.json',
+              '${_bundledRoot}catalog.json',
             ).readAsStringSync(),
           )
           as Map<String, Object?>;
@@ -78,8 +81,8 @@ void main() {
     catalog = await PoseHubActionLibrary.load(bundle: _PackBundle());
   });
 
-  test('bundled r2-v16 metadata keeps the declared shared media root', () {
-    expect(PoseHubActionLibrary.packVersion, 'r2-v16');
+  test('bundled metadata keeps the declared shared media root', () {
+    expect(catalog.raw['pack'], PoseHubActionLibrary.packVersion);
     expect(
       PoseHubActionLibrary.mediaReleaseBaseUri,
       'https://media.uuugk.win/pack/r2-v1/',
@@ -90,7 +93,7 @@ void main() {
     );
     expect(
       PoseHubActionLibrary.catalogDownloadUri,
-      'https://media.uuugk.win/pack/r2-v16/catalog.json',
+      'https://media.uuugk.win/pack/${PoseHubActionLibrary.packVersion}/catalog.json',
     );
   });
 
@@ -98,7 +101,7 @@ void main() {
     'bundled audit digest records this release without gating future data',
     () async {
       final source = await File(
-        'assets/pose_hub/app-pack-r2-v16/catalog.json',
+        '${_bundledRoot}catalog.json',
       ).readAsBytes();
       expect(
         sha256.convert(source).toString(),
@@ -156,7 +159,7 @@ void main() {
     final source =
         jsonDecode(
               File(
-                'assets/pose_hub/app-pack-r2-v16/catalog.json',
+                '${_bundledRoot}catalog.json',
               ).readAsStringSync(),
             )
             as Map<String, Object?>;
@@ -215,7 +218,7 @@ void main() {
       const path = 'catalog/revisions/v4.json';
       (future['semanticCatalog']! as Map<String, Object?>)['path'] = path;
       final canonicalBytes = await File(
-        'assets/pose_hub/app-pack-r2-v16/catalog/catalog.json',
+        '${_bundledRoot}catalog/catalog.json',
       ).readAsBytes();
       final loaded = await PoseHubActionLibrary.load(
         bundle: _PackBundle(

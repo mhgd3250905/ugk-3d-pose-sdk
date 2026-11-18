@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show OverflowBoxFit;
 import 'package:flutter/services.dart';
 
+import '../result/session_result.dart';
 import 'trainer_player_motion.dart';
+import 'trainer_strings.dart';
 import 'trainer_theme.dart';
 
 const _feedbackIn = PlayerMotion.medium;
@@ -13,7 +15,15 @@ const _feedbackOut = PlayerMotion.fast;
 const _reducedFade = PlayerMotion.reducedFade;
 const _dockResize = PlayerMotion.slow;
 const _shrinkDelay = PlayerMotion.phaseShrinkDelay;
+const _selectionHold = Duration(milliseconds: 300);
 final _feedbackStaggeredIn = _feedbackIn + _feedbackStagger * 3;
+
+typedef _RecordedFeedback = ({
+  TrainerRestFeedbackChoice choice,
+  String label,
+  Color color,
+  IconData icon,
+});
 
 /// Player V1's dock. The player supplies the existing controls and owns their
 /// callbacks and session state.
@@ -21,7 +31,9 @@ class TrainerPlayerV1Dock extends StatefulWidget {
   const TrainerPlayerV1Dock({
     super.key,
     required this.theme,
+    required this.strings,
     required this.minHeight,
+    required this.compactMinHeight,
     required this.bottomInset,
     required this.countdown,
     required this.previous,
@@ -29,11 +41,15 @@ class TrainerPlayerV1Dock extends StatefulWidget {
     required this.next,
     this.optionalControls,
     this.restFeedback,
+    this.restIdentity,
+    this.onRestFeedbackRecorded,
     this.completionFading = false,
   });
 
   final TrainerTheme theme;
+  final TrainerStrings strings;
   final double minHeight;
+  final double compactMinHeight;
   final double bottomInset;
   final Widget countdown;
   final Widget previous;
@@ -41,6 +57,8 @@ class TrainerPlayerV1Dock extends StatefulWidget {
   final Widget next;
   final Widget? optionalControls;
   final Widget? restFeedback;
+  final Object? restIdentity;
+  final ValueChanged<TrainerRestFeedbackChoice>? onRestFeedbackRecorded;
 
   /// Fade the controls and handle out while retaining the dock's layout.
   final bool completionFading;
@@ -54,13 +72,16 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
   late final AnimationController _enter;
   late final AnimationController _exit;
   late final AnimationController _expand;
+  late final AnimationController _recorded;
+  // Keep controls and host feedback state when switching resize wrappers.
   final _dockContentKey = GlobalKey();
-  final _dockSizeKey = GlobalKey();
   Widget? _outgoingFeedback;
   double? _outgoingHeight;
   bool _collapseFeedback = false;
   bool _waitingForExpansion = false;
   bool _reduced = false;
+  Timer? _selectionHoldTimer;
+  _RecordedFeedback? _recordedFeedback;
 
   @override
   void initState() {
@@ -69,6 +90,7 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
     _exit = AnimationController(vsync: this)..addListener(_onExitTick);
     _expand = AnimationController(vsync: this, duration: _dockResize)
       ..addStatusListener(_onExpandTick);
+    _recorded = AnimationController(vsync: this, duration: PlayerMotion.medium);
   }
 
   @override
@@ -80,6 +102,12 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
     _cancelExpansion();
     _enter.value = 1;
     if (_outgoingFeedback != null) _exit.value = 1;
+    if (reduced && _recordedFeedback != null) {
+      final pending = _selectionHoldTimer != null;
+      _selectionHoldTimer?.cancel();
+      _selectionHoldTimer = null;
+      _recorded.value = pending || _recorded.isForwardOrCompleted ? 1 : 0;
+    }
   }
 
   @override
@@ -88,6 +116,9 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
     final feedback = widget.restFeedback;
     final previous = oldWidget.restFeedback;
     if (feedback == null && previous != null) {
+      _selectionHoldTimer?.cancel();
+      _selectionHoldTimer = null;
+      _recorded.stop();
       final wasWaiting = _waitingForExpansion;
       _cancelExpansion();
       _enter.stop();
@@ -99,6 +130,7 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
       _exit.duration = _reduced ? _reducedFade : _feedbackOut;
       _exit.forward(from: 0);
     } else if (feedback != null && previous == null) {
+      _clearRecordedFeedback();
       _exit.stop();
       _outgoingFeedback = null;
       _outgoingHeight = null;
@@ -110,6 +142,38 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
         _waitingForExpansion = true;
         _expand.forward(from: 0);
       }
+    } else if (widget.restIdentity != oldWidget.restIdentity) {
+      _clearRecordedFeedback();
+    }
+  }
+
+  void _clearRecordedFeedback() {
+    _selectionHoldTimer?.cancel();
+    _selectionHoldTimer = null;
+    _recordedFeedback = null;
+    _recorded.value = 0;
+  }
+
+  void _onFeedbackSelected(_RecordedFeedback feedback) {
+    if (widget.restFeedback == null) return;
+    widget.onRestFeedbackRecorded?.call(feedback.choice);
+    _selectionHoldTimer?.cancel();
+    setState(() => _recordedFeedback = feedback);
+    if (_reduced) {
+      _recorded.value = 1;
+      return;
+    }
+    _selectionHoldTimer = Timer(_selectionHold, () {
+      _selectionHoldTimer = null;
+      _recorded.animateTo(1, curve: Curves.easeOutCubic);
+    });
+  }
+
+  void _editFeedback() {
+    if (_reduced) {
+      _recorded.value = 0;
+    } else {
+      _recorded.animateBack(0, curve: Curves.easeOutCubic);
     }
   }
 
@@ -128,25 +192,10 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
   }
 
   void _onExpandTick(AnimationStatus status) {
-    if (status == AnimationStatus.completed) {
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _revealWhenExpanded(),
-      );
-    }
-  }
-
-  void _onResizeEnd() {
-    // AnimatedSize finishes during a frame. Check both render boxes after
-    // layout, including when a phase was interrupted mid-resize.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _revealWhenExpanded());
-  }
-
-  void _revealWhenExpanded() {
-    if (!mounted || !_waitingForExpansion || !_expand.isCompleted) return;
+    if (status != AnimationStatus.completed || !_waitingForExpansion) return;
     final feedback = widget.restFeedback;
-    final size = _dockSizeKey.currentContext?.size;
-    final contentSize = _dockContentKey.currentContext?.size;
-    if (feedback == null || size == null || size != contentSize) return;
+    if (feedback == null) return;
+    // AnimatedSize can retarget and settle without an onEnd notification.
     setState(() => _waitingForExpansion = false);
     _startEntrance(feedback);
   }
@@ -158,6 +207,7 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
         _outgoingFeedback = null;
         _outgoingHeight = null;
         _collapseFeedback = false;
+        _clearRecordedFeedback();
       });
     } else if (!_reduced &&
         !_collapseFeedback &&
@@ -169,6 +219,8 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
 
   @override
   void dispose() {
+    _selectionHoldTimer?.cancel();
+    _recorded.dispose();
     _expand.dispose();
     _enter.dispose();
     _exit.dispose();
@@ -216,18 +268,38 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
                         ),
                 );
               },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _RestFeedbackEntrance(
-                    animation: stagger ? _enter : null,
-                    child: feedback,
-                  ),
-                  const SizedBox(height: 12),
-                  Divider(height: 1, thickness: 1, color: widget.theme.border),
-                  const SizedBox(height: 12),
-                ],
+              child: AnimatedBuilder(
+                animation: _recorded,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _RestFeedbackEntrance(
+                      animation: stagger ? _enter : null,
+                      onSelected: _onFeedbackSelected,
+                      child: feedback,
+                    ),
+                    const SizedBox(height: 12),
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: widget.theme.border,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+                builder: (context, expanded) {
+                  final progress = _recorded.value;
+                  final recorded = _recordedFeedback;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _feedbackExtent(1 - progress, expanded!),
+                      if (recorded != null && progress > 0)
+                        _feedbackExtent(progress, _recordedCapsule(recorded)),
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -236,16 +308,96 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
     );
   }
 
-  Widget _resize(Widget child) => _reduced
-      ? child
-      : AnimatedSize(
-          key: _dockSizeKey,
-          alignment: Alignment.bottomCenter,
-          duration: _dockResize,
-          curve: PlayerMotion.morph,
-          onEnd: _onResizeEnd,
-          child: child,
-        );
+  Widget _feedbackExtent(double fraction, Widget child) => Offstage(
+    offstage: fraction == 0,
+    child: ExcludeFocus(
+      excluding: fraction < 1,
+      child: ExcludeSemantics(
+        excluding: fraction < 1,
+        child: IgnorePointer(
+          ignoring: fraction < 1,
+          child: ClipRect(
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              heightFactor: fraction,
+              child: Opacity(opacity: fraction, child: child),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Widget _recordedCapsule(_RecordedFeedback feedback) {
+    final theme = widget.theme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: SizedBox(
+        height: 32,
+        child: TextButton(
+          key: const ValueKey('player-v1-rest-feedback-edit'),
+          onPressed: _editFeedback,
+          style: TextButton.styleFrom(
+            backgroundColor: feedback.color.withValues(alpha: .08),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            minimumSize: const Size(0, 32),
+            shape: const StadiumBorder(),
+            side: BorderSide.none,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.standard,
+            animationDuration: Duration.zero,
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(feedback.icon, size: 16, color: feedback.color),
+                const SizedBox(width: 6),
+                Text(
+                  widget.strings.restFeedbackRecorded(feedback.label),
+                  style: theme.body.copyWith(
+                    color: feedback.color,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  widget.strings.restFeedbackEdit,
+                  style: theme.body.copyWith(color: theme.muted, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _resize(double height, Widget child) => AnimatedBuilder(
+    animation: _recorded,
+    child: child,
+    builder: (context, child) {
+      final content = ConstrainedBox(
+        key: _dockContentKey,
+        constraints: BoxConstraints(
+          minHeight:
+              height + (widget.compactMinHeight - height) * _recorded.value,
+        ),
+        child: child,
+      );
+      if (_reduced ||
+          (_recordedFeedback != null && widget.restFeedback != null)) {
+        return content;
+      }
+      return AnimatedSize(
+        alignment: Alignment.bottomCenter,
+        duration: _dockResize,
+        curve: PlayerMotion.morph,
+        child: content,
+      );
+    },
+  );
 
   Widget _fadeForCompletion(Widget child, {Key? key}) => IgnorePointer(
     ignoring: widget.completionFading,
@@ -276,59 +428,51 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
         clipBehavior: Clip.none,
         children: [
           _resize(
-            ConstrainedBox(
-              key: _dockContentKey,
-              constraints: BoxConstraints(minHeight: height),
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  24,
-                  20,
-                  24,
-                  16 + widget.bottomInset,
-                ),
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  heightFactor: 1,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 520),
-                    child: _fadeForCompletion(
-                      key: const ValueKey('player-v1-dock-content-opacity'),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          SizedBox(
-                            key: const ValueKey('player-v1-rest-feedback-slot'),
-                            child: feedback == null
-                                ? null
-                                : _feedbackSlot(feedback),
+            height,
+            Padding(
+              padding: EdgeInsets.fromLTRB(24, 20, 24, 16 + widget.bottomInset),
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                heightFactor: 1,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: _fadeForCompletion(
+                    key: const ValueKey('player-v1-dock-content-opacity'),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(
+                          key: const ValueKey('player-v1-rest-feedback-slot'),
+                          child: feedback == null
+                              ? null
+                              : _feedbackSlot(feedback),
+                        ),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 52),
+                          child: Align(
+                            alignment: Alignment.center,
+                            heightFactor: 1,
+                            child: widget.countdown,
                           ),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(minHeight: 52),
-                            child: Align(
-                              alignment: Alignment.center,
-                              heightFactor: 1,
-                              child: widget.countdown,
+                        ),
+                        const SizedBox(height: 4),
+                        Center(
+                          child: SizedBox(
+                            width: 240,
+                            child: OverflowBar(
+                              alignment: MainAxisAlignment.spaceBetween,
+                              overflowSpacing: 8,
+                              children: [
+                                widget.previous,
+                                widget.primary,
+                                widget.next,
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Center(
-                            child: SizedBox(
-                              width: 240,
-                              child: OverflowBar(
-                                alignment: MainAxisAlignment.spaceBetween,
-                                overflowSpacing: 8,
-                                children: [
-                                  widget.previous,
-                                  widget.primary,
-                                  widget.next,
-                                ],
-                              ),
-                            ),
-                          ),
-                          ?widget.optionalControls,
-                        ],
-                      ),
+                        ),
+                        ?widget.optionalControls,
+                      ],
                     ),
                   ),
                 ),
@@ -366,9 +510,14 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
 }
 
 class _RestFeedbackEntrance extends InheritedWidget {
-  const _RestFeedbackEntrance({required this.animation, required super.child});
+  const _RestFeedbackEntrance({
+    required this.animation,
+    required this.onSelected,
+    required super.child,
+  });
 
   final Animation<double>? animation;
+  final ValueChanged<_RecordedFeedback> onSelected;
 
   static Widget stagger(BuildContext context, int index, Widget child) {
     final animation = context
@@ -403,9 +552,6 @@ class _RestFeedbackEntrance extends InheritedWidget {
   bool updateShouldNotify(_RestFeedbackEntrance oldWidget) =>
       animation != oldWidget.animation;
 }
-
-/// The host's selected response in the standard rest feedback panel.
-enum TrainerRestFeedbackChoice { comfortable, tight, pain }
 
 enum TrainerRestFeedbackTone { positive, neutral, negative }
 
@@ -463,6 +609,9 @@ class TrainerRestFeedbackPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final currentTitle = selected == null ? title : recordedTitle ?? title;
     final reduced = TrainerMotion.reduced(context);
+    final onSelected = context
+        .dependOnInheritedWidgetOfExactType<_RestFeedbackEntrance>()
+        ?.onSelected;
     final choices =
         options ??
         [
@@ -541,6 +690,7 @@ class TrainerRestFeedbackPanel extends StatelessWidget {
                           : i == choices.length - 1
                           ? TrainerRestFeedbackTone.negative
                           : TrainerRestFeedbackTone.neutral,
+                      onSelected,
                     ),
                   ),
                 ),
@@ -555,6 +705,7 @@ class TrainerRestFeedbackPanel extends StatelessWidget {
   Widget _option(
     TrainerRestFeedbackOption option,
     TrainerRestFeedbackTone fallbackTone,
+    ValueChanged<_RecordedFeedback>? onSelected,
   ) {
     final (color, icon) = switch (option.tone ?? fallbackTone) {
       TrainerRestFeedbackTone.positive => (
@@ -570,14 +721,23 @@ class TrainerRestFeedbackPanel extends StatelessWidget {
         Icons.sentiment_dissatisfied_rounded,
       ),
     };
+    final resolvedIcon = option.icon ?? icon;
     return _RestFeedbackCard(
       key: ValueKey('player-v1-rest-${option.choice.name}'),
       option: option,
-      icon: option.icon ?? icon,
+      icon: resolvedIcon,
       color: color,
       theme: theme,
       selected: selected == option.choice,
       dimmed: selected != null && selected != option.choice,
+      onSelected: onSelected == null
+          ? null
+          : () => onSelected((
+              choice: option.choice,
+              label: option.label,
+              color: color,
+              icon: resolvedIcon,
+            )),
     );
   }
 }
@@ -591,6 +751,7 @@ class _RestFeedbackCard extends StatefulWidget {
     required this.theme,
     required this.selected,
     required this.dimmed,
+    required this.onSelected,
   });
 
   final TrainerRestFeedbackOption option;
@@ -599,6 +760,7 @@ class _RestFeedbackCard extends StatefulWidget {
   final TrainerTheme theme;
   final bool selected;
   final bool dimmed;
+  final VoidCallback? onSelected;
 
   @override
   State<_RestFeedbackCard> createState() => _RestFeedbackCardState();
@@ -695,9 +857,11 @@ class _RestFeedbackCardState extends State<_RestFeedbackCard>
               onTap: onPressed == null
                   ? null
                   : () {
-                      if (widget.selected) return;
-                      unawaited(HapticFeedback.selectionClick());
-                      onPressed();
+                      widget.onSelected?.call();
+                      if (!widget.selected) {
+                        unawaited(HapticFeedback.selectionClick());
+                        onPressed();
+                      }
                     },
               child: Stack(
                 fit: StackFit.expand,

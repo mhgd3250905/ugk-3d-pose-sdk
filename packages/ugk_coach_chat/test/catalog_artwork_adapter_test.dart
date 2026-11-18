@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_coach/ugk_coach.dart' as coach;
@@ -7,6 +5,8 @@ import 'package:ugk_coach_chat/src/theme/chat_theme.dart';
 import 'package:ugk_coach_chat/src/ui/coach_ui_adapter.dart';
 import 'package:ugk_coach_ui/ugk_coach_ui.dart';
 import 'package:ugk_trainer_runtime/ugk_trainer_runtime.dart';
+
+import 'fixtures/bundled_pose_hub_file.dart';
 
 const _host = CoachExercise(
   id: 'host-id',
@@ -26,11 +26,10 @@ void main() {
   late coach.PoseHubPackAction action;
   late coach.Drill drill;
   setUpAll(() async {
-    const root = '../ugk_trainer/assets/pose_hub/app-pack-r2-v16/';
     final catalog = coach.PoseHubAppTestCatalog.fromBytes(
-      await File('${root}catalog.json').readAsBytes(),
-      semanticCatalogBytes: await File(
-        '${root}catalog/catalog.json',
+      await bundledPoseHubFile('catalog.json').readAsBytes(),
+      semanticCatalogBytes: await bundledPoseHubFile(
+        'catalog/catalog.json',
       ).readAsBytes(),
     );
     action = catalog.tryGet('s-kneel-hipflex')!;
@@ -202,7 +201,7 @@ void main() {
     for (final poster in [
       '',
       'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v1/standing/${drill.id}.webp',
-      'packages/ugk_trainer/assets/pose_hub/app-pack-r2-v16/standing/${drill.id}.webp',
+      '${PoseHubActionLibrary.standingAssetRoot}${drill.id}.webp',
     ]) {
       await tester.pumpWidget(
         MaterialApp(

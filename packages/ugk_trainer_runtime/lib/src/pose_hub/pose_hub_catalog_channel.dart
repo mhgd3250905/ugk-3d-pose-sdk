@@ -7,7 +7,7 @@ const poseHubLegacyPackVersion = 'r1-v3';
 
 /// The SDK version compared against a channel pointer's `min_sdk`.
 /// Hosts may override it through [PoseHubCatalogUpdateConfig.sdkVersion].
-const poseHubCatalogSdkVersion = '0.9.0';
+const poseHubCatalogSdkVersion = '1.0.0';
 
 /// Media root of one immutable pack: `https://media.uuugk.win/pack/<pack>/`.
 Uri poseHubMediaBaseUriForPack(String pack) {

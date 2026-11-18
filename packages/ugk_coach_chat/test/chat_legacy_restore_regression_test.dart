@@ -1,17 +1,15 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_coach/ugk_coach.dart' as coach;
 import 'package:ugk_coach_chat/ugk_coach_chat.dart';
 
 import 'chat_controller_test.dart';
+import 'fixtures/bundled_pose_hub_file.dart';
 import 'fixtures/legacy_sf_template_plans.dart';
 
 coach.Catalog _currentCatalog() => coach.PoseHubAppTestCatalog.fromBytes(
-  File(
-    '../ugk_trainer/assets/pose_hub/app-pack-r2-v16/catalog.json',
-  ).readAsBytesSync(),
+  bundledPoseHubFile('catalog.json').readAsBytesSync(),
 ).toAiCatalog();
 
 class _LegacyHarness {

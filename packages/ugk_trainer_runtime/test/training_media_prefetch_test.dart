@@ -36,7 +36,7 @@ class _Downloads
 void main() {
   final catalog = PoseHubAppTestCatalog.fromBytes(
     File(
-      '../ugk_trainer/assets/pose_hub/app-pack-r2-v16/catalog.json',
+      'test/fixtures/pose_hub/r2-v1/catalog.json',
     ).readAsBytesSync(),
   );
   final actions = catalog.semanticCompleteActions.take(3).toList();

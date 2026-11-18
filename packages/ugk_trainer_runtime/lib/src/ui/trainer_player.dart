@@ -270,12 +270,22 @@ class TrainerRestFeedback {
     required this.phase,
     required this.completedPhase,
     required this.reportDiscomfort,
+    this._onChoiceRecorded,
   });
   final SessionPhase phase;
+
+  /// Work phase this rest asks about, including a side skipped before it began.
   final SessionPhase completedPhase;
 
-  /// Opens the same app discomfort handler, targeting the finished exercise.
+  /// Opens the app discomfort handler for the exercise preceding this rest.
   final Future<void> Function() reportDiscomfort;
+
+  final ValueChanged<TrainerRestFeedbackChoice>? _onChoiceRecorded;
+
+  /// Records a choice from a custom panel. The standard V1 panel does this
+  /// automatically, alongside the host's own selection callback.
+  void recordChoice(TrainerRestFeedbackChoice choice) =>
+      _onChoiceRecorded?.call(choice);
 }
 
 typedef TrainerRestFeedbackBuilder =
@@ -3256,28 +3266,73 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   Widget? _restFeedback(SessionPhase phase) {
     final build = widget.restFeedbackBuilder;
-    if (build == null ||
-        (phase.kind != PhaseKind.rest && phase.kind != PhaseKind.roundRest)) {
-      return null;
-    }
-    final completed = _lastWorkVisit();
-    if (completed == null ||
-        (!_th.usePlayerV1 && completed.itemIndex >= phase.itemIndex)) {
-      return null;
-    }
-    final target = completed;
+    if (build == null) return null;
+    final target = _restFeedbackTarget(phase);
+    if (target == null) return null;
+    final generation = _engine.generation;
+    final recorder = _recorder;
     return build(
       context,
       TrainerRestFeedback(
         phase: phase,
         completedPhase: target,
         reportDiscomfort: () => _discomfort(completedPhase: target),
+        onChoiceRecorded: (choice) {
+          if (mounted &&
+              identical(recorder, _recorder) &&
+              _engine.generation == generation) {
+            _recordRestFeedbackChoice(phase, choice);
+          }
+        },
       ),
     );
   }
 
-  SessionPhase? _lastWorkVisit() {
-    for (final visit in _engine.visits.reversed) {
+  SessionPhase? _restFeedbackTarget(SessionPhase phase) {
+    if (phase.kind != PhaseKind.rest && phase.kind != PhaseKind.roundRest) {
+      return null;
+    }
+    final visits = _engine.visits;
+    final target = switch (visits.lastOrNull) {
+      PhaseVisit(exit: PhaseExit.skipped, phase: final switching)
+          when switching.kind == PhaseKind.switchSide =>
+        _skippedSideWork(switching),
+      _ => _lastWorkVisit(visits),
+    };
+    if (target == null ||
+        (!_th.usePlayerV1 && target.itemIndex >= phase.itemIndex)) {
+      return null;
+    }
+    return target;
+  }
+
+  void _recordRestFeedbackChoice(
+    SessionPhase phase,
+    TrainerRestFeedbackChoice choice,
+  ) {
+    if (!identical(_phase, phase)) return;
+    final target = _restFeedbackTarget(phase);
+    if (target != null) _recorder.recordRestFeedback(target, choice);
+  }
+
+  SessionPhase? _skippedSideWork(SessionPhase switching) {
+    final phases = _engine.phases;
+    final switchIndex = phases.indexOf(switching);
+    if (switchIndex < 0) return null;
+    // The new side was skipped before work began, so it has no work visit.
+    for (var i = switchIndex + 1; i < _engine.index; i++) {
+      final phase = phases[i];
+      if (phase.isWork &&
+          phase.itemIndex == switching.itemIndex &&
+          phase.side == switching.side) {
+        return phase;
+      }
+    }
+    return null;
+  }
+
+  SessionPhase? _lastWorkVisit([List<PhaseVisit>? visits]) {
+    for (final visit in (visits ?? _engine.visits).reversed) {
       if (visit.phase.isWork) return visit.phase;
     }
     return null;

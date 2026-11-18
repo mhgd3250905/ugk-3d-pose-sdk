@@ -87,6 +87,9 @@ final class PoseHubPackMediaFiles {
   PoseHubPackFile get cover => files['cover']!;
   PoseHubPackFile get thumbnail => files['thumbnail']!;
 
+  /// Optional published standing frame for this video variant.
+  PoseHubPackFile? get standing => files['standing'];
+
   /// Reads the optional themes table, including from a drill's poseHubMedia.
   static Map<PoseHubMediaTheme, PoseHubPackMediaFiles> themesFromJson(
     Object? json,
@@ -101,9 +104,7 @@ final class PoseHubPackMediaFiles {
         _ => throw FormatException('Unknown media theme: ${entry.key}'),
       };
       final source = _map(entry.value, 'files.themes.${entry.key}');
-      if (source.keys.any(
-        (key) => key != 'skin' && !_mediaKinds.contains(key),
-      )) {
+      if (source.keys.any((key) => key != 'skin' && !_isMediaKind(key))) {
         throw FormatException('Unexpected media field for ${entry.key}');
       }
       parsed[theme] = PoseHubPackMediaFiles._(
@@ -117,8 +118,10 @@ final class PoseHubPackMediaFiles {
   static Map<String, PoseHubPackFile> _parseMediaFiles(
     Map<String, Object?> source,
   ) => Map.unmodifiable({
-    for (final kind in _mediaKinds)
+    for (final kind in _requiredMediaKinds)
       kind: PoseHubPackFile.fromJson(source[kind]),
+    if (source.containsKey('standing'))
+      'standing': PoseHubPackFile.fromJson(source['standing']),
   });
 }
 
@@ -167,10 +170,8 @@ final class PoseHubPackAction {
       status = PoseHubActionStatus.parse(raw['status']),
       statusSince = _optionalText(raw['status_since'], 'action.status_since') {
     final sourceFiles = _map(raw['files'], '$id.files');
-    if (sourceFiles.keys.any(
-          (key) => key != 'themes' && !_mediaKinds.contains(key),
-        ) ||
-        !_mediaKinds.every(sourceFiles.containsKey)) {
+    if (sourceFiles.keys.any((key) => key != 'themes' && !_isMediaKind(key)) ||
+        !_requiredMediaKinds.every(sourceFiles.containsKey)) {
       throw FormatException('$id must declare video, cover and thumbnail');
     }
     _defaultMedia = PoseHubPackMediaFiles._(
@@ -706,7 +707,9 @@ final class PoseHubAppTestCatalog {
   }
 }
 
-const _mediaKinds = {'video', 'cover', 'thumbnail'};
+const _requiredMediaKinds = {'video', 'cover', 'thumbnail'};
+bool _isMediaKind(String key) =>
+    _requiredMediaKinds.contains(key) || key == 'standing';
 const _definitionFields = [
   'purpose',
   'category',

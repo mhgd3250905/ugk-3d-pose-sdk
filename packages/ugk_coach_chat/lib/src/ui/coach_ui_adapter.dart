@@ -504,6 +504,9 @@ CoachExercise _withCatalogArtwork(CoachExercise exercise, coach.Drill drill) {
       video: video,
       cover: cover,
       thumbnailFile: thumbnailFile,
+      standingFile: media['standing'] == null
+          ? null
+          : coach.PoseHubPackFile.fromJson(media['standing']),
       themedMedia: themedMedia,
       thumbnail: thumbnail,
       theme: Theme.of(context).brightness == Brightness.dark

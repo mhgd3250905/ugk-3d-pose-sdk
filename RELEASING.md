@@ -17,6 +17,10 @@ python tool/sync_bundled_pack.py --channel beta --check
 
 可用 `--media-root F:/PoseHub-v3/app-pack/r2-v7` 指定本地已发布包目录，多个来源可重复传入；本地视频同样必须通过 SHA 和字节数检查。缺少本地视频时，脚本自动下载到被忽略的 `build/bundled-pack-sync/videos/` 缓存，再校验和抽帧；`--ffmpeg` 可指定可执行文件。`--check` 不下载视频、不抽帧，也不写资源或缓存；它核对当前线上目录、常量、pubspec，以及索引的完整动作集、源视频身份、每张图片的 SHA / 大小 / 640×640 alpha 规格。
 
+宿主启用持久化更新时，用同一个 `PoseHubCatalogStore` 创建 `PoseHubCatalogUpdater.withPersistentAssets(config: ..., store: store)` 并调用 `PoseHubActionLibrary.useVerifiedCache(store)`。在后台调用 `maybeCheck()`，主动刷新可调用 `checkNow()`。返回 `updated` 后，在下一次训练会话加载目录前调用 `PoseHubActionLibrary.resetForNextSession()`。如果宿主使用自定义 Application Support 根目录，更新器和素材读取端须配置同一个根目录。
+
+完整更新先核对主目录和语义目录，再预取目录中声明的封面、缩略图、站位图和语音。只有全部验证成功才切换当前目录指针。视频由播放器按需准备。线上包可在动作或主题的 `files` 中添加可选 `standing` 描述符（`media/<id>/` 下的 WebP，必需 path、bytes 和 SHA-256），并将渠道的 `min_sdk` 设到支持该字段的版本。旧包缺少此字段时沿用随包匹配的站位图或已验证的封面和缩略图。
+
 提交同步结果前运行脚本回归和两个包的完整测试，并确认静态分析无问题：
 
 ```powershell

@@ -312,7 +312,7 @@ void main() {
   );
 
   test(
-    'playing pins with identical paths protect only their namespace',
+    'identical videos share one download and a pin protects all aliases',
     () async {
       final fixture = _CatalogFixture('same', seed: 4);
       final incoming = _CatalogFixture('incoming', seed: 5);
@@ -330,11 +330,14 @@ void main() {
           await File.fromUri(firstUri).readAsBytes(),
           fixture.bodies[fixture.action().video.path],
         );
-        expect(await File.fromUri(secondUri).exists(), isFalse);
+        expect(
+          await File.fromUri(secondUri).readAsBytes(),
+          fixture.bodies[fixture.action().video.path],
+        );
         expect(await current.videoCacheBytes(), 8192);
         expect(
           harness.requests.where((path) => path == fixture.requestPath()),
-          hasLength(2),
+          hasLength(1),
         );
       } finally {
         release();

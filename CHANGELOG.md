@@ -1,5 +1,11 @@
 # Changelog
 
+## SDK 1.0.1 — 2026-11-18
+
+- Use persistent application support for native training media. Before using the new location, migrate and verify existing files by SHA-256. Share verified Pose-Hub image and video objects across catalog revisions while retaining the existing video cache budget and playback pins.
+- Hosts can use `PoseHubCatalogUpdater.withPersistentAssets` to verify the catalog, covers, thumbnails, published standing frames and voice before atomically saving the new catalog as current. Failed updates leave the old catalog active. Playback downloads video on demand.
+- A later launch reuses the installed catalog and its assets. Obsolete objects are cleaned up after activation while existing training sessions can continue to use their catalog.
+
 ## SDK 1.0.0 — 2026-11-18（首个正式版本候选）
 
 - Adopt V5 modeling as the first formal SDK baseline and align the five SDK packages at 1.0.0. All earlier SDK versions were transitional.

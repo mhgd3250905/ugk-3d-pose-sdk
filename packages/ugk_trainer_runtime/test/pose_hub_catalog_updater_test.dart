@@ -303,6 +303,133 @@ void main() {
     },
   );
 
+  test(
+    'persistent upgrade verifies standing and voice before switching, then reuses them',
+    () async {
+      const before = 'r2-v16';
+      const after = 'r2-v18';
+      final support = await Directory.systemTemp.createTemp('pose-hub-assets-');
+      addTearDown(() => support.delete(recursive: true));
+      final durable = createPoseHubCatalogFileStore('${support.path}/catalog');
+      final tiny =
+          jsonDecode(utf8.decode(_smallCatalog(before, 1)))
+              as Map<String, Object?>;
+      final released = jsonDecode(utf8.decode(r1Bytes)) as Map<String, Object?>;
+      tiny['semanticCatalog'] = released['semanticCatalog'];
+
+      Map<String, Object?> descriptor(String path, List<int> bytes) => {
+        'path': path,
+        'bytes': bytes.length,
+        'sha256': sha256.convert(bytes).toString(),
+      };
+
+      final action =
+          (tiny['actions'] as List<Object?>).first! as Map<String, Object?>;
+      final defaultFiles = action['files']! as Map<String, Object?>;
+      final cover = [9, 11, 20];
+      final thumb = [10, 11, 20];
+      final standing = [10, 21, 20];
+      final clip = [12, 0, 30];
+      defaultFiles['cover'] = descriptor(
+        'media/action-0/$before/cover.webp',
+        cover,
+      );
+      defaultFiles['thumbnail'] = descriptor(
+        'media/action-0/thumb.webp',
+        thumb,
+      );
+      action['voice'] = {
+        'files': [
+          {
+            ...descriptor('voice/action-0/name.m4a', clip),
+            'language': 'zh',
+            'clipId': 'name',
+          },
+        ],
+      };
+      final baseline = _json(tiny);
+      await durable.writeAtomic('packs/$before/catalog.json', baseline);
+      await durable.writeAtomic('packs/$before/semantic.json', semanticBytes);
+      await durable.writeAtomic(
+        'current.json',
+        _json({
+          'pack': before,
+          'catalog_sha256': sha256.convert(baseline).toString(),
+          'catalog_bytes': baseline.length,
+        }),
+      );
+      final legacyCover = File(
+        '${support.path}/posehub-media/$before/${sha256.convert(baseline)}/media/action-0/$before/cover.webp',
+      );
+      await legacyCover.parent.create(recursive: true);
+      await legacyCover.writeAsBytes(cover);
+
+      tiny['pack'] = after;
+      defaultFiles['cover'] = descriptor(
+        'media/action-0/$after/cover.webp',
+        cover,
+      );
+      defaultFiles['standing'] = descriptor(
+        'media/action-0/standing.webp',
+        standing,
+      );
+      final nextCatalog = _json(tiny);
+      publish(after, nextCatalog);
+      const base = 'https://media.uuugk.win/pack/$after/';
+      final currentClip = '${base}voice/action-0/name.m4a';
+      http.serve('${base}media/action-0/thumb.webp', thumb);
+      http.serve('${base}media/action-0/standing.webp', standing);
+      http.serve(currentClip, [12, 0, 31]);
+
+      PoseHubCatalogUpdater persistentUpdater() =>
+          PoseHubCatalogUpdater.withPersistentAssets(
+            config: _config,
+            store: durable,
+            http: http,
+            loadLocal: () async =>
+                coach.PoseHubAppTestCatalog.fromBytes(baseline),
+            assetRootDirectory: support.path,
+          );
+
+      expect(
+        await persistentUpdater().checkNow(),
+        PoseHubCatalogUpdateOutcome.failed,
+      );
+      expect(
+        poseHubPackVersionOf((await readVerifiedPoseHubCatalog(durable))!),
+        before,
+      );
+      expect(http.requests, contains(currentClip));
+      expect(
+        http.requests,
+        isNot(contains('${base}media/action-0/$after/cover.webp')),
+      );
+      expect(http.requests, isNot(contains('${base}catalog/catalog.json')));
+      expect(http.requests.where((u) => u.endsWith('.mp4')), isEmpty);
+
+      http.serve(currentClip, clip);
+      http.requests.clear();
+      expect(
+        await persistentUpdater().checkNow(),
+        PoseHubCatalogUpdateOutcome.updated,
+      );
+      final current = (await readVerifiedPoseHubCatalog(durable))!;
+      expect(poseHubPackVersionOf(current), after);
+      expect(
+        current.allActions.single.mediaFor(null).standing?.bytes,
+        standing.length,
+      );
+      expect(http.requests, [_pointerUrl, '${base}catalog.json', currentClip]);
+
+      http.requests.clear();
+      expect(
+        await persistentUpdater().checkNow(),
+        PoseHubCatalogUpdateOutcome.unchanged,
+      );
+      expect(http.requests, [_pointerUrl]);
+    },
+  );
+
   test('pointer parsing rejects bad fields', () {
     final good = _pointer('r2-v2', [1, 2, 3]);
     final parsed = PoseHubCatalogPointer.fromJson(good);
@@ -622,9 +749,9 @@ void main() {
     },
   );
 
-  test('the SDK compares min_sdk against 1.0.0', () {
-    expect(poseHubCatalogSdkVersion, '1.0.0');
-    expect(_config.sdkVersion, '1.0.0');
+  test('the SDK compares min_sdk against 1.0.1', () {
+    expect(poseHubCatalogSdkVersion, '1.0.1');
+    expect(_config.sdkVersion, '1.0.1');
   });
 
   test('file store writes atomically and reads back', () async {

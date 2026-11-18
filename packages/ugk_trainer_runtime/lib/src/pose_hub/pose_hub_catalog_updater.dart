@@ -5,12 +5,17 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart';
 import 'package:ugk_coach/ugk_coach.dart' as coach;
 
+import '../media/catalog_media_repository_stub.dart'
+    if (dart.library.io) '../media/catalog_media_repository_io.dart'
+    as media_platform;
 import 'pose_hub_action_library.dart';
 import 'pose_hub_catalog_channel.dart';
 import 'pose_hub_catalog_io_stub.dart'
     if (dart.library.io) 'pose_hub_catalog_io_native.dart'
     as platform;
 import 'pose_hub_catalog_io_types.dart';
+import 'pose_hub_catalog_voice.dart';
+import 'pose_hub_image_cache.dart';
 
 export 'pose_hub_catalog_io_types.dart';
 
@@ -28,6 +33,7 @@ const _stateName = 'state.json';
 const _packsDir = 'packs';
 String _catalogName(String pack) => '$_packsDir/$pack/catalog.json';
 String _semanticName(String pack) => '$_packsDir/$pack/semantic.json';
+String _retiredMediaName(String pack) => '$_packsDir/$pack/retired-media.json';
 
 String _sha(List<int> bytes) => crypto.sha256.convert(bytes).toString();
 
@@ -110,13 +116,55 @@ class PoseHubCatalogUpdater {
     DateTime Function()? now,
     this.onEvent,
   }) : http = http ?? createPoseHubCatalogHttpClient(),
-       _now = now ?? DateTime.now;
+       _now = now ?? DateTime.now,
+       _persistentAssets = false,
+       _assetRootDirectory = null;
+
+  /// Install the new catalogue and its verified non-video assets together.
+  ///
+  /// On native platforms the image and voice consumers use application
+  /// support by default. If the host overrides their storage root, pass the
+  /// same [assetRootDirectory] here. Pass [store] to
+  /// [PoseHubActionLibrary.useVerifiedCache] when setting up the host.
+  ///
+  /// Both [maybeCheck] and [checkNow] leave the current catalogue in place
+  /// until the non-video downloads finish. The next training session can
+  /// load the new catalogue after [PoseHubCatalogUpdateOutcome.updated].
+  PoseHubCatalogUpdater.withPersistentAssets({
+    required this.config,
+    required this.store,
+    PoseHubCatalogHttpClient? http,
+    this.loadLocal,
+    DateTime Function()? now,
+    this.onEvent,
+    this._assetRootDirectory,
+  }) : http = http ?? createPoseHubCatalogHttpClient(),
+       _now = now ?? DateTime.now,
+       _persistentAssets = true;
 
   final PoseHubCatalogUpdateConfig config;
   final PoseHubCatalogStore store;
   final PoseHubCatalogHttpClient http;
   final void Function(PoseHubCatalogUpdateEvent event)? onEvent;
   final DateTime Function() _now;
+  final bool _persistentAssets;
+  final String? _assetRootDirectory;
+  late final PoseHubImageCache? _images = _persistentAssets
+      ? PoseHubImageCache(
+          rootDirectory: _assetRootDirectory,
+          loadBytes: (uri, maxBytes) async {
+            final response = await _get(uri, 'media', maxBytes: maxBytes);
+            _ok(response, 'media', null);
+            return response.body;
+          },
+        )
+      : null;
+
+  // Previous sessions in this process can hold the old catalogue even after
+  // another updater has been constructed for the same application root.
+  static final _inUsePredecessors =
+      <String?, Map<String, coach.PoseHubAppTestCatalog>>{};
+  bool _startupPruneChecked = false;
 
   /// The catalogue in use; defaults to the verified cache, else the bundle.
   final Future<coach.PoseHubAppTestCatalog> Function()? loadLocal;
@@ -148,6 +196,7 @@ class PoseHubCatalogUpdater {
     String? etag = previousEtag;
     PoseHubCatalogUpdateOutcome outcome;
     try {
+      await _pruneAssetsOnFreshLaunch();
       outcome = await _run(previousEtag, (value) => etag = value);
     } on _Failure catch (failure) {
       etag = previousEtag;
@@ -268,16 +317,10 @@ class PoseHubCatalogUpdater {
     }
 
     final semanticFile = index.semanticCatalogFile;
-    final semanticResponse = await _get(
-      pointer.catalog.resolve(semanticFile.path),
-      'semantic',
-      pack: pack,
-      maxBytes: semanticFile.bytes + 1,
-    );
-    _ok(semanticResponse, 'semantic', pack);
-    final semanticBytes = semanticResponse.body;
+    final semanticBytes = await _semanticBytes(pointer, semanticFile, local);
+    final coach.PoseHubAppTestCatalog verified;
     try {
-      coach.PoseHubAppTestCatalog.fromBytes(
+      verified = coach.PoseHubAppTestCatalog.fromBytes(
         catalogBytes,
         semanticCatalogBytes: semanticBytes,
       );
@@ -285,9 +328,37 @@ class PoseHubCatalogUpdater {
       throw _Failure('semantic_invalid: $error', pack);
     }
 
+    if (_images case final images?) {
+      try {
+        // Prepare verified files before writing the record that exposes them.
+        await _prepareAssets(verified, images);
+      } catch (error) {
+        throw _Failure('assets_not_ready: $error', pack);
+      }
+    }
+
     try {
       await store.writeAtomic(_semanticName(pack), semanticBytes);
       await store.writeAtomic(_catalogName(pack), catalogBytes);
+      if (_persistentAssets) {
+        final keep = _mediaHashes([verified]);
+        final retiring = <(String, String), coach.PoseHubPackFile>{
+          for (final file in await _readRetiredMedia(localPack))
+            if (!keep.contains(file.sha256)) (file.path, file.sha256): file,
+          for (final action in local.allActions)
+            for (final file in action.allMediaFiles)
+              if (!keep.contains(file.sha256)) (file.path, file.sha256): file,
+        };
+        await store.writeAtomic(
+          _retiredMediaName(pack),
+          utf8.encode(
+            jsonEncode([
+              for (final file in retiring.values)
+                {'path': file.path, 'bytes': file.bytes, 'sha256': file.sha256},
+            ]),
+          ),
+        );
+      }
       // The switch itself: one atomic write of the current record.
       await store.writeAtomic(
         _currentName,
@@ -296,6 +367,7 @@ class PoseHubCatalogUpdater {
             'pack': pack,
             'catalog_sha256': pointer.catalogSha256,
             'catalog_bytes': pointer.catalogBytes,
+            if (_images != null) 'assets_ready': true,
             'published_at': ?pointer.publishedAt?.toIso8601String(),
           }),
         ),
@@ -303,13 +375,146 @@ class PoseHubCatalogUpdater {
     } catch (error) {
       throw _Failure('cache_write_failed: $error', pack);
     }
-    await _prune(keep: {pack, poseHubPackVersionOf(local)});
+    await _prune(keep: {pack, localPack});
+    if (_images case final images?) {
+      final inUse = _inUsePredecessors.putIfAbsent(
+        images.rootDirectory,
+        () => {},
+      );
+      inUse[localPack] = local;
+      await _pruneAssets([verified, ...inUse.values], images);
+    }
     keepEtag(pointerResponse.etag);
     onEvent?.call(
       PoseHubCatalogUpdateEvent(PoseHubCatalogUpdateEvent.updated, pack: pack),
     );
     return PoseHubCatalogUpdateOutcome.updated;
   }
+
+  Future<List<int>> _semanticBytes(
+    PoseHubCatalogPointer pointer,
+    coach.PoseHubPackFile file,
+    coach.PoseHubAppTestCatalog local,
+  ) async {
+    if (_images != null && local.semanticCatalogFile.sha256 == file.sha256) {
+      final bytes = await store.read(
+        _semanticName(poseHubPackVersionOf(local)),
+      );
+      if (bytes != null &&
+          bytes.length == file.bytes &&
+          _sha(bytes) == file.sha256) {
+        return bytes;
+      }
+    }
+    final response = await _get(
+      pointer.catalog.resolve(file.path),
+      'semantic',
+      pack: pointer.pack,
+      maxBytes: file.bytes + 1,
+    );
+    _ok(response, 'semantic', pointer.pack);
+    return response.body;
+  }
+
+  Future<void> _prepareAssets(
+    coach.PoseHubAppTestCatalog catalog,
+    PoseHubImageCache images,
+  ) async {
+    final base = PoseHubActionLibrary.mediaBaseUriFor(catalog);
+    final files = {
+      for (final action in catalog.allActions)
+        for (final variant in [
+          action.files,
+          ...action.themedMedia.values.map((m) => m.files),
+        ])
+          for (final entry in variant.entries)
+            if (entry.key != 'video')
+              (entry.value.sha256, entry.value.bytes): entry.value,
+    }.values.iterator;
+    Object? failed;
+
+    Future<void> prepareImages() async {
+      while (failed == null && files.moveNext()) {
+        final file = files.current;
+        try {
+          await images.ensureFile(file, mediaBaseUri: base);
+        } catch (error) {
+          failed ??= error;
+        }
+      }
+    }
+
+    await Future.wait(List.generate(6, (_) => prepareImages()));
+    if (failed case final error?) throw error;
+    await preparePoseHubCatalogVoice(
+      catalog,
+      assetRootDirectory: images.rootDirectory,
+      http: http,
+    );
+  }
+
+  Future<void> _pruneAssetsOnFreshLaunch() async {
+    final images = _images;
+    if (images == null || _startupPruneChecked) return;
+    _startupPruneChecked = true;
+    if (_inUsePredecessors.containsKey(images.rootDirectory)) return;
+    try {
+      final bytes = await store.read(_currentName);
+      if (bytes == null) return;
+      final record = jsonDecode(utf8.decode(bytes));
+      if (record is! Map<String, Object?> || record['assets_ready'] != true) {
+        return;
+      }
+      final current = await readVerifiedPoseHubCatalog(store);
+      if (current == null) return;
+      await _pruneAssets(
+        [current],
+        images,
+        retiredFiles: await _readRetiredMedia(poseHubPackVersionOf(current)),
+      );
+    } catch (error) {
+      debugPrint('PoseHub catalogue startup cleanup deferred: $error');
+    }
+  }
+
+  Future<List<coach.PoseHubPackFile>> _readRetiredMedia(String pack) async {
+    try {
+      final retired = await store.read(_retiredMediaName(pack));
+      if (retired == null) return const [];
+      return (jsonDecode(utf8.decode(retired)) as List<Object?>)
+          .map(coach.PoseHubPackFile.fromJson)
+          .toList();
+    } catch (error) {
+      debugPrint('PoseHub retired asset list ignored: $error');
+      return const [];
+    }
+  }
+
+  Future<void> _pruneAssets(
+    List<coach.PoseHubAppTestCatalog> keep,
+    PoseHubImageCache images, {
+    Iterable<coach.PoseHubPackFile> retiredFiles = const [],
+  }) async {
+    try {
+      await media_platform.pruneCatalogMediaContent(
+        rootDirectory: images.rootDirectory,
+        keepSha256: _mediaHashes(keep),
+        retiredFiles: retiredFiles,
+      );
+      await prunePoseHubCatalogVoice(
+        keep,
+        assetRootDirectory: images.rootDirectory,
+      );
+    } catch (error) {
+      debugPrint('PoseHub catalogue assets not pruned: $error');
+    }
+  }
+
+  Set<String> _mediaHashes(Iterable<coach.PoseHubAppTestCatalog> catalogs) => {
+    for (final catalog in catalogs)
+      for (final action in catalog.allActions)
+        for (final file in action.allMediaFiles) file.sha256,
+  };
 
   /// Keeps only the current and the previous pack in the cache. Best
   /// effort: the switch has already happened, so a failed delete is retried
@@ -327,9 +532,21 @@ class PoseHubCatalogUpdater {
   Future<coach.PoseHubAppTestCatalog> _local() async {
     try {
       final custom = loadLocal;
-      if (custom != null) return await custom();
-      return await readVerifiedPoseHubCatalog(store) ??
-          await PoseHubActionLibrary.loadBundled();
+      if (_images == null) {
+        if (custom != null) return await custom();
+        return await readVerifiedPoseHubCatalog(store) ??
+            await PoseHubActionLibrary.loadBundled();
+      }
+      final verified = await readVerifiedPoseHubCatalog(store);
+      final fallback = await (custom == null
+          ? PoseHubActionLibrary.loadBundled()
+          : custom());
+      if (verified == null) return fallback;
+      final order = comparePoseHubPacks(
+        poseHubPackVersionOf(verified),
+        poseHubPackVersionOf(fallback),
+      );
+      return order != null && order < 0 ? fallback : verified;
     } catch (error) {
       throw _Failure('local_catalog_unavailable: $error');
     }

@@ -15,6 +15,7 @@ PoseHubCatalogStore createPoseHubCatalogFileStore(String directory) =>
 class _IoHttp implements PoseHubCatalogHttpClient {
   _IoHttp(this.timeout);
   final Duration timeout;
+  late final _client = HttpClient()..connectionTimeout = timeout;
 
   @override
   Future<PoseHubCatalogHttpResponse> get(
@@ -22,26 +23,21 @@ class _IoHttp implements PoseHubCatalogHttpClient {
     Map<String, String> headers = const {},
     int maxBytes = 64 * 1024 * 1024,
   }) async {
-    final client = HttpClient()..connectionTimeout = timeout;
-    try {
-      final request = await client.getUrl(uri).timeout(timeout);
-      headers.forEach(request.headers.set);
-      final response = await request.close().timeout(timeout);
-      final builder = BytesBuilder(copy: false);
-      await for (final chunk in response.timeout(timeout)) {
-        builder.add(chunk);
-        if (builder.length > maxBytes) {
-          throw const HttpException('Response exceeds its size limit');
-        }
+    final request = await _client.getUrl(uri).timeout(timeout);
+    headers.forEach(request.headers.set);
+    final response = await request.close().timeout(timeout);
+    final builder = BytesBuilder(copy: false);
+    await for (final chunk in response.timeout(timeout)) {
+      builder.add(chunk);
+      if (builder.length > maxBytes) {
+        throw const HttpException('Response exceeds its size limit');
       }
-      return PoseHubCatalogHttpResponse(
-        response.statusCode,
-        builder.takeBytes(),
-        etag: response.headers.value(HttpHeaders.etagHeader),
-      );
-    } finally {
-      client.close(force: true);
     }
+    return PoseHubCatalogHttpResponse(
+      response.statusCode,
+      builder.takeBytes(),
+      etag: response.headers.value(HttpHeaders.etagHeader),
+    );
   }
 }
 
@@ -69,10 +65,14 @@ class _FileStore implements PoseHubCatalogStore {
   @override
   Future<List<String>> list(String directory) async {
     final dir = Directory(_file(directory).path);
-    if (!await dir.exists()) return const [];
+    if (await FileSystemEntity.type(dir.path, followLinks: false) !=
+        FileSystemEntityType.directory) {
+      return const [];
+    }
     return [
-      await for (final entity in dir.list())
-        entity.uri.pathSegments.lastWhere((s) => s.isNotEmpty),
+      await for (final entity in dir.list(followLinks: false))
+        if (entity is! Link)
+          entity.uri.pathSegments.lastWhere((s) => s.isNotEmpty),
     ];
   }
 

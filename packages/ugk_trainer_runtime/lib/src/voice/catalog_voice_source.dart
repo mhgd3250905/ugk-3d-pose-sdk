@@ -9,7 +9,8 @@
 //    point) from a catalogue JSON;
 //  * [CatalogVoiceCache] downloads a clip on demand from the catalogue's
 //    media root (`mediaDistribution.baseUrl` + path), checks size + SHA-256
-//    and keeps it in an atomically written cache (the hot-update store);
+//    and keeps it in an atomically written, content-addressed store shared
+//    with the catalogue updater;
 //  * [LayeredVoiceSource] keeps local pack precedence for legacy scripts.
 //    Ready guides use verified re-recordings and shared vocabulary, with
 //    the local voice as the fallback for shared phrases.
@@ -91,10 +92,25 @@ class CatalogVoiceIndex {
     String actionId,
     Uri? base, {
     required String keyField,
+    required bool requireValidFiles,
   }) {
+    void invalid() {
+      if (requireValidFiles) {
+        throw FormatException('Invalid Pose-Hub voice file for $actionId.');
+      }
+    }
+
     final result = <String, Map<String, CatalogVoiceClip>>{};
-    for (final file in files is List ? files : const []) {
-      if (file is! Map) continue;
+    if (files == null) return result;
+    if (files is! List) {
+      invalid();
+      return result;
+    }
+    for (final file in files) {
+      if (file is! Map) {
+        invalid();
+        continue;
+      }
       final lang = file['language'];
       final key = file[keyField];
       final path = file['path'];
@@ -104,24 +120,41 @@ class CatalogVoiceIndex {
           key is! String ||
           path is! String ||
           bytes is! int ||
+          bytes <= 0 ||
           sha is! String ||
           !_sha256.hasMatch(sha) ||
           path.startsWith('/') ||
           path.split('/').contains('..')) {
+        invalid();
         continue;
       }
       final pathUri = Uri.tryParse(path);
-      if (pathUri == null || pathUri.hasScheme || pathUri.hasAuthority) {
+      if (pathUri == null ||
+          pathUri.hasScheme ||
+          pathUri.hasAuthority ||
+          (requireValidFiles &&
+              (!path.startsWith('voice/') ||
+                  pathUri.hasQuery ||
+                  pathUri.hasFragment ||
+                  pathUri.pathSegments.any(
+                    (part) => part.isEmpty || part == '.' || part == '..',
+                  )))) {
+        invalid();
         continue;
       }
       final downloadUrl = file['downloadUrl'];
       final url =
           base?.resolveUri(pathUri) ??
           (downloadUrl is String ? Uri.tryParse(downloadUrl) : null);
-      if (url == null || url.scheme != 'https' || url.host.isEmpty) continue;
+      if (url == null || url.scheme != 'https' || url.host.isEmpty) {
+        invalid();
+        continue;
+      }
       final secs = file['durationSeconds'];
       final text = file['text'];
-      (result[lang] ??= {})[key] = CatalogVoiceClip(
+      final languageClips = result[lang] ??= {};
+      if (languageClips.containsKey(key)) invalid();
+      languageClips[key] = CatalogVoiceClip(
         actionId: actionId,
         language: lang,
         clipId: key,
@@ -137,10 +170,12 @@ class CatalogVoiceIndex {
   }
 
   /// From a catalogue JSON map (`pose-hub-app-test-catalog@1`). [baseUrl]
-  /// overrides `mediaDistribution.baseUrl`.
+  /// overrides `mediaDistribution.baseUrl`. [requireValidFiles] rejects
+  /// invalid entries before an update can activate an incomplete voice pack.
   factory CatalogVoiceIndex.fromCatalogJson(
     Map<String, Object?> catalog, {
     Uri? baseUrl,
+    bool requireValidFiles = false,
   }) {
     final dist = catalog['mediaDistribution'];
     final base =
@@ -157,8 +192,19 @@ class CatalogVoiceIndex {
     final common = catalog['voiceCommon'];
     final commonClips =
         common is Map && common['format'] == 'pose-hub-voice-common@1'
-        ? _readFiles(common['files'], _commonActionId, base, keyField: 'key')
+        ? _readFiles(
+            common['files'],
+            _commonActionId,
+            base,
+            keyField: 'key',
+            requireValidFiles: requireValidFiles,
+          )
         : <String, Map<String, CatalogVoiceClip>>{};
+    if (requireValidFiles &&
+        common != null &&
+        (common is! Map || common['format'] != 'pose-hub-voice-common@1')) {
+      throw const FormatException('Unsupported Pose-Hub common voice format.');
+    }
     for (final raw in catalog['actions'] as List? ?? const []) {
       if (raw is! Map) continue;
       final id = raw['id'];
@@ -195,7 +241,13 @@ class CatalogVoiceIndex {
       if (c.isNotEmpty) cues[id] = c;
       final voice = raw['voice'];
       final files = voice is Map ? voice['files'] : null;
-      final out = _readFiles(files, id, base, keyField: 'clipId');
+      final out = _readFiles(
+        files,
+        id,
+        base,
+        keyField: 'clipId',
+        requireValidFiles: requireValidFiles,
+      );
       if (out.isEmpty) {
         pending.add(id);
       } else {
@@ -235,6 +287,18 @@ class CatalogVoiceIndex {
     ...pending,
     ..._names.keys,
   };
+
+  /// Every published clip, including shared phrases in every language.
+  Iterable<CatalogVoiceClip> get allClips sync* {
+    for (final action in _clips.values) {
+      for (final language in action.values) {
+        yield* language.values;
+      }
+    }
+    for (final language in _common.values) {
+      yield* language.values;
+    }
+  }
 
   Set<String> get languages => {
     for (final a in _clips.values) ...a.keys,
@@ -288,17 +352,15 @@ class CatalogVoiceCache {
     required this.store,
     required this.pathOf,
     PoseHubCatalogHttpClient? http,
-  }) : http = http ?? createPoseHubCatalogHttpClient();
+  }) : _directory = null,
+       http = http ?? createPoseHubCatalogHttpClient();
 
   /// Cache under [directory] on the device file system (app support dir).
-  factory CatalogVoiceCache.files(
-    String directory, {
-    PoseHubCatalogHttpClient? http,
-  }) => CatalogVoiceCache(
-    store: createPoseHubCatalogFileStore(directory),
-    pathOf: (name) => '$directory/$name',
-    http: http,
-  );
+  CatalogVoiceCache.files(String directory, {PoseHubCatalogHttpClient? http})
+    : store = createPoseHubCatalogFileStore(directory),
+      pathOf = ((name) => '$directory/$name'),
+      _directory = directory,
+      http = http ?? createPoseHubCatalogHttpClient();
 
   final PoseHubCatalogStore store;
 
@@ -306,24 +368,90 @@ class CatalogVoiceCache {
   final String Function(String name) pathOf;
   final PoseHubCatalogHttpClient http;
 
-  final Set<String> _ready = {};
-  final Map<String, Future<bool>> _running = {};
+  final String? _directory;
+  final _ready = <(String, int)>{};
+  final _running = <(String, int), Future<bool>>{};
+  static final _fileJobs = <(String, String, int), Future<bool>>{};
+  static final _voiceSources =
+      <String, List<WeakReference<LayeredVoiceSource>>>{};
 
   /// The clip is in the cache and verified (synchronous, for the script).
-  bool isReady(CatalogVoiceClip c) => _ready.contains(c.sha256);
+  bool isReady(CatalogVoiceClip c) => _ready.contains((c.sha256, c.bytes));
 
   /// Path of a ready clip.
   String path(CatalogVoiceClip c) => pathOf(c.cacheName);
 
   /// Make [c] ready: a verified cached copy, else a verified download.
   /// Never throws; false when it could not be made ready.
-  Future<bool> ensure(CatalogVoiceClip c) {
-    if (isReady(c)) return Future.value(true);
-    // The block body matters: whenComplete waits for a returned future, and
-    // remove() would return this very future.
-    return _running[c.sha256] ??= _ensure(c).whenComplete(() {
-      _running.remove(c.sha256);
-    });
+  Future<bool> ensure(CatalogVoiceClip c) async {
+    if (isReady(c)) return true;
+    final key = (c.sha256, c.bytes);
+    final directory = _directory;
+    final Future<bool> job;
+    // File-backed updater and player instances share in-flight verification.
+    // In-memory stores are independent, even when their paths look the same.
+    if (directory != null) {
+      final fileKey = (directory, c.sha256, c.bytes);
+      job = _fileJobs[fileKey] ??= _ensure(c).whenComplete(() {
+        _fileJobs.remove(fileKey);
+      });
+    } else {
+      job = _running[key] ??= _ensure(c).whenComplete(() {
+        _running.remove(key);
+      });
+    }
+    final ready = await job;
+    if (ready) _ready.add(key);
+    return ready;
+  }
+
+  void _retain(LayeredVoiceSource source) {
+    final directory = _directory;
+    if (directory == null) return;
+    final sources = _voiceSources.putIfAbsent(directory, () => []);
+    sources
+      ..removeWhere((reference) => reference.target == null)
+      ..add(WeakReference(source));
+  }
+
+  /// Deletes obsolete voice objects after a successful catalogue switch.
+  /// Active voice sources may still be playing an older catalogue.
+  Future<void> prune(Iterable<CatalogVoiceClip> keep) async {
+    final directory = _directory;
+    if (directory == null) {
+      throw StateError('Voice pruning requires a file-backed cache.');
+    }
+    final filenames = {for (final clip in keep) '${clip.sha256}.m4a'};
+    final sources = _voiceSources[directory];
+    if (sources != null) {
+      sources.removeWhere((reference) => reference.target == null);
+      for (final reference in sources) {
+        final source = reference.target;
+        if (source == null) continue;
+        filenames.addAll(
+          source.catalog.allClips.map((clip) => '${clip.sha256}.m4a'),
+        );
+      }
+      if (sources.isEmpty) _voiceSources.remove(directory);
+    }
+
+    final prefixPattern = RegExp(r'^[a-f0-9]{2}$');
+    final filenamePattern = RegExp(r'^[a-f0-9]{64}\.m4a$');
+    for (final prefix in await store.list('catalog-voice')) {
+      if (!prefixPattern.hasMatch(prefix)) continue;
+      final shard = 'catalog-voice/$prefix';
+      for (final filename in await store.list(shard)) {
+        if (!filename.startsWith(prefix) ||
+            !filenamePattern.hasMatch(filename) ||
+            filenames.contains(filename) ||
+            _fileJobs.keys.any(
+              (job) => job.$1 == directory && '${job.$2}.m4a' == filename,
+            )) {
+          continue;
+        }
+        await store.delete('$shard/$filename');
+      }
+    }
   }
 
   static bool _valid(List<int> b, CatalogVoiceClip c) =>
@@ -332,15 +460,15 @@ class CatalogVoiceCache {
   Future<bool> _ensure(CatalogVoiceClip c) async {
     try {
       final cached = await store.read(c.cacheName);
-      if (cached != null && _valid(cached, c)) {
-        _ready.add(c.sha256);
-        return true;
+      // A contradictory byte count is a bad descriptor. Keep the verified
+      // object available to its previous catalogue if the update fails.
+      if (cached != null &&
+          crypto.sha256.convert(cached).toString() == c.sha256) {
+        return cached.length == c.bytes;
       }
-      if (cached != null) await store.delete(c.cacheName);
       final r = await http.get(c.url, maxBytes: c.bytes + 1024);
       if (r.statusCode != 200 || !_valid(r.body, c)) return false;
       await store.writeAtomic(c.cacheName, r.body);
-      _ready.add(c.sha256);
       return true;
     } catch (_) {
       return false;
@@ -352,12 +480,12 @@ class CatalogVoiceCache {
     Iterable<CatalogVoiceClip> clips, {
     int parallel = 3,
   }) async {
-    final queue = [...clips];
+    final queue = clips.iterator;
     var ready = 0;
     final failed = <String>[];
     Future<void> worker() async {
-      while (queue.isNotEmpty) {
-        final c = queue.removeAt(0);
+      while (queue.moveNext()) {
+        final c = queue.current;
         if (await ensure(c)) {
           ready++;
         } else {
@@ -387,7 +515,9 @@ class LayeredVoiceSource extends VoiceSource implements PreparableVoiceSource {
     required this.primary,
     required this.catalog,
     required this.cache,
-  });
+  }) {
+    cache._retain(this);
+  }
 
   final VoiceSource primary;
   final CatalogVoiceIndex catalog;

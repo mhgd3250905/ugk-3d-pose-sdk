@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:crypto/crypto.dart';
 import 'package:path_provider/path_provider.dart';
+
 import 'training_media_models.dart';
 import 'training_media_storage.dart';
 
@@ -11,13 +13,108 @@ Future<TrainingMediaStorage> createStorage(
   String? directory,
   Duration downloadTimeout,
 ) async {
-  final root = directory ?? (await getApplicationCacheDirectory()).path;
+  final root = directory ?? (await getApplicationSupportDirectory()).path;
+  final managedRoot = Directory('$root/training-media');
+  if (directory == null) await _migrateLegacyCache(managedRoot);
   return _NativeStorage(
-    Directory('$root/training-media'),
-    Directory('$root/training-media/$version'),
+    managedRoot,
+    Directory('${managedRoot.path}/$version'),
     downloadTimeout,
   );
 }
+
+final _migrations = <String, Future<void>>{};
+final _legacyVersion = RegExp(r'^\d+\.\d+\.\d+(?:[-+][a-zA-Z0-9.-]+)?$');
+final _digestName = RegExp(r'^[a-f0-9]{64}$');
+
+Future<void> _migrateLegacyCache(Directory managedRoot) =>
+    _migrations.putIfAbsent(
+      managedRoot.path,
+      () => _copyLegacyCache(managedRoot).whenComplete(() {
+        _migrations.remove(managedRoot.path);
+      }),
+    );
+
+Future<void> _copyLegacyCache(Directory managedRoot) async {
+  // Keep the marker through an explicit media clear, so deleted media stays
+  // deleted. Legacy readers may still use the old cache while upgrading.
+  final marker = File('${managedRoot.parent.path}/.training-media-migrated-v1');
+  try {
+    if (await marker.exists()) return;
+    final cache = await getApplicationCacheDirectory();
+    final legacy = Directory('${cache.path}/training-media');
+    if (await _plainDirectory(legacy)) {
+      await managedRoot.create(recursive: true);
+      if (!await _plainDirectory(managedRoot)) return;
+      final oldPath = await legacy.resolveSymbolicLinks();
+      final newPath = await managedRoot.resolveSymbolicLinks();
+      final sameDirectory = Platform.isWindows
+          ? oldPath.toLowerCase() == newPath.toLowerCase()
+          : oldPath == newPath;
+      if (!sameDirectory) {
+        await for (final entry in legacy.list(followLinks: false)) {
+          if (entry is! Directory) continue;
+          final segments = entry.uri.pathSegments;
+          final version = segments[segments.length - 2];
+          if (!_legacyVersion.hasMatch(version)) continue;
+          final target = Directory('${managedRoot.path}/$version');
+          await _copyLegacyVersion(entry, target);
+        }
+      }
+    }
+    await marker.create(recursive: true);
+  } on MissingPlatformDirectoryException {
+    // A platform can provide support storage without a legacy cache.
+  } on FileSystemException {
+    // Keep the verified copies already made and retry on the next open.
+  }
+}
+
+Future<bool> _plainDirectory(Directory directory) async =>
+    await FileSystemEntity.type(directory.path, followLinks: false) ==
+    FileSystemEntityType.directory;
+
+Future<void> _copyLegacyVersion(Directory source, Directory target) async {
+  await target.create();
+  if (!await _plainDirectory(target)) return;
+  await for (final entry in source.list(followLinks: false)) {
+    if (entry is! File) continue;
+    final digest = entry.uri.pathSegments.last;
+    if (!_digestName.hasMatch(digest)) continue;
+    final length = await entry.length();
+    if (length <= 0 || length > 128 * 1024 * 1024) continue;
+
+    final destination = File('${target.path}/$digest');
+    final type = await FileSystemEntity.type(
+      destination.path,
+      followLinks: false,
+    );
+    if (type != FileSystemEntityType.file &&
+        type != FileSystemEntityType.notFound) {
+      continue;
+    }
+    if (type == FileSystemEntityType.file &&
+        await _matchesDigest(destination, length, digest)) {
+      continue;
+    }
+
+    final temporary = await target.createTemp('.migration-');
+    final part = File('${temporary.path}/payload.part');
+    try {
+      await entry.copy(part.path);
+      if (await _matchesDigest(part, length, digest)) {
+        await part.rename(destination.path);
+      }
+    } finally {
+      if (await part.exists()) await part.delete();
+      await temporary.delete();
+    }
+  }
+}
+
+Future<bool> _matchesDigest(File file, int bytes, String digest) async =>
+    await file.length() == bytes &&
+    (await sha256.bind(file.openRead()).first).toString() == digest;
 
 class _NativeStorage implements TrainingMediaStorage {
   _NativeStorage(this.managedRoot, this.directory, this.downloadTimeout);
@@ -36,9 +133,7 @@ class _NativeStorage implements TrainingMediaStorage {
   Future<TrainingMediaCacheEntry?> cached(TrainingMediaFile file) async {
     final target = _file(file);
     try {
-      if (await target.length() == file.bytes &&
-          (await sha256.bind(target.openRead()).first).toString() ==
-              file.sha256) {
+      if (await _matchesDigest(target, file.bytes, file.sha256)) {
         return TrainingMediaCacheEntry(target.path);
       }
       await target.delete();

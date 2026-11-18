@@ -1,6 +1,6 @@
 name: ugk_coach_chat
 description: Shared coach conversation page, lifecycle and host adapters.
-version: 1.0.0
+version: 1.0.1
 publish_to: none
 repository: https://github.com/mhgd3250905/ugk-3d-pose-sdk
 

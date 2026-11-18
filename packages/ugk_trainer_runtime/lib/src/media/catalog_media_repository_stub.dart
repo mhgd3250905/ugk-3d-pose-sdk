@@ -16,9 +16,16 @@ Future<CatalogMediaFileStore> createCatalogMediaStore({
   required int maxVideoCacheBytes,
   required String? legacyCacheDirectory,
   required List<CatalogLegacyVideoFile> legacyVideos,
+  bool contentOnly = false,
 }) => Future.error(
   const CatalogMediaException(
     'unsupported',
     'Persistent media is unavailable on this platform.',
   ),
 );
+
+Future<void> pruneCatalogMediaContent({
+  String? rootDirectory,
+  required Set<String> keepSha256,
+  Iterable<coach.PoseHubPackFile> retiredFiles = const [],
+}) async {}

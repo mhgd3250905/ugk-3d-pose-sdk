@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'ugk_trainer_runtime'
-  s.version          = '1.0.0'
+  s.version          = '1.0.1'
   s.summary          = 'Shared training runtime and packed alpha video textures.'
   s.description      = 'Muted AVPlayer video output for the shared Flutter training runtime.'
   s.homepage         = 'https://github.com/mhgd3250905/ugk-3d-pose-sdk'

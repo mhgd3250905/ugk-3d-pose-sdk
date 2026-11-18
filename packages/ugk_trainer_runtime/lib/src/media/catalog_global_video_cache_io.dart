@@ -11,6 +11,8 @@ import 'catalog_media_repository_types.dart';
 
 final _caches = <String, CatalogGlobalVideoCache>{};
 
+String catalogVideoContentPath(String sha256) => 'content/$sha256.mp4';
+
 String _pathKey(String path) =>
     Platform.isWindows ? path.replaceAll('/', '\\').toLowerCase() : path;
 
@@ -19,13 +21,14 @@ CatalogGlobalVideoCache catalogGlobalVideoCache(Directory root) => _caches
     .putIfAbsent(_pathKey(root.path), () => CatalogGlobalVideoCache(root));
 
 class CatalogPublishedVideo {
-  const CatalogPublishedVideo({
+  CatalogPublishedVideo({
     required this.identity,
     required this.relative,
     required this.root,
     required this.file,
     required this.stat,
     required this.owned,
+    this.sha256,
   });
 
   final String identity;
@@ -34,6 +37,8 @@ class CatalogPublishedVideo {
   final File file;
   final FileStat stat;
   final bool owned;
+  final String? sha256;
+  final aliases = <CatalogPublishedVideo>[];
 }
 
 class _Owner {
@@ -329,15 +334,42 @@ class CatalogGlobalVideoCache {
             file: file,
             stat: stat,
             owned: _owners.containsKey(relative),
+            sha256: _owners[relative]?.sha256,
           ),
         );
       }
     }
 
+    final content = Directory('${root.path}/content');
+    safeFile(root, 'content/.path-check');
+    final objects = <String, CatalogPublishedVideo>{};
+    final contentName = RegExp(r'^([a-f0-9]{64})\.mp4$');
+    if (await content.exists()) {
+      await for (final entry in content.list(followLinks: false)) {
+        final name = entry.uri.pathSegments.last;
+        final hash = contentName.firstMatch(name)?.group(1);
+        if (hash == null) continue;
+        final relative = catalogVideoContentPath(hash);
+        final file = safeFile(root, relative);
+        final stat = await file.stat();
+        if (stat.type != FileSystemEntityType.file) continue;
+        observe(stat.modified);
+        objects[hash] = CatalogPublishedVideo(
+          identity: relative,
+          relative: relative,
+          root: root,
+          file: file,
+          stat: stat,
+          owned: true,
+          sha256: hash,
+        );
+      }
+    }
     await for (final version in root.list(followLinks: false)) {
       final name = version.uri.pathSegments.where((p) => p.isNotEmpty).last;
       if (!RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$').hasMatch(name) ||
-          name.length > 64) {
+          name.length > 64 ||
+          name == 'content') {
         continue;
       }
       if (version is Link) _unsafe();
@@ -412,13 +444,24 @@ class CatalogGlobalVideoCache {
               file: file,
               stat: stat,
               owned: owned,
+              sha256: _legacyOwners[key]?.sha256,
             ),
           );
         }
       }
     }
     if (adopted) _saveOwners();
-    return result;
+    final unique = <CatalogPublishedVideo>[...objects.values];
+    for (final entry in result) {
+      final object = objects[entry.sha256];
+      if (object != null &&
+          FileSystemEntity.identicalSync(object.file.path, entry.file.path)) {
+        object.aliases.add(entry);
+      } else {
+        unique.add(entry);
+      }
+    }
+    return unique;
   }
 
   void makeRoom(
@@ -436,12 +479,7 @@ class CatalogGlobalVideoCache {
     if (bytes <= _limit) return;
     final candidates =
         entries
-            .where(
-              (e) =>
-                  e.owned &&
-                  e.identity != incoming &&
-                  !pins.containsKey(e.identity),
-            )
+            .where((e) => e.owned && e.identity != incoming && !_pinned(e))
             .toList()
           ..sort((a, b) {
             final modified = a.stat.modified.compareTo(b.stat.modified);
@@ -449,7 +487,7 @@ class CatalogGlobalVideoCache {
           });
     final victims = <File>[];
     for (final entry in candidates) {
-      victims.add(safeFile(entry.root, entry.relative));
+      victims.addAll(_names(entry));
       bytes -= entry.stat.size;
       if (bytes <= _limit) break;
     }
@@ -472,11 +510,22 @@ class CatalogGlobalVideoCache {
     final entries = await publishedVideos();
     final victims = [
       for (final entry in entries)
-        if (entry.owned && !pins.containsKey(entry.identity))
-          safeFile(entry.root, entry.relative),
+        if (entry.owned && !_pinned(entry)) ..._names(entry),
     ];
     for (final file in victims) {
       file.deleteSync();
+    }
+  }
+
+  bool _pinned(CatalogPublishedVideo entry) =>
+      pins.containsKey(entry.identity) ||
+      (entry.sha256 != null &&
+          pins.containsKey(catalogVideoContentPath(entry.sha256!)));
+
+  Iterable<File> _names(CatalogPublishedVideo entry) sync* {
+    yield safeFile(entry.root, entry.relative);
+    for (final alias in entry.aliases) {
+      yield safeFile(alias.root, alias.relative);
     }
   }
 }

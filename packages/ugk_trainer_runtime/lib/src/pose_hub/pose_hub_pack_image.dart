@@ -51,6 +51,7 @@ class PoseHubStandingImage extends StatelessWidget {
     video: action.video,
     cover: action.cover,
     thumbnailFile: action.thumbnail,
+    standingFile: action.mediaFor(null).standing,
     themedMedia: action.themedMedia,
     thumbnail: thumbnail,
     fit: fit,
@@ -72,6 +73,7 @@ class PoseHubCatalogImage extends StatefulWidget {
     required this.video,
     required this.cover,
     required this.thumbnailFile,
+    this.standingFile,
     this.themedMedia = const {},
     this.theme = TrainerTheme.light,
     this.thumbnail = false,
@@ -87,6 +89,7 @@ class PoseHubCatalogImage extends StatefulWidget {
   final PoseHubPackFile video;
   final PoseHubPackFile cover;
   final PoseHubPackFile thumbnailFile;
+  final PoseHubPackFile? standingFile;
   final Map<PoseHubMediaTheme, PoseHubPackMediaFiles> themedMedia;
   final TrainerTheme theme;
   final bool thumbnail;
@@ -145,7 +148,9 @@ class _PoseHubCatalogImageState extends State<PoseHubCatalogImage> {
       video: media?.video ?? widget.video,
       image: widget.thumbnail
           ? media?.thumbnail ?? widget.thumbnailFile
-          : media?.cover ?? widget.cover,
+          : (media == null ? widget.standingFile : media.standing) ??
+                media?.cover ??
+                widget.cover,
     );
     final previous = _selected;
     if (!force &&
@@ -201,7 +206,11 @@ class _PoseHubCatalogImageState extends State<PoseHubCatalogImage> {
           : themes is Map<String, Object?>
           ? themes[selected.theme!.name]
           : null;
-      if (entry is Map<String, Object?> &&
+      final standing = selected.theme == null
+          ? widget.standingFile
+          : widget.themedMedia[selected.theme]?.standing;
+      if (standing == null &&
+          entry is Map<String, Object?> &&
           entry['videoPath'] == selected.video.path &&
           entry['videoSha256'] == selected.video.sha256) {
         if (selected.theme != null) {

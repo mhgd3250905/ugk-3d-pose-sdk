@@ -8,7 +8,10 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ugk_coach/ugk_coach.dart' as coach;
 import 'package:ugk_trainer_runtime/src/media/catalog_media_repository.dart';
+import 'package:ugk_trainer_runtime/src/media/catalog_media_repository_io.dart'
+    show pruneCatalogMediaContent;
 import 'package:ugk_trainer_runtime/src/media/training_media_repository.dart';
+import 'package:ugk_trainer_runtime/src/pose_hub/pose_hub_image_cache.dart';
 
 class _Fixture {
   _Fixture({
@@ -366,6 +369,72 @@ void main() {
       );
     },
   );
+
+  test(
+    'r2-v16 legacy paths migrate by hash and r2-v18 downloads only changed media',
+    () async {
+      final old = fixture;
+      final oldRepository = await create(packVersion: 'r2-v16');
+      for (final file in old.first.files.values) {
+        final legacy = File.fromUri(file.resolve(oldRepository.mediaBaseUri));
+        await legacy.parent.create(recursive: true);
+        await legacy.writeAsBytes(old.bodies[file.path]!);
+      }
+      fixture = _Fixture(coverBytes: 49);
+      final fresh = await create(packVersion: 'r2-v18');
+      await fresh.ensureAction(fixture.first.id);
+      expect(requested, ['/${fixture.first.cover.path}']);
+      expect(await fresh.videoCacheBytes(), fixture.first.video.bytes);
+
+      // The image consumer sees the repository's verified object even when
+      // neither the prior media URL nor the old action namespace is supplied.
+      final images = PoseHubImageCache(rootDirectory: support.path);
+      final cover = File.fromUri(await images.ensureFile(fixture.first.cover));
+      expect(
+        await cover.readAsBytes(),
+        fixture.bodies[fixture.first.cover.path],
+      );
+      expect(requested, hasLength(1));
+      fresh.dispose();
+      final reopened = await create(packVersion: 'r2-v18', offline: true);
+      await reopened.ensureAction(fixture.first.id);
+      expect(requested, hasLength(1));
+    },
+  );
+
+  test('pruning preserves active content and retires unused files', () async {
+    final old = fixture;
+    final first = await create(packVersion: 'r2-v16');
+    final oldCover = File.fromUri(await first.ensureFile(old.first.cover));
+    final oldVideo = File.fromUri(old.first.video.resolve(first.mediaBaseUri));
+    await oldVideo.writeAsBytes(old.bodies[old.first.video.path]!);
+    final unknown = await oldVideo.copy('${oldVideo.parent.path}/unknown.mp4');
+    fixture = _Fixture(coverBytes: 49, videoBytes: 4097);
+    final current = await create(packVersion: 'r2-v18');
+    final currentCover = File.fromUri(
+      await current.ensureFile(fixture.first.cover),
+    );
+    final keep = {
+      for (final action in fixture.catalog.allActions)
+        for (final media in action.allMediaFiles) media.sha256,
+    };
+    Future<void> prune() => pruneCatalogMediaContent(
+      rootDirectory: support.path,
+      keepSha256: keep,
+      retiredFiles: old.catalog.allActions.expand(
+        (action) => action.allMediaFiles,
+      ),
+    );
+    await prune();
+    expect(await oldCover.exists(), isTrue);
+    expect(await oldVideo.exists(), isTrue);
+    first.dispose();
+    await prune();
+    expect(await oldCover.exists(), isFalse);
+    expect(await oldVideo.exists(), isFalse);
+    expect(await unknown.exists(), isTrue);
+    expect(await currentCover.exists(), isTrue);
+  });
 
   test(
     'bundled small images are verified, remain unchanged and never fetch videos',

@@ -490,6 +490,67 @@ void main() {
     );
   });
 
+  testWidgets(
+    'per-side counted reps get feedback unless the switch is skipped',
+    (tester) async {
+      final offered = <(String?, Side?, bool)>{};
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: TrainerPlayer(
+              plan: planOf([
+                reps('a', 3, perSide: true),
+                reps('b', 3, perSide: true),
+                timed('c', 2),
+              ]),
+              drillOf: (id) => TrainerDrill(id: id, name: id),
+              strings: TrainerStrings.en(),
+              theme: TrainerTheme.playerV1,
+              sessionBuilder: SessionBuilder(
+                prepSeconds: 0,
+                transitionSeconds: 5,
+                switchSideSeconds: 2,
+                rhythms: {
+                  'a': Rhythm.fromRepSeconds(1),
+                  'b': Rhythm.fromRepSeconds(1),
+                },
+              ),
+              keepAlive: false,
+              mediaBuilder: (_, _) => const SizedBox.expand(),
+              onFinished: (_) async {},
+              restFeedbackBuilder: (_, feedback) {
+                final phase = feedback.completedPhase;
+                offered.add((
+                  phase.exerciseId,
+                  phase.side,
+                  phase.countedOnClock,
+                ));
+                return StatefulBuilder(
+                  builder: (_, _) => TrainerRestFeedbackPanel(
+                    theme: TrainerTheme.playerV1,
+                    title: 'How did it feel?',
+                    comfortableLabel: 'Good',
+                    onComfortable: () {},
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 3500));
+      await tester.tap(find.byKey(const ValueKey('skip')));
+      await tester.pump(const Duration(milliseconds: 800));
+      expect(offered, isEmpty);
+      expect(find.text('Good'), findsNothing);
+
+      await tester.pump(const Duration(seconds: 13));
+      expect(offered, {('b', Side.left, true)});
+      expect(find.text('Good').hitTestable(), findsOneWidget);
+    },
+  );
+
   testWidgets('replacement with no remaining work completes and saves once', (
     tester,
   ) async {

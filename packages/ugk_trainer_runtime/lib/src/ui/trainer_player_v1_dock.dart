@@ -73,8 +73,8 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
   late final AnimationController _exit;
   late final AnimationController _expand;
   late final AnimationController _recorded;
+  // Keep controls and host feedback state when switching resize wrappers.
   final _dockContentKey = GlobalKey();
-  final _dockSizeKey = GlobalKey();
   Widget? _outgoingFeedback;
   double? _outgoingHeight;
   bool _collapseFeedback = false;
@@ -192,25 +192,10 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
   }
 
   void _onExpandTick(AnimationStatus status) {
-    if (status == AnimationStatus.completed) {
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _revealWhenExpanded(),
-      );
-    }
-  }
-
-  void _onResizeEnd() {
-    // AnimatedSize finishes during a frame. Check both render boxes after
-    // layout, including when a phase was interrupted mid-resize.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _revealWhenExpanded());
-  }
-
-  void _revealWhenExpanded() {
-    if (!mounted || !_waitingForExpansion || !_expand.isCompleted) return;
+    if (status != AnimationStatus.completed || !_waitingForExpansion) return;
     final feedback = widget.restFeedback;
-    final size = _dockSizeKey.currentContext?.size;
-    final contentSize = _dockContentKey.currentContext?.size;
-    if (feedback == null || size == null || size != contentSize) return;
+    if (feedback == null) return;
+    // AnimatedSize can retarget and settle without an onEnd notification.
     setState(() => _waitingForExpansion = false);
     _startEntrance(feedback);
   }
@@ -406,11 +391,9 @@ class _TrainerPlayerV1DockState extends State<TrainerPlayerV1Dock>
         return content;
       }
       return AnimatedSize(
-        key: _dockSizeKey,
         alignment: Alignment.bottomCenter,
         duration: _dockResize,
         curve: PlayerMotion.morph,
-        onEnd: _onResizeEnd,
         child: content,
       );
     },

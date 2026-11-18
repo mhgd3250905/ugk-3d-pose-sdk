@@ -3290,7 +3290,11 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (phase.kind != PhaseKind.rest && phase.kind != PhaseKind.roundRest) {
       return null;
     }
-    final visit = _lastWorkVisitRecord();
+    final visits = _engine.visits;
+    // A skip during a side switch leaves the previous work visit completed,
+    // but the skip itself led to this rest.
+    if (visits.lastOrNull?.exit == PhaseExit.skipped) return null;
+    final visit = _lastWorkVisitRecord(visits);
     if (visit == null ||
         (visit.exit != PhaseExit.natural &&
             visit.exit != PhaseExit.completed) ||
@@ -3309,10 +3313,10 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (target != null) _recorder.recordRestFeedback(target, choice);
   }
 
-  SessionPhase? _lastWorkVisit() => _lastWorkVisitRecord()?.phase;
+  SessionPhase? _lastWorkVisit() => _lastWorkVisitRecord(_engine.visits)?.phase;
 
-  PhaseVisit? _lastWorkVisitRecord() {
-    for (final visit in _engine.visits.reversed) {
+  PhaseVisit? _lastWorkVisitRecord(List<PhaseVisit> visits) {
+    for (final visit in visits.reversed) {
       if (visit.phase.isWork) return visit;
     }
     return null;

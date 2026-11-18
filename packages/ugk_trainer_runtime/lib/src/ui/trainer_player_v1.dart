@@ -297,6 +297,7 @@ class _PlayerV1TrackState extends State<_PlayerV1Track>
 extension _TrainerPlayerV1 on _TrainerPlayerState {
   Widget _sessionViewV1(SessionPhase phase, TrainerDrill? drill) {
     final rest = _isPlayerV1Rest(phase);
+    final restFeedback = _restFeedback(phase);
     final upcoming = rest || phase.kind == PhaseKind.prep;
     final generation = _engine.generation;
     final manual = _v1NavigationGeneration == generation
@@ -551,10 +552,10 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
           completionFading: _v1FinalPhase != null,
           theme: _th,
           strings: _s,
-          minHeight: rest ? 300 : _v1WorkDockHeight,
+          minHeight: restFeedback == null ? _v1WorkDockHeight : 300,
           compactMinHeight: _v1WorkDockHeight,
           bottomInset: safe.bottom,
-          restFeedback: _restFeedback(phase),
+          restFeedback: restFeedback,
           restIdentity: rest ? phase : null,
           onRestFeedbackRecorded: (choice) =>
               _recordRestFeedbackChoice(phase, choice),

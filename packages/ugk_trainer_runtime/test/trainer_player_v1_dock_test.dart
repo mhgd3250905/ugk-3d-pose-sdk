@@ -139,6 +139,7 @@ void main() {
       );
       final dockTop = tester.getTopLeft(dock).dy;
       final pausePosition = tester.getCenter(pause);
+      final pauseElement = tester.element(pause);
       final countdownPosition = tester.getCenter(countdown);
       final mediaRect = tester.getRect(viewport);
       expect(tester.getRect(cards.first).bottom, lessThan(pausePosition.dy));
@@ -182,6 +183,7 @@ void main() {
       );
       expect(tester.getRect(viewport), mediaRect);
       expect(tester.getCenter(pause), pausePosition);
+      expect(tester.element(pause), same(pauseElement));
       expect(tester.getCenter(countdown), countdownPosition);
       expect(panel, findsNothing);
       expect(tester.getSize(capsule).height, 32);
@@ -215,6 +217,136 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     });
+  });
+
+  testWidgets('V1 rest after a user skip keeps the ordinary dock height', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await withClock(Clock(tester.binding.clock.now), () async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TrainerPlayer(
+            plan: TrainingPlan(
+              id: 'skipped-rest',
+              source: 'template',
+              title: 'Plan',
+              goal: 'core',
+              scene: 'home',
+              level: 1,
+              targetMinutes: 2,
+              blocks: [
+                PlanBlock(
+                  id: 'main',
+                  name: 'Main',
+                  type: BlockType.main,
+                  items: [
+                    for (final id in ['squat', 'lunge'])
+                      PlanItem(
+                        exerciseId: id,
+                        mode: DoseMode.time,
+                        sets: 1,
+                        workSeconds: 30,
+                        perSide: false,
+                        restSeconds: 0,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            drillOf: (id) => TrainerDrill(id: id, name: id),
+            theme: TrainerTheme.playerV1,
+            strings: TrainerStrings.zh(),
+            prepSeconds: 0,
+            keepAlive: false,
+            onFinished: (_) async {},
+            restFeedbackBuilder: (_, _) => const Text('休息反馈'),
+          ),
+        ),
+      );
+      final dock = find.byType(TrainerPlayerV1Dock);
+      final pause = find.byKey(const ValueKey('pause'));
+      await tester.pump(const Duration(seconds: 1));
+      final workHeight = tester.getSize(dock).height;
+      final pauseCenter = tester.getCenter(pause);
+
+      await tester.tap(find.byKey(const ValueKey('skip')));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      final restDock = tester.widget<TrainerPlayerV1Dock>(dock);
+      expect(restDock.restIdentity, isA<SessionPhase>());
+      expect((restDock.restIdentity! as SessionPhase).kind, PhaseKind.rest);
+      expect(find.text('休息反馈'), findsNothing);
+      expect(tester.getSize(dock).height, workHeight);
+      expect(tester.getCenter(pause), pauseCenter);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  });
+
+  testWidgets('wrapped rest feedback appears when dock layout retargets', (
+    tester,
+  ) async {
+    final extraHeight = ValueNotifier<double?>(null);
+    addTearDown(extraHeight.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: ValueListenableBuilder(
+              valueListenable: extraHeight,
+              builder: (context, height, _) => TrainerPlayerV1Dock(
+                theme: TrainerTheme.playerV1,
+                strings: TrainerStrings.zh(),
+                minHeight: height == null ? 172 : 300,
+                compactMinHeight: 172,
+                bottomInset: 0,
+                countdown: const Text('10'),
+                previous: const SizedBox.shrink(),
+                primary: const SizedBox(height: 80),
+                next: const SizedBox.shrink(),
+                restFeedback: height == null
+                    ? null
+                    : StatefulBuilder(
+                        builder: (_, _) => Padding(
+                          padding: EdgeInsets.only(top: height),
+                          child: TrainerRestFeedbackPanel(
+                            theme: TrainerTheme.playerV1,
+                            title: '刚才感觉怎么样？',
+                            comfortableLabel: '舒服',
+                            onComfortable: () {},
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final feedbackOpacity = find.byKey(
+      const ValueKey('player-v1-rest-feedback-opacity'),
+    );
+    extraHeight.value = 0;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 340));
+    expect(tester.widget<Opacity>(feedbackOpacity).opacity, 0);
+
+    extraHeight.value = 32;
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump(const Duration(milliseconds: 20));
+    extraHeight.value = 64;
+    await tester.pump(const Duration(milliseconds: 20));
+    extraHeight.value = 96;
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(tester.widget<Opacity>(feedbackOpacity).opacity, 1);
+    expect(find.text('舒服').hitTestable(), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('reduced motion toggles the rest feedback immediately', (

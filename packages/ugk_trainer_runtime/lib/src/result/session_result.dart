@@ -81,6 +81,9 @@ enum ItemStatus { completed, partial, skipped, notReached }
 /// Optional, user-reported feeling selected on the completion page.
 enum TrainingFeeling { easy, justRight, tired, uncomfortable }
 
+/// Optional feedback on an exercise during rest.
+enum TrainerRestFeedbackChoice { comfortable, tight, pain }
+
 /// One plan item, including every round in its block.
 class ItemResult {
   const ItemResult({
@@ -95,6 +98,7 @@ class ItemResult {
     this.plannedSideSets = const {},
     this.completedSideSets = const {},
     this.completedReps,
+    this.restFeedback,
   });
 
   /// The exercise actually done (after a substitute).
@@ -119,6 +123,9 @@ class ItemResult {
   /// for a self-paced set. Null when no repetition dose was recorded.
   final int? completedReps;
 
+  /// The most recent rest feedback for the exercise actually done.
+  final TrainerRestFeedbackChoice? restFeedback;
+
   Map<String, Object?> toJson() => {
     'exerciseId': exerciseId,
     'blockIndex': blockIndex,
@@ -129,6 +136,7 @@ class ItemResult {
     'status': status.name,
     'replacedFrom': ?replacedFrom,
     'completedReps': ?completedReps,
+    'restFeedback': ?restFeedback?.name,
     if (plannedSideSets.isNotEmpty) 'plannedSideSets': plannedSideSets,
     if (completedSideSets.isNotEmpty) 'completedSideSets': completedSideSets,
   };
@@ -146,6 +154,9 @@ class ItemResult {
     ),
     replacedFrom: j['replacedFrom'] as String?,
     completedReps: (j['completedReps'] as num?)?.toInt(),
+    restFeedback: TrainerRestFeedbackChoice.values
+        .where((choice) => choice.name == j['restFeedback'])
+        .firstOrNull,
     plannedSideSets: {
       for (final e in (j['plannedSideSets'] as Map? ?? const {}).entries)
         e.key as String: (e.value as num).toInt(),
@@ -284,6 +295,7 @@ class SessionRecorder {
   final String sessionId;
   final DateTime startedAt;
   final List<DiscomfortEvent> _discomfort = [];
+  final _restFeedback = <(int, int, String), TrainerRestFeedbackChoice>{};
   SessionResult? _result;
 
   SessionResult? get result => _result;
@@ -291,6 +303,16 @@ class SessionRecorder {
 
   void discomfort(DiscomfortEvent e) {
     if (_result == null) _discomfort.add(e);
+  }
+
+  void recordRestFeedback(
+    SessionPhase phase,
+    TrainerRestFeedbackChoice choice,
+  ) {
+    final exerciseId = _exerciseOf(phase);
+    if (_result == null && phase.isWork && exerciseId != null) {
+      _restFeedback[(phase.blockIndex, phase.itemInBlock, exerciseId)] = choice;
+    }
   }
 
   SessionResult finish(SessionEngine engine, {required double activeSeconds}) {
@@ -306,14 +328,25 @@ class SessionRecorder {
       endedEarly: engine.endedEarly,
       completedExercises: engine.fullyCompletedExercises,
       totalExercises: totalExercises,
-      items: itemsOf(plan, engine),
+      items: _itemsOf(plan, engine, _restFeedback),
       discomfort: List.unmodifiable(_discomfort),
     );
   }
 
   /// Unique sets complete only after every originally required side and
   /// segment completes. Repeated visits add time, never extra completed sets.
-  static List<ItemResult> itemsOf(TrainingPlan plan, SessionEngine engine) {
+  static List<ItemResult> itemsOf(TrainingPlan plan, SessionEngine engine) =>
+      _itemsOf(plan, engine, const {});
+
+  static String? _exerciseOf(SessionPhase phase) => phase.segmentId != null
+      ? phase.item?.exerciseId ?? phase.exerciseId
+      : phase.exerciseId;
+
+  static List<ItemResult> _itemsOf(
+    TrainingPlan plan,
+    SessionEngine engine,
+    Map<(int, int, String), TrainerRestFeedbackChoice> restFeedback,
+  ) {
     final out = <ItemResult>[];
     for (final (bi, b) in plan.blocks.indexed) {
       final circuit = b.type == BlockType.circuit && b.rounds > 1;
@@ -376,13 +409,7 @@ class SessionRecorder {
             : work.isEmpty
             ? ItemStatus.notReached
             : ItemStatus.partial;
-        final ids = work
-            .map(
-              (v) => v.phase.segmentId != null
-                  ? v.phase.item?.exerciseId ?? v.phase.exerciseId
-                  : v.phase.exerciseId,
-            )
-            .whereType<String>();
+        final ids = work.map((v) => _exerciseOf(v.phase)).whereType<String>();
         final actual = ids.isEmpty ? item.exerciseId : ids.last;
         out.add(
           ItemResult(
@@ -399,6 +426,7 @@ class SessionRecorder {
                 : null,
             status: status,
             replacedFrom: actual != item.exerciseId ? item.exerciseId : null,
+            restFeedback: restFeedback[(bi, ii, actual)],
             plannedSideSets: {
               for (final e in sideRequirements.entries)
                 e.key.name: e.value.length,

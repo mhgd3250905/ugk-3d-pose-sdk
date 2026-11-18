@@ -270,12 +270,20 @@ class TrainerRestFeedback {
     required this.phase,
     required this.completedPhase,
     required this.reportDiscomfort,
+    this._onChoiceRecorded,
   });
   final SessionPhase phase;
   final SessionPhase completedPhase;
 
   /// Opens the same app discomfort handler, targeting the finished exercise.
   final Future<void> Function() reportDiscomfort;
+
+  final ValueChanged<TrainerRestFeedbackChoice>? _onChoiceRecorded;
+
+  /// Records a choice from a custom panel. The standard V1 panel does this
+  /// automatically, alongside the host's own selection callback.
+  void recordChoice(TrainerRestFeedbackChoice choice) =>
+      _onChoiceRecorded?.call(choice);
 }
 
 typedef TrainerRestFeedbackBuilder =
@@ -3256,29 +3264,56 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
 
   Widget? _restFeedback(SessionPhase phase) {
     final build = widget.restFeedbackBuilder;
-    if (build == null ||
-        (phase.kind != PhaseKind.rest && phase.kind != PhaseKind.roundRest)) {
-      return null;
-    }
-    final completed = _lastWorkVisit();
-    if (completed == null ||
-        (!_th.usePlayerV1 && completed.itemIndex >= phase.itemIndex)) {
-      return null;
-    }
-    final target = completed;
+    if (build == null) return null;
+    final target = _restFeedbackTarget(phase);
+    if (target == null) return null;
+    final generation = _engine.generation;
+    final recorder = _recorder;
     return build(
       context,
       TrainerRestFeedback(
         phase: phase,
         completedPhase: target,
         reportDiscomfort: () => _discomfort(completedPhase: target),
+        onChoiceRecorded: (choice) {
+          if (mounted &&
+              identical(recorder, _recorder) &&
+              _engine.generation == generation) {
+            _recordRestFeedbackChoice(phase, choice);
+          }
+        },
       ),
     );
   }
 
-  SessionPhase? _lastWorkVisit() {
+  SessionPhase? _restFeedbackTarget(SessionPhase phase) {
+    if (phase.kind != PhaseKind.rest && phase.kind != PhaseKind.roundRest) {
+      return null;
+    }
+    final visit = _lastWorkVisitRecord();
+    if (visit == null ||
+        (visit.exit != PhaseExit.natural &&
+            visit.exit != PhaseExit.completed) ||
+        (!_th.usePlayerV1 && visit.phase.itemIndex >= phase.itemIndex)) {
+      return null;
+    }
+    return visit.phase;
+  }
+
+  void _recordRestFeedbackChoice(
+    SessionPhase phase,
+    TrainerRestFeedbackChoice choice,
+  ) {
+    if (!identical(_phase, phase)) return;
+    final target = _restFeedbackTarget(phase);
+    if (target != null) _recorder.recordRestFeedback(target, choice);
+  }
+
+  SessionPhase? _lastWorkVisit() => _lastWorkVisitRecord()?.phase;
+
+  PhaseVisit? _lastWorkVisitRecord() {
     for (final visit in _engine.visits.reversed) {
-      if (visit.phase.isWork) return visit.phase;
+      if (visit.phase.isWork) return visit;
     }
     return null;
   }

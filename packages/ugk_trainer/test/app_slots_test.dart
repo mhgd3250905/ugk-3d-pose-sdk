@@ -428,6 +428,68 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('rest feedback records a finished item and omits a skipped one', (
+    tester,
+  ) async {
+    final saved = <SessionResult>[];
+    final offered = <String?>{};
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: TrainerPlayer(
+            plan: planOf([timed('a', 10), timed('b', 2), timed('a', 2)]),
+            drillOf: (id) => TrainerDrill(id: id, name: id),
+            strings: TrainerStrings.en(),
+            theme: TrainerTheme.playerV1,
+            prepSeconds: 0,
+            transitionSeconds: 5,
+            keepAlive: false,
+            mediaBuilder: (_, _) => const SizedBox.expand(),
+            onFinished: (result) async => saved.add(result),
+            restFeedbackBuilder: (_, feedback) {
+              offered.add(feedback.completedPhase.exerciseId);
+              return TrainerRestFeedbackPanel(
+                theme: TrainerTheme.playerV1,
+                title: 'How did it feel?',
+                comfortableLabel: 'Good',
+                tightLabel: 'Tight',
+                painLabel: 'Pain',
+                onComfortable: () {},
+                onTight: () {},
+                onPain: () {},
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byKey(const ValueKey('skip')));
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(offered, isEmpty);
+    expect(find.text('Good'), findsNothing);
+    await tester.pump(const Duration(seconds: 7));
+    expect(offered, {'b'});
+    await tester.tap(find.text('Tight'));
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pump(const Duration(milliseconds: 500));
+    final result = saved.single;
+    expect(result.completedExercises, 2);
+    expect(result.totalExercises, 3);
+    expect(result.items.map((item) => item.status), [
+      ItemStatus.skipped,
+      ItemStatus.completed,
+      ItemStatus.completed,
+    ]);
+    expect(
+      SessionResult.fromJson(
+        result.toJson(),
+      ).items.map((item) => item.restFeedback),
+      [null, TrainerRestFeedbackChoice.tight, null],
+    );
+  });
+
   testWidgets('replacement with no remaining work completes and saves once', (
     tester,
   ) async {

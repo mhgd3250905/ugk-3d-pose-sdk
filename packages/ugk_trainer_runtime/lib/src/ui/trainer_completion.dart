@@ -314,42 +314,59 @@ class _TrainerCompletionState extends State<TrainerCompletion>
     final drill = widget.drillOf(item.exerciseId);
     final skipped = item.status == ItemStatus.skipped;
     if (_theme.usePlayerV1) {
-      return Opacity(
+      final opacity = skipped ? .5 : 1.0;
+      return SizedBox(
         key: ValueKey('completion-item-$index'),
-        opacity: skipped ? .5 : 1,
-        child: SizedBox(
-          height: 56,
-          child: Row(
-            children: [
-              _thumbnail(item.exerciseId, drill),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  drill?.name ?? item.exerciseId,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _text(15, FontWeight.w600),
-                ),
+        height: 56,
+        child: Row(
+          children: [
+            Opacity(
+              opacity: opacity,
+              child: _thumbnail(item.exerciseId, drill),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Opacity(
+                      opacity: opacity,
+                      child: Text(
+                        drill?.name ?? item.exerciseId,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _text(15, FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                  if (item.restFeedback case final choice?) ...[
+                    const SizedBox(width: 6),
+                    _restFeedbackTag(choice, index),
+                  ],
+                ],
               ),
-              const SizedBox(width: 12),
-              Text(
+            ),
+            const SizedBox(width: 12),
+            Opacity(
+              opacity: opacity,
+              child: Text(
                 skipped
                     ? _strings.skipped
                     : _duration(item.activeSeconds.round()),
                 textAlign: TextAlign.end,
                 style: _text(13, FontWeight.w400, color: _theme.sub),
               ),
-              if (item.status == ItemStatus.completed) ...[
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.check_rounded,
-                  key: ValueKey('completion-item-check-$index'),
-                  size: 20,
-                  color: _theme.good,
-                ),
-              ],
+            ),
+            if (item.status == ItemStatus.completed) ...[
+              const SizedBox(width: 8),
+              Icon(
+                Icons.check_rounded,
+                key: ValueKey('completion-item-check-$index'),
+                size: 20,
+                color: _theme.good,
+              ),
             ],
-          ),
+          ],
         ),
       );
     }
@@ -391,6 +408,40 @@ class _TrainerCompletionState extends State<TrainerCompletion>
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _restFeedbackTag(TrainerRestFeedbackChoice choice, int index) {
+    final (label, color) = switch (choice) {
+      TrainerRestFeedbackChoice.comfortable => (
+        _strings.restFeedbackComfortable,
+        _theme.good,
+      ),
+      TrainerRestFeedbackChoice.tight => (
+        _strings.restFeedbackTight,
+        _theme.caution,
+      ),
+      TrainerRestFeedbackChoice.pain => (
+        _strings.restFeedbackPain,
+        _theme.danger,
+      ),
+    };
+    return SizedBox(
+      key: ValueKey('completion-item-rest-feedback-$index'),
+      height: 22,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .15),
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(label, style: _text(12, FontWeight.w500, color: color)),
+          ),
+        ),
       ),
     );
   }
@@ -622,19 +673,8 @@ class _TrainerCompletionState extends State<TrainerCompletion>
     );
   }
 
-  Widget _feedbackCard() => _card(
-    key: const ValueKey('completion-feedback'),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _feelings(),
-        if (widget.feedback case final feedback?) ...[
-          const SizedBox(height: TrainerSpace.x3),
-          feedback,
-        ],
-      ],
-    ),
-  );
+  Widget _feedbackCard() =>
+      _card(key: const ValueKey('completion-feedback'), child: _feelings());
 
   Widget _trainedAreas() => _card(
     key: const ValueKey('completion-trained-areas'),
@@ -737,7 +777,10 @@ class _TrainerCompletionState extends State<TrainerCompletion>
     final cards = [
       _feedbackCard(),
       if (widget.trainedAreas.isNotEmpty) _trainedAreas(),
-      if (widget.result.items.length > 1) _items(),
+      if (widget.result.items.length > 1 ||
+          widget.result.items.any((item) => item.restFeedback != null))
+        _items(),
+      ?widget.feedback,
       ?widget.error,
     ];
     return Column(

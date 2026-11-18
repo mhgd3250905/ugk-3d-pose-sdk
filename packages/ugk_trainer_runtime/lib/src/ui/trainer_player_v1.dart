@@ -550,9 +550,14 @@ extension _TrainerPlayerV1 on _TrainerPlayerState {
           key: const ValueKey('player-v1-dock'),
           completionFading: _v1FinalPhase != null,
           theme: _th,
+          strings: _s,
           minHeight: rest ? 300 : _v1WorkDockHeight,
+          compactMinHeight: _v1WorkDockHeight,
           bottomInset: safe.bottom,
           restFeedback: _restFeedback(phase),
+          restIdentity: rest ? phase : null,
+          onRestFeedbackRecorded: (choice) =>
+              _recordRestFeedbackChoice(phase, choice),
           optionalControls: _hasOptionalControls
               ? _chromeLayer(
                   _optionalControls(phase),

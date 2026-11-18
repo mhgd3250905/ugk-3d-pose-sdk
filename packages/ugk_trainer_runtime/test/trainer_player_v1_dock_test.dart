@@ -219,7 +219,7 @@ void main() {
     });
   });
 
-  testWidgets('V1 rest after a user skip keeps the ordinary dock height', (
+  testWidgets('V1 rest without feedback keeps the ordinary dock height', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
@@ -261,7 +261,6 @@ void main() {
             prepSeconds: 0,
             keepAlive: false,
             onFinished: (_) async {},
-            restFeedbackBuilder: (_, _) => const Text('休息反馈'),
           ),
         ),
       );
@@ -278,7 +277,7 @@ void main() {
       final restDock = tester.widget<TrainerPlayerV1Dock>(dock);
       expect(restDock.restIdentity, isA<SessionPhase>());
       expect((restDock.restIdentity! as SessionPhase).kind, PhaseKind.rest);
-      expect(find.text('休息反馈'), findsNothing);
+      expect(restDock.restFeedback, isNull);
       expect(tester.getSize(dock).height, workHeight);
       expect(tester.getCenter(pause), pauseCenter);
       await tester.pumpWidget(const SizedBox.shrink());

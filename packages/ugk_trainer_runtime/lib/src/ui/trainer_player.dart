@@ -273,9 +273,11 @@ class TrainerRestFeedback {
     this._onChoiceRecorded,
   });
   final SessionPhase phase;
+
+  /// Work phase this rest asks about, including a side skipped before it began.
   final SessionPhase completedPhase;
 
-  /// Opens the same app discomfort handler, targeting the finished exercise.
+  /// Opens the app discomfort handler for the exercise preceding this rest.
   final Future<void> Function() reportDiscomfort;
 
   final ValueChanged<TrainerRestFeedbackChoice>? _onChoiceRecorded;
@@ -3291,17 +3293,17 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
       return null;
     }
     final visits = _engine.visits;
-    // A skip during a side switch leaves the previous work visit completed,
-    // but the skip itself led to this rest.
-    if (visits.lastOrNull?.exit == PhaseExit.skipped) return null;
-    final visit = _lastWorkVisitRecord(visits);
-    if (visit == null ||
-        (visit.exit != PhaseExit.natural &&
-            visit.exit != PhaseExit.completed) ||
-        (!_th.usePlayerV1 && visit.phase.itemIndex >= phase.itemIndex)) {
+    final target = switch (visits.lastOrNull) {
+      PhaseVisit(exit: PhaseExit.skipped, phase: final switching)
+          when switching.kind == PhaseKind.switchSide =>
+        _skippedSideWork(switching),
+      _ => _lastWorkVisit(visits),
+    };
+    if (target == null ||
+        (!_th.usePlayerV1 && target.itemIndex >= phase.itemIndex)) {
       return null;
     }
-    return visit.phase;
+    return target;
   }
 
   void _recordRestFeedbackChoice(
@@ -3313,11 +3315,25 @@ class _TrainerPlayerState extends State<TrainerPlayer> {
     if (target != null) _recorder.recordRestFeedback(target, choice);
   }
 
-  SessionPhase? _lastWorkVisit() => _lastWorkVisitRecord(_engine.visits)?.phase;
+  SessionPhase? _skippedSideWork(SessionPhase switching) {
+    final phases = _engine.phases;
+    final switchIndex = phases.indexOf(switching);
+    if (switchIndex < 0) return null;
+    // The new side was skipped before work began, so it has no work visit.
+    for (var i = switchIndex + 1; i < _engine.index; i++) {
+      final phase = phases[i];
+      if (phase.isWork &&
+          phase.itemIndex == switching.itemIndex &&
+          phase.side == switching.side) {
+        return phase;
+      }
+    }
+    return null;
+  }
 
-  PhaseVisit? _lastWorkVisitRecord(List<PhaseVisit> visits) {
-    for (final visit in visits.reversed) {
-      if (visit.phase.isWork) return visit;
+  SessionPhase? _lastWorkVisit([List<PhaseVisit>? visits]) {
+    for (final visit in (visits ?? _engine.visits).reversed) {
+      if (visit.phase.isWork) return visit.phase;
     }
     return null;
   }

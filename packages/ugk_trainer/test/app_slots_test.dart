@@ -428,7 +428,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('rest feedback records a finished item and omits a skipped one', (
+  testWidgets('rest feedback records skipped and finished items separately', (
     tester,
   ) async {
     final saved = <SessionResult>[];
@@ -467,10 +467,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.byKey(const ValueKey('skip')));
     await tester.pump(const Duration(milliseconds: 800));
-    expect(offered, isEmpty);
-    expect(find.text('Good'), findsNothing);
+    expect(offered, {'a'});
+    await tester.tap(find.text('Good'));
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('player-v1-rest-feedback-edit')),
+      findsOneWidget,
+    );
     await tester.pump(const Duration(seconds: 7));
-    expect(offered, {'b'});
+    expect(offered, {'a', 'b'});
     await tester.tap(find.text('Tight'));
     await tester.pump(const Duration(seconds: 7));
     await tester.pump(const Duration(milliseconds: 500));
@@ -486,14 +491,20 @@ void main() {
       SessionResult.fromJson(
         result.toJson(),
       ).items.map((item) => item.restFeedback),
-      [null, TrainerRestFeedbackChoice.tight, null],
+      [
+        TrainerRestFeedbackChoice.comfortable,
+        TrainerRestFeedbackChoice.tight,
+        null,
+      ],
     );
   });
 
   testWidgets(
-    'per-side counted reps get feedback unless the switch is skipped',
+    'rest feedback targets the pending side after skipping a side switch',
     (tester) async {
+      final saved = <SessionResult>[];
       final offered = <(String?, Side?, bool)>{};
+      DiscomfortContext? reported;
       await tester.pumpWidget(
         MaterialApp(
           home: MediaQuery(
@@ -518,7 +529,13 @@ void main() {
               ),
               keepAlive: false,
               mediaBuilder: (_, _) => const SizedBox.expand(),
-              onFinished: (_) async {},
+              onFinished: (result) async => saved.add(result),
+              onDiscomfort: (_, at) async {
+                reported = at;
+                return const DiscomfortDecision(
+                  DiscomfortAction.continueEasier,
+                );
+              },
               restFeedbackBuilder: (_, feedback) {
                 final phase = feedback.completedPhase;
                 offered.add((
@@ -532,6 +549,8 @@ void main() {
                     title: 'How did it feel?',
                     comfortableLabel: 'Good',
                     onComfortable: () {},
+                    painLabel: 'Pain',
+                    onPain: feedback.reportDiscomfort,
                   ),
                 );
               },
@@ -542,12 +561,35 @@ void main() {
       await tester.pump(const Duration(milliseconds: 3500));
       await tester.tap(find.byKey(const ValueKey('skip')));
       await tester.pump(const Duration(milliseconds: 800));
-      expect(offered, isEmpty);
-      expect(find.text('Good'), findsNothing);
+      expect(offered, {('a', Side.left, true)});
+      await tester.tap(find.text('Pain').hitTestable());
+      await tester.pump();
+      expect(reported?.phase.exerciseId, 'a');
+      expect(reported?.phase.side, Side.left);
+      expect(reported?.resumePhase.exerciseId, 'b');
+      expect(reported?.afterExercise, isTrue);
 
       await tester.pump(const Duration(seconds: 13));
-      expect(offered, {('b', Side.left, true)});
+      expect(offered, {('a', Side.left, true), ('b', Side.left, true)});
       expect(find.text('Good').hitTestable(), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 4500));
+      await tester.tap(find.byKey(const ValueKey('skip')));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      expect(offered, {('a', Side.left, true), ('b', Side.left, true)});
+      final result = saved.single;
+      expect(result.completedExercises, 1);
+      expect(result.items.map((item) => item.status), [
+        ItemStatus.skipped,
+        ItemStatus.completed,
+        ItemStatus.skipped,
+      ]);
+      expect(result.items.first.completedSideSets, {'right': 1, 'left': 0});
+      expect(result.items.first.restFeedback, TrainerRestFeedbackChoice.pain);
+      expect(result.discomfort.single.exerciseId, 'a');
+      expect(result.discomfort.single.side, Side.left);
+      expect(result.items.last.restFeedback, isNull);
     },
   );
 

@@ -4,11 +4,23 @@
 
 本台账统一记录维护状态、已合并成果、验证证据和待办。包版本、接口行为仍以对应清单和实现为准；发布历史保留在 CHANGELOG。表内 SHA 是核验快照，后续文档提交会推进 main，不能把快照当成永远最新的分支指针。
 
-## 当前快照：SDK 1.0.0 首个正式版本候选 / V5（2026-11-18）
+## 当前快照：SDK 1.0.1（2026-11-18）
+
+| 项目 | 本次核对结果 |
+|---|---|
+| 固定版本 | `ugk_trainer-v1.0.1` 对应 `85b57fda632f1f25eb94514d44e00e214cf9f7f5`，与 Hip vc2077 真机验收使用的提交一致 |
+| 合入范围 | [PR #34](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/34) 的两个 SDK 提交从 main `89fb916eca0c8a07b37d93988f51e52f57cf2ecb` 快进纳入。README 和本台账另有一条文档提交 |
+| 包版本 | `ugk_coach`、`ugk_trainer`、`ugk_trainer_runtime`、`ugk_coach_ui`、`ugk_coach_chat` 及目录更新的 SDK 版本常量均为 1.0.1 |
+| 素材更新 | 展示文件启动检查、下载并全部校验后原子生效。训练视频和语音在打开动作时按 SHA-256 复用或下载。已校验的媒体存入 Application Support |
+| 展示图 | 下一动作、完成页及播放器首帧按主题图、普通目录图、随包／宿主海报顺序回退 |
+| 内置目录 | stable r2-v18，主目录 5,124,493 字节，SHA-256 `1de7303f94fe0441ed4d006d4a4aa7ceac0e160b1c2527ae0f875b112bb52203` |
+| 核验证据 | 2026-11-18 17:11 Hip vc2077 验收通过。SDK 通过 2,817 项、失败 0、跳过 4，两包静态分析和 stable 检查通过。r2-v16 到 r2-v18 的本机素材回放下载 500 个展示文件，视频和语音请求均为 0，二次启动与清除系统缓存后素材下载均为 0 |
+
+## 历史快照：SDK 1.0.0 首个正式 V5 基线（2026-11-18）
 
 | 项目 | 本次基线 |
 |---|---|
-| 版本定位 | 1.0.0 是首个正式 SDK 版本，此前版本均为过渡版本。本次在 `codex/v1.0.0-baseline` 准备 Draft PR，合并与正式标签由开哥处理 |
+| 版本定位 | 1.0.0 是首个正式 SDK 版本，此前版本均为过渡版本。[PR #33](https://github.com/mhgd3250905/ugk-3d-pose-sdk/pull/33) 合入 main `89fb916eca0c8a07b37d93988f51e52f57cf2ecb` |
 | 代码基线 | 从 main `c79ec5299664b6aa1cdf8657bba7235d88a987cf` 快进纳入 `codex/trainer-feedback-layout` 的三个提交，反馈变更截至 `f1e02eb8229b4636d232b4621c38c5f8d9788b27` |
 | 包版本 | `ugk_coach`、`ugk_trainer`、`ugk_trainer_runtime`、`ugk_coach_ui`、`ugk_coach_chat` 及目录更新的 SDK 版本常量统一为 1.0.0 |
 | 内置资源 | V5 建模使用 stable 的 Pose-Hub r2-v18。主目录 5,124,493 字节，SHA-256 为 `1de7303f94fe0441ed4d006d4a4aa7ceac0e160b1c2527ae0f875b112bb52203`。语义目录含 249 个动作，318,292 字节，SHA-256 为 `4f355727e98ac737ac7c188562a870a0e4e3f2080efd41ddd6382ed6c86cb27e`。只内置主目录、语义目录和透明站位首帧，视频按需下载 |

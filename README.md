@@ -1,8 +1,8 @@
 # ugk_coach · 三 App 共用的 AI 训练助理 SDK
 
-SDK **1.0.0** 是首个正式版本候选，采用 V5 建模与 stable 的 Pose-Hub r2-v18，包含休息反馈收起和完成页动作感受标签。此前版本均为过渡版本。
+SDK **1.0.1** 固定标签 `ugk_trainer-v1.0.1` 指向 Hip vc2077 验收通过的提交 `85b57fda632f1f25eb94514d44e00e214cf9f7f5`。内置 Pose-Hub r2-v18。启动检测到新版时下载并校验展示素材，完成后立即生效；动作视频和语音在打开对应动作时按需准备。宿主接入见 [RELEASING](RELEASING.md)。
 
-既有固定 tag `ugk_trainer-v0.9.0` 指向 `4eb87ceabd39bfd132cd6c79c0474de3be683feb`，对应 V4 默认皮肤与内置 r2-v16。
+1.0.0 为首个正式 V5 基线，此前版本均为过渡版本。历史固定标签 `ugk_trainer-v0.9.0` 对应 V4 默认皮肤与内置 r2-v16。
 发布与渠道记录见 [CHANGELOG](CHANGELOG.md) 和[项目维护台账](docs/project-ledger.md)。
 
 App 继续通过 `CoachChatAgentMode.qaV2` 配置启用问答 Agent；旧 `CoachAssistant` / `CoachSession` 已删除。

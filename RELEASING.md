@@ -65,4 +65,6 @@ final pinned = await updater.restorePlanSnapshot(app, savedSnapshotId);
 
 训练中使用已取得的快照，续练按原 ID 恢复。若原快照不可恢复，由 App 明确提示用户，避免把新计划接到旧进度上。
 
-语音清单使用 `schema: 1` 和 `files` 数组。文件记录包括 `path`、`bytes` 和 `sha256`，可另给 `url`。相对地址以清单 URL 为基准，省略 `url` 时使用 `path`，解析结果须为 HTTPS。可选的 `plans` 对象将计划 ID 映射到文件路径列表。App 选定计划后，用 `PoseHubPlanVoiceCache.inApplicationSupport()` 取得缓存，再调用 `prefetchPlan(snapshot.voiceManifest, planId)`。若由 App 自己维护计划与语音的映射，则调用 `prefetchFiles(snapshot.voiceManifest, paths)`。返回映射中的 `null` 表示该文件不可用。缓存按 SHA-256 复用。语音缓存的 `loadBundled` 可按 SHA-256 提供随包音频字节，通过校验后直接使用。
+语音清单支持两种格式。Pose-Hub 已发布的 `format: "pose-hub-plan-voice@1"` 使用 `lines` 数组，App 用每条的 `file` 查找音频，下载地址由清单所在站点的根地址加 `objectKey` 得到。随包音频可通过 `PoseHubPlanVoiceCache.inApplicationSupport(loadBundledFile: readAsset)` 按 `file` 提供，SDK 校验字节数和 SHA-256 后才使用。
+
+原有格式使用 `schema: 1` 和 `files` 数组。文件记录包括 `path`、`bytes` 和 `sha256`，可另给 `url`。相对地址以清单 URL 为基准，省略 `url` 时使用 `path`，解析结果须为 HTTPS。可选的 `plans` 对象将计划 ID 映射到文件路径列表。App 选定计划后，用 `PoseHubPlanVoiceCache.inApplicationSupport()` 取得缓存，再调用 `prefetchPlan(snapshot.voiceManifest, planId)`。若由 App 自己维护计划与语音的映射，则调用 `prefetchFiles(snapshot.voiceManifest, paths)`。返回映射中的 `null` 表示该文件不可用。缓存按 SHA-256 复用。语音缓存的 `loadBundled` 可按 SHA-256 提供随包音频字节，通过校验后直接使用。

@@ -36,6 +36,9 @@ final class PoseHubPlanVoiceManifest {
   /// `{"schema":1,"files":[{"path":"zh/ready.m4a","bytes":123,"sha256":"..."}]}`.
   /// An entry may override its URL with `url`. When present, `plans` maps
   /// plan IDs to lists of paths already declared in `files`.
+  ///
+  /// The published `pose-hub-plan-voice@1` uses `lines` with `file` paths
+  /// and origin-relative `objectKey` download locations.
   factory PoseHubPlanVoiceManifest.fromBytes(
     List<int> bytes, {
     required Uri manifestUri,
@@ -44,22 +47,36 @@ final class PoseHubPlanVoiceManifest {
       throw const FormatException('Plan voice manifest URL must use HTTPS.');
     }
     final json = jsonDecode(utf8.decode(bytes));
-    if (json is! Map ||
-        json['schema'] is! int ||
-        json['schema'] != 1 ||
-        json['files'] is! List) {
+    if (json is! Map<String, Object?>) {
       throw const FormatException('Invalid plan voice manifest.');
     }
+    final published = json['format'] == 'pose-hub-plan-voice@1';
+    if (json.containsKey('format') && !published) {
+      throw const FormatException('Unsupported plan voice manifest format.');
+    }
+    final records = json[published ? 'lines' : 'files'];
+    if ((!published && (json['schema'] is! int || json['schema'] != 1)) ||
+        records is! List<Object?>) {
+      throw const FormatException('Invalid plan voice manifest.');
+    }
+    final count = json['count'];
+    if (published &&
+        json.containsKey('count') &&
+        (count is! int || count != records.length)) {
+      throw const FormatException('Plan voice manifest count mismatch.');
+    }
+
+    final origin = Uri.parse('${manifestUri.origin}/');
     final files = <String, PoseHubPlanVoiceFile>{};
     final sizes = <String, int>{};
-    for (final data in json['files'] as List) {
+    for (final data in records) {
       if (data is! Map) {
         throw const FormatException('Invalid plan voice file receipt.');
       }
-      final path = data['path'];
+      final path = data[published ? 'file' : 'path'];
       final sha = data['sha256'];
       final size = data['bytes'];
-      final location = data['url'];
+      final location = data[published ? 'objectKey' : 'url'];
       if (path is! String ||
           !_isRelativePath(path) ||
           sha is! String ||
@@ -67,14 +84,16 @@ final class PoseHubPlanVoiceManifest {
           size is! int ||
           size < 1 ||
           size > 64 * 1024 * 1024 ||
-          (data.containsKey('url') && location is! String)) {
+          (published
+              ? location is! String || !_isRelativePath(location)
+              : data.containsKey('url') && location is! String)) {
         throw const FormatException('Invalid plan voice file receipt.');
       }
       final reference = Uri.tryParse(location as String? ?? path);
       if (reference == null || reference.toString().isEmpty) {
         throw FormatException('Invalid plan voice file URL for $path.');
       }
-      final url = manifestUri.resolveUri(reference);
+      final url = (published ? origin : manifestUri).resolveUri(reference);
       if (!_isPublicHttps(url)) {
         throw FormatException('Plan voice file URL must use HTTPS for $path.');
       }
@@ -146,6 +165,8 @@ final class PoseHubPlanVoiceManifest {
 }
 
 typedef PoseHubBundledVoiceReader = Future<List<int>?> Function(String sha256);
+typedef PoseHubBundledVoiceFileReader =
+    Future<List<int>?> Function(String path);
 
 /// Prepares only the files a host requests for its pinned plan snapshot.
 /// Plan audio lives separately from the catalog voice cache so updating or
@@ -156,17 +177,20 @@ final class PoseHubPlanVoiceCache {
     required this.uriOf,
     PoseHubCatalogHttpClient? http,
     this.loadBundled,
+    this.loadBundledFile,
   }) : http = http ?? platform.createPoseHubCatalogHttpClient();
 
   factory PoseHubPlanVoiceCache.files(
     String directory, {
     PoseHubCatalogHttpClient? http,
     PoseHubBundledVoiceReader? loadBundled,
+    PoseHubBundledVoiceFileReader? loadBundledFile,
   }) => PoseHubPlanVoiceCache(
     store: platform.createPoseHubCatalogFileStore(directory),
     uriOf: (name) => Uri.file('$directory/$name'),
     http: http,
     loadBundled: loadBundled,
+    loadBundledFile: loadBundledFile,
   );
 
   /// On native platforms keeps audio in persistent application support.
@@ -174,6 +198,7 @@ final class PoseHubPlanVoiceCache {
     String? assetRootDirectory,
     PoseHubCatalogHttpClient? http,
     PoseHubBundledVoiceReader? loadBundled,
+    PoseHubBundledVoiceFileReader? loadBundledFile,
   }) async {
     final root =
         assetRootDirectory ?? (await getApplicationSupportDirectory()).path;
@@ -181,6 +206,7 @@ final class PoseHubPlanVoiceCache {
       '$root/ugk_channel_plans',
       http: http,
       loadBundled: loadBundled,
+      loadBundledFile: loadBundledFile,
     );
   }
 
@@ -191,6 +217,10 @@ final class PoseHubPlanVoiceCache {
   /// Optional host asset reader indexed by digest, independent of logical path.
   final PoseHubBundledVoiceReader? loadBundled;
 
+  /// Optional host asset reader using the manifest's `file` or `path` key.
+  /// The bytes still have to match the manifest before they are used.
+  final PoseHubBundledVoiceFileReader? loadBundledFile;
+
   final _jobs = <(String, int), Future<Uri?>>{};
 
   /// A verified local audio URI, or null if missing, corrupt, or offline.
@@ -198,23 +228,21 @@ final class PoseHubPlanVoiceCache {
     final file = manifest.files[path];
     if (file == null) return Future.value();
     final key = (file._cacheName, file.bytes);
-    return _jobs[key] ??= _ensure(file).whenComplete(() {
+    return _jobs[key] ??= _ensure(manifest, file).whenComplete(() {
       _jobs.remove(key);
     });
   }
 
-  Future<Uri?> _ensure(PoseHubPlanVoiceFile file) async {
+  Future<Uri?> _ensure(
+    PoseHubPlanVoiceManifest manifest,
+    PoseHubPlanVoiceFile file,
+  ) async {
     try {
       final name = file._cacheName;
       final cached = await store.read(name);
       if (cached != null && file._matches(cached)) return uriOf(name);
-      List<int>? bundled;
-      try {
-        bundled = await loadBundled?.call(file.sha256);
-      } catch (_) {
-        // A missing or unreadable asset falls through to the verified URL.
-      }
-      if (bundled != null && file._matches(bundled)) {
+      final bundled = await _readBundled(manifest, file);
+      if (bundled != null) {
         await store.writeAtomic(name, bundled);
       } else {
         final result = await http.get(file.url, maxBytes: file.bytes);
@@ -227,6 +255,33 @@ final class PoseHubPlanVoiceCache {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<List<int>?> _readBundled(
+    PoseHubPlanVoiceManifest manifest,
+    PoseHubPlanVoiceFile file,
+  ) async {
+    final byPath = loadBundledFile;
+    for (final (reader, key) in [
+      (loadBundled, file.sha256),
+      if (byPath != null) ...[
+        (byPath, file.path),
+        // Published manifests can give identical audio several logical paths.
+        for (final alias in manifest.files.values)
+          if (alias.path != file.path &&
+              alias.sha256 == file.sha256 &&
+              alias.bytes == file.bytes)
+            (byPath, alias.path),
+      ],
+    ]) {
+      try {
+        final bytes = await reader?.call(key);
+        if (bytes != null && file._matches(bytes)) return bytes;
+      } catch (_) {
+        // The host may not have bundled this clip.
+      }
+    }
+    return null;
   }
 
   /// Prepares the clips declared for [planId]. If the manifest does not group

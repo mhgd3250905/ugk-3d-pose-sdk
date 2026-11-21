@@ -120,6 +120,32 @@ void main() {
     },
   );
 
+  test(
+    'file-based bundled readers can reuse an identical audio alias',
+    () async {
+      const missing = 'zh/missing.m4a';
+      const bundled = 'zh/bundled.m4a';
+      final audio = [1, 8, 3];
+      final manifest = _manifest([
+        _file(missing, audio),
+        _file(bundled, audio),
+      ]);
+      final http = _Http();
+      final cache = PoseHubPlanVoiceCache(
+        store: MemoryPoseHubCatalogStore(),
+        uriOf: (name) => Uri.file('/plans/$name'),
+        http: http,
+        loadBundledFile: (path) async => path == bundled ? audio : null,
+      );
+
+      final results = await cache.prefetchFiles(manifest, [missing, bundled]);
+
+      expect(results[missing], isNotNull);
+      expect(results[bundled], results[missing]);
+      expect(http.requests, isEmpty);
+    },
+  );
+
   test('wrong bundled and network bytes never become playable', () async {
     const path = 'cooldown.m4a';
     final manifest = _manifest([
@@ -138,6 +164,23 @@ void main() {
     expect(await cache.prefetchFiles(manifest, [path]), {path: null});
     expect(http.requests, [uri]);
     expect(store.values, isEmpty);
+  });
+
+  test('an unsupported format cannot fall back to the legacy parser', () {
+    expect(
+      () => PoseHubPlanVoiceManifest.fromBytes(
+        utf8.encode(
+          jsonEncode({
+            'format': 'pose-hub-plan-voice@2',
+            'schema': 1,
+            'files': [],
+            'lines': [],
+          }),
+        ),
+        manifestUri: _manifestUri,
+      ),
+      throwsFormatException,
+    );
   });
 
   test('a voice group cannot refer to an unlisted file', () {

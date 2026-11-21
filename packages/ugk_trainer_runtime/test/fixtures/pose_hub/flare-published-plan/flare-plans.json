@@ -1,0 +1,1058 @@
+{
+  "schema": 1,
+  "app": "flare",
+  "version": "flare-plans-r1",
+  "min_catalog_pack": "r2-v22",
+  "voice_manifest": {
+    "url": "https://media.uuugk.win/pack/r2-v1/plan-voice/flare-plan-voice-r1/manifest.json",
+    "bytes": 159943,
+    "sha256": "6c5d81a9b80e9565729ee003825b72b6a8c04ce44c57a6b9af5b3468b043c3f4"
+  },
+  "plans": [
+    {
+      "id": "general-warmup",
+      "kind": "warmup",
+      "estimatedMinutes": 9,
+      "items": [
+        {
+          "drill": "t-step-jack-arm-circles",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 60,
+          "displayName": "低冲击开合踏步 + 双臂大绕环",
+          "displayNameEn": "Low-Impact Step Jacks + Large Arm Circles",
+          "voiceCue": "不用跳，左右大步点地，后半段掌心朝外大画圈把肩活动开",
+          "trainingDrill": "h-step-jack",
+          "workSegments": [
+            {
+              "id": "step-jack-side-raise",
+              "label": "侧平举",
+              "seconds": 30
+            },
+            {
+              "id": "step-jack-forward-circles",
+              "label": "向前绕环",
+              "seconds": 15
+            },
+            {
+              "id": "step-jack-backward-circles",
+              "label": "向后绕环",
+              "seconds": 15
+            }
+          ]
+        },
+        {
+          "drill": "t-neck-wrist-finger-wakeup",
+          "sets": 1,
+          "restSeconds": 0,
+          "trainingDrill": "warmup-neck-wrist-fingers",
+          "seconds": 45,
+          "displayName": "站姿颈-腕-指唤醒",
+          "displayNameEn": "Standing Neck, Wrist and Finger Warm-Up",
+          "voiceCue": "下巴贴胸左右慢滚不仰头，再双手合掌画八字，最后用力张指弹开",
+          "workSegments": [
+            {
+              "id": "neck-wakeup",
+              "label": "低头左右慢滚",
+              "seconds": 15
+            },
+            {
+              "id": "wrist-figure-eight",
+              "label": "合掌画八字",
+              "seconds": 15
+            },
+            {
+              "id": "finger-spread",
+              "label": "张指弹开",
+              "seconds": 15
+            }
+          ]
+        },
+        {
+          "drill": "t-wide-side-squat-shift",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 5,
+          "perSide": true,
+          "displayName": "宽距侧蹲左右移重心",
+          "displayNameEn": "Wide-Stance Lateral Squat Shifts",
+          "voiceCue": "双脚宽开立，重心左右慢移，伸直那条腿脚尖朝天、膝盖锁直",
+          "trainingDrill": "n-squat-shift",
+          "rhythm": {
+            "kind": "rep_alternate",
+            "leadSeconds": 1,
+            "perSide": "alternate",
+            "repUnit": "left+right",
+            "startingSide": "right",
+            "phases": "go=1.5s; hold=1s; back=1.5s"
+          }
+        },
+        {
+          "drill": "n-leg-circles",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 3,
+          "perSide": true,
+          "movement": "bothCircleDirections",
+          "voiceCue": "膝盖绷直，骨盆贴垫，用脚尖在空中慢慢画大圆",
+          "displayName": "仰卧单腿直腿大画圈",
+          "displayNameEn": "Supine Straight-Leg Circles"
+        },
+        {
+          "drill": "w-dead-bug",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 5,
+          "perSide": true,
+          "voiceCue": "下背压住垫子，呼气慢慢伸远对侧手脚，腰一离地就收回"
+        },
+        {
+          "drill": "s-9090",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 4,
+          "perSide": true,
+          "movement": "alternatingHipSwitch",
+          "voiceCue": "脚跟压稳，双膝翻到另一侧，上身尽量坐直",
+          "displayName": "90/90 坐姿换髋",
+          "displayNameEn": "90/90 Seated Hip Switches"
+        },
+        {
+          "drill": "t-seated-straddle-lift-1leg",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 5,
+          "perSide": true,
+          "holdSeconds": 1,
+          "voiceCue": "分腿坐稳、双手撑腿旁，膝盖绷直把单腿抬离地面几厘米停一下",
+          "displayName": "坐姿分腿单腿抬起",
+          "displayNameEn": "Seated Straddle Single-Leg Lift"
+        },
+        {
+          "drill": "forearms-A",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 50,
+          "voiceCue": "手臂伸直锁肘，指尖朝前、朝外、朝后慢慢摇，刺痛立刻减力",
+          "workSegments": [
+            {
+              "id": "fingers-forward",
+              "label": "手指朝前",
+              "reps": 4,
+              "rhythm": {
+                "kind": "rep_hold",
+                "leadSeconds": 1,
+                "phases": "go=1.5s; hold=0.25s; back=1.5s"
+              }
+            },
+            {
+              "id": "fingers-sideways",
+              "label": "手指朝外",
+              "reps": 4,
+              "rhythm": {
+                "kind": "rep_hold",
+                "leadSeconds": 0,
+                "phases": "go=1.5s; hold=0.25s; back=1.5s"
+              }
+            },
+            {
+              "id": "fingers-backward",
+              "label": "手指朝后",
+              "reps": 4,
+              "rhythm": {
+                "kind": "rep_hold",
+                "leadSeconds": 0,
+                "phases": "go=1.5s; hold=0.25s; back=1.5s"
+              }
+            },
+            {
+              "id": "back-of-hand",
+              "label": "手背轻压",
+              "seconds": 10
+            }
+          ]
+        },
+        {
+          "drill": "h-catcow-quad",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 6,
+          "displayName": "四足猫牛式",
+          "displayNameEn": "Quadruped Cat-Cow",
+          "voiceCue": "吸气塌腰抬头，呼气推地拱背，跟着呼吸一节一节动"
+        },
+        {
+          "drill": "h-kneeling-thread-needle",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 4,
+          "perSide": true,
+          "voiceCue": "一手从腋下穿过去滑远，再打开指向天花板，眼睛跟着手走"
+        },
+        {
+          "drill": "t-kneeling-scap-pushup",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 10,
+          "voiceCue": "手肘不弯，胸口下沉夹肩胛，再用力把地推远"
+        },
+        {
+          "drill": "rotator-cuff-A",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 4,
+          "perSide": true,
+          "voiceCue": "重心先移到支撑手、肘锁直，另一手慢慢摸对侧肩，骨盆别晃"
+        }
+      ]
+    },
+    {
+      "id": "general-cooldown",
+      "kind": "cooldown",
+      "tier": 1,
+      "estimatedMinutes": 25,
+      "strengtheningRounds": 2,
+      "strengtheningRestSeconds": 10,
+      "strengtheningRoundRestSeconds": 30,
+      "strengtheningItems": [
+        {
+          "drill": "t-kneeling-wrist-pushup",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 8,
+          "displayName": "跪姿手腕俯卧撑（3 秒慢放）",
+          "displayNameEn": "Kneeling Wrist Push-Ups (3-Second Lowering)",
+          "rhythm": {
+            "kind": "rep_updown",
+            "phases": "go=1.5s; back=3s"
+          },
+          "voiceCue": "五指压实垫子，掌根慢慢抬到指根，再数三秒稳稳放回。",
+          "voiceKey": "supplemental.cooldown.strength.1.1",
+          "safetyNote": "膝盖往前挪近双手减小前倾承重。",
+          "trainingDrill": "h-wall-palm-lift"
+        },
+        {
+          "drill": "t-kneeling-fist-plank",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 20,
+          "displayName": "跪姿拳面支撑",
+          "displayNameEn": "Kneeling Knuckle Support",
+          "voiceCue": "握紧拳头，用食指和中指两个指节压地，手腕保持笔直别弯。",
+          "voiceKey": "supplemental.cooldown.strength.1.2",
+          "safetyNote": "拳头下面多垫一层折叠瑜伽垫。",
+          "trainingDrill": "h-kneeling-pushup"
+        },
+        {
+          "drill": "serratus-A",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 20,
+          "displayName": "高平板直臂推肩",
+          "displayNameEn": "High Plank Straight-Arm Push-Away",
+          "voiceCue": "手肘彻底锁直，用力把地面推远，上背微微顶圆不塌腰。",
+          "voiceKey": "supplemental.cooldown.strength.1.3",
+          "safetyNote": "双膝跪地做跪姿平板推肩。"
+        },
+        {
+          "drill": "t-prone-t-w",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 6,
+          "displayName": "俯卧 T-W",
+          "displayNameEn": "Prone T-W Raises",
+          "repPositions": [
+            "T",
+            "W"
+          ],
+          "holdSeconds": 2,
+          "voiceCue": "T 字大拇指朝天收肩胛；W 字肘贴近身体，小臂用力向上抬停两秒。",
+          "voiceKey": "supplemental.cooldown.strength.1.4",
+          "safetyNote": "只做俯卧 T 字，缩小抬臂幅度。",
+          "trainingDrill": "scapular-A"
+        },
+        {
+          "drill": "h-inner-thigh",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 8,
+          "perSide": true,
+          "displayName": "侧卧下腿内收抬起",
+          "displayNameEn": "Side-Lying Bottom-Leg Adduction",
+          "voiceCue": "上腿屈膝踩在身前，下腿完全伸直往上抬，慢慢控制放下。",
+          "voiceKey": "supplemental.cooldown.strength.1.5",
+          "safetyNote": "减小抬腿高度，保持膝盖锁直即可。"
+        },
+        {
+          "drill": "t-side-lying-straight-leg-abduction",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 10,
+          "perSide": true,
+          "displayName": "侧卧上腿外展",
+          "displayNameEn": "Side-Lying Top-Leg Abduction",
+          "voiceCue": "脚尖朝正前方，用脚后跟带着直腿往上抬，骨盆别往后翻。",
+          "voiceKey": "supplemental.cooldown.strength.1.6",
+          "safetyNote": "改为侧卧屈膝蚌式开合。",
+          "trainingDrill": "w-clamshell"
+        }
+      ],
+      "items": [
+        {
+          "drill": "t-standing-neck-side-stretch",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 30,
+          "perSide": true,
+          "displayName": "颈侧拉伸",
+          "displayNameEn": "Side Neck Stretch",
+          "voiceCue": "耳朵轻轻找向同侧肩膀，另一侧肩膀往下沉，别耸肩。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.1",
+          "safetyNote": "手仅轻搭头侧借重力，绝不用力硬掰。",
+          "trainingDrill": "o-stand-sidebend"
+        },
+        {
+          "drill": "h-overhead-triceps-stretch",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 30,
+          "perSide": true,
+          "displayName": "过头三头 / 背阔侧弯拉伸",
+          "displayNameEn": "Overhead Triceps and Lat Side Stretch",
+          "voiceCue": "手肘指向天花板，另一手轻扶肘部，上身慢慢向对侧弯。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.2",
+          "safetyNote": "肩前夹痛则减小侧弯幅度，手轻放头后即可。"
+        },
+        {
+          "drill": "h-crossbody",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 30,
+          "perSide": true,
+          "displayName": "横臂肩后拉伸",
+          "displayNameEn": "Cross-Body Rear Shoulder Stretch",
+          "voiceCue": "一条手臂伸直横过胸前，另一手托住上臂轻轻拉近胸口。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.3",
+          "safetyNote": "拉肩时保持被拉侧肩膀下沉，不压肘关节。"
+        },
+        {
+          "drill": "t-standing-clasp-chest-opener",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 30,
+          "displayName": "背后十指交扣扩胸",
+          "displayNameEn": "Clasped-Hands Chest Opener",
+          "voiceCue": "双手背后交扣，肩胛往后夹紧，胸口往前顶、手往下拉。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.4",
+          "safetyNote": "扣不住手就双手背后虚握，挺胸打开肩前侧。",
+          "trainingDrill": "h-wall-pec"
+        },
+        {
+          "drill": "h-standing-wrist-extensor-stretch",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 30,
+          "perSide": true,
+          "displayName": "站姿无负重屈腕 / 伸腕拉伸",
+          "displayNameEn": "Standing Wrist Flexion and Extension Stretches",
+          "secondaryStretchDrill": "t-standing-wrist-flexor-stretch",
+          "voiceCue": "手臂伸直，先手背朝前轻拉指背，再掌心朝前轻拉手指。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.5",
+          "safetyNote": "腕背侧痛必须跳过「伸腕位（掌心朝前）」，只极轻拉手背或直接跳过。"
+        },
+        {
+          "drill": "h-dd-shoulder",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 30,
+          "perSide": true,
+          "displayName": "婴儿式侧伸",
+          "displayNameEn": "Child’s Pose Side Reach",
+          "demoPending": true,
+          "voiceCue": "臀坐脚跟双手爬向一侧",
+          "posture": "kneeling",
+          "voiceKey": "supplemental.cooldown.stretch.6.1",
+          "safetyNote": "中高级若练后手腕发酸，退回婴儿式侧伸，手掌不必吃重。"
+        },
+        {
+          "drill": "s-kneel-hipflex",
+          "sets": 2,
+          "restSeconds": 0,
+          "seconds": 30,
+          "perSide": true,
+          "displayName": "半跪髋屈肌拉伸",
+          "displayNameEn": "Half-Kneeling Hip Flexor Stretch",
+          "voiceCue": "收紧后侧臀部，骨盆稳稳往前推，腰别往后反弓。",
+          "posture": "kneeling",
+          "voiceKey": "supplemental.cooldown.stretch.7",
+          "safetyNote": "膝盖硌痛在下方垫折叠瑜伽垫；抓不到脚踝只做半跪推髋。"
+        },
+        {
+          "drill": "s-butterfly",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 30,
+          "displayName": "蝴蝶式",
+          "displayNameEn": "Butterfly Stretch",
+          "voiceCue": "脚掌相对拉近身体，背挺直，双膝自然放松下沉别上下弹压。",
+          "posture": "seated",
+          "voiceKey": "supplemental.cooldown.stretch.9",
+          "safetyNote": "屁股底下垫折叠瑜伽垫，腰更容易立直。"
+        },
+        {
+          "drill": "s-seated-fold",
+          "sets": 2,
+          "restSeconds": 0,
+          "seconds": 30,
+          "displayName": "坐姿并腿体前屈",
+          "displayNameEn": "Seated Forward Fold",
+          "voiceCue": "双腿并拢伸直，从髋部往前折叠，胸口去找大腿而不是用头够膝盖。",
+          "posture": "seated",
+          "voiceKey": "supplemental.cooldown.stretch.10",
+          "safetyNote": "膝盖可微屈 10° 保护下背，双手扶小腿即可。"
+        },
+        {
+          "drill": "n-straddle-fold",
+          "sets": 2,
+          "restSeconds": 0,
+          "seconds": 30,
+          "displayName": "坐姿分腿体前屈 + 侧向够脚",
+          "displayNameEn": "Seated Straddle Forward Fold and Side Reaches",
+          "voiceCue": "双腿宽分开、膝盖和脚尖朝天，先从髋往前倒，再分别向两侧倾身。",
+          "posture": "seated",
+          "voiceKey": "supplemental.cooldown.stretch.11",
+          "safetyNote": "手撑地面或垫折叠垫子辅助，保持膝盖朝天不内扣。",
+          "workSegments": [
+            {
+              "id": "straddle-center",
+              "label": "向前折叠",
+              "seconds": 10
+            },
+            {
+              "id": "straddle-left",
+              "label": "向左侧伸",
+              "seconds": 10
+            },
+            {
+              "id": "straddle-right",
+              "label": "向右侧伸",
+              "seconds": 10
+            }
+          ]
+        },
+        {
+          "drill": "s-figure4",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 30,
+          "perSide": true,
+          "displayName": "仰卧 4 字臀部拉伸",
+          "displayNameEn": "Supine Figure-Four Glute Stretch",
+          "voiceCue": "一脚踝搭在对侧膝盖上，双手抱住下腿大腿后侧慢慢拉近胸口。",
+          "posture": "supine",
+          "voiceKey": "supplemental.cooldown.stretch.12",
+          "safetyNote": "膝盖不适就把下腿放低踩地，只轻推上腿膝盖。"
+        },
+        {
+          "drill": "h-supine-twist",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 30,
+          "perSide": true,
+          "displayName": "仰卧屈膝扭转 + 腹式呼吸",
+          "displayNameEn": "Supine Knee-Drop Twist and Belly Breathing",
+          "voiceCue": "双肩紧贴垫子，屈膝倒向一侧，鼻吸四秒、慢呼六秒让心率降下来。",
+          "posture": "supine",
+          "voiceKey": "supplemental.cooldown.stretch.13",
+          "safetyNote": "膝盖悬空可在下方垫折叠毛巾或垫角。"
+        }
+      ]
+    },
+    {
+      "id": "general-cooldown-t2",
+      "kind": "cooldown",
+      "tier": 2,
+      "estimatedMinutes": 41,
+      "strengtheningRounds": 3,
+      "strengtheningRestSeconds": 10,
+      "strengtheningRoundRestSeconds": 45,
+      "strengtheningItems": [
+        {
+          "drill": "t-kneeling-wrist-pushup",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 8,
+          "displayName": "跪姿远距手腕俯卧撑（3 秒慢放）",
+          "displayNameEn": "Long-Lever Kneeling Wrist Push-Ups (3-Second Lowering)",
+          "rhythm": {
+            "kind": "rep_updown",
+            "phases": "go=1.5s; back=3s"
+          },
+          "voiceCue": "膝盖往后退半步增加前倾重量，锁直手肘，抬掌根后数三秒慢放。",
+          "voiceKey": "supplemental.cooldown.strength.2.1",
+          "safetyNote": "膝盖往前收回标准跪姿版（进阶可选平板位）。",
+          "trainingDrill": "h-wall-palm-lift"
+        },
+        {
+          "drill": "t-planche-lean-hold",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 12,
+          "displayName": "前倾支撑（手指朝外 45°–90°）",
+          "displayNameEn": "Planche Lean (Fingers Turned Out 45°–90°)",
+          "recommendedMin": 10,
+          "recommendedMax": 15,
+          "voiceCue": "手指朝外打开，手肘绝对锁直，肩膀慢慢往前送过手腕推地。",
+          "voiceKey": "supplemental.cooldown.strength.2.2",
+          "safetyNote": "减小肩膀前倾幅度至手腕无痛。",
+          "trainingDrill": "h-pike-pushup"
+        },
+        {
+          "drill": "erectors-A",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 20,
+          "displayName": "反向平板",
+          "displayNameEn": "Reverse Plank",
+          "voiceCue": "手指朝向脚或微朝外，胸口顶高打开，屁股夹紧身体成直线。",
+          "voiceKey": "supplemental.cooldown.strength.2.3",
+          "safetyNote": "屈膝改为桌面式后撑抬髋。"
+        },
+        {
+          "drill": "t-seated-straddle-lift-1leg",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 5,
+          "perSide": true,
+          "displayName": "坐姿分腿单腿抬高位停 3 秒",
+          "displayNameEn": "Seated Straddle Single-Leg Lift (3-Second Hold)",
+          "holdSeconds": 3,
+          "voiceCue": "宽分腿坐稳不后倒，直腿抬离垫子后稳稳停住数三秒再放。",
+          "voiceKey": "supplemental.cooldown.strength.2.4",
+          "safetyNote": "双手往身后稍挪，离地 2 厘米即可。",
+          "rhythm": {
+            "kind": "rep_hold",
+            "leadSeconds": 1,
+            "startingSide": "left",
+            "phases": "go=1s; hold=3s; back=2s"
+          }
+        },
+        {
+          "drill": "h-inner-thigh",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 8,
+          "perSide": true,
+          "displayName": "侧卧内收慢离心（3 秒下 + 停 2 秒）",
+          "displayNameEn": "Side-Lying Adduction (3-Second Lowering, 2-Second Hold)",
+          "holdSeconds": 2,
+          "rhythm": {
+            "kind": "rep_hold",
+            "phases": "go=1s; hold=2s; back=3s"
+          },
+          "voiceCue": "下腿绷直抬到最高停两秒，再数三秒慢慢放回，全程不碰地泄力。",
+          "voiceKey": "supplemental.cooldown.strength.2.5",
+          "safetyNote": "去掉顶端停顿，正常节奏控制。"
+        },
+        {
+          "drill": "scapular-A",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 6,
+          "displayName": "俯卧 Y-T-W",
+          "displayNameEn": "Prone Y-T-W Raises",
+          "repPositions": [
+            "Y",
+            "T",
+            "W"
+          ],
+          "lastPositionHoldSeconds": 2,
+          "voiceCue": "Y 不耸肩、T 夹肩胛；W 时肘向腰侧夹紧，小臂用力向上翻起停两秒。",
+          "voiceKey": "supplemental.cooldown.strength.2.6",
+          "safetyNote": "退回俯卧 T-W 各 6 次。"
+        },
+        {
+          "drill": "t-forearm-side-plank",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 20,
+          "perSide": true,
+          "displayName": "前臂侧桥",
+          "displayNameEn": "Forearm Side Plank",
+          "voiceCue": "手肘在肩膀正下方把地推远，胯顶高，头到脚后跟一条直线。",
+          "voiceKey": "supplemental.cooldown.strength.2.7",
+          "safetyNote": "下面腿屈膝跪地做屈膝侧桥。",
+          "trainingDrill": "h-short-side-plank"
+        }
+      ],
+      "items": [
+        {
+          "drill": "t-standing-neck-side-stretch",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 45,
+          "perSide": true,
+          "displayName": "颈侧拉伸",
+          "displayNameEn": "Side Neck Stretch",
+          "voiceCue": "耳朵轻轻找向同侧肩膀，另一侧肩膀往下沉，别耸肩。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.1",
+          "safetyNote": "手仅轻搭头侧借重力，绝不用力硬掰。",
+          "trainingDrill": "o-stand-sidebend"
+        },
+        {
+          "drill": "h-overhead-triceps-stretch",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 45,
+          "perSide": true,
+          "displayName": "过头三头 / 背阔侧弯拉伸",
+          "displayNameEn": "Overhead Triceps and Lat Side Stretch",
+          "voiceCue": "手肘指向天花板，另一手轻扶肘部，上身慢慢向对侧弯。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.2",
+          "safetyNote": "肩前夹痛则减小侧弯幅度，手轻放头后即可。"
+        },
+        {
+          "drill": "h-crossbody",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 45,
+          "perSide": true,
+          "displayName": "横臂肩后拉伸",
+          "displayNameEn": "Cross-Body Rear Shoulder Stretch",
+          "voiceCue": "一条手臂伸直横过胸前，另一手托住上臂轻轻拉近胸口。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.3",
+          "safetyNote": "拉肩时保持被拉侧肩膀下沉，不压肘关节。"
+        },
+        {
+          "drill": "t-standing-clasp-chest-opener",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 45,
+          "displayName": "背后十指交扣扩胸",
+          "displayNameEn": "Clasped-Hands Chest Opener",
+          "voiceCue": "双手背后交扣，肩胛往后夹紧，胸口往前顶、手往下拉。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.4",
+          "safetyNote": "扣不住手就双手背后虚握，挺胸打开肩前侧。",
+          "trainingDrill": "h-wall-pec"
+        },
+        {
+          "drill": "h-standing-wrist-extensor-stretch",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 45,
+          "perSide": true,
+          "displayName": "站姿无负重屈腕 / 伸腕拉伸",
+          "displayNameEn": "Standing Wrist Flexion and Extension Stretches",
+          "secondaryStretchDrill": "t-standing-wrist-flexor-stretch",
+          "voiceCue": "手臂伸直，先手背朝前轻拉指背，再掌心朝前轻拉手指。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.5",
+          "safetyNote": "腕背侧痛必须跳过「伸腕位（掌心朝前）」，只极轻拉手背或直接跳过。"
+        },
+        {
+          "drill": "h-dd-shoulder",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 45,
+          "displayName": "下犬式",
+          "displayNameEn": "Downward-Facing Dog",
+          "voiceCue": "臀推高胸口下沉，膝盖可微弯。",
+          "posture": "kneeling",
+          "voiceKey": "supplemental.cooldown.stretch.6.2",
+          "safetyNote": "中高级若练后手腕发酸，退回婴儿式侧伸，手掌不必吃重。"
+        },
+        {
+          "drill": "h-half-kneeling-quad-stretch",
+          "sets": 2,
+          "restSeconds": 0,
+          "seconds": 45,
+          "perSide": true,
+          "displayName": "半跪髋屈肌拉伸（抓后脚踝）",
+          "displayNameEn": "Half-Kneeling Hip Flexor Stretch with Rear Ankle Hold",
+          "voiceCue": "收紧后侧臀部，骨盆稳稳往前推，腰别往后反弓。",
+          "posture": "kneeling",
+          "voiceKey": "supplemental.cooldown.stretch.7",
+          "safetyNote": "膝盖硌痛在下方垫折叠瑜伽垫；抓不到脚踝只做半跪推髋。"
+        },
+        {
+          "drill": "s-butterfly",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 45,
+          "displayName": "蝴蝶式",
+          "displayNameEn": "Butterfly Stretch",
+          "voiceCue": "脚掌相对拉近身体，背挺直，双膝自然放松下沉别上下弹压。",
+          "posture": "seated",
+          "voiceKey": "supplemental.cooldown.stretch.9",
+          "safetyNote": "屁股底下垫折叠瑜伽垫，腰更容易立直。"
+        },
+        {
+          "drill": "s-seated-fold",
+          "sets": 2,
+          "restSeconds": 0,
+          "seconds": 45,
+          "displayName": "坐姿并腿体前屈",
+          "displayNameEn": "Seated Forward Fold",
+          "voiceCue": "双腿并拢伸直，从髋部往前折叠，胸口去找大腿而不是用头够膝盖。",
+          "posture": "seated",
+          "voiceKey": "supplemental.cooldown.stretch.10",
+          "safetyNote": "膝盖可微屈 10° 保护下背，双手扶小腿即可。"
+        },
+        {
+          "drill": "n-straddle-fold",
+          "sets": 2,
+          "restSeconds": 0,
+          "seconds": 45,
+          "displayName": "坐姿分腿体前屈 + 侧向够脚",
+          "displayNameEn": "Seated Straddle Forward Fold and Side Reaches",
+          "voiceCue": "双腿宽分开、膝盖和脚尖朝天，先从髋往前倒，再分别向两侧倾身。",
+          "posture": "seated",
+          "voiceKey": "supplemental.cooldown.stretch.11",
+          "safetyNote": "手撑地面或垫折叠垫子辅助，保持膝盖朝天不内扣。",
+          "workSegments": [
+            {
+              "id": "straddle-center",
+              "label": "向前折叠",
+              "seconds": 15
+            },
+            {
+              "id": "straddle-left",
+              "label": "向左侧伸",
+              "seconds": 15
+            },
+            {
+              "id": "straddle-right",
+              "label": "向右侧伸",
+              "seconds": 15
+            }
+          ]
+        },
+        {
+          "drill": "s-figure4",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 45,
+          "perSide": true,
+          "displayName": "仰卧 4 字臀部拉伸",
+          "displayNameEn": "Supine Figure-Four Glute Stretch",
+          "voiceCue": "一脚踝搭在对侧膝盖上，双手抱住下腿大腿后侧慢慢拉近胸口。",
+          "posture": "supine",
+          "voiceKey": "supplemental.cooldown.stretch.12",
+          "safetyNote": "膝盖不适就把下腿放低踩地，只轻推上腿膝盖。"
+        },
+        {
+          "drill": "h-supine-twist",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 45,
+          "perSide": true,
+          "displayName": "仰卧屈膝扭转 + 腹式呼吸",
+          "displayNameEn": "Supine Knee-Drop Twist and Belly Breathing",
+          "voiceCue": "双肩紧贴垫子，屈膝倒向一侧，鼻吸四秒、慢呼六秒让心率降下来。",
+          "posture": "supine",
+          "voiceKey": "supplemental.cooldown.stretch.13",
+          "safetyNote": "膝盖悬空可在下方垫折叠毛巾或垫角。"
+        }
+      ]
+    },
+    {
+      "id": "general-cooldown-t3",
+      "kind": "cooldown",
+      "tier": 3,
+      "estimatedMinutes": 38,
+      "strengtheningRounds": 3,
+      "strengtheningRestSeconds": 10,
+      "strengtheningRoundRestSeconds": 45,
+      "strengtheningItems": [
+        {
+          "drill": "t-pseudo-planche-pushup-v2",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 6,
+          "displayName": "伪俄挺俯卧撑（手指朝外 45°–90°）",
+          "displayNameEn": "Pseudo Planche Push-Ups (Fingers Turned Out 45°–90°)",
+          "voiceCue": "手放在靠近腰侧、手指朝外，保持身体前倾下压，推起顶峰锁肘推背。",
+          "voiceKey": "supplemental.cooldown.strength.3.1",
+          "safetyNote": "改为前倾支撑 12–15 秒（已涵盖前倾负荷，删去原重复项）。",
+          "trainingDrill": "h-pike-pushup"
+        },
+        {
+          "drill": "t-floor-tuck-hold",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 10,
+          "displayName": "地面团身支撑 → L 撑",
+          "displayNameEn": "Floor Tuck Support to L-Sit",
+          "voiceCue": "肩用力往下压离耳朵，臀部与双脚撑离垫子，膝盖贴近胸口。",
+          "voiceKey": "supplemental.cooldown.strength.3.2",
+          "safetyNote": "只把臀部撑离地，脚尖轻点垫子辅助。",
+          "trainingDrill": "t-lsit-tuck"
+        },
+        {
+          "drill": "t-seated-straddle-lifts",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 8,
+          "displayName": "坐姿分腿双腿压缩上抬",
+          "displayNameEn": "Seated Straddle Compression Lifts",
+          "recommendedMin": 8,
+          "recommendedMax": 10,
+          "voiceCue": "宽分腿坐直、手撑腿间，双腿同时锁直抬离垫子，上身绝不后倒。",
+          "voiceKey": "supplemental.cooldown.strength.3.3",
+          "safetyNote": "改为单腿交替高位抬起停 3 秒。"
+        },
+        {
+          "drill": "t-supine-straddle-open-close",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 10,
+          "displayName": "仰卧直腿大分腿慢开合（3 秒慢开停 1 秒）",
+          "displayNameEn": "Supine Straight-Leg Straddle Opens (3 Seconds Out, 1-Second Hold)",
+          "holdSeconds": 1,
+          "rhythm": {
+            "kind": "rep_hold",
+            "phases": "go=3s; hold=1s; back=1.5s"
+          },
+          "voiceCue": "双腿朝天锁直，数三秒慢慢往两侧打开到最大幅度停一秒，再用内侧合拢。",
+          "voiceKey": "supplemental.cooldown.strength.3.4",
+          "safetyNote": "缩小打开幅度，或退回中级侧卧内收慢离心（居家光滑地板可选毛巾侧滑拉回）。",
+          "trainingDrill": "h-wall-straddle"
+        },
+        {
+          "drill": "t-straight-arm-side-plank-switch",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 4,
+          "perSide": true,
+          "displayName": "直臂侧桥转换（左 → 平板 → 右）",
+          "displayNameEn": "Straight-Arm Side Plank Transitions",
+          "voiceCue": "先锁直支撑臂手肘再稳稳翻身成侧桥，眼睛看撑地手，别甩着转。",
+          "voiceKey": "supplemental.cooldown.strength.3.5",
+          "safetyNote": "改为前臂侧桥转换，卸载手腕压力。",
+          "trainingDrill": "chest-A",
+          "rhythm": {
+            "kind": "rep_alternate",
+            "leadSeconds": 1,
+            "startingSide": "left",
+            "repUnit": "left+right",
+            "phases": "go=2.2s; hold=0.8s; back=1s"
+          }
+        },
+        {
+          "drill": "scapular-A",
+          "sets": 1,
+          "restSeconds": 0,
+          "reps": 6,
+          "displayName": "俯卧 Y-T-W",
+          "displayNameEn": "Prone Y-T-W Raises",
+          "repPositions": [
+            "Y",
+            "T",
+            "W"
+          ],
+          "holdSeconds": 2,
+          "voiceCue": "动作放慢不借力，每个姿势顶端稳稳停两秒，W 阶段重点向上翻小臂。",
+          "voiceKey": "supplemental.cooldown.strength.3.6",
+          "safetyNote": "去掉停顿或退回 T-W 各 6 次。"
+        }
+      ],
+      "items": [
+        {
+          "drill": "t-standing-neck-side-stretch",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 60,
+          "perSide": true,
+          "displayName": "颈侧拉伸",
+          "displayNameEn": "Side Neck Stretch",
+          "voiceCue": "耳朵轻轻找向同侧肩膀，另一侧肩膀往下沉，别耸肩。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.1",
+          "safetyNote": "手仅轻搭头侧借重力，绝不用力硬掰。",
+          "trainingDrill": "o-stand-sidebend"
+        },
+        {
+          "drill": "h-overhead-triceps-stretch",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 60,
+          "perSide": true,
+          "displayName": "过头三头 / 背阔侧弯拉伸",
+          "displayNameEn": "Overhead Triceps and Lat Side Stretch",
+          "voiceCue": "手肘指向天花板，另一手轻扶肘部，上身慢慢向对侧弯。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.2",
+          "safetyNote": "肩前夹痛则减小侧弯幅度，手轻放头后即可。"
+        },
+        {
+          "drill": "h-crossbody",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 60,
+          "perSide": true,
+          "displayName": "横臂肩后拉伸",
+          "displayNameEn": "Cross-Body Rear Shoulder Stretch",
+          "voiceCue": "一条手臂伸直横过胸前，另一手托住上臂轻轻拉近胸口。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.3",
+          "safetyNote": "拉肩时保持被拉侧肩膀下沉，不压肘关节。"
+        },
+        {
+          "drill": "t-standing-clasp-chest-opener",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 60,
+          "displayName": "背后十指交扣扩胸",
+          "displayNameEn": "Clasped-Hands Chest Opener",
+          "voiceCue": "双手背后交扣，肩胛往后夹紧，胸口往前顶、手往下拉。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.4",
+          "safetyNote": "扣不住手就双手背后虚握，挺胸打开肩前侧。",
+          "trainingDrill": "h-wall-pec"
+        },
+        {
+          "drill": "h-standing-wrist-extensor-stretch",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 60,
+          "perSide": true,
+          "displayName": "站姿无负重屈腕 / 伸腕拉伸",
+          "displayNameEn": "Standing Wrist Flexion and Extension Stretches",
+          "secondaryStretchDrill": "t-standing-wrist-flexor-stretch",
+          "voiceCue": "手臂伸直，先手背朝前轻拉指背，再掌心朝前轻拉手指。",
+          "posture": "standing",
+          "voiceKey": "supplemental.cooldown.stretch.5",
+          "safetyNote": "腕背侧痛必须跳过「伸腕位（掌心朝前）」，只极轻拉手背或直接跳过。"
+        },
+        {
+          "drill": "h-dd-shoulder",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 60,
+          "displayName": "下犬式",
+          "displayNameEn": "Downward-Facing Dog",
+          "voiceCue": "臀推高胸口下沉，膝盖可微弯。",
+          "posture": "kneeling",
+          "voiceKey": "supplemental.cooldown.stretch.6.2",
+          "safetyNote": "中高级若练后手腕发酸，退回婴儿式侧伸，手掌不必吃重。"
+        },
+        {
+          "drill": "h-half-kneeling-quad-stretch",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 60,
+          "perSide": true,
+          "displayName": "半跪髋屈肌拉伸（抓后脚踝）",
+          "displayNameEn": "Half-Kneeling Hip Flexor Stretch with Rear Ankle Hold",
+          "pnfSeconds": 5,
+          "voiceCue": "收紧后侧臀部，骨盆稳稳往前推，腰别往后反弓。",
+          "posture": "kneeling",
+          "voiceKey": "supplemental.cooldown.stretch.7",
+          "safetyNote": "膝盖硌痛在下方垫折叠瑜伽垫；抓不到脚踝只做半跪推髋。"
+        },
+        {
+          "drill": "s-frog",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 60,
+          "displayName": "青蛙式",
+          "displayNameEn": "Frog Stretch",
+          "voiceCue": "双膝慢慢往两侧滑开，脚踝与膝对齐，臀部轻轻往后坐。",
+          "posture": "kneeling",
+          "voiceKey": "supplemental.cooldown.stretch.8",
+          "safetyNote": "腹股沟刺痛立刻收回，改回蝴蝶式。"
+        },
+        {
+          "drill": "s-butterfly",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 60,
+          "displayName": "蝴蝶式",
+          "displayNameEn": "Butterfly Stretch",
+          "voiceCue": "脚掌相对拉近身体，背挺直，双膝自然放松下沉别上下弹压。",
+          "posture": "seated",
+          "voiceKey": "supplemental.cooldown.stretch.9",
+          "safetyNote": "屁股底下垫折叠瑜伽垫，腰更容易立直。"
+        },
+        {
+          "drill": "s-seated-fold",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 60,
+          "displayName": "坐姿并腿体前屈",
+          "displayNameEn": "Seated Forward Fold",
+          "pnfSeconds": 5,
+          "voiceCue": "双腿并拢伸直，从髋部往前折叠，胸口去找大腿而不是用头够膝盖。",
+          "posture": "seated",
+          "voiceKey": "supplemental.cooldown.stretch.10",
+          "safetyNote": "膝盖可微屈 10° 保护下背，双手扶小腿即可。"
+        },
+        {
+          "drill": "n-straddle-fold",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 60,
+          "displayName": "坐姿分腿体前屈 + 侧向够脚",
+          "displayNameEn": "Seated Straddle Forward Fold and Side Reaches",
+          "pnfSeconds": 5,
+          "voiceCue": "双腿宽分开、膝盖和脚尖朝天，先从髋往前倒，再分别向两侧倾身。",
+          "posture": "seated",
+          "voiceKey": "supplemental.cooldown.stretch.11",
+          "safetyNote": "手撑地面或垫折叠垫子辅助，保持膝盖朝天不内扣。",
+          "workSegments": [
+            {
+              "id": "straddle-center",
+              "label": "向前折叠",
+              "seconds": 20
+            },
+            {
+              "id": "straddle-left",
+              "label": "向左侧伸",
+              "seconds": 20
+            },
+            {
+              "id": "straddle-right",
+              "label": "向右侧伸",
+              "seconds": 20
+            }
+          ]
+        },
+        {
+          "drill": "s-figure4",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 60,
+          "perSide": true,
+          "displayName": "仰卧 4 字臀部拉伸",
+          "displayNameEn": "Supine Figure-Four Glute Stretch",
+          "voiceCue": "一脚踝搭在对侧膝盖上，双手抱住下腿大腿后侧慢慢拉近胸口。",
+          "posture": "supine",
+          "voiceKey": "supplemental.cooldown.stretch.12",
+          "safetyNote": "膝盖不适就把下腿放低踩地，只轻推上腿膝盖。"
+        },
+        {
+          "drill": "h-supine-twist",
+          "sets": 1,
+          "restSeconds": 0,
+          "seconds": 60,
+          "perSide": true,
+          "displayName": "仰卧屈膝扭转 + 腹式呼吸",
+          "displayNameEn": "Supine Knee-Drop Twist and Belly Breathing",
+          "voiceCue": "双肩紧贴垫子，屈膝倒向一侧，鼻吸四秒、慢呼六秒让心率降下来。",
+          "posture": "supine",
+          "voiceKey": "supplemental.cooldown.stretch.13",
+          "safetyNote": "膝盖悬空可在下方垫折叠毛巾或垫角。"
+        }
+      ]
+    }
+  ]
+}

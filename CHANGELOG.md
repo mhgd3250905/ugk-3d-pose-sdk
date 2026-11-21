@@ -4,7 +4,7 @@
 
 - Read optional training plan packs from the existing schema 1 channel pointer. Plans can update independently of the action catalog, and each app can fall back to its last verified compatible snapshot or its bundled copy.
 - Keep plan JSON in its original shape for the host. Pin a snapshot ID in active or resumable training so a channel update cannot replace its plan or voice manifest.
-- Prefetch voice clips for a selected plan, reusing bundled or cached clips whose SHA-256 matches the manifest.
+- Prefetch voice clips for a selected plan, reusing bundled or cached clips whose SHA-256 matches the manifest. Read both the schema-1 file list and the published Pose-Hub voice line list.
 
 ## SDK 1.0.1 — 2026-11-18
 

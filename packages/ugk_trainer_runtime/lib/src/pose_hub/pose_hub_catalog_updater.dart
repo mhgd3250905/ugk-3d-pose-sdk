@@ -16,10 +16,14 @@ import 'pose_hub_catalog_io_stub.dart'
 import 'pose_hub_catalog_io_types.dart';
 import 'pose_hub_catalog_voice.dart';
 import 'pose_hub_image_cache.dart';
+import 'pose_hub_plan_pack.dart';
 
 export 'package:ugk_coach/ugk_coach.dart'
     show PoseHubDisplayUpdatePhase, PoseHubDisplayUpdateProgress;
+
 export 'pose_hub_catalog_io_types.dart';
+export 'pose_hub_plan_pack.dart';
+export 'pose_hub_plan_voice.dart';
 
 /// Default HTTP client: dart:io on native platforms, unavailable on web.
 PoseHubCatalogHttpClient createPoseHubCatalogHttpClient({
@@ -76,6 +80,9 @@ class PoseHubCatalogUpdateEvent {
   static const blocked = 'pack.update_blocked';
   static const failed = 'pack.update_failed';
   static const publishedAtUnparsed = 'pointer.published_at_unparsed';
+  static const plansUpdated = 'plans.updated';
+  static const plansBlocked = 'plans.update_blocked';
+  static const plansFailed = 'plans.update_failed';
   final String name;
   final String? pack;
   final String? reason;
@@ -180,6 +187,11 @@ class PoseHubCatalogUpdater {
       StreamController<coach.PoseHubDisplayUpdateProgress>.broadcast();
   final _catalogEvents =
       StreamController<coach.PoseHubAppTestCatalog>.broadcast();
+  final _planEvents = StreamController<PoseHubPlanSnapshot>.broadcast();
+  late final _planStore = PoseHubChannelPlanStore(
+    store: store,
+    channelUri: config.pointerUri,
+  );
   _DisplayTransfer? _display;
   _DisplayTransfer? _failedDisplay;
 
@@ -192,6 +204,44 @@ class PoseHubCatalogUpdater {
   /// current pointer are durable. Hosts use this to replace display data.
   Stream<coach.PoseHubAppTestCatalog> get catalogChanges =>
       _catalogEvents.stream;
+
+  /// Emits the installed snapshot after the app's active plan record changes.
+  /// Catalogue outcomes and display events are independent of plan updates.
+  Stream<PoseHubPlanSnapshot> get planChanges => _planEvents.stream;
+
+  /// Latest verified compatible snapshot for [app], then the app's bundled
+  /// copy. This uses local data and does not download plans or audio.
+  Future<PoseHubPlanSnapshot?> planSnapshotFor(
+    String app, {
+    String? catalogPack,
+    Future<PoseHubPlanSnapshot?> Function()? loadBundled,
+  }) async {
+    final activePack = catalogPack ?? poseHubPackVersionOf(await _local());
+    final cached = await _planStore.latestCompatible(
+      app,
+      catalogPack: activePack,
+      sdkVersion: config.sdkVersion,
+    );
+    if (cached != null || loadBundled == null) return cached;
+    final bundled = await loadBundled();
+    if (bundled == null ||
+        bundled.app != app ||
+        !bundled.isCompatible(
+          catalogPack: activePack,
+          sdkVersion: config.sdkVersion,
+        )) {
+      return null;
+    }
+    await _planStore.retain(bundled);
+    return bundled;
+  }
+
+  /// Restores only the exact version the host saved with its training record.
+  /// The current active plan never substitutes for a missing pinned copy.
+  Future<PoseHubPlanSnapshot?> restorePlanSnapshot(
+    String app,
+    String snapshotId,
+  ) => _planStore.restore(app, snapshotId);
 
   /// The catalogue in use; defaults to the verified cache, else the bundle.
   final Future<coach.PoseHubAppTestCatalog> Function()? loadLocal;
@@ -218,14 +268,25 @@ class PoseHubCatalogUpdater {
   Future<PoseHubCatalogUpdateOutcome> _check() async {
     _display = null;
     final state = await _readState();
-    final previousEtag = state['etag'] is String
+    // Older SDKs used the same state file but ignored plans. Re-read their
+    // pointer once, even when its stored ETag still matches the server.
+    final scope = '${config.sdkVersion}:${config.pointerUri}';
+    final storedPlan = state['plan_snapshot'];
+    final canReuseEtag =
+        state['plan_scope'] == scope &&
+        (storedPlan is! String || await _planStore.lookup(storedPlan) != null);
+    final previousEtag = canReuseEtag && state['etag'] is String
         ? state['etag'] as String
         : null;
     String? etag = previousEtag;
+    String? etagPlan = canReuseEtag && storedPlan is String ? storedPlan : null;
     PoseHubCatalogUpdateOutcome outcome;
     try {
       await _pruneAssetsOnFreshLaunch();
-      outcome = await _run(previousEtag, (value) => etag = value);
+      outcome = await _run(previousEtag, (value, snapshotId) {
+        etag = value;
+        etagPlan = snapshotId;
+      });
     } on _Failure catch (failure) {
       etag = previousEtag;
       outcome = _fail(failure.reason, failure.pack);
@@ -245,6 +306,8 @@ class PoseHubCatalogUpdater {
           jsonEncode({
             'last_checked_at': _now().toUtc().toIso8601String(),
             'etag': ?etag,
+            'plan_scope': scope,
+            'plan_snapshot': ?etagPlan,
           }),
         ),
       );
@@ -256,7 +319,7 @@ class PoseHubCatalogUpdater {
 
   Future<PoseHubCatalogUpdateOutcome> _run(
     String? previousEtag,
-    void Function(String? etag) keepEtag,
+    void Function(String? etag, String? planSnapshotId) keepEtag,
   ) async {
     final pointerResponse = await _get(
       config.pointerUri,
@@ -286,14 +349,34 @@ class PoseHubCatalogUpdater {
     }
     final local = await _local();
     final localPack = poseHubPackVersionOf(local);
+    final PoseHubCatalogUpdateOutcome outcome;
+    try {
+      outcome = await _updateCatalogue(pointer, local, localPack);
+    } on _Failure {
+      // An independent plan can still be used with the catalogue on disk.
+      await _updatePlans(pointer, localPack);
+      rethrow;
+    }
+    final activePack = outcome == PoseHubCatalogUpdateOutcome.updated
+        ? pointer.pack
+        : localPack;
+    final plans = await _updatePlans(pointer, activePack);
+    if (!plans.retry) keepEtag(pointerResponse.etag, plans.snapshotId);
+    return outcome;
+  }
+
+  Future<PoseHubCatalogUpdateOutcome> _updateCatalogue(
+    PoseHubCatalogPointer pointer,
+    coach.PoseHubAppTestCatalog local,
+    String localPack,
+  ) async {
+    final pack = pointer.pack;
     // Packs only move forward: a pointer naming an older pack than the one in
     // use (e.g. stable still on r2-v1 while the SDK bundles r2-v2) is a no-op.
     if (localPack == pack || (comparePoseHubPacks(pack, localPack) ?? 0) < 0) {
-      keepEtag(pointerResponse.etag);
       return PoseHubCatalogUpdateOutcome.unchanged;
     }
     if (comparePoseHubSdkVersions(pointer.minSdk, config.sdkVersion) > 0) {
-      keepEtag(pointerResponse.etag);
       onEvent?.call(
         PoseHubCatalogUpdateEvent(
           PoseHubCatalogUpdateEvent.blocked,
@@ -432,11 +515,124 @@ class PoseHubCatalogUpdater {
       inUse[localPack] = local;
       await _pruneAssets([verified, ...inUse.values], images);
     }
-    keepEtag(pointerResponse.etag);
     onEvent?.call(
       PoseHubCatalogUpdateEvent(PoseHubCatalogUpdateEvent.updated, pack: pack),
     );
     return PoseHubCatalogUpdateOutcome.updated;
+  }
+
+  Future<({bool retry, String? snapshotId})> _updatePlans(
+    PoseHubCatalogPointer pointer,
+    String catalogPack,
+  ) async {
+    final descriptor = pointer.plans;
+    if (descriptor == null) {
+      if (pointer.plansError case final error?) {
+        _planEvent(PoseHubCatalogUpdateEvent.plansFailed, pointer.pack, error);
+        return (retry: true, snapshotId: null);
+      }
+      return (retry: false, snapshotId: null);
+    }
+    if (comparePoseHubSdkVersions(descriptor.minSdk, config.sdkVersion) > 0) {
+      _planEvent(
+        PoseHubCatalogUpdateEvent.plansBlocked,
+        pointer.pack,
+        'min_sdk ${descriptor.minSdk} > ${config.sdkVersion}',
+      );
+      return (retry: false, snapshotId: null);
+    }
+    try {
+      final existing = await _planStore.lookup(descriptor.sha256);
+      final List<int>? downloaded;
+      final PoseHubPlanPack pack;
+      if (existing == null) {
+        downloaded = await _planDocument(
+          descriptor.uri,
+          descriptor.bytes,
+          descriptor.sha256,
+          'plans',
+          pointer.pack,
+        );
+        pack = PoseHubPlanPack.fromBytes(downloaded);
+      } else {
+        downloaded = null;
+        pack = existing.planPack;
+      }
+      if (pack.version != descriptor.version ||
+          pack.byteLength != descriptor.bytes) {
+        throw _Failure('plans_descriptor_mismatch', pointer.pack);
+      }
+      final order = comparePoseHubPacks(catalogPack, pack.minCatalogPack);
+      if (order == null ? catalogPack != pack.minCatalogPack : order < 0) {
+        _planEvent(
+          PoseHubCatalogUpdateEvent.plansBlocked,
+          pointer.pack,
+          'min_catalog_pack ${pack.minCatalogPack} > $catalogPack',
+        );
+        return (retry: true, snapshotId: null);
+      }
+      final current = await _planStore.latestCompatible(
+        pack.app,
+        catalogPack: catalogPack,
+        sdkVersion: config.sdkVersion,
+      );
+      if (current != null &&
+          current.id == descriptor.sha256 &&
+          current.minSdk == descriptor.minSdk) {
+        // The compatible fallback may not be the most recently selected row.
+        await _planStore.install(current);
+        return (retry: false, snapshotId: current.id);
+      }
+      final PoseHubPlanSnapshot snapshot;
+      if (existing == null) {
+        final voice = pack.voiceManifest;
+        final voiceBytes = await _planDocument(
+          voice.uri,
+          voice.bytes,
+          voice.sha256,
+          'voice_manifest',
+          pointer.pack,
+        );
+        snapshot = PoseHubPlanSnapshot.fromBytes(
+          downloaded!,
+          voiceBytes,
+          minSdk: descriptor.minSdk,
+        );
+      } else {
+        snapshot = existing.withMinSdk(descriptor.minSdk);
+      }
+      await _planStore.install(snapshot);
+      _planEvents.add(snapshot);
+      _planEvent(PoseHubCatalogUpdateEvent.plansUpdated, pointer.pack);
+      return (retry: false, snapshotId: snapshot.id);
+    } catch (error) {
+      _planEvent(
+        PoseHubCatalogUpdateEvent.plansFailed,
+        pointer.pack,
+        error.toString(),
+      );
+      // Keep the previous ETag so the server can offer this revision again.
+      return (retry: true, snapshotId: null);
+    }
+  }
+
+  void _planEvent(String name, String pack, [String? reason]) => onEvent?.call(
+    PoseHubCatalogUpdateEvent(name, pack: pack, reason: reason),
+  );
+
+  Future<List<int>> _planDocument(
+    Uri uri,
+    int bytes,
+    String sha256,
+    String label,
+    String pack,
+  ) async {
+    final response = await _get(uri, label, pack: pack, maxBytes: bytes + 1);
+    _ok(response, label, pack);
+    if (response.body.length != bytes || _sha(response.body) != sha256) {
+      throw _Failure('${label}_integrity_mismatch', pack);
+    }
+    return response.body;
   }
 
   Future<List<int>> _semanticBytes(

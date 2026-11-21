@@ -788,9 +788,9 @@ void main() {
     },
   );
 
-  test('the SDK compares min_sdk against 1.0.1', () {
-    expect(poseHubCatalogSdkVersion, '1.0.1');
-    expect(_config.sdkVersion, '1.0.1');
+  test('the SDK compares min_sdk against 1.0.2', () {
+    expect(poseHubCatalogSdkVersion, '1.0.2');
+    expect(_config.sdkVersion, '1.0.2');
   });
 
   test('file store writes atomically and reads back', () async {

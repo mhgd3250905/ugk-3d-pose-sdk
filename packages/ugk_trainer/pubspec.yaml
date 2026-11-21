@@ -1,6 +1,6 @@
 name: ugk_trainer
 description: Compatibility exports and historical full action assets for ugk_trainer_runtime.
-version: 1.0.1
+version: 1.0.2
 repository: https://github.com/mhgd3250905/ugk-3d-pose-sdk
 publish_to: none
 

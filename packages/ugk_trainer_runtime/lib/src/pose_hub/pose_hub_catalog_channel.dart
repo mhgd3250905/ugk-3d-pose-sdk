@@ -7,7 +7,10 @@ const poseHubLegacyPackVersion = 'r1-v3';
 
 /// The SDK version compared against a channel pointer's `min_sdk`.
 /// Hosts may override it through [PoseHubCatalogUpdateConfig.sdkVersion].
-const poseHubCatalogSdkVersion = '1.0.1';
+const poseHubCatalogSdkVersion = '1.0.2';
+
+/// Minimum version for the optional channel plan extension.
+const poseHubChannelPlansMinSdkVersion = '1.0.2';
 
 /// Media root of one immutable pack: `https://media.uuugk.win/pack/<pack>/`.
 Uri poseHubMediaBaseUriForPack(String pack) {
@@ -96,6 +99,58 @@ class PoseHubCatalogUpdateConfig {
   }
 }
 
+/// The optional plan package published by a schema-1 channel pointer.
+final class PoseHubChannelPlans {
+  const PoseHubChannelPlans._(
+    this.version,
+    this.uri,
+    this.bytes,
+    this.sha256,
+    this.minSdk,
+  );
+
+  factory PoseHubChannelPlans.fromJson(Object? json) {
+    if (json is! Map) {
+      throw const FormatException('pointer.plans must be an object');
+    }
+    final version = json['version'];
+    if (version is! String ||
+        !RegExp(r'^[a-zA-Z0-9][a-zA-Z0-9._+-]{0,127}$').hasMatch(version)) {
+      throw const FormatException('pointer.plans.version invalid');
+    }
+    final url = json['url'];
+    final uri = url is String ? Uri.tryParse(url) : null;
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasFragment ||
+        uri.path.isEmpty) {
+      throw const FormatException('pointer.plans.url must be an HTTPS URL');
+    }
+    final size = json['bytes'];
+    if (size is! int || size < 1 || size > 64 * 1024 * 1024) {
+      throw const FormatException('pointer.plans.bytes invalid');
+    }
+    final sha = json['sha256'];
+    if (sha is! String || !_shaPattern.hasMatch(sha)) {
+      throw const FormatException('pointer.plans.sha256 invalid');
+    }
+    final minSdk = json['min_sdk'];
+    if (minSdk is! String || !_semverPattern.hasMatch(minSdk)) {
+      throw const FormatException('pointer.plans.min_sdk invalid');
+    }
+    comparePoseHubSdkVersions(minSdk, minSdk);
+    return PoseHubChannelPlans._(version, uri, size, sha, minSdk);
+  }
+
+  final String version;
+  final Uri uri;
+  final int bytes;
+  final String sha256;
+  final String minSdk;
+}
+
 /// One channel pointer file (`pack/channels/<channel>.json`).
 class PoseHubCatalogPointer {
   const PoseHubCatalogPointer({
@@ -107,6 +162,8 @@ class PoseHubCatalogPointer {
     required this.minSdk,
     this.publishedAt,
     this.publishedAtUnparsed = false,
+    this.plans,
+    this.plansError,
   });
 
   static const supportedSchema = 1;
@@ -117,6 +174,10 @@ class PoseHubCatalogPointer {
   final String catalogSha256;
   final int catalogBytes;
   final String minSdk;
+  final PoseHubChannelPlans? plans;
+
+  /// Invalid optional plan metadata does not invalidate the catalogue pointer.
+  final String? plansError;
 
   /// Optional display metadata; it never controls catalogue admission.
   final DateTime? publishedAt;
@@ -160,6 +221,15 @@ class PoseHubCatalogPointer {
     final publishedAt = published is String
         ? DateTime.tryParse(published)
         : null;
+    PoseHubChannelPlans? plans;
+    String? plansError;
+    if (json.containsKey('plans')) {
+      try {
+        plans = PoseHubChannelPlans.fromJson(json['plans']);
+      } on FormatException catch (error) {
+        plansError = error.message;
+      }
+    }
     return PoseHubCatalogPointer(
       schema: schema as int,
       pack: pack,
@@ -167,6 +237,8 @@ class PoseHubCatalogPointer {
       catalogSha256: sha,
       catalogBytes: size,
       minSdk: minSdk,
+      plans: plans,
+      plansError: plansError,
       publishedAt: publishedAt,
       publishedAtUnparsed:
           json.containsKey('published_at') && publishedAt == null,

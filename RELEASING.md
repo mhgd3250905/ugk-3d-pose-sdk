@@ -45,3 +45,24 @@ flutter test
 内置目录 SHA-256、standing 索引与实际资源字节必须由测试核对。出包前再次运行 `--check`，避免验证期间线上 beta 已发布新的 pack。记录使用的 channel、pack、主目录与语义目录的 SHA-256、SDK revision 及测试数字。
 
 这些命令只读取线上已发布对象，不上传、不修改指针，不替代 SDK 合并、打 tag 或 App 发包的授权。
+
+## 渠道计划包
+
+渠道 JSON 的 schema 仍为 1。可选的 `plans` 对象包含 `version`、HTTPS `url`、`bytes`、`sha256` 和 `min_sdk`。使用 `plans.min_sdk = "1.0.2"`；渠道顶层 `min_sdk` 继续表示目录需要的最低 SDK。没有 `plans` 时，目录更新流程照常运行。旧 SDK 会忽略新增字段。从旧 SDK 更新后，现有的指针缓存会重新检查一次，以便读到旧版本忽略的计划信息。
+
+计划包 JSON 包含 `schema: 1`、`app`、`version`、`min_catalog_pack`、`voice_manifest` 和 `plans`。其中 `voice_manifest` 提供 HTTPS `url`、`bytes` 和 `sha256`。`plans` 是由 App 解读的原样 JSON 数组。计划包和语音清单均通过完整性与格式检查，并确认目录和 SDK 版本满足要求后，计划包才切换。目录 pack 不变时也会检查计划包。订阅 `updater.planChanges` 即可在计划生效后刷新对应 App 的列表；`checkNow()` 的返回值仍表示目录状态。
+
+宿主继续使用现有的更新器和持久化存储。首次离线时，`loadBundled` 可以从 App 资源读取计划包和语音清单，传给 `PoseHubPlanSnapshot.fromBytes(planBytes, voiceBytes, minSdk: '1.0.2')`。更新失败时，读取兼容的上次已验证快照；没有可用快照时才读随包副本。
+
+```dart
+final snapshot = await updater.planSnapshotFor(app, loadBundled: loadBundled);
+if (snapshot != null) {
+  final plans = snapshot.planPack.plans;
+  // 将 snapshot.id 和选中的计划 ID 一起保存到训练或续练记录。
+}
+final pinned = await updater.restorePlanSnapshot(app, savedSnapshotId);
+```
+
+训练中使用已取得的快照，续练按原 ID 恢复。若原快照不可恢复，由 App 明确提示用户，避免把新计划接到旧进度上。
+
+语音清单使用 `schema: 1` 和 `files` 数组。文件记录包括 `path`、`bytes` 和 `sha256`，可另给 `url`。相对地址以清单 URL 为基准，省略 `url` 时使用 `path`，解析结果须为 HTTPS。可选的 `plans` 对象将计划 ID 映射到文件路径列表。App 选定计划后，用 `PoseHubPlanVoiceCache.inApplicationSupport()` 取得缓存，再调用 `prefetchPlan(snapshot.voiceManifest, planId)`。若由 App 自己维护计划与语音的映射，则调用 `prefetchFiles(snapshot.voiceManifest, paths)`。返回映射中的 `null` 表示该文件不可用。缓存按 SHA-256 复用。语音缓存的 `loadBundled` 可按 SHA-256 提供随包音频字节，通过校验后直接使用。

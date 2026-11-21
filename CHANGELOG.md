@@ -1,5 +1,11 @@
 # Changelog
 
+## SDK 1.0.2 — 2026-11-21 (unreleased)
+
+- Read optional training plan packs from the existing schema 1 channel pointer. Plans can update independently of the action catalog, and each app can fall back to its last verified compatible snapshot or its bundled copy.
+- Keep plan JSON in its original shape for the host. Pin a snapshot ID in active or resumable training so a channel update cannot replace its plan or voice manifest.
+- Prefetch voice clips for a selected plan, reusing bundled or cached clips whose SHA-256 matches the manifest.
+
 ## SDK 1.0.1 — 2026-11-18
 
 - Use persistent application support for native training media. Before using the new location, migrate and verify existing files by SHA-256. Share verified Pose-Hub image and video objects across catalog revisions while retaining the existing video cache budget and playback pins.

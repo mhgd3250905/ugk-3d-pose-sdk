@@ -2,7 +2,7 @@ name: ugk_trainer_runtime
 description: >-
   Asset-free shared training runtime: one execution engine, media and voice
   implementation, player UI and native plugin, without action-specific assets.
-version: 1.0.1
+version: 1.0.2
 repository: https://github.com/mhgd3250905/ugk-3d-pose-sdk
 publish_to: none
 
